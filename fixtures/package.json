@@ -1,0 +1,29 @@
+{
+  "name": "@seqno/fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./cases": "./src/cases.ts",
+    "./downloads": "./src/downloads.ts"
+  },
+  "bin": {
+    "seqno-fixtures": "./src/cli.ts"
+  },
+  "scripts": {
+    "fixtures": "node src/cli.ts",
+    "download": "node src/cli.ts download",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.0.1",
+    "effect": "4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}

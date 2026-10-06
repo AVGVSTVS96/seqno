@@ -1,0 +1,25 @@
+{
+  "name": "@seqno/index",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts",
+    "./wasm": "./src/wasm.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@seqno/domain": "workspace:*",
+    "@seqno/query": "workspace:*",
+    "@sqlite.org/sqlite-wasm": "3.53.4-build2",
+    "effect": "4.0.1"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.1",
+    "@types/node": "24.19.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}

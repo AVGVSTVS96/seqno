@@ -1,0 +1,25 @@
+{
+  "name": "@seqno/vault",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@seqno/domain": "workspace:*",
+    "effect": "4.0.1",
+    "loro-crdt": "1.16.2"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.1",
+    "@types/node": "24.19.1",
+    "playwright": "1.63.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  }
+}

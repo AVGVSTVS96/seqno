@@ -1,0 +1,6 @@
+- forward target top level
+  id:: 66666666-6666-4666-8666-666666666601
+	- forward target nested
+	  id:: 66666666-6666-4666-8666-666666666602
+		- forward target deep
+		  id:: 66666666-6666-4666-8666-666666666603

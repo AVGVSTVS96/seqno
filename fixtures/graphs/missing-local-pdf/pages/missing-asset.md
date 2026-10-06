@@ -1,0 +1,3 @@
+- Missing local PDF [paper](../assets/missing-paper.pdf)
+- Missing local PDF embedded ![paper](../assets/missing-embedded.pdf)
+- Missing local image ![diagram](../assets/missing-diagram.png)

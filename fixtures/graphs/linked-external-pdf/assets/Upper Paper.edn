@@ -1,0 +1,1 @@
+{:highlights [{:id #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", :page 3, :position {:bounding {:x1 1 :y1 2 :x2 3 :y2 4 :width 10 :height 20}, :rects (), :page 3}, :content {:text "Highlight from a pdf with an uppercase extension"}, :properties {:color "yellow"}}]}

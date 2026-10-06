@@ -1,0 +1,1 @@
+{:highlights [{:id #uuid "44444444-0000-4000-8000-000000000003", :page 2, :position {:bounding {:x1 1 :y1 2 :x2 3 :y2 4 :width 10 :height 20}, :rects (), :page 2}, :content {:text "Query and fragment highlight"}, :properties {:color "yellow"}}]}
