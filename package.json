@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "check": "pnpm lint && oxfmt --check && pnpm typecheck && pnpm test",
-    "lint": "oxlint --deny-warnings",
+    "lint": "oxlint --deny-warnings && node tools/lint/src/directives.ts",
     "fmt": "oxfmt",
     "typecheck": "pnpm --recursive --workspace-concurrency=2 typecheck",
     "test": "vitest run"
