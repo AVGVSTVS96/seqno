@@ -29,20 +29,27 @@ export const seedOpfs = async (page: Page, from: string, to: ReadonlyArray<strin
   }
   await page.route(routes, serve)
   await page.goto(`${harnessPath}seed`)
-  await page.evaluate(async (writes) => {
-    const root = navigator.storage.getDirectory()
-    await Promise.all(
-      writes.map(async ({ dir, name, url }) => {
-        const parent = await dir.reduce(
+  await page.evaluate(
+    async ({ folder, writes }) => {
+      const root = navigator.storage.getDirectory()
+      const directory = (path: ReadonlyArray<string>) =>
+        path.reduce(
           async (handle, part) => (await handle).getDirectoryHandle(part, { create: true }),
           root,
         )
-        const writable = await (await parent.getFileHandle(name, { create: true })).createWritable()
-        await writable.write(await (await fetch(url)).blob())
-        await writable.close()
-      }),
-    )
-  }, files)
+      await directory(folder)
+      await Promise.all(
+        writes.map(async ({ dir, name, url }) => {
+          const parent = await directory(dir)
+          const file = await parent.getFileHandle(name, { create: true })
+          const writable = await file.createWritable()
+          await writable.write(await (await fetch(url)).blob())
+          await writable.close()
+        }),
+      )
+    },
+    { folder: to, writes: files },
+  )
   await page.unroute(routes, serve)
 }
 
