@@ -113,3 +113,68 @@ describe("committed graphs keep their edge", () => {
     ])
   })
 })
+
+describe("showcase graph", () => {
+  const showcase = async (path: string) => file(await committedFiles("showcase"), path) ?? ""
+
+  it("uses every task marker and priority on the Showcase page", async () => {
+    const text = await showcase("pages/Showcase.md")
+    expect([...text.matchAll(/^\t- (TODO|DOING|DONE|LATER|NOW|WAITING|WAIT|IN-PROGRESS|CANCELED|CANCELLED) /gm)].map((m) => m[1])).toEqual([
+      "TODO",
+      "DOING",
+      "DONE",
+      "LATER",
+      "NOW",
+      "WAIT",
+      "WAITING",
+      "IN-PROGRESS",
+      "CANCELED",
+      "CANCELLED",
+      "TODO",
+      "TODO",
+      "TODO",
+      "TODO",
+      "TODO",
+      "DONE",
+    ])
+    expect([...text.matchAll(/\[#([ABC])\]/g)].map((m) => m[1])).toEqual(["A", "B", "C"])
+  })
+
+  it("draws the elements the design harness compares", async () => {
+    const text = await showcase("pages/Showcase.md")
+    expect(
+      [
+        "alias:: Kitchen Sink",
+        "SCHEDULED: <2026-10-08 Thu .+1w>",
+        "DEADLINE: <2026-10-31 Sat ++1y>",
+        ":LOGBOOK:",
+        "[[projects/Greenhouse]]",
+        "[[Allotment]]",
+        "#[[visual check]]",
+        "((0192a5c4-7e10-7a3b-9c4d-5e6f70819203))",
+        "{{embed ((0192a5c4-7e10-7a3b-9c4d-5e6f70819203))}}",
+        "==highlighted text==",
+        "~~struck text~~",
+        "![Greenhouse sketch](../assets/greenhouse-sketch.svg)",
+        "```ts",
+        "```python",
+        "```css",
+        "> Plant",
+        "logseq.order-list-type:: number",
+        "collapsed:: true",
+        "\t\t\t\t- Level five",
+      ].filter((needle) => !text.includes(needle)),
+    ).toEqual([])
+    expect(await showcase("pages/Garden Plan.md")).toContain("alias:: Allotment")
+    expect(await showcase("assets/greenhouse-sketch.svg")).toContain("<svg")
+  })
+
+  it("has journals for three consecutive days", async () => {
+    const files = await committedFiles("showcase")
+    expect(files.map((f) => f.path).filter((path) => path.startsWith("journals/"))).toEqual([
+      "journals/2026_10_04.md",
+      "journals/2026_10_05.md",
+      "journals/2026_10_06.md",
+    ])
+  })
+})

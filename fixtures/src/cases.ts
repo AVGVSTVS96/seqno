@@ -123,6 +123,13 @@ export const edgeCases: ReadonlyArray<EdgeCase> = [
     expect: "headings, every task marker, queries, namespaces (triple-lowbar and %2F file names), aliases, title:: overrides, CRLF, NFD file names, space indentation and a missing final newline all round-trip",
     source: committed("og-syntax-mix"),
   },
+  {
+    name: "showcase",
+    upstreamCase: null,
+    issues: [],
+    expect: "the design harness graph: journals for three days and six pages that draw every element (all task markers, priorities, SCHEDULED and DEADLINE with repeaters, page and block properties, a LOGBOOK, page refs, a namespace, an alias, tags, block refs, an embed, inline styles, links, an SVG asset, code in three languages, a quote, headings, a numbered list, five levels of nesting, a collapsed block, long paragraphs)",
+    source: committed("showcase"),
+  },
 ]
 
 export const edgeCase = (name: string) => edgeCases.find((c) => c.name === name)

@@ -81,6 +81,7 @@ One graph per case in [logseq/docs/og_import_graph_cases.md](https://github.com/
 | `large-flat-file` | Large flat files (#931) | generated | 45,000 top-level `- large line N #tag` blocks (1 MB, so not committed) |
 | `empty-files` | Empty imported files (#582) | committed | 0-byte and 1-byte (`\n`, `-`) journals and pages, an empty `.org`, one normal page |
 | `og-syntax-mix` | (extra) parsing fidelity, tasks, queries, namespaces, aliases | committed | every heading form, every task marker, `{{query}}`, advanced and dataview queries, `___` and `%2F` namespace file names, `alias::`, `title::` overriding the file name, LOGBOOK, CRLF, an NFD file name, space indentation, no final newline |
+| `showcase` | (extra) design harness content | committed | journals for three days and six pages covering every element seqno draws; `tools/e2e/design` pastes it into Logseq and seeds it into seqno |
 
 Each case's expected import behaviour is in `src/cases.ts` (`expect`). `graphs/**` is marked `-text` in `.gitattributes` so CRLF and empty files survive checkout byte for byte.
 
