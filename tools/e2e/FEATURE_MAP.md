@@ -11,8 +11,8 @@ Every user-facing feature in phases 1 and 2, how a person reaches it, and the Pl
 
 | Feature                                                    | Phase | How to reach it                                       | Owner        | Flow                                     | Status  |
 | ---------------------------------------------------------- | ----- | ----------------------------------------------------- | ------------ | ---------------------------------------- | ------- |
-| App opens with no uncaught errors, tab titled `seqno`      | 1     | open `/`                                              | `@seqno/web` | `flows/journal.e2e.ts` › open app        | skipped |
-| Today's journal shows on open, titled like `Oct 6th, 2026` | 1     | open `/`                                              | `@seqno/web` | `flows/journal.e2e.ts` › journal visible | skipped |
+| App opens with no uncaught errors, tab titled `seqno`      | 1     | open `/`                                              | `@seqno/web` | `flows/journal.e2e.ts` › open app        | passing |
+| Today's journal shows on open, titled like `Oct 6th, 2026` | 1     | open `/`                                              | `@seqno/web` | `flows/journal.e2e.ts` › journal visible | passing |
 | Earlier journals below today's                             | 1     | scroll down on `/`, or `g j`                          | `@seqno/web` | `flows/journal.e2e.ts`                   | planned |
 | Open a page by URL, back and forward work                  | 1     | `/page/<name>`, browser back / forward                | `@seqno/web` | `flows/pages.e2e.ts`                     | planned |
 | All pages list                                             | 2     | `g a`                                                 | `@seqno/web` | `flows/pages.e2e.ts`                     | planned |
@@ -20,22 +20,22 @@ Every user-facing feature in phases 1 and 2, how a person reaches it, and the Pl
 
 ## Editing a block
 
-| Feature                                                                           | Phase | How to reach it                                              | Owner           | Flow                                       | Status  |
-| --------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------ | --------------- | ------------------------------------------ | ------- |
-| Type in a block                                                                   | 1     | click a block, type                                          | `@seqno/editor` | `flows/journal.e2e.ts` › type in a block   | skipped |
-| Text survives a reload (saved to OPFS)                                            | 1     | type, reload the tab                                         | `@seqno/web`    | `flows/journal.e2e.ts` › reload keeps text | skipped |
-| Leave the editor; the block renders as static content                             | 1     | Esc, or click elsewhere                                      | `@seqno/editor` | `flows/journal.e2e.ts` › type in a block   | skipped |
-| Markdown live styling while editing (`**bold**`, `_italic_`, `` `code` ``, links) | 1     | type markdown in a block                                     | `@seqno/editor` | `flows/editor.e2e.ts`                      | planned |
-| Page autocomplete                                                                 | 1     | type `[[`                                                    | `@seqno/editor` | `flows/editor.e2e.ts`                      | planned |
-| Block ref autocomplete                                                            | 1     | type `((`                                                    | `@seqno/editor` | `flows/editor.e2e.ts`                      | planned |
-| Tag autocomplete                                                                  | 1     | type `#`                                                     | `@seqno/editor` | `flows/editor.e2e.ts`                      | planned |
-| New block (splits at the cursor)                                                  | 1     | Enter                                                        | `@seqno/editor` | `flows/blocks.e2e.ts`                      | planned |
-| Line break inside a block                                                         | 1     | Shift+Enter                                                  | `@seqno/editor` | `flows/blocks.e2e.ts`                      | planned |
-| Merge with the block above                                                        | 1     | Backspace at the start of a block                            | `@seqno/editor` | `flows/blocks.e2e.ts`                      | planned |
-| Undo and redo                                                                     | 1     | Mod+Z, Mod+Shift+Z (Ctrl+Y also redoes on Linux and Windows) | `@seqno/graph`  | `flows/history.e2e.ts`                     | planned |
-| Properties (`key:: value`) show as a property list                                | 2     | type `status:: draft` on its own line                        | `@seqno/editor` | `flows/properties.e2e.ts`                  | planned |
-| Task markers cycle TODO → DOING → DONE                                            | 2     | Mod+Enter                                                    | `@seqno/editor` | `flows/properties.e2e.ts`                  | planned |
-| Slash commands                                                                    | 2     | type `/`                                                     | `@seqno/editor` | `flows/editor.e2e.ts`                      | planned |
+| Feature                                                                           | Phase | How to reach it                                              | Owner           | Flow                                                                      | Status  |
+| --------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------ | --------------- | ------------------------------------------------------------------------- | ------- |
+| Type in a block                                                                   | 1     | click a block, type                                          | `@seqno/editor` | `flows/journal.e2e.ts` › type in a block                                  | passing |
+| Text survives a reload (saved to OPFS)                                            | 1     | type, reload the tab                                         | `@seqno/web`    | `flows/journal.e2e.ts` › reload keeps text                                | passing |
+| Leave the editor; the block renders as static content                             | 1     | Esc, or click elsewhere                                      | `@seqno/editor` | `flows/journal.e2e.ts` › type in a block                                  | passing |
+| Markdown live styling while editing (`**bold**`, `_italic_`, `` `code` ``, links) | 1     | type markdown in a block                                     | `@seqno/editor` | `flows/editor.e2e.ts`                                                     | planned |
+| Page autocomplete                                                                 | 1     | type `[[`                                                    | `@seqno/editor` | `flows/editor.e2e.ts`                                                     | planned |
+| Block ref autocomplete                                                            | 1     | type `((`                                                    | `@seqno/editor` | `flows/editor.e2e.ts`                                                     | planned |
+| Tag autocomplete                                                                  | 1     | type `#`                                                     | `@seqno/editor` | `flows/editor.e2e.ts`                                                     | planned |
+| New block (splits at the cursor)                                                  | 1     | Enter                                                        | `@seqno/editor` | `flows/journal.e2e.ts` › Enter splits a block and Tab indents the new one | passing |
+| Line break inside a block                                                         | 1     | Shift+Enter                                                  | `@seqno/editor` | `flows/blocks.e2e.ts`                                                     | planned |
+| Merge with the block above                                                        | 1     | Backspace at the start of a block                            | `@seqno/editor` | `flows/blocks.e2e.ts`                                                     | planned |
+| Undo and redo                                                                     | 1     | Mod+Z, Mod+Shift+Z (Ctrl+Y also redoes on Linux and Windows) | `@seqno/graph`  | `flows/history.e2e.ts`                                                    | planned |
+| Properties (`key:: value`) show as a property list                                | 2     | type `status:: draft` on its own line                        | `@seqno/editor` | `flows/properties.e2e.ts`                                                 | planned |
+| Task markers cycle TODO → DOING → DONE                                            | 2     | Mod+Enter                                                    | `@seqno/editor` | `flows/properties.e2e.ts`                                                 | planned |
+| Slash commands                                                                    | 2     | type `/`                                                     | `@seqno/editor` | `flows/editor.e2e.ts`                                                     | planned |
 
 ## Outliner
 
@@ -52,36 +52,36 @@ Every user-facing feature in phases 1 and 2, how a person reaches it, and the Pl
 
 ## Pages and references
 
-| Feature                                         | Phase | How to reach it                                               | Owner           | Flow                      | Status  |
-| ----------------------------------------------- | ----- | ------------------------------------------------------------- | --------------- | ------------------------- | ------- |
-| Follow a page link                              | 1     | click `[[Some page]]` in a static block                       | `@seqno/web`    | `flows/pages.e2e.ts`      | planned |
-| Create a page from a link                       | 1     | type `[[New page]]`, leave the block, click the link          | `@seqno/graph`  | `flows/pages.e2e.ts`      | planned |
-| Rename a page (links update)                    | 2     | click the page title, edit it                                 | `@seqno/graph`  | `flows/pages.e2e.ts`      | planned |
-| Delete a page                                   | 2     | page menu › Delete page                                       | `@seqno/graph`  | `flows/pages.e2e.ts`      | planned |
-| Linked references at the bottom of a page       | 2     | open any page that others link to                             | `@seqno/index`  | `flows/references.e2e.ts` | planned |
-| Unlinked references                             | 2     | expand "Unlinked references" under a page                     | `@seqno/index`  | `flows/references.e2e.ts` | planned |
-| Block refs `((id))` render the referenced block | 2     | right-click a bullet › Copy block ref, paste in another block | `@seqno/editor` | `flows/references.e2e.ts` | planned |
-| Block and page embeds `{{embed ...}}`           | 2     | type `{{embed [[page]]}}`                                     | `@seqno/editor` | `flows/references.e2e.ts` | planned |
+| Feature                                         | Phase | How to reach it                                               | Owner           | Flow                                               | Status  |
+| ----------------------------------------------- | ----- | ------------------------------------------------------------- | --------------- | -------------------------------------------------- | ------- |
+| Follow a page link                              | 1     | click `[[Some page]]` in a static block                       | `@seqno/web`    | `flows/import.e2e.ts` › a page link opens the page | passing |
+| Create a page from a link                       | 1     | type `[[New page]]`, leave the block, click the link          | `@seqno/graph`  | `flows/pages.e2e.ts`                               | planned |
+| Rename a page (links update)                    | 2     | click the page title, edit it                                 | `@seqno/graph`  | `flows/pages.e2e.ts`                               | planned |
+| Delete a page                                   | 2     | page menu › Delete page                                       | `@seqno/graph`  | `flows/pages.e2e.ts`                               | planned |
+| Linked references at the bottom of a page       | 2     | open any page that others link to                             | `@seqno/index`  | `flows/references.e2e.ts`                          | planned |
+| Unlinked references                             | 2     | expand "Unlinked references" under a page                     | `@seqno/index`  | `flows/references.e2e.ts`                          | planned |
+| Block refs `((id))` render the referenced block | 2     | right-click a bullet › Copy block ref, paste in another block | `@seqno/editor` | `flows/references.e2e.ts`                          | planned |
+| Block and page embeds `{{embed ...}}`           | 2     | type `{{embed [[page]]}}`                                     | `@seqno/editor` | `flows/references.e2e.ts`                          | planned |
 
 ## Search and queries
 
-| Feature                                          | Phase | How to reach it                                | Owner          | Flow                   | Status  |
-| ------------------------------------------------ | ----- | ---------------------------------------------- | -------------- | ---------------------- | ------- |
-| Full-text search across pages and blocks         | 2     | Mod+K, type                                    | `@seqno/index` | `flows/search.e2e.ts`  | planned |
-| Logseq-style query renders live results          | 2     | type `{{query (and [[project]] (task TODO))}}` | `@seqno/query` | `flows/queries.e2e.ts` | planned |
-| Dataview-style query                             | 2     | type a Dataview-style query block              | `@seqno/query` | `flows/queries.e2e.ts` | planned |
-| Query results update when matching blocks change | 2     | edit a block a visible query matches           | `@seqno/index` | `flows/queries.e2e.ts` | planned |
+| Feature                                          | Phase | How to reach it                                           | Owner          | Flow                                                   | Status  |
+| ------------------------------------------------ | ----- | --------------------------------------------------------- | -------------- | ------------------------------------------------------ | ------- |
+| Full-text search across pages and blocks         | 2     | Search in the left sidebar, type (Mod+K is not wired yet) | `@seqno/index` | `flows/import.e2e.ts` › search finds an imported block | passing |
+| Logseq-style query renders live results          | 2     | type `{{query (and [[project]] (task TODO))}}`            | `@seqno/query` | `flows/queries.e2e.ts`                                 | planned |
+| Dataview-style query                             | 2     | type a Dataview-style query block                         | `@seqno/query` | `flows/queries.e2e.ts`                                 | planned |
+| Query results update when matching blocks change | 2     | edit a block a visible query matches                      | `@seqno/index` | `flows/queries.e2e.ts`                                 | planned |
 
 ## Folders, import and sync
 
-| Feature                                                                | Phase | How to reach it                                   | Owner            | Flow                       | Status  |
-| ---------------------------------------------------------------------- | ----- | ------------------------------------------------- | ---------------- | -------------------------- | ------- |
-| Keep the graph in a folder you pick (for example iCloud Drive › seqno) | 2     | graph menu › Open folder                          | `@seqno/vault`   | `flows/folders.e2e.ts`     | planned |
-| Reopen the picked folder after a reload                                | 2     | reload; allow access when Chrome asks             | `@seqno/vault`   | `flows/folders.e2e.ts`     | planned |
-| Import a Logseq graph                                                  | 2     | graph menu › Import Logseq graph, pick its folder | `@seqno/interop` | `flows/import.e2e.ts`      | planned |
-| Markdown mirror (readable `.md` files next to the edit log)            | 2     | graph settings › Markdown mirror                  | `@seqno/interop` | `flows/import.e2e.ts`      | planned |
-| Edits from another device show up                                      | 2     | another device writes to the shared folder        | `@seqno/vault`   | `flows/sync.e2e.ts`        | planned |
-| A 50k-block graph opens on the first page quickly                      | 2     | open the 50k fixture                              | `@seqno/graph`   | `flows/large-graph.e2e.ts` | planned |
+| Feature                                                                | Phase | How to reach it                                                                                 | Owner            | Flow                                                                                                | Status  |
+| ---------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------- | ------- |
+| Keep the graph in a folder you pick (for example iCloud Drive › seqno) | 2     | graph menu › Open folder                                                                        | `@seqno/vault`   | `flows/folders.e2e.ts`                                                                              | planned |
+| Reopen the picked folder after a reload                                | 2     | reload; allow access when Chrome asks                                                           | `@seqno/vault`   | `flows/folders.e2e.ts`                                                                              | planned |
+| Import a Logseq graph                                                  | 2     | open a Logseq folder (or the demo graph) that has no edit log yet; it is imported on first open | `@seqno/interop` | `flows/import.e2e.ts` › an imported journal renders, an edit to an imported block survives a reload | passing |
+| Markdown mirror (readable `.md` files next to the edit log)            | 2     | graph settings › Markdown mirror                                                                | `@seqno/interop` | `flows/import.e2e.ts`                                                                               | planned |
+| Edits from another device show up                                      | 2     | another device writes to the shared folder                                                      | `@seqno/vault`   | `flows/sync.e2e.ts`                                                                                 | planned |
+| A 50k-block graph opens on the first page quickly                      | 2     | open the 50k fixture                                                                            | `@seqno/graph`   | `flows/large-graph.e2e.ts`                                                                          | planned |
 
 ## How flows find things
 

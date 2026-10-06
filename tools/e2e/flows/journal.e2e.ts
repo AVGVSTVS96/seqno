@@ -38,3 +38,20 @@ test("reload keeps text", async ({ page, seqno }) => {
     "Welcome to the seqno demo graph, survives reload",
   )
 })
+
+test("Enter splits a block and Tab indents the new one", async ({ page, seqno }) => {
+  await seqno.openDemoGraph()
+  await seqno.today.getByRole("treeitem").first().click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await expect(seqno.today.getByRole("treeitem").nth(1).getByRole("textbox")).toHaveText("")
+  await page.keyboard.type("a new child")
+  await page.keyboard.press("Tab")
+  await expect(seqno.today.getByRole("treeitem", { level: 2 })).toHaveText(["a new child"])
+  await page.keyboard.press("Escape")
+  await expect(seqno.today.getByRole("treeitem")).toHaveText([
+    "Welcome to the seqno demo graph",
+    "a new child",
+    "Open Getting started to see how pages link",
+  ])
+})

@@ -109,3 +109,29 @@ Known gaps after integration:
 - **Caret column across blocks**: the editor reports `ToPrevious`/`ToNext` with a cursor placement, but the outliner's intents carry none, so moving up lands at the end of the previous block and moving down at the start of the next.
 - **No search RPCs**: `[[`/`#` completion filters the page list in the UI and `((` uses `WatchQuery`'s first result. Real `SearchPages`/`SearchBlocks` RPCs should come from `@seqno/index`.
 - **The first browser-mode run after an install** re-optimizes Vite deps and has been OOM-killed once at the 1.5 GB cap; a rerun passes.
+
+## Real core (integrate-final)
+
+`StubCore` is gone. The worker now runs `RealCore` (`src/worker/core.ts`) on `@seqno/graph`, `@seqno/vault`, `@seqno/index`, `@seqno/interop` and `@seqno/query`.
+
+```
+OpenGraph(name)
+  GraphPlaces.open ──> { storage (vault Storage over the folder), sqlite layer, starter files }
+  openSession (src/worker/session.ts), one Scope per open graph:
+    empty folder?            write starter files (demo graph: today's journal + 2 pages)
+    vault.sync(replica)      merge snapshots and update files into an empty Graph
+    no edit log at all?      importGraph over the same folder ──> graph.load(pages)
+    no journal for today?    graph.load([today's journal with one empty block])
+    save                     graph.flush ──> vault.writeUpdate  (then every 250 ms, and on close)
+    sync loop                vault.sync every 5 s
+  every event batch (dispatch, load, merge) ──> index.apply(events, version stamp) ──> revision++
+```
+
+- **One storage adapter for both jobs.** `storageFolder(storage)` turns the vault's `Storage` into interop's `GraphFolder`, so the import reads the same OPFS or picked folder the edit log lives in. It skips `updates/`, `snapshots/` and `seen/`.
+- **Device identity**: `device.json` at the OPFS root holds `{ device, peer }`, minted once per browser profile.
+- **Loro in the browser**: `vite.config.ts` aliases `loro-crdt` to `loro-crdt/web`, and `main.ts` runs `initSync` on the compiled wasm before any layer builds.
+- **Index**: in-memory sqlite-wasm (`layerWasmMemory`), filled from the open merge. See known gaps.
+- **RPCs**: `WatchPage` re-reads the page on every revision. `WatchQuery` parses Logseq syntax first, then Dataview, compiles to SQL and watches only the keys `readSet` names. `Search` is new: FTS blocks plus page names and aliases from the index.
+- **Tests**: `src/worker/test/core.test.ts` runs `RealCore` over `RpcTest` with node storage and node:sqlite on a copy of `fixtures/graphs/og-syntax-mix`: import on first open, an edit surviving close and reopen, search, and a live `{{query (task NOW DOING)}}`.
+
+The stub-era gaps above (folder contents, search, rejected commands) are closed. What is still open is listed in `PHASE1.md` at the repo root.
