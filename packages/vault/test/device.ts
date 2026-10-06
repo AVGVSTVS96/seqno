@@ -22,7 +22,7 @@ export const makeDevice = (options: DeviceOptions) =>
       layer({
         device: deviceId(options.id),
         peer: options.peer,
-        members: options.members.map(deviceId),
+        members: options.members.map((member) => deviceId(member)),
         compactAfterFiles: options.compactAfterFiles ?? 1_000_000,
         compactEvery: 0,
       }).pipe(Layer.provide(options.storage)),

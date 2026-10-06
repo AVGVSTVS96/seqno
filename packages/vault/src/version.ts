@@ -1,7 +1,10 @@
 import { Option, Schema } from "effect"
 import { decodeImportBlobMeta, type VersionVector } from "loro-crdt"
 
-export const Version = Schema.Record(Schema.String, Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)))
+export const Version = Schema.Record(
+  Schema.String,
+  Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+)
 export type Version = typeof Version.Type
 
 export interface Span {

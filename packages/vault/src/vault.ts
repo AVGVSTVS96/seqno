@@ -55,7 +55,9 @@ export class Vault extends Context.Service<
   Vault,
   {
     readonly device: DeviceId
-    readonly writeUpdate: (bytes: Uint8Array) => Effect.Effect<string, UpdateRejected | StorageFailed>
+    readonly writeUpdate: (
+      bytes: Uint8Array,
+    ) => Effect.Effect<string, UpdateRejected | StorageFailed>
     readonly sync: (replica: Replica) => Effect.Effect<SyncReport, StorageFailed>
   }
 >()("@seqno/vault/Vault") {}
@@ -79,6 +81,7 @@ interface Ack {
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
+const byName = new Intl.Collator("en", { numeric: true })
 
 const make = (config: VaultConfig) =>
   Effect.gen(function* () {
@@ -97,15 +100,18 @@ const make = (config: VaultConfig) =>
 
     const filesIn = (dir: string, keyDir: string) =>
       Effect.map(storage.list(dir), (entries) =>
-        entries.filter(Entry.$is("File")).map((entry): Listed => {
-          const listed = readName(entry.name)
-          return {
-            key: `${keyDir}/${listed.name}`,
-            path: `${dir}/${listed.raw}`,
-            name: listed.name,
-            placeholder: listed.stub || entry.placeholder,
-          }
-        }),
+        entries
+          .filter(Entry.$is("File"))
+          .map((entry): Listed => {
+            const listed = readName(entry.name)
+            return {
+              key: `${keyDir}/${listed.name}`,
+              path: `${dir}/${listed.raw}`,
+              name: listed.name,
+              placeholder: listed.stub || entry.placeholder,
+            }
+          })
+          .toSorted((a, b) => byName.compare(a.key, b.key)),
       )
 
     const listUpdates = Effect.flatMap(storage.list(updatesDir), (entries) =>
@@ -114,8 +120,7 @@ const make = (config: VaultConfig) =>
           const listed = readName(entry.name)
           return Option.match(deviceOfDir(listed.name), {
             onNone: () => Effect.succeed([]),
-            onSome: (device) =>
-              filesIn(`${updatesDir}/${listed.raw}`, `${updatesDir}/${device}`),
+            onSome: (device) => filesIn(`${updatesDir}/${listed.raw}`, `${updatesDir}/${device}`),
           })
         }),
         (dirs) => dirs.flat().filter((file) => isUpdateName(file.name)),
@@ -209,16 +214,18 @@ const make = (config: VaultConfig) =>
           }
 
           const mergeAll = (batch: ReadonlyArray<readonly [Listed, Fetched]>) =>
-            Effect.map(replica.merge(batch.map(([, blob]) => blob.bytes)), (results) =>
-              batch.filter(([file], index) => {
-                if (results[index] !== true) {
-                  waiting.push(file.key)
-                  return true
-                }
-                consumed.add(file.key)
-                merged.push(file.key)
-                return false
-              }).length,
+            Effect.map(
+              replica.merge(batch.map(([, blob]) => blob.bytes)),
+              (results) =>
+                batch.filter(([file], index) => {
+                  if (results[index] !== true) {
+                    waiting.push(file.key)
+                    return true
+                  }
+                  consumed.add(file.key)
+                  merged.push(file.key)
+                  return false
+                }).length,
             )
 
           if (isEmpty(yield* replica.version)) {
@@ -263,7 +270,8 @@ const make = (config: VaultConfig) =>
             for (const [file, vv] of live()) {
               if (covers(yield* replica.version, vv)) continue
               const held = inHand.get(file.name)
-              const blob = held === undefined ? yield* fetchBlob(file, "snapshot") : Option.some(held[1])
+              const blob =
+                held === undefined ? yield* fetchBlob(file, "snapshot") : Option.some(held[1])
               if (Option.isSome(blob)) yield* mergeAll([[file, blob.value]])
             }
           }
@@ -289,10 +297,10 @@ const make = (config: VaultConfig) =>
           const present = new Set(snapshots.map((file) => file.name))
           const seen = encodeSeen({
             vv: version,
-            verified: [...verified].filter((name) => present.has(name)).sort(),
+            verified: [...verified].filter((name) => present.has(name)).toSorted(),
             snapshots: [...present]
               .filter((name) => mine.has(originalName(name)))
-              .sort()
+              .toSorted()
               .map((name) => [name, snapshotVersions.get(name) ?? {}] as const),
           })
           if (seen !== state.lastSeen) {

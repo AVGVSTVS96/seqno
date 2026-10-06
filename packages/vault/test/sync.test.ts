@@ -7,7 +7,11 @@ import { makeDevice } from "./device.ts"
 const cloudOf = (placeholders: PlaceholderStyle, autoDownload: boolean, deliverChance = 1) =>
   makeFakeCloud({ seed: 7, placeholders, autoDownload, deliverChance })
 
-const pair = (cloud: ReturnType<typeof makeFakeCloud>, members = ["mac", "ipad"], macCompactsAfter = 1_000_000) =>
+const pair = (
+  cloud: ReturnType<typeof makeFakeCloud>,
+  members = ["mac", "ipad"],
+  macCompactsAfter = 1_000_000,
+) =>
   Effect.all({
     mac: makeDevice({
       id: "mac",
@@ -42,7 +46,10 @@ describe("update files", () => {
       stranger.getText("body").insert(0, "x")
       stranger.commit()
       const foreign = yield* Effect.flip(mac.vault.writeUpdate(stranger.export({ mode: "update" })))
-      assert.strictEqual(foreign.reason, "an update file holds only peer 1's own ops, found peers [9]")
+      assert.strictEqual(
+        foreign.reason,
+        "an update file holds only peer 1's own ops, found peers [9]",
+      )
       const garbage = yield* Effect.flip(mac.vault.writeUpdate(new Uint8Array([1, 2, 3])))
       assert.strictEqual(garbage.reason, "bytes are not a Loro update")
     }),
@@ -51,8 +58,18 @@ describe("update files", () => {
   it.effect("refuses to overwrite an existing update file when a peer id is reused", () =>
     Effect.gen(function* () {
       const cloud = cloudOf("dataless", true)
-      const first = yield* makeDevice({ id: "mac", peer: "1", members: ["mac"], storage: cloud.layer("mac") })
-      const reinstall = yield* makeDevice({ id: "mac", peer: "1", members: ["mac"], storage: cloud.layer("mac") })
+      const first = yield* makeDevice({
+        id: "mac",
+        peer: "1",
+        members: ["mac"],
+        storage: cloud.layer("mac"),
+      })
+      const reinstall = yield* makeDevice({
+        id: "mac",
+        peer: "1",
+        members: ["mac"],
+        storage: cloud.layer("mac"),
+      })
       yield* first.type("kept")
       const error = yield* Effect.flip(reinstall.type("lost"))
       assert.strictEqual(error._tag, "UpdateRejected")
@@ -117,10 +134,34 @@ describe("delays and reordering", () => {
         yield* ipad.sync
       }
       assert.strictEqual(mac.text(), ipad.text())
-      assert.deepStrictEqual(mac.text().match(/[ab]\d/g)?.sort(), [
-        "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9",
-        "b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9",
-      ])
+      assert.deepStrictEqual(
+        mac
+          .text()
+          .match(/[ab]\d/g)
+          ?.toSorted(),
+        [
+          "a0",
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5",
+          "a6",
+          "a7",
+          "a8",
+          "a9",
+          "b0",
+          "b1",
+          "b2",
+          "b3",
+          "b4",
+          "b5",
+          "b6",
+          "b7",
+          "b8",
+          "b9",
+        ],
+      )
     }),
   )
 })
@@ -148,6 +189,8 @@ describe("compaction", () => {
         "updates/mac/0.loro",
         "updates/mac/1.loro",
       ])
+      const unconfirmed = yield* mac.sync
+      assert.deepStrictEqual(unconfirmed.deleted, [])
 
       yield* ipad.sync
       cloud.settle()
@@ -191,23 +234,25 @@ describe("compaction", () => {
     }),
   )
 
-  it.effect("removes a conflict copy of its own seen file and merges conflict copies of updates", () =>
-    Effect.gen(function* () {
-      const cloud = cloudOf("dataless", true)
-      const { mac, ipad } = yield* pair(cloud)
-      yield* mac.type("hi")
-      cloud.settle()
-      yield* mac.sync
-      yield* ipad.sync
-      cloud.settle()
-      cloud.put("seen/mac 2.json", new TextEncoder().encode("{}"))
-      cloud.put("updates/mac/0 2.loro", mac.doc.export({ mode: "update" }))
-      cloud.settle()
-      const report = yield* mac.sync
-      assert.deepStrictEqual(report.deleted, ["seen/mac 2.json"])
-      const merged = yield* ipad.sync
-      assert.deepStrictEqual(merged.waiting, [])
-      assert.strictEqual(ipad.text(), "hi")
-    }),
+  it.effect(
+    "removes a conflict copy of its own seen file and merges conflict copies of updates",
+    () =>
+      Effect.gen(function* () {
+        const cloud = cloudOf("dataless", true)
+        const { mac, ipad } = yield* pair(cloud)
+        yield* mac.type("hi")
+        cloud.settle()
+        yield* mac.sync
+        yield* ipad.sync
+        cloud.settle()
+        cloud.put("seen/mac 2.json", new TextEncoder().encode("{}"))
+        cloud.put("updates/mac/0 2.loro", mac.doc.export({ mode: "update" }))
+        cloud.settle()
+        const report = yield* mac.sync
+        assert.deepStrictEqual(report.deleted, ["seen/mac 2.json"])
+        const merged = yield* ipad.sync
+        assert.deepStrictEqual(merged.waiting, [])
+        assert.strictEqual(ipad.text(), "hi")
+      }),
   )
 })

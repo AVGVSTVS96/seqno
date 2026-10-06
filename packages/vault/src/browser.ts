@@ -104,7 +104,9 @@ export const layerOpfs = (graph: string): Layer.Layer<Storage, StorageFailed> =>
     Effect.tryPromise({
       try: async () =>
         directoryStorage(
-          await (await navigator.storage.getDirectory()).getDirectoryHandle(graph, {
+          await (
+            await navigator.storage.getDirectory()
+          ).getDirectoryHandle(graph, {
             create: true,
           }),
         ),

@@ -166,6 +166,6 @@ export const makeFakeCloud = (options: FakeCloudOptions): FakeCloud => {
       server.set(path, bytes)
       notifyOthers(undefined, path)
     },
-    files: () => [...server.keys()].sort(),
+    files: () => [...server.keys()].toSorted(),
   }
 }
