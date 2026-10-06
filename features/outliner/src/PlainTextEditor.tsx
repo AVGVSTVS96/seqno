@@ -18,18 +18,27 @@ const diff = (before: string, after: string) => {
 const intentFor = (event: KeyboardEvent<HTMLTextAreaElement>): EditorIntent | null => {
   const { selectionStart, selectionEnd, value } = event.currentTarget
   const collapsed = selectionStart === selectionEnd
+  const mod = event.metaKey || event.ctrlKey
+  const firstLine = !value.slice(0, selectionStart).includes("\n")
+  const lastLine = !value.slice(selectionEnd).includes("\n")
   if (event.nativeEvent.isComposing) return null
-  if (event.key === "Enter" && !event.shiftKey) return { _tag: "Split", at: selectionStart }
+  if (event.key === "Enter" && !event.shiftKey && !mod) return { _tag: "Split", at: selectionStart }
   if (event.key === "Tab") return { _tag: event.shiftKey ? "Outdent" : "Indent" }
   if (event.key === "Escape") return { _tag: "Exit" }
-  if (!collapsed) return null
+  if (event.key === "ArrowUp" && event.altKey && event.shiftKey) return { _tag: "MoveUp" }
+  if (event.key === "ArrowDown" && event.altKey && event.shiftKey) return { _tag: "MoveDown" }
+  if (event.key === "ArrowUp" && mod) return { _tag: "Collapse" }
+  if (event.key === "ArrowDown" && mod) return { _tag: "Expand" }
+  if (event.key === "ArrowUp" && event.shiftKey && firstLine && selectionStart === 0) {
+    return { _tag: "SelectUp" }
+  }
+  if (event.key === "ArrowDown" && event.shiftKey && lastLine && selectionEnd === value.length) {
+    return { _tag: "SelectDown" }
+  }
+  if (!collapsed || event.shiftKey) return null
   if (event.key === "Backspace" && selectionStart === 0) return { _tag: "MergeWithPrevious" }
-  if (event.key === "ArrowUp" && !value.slice(0, selectionStart).includes("\n")) {
-    return { _tag: "FocusPrevious" }
-  }
-  if (event.key === "ArrowDown" && !value.slice(selectionEnd).includes("\n")) {
-    return { _tag: "FocusNext" }
-  }
+  if (event.key === "ArrowUp" && firstLine) return { _tag: "FocusPrevious" }
+  if (event.key === "ArrowDown" && lastLine) return { _tag: "FocusNext" }
   return null
 }
 
@@ -56,6 +65,7 @@ export const PlainTextEditor = ({ block, caret, dispatch, onIntent }: EditorSlot
       aria-label="Block text"
       defaultValue={block.text}
       rows={1}
+      spellCheck={false}
       onKeyDown={onKeyDown}
       onInput={(event) => {
         const next = event.currentTarget.value
