@@ -254,6 +254,9 @@ importers:
       '@seqno/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@seqno/graph':
+        specifier: workspace:*
+        version: link:../../packages/graph
       '@seqno/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
