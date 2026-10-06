@@ -51,6 +51,11 @@ const device = (cloud: FakeCloud, id: string, peer: `${number}`) =>
     }
   })
 
+const pageOf = (events: ReadonlyArray<GraphEvent>) => {
+  const page = events.find((event) => event._tag === "PageUpserted")
+  return page?._tag === "PageUpserted" ? page.page.id : assert.fail("no page event")
+}
+
 const texts = (graph: Graph["Service"], pageId: PageId) =>
   Effect.map(Effect.orDie(graph.page(pageId)), (tree) => tree.blocks.map((block) => block.text))
 
@@ -115,10 +120,6 @@ describe("graph and vault together", () => {
           Effect.orDie(graph.dispatch(command)).pipe(
             Effect.tap((events) => Effect.orDie(index.apply(events, "v1"))),
           )
-        const pageOf = (events: ReadonlyArray<GraphEvent>) => {
-          const page = events.find((event) => event._tag === "PageUpserted")
-          return page?._tag === "PageUpserted" ? page.page.id : assert.fail("no page event")
-        }
 
         const project = pageOf(yield* dispatch({ _tag: "CreatePage", title: "Project" }))
         const notes = pageOf(yield* dispatch({ _tag: "CreatePage", title: "Notes" }))
