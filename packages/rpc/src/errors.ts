@@ -8,6 +8,10 @@ export class GraphUnavailable extends Schema.TaggedError<GraphUnavailable>()("Gr
   reason: Schema.String,
 }) {}
 
+export class GraphLocked extends Schema.TaggedError<GraphLocked>()("GraphLocked", {
+  graph: Schema.String,
+}) {}
+
 export class PageNotFound extends Schema.TaggedError<PageNotFound>()("PageNotFound", {
   pageId: PageId,
 }) {}

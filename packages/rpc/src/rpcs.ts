@@ -4,6 +4,7 @@ import { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain
 import {
   BlockNotFound,
   CommandRejected,
+  GraphLocked,
   GraphNotOpen,
   GraphUnavailable,
   PageNotFound,
@@ -35,9 +36,9 @@ export const SearchHits = Schema.Struct({
 export type SearchHits = typeof SearchHits.Type
 
 export const OpenGraph = Rpc.make("OpenGraph", {
-  payload: { graph: Schema.NonEmptyString },
+  payload: { graph: Schema.NonEmptyString, wait: Schema.optionalKey(Schema.Boolean) },
   success: GraphOpened,
-  error: GraphUnavailable,
+  error: Schema.Union([GraphUnavailable, GraphLocked]),
 })
 
 export const Dispatch = Rpc.make("Dispatch", {
