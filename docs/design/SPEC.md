@@ -268,7 +268,7 @@ Weights: 400 text, 500 (`--weight-medium`) titles, nav items, labels, property k
 - Frame: background `--bg-popover`, 1px `--border`, radius 6px, padding 6px, `--shadow-popover`, text `--fg-strong`. Width 512px for page search.
 - Rows: 32px for one line, padding 6px 8px, radius 4px, 14px / 20px, `--fg-popup`, `transition: opacity 150ms`. Chosen row: `--bg-popup-active`. ↑ ↓ (or Mod+P, Mod+N) move it, Enter picks, Shift+Enter opens in the sidebar.
 - Page rows: a 14px icon (`IconHash` for tags, `IconFile` for pages) then the name; the matched characters are wrapped in a mark with `--bg-mark` / `--fg-mark` and no padding. "New page Gar" row with `IconPlus`.
-- Block rows: a 12px / 16px breadcrumb line at opacity 0.7 with 4px below it ("Oct 6th, 2026 / Morning check in the …"), then a bullet and the block text at 14px. Rows grow to 52px or 72px when the text wraps.
+- Block rows: a 12px / 16px breadcrumb line at opacity 0.7 with 4px below it ("Oct 6th, 2026 / Morning check in the …"), then a bullet and the block text at 14px. Such a row is 52px, or 72px when its text wraps to a second line.
 - The list scrolls inside the popup with its scrollbar hidden.
 
 ## Slash menu
