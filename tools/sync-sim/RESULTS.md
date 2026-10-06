@@ -26,12 +26,12 @@ The phase 0 fake-iCloud simulator, ported into a repo tool. Five devices edit on
 
 ## Numbers from this session
 
-| run                                | seeds passed                         | violations | notes                                                                                                                                                                |
-| ---------------------------------- | ------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CI suite: 50 seeds × 600 ops, 24 h | **50 / 50**                          | 0          | wall 50 s at 4 workers, mean 3.5 s CPU per seed, max RSS 229 MB, 52 snapshots written (so compaction and deletion ran), 0 placeholder reads (243k placeholders seen) |
-| mutants: 8 seeds × 1k ops each     | all 5 caught                         | see below  |                                                                                                                                                                      |
-| 1k slice: 40 seeds × 1k ops, 48 h  | **40 / 40**                          | 0          | wall 75 s at 4 workers, catch-up after 12-36 h offline p50 / max 30 / 87 simulated min, max RSS 231 MB                                                               |
-| 10k slice: 2 seeds × 10k ops, 48 h | see `results/10k-slice.summary.json` |            | started at the end of the session                                                                                                                                    |
+| run                                | seeds passed | violations | notes                                                                                                                                                                |
+| ---------------------------------- | ------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CI suite: 50 seeds × 600 ops, 24 h | **50 / 50**  | 0          | wall 50 s at 4 workers, mean 3.5 s CPU per seed, max RSS 229 MB, 52 snapshots written (so compaction and deletion ran), 0 placeholder reads (243k placeholders seen) |
+| mutants: 8 seeds × 1k ops each     | all 5 caught | see below  |                                                                                                                                                                      |
+| 1k slice: 40 seeds × 1k ops, 48 h  | **40 / 40**  | 0          | wall 75 s at 4 workers, catch-up after 12-36 h offline p50 / max 30 / 87 simulated min, max RSS 231 MB                                                               |
+| 10k slice: 2 seeds × 10k ops, 48 h | **2 / 2**    | 0          | 62 s CPU per seed, max RSS 406 MB, 62 cloud files at the end (compaction keeps the count bounded), catch-up max 38 simulated min                                     |
 
 | mutant                  | seeds caught | what fired                             |
 | ----------------------- | ------------ | -------------------------------------- |
@@ -53,7 +53,7 @@ $CAP npx vitest run --project @seqno/sync-sim                 # unit + 3 seed te
 $CAP node scripts/run.ts --suite ci                            # 50 seeds × 600 ops, ~1 min
 $CAP node scripts/mutants.ts --seeds 8                         # ~1 min, exit 0 only if every bug is caught
 $CAP node scripts/run.ts --suite 1k  --out results/1k.jsonl    # 1,000 × 1k ops, ~30 min at 4 workers
-$CAP node scripts/run.ts --suite 10k --workers 3 --out results/10k.jsonl   # 100 × 10k ops; 3 workers stays under 1.5 GB
+$CAP node scripts/run.ts --suite 10k --workers 3 --out results/10k.jsonl   # 100 × 10k ops, ~35 min; 3 workers × ~410 MB stays under 1.5 GB
 ```
 
 Flags: `--seeds`, `--from`, `--ops`, `--hours`, `--devices`, `--compaction on|off`, `--bug <mutant>`, `--workers` (capped at 4), `--out`, `--timeout-s`. Exit code is 0 only if every seed passed. The same seed replays to the same result, except for CPU fields (a test checks this).
