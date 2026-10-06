@@ -1,0 +1,25 @@
+{
+  "name": "@seqno/sync-sim",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "sim": "node scripts/run.ts",
+    "mutants": "node scripts/mutants.ts"
+  },
+  "dependencies": {
+    "@seqno/domain": "workspace:*",
+    "@seqno/rpc": "workspace:*",
+    "effect": "4.0.1",
+    "loro-crdt": "1.16.2"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.1",
+    "@types/node": "24.19.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}

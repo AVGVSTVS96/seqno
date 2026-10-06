@@ -243,6 +243,34 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1))
 
+  tools/sync-sim:
+    dependencies:
+      '@seqno/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@seqno/rpc':
+        specifier: workspace:*
+        version: link:../../packages/rpc
+      effect:
+        specifier: 4.0.1
+        version: 4.0.1
+      loro-crdt:
+        specifier: 1.16.2
+        version: 1.16.2
+    devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.1
+        version: 4.0.1(effect@4.0.1)(vitest@5.0.3(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1)))
+      '@types/node':
+        specifier: 24.19.1
+        version: 24.19.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1))
+
 packages:
 
   '@effect/platform-node-shared@4.0.1':
