@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config"
 
 export default defineConfig({
   test: {
-    maxWorkers: 4,
     projects: ["packages/*", "apps/*", "features/*", "tools/*", "fixtures"],
+    maxWorkers: 2,
   },
 })

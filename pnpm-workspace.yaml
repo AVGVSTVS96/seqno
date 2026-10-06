@@ -4,3 +4,5 @@ packages:
   - features/*
   - tools/*
   - fixtures
+minimumReleaseAgeExclude:
+  - vite@8.3.3

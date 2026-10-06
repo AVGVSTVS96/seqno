@@ -1,3 +1,4 @@
+export { CoreClient } from "./client.ts"
 export {
   BlockNotFound,
   CommandRejected,
