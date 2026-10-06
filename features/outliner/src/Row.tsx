@@ -1,4 +1,4 @@
-import type { DragEvent, MouseEvent, ReactNode, Ref } from "react"
+import type { DragEvent, MouseEvent, PointerEvent, ReactNode, Ref } from "react"
 import { IconCaretRightFilled } from "@tabler/icons-react"
 import type { BlockId } from "@seqno/domain"
 import type { BlockContent } from "@seqno/syntax"
@@ -10,6 +10,8 @@ export interface RowActions {
   readonly toggle: () => void
   readonly bullet: (event: MouseEvent) => void
   readonly content: (event: MouseEvent) => void
+  readonly press: (event: PointerEvent) => void
+  readonly sweep: (event: PointerEvent) => void
   readonly dragStart: (event: DragEvent) => void
   readonly dragEnd: () => void
   readonly dragOver: (event: DragEvent<HTMLDivElement>) => void
@@ -77,6 +79,7 @@ export const RowView = ({
       aria-expanded={row.hasChildren ? row.expanded : undefined}
       className="seqno-row"
       style={{ paddingLeft: indent(depth) }}
+      onPointerEnter={actions.sweep}
       onDragOver={actions.dragOver}
       onDrop={actions.drop}
     >
@@ -148,7 +151,7 @@ export const RowView = ({
           {ordinal === null ? <span className="seqno-dot" /> : `${ordinal}.`}
         </button>
       </div>
-      <div className="seqno-content" onClick={actions.content}>
+      <div className="seqno-content" onClick={actions.content} onPointerDown={actions.press}>
         {children}
       </div>
     </div>

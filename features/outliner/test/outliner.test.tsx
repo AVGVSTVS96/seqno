@@ -192,6 +192,16 @@ test("Shift-click extends the selection and Mod+Z / Mod+Shift+Z undo and redo", 
   expect(core.commands).toEqual([{ _tag: "Undo" }, { _tag: "Redo" }])
 })
 
+test("dragging the mouse from one block into another selects the blocks between", async () => {
+  await mount([block(1, "a"), block(2, "b"), block(3, "c"), block(4, "d")])
+  await userEvent.dragAndDrop(
+    page.getByText("a", { exact: true }),
+    page.getByText("c", { exact: true }),
+  )
+  expect(selectedTexts()).toEqual(["a", "b", "c"])
+  await expect.element(editor()).not.toBeInTheDocument()
+})
+
 test("a selected parent highlights its whole subtree", async () => {
   await mount(sample)
   await editAtEnd("Plan")

@@ -253,6 +253,7 @@ const OutlineView = ({
   const registry = useContext(RegistryContext)
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
   const container = useRef<HTMLDivElement>(null)
+  const pressed = useRef<BlockId | null>(null)
   const [editing, setEditing] = useState<Editing | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [dragged, setDragged] = useState<ReadonlyArray<BlockId>>([])
@@ -540,6 +541,24 @@ const OutlineView = ({
         if (command !== null) dispatch(command)
         setDragged([])
         setDrop(null)
+      },
+      press: (event) => {
+        if (event.button !== 0 || event.shiftKey) return
+        pressed.current = block.id
+        window.addEventListener(
+          "pointerup",
+          () => {
+            pressed.current = null
+          },
+          { once: true },
+        )
+      },
+      sweep: (event) => {
+        const origin = pressed.current
+        if (origin === null || (event.buttons & 1) === 0) return
+        if (origin === block.id && selection?.anchor !== origin) return
+        window.getSelection()?.removeAllRanges()
+        select(block.id, origin)
       },
       guide: setHoveredGuide,
       fold: (ancestor) => {
