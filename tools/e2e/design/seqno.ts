@@ -53,8 +53,17 @@ export const scrollToText = async (
   if ((await target.count()) > 0) {
     await target.evaluate((element, by) => {
       element.scrollIntoView({ block: "start", behavior: "instant" })
-      const scroller = element.closest("[role=tree]") ?? document.scrollingElement
-      scroller?.scrollBy({ top: -by, behavior: "instant" })
+      let scroller = element.parentElement
+      while (
+        scroller !== null &&
+        !(
+          /auto|scroll/.test(getComputedStyle(scroller).overflowY) &&
+          scroller.scrollHeight > scroller.clientHeight
+        )
+      ) {
+        scroller = scroller.parentElement
+      }
+      ;(scroller ?? document.scrollingElement)?.scrollBy({ top: -by, behavior: "instant" })
     }, offset)
     return
   }
