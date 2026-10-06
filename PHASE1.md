@@ -27,7 +27,7 @@ Each of these is checked by a headless Playwright flow against a production buil
 
 The demo graph still works with nothing seeded: an empty OPFS folder gets three starter files (today's journal, `Getting started` and `Ideas`), and those go through the same import path.
 
-Screenshots at 1440x900 are in `docs/screens/`: `journal.png`, `page.png`, `editing.png` and `search.png`.
+Screenshots at 1440x900 of the showcase graph are in `docs/screens/`, each as `<name>-light.png` and `<name>-dark.png`: `journals`, `page`, `showcase`, `editing`, `search`, `right-sidebar` and `all-pages`. How each one compares with Logseq is in `docs/design/UI.md`.
 
 ## How to run it
 

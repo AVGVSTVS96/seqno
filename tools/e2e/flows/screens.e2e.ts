@@ -1,6 +1,11 @@
+import { rm } from "node:fs/promises"
 import { fileURLToPath } from "node:url"
+import type { Page } from "@playwright/test"
+import { editBlock, openSeqno } from "../design/seqno.ts"
+import { materializeShowcase } from "../design/showcase.ts"
+import { themes } from "../design/theme.ts"
 import { appAvailable } from "../src/env.ts"
-import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
+import { seedOpfs } from "../src/opfs.ts"
 import { expect, test } from "../src/test.ts"
 
 test.skip(
@@ -10,32 +15,60 @@ test.skip(
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
-const screen = (name: string) =>
-  fileURLToPath(new URL(`../../../docs/screens/${name}.png`, import.meta.url))
+const shoot = async (page: Page, name: string) => {
+  await page.mouse.move(1436, 896)
+  await page.waitForFunction(() =>
+    document.getAnimations().every((animation) => animation.playState !== "running"),
+  )
+  await page.screenshot({
+    path: fileURLToPath(new URL(`../../../docs/screens/${name}.png`, import.meta.url)),
+  })
+}
 
-test("screenshots of the running app", async ({ page, seqno }) => {
-  await seedOpfs(page, fixtureGraph("graphs/og-syntax-mix"), ["graphs", "demo"])
-  await seqno.openDemoGraph()
-  const journal = page.getByRole("article", { name: "Mar 9th, 2025", exact: true })
-  await expect(journal.getByRole("treeitem").first()).toBeVisible()
-  await page.screenshot({ path: screen("journal") })
+for (const theme of themes) {
+  test(`screenshots of the running app, ${theme}`, async ({ page }) => {
+    const showcase = await materializeShowcase(new Date())
+    await seedOpfs(page, showcase, ["graphs", "demo"])
+    await rm(showcase, { recursive: true })
+    await page.evaluate((chosen) => {
+      localStorage.setItem("seqno.theme", JSON.stringify(chosen))
+      localStorage.setItem("seqno.leftSidebar", "true")
+    }, theme)
 
-  await page.goto("/page/tasks")
-  await page.getByRole("button", { name: "Open the demo graph" }).click()
-  await expect(page.getByRole("article", { name: "tasks", exact: true })).toBeVisible()
-  await page.screenshot({ path: screen("page") })
+    await openSeqno(page, "/")
+    await shoot(page, `journals-${theme}`)
 
-  await page.getByRole("treeitem").filter({ hasText: "high priority item" }).click()
-  await page.keyboard.press("End")
-  await page.keyboard.type(" due [[Friday]]")
-  await expect(seqno.editor).toHaveText("TODO [#A] high priority item due [[Friday]]")
-  await page.screenshot({ path: screen("editing") })
-  await page.keyboard.press("Escape")
+    await page
+      .getByRole("link", { name: /Garden Plan/ })
+      .first()
+      .click({ modifiers: ["Shift"] })
+    await expect(page.getByRole("complementary", { name: "Right sidebar" })).toBeVisible()
+    await shoot(page, `right-sidebar-${theme}`)
+    await page.getByRole("button", { name: "Toggle right sidebar" }).click()
 
-  await page.getByRole("button", { name: "Search", exact: true }).click()
-  await page.getByRole("searchbox", { name: "Search" }).fill("item")
-  await expect(
-    page.getByRole("listbox", { name: "Nodes" }).getByRole("option").first(),
-  ).toBeVisible()
-  await page.screenshot({ path: screen("search") })
-})
+    await page.getByRole("button", { name: "Search", exact: true }).click()
+    await page.getByRole("searchbox", { name: "Search" }).fill("greenhouse")
+    await expect(
+      page.getByRole("listbox", { name: "Nodes" }).getByRole("option").first(),
+    ).toBeVisible()
+    await shoot(page, `search-${theme}`)
+    await page.keyboard.press("Escape")
+    await page.keyboard.press("Escape")
+
+    await openSeqno(page, "/page/garden%20plan")
+    await shoot(page, `page-${theme}`)
+
+    await openSeqno(page, "/page/showcase")
+    await shoot(page, `showcase-${theme}`)
+
+    await openSeqno(page, "/all-pages", false)
+    await expect(page.getByRole("link", { name: "Garden Plan" }).first()).toBeVisible()
+    await shoot(page, `all-pages-${theme}`)
+
+    await openSeqno(page, "/")
+    await editBlock(page, "Talked to the plot neighbour")
+    await page.keyboard.type(" [[Gar")
+    await expect(page.getByRole("listbox").getByRole("option").first()).toBeVisible()
+    await shoot(page, `editing-${theme}`)
+  })
+}
