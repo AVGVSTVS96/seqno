@@ -80,13 +80,25 @@ const type = (view: EditorView, insert: string) => {
 
 const caret = (view: EditorView) => view.state.selection.main.head
 
+const complete = async (text: string, offset: number) => {
+  const editor = mount(text, { _tag: "Offset", offset })
+  startCompletion(editor.view)
+  await vi.waitFor(() => assert.isAbove(currentCompletions(editor.view.state).length, 0))
+  const labels = currentCompletions(editor.view.state).map((option) => option.label)
+  await vi.waitFor(() => assert.isTrue(acceptCompletion(editor.view)))
+  return { ...editor, labels }
+}
+
+const styled = (text: string) =>
+  [...mount(text, { _tag: "End" }).view.contentDOM.querySelectorAll(".cm-line span")].map(
+    (span) => [span.textContent, span.className],
+  )
+
 describe("text edits", () => {
   it("dispatches typing as EditText at the cursor", () => {
     const { view, commands } = mount("hello", { _tag: "End" })
     type(view, "!")
-    assert.deepStrictEqual(commands, [
-      { _tag: "EditText", blockId, from: 5, to: 5, insert: "!" },
-    ])
+    assert.deepStrictEqual(commands, [{ _tag: "EditText", blockId, from: 5, to: 5, insert: "!" }])
     assert.strictEqual(view.state.doc.toString(), "hello!")
   })
 
@@ -132,7 +144,9 @@ describe("structural keys", () => {
   it("inserts a newline instead of splitting inside a fenced code block", () => {
     const { view, commands } = mount("```js\nlet x", { _tag: "End" })
     press(view, "Enter")
-    assert.deepStrictEqual(commands, [{ _tag: "EditText", blockId, from: 11, to: 11, insert: "\n" }])
+    assert.deepStrictEqual(commands, [
+      { _tag: "EditText", blockId, from: 11, to: 11, insert: "\n" },
+    ])
   })
 
   it("inserts a soft line break on Shift-Enter", () => {
@@ -179,7 +193,9 @@ describe("moving between blocks", () => {
   it("leaves downward from the last line, keeping the column", () => {
     const { view, navigations } = mount("one\ntwo", { _tag: "Offset", offset: 5 })
     press(view, "ArrowDown")
-    assert.deepStrictEqual(navigations, [{ _tag: "ToNext", cursor: { _tag: "FirstLine", column: 1 } }])
+    assert.deepStrictEqual(navigations, [
+      { _tag: "ToNext", cursor: { _tag: "FirstLine", column: 1 } },
+    ])
   })
 
   it("stays inside the block when a line remains in that direction", () => {
@@ -244,20 +260,10 @@ describe("text from the graph", () => {
         { _tag: "EditText", blockId, from: 5, to: 5, insert: "s" },
         { _tag: "EditText", blockId, from: 6, to: 6, insert: "!" },
       ])
-    }).pipe(Effect.runPromise),
-  )
+    }).pipe(Effect.runPromise))
 })
 
 describe("autocomplete", () => {
-  const complete = async (text: string, offset: number) => {
-    const editor = mount(text, { _tag: "Offset", offset })
-    startCompletion(editor.view)
-    await vi.waitFor(() => assert.isAbove(currentCompletions(editor.view.state).length, 0))
-    const labels = currentCompletions(editor.view.state).map((option) => option.label)
-    await vi.waitFor(() => assert.isTrue(acceptCompletion(editor.view)))
-    return { ...editor, labels }
-  }
-
   it("completes a page ref and reuses the auto-closed brackets", async () => {
     const { view, labels, searches, commands } = await complete("see [[proj]]", 10)
     assert.deepStrictEqual(labels, ["Project X", "Projects"])
@@ -290,11 +296,6 @@ describe("autocomplete", () => {
 })
 
 describe("live markdown styling", () => {
-  const styled = (text: string) =>
-    [...mount(text, { _tag: "End" }).view.contentDOM.querySelectorAll(".cm-line span")].map(
-      (span) => [span.textContent, span.className],
-    )
-
   it("keeps markers visible and styles them apart from the content", () => {
     assert.deepStrictEqual(styled("**bold** and `code`"), [
       ["**", "sq-strong sq-mark"],

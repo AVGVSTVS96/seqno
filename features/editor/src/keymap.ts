@@ -6,7 +6,7 @@ import type { BlockId, Command } from "@seqno/domain"
 import type { EditorHost } from "./host.ts"
 
 const insideFencedCode = (state: EditorState, position: number): boolean => {
-  for (let node = syntaxTree(state).resolveInner(position, -1); ; ) {
+  for (let node = syntaxTree(state).resolveInner(position, -1); ;) {
     if (node.name === "FencedCode") {
       return true
     }

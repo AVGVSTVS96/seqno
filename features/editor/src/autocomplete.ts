@@ -45,7 +45,11 @@ const triggers = (host: EditorHost): ReadonlyArray<Trigger> => [
     openLength: 2,
     complete: (query) =>
       Effect.map(host.searchPages(query), (pages) =>
-        pages.map((page) => ({ label: page.title, type: "page", apply: insertRef(page.title, "]]") })),
+        pages.map((page) => ({
+          label: page.title,
+          type: "page",
+          apply: insertRef(page.title, "]]"),
+        })),
       ),
   },
   {
@@ -73,7 +77,10 @@ export const refCompletions = (host: EditorHost) => {
       const match = context.matchBefore(trigger.before)
       if (match !== null) {
         const from = match.from + trigger.openLength
-        const options = await run(context, trigger.complete(context.state.sliceDoc(from, context.pos)))
+        const options = await run(
+          context,
+          trigger.complete(context.state.sliceDoc(from, context.pos)),
+        )
         return options === null ? null : { from, options, filter: false }
       }
     }
