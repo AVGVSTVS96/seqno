@@ -1,0 +1,34 @@
+{
+  "name": "@seqno/outliner",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/atom-react": "4.0.1",
+    "@seqno/domain": "workspace:*",
+    "@seqno/rpc": "workspace:*",
+    "effect": "4.0.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "scheduler": "0.27.0"
+  },
+  "devDependencies": {
+    "@babel/core": "8.0.6",
+    "@rolldown/plugin-babel": "0.2.4",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "6.1.2",
+    "@vitest/browser-playwright": "5.0.3",
+    "babel-plugin-react-compiler": "1.0.0",
+    "playwright": "1.63.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.2",
+    "vitest": "5.0.3",
+    "vitest-browser-react": "2.3.0"
+  }
+}
