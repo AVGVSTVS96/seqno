@@ -1,105 +1,30 @@
-import { acceptCompletion, currentCompletions, startCompletion } from "@codemirror/autocomplete"
 import { EditorSelection } from "@codemirror/state"
-import { runScopeHandlers, type EditorView } from "@codemirror/view"
-import { afterEach, assert, describe, it, vi } from "@effect/vitest"
+import { afterEach, assert, describe, it } from "@effect/vitest"
 import { Effect, PubSub, Stream } from "effect"
-import { BlockId, PageId, type Block, type Command, type Page } from "@seqno/domain"
-import { mountBlockEditor, type CursorPlacement, type Navigation } from "@seqno/editor"
+import type { Block } from "@seqno/domain"
+import {
+  blockId,
+  blockOf,
+  caret,
+  keyOnWindow,
+  mount,
+  otherBlockId,
+  parentBlockId,
+  press,
+  session,
+  text,
+  typeKeys,
+  unmountAll,
+} from "./mount.ts"
 
-const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
-const otherBlockId = BlockId.make("01920000-0000-7000-8000-000000000002")
-const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
-
-const page = (title: string): Page => ({
-  id: pageId,
-  name: title.toLowerCase(),
-  title,
-  journalDay: null,
-  props: {},
-})
-
-const block: Block = {
-  id: otherBlockId,
-  pageId,
-  parentId: null,
-  text: "ship the editor",
-  collapsed: false,
-  props: {},
-}
-
-const mounted: Array<() => void> = []
-afterEach(() => {
-  for (const destroy of mounted.splice(0)) {
-    destroy()
-  }
-})
-
-const mount = (
-  text: string,
-  cursor: CursorPlacement,
-  textUpdates: Stream.Stream<string> = Stream.never,
-) => {
-  const commands: Array<Command> = []
-  const navigations: Array<Navigation> = []
-  const searches: Array<string> = []
-  const editor = mountBlockEditor(document.body.appendChild(document.createElement("div")), {
-    blockId,
-    text,
-    cursor,
-    textUpdates,
-    host: {
-      dispatch: (command) => commands.push(command),
-      navigate: (navigation) => navigations.push(navigation),
-      searchPages: (query) =>
-        Effect.sync(() => {
-          searches.push(`page:${query}`)
-          return [page("Project X"), page("Projects")]
-        }),
-      searchBlocks: (query) =>
-        Effect.sync(() => {
-          searches.push(`block:${query}`)
-          return [block]
-        }),
-    },
-  })
-  mounted.push(editor.destroy)
-  return { view: editor.view, commands, navigations, searches }
-}
-
-const press = (view: EditorView, key: string, modifiers: KeyboardEventInit = {}) =>
-  runScopeHandlers(view, new KeyboardEvent("keydown", { key, ...modifiers }), "editor")
-
-const type = (view: EditorView, insert: string) => {
-  const { from, to } = view.state.selection.main
-  view.dispatch({
-    changes: { from, to, insert },
-    selection: { anchor: from + insert.length },
-    userEvent: "input.type",
-  })
-}
-
-const caret = (view: EditorView) => view.state.selection.main.head
-
-const complete = async (text: string, offset: number) => {
-  const editor = mount(text, { _tag: "Offset", offset })
-  startCompletion(editor.view)
-  await vi.waitFor(() => assert.isAbove(currentCompletions(editor.view.state).length, 0))
-  const labels = currentCompletions(editor.view.state).map((option) => option.label)
-  await vi.waitFor(() => assert.isTrue(acceptCompletion(editor.view)))
-  return { ...editor, labels }
-}
-
-const styled = (text: string) =>
-  [...mount(text, { _tag: "End" }).view.contentDOM.querySelectorAll(".cm-line span")].map(
-    (span) => [span.textContent, span.className],
-  )
+afterEach(unmountAll)
 
 describe("text edits", () => {
-  it("dispatches typing as EditText at the cursor", () => {
+  it("sends typing to the graph as EditText at the caret", () => {
     const { view, commands } = mount("hello", { _tag: "End" })
-    type(view, "!")
+    typeKeys(view, "!")
     assert.deepStrictEqual(commands, [{ _tag: "EditText", blockId, from: 5, to: 5, insert: "!" }])
-    assert.strictEqual(view.state.doc.toString(), "hello!")
+    assert.strictEqual(text(view), "hello!")
   })
 
   it("orders a multi-range change so each edit applies to the text the previous one left", () => {
@@ -114,7 +39,7 @@ describe("text edits", () => {
       { _tag: "EditText", blockId, from: 4, to: 5, insert: "C" },
       { _tag: "EditText", blockId, from: 0, to: 1, insert: "AA" },
     ])
-    assert.strictEqual(view.state.doc.toString(), "AA-b-C")
+    assert.strictEqual(text(view), "AA-b-C")
   })
 
   it("deletes a character with Backspace away from the block start", () => {
@@ -125,21 +50,29 @@ describe("text edits", () => {
 })
 
 describe("structural keys", () => {
-  it("splits the block at the cursor on Enter", () => {
+  it("splits the block at the caret on Enter", () => {
     const { view, commands } = mount("hello world", { _tag: "Offset", offset: 5 })
     assert.isTrue(press(view, "Enter"))
     assert.deepStrictEqual(commands, [{ _tag: "SplitBlock", blockId, at: 5 }])
   })
 
-  it("deletes the selection before splitting on Enter", () => {
-    const { view, commands } = mount("hello big world", { _tag: "Start" })
-    view.dispatch({ selection: EditorSelection.single(5, 9) })
-    press(view, "Enter")
-    assert.deepStrictEqual(commands, [
-      { _tag: "EditText", blockId, from: 5, to: 9, insert: "" },
-      { _tag: "SplitBlock", blockId, at: 5 },
-    ])
-  })
+  it.effect("waits for the graph to have the block's text before splitting", () =>
+    Effect.gen(function* () {
+      const updates = yield* PubSub.unbounded<Block>()
+      const { view, commands } = mount(
+        "hello big world",
+        { _tag: "Start" },
+        { updates: Stream.fromPubSub(updates) },
+      )
+      view.dispatch({ selection: EditorSelection.single(5, 9) })
+      press(view, "Enter")
+      const before = [...commands]
+      yield* PubSub.publish(updates, blockOf("hello world"))
+      yield* Effect.yieldNow
+      assert.deepStrictEqual(before, [{ _tag: "EditText", blockId, from: 5, to: 9, insert: "" }])
+      assert.deepStrictEqual(commands.at(-1), { _tag: "SplitBlock", blockId, at: 5 })
+    }),
+  )
 
   it("inserts a newline instead of splitting inside a fenced code block", () => {
     const { view, commands } = mount("```js\nlet x", { _tag: "End" })
@@ -149,7 +82,7 @@ describe("structural keys", () => {
     ])
   })
 
-  it("splits again once the cursor is past the closing fence", () => {
+  it("splits again once the caret is past the closing fence", () => {
     const { view, commands } = mount("```\ncode\n```", { _tag: "End" })
     press(view, "Enter")
     assert.deepStrictEqual(commands, [{ _tag: "SplitBlock", blockId, at: 12 }])
@@ -165,7 +98,7 @@ describe("structural keys", () => {
     const { view, commands } = mount("second", { _tag: "Start" })
     press(view, "Backspace")
     assert.deepStrictEqual(commands, [{ _tag: "MergeWithPrevious", blockId }])
-    assert.strictEqual(view.state.doc.toString(), "second")
+    assert.strictEqual(text(view), "second")
   })
 
   it("indents on Tab and outdents on Shift-Tab", () => {
@@ -185,31 +118,140 @@ describe("structural keys", () => {
     press(view, "y", { ctrlKey: true })
     assert.deepStrictEqual(commands, [{ _tag: "Undo" }, { _tag: "Redo" }, { _tag: "Redo" }])
   })
+
+  it("asks the outliner to leave, fold and move the block", () => {
+    const { view, actions } = mount("text", { _tag: "End" })
+    press(view, "Escape")
+    press(view, "ArrowUp", { ctrlKey: true })
+    press(view, "ArrowDown", { ctrlKey: true })
+    press(view, "ArrowUp", { altKey: true, shiftKey: true })
+    press(view, "ArrowDown", { altKey: true, shiftKey: true })
+    assert.deepStrictEqual(actions, [
+      { _tag: "Exit" },
+      { _tag: "Collapse" },
+      { _tag: "Expand" },
+      { _tag: "MoveUp" },
+      { _tag: "MoveDown" },
+    ])
+  })
+})
+
+const formatted = (
+  initial: string,
+  from: number,
+  to: number,
+  key: string,
+  mods: KeyboardEventInit,
+) => {
+  const { view } = mount(initial, { _tag: "Start" })
+  view.dispatch({ selection: EditorSelection.single(from, to) })
+  press(view, key, mods)
+  return [text(view), caret(view)]
+}
+
+describe("formatting shortcuts", () => {
+  it("wraps the selection like Logseq and leaves the caret inside the closing mark", () => {
+    assert.deepStrictEqual(formatted("hello", 0, 5, "b", { ctrlKey: true }), ["**hello**", 7])
+    assert.deepStrictEqual(formatted("hello", 0, 5, "i", { ctrlKey: true }), ["*hello*", 6])
+    assert.deepStrictEqual(formatted("hello", 0, 5, "h", { ctrlKey: true, shiftKey: true }), [
+      "==hello==",
+      7,
+    ])
+    assert.deepStrictEqual(formatted("hello", 0, 5, "s", { ctrlKey: true, shiftKey: true }), [
+      "~~hello~~",
+      7,
+    ])
+  })
+
+  it("opens an empty pair at the caret without a selection", () => {
+    assert.deepStrictEqual(formatted("x", 1, 1, "b", { ctrlKey: true }), ["x****", 3])
+  })
+
+  it("unwraps text that is already bold", () => {
+    assert.deepStrictEqual(formatted("**hello**", 2, 7, "b", { ctrlKey: true }), ["hello", 5])
+  })
+
+  it("turns the selection into a link label, or opens an empty link", () => {
+    assert.deepStrictEqual(formatted("hello", 0, 5, "l", { ctrlKey: true }), ["[hello]()", 8])
+    assert.deepStrictEqual(formatted("x", 1, 1, "l", { ctrlKey: true }), ["x[]()", 2])
+  })
+
+  it("rotates the task marker on Mod-Enter", () => {
+    const { view } = mount("water the beds", { _tag: "End" })
+    const seen = [0, 1, 2, 3].map(() => {
+      press(view, "Enter", { ctrlKey: true })
+      return text(view)
+    })
+    assert.deepStrictEqual(seen, [
+      "TODO water the beds",
+      "DOING water the beds",
+      "DONE water the beds",
+      "water the beds",
+    ])
+    assert.strictEqual(caret(view), 14)
+  })
+})
+
+describe("auto-pairs", () => {
+  it("closes brackets, and steps over the closing one", () => {
+    const { view } = mount("", { _tag: "End" })
+    typeKeys(view, "x [")
+    assert.deepStrictEqual([text(view), caret(view)], ["x []", 3])
+    typeKeys(view, "]")
+    assert.deepStrictEqual([text(view), caret(view)], ["x []", 4])
+  })
+
+  it("does not pair a parenthesis right after a word", () => {
+    const { view } = mount("", { _tag: "End" })
+    typeKeys(view, "a(")
+    assert.strictEqual(text(view), "a(")
+  })
+
+  it("only wraps a selection with emphasis marks", () => {
+    const { view } = mount("word", { _tag: "End" })
+    typeKeys(view, " *")
+    assert.strictEqual(text(view), "word *")
+    view.dispatch({ selection: EditorSelection.single(0, 4) })
+    typeKeys(view, "_")
+    assert.strictEqual(text(view), "_word_ *")
+  })
+
+  it("deletes both halves of an empty pair with Backspace", () => {
+    const { view } = mount("", { _tag: "End" })
+    typeKeys(view, "x (")
+    press(view, "Backspace")
+    assert.strictEqual(text(view), "x ")
+  })
 })
 
 describe("moving between blocks", () => {
-  it("leaves upward from the first line, keeping the column", () => {
-    const { view, navigations } = mount("one\ntwo", { _tag: "Offset", offset: 2 })
-    assert.isTrue(press(view, "ArrowUp"))
-    assert.deepStrictEqual(navigations, [
-      { _tag: "ToPrevious", cursor: { _tag: "LastLine", column: 2 } },
-    ])
+  it("leaves upward from the first line and downward from the last", () => {
+    const top = mount("one\ntwo", { _tag: "Offset", offset: 2 })
+    press(top.view, "ArrowUp")
+    const bottom = mount("one\ntwo", { _tag: "Offset", offset: 5 })
+    press(bottom.view, "ArrowDown")
+    assert.deepStrictEqual(
+      [...top.actions, ...bottom.actions],
+      [{ _tag: "FocusPrevious" }, { _tag: "FocusNext" }],
+    )
   })
 
-  it("leaves downward from the last line, keeping the column", () => {
-    const { view, navigations } = mount("one\ntwo", { _tag: "Offset", offset: 5 })
+  it("hands the caret's horizontal position to the next editor", () => {
+    const within = session()
+    const { view } = mount("one\ntwo", { _tag: "Offset", offset: 5 }, { within })
     press(view, "ArrowDown")
-    assert.deepStrictEqual(navigations, [
-      { _tag: "ToNext", cursor: { _tag: "FirstLine", column: 1 } },
-    ])
+    assert.deepStrictEqual(within.handoff.take(), {
+      _tag: "Caret",
+      cursor: { _tag: "FirstLine", x: 0 },
+    })
   })
 
-  it("stays inside the block when a line remains in that direction", () => {
-    const { view, navigations } = mount("one\ntwo", { _tag: "Offset", offset: 5 })
+  it("stays inside the block while a line remains in that direction", () => {
+    const { view, actions } = mount("one\ntwo", { _tag: "Offset", offset: 5 })
     press(view, "ArrowUp")
     view.dispatch({ selection: { anchor: 1 } })
     press(view, "ArrowDown")
-    assert.deepStrictEqual(navigations, [])
+    assert.deepStrictEqual(actions, [])
   })
 
   it("leaves left from the start and right from the end", () => {
@@ -218,122 +260,184 @@ describe("moving between blocks", () => {
     const end = mount("abc", { _tag: "End" })
     press(end.view, "ArrowRight")
     assert.deepStrictEqual(
-      [...start.navigations, ...end.navigations],
-      [
-        { _tag: "ToPrevious", cursor: { _tag: "End" } },
-        { _tag: "ToNext", cursor: { _tag: "Start" } },
-      ],
+      [...start.actions, ...end.actions],
+      [{ _tag: "FocusPrevious" }, { _tag: "FocusNext" }],
     )
   })
 
-  it("moves the caret normally in the middle of the text", () => {
-    const { view, navigations } = mount("abc", { _tag: "Offset", offset: 1 })
-    press(view, "ArrowLeft")
-    assert.strictEqual(caret(view), 0)
-    assert.deepStrictEqual(navigations, [])
-  })
-
-  it("places the caret where the previous block left off", () => {
-    const placements: Array<[CursorPlacement, number]> = [
-      [{ _tag: "Start" }, 0],
-      [{ _tag: "End" }, 11],
-      [{ _tag: "Offset", offset: 40 }, 11],
-      [{ _tag: "FirstLine", column: 9 }, 5],
-      [{ _tag: "LastLine", column: 2 }, 8],
-    ]
+  it("places the caret where it was asked to", () => {
     assert.deepStrictEqual(
-      placements.map(([cursor]) => caret(mount("first\nlast!", cursor).view)),
-      placements.map(([, expected]) => expected),
+      [
+        mount("first\nlast!", { _tag: "Start" }),
+        mount("first\nlast!", { _tag: "End" }),
+        mount("first\nlast!", { _tag: "Offset", offset: 40 }),
+        mount("first\nlast!", { _tag: "Offset", offset: 3 }),
+      ].map(({ view }) => caret(view)),
+      [0, 11, 11, 3],
     )
   })
 })
 
-describe("text from the graph", () => {
-  it("applies remote text without echoing it back and ignores echoes of its own edits", () =>
+describe("keys typed while the next block is on its way", () => {
+  it("land in the new block once its editor mounts, not in the old one", () => {
+    const within = session()
+    const old = mount("first", { _tag: "End" }, { within })
+    press(old.view, "Enter")
+    const typed = ["n", "e", "w"].map((key) => keyOnWindow(key))
+    const next = mount("", { _tag: "Start" }, { within, block: blockOf("", otherBlockId) })
+    assert.deepStrictEqual(typed, [false, false, false])
+    assert.strictEqual(text(old.view), "first")
+    assert.deepStrictEqual([text(next.view), caret(next.view)], ["new", 3])
+  })
+
+  it.effect("keeps holding after a replayed Enter until the block after that mounts", () =>
     Effect.gen(function* () {
-      const incoming = yield* PubSub.unbounded<string>()
-      const { view, commands } = mount("draft", { _tag: "End" }, Stream.fromPubSub(incoming))
-      type(view, "s")
-      type(view, "!")
-      yield* PubSub.publish(incoming, "drafts")
+      const within = session()
+      const updates = yield* PubSub.unbounded<Block>()
+      const first = mount("one", { _tag: "End" }, { within })
+      press(first.view, "Enter")
+      for (const key of ["a", "Enter", "b"]) keyOnWindow(key)
+      const second = mount(
+        "",
+        { _tag: "Start" },
+        { within, updates: Stream.fromPubSub(updates), block: blockOf("", otherBlockId) },
+      )
+      const waited = within.commands.at(-1)
+      yield* PubSub.publish(updates, blockOf("a", otherBlockId))
       yield* Effect.yieldNow
-      assert.strictEqual(view.state.doc.toString(), "drafts!")
-      yield* PubSub.publish(incoming, "early drafts!")
+      const third = mount("", { _tag: "Start" }, { within, block: blockOf("", parentBlockId) })
+      assert.deepStrictEqual([text(second.view), text(third.view)], ["a", "b"])
+      assert.deepStrictEqual(waited, {
+        _tag: "EditText",
+        blockId: otherBlockId,
+        from: 0,
+        to: 0,
+        insert: "a",
+      })
+      assert.deepStrictEqual(within.commands.at(-2), {
+        _tag: "SplitBlock",
+        blockId: otherBlockId,
+        at: 1,
+      })
+    }),
+  )
+
+  it.effect("go back to the same block when Enter outdents it instead of splitting", () =>
+    Effect.gen(function* () {
+      const within = session()
+      const updates = yield* PubSub.unbounded<Block>()
+      const { view } = mount(
+        "",
+        { _tag: "Start" },
+        { within, updates: Stream.fromPubSub(updates), block: blockOf("", blockId, parentBlockId) },
+      )
+      press(view, "Enter")
+      keyOnWindow("x")
+      assert.strictEqual(text(view), "")
+      yield* PubSub.publish(updates, blockOf("", blockId, null))
       yield* Effect.yieldNow
-      assert.strictEqual(view.state.doc.toString(), "early drafts!")
-      assert.strictEqual(caret(view), 13)
+      assert.strictEqual(text(view), "x")
+    }),
+  )
+
+  it("lets go of the keys when the pointer goes elsewhere", () => {
+    const within = session()
+    const { view } = mount("one", { _tag: "End" }, { within })
+    press(view, "Enter")
+    window.dispatchEvent(new Event("pointerdown"))
+    assert.isTrue(keyOnWindow("z"))
+  })
+})
+
+describe("merging into the previous block", () => {
+  it.effect("shows the merged text at once and keeps the caret at the seam", () =>
+    Effect.gen(function* () {
+      const within = session()
+      const updates = yield* PubSub.unbounded<Block>()
+      const second = mount(
+        "tail",
+        { _tag: "Start" },
+        { within, block: blockOf("tail", otherBlockId) },
+      )
+      press(second.view, "Backspace")
+      second.destroy()
+      const first = mount(
+        "head ",
+        { _tag: "End" },
+        { within, updates: Stream.fromPubSub(updates), block: blockOf("head ") },
+      )
+      assert.deepStrictEqual([text(first.view), caret(first.view)], ["head tail", 5])
+      typeKeys(first.view, "+")
+      yield* PubSub.publish(updates, blockOf("head "))
+      yield* PubSub.publish(updates, blockOf("head tail"))
+      yield* PubSub.publish(updates, blockOf("head +tail"))
+      yield* Effect.yieldNow
+      assert.deepStrictEqual([text(first.view), caret(first.view)], ["head +tail", 6])
+      assert.deepStrictEqual(within.commands.at(-1), {
+        _tag: "EditText",
+        blockId,
+        from: 5,
+        to: 5,
+        insert: "+",
+      })
+    }),
+  )
+})
+
+describe("text from the graph", () => {
+  it.effect("applies remote text without echoing it back and ignores echoes of its own edits", () =>
+    Effect.gen(function* () {
+      const updates = yield* PubSub.unbounded<Block>()
+      const { view, commands } = mount(
+        "draft",
+        { _tag: "End" },
+        { updates: Stream.fromPubSub(updates) },
+      )
+      typeKeys(view, "s!")
+      yield* PubSub.publish(updates, blockOf("drafts"))
+      yield* Effect.yieldNow
+      assert.strictEqual(text(view), "drafts!")
+      yield* PubSub.publish(updates, blockOf("early drafts!"))
+      yield* Effect.yieldNow
+      assert.deepStrictEqual([text(view), caret(view)], ["early drafts!", 13])
       assert.deepStrictEqual(commands, [
         { _tag: "EditText", blockId, from: 5, to: 5, insert: "s" },
         { _tag: "EditText", blockId, from: 6, to: 6, insert: "!" },
       ])
-    }).pipe(Effect.runPromise))
+    }),
+  )
 })
 
-describe("autocomplete", () => {
-  it("completes a page ref and reuses the auto-closed brackets", async () => {
-    const { view, labels, searches, commands } = await complete("see [[proj]]", 10)
-    assert.deepStrictEqual(labels, ["Project X", "Projects"])
-    assert.deepStrictEqual(searches, ["page:proj"])
-    assert.strictEqual(view.state.doc.toString(), "see [[Project X]]")
-    assert.strictEqual(caret(view), 17)
-    assert.deepStrictEqual(commands, [
-      { _tag: "EditText", blockId, from: 6, to: 12, insert: "Project X]]" },
-    ])
-  })
+describe("stale and undone text", () => {
+  it.effect("keeps typed text when the graph repeats the text from before the typing", () =>
+    Effect.gen(function* () {
+      const updates = yield* PubSub.unbounded<Block>()
+      const { view } = mount("draft", { _tag: "End" }, { updates: Stream.fromPubSub(updates) })
+      typeKeys(view, "s")
+      yield* PubSub.publish(updates, blockOf("draft"))
+      yield* Effect.yieldNow
+      assert.strictEqual(text(view), "drafts")
+    }),
+  )
 
-  it("completes a block ref with the block id", async () => {
-    const { view, labels, searches } = await complete("((ship", 6)
-    assert.deepStrictEqual(labels, ["ship the editor"])
-    assert.deepStrictEqual(searches, ["block:ship"])
-    assert.strictEqual(view.state.doc.toString(), `((${otherBlockId}))`)
-  })
-
-  it("completes a tag, bracketing titles with spaces", async () => {
-    const { view, searches } = await complete("todo #pro", 9)
-    assert.deepStrictEqual(searches, ["page:pro"])
-    assert.strictEqual(view.state.doc.toString(), "todo #[[Project X]]")
-  })
-
-  it("does not treat a hash inside a word as a tag", () => {
-    const { view, searches } = mount("issue#4", { _tag: "End" })
-    startCompletion(view)
-    assert.deepStrictEqual(searches, [])
-  })
+  it.effect("takes the graph's text after undo, even when it is the text from before", () =>
+    Effect.gen(function* () {
+      const updates = yield* PubSub.unbounded<Block>()
+      const { view } = mount("draft", { _tag: "End" }, { updates: Stream.fromPubSub(updates) })
+      typeKeys(view, "s")
+      press(view, "z", { ctrlKey: true })
+      yield* PubSub.publish(updates, blockOf("draft"))
+      yield* Effect.yieldNow
+      assert.strictEqual(text(view), "draft")
+    }),
+  )
 })
 
-describe("live markdown styling", () => {
-  it("keeps markers visible and styles them apart from the content", () => {
-    assert.deepStrictEqual(styled("**bold** and `code`"), [
-      ["**", "sq-strong sq-mark"],
-      ["bold", "sq-strong"],
-      ["**", "sq-strong sq-mark"],
-      ["`", "sq-mark"],
-      ["code", "sq-code"],
-      ["`", "sq-mark"],
-    ])
-  })
-
-  it("styles page refs, block refs and tags", () => {
-    assert.deepStrictEqual(styled("[[Page]] ((abc)) #tag #[[two words]] a#b"), [
-      ["[[", "sq-page-ref sq-mark"],
-      ["Page", "sq-page-ref"],
-      ["]]", "sq-page-ref sq-mark"],
-      ["((", "sq-block-ref sq-mark"],
-      ["abc", "sq-block-ref"],
-      ["))", "sq-block-ref sq-mark"],
-      ["#", "sq-tag sq-mark"],
-      ["tag", "sq-tag"],
-      ["#[[", "sq-tag sq-mark"],
-      ["two words", "sq-tag"],
-      ["]]", "sq-tag sq-mark"],
-    ])
-  })
-
-  it("leaves refs inside inline code unstyled as refs", () => {
-    assert.deepStrictEqual(styled("`[[not a ref]]`"), [
-      ["`", "sq-mark"],
-      ["[[not a ref]]", "sq-code"],
-      ["`", "sq-mark"],
-    ])
+describe("headings", () => {
+  it("keeps a heading block at its heading size while editing", () => {
+    const { view } = mount("## Plan", { _tag: "End" })
+    assert.isTrue(view.dom.classList.contains("sq-h2"))
+    view.dispatch({ changes: { from: 0, to: 3 } })
+    assert.isFalse(view.dom.classList.contains("sq-h2"))
   })
 })

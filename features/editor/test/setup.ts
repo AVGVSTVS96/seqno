@@ -4,3 +4,6 @@ Range.prototype.getBoundingClientRect = () => document.body.getBoundingClientRec
 
 // React only runs act() without warnings when this global is set: https://react.dev/reference/react/act
 Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true)
+
+// jsdom does not implement scrolling, so elements lack scrollIntoView: https://github.com/jsdom/jsdom/issues/1695
+Element.prototype.scrollIntoView = () => undefined
