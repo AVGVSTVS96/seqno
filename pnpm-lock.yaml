@@ -32,6 +32,9 @@ importers:
       '@effect/platform-browser':
         specifier: 4.0.1
         version: 4.0.1(effect@4.0.1)
+      '@fontsource-variable/inter':
+        specifier: 5.3.0
+        version: 5.3.0
       '@seqno/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -59,6 +62,9 @@ importers:
       '@seqno/vault':
         specifier: workspace:*
         version: link:../../packages/vault
+      '@tabler/icons-react':
+        specifier: 3.49.0
+        version: 3.49.0(react@19.3.0)
       '@tanstack/react-router':
         specifier: 1.170.41
         version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -138,6 +144,12 @@ importers:
       '@seqno/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@seqno/syntax':
+        specifier: workspace:*
+        version: link:../../packages/syntax
+      '@tabler/icons-react':
+        specifier: 3.49.0
+        version: 3.49.0(react@19.3.0)
       effect:
         specifier: 4.0.1
         version: 4.0.1
@@ -178,6 +190,12 @@ importers:
       '@seqno/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
+      '@seqno/syntax':
+        specifier: workspace:*
+        version: link:../../packages/syntax
+      '@tabler/icons-react':
+        specifier: 3.49.0
+        version: 3.49.0(react@19.3.0)
       effect:
         specifier: 4.0.1
         version: 4.0.1
@@ -691,6 +709,9 @@ packages:
       '@noble/hashes':
         optional: true
 
+  '@fontsource-variable/inter@5.3.0':
+    resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
+
   '@jridgewell/gen-mapping@0.4.0-beta.0':
     resolution: {integrity: sha512-JdGNkbE4GlNPYQhM0L95fBQr7ctLZJ276QXQLTad4t1oSdnnCI3fDq9DW3BqYAWv8Wc3+HS+4Gsii1oPMCfz1w==}
 
@@ -1142,6 +1163,14 @@ packages:
   '@sqlite.org/sqlite-wasm@3.53.4-build2':
     resolution: {integrity: sha512-kQVArGJA4z7s56Dm8t+eTBXad4LiohuVj9pfgDNOcxa+Ic5xMrWlLPTq6cT0hw5S4MIvtpsraW+B0wD+IPvC7A==}
     engines: {node: '>=22'}
+
+  '@tabler/icons-react@3.49.0':
+    resolution: {integrity: sha512-Um59pm5RVNUaQjFUtG0r4oYJbZuBS3tGugAA2tgBg0WufMk34Eio3nsO30RUkLuL2giYPQUNdY9HvqltLLYyNA==}
+    peerDependencies:
+      react: '>= 16'
+
+  '@tabler/icons@3.49.0':
+    resolution: {integrity: sha512-l+GnSkFETx0U26icxv1VUFnxxiTqXfCcVRiRAnyMwibupM2S2L/hSaZ9gmSgz01rkrsH/93NvLsxykqdanc6lw==}
 
   '@tanstack/history@1.162.4':
     resolution: {integrity: sha512-utTS5L2OkeYUzXGohL1Z8sefu1GLNOJcxe8Hd6iIdc/Xo1K1nDB2JEp4iSFhvYh33xKC9V91TxrS8qfrpoKobQ==}
@@ -2248,6 +2277,8 @@ snapshots:
 
   '@exodus/bytes@1.16.0': {}
 
+  '@fontsource-variable/inter@5.3.0': {}
+
   '@jridgewell/gen-mapping@0.4.0-beta.0':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
@@ -2495,6 +2526,13 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@sqlite.org/sqlite-wasm@3.53.4-build2': {}
+
+  '@tabler/icons-react@3.49.0(react@19.3.0)':
+    dependencies:
+      '@tabler/icons': 3.49.0
+      react: 19.3.0
+
+  '@tabler/icons@3.49.0': {}
 
   '@tanstack/history@1.162.4': {}
 

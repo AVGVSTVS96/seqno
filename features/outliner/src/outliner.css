@@ -2,12 +2,11 @@
   --seqno-indent: 24px;
   --seqno-bullet: 6px;
   --seqno-line-height: 1.6;
-  --seqno-fg: light-dark(#1f2328, #e6e6e6);
-  --seqno-muted: light-dark(#8c959f, #6e7681);
-  --seqno-guide: light-dark(#e1e4e8, #30363d);
-  --seqno-accent: light-dark(#0969da, #58a6ff);
-  --seqno-selected: light-dark(#ddf4ff, #1f3a5f);
-  color-scheme: light dark;
+  --seqno-fg: var(--fg);
+  --seqno-muted: var(--fg-muted);
+  --seqno-guide: var(--guide);
+  --seqno-accent: var(--fg-link);
+  --seqno-selected: var(--bg-block-selected);
   display: flex;
   flex-direction: column;
   height: 100%;

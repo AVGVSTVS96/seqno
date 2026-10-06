@@ -18,6 +18,8 @@
     "@lezer/highlight": "1.2.5",
     "@lezer/markdown": "1.7.2",
     "@seqno/domain": "workspace:*",
+    "@seqno/syntax": "workspace:*",
+    "@tabler/icons-react": "3.49.0",
     "effect": "4.0.1",
     "react": "19.3.0"
   },

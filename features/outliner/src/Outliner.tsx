@@ -386,7 +386,13 @@ const OutlineView = ({
                   }
                   aria-label="Zoom into block"
                   draggable
-                  onClick={() => onNavigate({ _tag: "Zoom", pageId, blockId: block.id })}
+                  onClick={(event) =>
+                    onNavigate(
+                      event.shiftKey
+                        ? { _tag: "SidebarBlock", blockId: block.id }
+                        : { _tag: "Zoom", pageId, blockId: block.id },
+                    )
+                  }
                   onDragStart={(event) => {
                     const ids = selectedSet.has(block.id) ? selected : [block.id]
                     event.dataTransfer.effectAllowed = "move"

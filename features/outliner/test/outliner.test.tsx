@@ -180,6 +180,28 @@ test("block refs render the referenced block and navigate to it", async () => {
   expect(navigations).toEqual([{ _tag: "Zoom", pageId, blockId: id(2) }])
 })
 
+test("shift-clicking a ref or a bullet asks to open it in the right sidebar", async () => {
+  const { navigations } = await mount([
+    block(1, `[[Project]] and ((${id(2)}))`),
+    block(2, "target"),
+  ])
+  await page.getByRole("link", { name: "[[Project]]" }).click({ modifiers: ["Shift"] })
+  await page
+    .getByRole("treeitem")
+    .first()
+    .getByText("target")
+    .click({ modifiers: ["Shift"] })
+  await page
+    .getByRole("button", { name: "Zoom into block" })
+    .last()
+    .click({ modifiers: ["Shift"] })
+  expect(navigations).toEqual([
+    { _tag: "SidebarPage", name: "Project" },
+    { _tag: "SidebarBlock", blockId: id(2) },
+    { _tag: "SidebarBlock", blockId: id(2) },
+  ])
+})
+
 test("only the rows near the viewport are in the DOM", async () => {
   await mount(Array.from({ length: 2000 }, (_, n) => block(n + 1, `row ${n + 1}`)))
   expect(page.getByRole("treeitem").elements().length).toBeLessThan(80)

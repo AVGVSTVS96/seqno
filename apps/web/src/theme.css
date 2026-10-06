@@ -1,0 +1,208 @@
+:root {
+  color-scheme: light dark;
+
+  --font-sans:
+    "Inter Variable", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Fira Code", Monaco, Menlo, Consolas, "Courier New", monospace;
+
+  --text-xs: 12px;
+  --leading-xs: 16px;
+  --text-sm: 14px;
+  --leading-sm: 20px;
+  --text-base: 16px;
+  --leading-base: 24px;
+  --text-lg: 20px;
+  --leading-lg: 28px;
+  --text-title: 36px;
+  --leading-title: 54px;
+  --text-h1: 32px;
+  --leading-h1: 48px;
+  --text-h2: 24px;
+  --leading-h2: 36px;
+  --text-h3: 19.2px;
+  --leading-h3: 28.8px;
+  --text-tag: 14.4px;
+  --leading-tag: 21.6px;
+  --text-inline-code: 14.4px;
+  --leading-inline-code: 20.88px;
+  --text-marker: 13.6px;
+  --leading-marker: 20.4px;
+  --text-code: 14px;
+  --leading-code: 23.2px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-marker: 650;
+  --weight-bold: 700;
+  --tracking-kbd: -0.5px;
+
+  --header-height: 48px;
+  --header-button-size: 32px;
+  --icon-header: 20px;
+  --icon-nav: 16px;
+  --icon-menu: 18px;
+  --icon-popup: 14px;
+  --left-sidebar-width: 246px;
+  --right-sidebar-width: 40vw;
+  --content-max-width: 960px;
+  --content-max-width-wide: 1440px;
+  --main-padding-top: 32px;
+  --main-padding-right: 16px;
+  --main-padding-bottom: 32px;
+  --main-padding-left: 32px;
+  --page-padding-inline: 8px;
+  --title-to-blocks: 48px;
+  --journal-padding-bottom: 102px;
+  --journal-min-height: 250px;
+  --journal-first-min-height: 500px;
+  --block-indent: 30px;
+  --block-padding-block: 2px;
+  --block-row-height: 28px;
+  --block-control-size: 22px;
+  --bullet-box: 16px;
+  --bullet-size: 6.4px;
+  --bullet-gap: 4px;
+  --scrollbar-width: 6px;
+
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  --opacity-icon: 0.7;
+  --opacity-bracket: 0.3;
+  --opacity-bullet: 0.8;
+  --opacity-marker: 0.7;
+  --opacity-done: 0.7;
+  --opacity-priority: 0.5;
+  --opacity-group-title: 0.5;
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-select: cubic-bezier(0, 1, 0, 1);
+  --duration-fast: 75ms;
+  --duration-base: 150ms;
+  --duration-medium: 200ms;
+  --duration-slow: 300ms;
+
+  --bg-app: light-dark(#fcfcfc, #002b36);
+  --bg-sidebar: light-dark(#f8f8f8, #023643);
+  --bg-sidebar-item-header: light-dark(#f3f3f3, #08404f);
+  --bg-popover: light-dark(#ffffff, #002d38);
+  --bg-overlay: light-dark(rgb(255 255 255 / 0.9), rgb(0 45 56 / 0.9));
+  --bg-input: light-dark(#f8f8f8, #023643);
+  --bg-footer: light-dark(#f3f3f3, #023643);
+  --bg-hover: light-dark(#ededed, #094b5a);
+  --bg-button-hover: light-dark(#f3f3f3, #023643);
+  --bg-menu-active: light-dark(#ededed, #00404d);
+  --bg-popup-active: light-dark(#ededed, #023643);
+  --bg-palette-active: light-dark(#e1e1e1, #094b5a);
+  --bg-icon-tile: light-dark(#e8e8e8, #094b5a);
+  --bg-block-selected: light-dark(#c0e6fd, #0a3d4b);
+  --bg-text-selection: light-dark(#e4f2ff, #338fff);
+  --bg-bullet-halo: light-dark(#dedede, #0f4958);
+  --bg-properties: light-dark(#f3f3f3, #06323e);
+  --bg-quote: light-dark(#f3f3f3, #023643);
+  --bg-embed: light-dark(#f8f8f8, #023643);
+  --bg-inline-code: light-dark(#e2e2e2, #01222a);
+  --bg-mark: #fef3ac;
+  --bg-kbd: light-dark(rgb(0 0 0 / 0.114), rgb(255 255 255 / 0.13));
+  --bg-checkbox: light-dark(#9dbbd8, #6093a0);
+  --bg-code: light-dark(#fdf6e3, #002b36);
+  --bg-code-gutter: light-dark(#eee8d5, #073642);
+  --bg-code-lang: light-dark(#f7f7f7, #023643);
+
+  --fg: light-dark(#171717, #a4b5b6);
+  --fg-title: light-dark(#171717, #93a1a1);
+  --fg-strong: light-dark(#020817, #f2f2f2);
+  --fg-popup: light-dark(rgb(2 8 23 / 0.75), rgb(242 242 242 / 0.75));
+  --fg-popup-group: light-dark(rgb(2 8 23 / 0.2), rgb(242 242 242 / 0.2));
+  --fg-muted: light-dark(#6f6f6f, #a0a0a0);
+  --fg-subtle: light-dark(#858585, #7e7e7e);
+  --fg-quote: light-dark(#433f38, #a4b5b6);
+  --fg-property-key: light-dark(#161e2e, #dfdfdf);
+  --fg-inline-code: light-dark(#6f6f6f, #a4b5b6);
+  --fg-text-selection: light-dark(#433f38, #a4b5b6);
+  --fg-mark: #262626;
+  --fg-kbd: light-dark(#171717, #ededed);
+  --fg-link: light-dark(#1b6898, #9bd3d4);
+  --fg-link-hover: light-dark(#1a537c, #d0e8e8);
+  --fg-bracket: #6b7280;
+  --fg-danger: #ef4444;
+  --fg-code: light-dark(#657b83, #839496);
+  --fg-code-line-number: light-dark(#839496, #586e75);
+
+  --code-keyword: #cb4b16;
+  --code-string: #859900;
+  --code-def: #2aa198;
+  --code-variable: #839496;
+  --code-number: #d33682;
+  --code-property: #2aa198;
+  --code-operator: #6c71c4;
+
+  --bullet: light-dark(#c7c7c7, #608e91);
+  --guide: light-dark(rgb(46 27 5 / 0.08), #0b4a5a);
+  --border: light-dark(#ebeaeb, #003947);
+  --border-sidebar: light-dark(#f3f3f3, #08404f);
+  --border-heading: light-dark(#dcdcdc, #094b5a);
+  --border-separator: light-dark(#e8e8e8, #003542);
+  --border-input: light-dark(#dbdbdb, #0e5263);
+  --border-block-ref: light-dark(#d8e1e8, #1a6376);
+
+  --ring-color: #037dba;
+  --ring-offset: light-dark(#ffffff, #002b36);
+  --ring: 0 0 0 2px var(--ring-offset), 0 0 0 4px var(--ring-color);
+
+  --scrollbar-thumb: light-dark(#e8e8e8, #11505f);
+  --scrollbar-track: light-dark(#f8f8f8, rgb(30 60 67 / 0.1));
+
+  --shadow-popover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-dialog: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-kbd:
+    inset 0 1px 0 0 light-dark(transparent, rgb(255 255 255 / 0.15)),
+    inset 0 -1px 0 0 light-dark(rgb(0 0 0 / 0.1), rgb(0 0 0 / 0.25));
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  font-weight: var(--weight-regular);
+}
+
+::selection {
+  background: var(--bg-text-selection);
+  color: var(--fg-text-selection);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}

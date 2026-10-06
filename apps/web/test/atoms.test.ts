@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Layer, Option, Stream, SubscriptionRef } from "effect"
+import { KeyValueStore } from "effect/persistence"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { RpcTest } from "effect/rpc"
 import { BlockId, Command, PageId, type Block, type GraphEvent, type Page } from "@seqno/domain"
@@ -8,8 +9,14 @@ import {
   appLayer,
   favorites,
   journals,
+  leftSidebarOpen,
   openGraph,
   pageNamed,
+  prefersDark,
+  resolvedTheme,
+  rightSidebar,
+  settingsLayer,
+  theme,
   type AppServices,
 } from "../src/atoms.ts"
 import { GraphLocations, type GraphLocation } from "../src/graph-locations.ts"
@@ -153,4 +160,78 @@ describe("app atoms", () => {
       assert.deepStrictEqual(AsyncResult.isSuccess(found) ? found.value : null, Option.some(inbox))
     }),
   )
+})
+
+const memoryStorage = (entries: Map<string, string>): Storage => ({
+  get length() {
+    return entries.size
+  },
+  clear: () => entries.clear(),
+  getItem: (key) => entries.get(key) ?? null,
+  key: (index) => [...entries.keys()][index] ?? null,
+  removeItem: (key) => {
+    entries.delete(key)
+  },
+  setItem: (key, value) => {
+    entries.set(key, value)
+  },
+})
+
+const settingsRegistry = (entries: Map<string, string>, systemDark = false) =>
+  AtomRegistry.make({
+    initialValues: [
+      [settingsLayer, KeyValueStore.layerStorage(() => memoryStorage(entries))],
+      [prefersDark, systemDark],
+    ],
+  })
+
+describe("app settings", () => {
+  it("theme and the left sidebar start as system and open, and persist as JSON", () => {
+    const entries = new Map<string, string>()
+    const first = settingsRegistry(entries)
+    assert.strictEqual(first.get(theme), "system")
+    assert.strictEqual(first.get(leftSidebarOpen), true)
+    first.set(theme, "dark")
+    first.set(leftSidebarOpen, false)
+    assert.deepStrictEqual(Object.fromEntries(entries), {
+      "seqno.theme": '"dark"',
+      "seqno.leftSidebar": "false",
+    })
+    const reopened = settingsRegistry(entries)
+    assert.strictEqual(reopened.get(theme), "dark")
+    assert.strictEqual(reopened.get(leftSidebarOpen), false)
+  })
+
+  it("the system theme resolves through the color scheme preference", () => {
+    const registry = settingsRegistry(new Map([["seqno.theme", '"system"']]), true)
+    registry.mount(resolvedTheme)
+    assert.strictEqual(registry.get(resolvedTheme), "dark")
+    registry.set(prefersDark, false)
+    assert.strictEqual(registry.get(resolvedTheme), "light")
+    registry.set(theme, "dark")
+    assert.strictEqual(registry.get(resolvedTheme), "dark")
+  })
+})
+
+describe("right sidebar", () => {
+  it("opens items newest first without duplicates, closes, toggles and clears", () => {
+    const registry = AtomRegistry.make()
+    const alpha = { _tag: "Page", name: "alpha" } as const
+    const block = { _tag: "Block", blockId: parentBlock.id } as const
+    registry.set(rightSidebar, { _tag: "Open", item: alpha })
+    registry.set(rightSidebar, { _tag: "Open", item: block })
+    registry.set(rightSidebar, { _tag: "Open", item: { _tag: "Page", name: "Alpha" } })
+    assert.deepStrictEqual(registry.get(rightSidebar), {
+      open: true,
+      items: [{ _tag: "Page", name: "Alpha" }, block],
+    })
+    registry.set(rightSidebar, { _tag: "Close", item: block })
+    registry.set(rightSidebar, { _tag: "Toggle" })
+    assert.deepStrictEqual(registry.get(rightSidebar), {
+      open: false,
+      items: [{ _tag: "Page", name: "Alpha" }],
+    })
+    registry.set(rightSidebar, { _tag: "Clear" })
+    assert.deepStrictEqual(registry.get(rightSidebar), { open: false, items: [] })
+  })
 })

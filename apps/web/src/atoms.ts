@@ -1,7 +1,9 @@
+import { BrowserKeyValueStore } from "@effect/platform-browser"
 import { Effect, Equal, Layer, Option, Schema } from "effect"
+import type { KeyValueStore } from "effect/persistence"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
-import type { Command, Page } from "@seqno/domain"
+import { BlockId, normalizePageName, type Command, type Page } from "@seqno/domain"
 import { CoreClient } from "@seqno/rpc"
 import { WorkerCore } from "./core.ts"
 import { BrowserGraphLocations, GraphLocations } from "./graph-locations.ts"
@@ -86,7 +88,82 @@ export const pageNamed = Atom.family((name: string) =>
   ),
 )
 
-export const rightSidebarOpen = Atom.make(true).pipe(Atom.keepAlive)
+export const settingsLayer = Atom.make<Layer.Layer<KeyValueStore.KeyValueStore>>(
+  BrowserKeyValueStore.layerLocalStorage,
+).pipe(Atom.keepAlive)
+
+const settingsRuntime = Atom.runtime((get) => get(settingsLayer))
+
+export const ThemeChoice = Schema.Literals(["light", "dark", "system"])
+export type ThemeChoice = typeof ThemeChoice.Type
+
+export const theme = Atom.kvs({
+  runtime: settingsRuntime,
+  key: "seqno.theme",
+  schema: ThemeChoice,
+  defaultValue: (): ThemeChoice => "system",
+}).pipe(Atom.keepAlive)
+
+export const prefersDark = Atom.make(false).pipe(Atom.keepAlive)
+
+export const resolvedTheme = Atom.make((get): "light" | "dark" => {
+  const choice = get(theme)
+  if (choice !== "system") return choice
+  return get(prefersDark) ? "dark" : "light"
+})
+
+export const leftSidebarOpen = Atom.kvs({
+  runtime: settingsRuntime,
+  key: "seqno.leftSidebar",
+  schema: Schema.Boolean,
+  defaultValue: () => true,
+}).pipe(Atom.keepAlive)
+
+export const searchOpen = Atom.make(false).pipe(Atom.keepAlive)
+
+export const SidebarItem = Schema.TaggedUnion({
+  Page: { name: Schema.String },
+  Block: { blockId: BlockId },
+})
+export type SidebarItem = typeof SidebarItem.Type
+
+export const SidebarAction = Schema.TaggedUnion({
+  Open: { item: SidebarItem },
+  Close: { item: SidebarItem },
+  Toggle: {},
+  Clear: {},
+})
+export type SidebarAction = typeof SidebarAction.Type
+
+export interface RightSidebar {
+  readonly open: boolean
+  readonly items: ReadonlyArray<SidebarItem>
+}
+
+export const sidebarItemKey = (item: SidebarItem) =>
+  SidebarItem.match(item, {
+    Page: ({ name }) => `page:${normalizePageName(name)}`,
+    Block: ({ blockId }) => `block:${blockId}`,
+  })
+
+const without = (items: ReadonlyArray<SidebarItem>, item: SidebarItem) =>
+  items.filter((other) => sidebarItemKey(other) !== sidebarItemKey(item))
+
+const sidebarAfter = (state: RightSidebar, action: SidebarAction): RightSidebar =>
+  SidebarAction.match(action, {
+    Open: ({ item }) => ({ open: true, items: [item, ...without(state.items, item)] }),
+    Close: ({ item }) => ({ ...state, items: without(state.items, item) }),
+    Toggle: () => ({ ...state, open: !state.open }),
+    Clear: () => ({ open: false, items: [] }),
+  })
+
+const sidebarState = Atom.make<RightSidebar>({ open: false, items: [] }).pipe(Atom.keepAlive)
+
+export const rightSidebar = Atom.writable(
+  (get) => get(sidebarState),
+  (ctx, action: SidebarAction) =>
+    ctx.set(sidebarState, sidebarAfter(ctx.get(sidebarState), action)),
+).pipe(Atom.keepAlive)
 
 export const search = Atom.family((text: string) =>
   appRuntime.atom(Effect.flatMap(Effect.service(CoreClient), (core) => core.Search({ text }))),

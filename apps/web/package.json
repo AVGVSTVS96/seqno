@@ -11,6 +11,7 @@
   "dependencies": {
     "@effect/atom-react": "4.0.1",
     "@effect/platform-browser": "4.0.1",
+    "@fontsource-variable/inter": "5.3.0",
     "@seqno/domain": "workspace:*",
     "@seqno/editor": "workspace:*",
     "@seqno/graph": "workspace:*",
@@ -20,6 +21,7 @@
     "@seqno/query": "workspace:*",
     "@seqno/rpc": "workspace:*",
     "@seqno/vault": "workspace:*",
+    "@tabler/icons-react": "3.49.0",
     "@tanstack/react-router": "1.170.41",
     "effect": "4.0.1",
     "loro-crdt": "1.16.2",

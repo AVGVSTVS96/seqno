@@ -12,6 +12,8 @@
     "@effect/atom-react": "4.0.1",
     "@seqno/domain": "workspace:*",
     "@seqno/rpc": "workspace:*",
+    "@seqno/syntax": "workspace:*",
+    "@tabler/icons-react": "3.49.0",
     "effect": "4.0.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",

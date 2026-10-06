@@ -2,8 +2,19 @@ import { useAtom, useAtomValue } from "@effect/atom-react"
 import { Link, Outlet } from "@tanstack/react-router"
 import { Cause } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { favorites, openGraph, rightSidebarOpen } from "../atoms.ts"
+import type { BlockId } from "@seqno/domain"
+import { blockAtom } from "@seqno/outliner"
+import {
+  favorites,
+  leftSidebarOpen,
+  openGraph,
+  pages,
+  rightSidebar,
+  SidebarItem,
+  sidebarItemKey,
+} from "../atoms.ts"
 import { OpenGraphScreen } from "./OpenGraphScreen.tsx"
+import { PageByName, PageView } from "./PageView.tsx"
 
 const problemOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
@@ -40,29 +51,51 @@ const LeftSidebar = ({ graph }: { readonly graph: string }) => {
   )
 }
 
-const RightSidebar = () => (
-  <aside className="right-sidebar">
-    <h2>Linked references</h2>
-    <p className="hint">Backlinks and block references arrive with the SQLite index.</p>
+const SidebarBlock = ({ blockId }: { readonly blockId: BlockId }) => {
+  const known = AsyncResult.getOrElse(useAtomValue(pages), () => [])
+  return AsyncResult.match(useAtomValue(blockAtom(blockId)), {
+    onInitial: () => <p className="hint">Loading…</p>,
+    onFailure: () => <p className="problem">This block could not be loaded.</p>,
+    onSuccess: ({ value }) => {
+      const page = known.find((candidate) => candidate.id === value.pageId)
+      return page === undefined ? null : <PageView page={page} zoom={value.id} />
+    },
+  })
+}
+
+const SidebarEntry = ({ item }: { readonly item: SidebarItem }) =>
+  SidebarItem.match(item, {
+    Page: ({ name }) => <PageByName name={name} zoom={null} />,
+    Block: ({ blockId }) => <SidebarBlock blockId={blockId} />,
+  })
+
+const RightSidebar = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => (
+  <aside className="right-sidebar" aria-label="Right sidebar">
+    {items.length === 0 ? (
+      <p className="hint">Shift-click a page or block to open it here.</p>
+    ) : (
+      items.map((item) => <SidebarEntry key={sidebarItemKey(item)} item={item} />)
+    )}
   </aside>
 )
 
 const Layout = ({ graph }: { readonly graph: string }) => {
-  const [rightOpen, setRightOpen] = useAtom(rightSidebarOpen)
+  const [sidebar, updateSidebar] = useAtom(rightSidebar)
+  const leftOpen = useAtomValue(leftSidebarOpen)
   return (
-    <div className="app" data-right-open={rightOpen}>
-      <LeftSidebar graph={graph} />
+    <div className="app" data-left-open={leftOpen} data-right-open={sidebar.open}>
+      {leftOpen ? <LeftSidebar graph={graph} /> : null}
       <div className="main">
         <header className="topbar">
-          <button type="button" className="ghost" onClick={() => setRightOpen(!rightOpen)}>
-            {rightOpen ? "Hide sidebar" : "Show sidebar"}
+          <button type="button" className="ghost" onClick={() => updateSidebar({ _tag: "Toggle" })}>
+            {sidebar.open ? "Hide sidebar" : "Show sidebar"}
           </button>
         </header>
         <main className="main-column">
           <Outlet />
         </main>
       </div>
-      {rightOpen ? <RightSidebar /> : null}
+      {sidebar.open ? <RightSidebar items={sidebar.items} /> : null}
     </div>
   )
 }

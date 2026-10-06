@@ -9,16 +9,23 @@ import { parseBlock, parseInline, type Inline, type Line } from "./markdown.ts"
 export type NavigationTarget =
   | { readonly _tag: "Page"; readonly name: string }
   | { readonly _tag: "Zoom"; readonly pageId: PageId; readonly blockId: BlockId | null }
+  | { readonly _tag: "SidebarPage"; readonly name: string }
+  | { readonly _tag: "SidebarBlock"; readonly blockId: BlockId }
 
 export type Navigate = (target: NavigationTarget) => void
 
 const maxRefDepth = 2
 
-const follow = (navigate: Navigate, target: NavigationTarget) => (event: MouseEvent) => {
-  event.preventDefault()
-  event.stopPropagation()
-  navigate(target)
-}
+const follow =
+  (navigate: Navigate, target: NavigationTarget, inSidebar: NavigationTarget) =>
+  (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    navigate(event.shiftKey ? inSidebar : target)
+  }
+
+const toPage = (navigate: Navigate, name: string) =>
+  follow(navigate, { _tag: "Page", name }, { _tag: "SidebarPage", name })
 
 const BlockRef = (props: { blockId: BlockId; navigate: Navigate; depth: number }) => {
   const result = useAtomValue(blockAtom(props.blockId))
@@ -28,7 +35,11 @@ const BlockRef = (props: { blockId: BlockId; navigate: Navigate; depth: number }
     onSuccess: ({ value }) => (
       <span
         className="seqno-block-ref"
-        onClick={follow(props.navigate, { _tag: "Zoom", pageId: value.pageId, blockId: value.id })}
+        onClick={follow(
+          props.navigate,
+          { _tag: "Zoom", pageId: value.pageId, blockId: value.id },
+          { _tag: "SidebarBlock", blockId: value.id },
+        )}
       >
         {props.depth < maxRefDepth
           ? renderInlines(
@@ -64,12 +75,12 @@ const InlineNode = ({
     Text: ({ text }) => text,
     Code: ({ code }) => <code>{code}</code>,
     PageRef: ({ name }) => (
-      <a href="#" className="seqno-page-ref" onClick={follow(navigate, { _tag: "Page", name })}>
+      <a href="#" className="seqno-page-ref" onClick={toPage(navigate, name)}>
         {name}
       </a>
     ),
     Tag: ({ name }) => (
-      <a href="#" className="seqno-tag" onClick={follow(navigate, { _tag: "Page", name })}>
+      <a href="#" className="seqno-tag" onClick={toPage(navigate, name)}>
         #{name}
       </a>
     ),

@@ -5,7 +5,7 @@ import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
 import { normalizePageName, type BlockId, type Page } from "@seqno/domain"
 import { Outliner, type NavigationTarget } from "@seqno/outliner"
-import { dispatch, pageNamed } from "../atoms.ts"
+import { dispatch, pageNamed, rightSidebar } from "../atoms.ts"
 import { EditorSlot } from "./EditorSlot.tsx"
 
 export const PageView = ({
@@ -16,6 +16,7 @@ export const PageView = ({
   readonly zoom: BlockId | null
 }) => {
   const run = useAtomSet(dispatch)
+  const updateSidebar = useAtomSet(rightSidebar)
   const navigate = useNavigate()
   const heading = useId()
   const starred = page.props["favorite"] === "true"
@@ -29,6 +30,10 @@ export const PageView = ({
           params: { name: page.name },
           search: blockId === null ? {} : { zoom: blockId },
         }),
+      SidebarPage: ({ name }) =>
+        updateSidebar({ _tag: "Open", item: { _tag: "Page", name: normalizePageName(name) } }),
+      SidebarBlock: ({ blockId }) =>
+        updateSidebar({ _tag: "Open", item: { _tag: "Block", blockId } }),
     }),
   )
   return (
