@@ -194,7 +194,7 @@ describe("properties", () => {
     blocks: tree.filter((blocks) => blocks.length > 0),
     format: fc.record({
       indent: fc.constantFrom("\t", "  ", "    "),
-      eol: fc.constantFrom("\n" as const, "\r\n" as const),
+      eol: fc.constantFrom<"\n" | "\r\n">("\n", "\r\n"),
       finalNewline: fc.boolean(),
       bom: fc.boolean(),
     }),
