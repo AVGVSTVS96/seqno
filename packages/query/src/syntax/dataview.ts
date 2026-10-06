@@ -178,7 +178,7 @@ export const readDataview = (src: string): Query => {
   let limit: number | undefined
   if (accept("LIMIT")) {
     const n = next()
-    limit = n._tag === "Num" ? n.v : fail("LIMIT takes a number")
+    limit = n._tag === "Num" && Number.isInteger(n.v) && n.v >= 0 ? n.v : fail("LIMIT takes a whole number")
   }
   const rest = toks[i]
   if (rest !== undefined) fail(`unexpected "${String(rest.v)}"`)

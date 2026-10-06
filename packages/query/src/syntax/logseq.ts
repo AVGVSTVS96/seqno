@@ -99,9 +99,11 @@ const filter = (f: Form, acc: Acc): Filter | null => {
     case "group-by":
       acc.group = field(name(arg(0)))
       return null
-    case "limit":
-      acc.limit = Number(name(arg(0)))
+    case "limit": {
+      const n = Number(name(arg(0)))
+      acc.limit = Number.isInteger(n) && n >= 0 ? n : fail("(limit) takes a whole number")
       return null
+    }
     case "view": {
       const kind = name(arg(0))
       const fields = args.slice(1).map((a) => field(name(a)))
