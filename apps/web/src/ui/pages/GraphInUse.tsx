@@ -3,6 +3,7 @@ import { Option } from "effect"
 import { Atom } from "effect/reactivity"
 import { useId } from "react"
 import { graphLocked, openGraph } from "../../atoms.ts"
+import { graphTitle } from "../../graph-locations.ts"
 import { PagesStyle } from "../PageView.tsx"
 
 export const GraphInUse = ({ graph }: { readonly graph: string }) => {
@@ -15,8 +16,8 @@ export const GraphInUse = ({ graph }: { readonly graph: string }) => {
       <div className="seqno-graph-in-use-card" role="status">
         <h1 id={title}>This graph is open in another tab</h1>
         <p>
-          <strong>{graph}</strong> can be open in one tab at a time, so no edit gets lost. Close it
-          in the other tab and it opens here.
+          <strong>{graphTitle(graph)}</strong> can be open in one tab at a time, so no edit gets
+          lost. Close it in the other tab and it opens here.
         </p>
         <button
           type="button"

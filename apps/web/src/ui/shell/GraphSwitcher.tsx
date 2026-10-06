@@ -3,6 +3,7 @@ import { IconDatabase, IconFolderOpen, IconSelector, IconTopologyStar } from "@t
 import { Exit } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { openGraph, recentGraphs, rightSidebar, type GraphSource } from "../../atoms.ts"
+import { demoGraph, graphTitle } from "../../graph-locations.ts"
 import { Menu, MenuItem, usePopover } from "./popover.tsx"
 
 export const GraphSwitcher = ({
@@ -35,7 +36,7 @@ export const GraphSwitcher = ({
         <span className="graph-thumb" aria-hidden>
           <IconTopologyStar size={16} />
         </span>
-        <strong className="graph-name">{graph}</strong>
+        <strong className="graph-name">{graphTitle(graph)}</strong>
         <IconSelector className="graph-selector" size={16} aria-hidden />
       </button>
       <Menu handle={menu} label="Graphs" className="graphs-menu">
@@ -47,7 +48,7 @@ export const GraphSwitcher = ({
                 key={location.name}
                 onSelect={() => switchTo({ _tag: "Recent", name: location.name })}
               >
-                {location.name}
+                {graphTitle(location.name)}
               </MenuItem>
             ))}
           </>
@@ -59,7 +60,7 @@ export const GraphSwitcher = ({
           >
             Open a folder
           </MenuItem>
-          {graph === "demo" || others.some((location) => location.name === "demo") ? null : (
+          {graph === demoGraph || others.some((location) => location.name === demoGraph) ? null : (
             <MenuItem
               icon={<IconDatabase size={18} aria-hidden />}
               onSelect={() => switchTo({ _tag: "Demo" })}

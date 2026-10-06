@@ -11,6 +11,10 @@ export const GraphLocation = Schema.TaggedUnion({
 })
 export type GraphLocation = typeof GraphLocation.Type
 
+export const demoGraph = "demo"
+
+export const graphTitle = (name: string) => (name === demoGraph ? "Demo" : name)
+
 export class GraphNotPicked extends Schema.TaggedError<GraphNotPicked>()("GraphNotPicked", {
   reason: Schema.String,
 }) {}
@@ -119,10 +123,10 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
     try: async () => {
       const root = await navigator.storage.getDirectory()
       const folder = await root.getDirectoryHandle("graphs", { create: true })
-      await folder.getDirectoryHandle("demo", { create: true })
+      await folder.getDirectoryHandle(demoGraph, { create: true })
     },
     catch: notPicked,
-  }).pipe(Effect.flatMap(() => save({ _tag: "OpfsGraph", name: "demo" }))),
+  }).pipe(Effect.flatMap(() => save({ _tag: "OpfsGraph", name: demoGraph }))),
   reopen: (name) => Effect.flatMap(stored(name), granted),
   assets: (name) =>
     stored(name).pipe(

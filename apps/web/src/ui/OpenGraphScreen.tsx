@@ -2,6 +2,7 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
 import { openGraph, recentGraphs } from "../atoms.ts"
+import { graphTitle } from "../graph-locations.ts"
 
 const RecentGraphs = ({ disabled }: { readonly disabled: boolean }) => {
   const names = AsyncResult.getOrElse(useAtomValue(recentGraphs), () => [])
@@ -21,7 +22,7 @@ const RecentGraphs = ({ disabled }: { readonly disabled: boolean }) => {
               disabled={disabled}
               onClick={() => open({ _tag: "Recent", name: location.name })}
             >
-              {location.name}
+              {graphTitle(location.name)}
             </button>
             <small className="graphs-list-detail">
               {location._tag === "FolderGraph"
