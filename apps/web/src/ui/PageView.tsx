@@ -1,67 +1,83 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { Link, useNavigate } from "@tanstack/react-router"
-import { Match, Option } from "effect"
+import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
 import { normalizePageName, type BlockId, type Page } from "@seqno/domain"
-import { Outliner, type NavigationTarget } from "@seqno/outliner"
-import { dispatch, pageNamed, rightSidebar } from "../atoms.ts"
+import { Outliner } from "@seqno/outliner"
+import { dispatch, pages } from "../atoms.ts"
 import { EditorSlot } from "./EditorSlot.tsx"
+import { listValues } from "./pages/model.ts"
+import { useNavigateTo } from "./pages/navigation.ts"
+import { PageProperties } from "./pages/PageProperties.tsx"
+import pagesCss from "./pages/pages.css?inline"
+import { PageTitle } from "./pages/PageTitle.tsx"
+import { NameReferences, References } from "./pages/References.tsx"
+
+export const PagesStyle = () => (
+  <style href="seqno/pages" precedence="pages">
+    {pagesCss}
+  </style>
+)
 
 export const PageView = ({
   page,
   zoom,
+  inJournals = false,
 }: {
   readonly page: Page
   readonly zoom: BlockId | null
+  readonly inJournals?: boolean
 }) => {
-  const run = useAtomSet(dispatch)
-  const updateSidebar = useAtomSet(rightSidebar)
-  const navigate = useNavigate()
   const heading = useId()
-  const starred = page.props["favorite"] === "true"
-  const onNavigate = Match.type<NavigationTarget>().pipe(
-    Match.tagsExhaustive({
-      Page: ({ name }) =>
-        navigate({ to: "/page/$name", params: { name: normalizePageName(name) } }),
-      Zoom: ({ blockId }) =>
-        navigate({
-          to: "/page/$name",
-          params: { name: page.name },
-          search: blockId === null ? {} : { zoom: blockId },
-        }),
-      SidebarPage: ({ name }) =>
-        updateSidebar({ _tag: "Open", item: { _tag: "Page", name: normalizePageName(name) } }),
-      SidebarBlock: ({ blockId }) =>
-        updateSidebar({ _tag: "Open", item: { _tag: "Block", blockId } }),
-    }),
-  )
+  const navigateTo = useNavigateTo()
+  const zoomed = zoom !== null
   return (
-    <article className="page" aria-labelledby={heading}>
-      <header className="page-header">
-        <h1 id={heading}>
-          <Link to="/page/$name" params={{ name: page.name }}>
-            {page.title}
-          </Link>
+    <div className="seqno-page" data-zoomed={zoomed}>
+      <PagesStyle />
+      <article {...(zoomed ? { "aria-label": page.title } : { "aria-labelledby": heading })}>
+        {zoomed ? null : <PageTitle page={page} id={heading} link={inJournals} />}
+        <div className="seqno-page-blocks">
+          {zoomed ? null : <PageProperties page={page} />}
+          <Outliner pageId={page.id} zoom={zoom} onNavigate={navigateTo} editor={EditorSlot} />
+        </div>
+      </article>
+      {zoomed ? null : <References page={page} unlinked={!inJournals} />}
+    </div>
+  )
+}
+
+const named = (all: ReadonlyArray<Page>, name: string) =>
+  Option.orElse(Option.fromNullishOr(all.find((page) => page.name === name)), () =>
+    Option.fromNullishOr(
+      all.find((page) =>
+        listValues(page.props["alias"] ?? "").some((alias) => normalizePageName(alias) === name),
+      ),
+    ),
+  )
+
+const MissingPage = ({ name }: { readonly name: string }) => {
+  const heading = useId()
+  const create = useAtomSet(dispatch)
+  return (
+    <div className="seqno-page">
+      <PagesStyle />
+      <article aria-labelledby={heading}>
+        <h1 id={heading} className="seqno-page-title" data-editable={false}>
+          {name}
         </h1>
-        <button
-          type="button"
-          className="ghost star"
-          aria-pressed={starred}
-          onClick={() =>
-            run({
-              _tag: "SetProperty",
-              target: { _tag: "PageTarget", pageId: page.id },
-              key: "favorite",
-              value: starred ? null : "true",
-            })
-          }
-        >
-          {starred ? "Unstar" : "Star"}
-        </button>
-      </header>
-      <Outliner pageId={page.id} zoom={zoom} onNavigate={onNavigate} editor={EditorSlot} />
-    </article>
+        <div className="seqno-page-blocks">
+          <button
+            type="button"
+            className="seqno-page-create"
+            aria-label="Click here to start writing"
+            onClick={() => create({ _tag: "CreatePage", title: name })}
+          >
+            <span className="seqno-page-create-bullet" />
+          </button>
+        </div>
+      </article>
+      <NameReferences name={name} />
+    </div>
   )
 }
 
@@ -72,12 +88,12 @@ export const PageByName = ({
   readonly name: string
   readonly zoom: BlockId | null
 }) =>
-  AsyncResult.match(useAtomValue(pageNamed(name)), {
-    onInitial: () => <p className="hint">Loading…</p>,
+  AsyncResult.match(useAtomValue(pages), {
+    onInitial: () => null,
     onFailure: () => <p className="problem">The page list could not be read.</p>,
-    onSuccess: (found) =>
-      Option.match(found.value, {
-        onNone: () => <p className="hint">No page named “{name}” yet.</p>,
+    onSuccess: ({ value }) =>
+      Option.match(named(value, name), {
+        onNone: () => <MissingPage name={name} />,
         onSome: (page) => <PageView page={page} zoom={zoom} />,
       }),
   })

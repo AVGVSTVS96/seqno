@@ -20,6 +20,7 @@
     "@seqno/outliner": "workspace:*",
     "@seqno/query": "workspace:*",
     "@seqno/rpc": "workspace:*",
+    "@seqno/syntax": "workspace:*",
     "@seqno/vault": "workspace:*",
     "@tabler/icons-react": "3.49.0",
     "@tanstack/react-router": "1.170.41",

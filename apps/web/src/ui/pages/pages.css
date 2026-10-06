@@ -1,0 +1,600 @@
+:root {
+  --bg-table-row-hover: light-dark(rgb(241 245 249 / 0.5), rgb(0 53 66 / 0.5));
+  --fg-table-page: light-dark(#1b6898, #a4b5b6);
+  --opacity-table-tag: 0.7;
+  --opacity-view-actions: 0.75;
+  --references-top: 92px;
+  --references-gap: 32px;
+  --fold-offset: -27px;
+  --crumb-max-width: 28ch;
+}
+
+:root:has(.seqno-all-pages) {
+  --content-max-width: var(--content-max-width-wide);
+}
+
+.seqno-page {
+  padding: 0 var(--page-padding-inline);
+}
+
+.seqno-page > article {
+  display: block;
+}
+
+.seqno-page-title {
+  margin: 0;
+  padding: var(--block-padding-block) 0 var(--block-padding-block) 2px;
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-medium);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fg-title);
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.seqno-page-title[data-editable="false"] {
+  cursor: default;
+}
+
+.seqno-page-title:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--ring);
+}
+
+.seqno-page-title-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.seqno-page-title-input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  caret-color: var(--fg);
+}
+
+.seqno-page-title-problem {
+  margin: 0 0 0 2px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  color: var(--fg-danger);
+}
+
+.seqno-page-blocks {
+  margin: var(--title-to-blocks) 0 0 calc(-1 * (var(--block-control-size) - 2px));
+}
+
+.seqno-page[data-zoomed="true"] .seqno-page-blocks {
+  margin-top: 0;
+}
+
+.seqno-page-properties {
+  display: flex;
+  gap: var(--bullet-gap);
+  padding: var(--block-padding-block) 0;
+}
+
+.seqno-page-properties-control {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: calc(var(--block-control-size) + var(--bullet-box));
+  height: var(--leading-base);
+}
+
+.seqno-page-properties-bullet,
+.seqno-page-create-bullet {
+  display: grid;
+  place-items: center;
+  width: var(--bullet-box);
+  height: var(--bullet-box);
+}
+
+.seqno-page-properties-bullet::before,
+.seqno-page-create-bullet::before {
+  content: "";
+  width: var(--bullet-size);
+  height: var(--bullet-size);
+  border-radius: var(--radius-full);
+  background: var(--bullet);
+  opacity: var(--opacity-bullet);
+}
+
+.seqno-properties {
+  flex: 1;
+  min-width: 0;
+  margin: var(--space-1) 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-properties);
+  color: var(--fg);
+}
+
+.seqno-property {
+  overflow-wrap: anywhere;
+}
+
+.seqno-property dt,
+.seqno-property dd {
+  display: inline;
+  margin: 0;
+}
+
+.seqno-property-key {
+  font-weight: var(--weight-medium);
+  color: var(--fg-property-key);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.seqno-property dt::after {
+  content: ":";
+  margin-right: var(--space-1);
+}
+
+.seqno-ref {
+  color: var(--fg-link);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--duration-slow) ease;
+}
+
+.seqno-ref:hover {
+  color: var(--fg-link-hover);
+}
+
+.seqno-ref-bracket {
+  color: var(--fg-bracket);
+  opacity: var(--opacity-bracket);
+}
+
+.seqno-page-create {
+  display: flex;
+  align-items: center;
+  gap: var(--bullet-gap);
+  width: 100%;
+  height: var(--block-row-height);
+  padding: 0 0 0 var(--block-control-size);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  color: var(--fg-subtle);
+  text-align: start;
+  cursor: text;
+}
+
+.seqno-page-references {
+  display: flex;
+  flex-direction: column;
+  gap: var(--references-gap);
+  margin: var(--references-top) 0 0 var(--space-1);
+}
+
+.seqno-references-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--block-row-height);
+}
+
+.seqno-references-group > .seqno-references-head {
+  min-height: var(--leading-base);
+}
+
+.seqno-fold {
+  flex: none;
+  width: var(--block-control-size);
+  height: var(--block-control-size);
+  margin: 1px 0 0 var(--fold-offset);
+  padding: 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--fg-control);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.seqno-fold svg {
+  display: block;
+  margin-left: 2px;
+  transition: transform var(--duration-fast) ease-in;
+}
+
+.seqno-fold[data-open="true"] svg {
+  transform: rotate(90deg);
+}
+
+.seqno-references-head:hover > .seqno-fold,
+.seqno-references-head[data-open="false"] > .seqno-fold {
+  opacity: var(--opacity-block-control);
+}
+
+.seqno-references-head > .seqno-fold:hover {
+  opacity: 1;
+}
+
+.seqno-references-title {
+  display: flex;
+  margin: 0;
+  font: inherit;
+}
+
+.seqno-references-title button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--space-6);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  color: var(--fg);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.seqno-references-count {
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: var(--weight-medium);
+  color: var(--fg-subtle);
+}
+
+.seqno-references-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.seqno-references-page {
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--fg-link);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--duration-slow) ease;
+}
+
+.seqno-references-page:hover {
+  color: var(--fg-link-hover);
+}
+
+.seqno-references-blocks {
+  margin-left: calc(-1 * var(--space-2));
+}
+
+.seqno-reference {
+  padding-top: var(--space-1);
+}
+
+.seqno-reference nav[aria-label="Breadcrumbs"] {
+  display: none;
+}
+
+.seqno-reference-crumbs {
+  display: flex;
+  align-items: center;
+  height: 21px;
+  margin-left: var(--space-6);
+  overflow: hidden;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.seqno-reference-crumbs:hover {
+  opacity: 1;
+}
+
+.seqno-reference-crumbs a {
+  display: block;
+  flex: none;
+  max-width: var(--crumb-max-width);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-control);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.seqno-reference-crumbs-separator {
+  padding: 0 var(--space-1);
+  color: var(--fg);
+  opacity: 0.5;
+}
+
+.seqno-journals {
+  display: flex;
+  flex-direction: column;
+}
+
+.seqno-journal {
+  min-height: var(--journal-first-min-height);
+  padding-bottom: var(--journal-padding-bottom);
+  border-bottom: 1px solid var(--border);
+}
+
+.seqno-journals-more {
+  height: 1px;
+}
+
+.seqno-all-pages {
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.seqno-view-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  height: var(--block-row-height);
+}
+
+.seqno-view-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--space-6);
+  margin: 0 0 0 -1px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  color: var(--fg);
+}
+
+.seqno-view-count {
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  color: var(--fg-subtle);
+}
+
+.seqno-view-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  opacity: var(--opacity-view-actions);
+  transition: opacity var(--duration-slow) var(--ease-in);
+}
+
+.seqno-view-head:hover .seqno-view-actions,
+.seqno-view-actions:focus-within {
+  opacity: 1;
+}
+
+.seqno-view-action {
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--fg-subtle);
+  transition:
+    background-color var(--duration-base) var(--ease-standard),
+    color var(--duration-base) var(--ease-standard);
+}
+
+.seqno-view-action:hover {
+  background: var(--bg-ghost-hover, light-dark(rgb(244 244 245 / 0.7), #004152));
+  color: var(--fg-ghost-hover, light-dark(#0f172a, #fafafa));
+}
+
+.seqno-view-filter {
+  display: flex;
+  align-items: center;
+}
+
+.seqno-view-filter input {
+  width: 244px;
+  height: var(--block-row-height);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  outline: none;
+  background: var(--bg-popover);
+  color: var(--fg);
+  font: inherit;
+}
+
+.seqno-view-filter input::placeholder {
+  color: var(--fg-bracket);
+}
+
+.seqno-view-filter input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.seqno-table-scroll {
+  margin-top: var(--space-1);
+  overflow-x: auto;
+}
+
+.seqno-table {
+  width: 100%;
+  min-width: 1104px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.seqno-table th,
+.seqno-table td {
+  height: 33px;
+  padding: 0 var(--space-2);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-app);
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.seqno-table th {
+  height: 34px;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  font-weight: var(--weight-medium);
+  color: var(--fg-subtle);
+}
+
+.seqno-table td {
+  color: var(--fg);
+}
+
+.seqno-table .seqno-table-gutter,
+.seqno-table .seqno-table-rest {
+  border-right: 0;
+}
+
+.seqno-table .seqno-table-gutter {
+  width: 32px;
+}
+
+.seqno-table [data-column="title"] {
+  width: 360px;
+}
+
+.seqno-table [data-column="backlinks"],
+.seqno-table [data-column="tags"] {
+  width: 180px;
+}
+
+.seqno-table [data-column="created"],
+.seqno-table [data-column="updated"] {
+  width: 160px;
+}
+
+.seqno-table th button,
+.seqno-table-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  font: inherit;
+  color: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.seqno-table-label {
+  cursor: default;
+}
+
+.seqno-table th button:hover {
+  color: var(--fg-strong);
+}
+
+.seqno-table tbody tr:hover td {
+  background: var(--bg-table-row-hover);
+}
+
+.seqno-table-page {
+  color: var(--fg-table-page);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.seqno-table-tag {
+  margin-right: var(--space-1);
+  color: var(--fg-link);
+  text-decoration: none;
+  opacity: var(--opacity-table-tag);
+  cursor: pointer;
+}
+
+.seqno-table-tag:hover {
+  opacity: 1;
+}
+
+.seqno-graph-in-use {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: calc(var(--header-height) + var(--main-padding-top)) var(--main-padding-right)
+    var(--main-padding-bottom) var(--main-padding-left);
+  background: var(--bg-app);
+  color: var(--fg);
+}
+
+.seqno-graph-in-use-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--content-max-width);
+}
+
+.seqno-graph-in-use h1 {
+  margin: 0;
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-medium);
+  color: var(--fg-title);
+}
+
+.seqno-graph-in-use p {
+  max-width: 36rem;
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+  color: var(--fg);
+}
+
+.seqno-graph-in-use button {
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-popover);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: var(--weight-medium);
+  color: var(--fg-strong);
+  cursor: pointer;
+}
+
+.seqno-graph-in-use button:hover {
+  background: var(--bg-ghost-hover, light-dark(rgb(244 244 245 / 0.7), #004152));
+}
+
+::highlight(seqno-mention) {
+  background-color: var(--bg-mark);
+  color: var(--fg-mark);
+}

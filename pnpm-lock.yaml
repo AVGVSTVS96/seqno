@@ -59,6 +59,9 @@ importers:
       '@seqno/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
+      '@seqno/syntax':
+        specifier: workspace:*
+        version: link:../../packages/syntax
       '@seqno/vault':
         specifier: workspace:*
         version: link:../../packages/vault
