@@ -1,4 +1,4 @@
-import type { RegisteredRouter } from "@tanstack/react-router"
+import type { ParsedLocation, RegisteredRouter } from "@tanstack/react-router"
 import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
 import { normalizePageName } from "@seqno/domain"
 import {
@@ -80,6 +80,52 @@ const recordVisit = (registry: AtomRegistry.AtomRegistry, router: RegisteredRout
   if (next !== all[graph]) registry.set(recentPages, { ...all, [graph]: next })
 }
 
+const nothing = (): void => undefined
+
+const userScrolls = ["wheel", "pointerdown", "keydown", "touchstart"] as const
+
+const mainColumn = () => document.querySelector<HTMLElement>(".main-content-container")
+
+const keyOf = (location: ParsedLocation) => location.state.key ?? location.href
+
+const scrollWhenTall = (main: HTMLElement, target: number) => {
+  main.scrollTop = target
+  const content = main.firstElementChild
+  if (main.scrollTop === target || content === null) return nothing
+  const observer = new ResizeObserver(() => {
+    if (main.scrollHeight - main.clientHeight < target) return
+    main.scrollTop = target
+    stop()
+  })
+  const stop = () => {
+    observer.disconnect()
+    for (const type of userScrolls) main.removeEventListener(type, stop)
+  }
+  observer.observe(content)
+  for (const type of userScrolls) main.addEventListener(type, stop, { passive: true })
+  return stop
+}
+
+const scrollMemory = (router: RegisteredRouter) => {
+  const offsets = new Map<string, number>()
+  let stopWaiting = nothing
+  const stopSaving = router.subscribe("onBeforeLoad", ({ fromLocation }) => {
+    const main = mainColumn()
+    if (fromLocation !== undefined && main !== null)
+      offsets.set(keyOf(fromLocation), main.scrollTop)
+  })
+  const stopRestoring = router.subscribe("onRendered", ({ toLocation }) => {
+    stopWaiting()
+    const main = mainColumn()
+    if (main !== null) stopWaiting = scrollWhenTall(main, offsets.get(keyOf(toLocation)) ?? 0)
+  })
+  return () => {
+    stopSaving()
+    stopRestoring()
+    stopWaiting()
+  }
+}
+
 export const shellListeners = Atom.family((router: RegisteredRouter) =>
   Atom.make((get) => {
     const registry = get.registry
@@ -97,10 +143,12 @@ export const shellListeners = Atom.family((router: RegisteredRouter) =>
     }
     document.addEventListener("keydown", onKeyDown)
     const stopVisits = router.subscribe("onResolved", () => recordVisit(registry, router))
+    const stopScrollMemory = scrollMemory(router)
     recordVisit(registry, router)
     get.addFinalizer(() => {
       document.removeEventListener("keydown", onKeyDown)
       stopVisits()
+      stopScrollMemory()
     })
   }),
 )

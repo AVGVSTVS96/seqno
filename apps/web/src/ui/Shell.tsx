@@ -40,7 +40,7 @@ const Layout = ({ graph, ready = true }: { readonly graph: string; readonly read
         <Header />
         <div className="main-container">
           <LeftSidebar graph={graph} />
-          <main className="main-content-container" data-scroll-restoration-id="main">
+          <main className="main-content-container">
             <div className="main-content">{ready ? <Outlet /> : null}</div>
           </main>
         </div>
