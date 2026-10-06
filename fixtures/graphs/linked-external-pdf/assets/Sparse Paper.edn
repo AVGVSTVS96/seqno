@@ -1,0 +1,1 @@
+{:highlights [{:id #uuid "dddddddd-dddd-dddd-dddd-dddddddddddd", :position {:bounding {:x1 1 :y1 2 :x2 3 :y2 4 :width 10 :height 20}, :rects ()}, :content {}, :properties {}}]}
