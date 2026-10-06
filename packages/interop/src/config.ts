@@ -64,7 +64,8 @@ export const parseConfig = (source: string): LogseqConfig => {
   return {
     journalTitleFormat: text(":journal/page-title-format", defaultConfig.journalTitleFormat),
     journalFileFormat: text(":journal/file-name-format", defaultConfig.journalFileFormat),
-    fileNameFormat: entries.get(":file/name-format") === ":triple-lowbar" ? "triple-lowbar" : "legacy",
+    fileNameFormat:
+      entries.get(":file/name-format") === ":triple-lowbar" ? "triple-lowbar" : "legacy",
     pagesDirectory: directory(text(":pages-directory", defaultConfig.pagesDirectory)),
     journalsDirectory: directory(text(":journals-directory", defaultConfig.journalsDirectory)),
     hidden: Option.getOrElse(decodeStrings(entries.get(":hidden")), () => []).map(directory),

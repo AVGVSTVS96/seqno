@@ -15,6 +15,11 @@ export class GraphFolder extends Context.Service<
   }
 >()("@seqno/interop/GraphFolder") {}
 
+const failed =
+  (path: string) =>
+  (error: { readonly message: string }): FolderError =>
+    new FolderError({ path, reason: error.message })
+
 export const layerFileSystem = (root: string) =>
   Layer.effect(
     GraphFolder,
@@ -22,10 +27,6 @@ export const layerFileSystem = (root: string) =>
       const fs = yield* FileSystem.FileSystem
       const path = yield* Path.Path
       const at = (relative: string) => path.join(root, ...relative.split("/"))
-      const failed =
-        (relative: string) =>
-        (error: { readonly message: string }): FolderError =>
-          new FolderError({ path: relative, reason: error.message })
       const isFile = (relative: string) =>
         Effect.map(fs.stat(at(relative)), (info) => info.type === "File")
       return GraphFolder.of({
@@ -39,11 +40,13 @@ export const layerFileSystem = (root: string) =>
         write: (relative, text) => {
           const target = at(relative)
           const staging = `${target}.seqno-tmp`
-          return fs.makeDirectory(path.dirname(target), { recursive: true }).pipe(
-            Effect.andThen(fs.writeFileString(staging, text)),
-            Effect.andThen(fs.rename(staging, target)),
-            Effect.mapError(failed(relative)),
-          )
+          return fs
+            .makeDirectory(path.dirname(target), { recursive: true })
+            .pipe(
+              Effect.andThen(fs.writeFileString(staging, text)),
+              Effect.andThen(fs.rename(staging, target)),
+              Effect.mapError(failed(relative)),
+            )
         },
         remove: (relative) => Effect.mapError(fs.remove(at(relative)), failed(relative)),
       })

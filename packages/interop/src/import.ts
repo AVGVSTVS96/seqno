@@ -57,11 +57,14 @@ const classify = (
   const evicted = placeholder.exec(name)
   if (evicted !== null) {
     return Option.some(
-      Result.fail(ImportIssue.cases.NotDownloaded.make({ path: `${nfc.slice(0, slash + 1)}${evicted[1]}` })),
+      Result.fail(
+        ImportIssue.cases.NotDownloaded.make({ path: `${nfc.slice(0, slash + 1)}${evicted[1]}` }),
+      ),
     )
   }
   if (name.startsWith(".")) return Option.none()
-  if (!markdown.test(name)) return Option.some(Result.fail(ImportIssue.cases.Unsupported.make({ path })))
+  if (!markdown.test(name))
+    return Option.some(Result.fail(ImportIssue.cases.Unsupported.make({ path })))
   return Option.some(Result.succeed({ path, body: name.replace(markdown, ""), journal }))
 }
 

@@ -25,12 +25,10 @@ const isToken = (index: number) => index % 2 === 1
 
 const quoted = (piece: string) => (piece.startsWith("'") ? piece.slice(1, -1) : piece)
 
-const ordinal = (date: number): string => {
-  const ones = date % 10
-  const suffix =
-    date >= 11 && date <= 13 ? "th" : ones === 1 ? "st" : ones === 2 ? "nd" : ones === 3 ? "rd" : "th"
-  return `${date}${suffix}`
-}
+const suffixes: Record<number, string> = { 1: "st", 2: "nd", 3: "rd" }
+
+const ordinal = (date: number): string =>
+  `${date}${date >= 11 && date <= 13 ? "th" : (suffixes[date % 10] ?? "th")}`
 
 const two = (value: number): string => String(value).padStart(2, "0")
 

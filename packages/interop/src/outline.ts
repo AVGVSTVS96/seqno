@@ -24,6 +24,7 @@ export class LogseqSyntax extends Context.Service<
 const bullet = /^([ \t]*)-(?: (.*))?$/
 const property = /^([^\s:]+):: (.*)$/
 const fence = /^\s*(```|~~~)/
+const opensVerbatim = /^\s*(```|~~~|#\+BEGIN_)/i
 
 const indentWidth = (indent: string): number =>
   [...indent].reduce((width, char) => width + (char === "\t" ? 4 : 1), 0)
@@ -66,7 +67,7 @@ const blockFromLines = (lines: ReadonlyArray<string>, children: ReadonlyArray<Ou
   if (head !== "" && whole.length === lines.length) {
     return { text: "", props: whole.props, collapsed: whole.collapsed, children }
   }
-  const run = propertyRun(lines.slice(1))
+  const run = propertyRun(opensVerbatim.test(head) ? [] : lines.slice(1))
   const body = [head, ...lines.slice(1 + run.length)]
   return { text: body.join("\n"), props: run.props, collapsed: run.collapsed, children }
 }
