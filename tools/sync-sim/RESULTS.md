@@ -30,7 +30,7 @@ The phase 0 fake-iCloud simulator, ported into a repo tool. Five devices edit on
 | ---------------------------------- | ------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CI suite: 50 seeds × 600 ops, 24 h | **50 / 50**                          | 0          | wall 50 s at 4 workers, mean 3.5 s CPU per seed, max RSS 229 MB, 52 snapshots written (so compaction and deletion ran), 0 placeholder reads (243k placeholders seen) |
 | mutants: 8 seeds × 1k ops each     | all 5 caught                         | see below  |                                                                                                                                                                      |
-| 1k slice: 40 seeds × 1k ops, 48 h  | see `results/1k-slice.summary.json`  |            | started at the end of the session                                                                                                                                    |
+| 1k slice: 40 seeds × 1k ops, 48 h  | **40 / 40**                          | 0          | wall 75 s at 4 workers, catch-up after 12-36 h offline p50 / max 30 / 87 simulated min, max RSS 231 MB                                                               |
 | 10k slice: 2 seeds × 10k ops, 48 h | see `results/10k-slice.summary.json` |            | started at the end of the session                                                                                                                                    |
 
 | mutant                  | seeds caught | what fired                             |
@@ -41,7 +41,7 @@ The phase 0 fake-iCloud simulator, ported into a repo tool. Five devices edit on
 | gc-unconfirmed-snapshot | 5 / 8        | lostCoverage (the spike caught 7 / 16) |
 | gc-any-device           | 8 / 8        | multiWriter                            |
 
-A 1k-op seed costs about 4 s of CPU, against 2.3 s in the spike. The extra time is the Effect layer over every pass and every command.
+A 1k-op seed costs about 4 s of CPU on its own, or 6.8 s with 4 seeds running at once, against 2.3 s in the spike. The extra time is the Effect layer over every pass and every command.
 
 ## How to run
 
@@ -52,7 +52,7 @@ cd tools/sync-sim
 $CAP npx vitest run --project @seqno/sync-sim                 # unit + 3 seed tests, ~7 s
 $CAP node scripts/run.ts --suite ci                            # 50 seeds × 600 ops, ~1 min
 $CAP node scripts/mutants.ts --seeds 8                         # ~1 min, exit 0 only if every bug is caught
-$CAP node scripts/run.ts --suite 1k  --out results/1k.jsonl    # 1,000 × 1k ops, ~17 min at 4 workers
+$CAP node scripts/run.ts --suite 1k  --out results/1k.jsonl    # 1,000 × 1k ops, ~30 min at 4 workers
 $CAP node scripts/run.ts --suite 10k --workers 3 --out results/10k.jsonl   # 100 × 10k ops; 3 workers stays under 1.5 GB
 ```
 
