@@ -56,7 +56,12 @@ const outlineEntries = (
     (groups) => groups.flat(),
   )
 
-const seedPage = (title: string, journalDay: number | null, props: Props, outline: ReadonlyArray<Outline>) =>
+const seedPage = (
+  title: string,
+  journalDay: number | null,
+  props: Props,
+  outline: ReadonlyArray<Outline>,
+) =>
   Effect.gen(function* () {
     const id = yield* Effect.orDie(newPageId)
     const now = yield* Clock.currentTimeMillis

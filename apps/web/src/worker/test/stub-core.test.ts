@@ -31,7 +31,8 @@ const openDemo = Effect.gen(function* () {
   return { core, opened, pageIdOf }
 })
 
-const texts = (blocks: ReadonlyArray<{ readonly text: string }>) => blocks.map((block) => block.text)
+const texts = (blocks: ReadonlyArray<{ readonly text: string }>) =>
+  blocks.map((block) => block.text)
 
 describe("stub core over the RPC test transport", () => {
   it.effect("opens the demo graph with today's journal first", () =>
@@ -52,10 +53,10 @@ describe("stub core over the RPC test transport", () => {
     Effect.gen(function* () {
       const core = yield* RpcTest.makeClient(CoreRpcs)
       const error = yield* Effect.flip(core.OpenGraph({ graph: "elsewhere" }))
-      assert.deepStrictEqual([error._tag, error.reason], [
-        "GraphUnavailable",
-        "no location stored for this graph",
-      ])
+      assert.deepStrictEqual(
+        [error._tag, error.reason],
+        ["GraphUnavailable", "no location stored for this graph"],
+      )
     }).pipe(Effect.scoped, Effect.provide(Core)),
   )
 
@@ -113,7 +114,9 @@ describe("stub core over the RPC test transport", () => {
       const pageId = pageIdOf("Getting started")
       const [first] = (yield* core.GetPage({ pageId })).blocks
       assert.isDefined(first)
-      const events = yield* core.Dispatch({ command: { _tag: "DeleteBlocks", blockIds: [first.id] } })
+      const events = yield* core.Dispatch({
+        command: { _tag: "DeleteBlocks", blockIds: [first.id] },
+      })
       assert.deepStrictEqual(
         events.map((event) => event._tag),
         ["BlockDeleted", "BlockDeleted", "BlockDeleted"],

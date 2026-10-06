@@ -20,15 +20,21 @@ export class GraphLocations extends Context.Service<
 const request = <A>(make: () => IDBRequest<A>) =>
   Effect.callback<A, Error>((resume) => {
     const pending = make()
-    pending.onsuccess = () => resume(Effect.succeed(pending.result))
-    pending.onerror = () => resume(Effect.fail(pending.error ?? new Error("IndexedDB request failed")))
+    pending.addEventListener("success", () => resume(Effect.succeed(pending.result)))
+    pending.addEventListener("error", () =>
+      resume(Effect.fail(pending.error ?? new Error("IndexedDB request failed"))),
+    )
   })
 
 const openDatabase = Effect.callback<IDBDatabase, Error>((resume) => {
   const opening = indexedDB.open("seqno", 1)
-  opening.onupgradeneeded = () => opening.result.createObjectStore("graphs", { keyPath: "name" })
-  opening.onsuccess = () => resume(Effect.succeed(opening.result))
-  opening.onerror = () => resume(Effect.fail(opening.error ?? new Error("IndexedDB open failed")))
+  opening.addEventListener("upgradeneeded", () =>
+    opening.result.createObjectStore("graphs", { keyPath: "name" }),
+  )
+  opening.addEventListener("success", () => resume(Effect.succeed(opening.result)))
+  opening.addEventListener("error", () =>
+    resume(Effect.fail(opening.error ?? new Error("IndexedDB open failed"))),
+  )
 })
 
 const reachable = (location: GraphLocation) =>
@@ -58,8 +64,6 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
       ),
       Effect.flatMap(Schema.decodeUnknownEffect(GraphLocation)),
       Effect.flatMap(reachable),
-      Effect.mapError(
-        (error) => new GraphUnavailable({ graph, reason: error.message }),
-      ),
+      Effect.mapError((error) => new GraphUnavailable({ graph, reason: error.message })),
     ),
 })

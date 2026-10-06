@@ -73,7 +73,9 @@ const insertionIndex = (
   if (after !== undefined) {
     const at = entries.findIndex(
       (entry) =>
-        entry.block.id === after && entry.block.pageId === pageId && entry.block.parentId === parentId,
+        entry.block.id === after &&
+        entry.block.pageId === pageId &&
+        entry.block.parentId === parentId,
     )
     return at === -1 ? Option.none() : Option.some(subtreeEnd(entries, at))
   }
@@ -138,13 +140,11 @@ const deleteBlocks = (state: GraphState, roots: ReadonlySet<BlockId>): Applied =
   const removed = state.entries.filter((entry) => doomed.has(entry.block.id))
   return [
     { ...state, entries: state.entries.filter((entry) => !doomed.has(entry.block.id)) },
-    removed.map(
-      (entry): GraphEvent => ({
-        _tag: "BlockDeleted",
-        blockId: entry.block.id,
-        pageId: entry.block.pageId,
-      }),
-    ),
+    removed.map((entry): GraphEvent => ({
+      _tag: "BlockDeleted",
+      blockId: entry.block.id,
+      pageId: entry.block.pageId,
+    })),
   ]
 }
 
@@ -185,27 +185,35 @@ export const applyCommand = (state: GraphState, command: Command): Step =>
         },
       }),
     InsertBlock: ({ pageId, parentId, after, text }): Step =>
-      Option.match(Option.flatMap(findPage(state, pageId), () => insertionIndex(state, pageId, parentId, after)), {
-        onNone: () => reject("the page, parent or previous sibling does not exist"),
-        onSome: (at) =>
-          Effect.gen(function* () {
-            const id = yield* mintBlockId
-            const now = yield* Clock.currentTimeMillis
-            const entry: Entry = {
-              block: { id, pageId, parentId, text, collapsed: false, props: {} },
-              createdAt: now,
-            }
-            const applied: Applied = [
-              { ...state, entries: state.entries.toSpliced(at, 0, entry) },
-              [upserted(entry, now)],
-            ]
-            return applied
-          }),
-      }),
+      Option.match(
+        Option.flatMap(findPage(state, pageId), () =>
+          insertionIndex(state, pageId, parentId, after),
+        ),
+        {
+          onNone: () => reject("the page, parent or previous sibling does not exist"),
+          onSome: (at) =>
+            Effect.gen(function* () {
+              const id = yield* mintBlockId
+              const now = yield* Clock.currentTimeMillis
+              const entry: Entry = {
+                block: { id, pageId, parentId, text, collapsed: false, props: {} },
+                createdAt: now,
+              }
+              const applied: Applied = [
+                { ...state, entries: state.entries.toSpliced(at, 0, entry) },
+                [upserted(entry, now)],
+              ]
+              return applied
+            }),
+        },
+      ),
     EditText: ({ blockId, from, to, insert }): Step =>
       replaceEntry(state, blockId, (block) =>
         from <= to && to <= block.text.length
-          ? Option.some({ ...block, text: block.text.slice(0, from) + insert + block.text.slice(to) })
+          ? Option.some({
+              ...block,
+              text: block.text.slice(0, from) + insert + block.text.slice(to),
+            })
           : Option.none(),
       ),
     SetCollapsed: ({ blockId, collapsed }): Step =>
@@ -222,7 +230,9 @@ export const applyCommand = (state: GraphState, command: Command): Step =>
         : Option.match(findPage(state, target.pageId), {
             onNone: () => reject(`page ${target.pageId} does not exist`),
             onSome: (page) =>
-              Effect.succeed(replacePage(state, { ...page, props: withProp(page.props, key, value) })),
+              Effect.succeed(
+                replacePage(state, { ...page, props: withProp(page.props, key, value) }),
+              ),
           }),
     SplitBlock: notInStub,
     MergeWithPrevious: notInStub,
