@@ -678,7 +678,15 @@
   margin: 0 var(--space-3) 20px;
 }
 
-.sidebar-item-content :is(.page-header, article > header:first-child, .seqno-page-title) {
+.sidebar-item-content .seqno-page {
+  padding-inline: 0;
+}
+
+.sidebar-item-content .seqno-page[data-zoomed="true"] {
+  padding-top: var(--space-2);
+}
+
+.sidebar-item-content :is(.seqno-page-title, nav[aria-label="Breadcrumbs"]) {
   display: none;
 }
 

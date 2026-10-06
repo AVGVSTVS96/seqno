@@ -71,6 +71,15 @@ const crumbsOf = (block: Block, page: Page, ancestors: ReadonlyMap<string, Block
   return [page.title, ...trail]
 }
 
+export const blockHits = (hits: Hits, pages: ReadonlyArray<Page>) => {
+  const byId = new Map(pages.map((page) => [page.id, page]))
+  const ancestors = new Map(hits.ancestors.map((block) => [block.id, block]))
+  return hits.blocks.flatMap((block) => {
+    const page = byId.get(block.pageId)
+    return page === undefined ? [] : [{ block, page, crumbs: crumbsOf(block, page, ancestors) }]
+  })
+}
+
 const matches = (page: Page, words: ReadonlyArray<string>) =>
   words.every((word) => page.title.toLowerCase().includes(word.toLowerCase()))
 
@@ -83,8 +92,6 @@ export const groupsOf = (input: {
 }): ReadonlyArray<Group> => {
   const { query, hits, pages, stats, expanded } = input
   const words = terms(query)
-  const byId = new Map(pages.map((page) => [page.id, page]))
-  const ancestors = new Map(hits.ancestors.map((block) => [block.id, block]))
   const name = normalizePageName(query)
   const exists =
     name === "" ||
@@ -95,12 +102,7 @@ export const groupsOf = (input: {
     )
   const nodes: ReadonlyArray<Item> = [
     ...hits.pages.map((page): Item => ({ _tag: "Page", page })),
-    ...hits.blocks.flatMap((block): ReadonlyArray<Item> => {
-      const page = byId.get(block.pageId)
-      return page === undefined
-        ? []
-        : [{ _tag: "Block", block, page, crumbs: crumbsOf(block, page, ancestors) }]
-    }),
+    ...blockHits(hits, pages).map((hit): Item => ({ _tag: "Block", ...hit })),
   ]
   const updated = new Map(stats.map((stat) => [stat.pageId, stat.updated ?? 0]))
   const recent = pages

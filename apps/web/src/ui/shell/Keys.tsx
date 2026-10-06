@@ -16,11 +16,13 @@ const labelOf = (key: string) => labels[key] ?? (key.length === 1 ? key.toUpperC
 export const Keys = ({
   keys,
   framed = false,
+  combo = keys.some((key) => modifiers.has(key)),
 }: {
   readonly keys: ReadonlyArray<string>
   readonly framed?: boolean
+  readonly combo?: boolean
 }) =>
-  keys.some((key) => modifiers.has(key)) ? (
+  combo ? (
     <span className={framed ? "keys-combo keys-framed" : "keys-combo"}>
       {keys.map((key, index) => (
         <Fragment key={key}>

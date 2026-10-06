@@ -16,19 +16,6 @@ button {
   color: inherit;
 }
 
-button.ghost {
-  padding: var(--space-1) var(--space-4);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--fg-muted);
-  cursor: pointer;
-}
-
-button.ghost:hover {
-  background: var(--bg-hover);
-}
-
 h1 {
   margin: 0;
   font-size: var(--text-title);
@@ -37,54 +24,6 @@ h1 {
   color: var(--fg-title);
 }
 
-.hint {
-  color: var(--fg-muted);
-}
-
 .problem {
   color: var(--fg-danger);
-}
-
-.journals {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-block-end: var(--space-4);
-}
-
-.search input {
-  width: 100%;
-  font: inherit;
-  color: inherit;
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-popover);
-}
-
-.results {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.results li {
-  display: flex;
-  flex-direction: column;
-}
-
-.results a {
-  color: var(--fg-link);
-}
-
-.all-pages ul {
-  padding-inline-start: var(--space-4);
 }

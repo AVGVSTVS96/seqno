@@ -46,7 +46,7 @@ test("an edit to an imported block survives a reload", async ({ page, seqno }) =
 })
 
 test("search finds an imported block", async ({ page }) => {
-  await page.getByRole("link", { name: "Search" }).click()
+  await page.getByRole("button", { name: "Search", exact: true }).click()
   await page.getByRole("searchbox", { name: "Search" }).fill("voice")
   await expect(page.getByRole("listbox", { name: "Nodes" }).getByRole("option")).toHaveText([
     "tasksI recorded a [[voice note]].",

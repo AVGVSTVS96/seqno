@@ -7,18 +7,21 @@ import { noHits, type Hits } from "./model.ts"
 
 export const paletteQuery = Atom.make("").pipe(Atom.keepAlive)
 
+const hitsOf = (text: string) =>
+  Effect.gen(function* () {
+    const hits = yield* (yield* CoreClient).Search({ text })
+    const ancestors = yield* (yield* PageClient).Ancestors({
+      blockIds: hits.blocks.map((block) => block.id),
+    })
+    return { pages: hits.pages, blocks: hits.blocks, ancestors } satisfies Hits
+  })
+
 export const paletteHits = viewRuntime.atom((get) => {
   const text = get(paletteQuery).trim()
-  return text === ""
-    ? Effect.succeed(noHits)
-    : Effect.gen(function* () {
-        const hits = yield* (yield* CoreClient).Search({ text })
-        const ancestors = yield* (yield* PageClient).Ancestors({
-          blockIds: hits.blocks.map((block) => block.id),
-        })
-        return { pages: hits.pages, blocks: hits.blocks, ancestors } satisfies Hits
-      })
+  return text === "" ? Effect.succeed(noHits) : hitsOf(text)
 })
+
+export const searchHits = Atom.family((text: string) => viewRuntime.atom(hitsOf(text)))
 
 interface KeyPress {
   readonly key: string

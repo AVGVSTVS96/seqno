@@ -174,7 +174,3 @@ export const rightSidebar = Atom.writable(
   (ctx, action: SidebarAction) =>
     ctx.set(sidebarState, sidebarAfter(ctx.get(sidebarState), action)),
 ).pipe(Atom.keepAlive)
-
-export const search = Atom.family((text: string) =>
-  appRuntime.atom(Effect.flatMap(Effect.service(CoreClient), (core) => core.Search({ text }))),
-)

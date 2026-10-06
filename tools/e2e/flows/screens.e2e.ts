@@ -32,7 +32,7 @@ test("screenshots of the running app", async ({ page, seqno }) => {
   await page.screenshot({ path: screen("editing") })
   await page.keyboard.press("Escape")
 
-  await page.getByRole("link", { name: "Search" }).click()
+  await page.getByRole("button", { name: "Search", exact: true }).click()
   await page.getByRole("searchbox", { name: "Search" }).fill("item")
   await expect(
     page.getByRole("listbox", { name: "Nodes" }).getByRole("option").first(),

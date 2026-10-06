@@ -17,36 +17,13 @@ import {
 import { pageStats } from "../pages/atoms.ts"
 import { isSearchKey, paletteHits, paletteQuery, searchShortcut } from "./atoms.ts"
 import { groupsOf, highlight, itemKey, noHits, type Group, type Item } from "./model.ts"
+import { Keys } from "../shell/Keys.tsx"
+import { onMac } from "../shell/shortcuts.ts"
 import searchCss from "./search.css?inline"
 
-const onMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent)
 const mod = onMac ? "⌘" : "Ctrl"
 
 const noStats: ReadonlyArray<PageStat> = []
-
-const Keys = ({
-  keys,
-  combo,
-}: {
-  readonly keys: ReadonlyArray<string>
-  readonly combo: boolean
-}) =>
-  combo ? (
-    <span className="seqno-keys" data-combo>
-      {keys.map((key, at) => (
-        <Fragment key={key}>
-          {at === 0 ? null : <span className="seqno-keys-separator" />}
-          <kbd>{key}</kbd>
-        </Fragment>
-      ))}
-    </span>
-  ) : (
-    <span className="seqno-keys">
-      {keys.map((key) => (
-        <kbd key={key}>{key}</kbd>
-      ))}
-    </span>
-  )
 
 const Marked = ({ text, query }: { readonly text: string; readonly query: string }) =>
   highlight(text, query).map((part, at) =>
@@ -270,7 +247,7 @@ const Palette = ({
         <div className="seqno-palette-tip">
           <span className="seqno-palette-tip-title">Tip:</span>
           <span className="seqno-palette-tip-text">
-            Press <Keys keys={["⇧", "⏎"]} combo /> to open a result in the sidebar
+            Press <Keys keys={["shift", "enter"]} /> to open a result in the sidebar
           </span>
         </div>
         {current === undefined ? null : (
@@ -278,17 +255,17 @@ const Palette = ({
             {current._tag === "Create" ? (
               <button type="button" onClick={() => void open(current, false)}>
                 <span>Create</span>
-                <Keys keys={["⏎"]} combo={false} />
+                <Keys keys={["enter"]} />
               </button>
             ) : (
               <>
                 <button type="button" onClick={() => void open(current, false)}>
                   <span>Open</span>
-                  <Keys keys={["⏎"]} combo={false} />
+                  <Keys keys={["enter"]} />
                 </button>
                 <button type="button" onClick={() => void open(current, true)}>
                   <span>Open in sidebar</span>
-                  <Keys keys={["⇧", "⏎"]} combo={false} />
+                  <Keys keys={["shift", "enter"]} combo={false} />
                 </button>
               </>
             )}

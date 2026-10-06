@@ -7,7 +7,7 @@ import {
   IconMenu2,
   IconSearch,
 } from "@tabler/icons-react"
-import { Link, useMatchRoute, useNavigate } from "@tanstack/react-router"
+import { useMatchRoute, useNavigate } from "@tanstack/react-router"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { Page } from "@seqno/domain"
@@ -22,15 +22,7 @@ import {
 import { Appearance } from "./Appearance.tsx"
 import { DeletePage } from "./DeletePage.tsx"
 import { IconButton } from "./IconButton.tsx"
-import {
-  Menu,
-  MenuItem,
-  MenuSeparator,
-  openDialog,
-  showPopover,
-  usePopover,
-  useTooltip,
-} from "./popover.tsx"
+import { Menu, MenuItem, MenuSeparator, openDialog, showPopover, usePopover } from "./popover.tsx"
 import { keysOf } from "./shortcuts.ts"
 
 const useCurrentPage = (): Page | undefined => {
@@ -97,21 +89,13 @@ const MoreMenu = () => {
 
 const SearchButton = () => {
   const setSearchOpen = useAtomSet(searchOpen)
-  const hint = useTooltip({ label: "Search", keys: ["mod", "k"] })
   return (
-    <>
-      <Link
-        to="/search"
-        search={{}}
-        aria-label="Search"
-        className="icon-button"
-        onClick={() => setSearchOpen(true)}
-        {...hint.props}
-      >
-        <IconSearch size={20} aria-hidden />
-      </Link>
-      {hint.tooltip}
-    </>
+    <IconButton
+      label="Search"
+      tooltip={{ label: "Search", keys: ["mod", "k"] }}
+      icon={<IconSearch size={20} aria-hidden />}
+      onClick={() => setSearchOpen(true)}
+    />
   )
 }
 

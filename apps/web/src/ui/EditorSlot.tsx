@@ -5,7 +5,9 @@ import { useContext } from "react"
 import type { Block, BlockId, Command } from "@seqno/domain"
 import { BlockEditor, createHandoff, EditorAction, type EditorHost } from "@seqno/editor"
 import { pageTreeAtom, type EditorIntent, type EditorSlotProps } from "@seqno/outliner"
-import { pages, search } from "../atoms.ts"
+import { pages } from "../atoms.ts"
+import { searchHits } from "./search/atoms.ts"
+import { blockHits } from "./search/model.ts"
 
 const handoff = createHandoff()
 
@@ -38,27 +40,6 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
       onSome: (tree) => tree.blocks.find((candidate) => candidate.id === block.id) ?? block,
     })
 
-  const move = (direction: -1 | 1) => {
-    const { parentId } = current()
-    const siblings = childrenOf(parentId)
-    const index = siblings.findIndex((sibling) => sibling.id === block.id)
-    const target = index + direction
-    if (index === -1 || target < 0 || target >= siblings.length) return
-    const after = siblings[direction === -1 ? index - 2 : index + 1]
-    dispatch({
-      _tag: "MoveBlocks",
-      blockIds: [block.id],
-      parentId,
-      ...(after === undefined ? {} : { after: after.id }),
-    })
-  }
-
-  const collapse = (wanted: boolean | null) => {
-    const self = current()
-    if (childrenOf(self.id).length === 0) return
-    dispatch({ _tag: "SetCollapsed", blockId: self.id, collapsed: wanted ?? !self.collapsed })
-  }
-
   const mergeNext = () => {
     const self = current()
     const siblings = childrenOf(self.parentId)
@@ -68,14 +49,6 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
       dispatch({ _tag: "MergeWithPrevious", blockId: next.id })
   }
 
-  const titles = () =>
-    new Map(
-      Option.getOrElse(AsyncResult.value(registry.get(pages)), () => []).map((page) => [
-        page.id,
-        page.title,
-      ]),
-    )
-
   const host: EditorHost = {
     dispatch: (command) =>
       Option.match(intentOf(command), { onSome: onIntent, onNone: () => dispatch(command) }),
@@ -83,25 +56,24 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
       FocusPrevious: () => onIntent({ _tag: "FocusPrevious" }),
       FocusNext: () => onIntent({ _tag: "FocusNext" }),
       Exit: () => onIntent({ _tag: "Exit" }),
-      SelectUp: () => onIntent({ _tag: "Exit" }),
-      SelectDown: () => onIntent({ _tag: "Exit" }),
-      MoveUp: () => move(-1),
-      MoveDown: () => move(1),
-      Collapse: () => collapse(true),
-      Expand: () => collapse(false),
-      ToggleCollapse: () => collapse(null),
+      SelectUp: () => onIntent({ _tag: "SelectUp" }),
+      SelectDown: () => onIntent({ _tag: "SelectDown" }),
+      MoveUp: () => onIntent({ _tag: "MoveUp" }),
+      MoveDown: () => onIntent({ _tag: "MoveDown" }),
+      Collapse: () => onIntent({ _tag: "Collapse" }),
+      Expand: () => onIntent({ _tag: "Expand" }),
+      ToggleCollapse: () => onIntent({ _tag: current().collapsed ? "Expand" : "Collapse" }),
       MergeNext: mergeNext,
     }),
     searchPages: () => AtomRegistry.getResult(registry, pages).pipe(Effect.orElseSucceed(() => [])),
     searchBlocks: (query) =>
-      AtomRegistry.getResult(registry, search(query)).pipe(
-        Effect.map((result) => {
-          const titleOf = titles()
-          return result.blocks.map((found) => ({
-            block: found,
-            path: [titleOf.get(found.pageId) ?? ""],
-          }))
-        }),
+      AtomRegistry.getResult(registry, searchHits(query)).pipe(
+        Effect.map((hits) =>
+          blockHits(
+            hits,
+            Option.getOrElse(AsyncResult.value(registry.get(pages)), () => []),
+          ).map(({ block: found, crumbs }) => ({ block: found, path: crumbs })),
+        ),
         Effect.orElseSucceed(() => []),
       ),
   }
