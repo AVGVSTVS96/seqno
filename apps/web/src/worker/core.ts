@@ -1,8 +1,10 @@
 import {
   Clock,
+  Context,
   Crypto,
   Effect,
   Exit,
+  Layer,
   Option,
   Result,
   Schema,
@@ -11,7 +13,7 @@ import {
   SubscriptionRef,
 } from "effect"
 import { BlockId, PageId, type Block, type Page } from "@seqno/domain"
-import { isReadKey, type Row } from "@seqno/index"
+import { isReadKey, type BlockHit, type Row } from "@seqno/index"
 import {
   ALIASES_SQL,
   compileQuery,
@@ -23,14 +25,19 @@ import {
 } from "@seqno/query"
 import {
   CoreRpcs,
+  GraphLocked,
   GraphNotOpen,
   GraphUnavailable,
+  PageRpcs,
   QueryInvalid,
+  type GraphOpened,
   type QueryResult,
+  type Reference,
 } from "@seqno/rpc"
 import { journalDayOf } from "./journal.ts"
-import { Device, GraphPlaces } from "./place.ts"
-import { openSession, type Session } from "./session.ts"
+import { GraphLocks } from "./lock.ts"
+import { Device, GraphPlaces, type GraphPlace } from "./place.ts"
+import { openSession, type Session, type Touched } from "./session.ts"
 
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
 const decodePageId = Schema.decodeUnknownOption(PageId)
@@ -121,13 +128,49 @@ const watchQuery = (session: Session, text: string) =>
       )
   })
 
-export const RealCore = CoreRpcs.toLayer(
+const ancestorsOf = (session: Session, ids: ReadonlyArray<BlockId>) =>
+  Effect.gen(function* () {
+    const found = new Map<BlockId, Block>()
+    let level = yield* blocksOf(session, ids)
+    while (level.length > 0) {
+      const parents = new Set(
+        level.flatMap((block) =>
+          block.parentId === null || found.has(block.parentId) ? [] : [block.parentId],
+        ),
+      )
+      level = yield* blocksOf(session, [...parents])
+      for (const block of level) found.set(block.id, block)
+    }
+    return [...found.values()]
+  })
+
+const referencesOf = (hits: ReadonlyArray<BlockHit>): ReadonlyArray<Reference> =>
+  hits.map(({ blockId, pageId }) => ({ blockId, pageId }))
+
+class Sessions extends Context.Service<
+  Sessions,
+  {
+    readonly open: (
+      graph: string,
+      wait: boolean,
+    ) => Effect.Effect<GraphOpened, GraphUnavailable | GraphLocked>
+    readonly current: Effect.Effect<Session, GraphNotOpen>
+    readonly following: <A, E>(
+      watch: (session: Session) => Stream.Stream<A, E>,
+    ) => Stream.Stream<A, E | GraphNotOpen>
+    readonly pageChanges: (pageId: PageId) => Stream.Stream<void>
+  }
+>()("@seqno/web/worker/Sessions") {}
+
+const SessionsLive = Layer.effect(
+  Sessions,
   Effect.gen(function* () {
     const places = yield* GraphPlaces
     const device = yield* Device
     const crypto = yield* Crypto.Crypto
-    const revision = yield* SubscriptionRef.make(0)
-    const changed = SubscriptionRef.update(revision, (n) => n + 1)
+    const locks = yield* GraphLocks
+    const touches = yield* SubscriptionRef.make<Touched>(new Set())
+    const changed = (touched: Touched) => SubscriptionRef.set(touches, touched)
     const state = yield* SubscriptionRef.make(Option.none<readonly [Session, Scope.Closeable]>())
 
     const current = Effect.flatMap(SubscriptionRef.get(state), (open) =>
@@ -137,36 +180,67 @@ export const RealCore = CoreRpcs.toLayer(
       }),
     )
 
-    const live = <A, E>(read: (session: Session) => Effect.Effect<A, E>) =>
-      SubscriptionRef.changes(revision).pipe(
-        Stream.mapEffect(() => Effect.flatMap(current, read)),
-        Stream.changes,
-      )
-
     const close = Effect.flatMap(SubscriptionRef.getAndSet(state, Option.none()), (open) =>
       Option.match(open, {
         onNone: () => Effect.void,
         onSome: ([, scope]) => Scope.close(scope, Exit.void),
       }),
     )
+    yield* Effect.addFinalizer(() => close)
 
-    return CoreRpcs.of({
-      OpenGraph: ({ graph }) =>
+    const start = (graph: string, wait: boolean, place: GraphPlace, scope: Scope.Closeable) =>
+      Effect.gen(function* () {
+        if (!(yield* Scope.provide(locks.hold(graph, wait), scope))) {
+          return yield* new GraphLocked({ graph })
+        }
+        return yield* openSession(place, changed).pipe(
+          Scope.provide(scope),
+          Effect.provideService(Device, device),
+          Effect.provideService(Crypto.Crypto, crypto),
+          Effect.mapError((error) => new GraphUnavailable({ graph, reason: reasonOf(error) })),
+        )
+      }).pipe(Effect.onError(() => Scope.close(scope, Exit.void)))
+
+    return Sessions.of({
+      open: (graph, wait) =>
         Effect.gen(function* () {
           const place = yield* places.open(graph)
           yield* close
           const scope = yield* Scope.make()
-          const session = yield* openSession(place, changed).pipe(
-            Scope.provide(scope),
-            Effect.provideService(Device, device),
-            Effect.provideService(Crypto.Crypto, crypto),
-            Effect.tapError(() => Scope.close(scope, Exit.void)),
-            Effect.mapError((error) => new GraphUnavailable({ graph, reason: reasonOf(error) })),
-          )
+          const session = yield* start(graph, wait, place, scope)
           yield* SubscriptionRef.set(state, Option.some([session, scope] as const))
-          yield* changed
           return { graph, pages: yield* session.graph.pages }
         }),
+      current,
+      following: (watch) =>
+        Stream.unwrap(
+          Effect.as(
+            current,
+            SubscriptionRef.changes(state).pipe(
+              Stream.switchMap((open) =>
+                Option.match(open, {
+                  onNone: () => Stream.empty,
+                  onSome: ([session]) => watch(session),
+                }),
+              ),
+            ),
+          ),
+        ),
+      pageChanges: (pageId) =>
+        SubscriptionRef.changes(touches).pipe(
+          Stream.zipWithIndex,
+          Stream.filter(([touched, at]) => at === 0 || touched.has(pageId)),
+          Stream.as(undefined),
+        ),
+    })
+  }),
+)
+
+const CoreHandlers = CoreRpcs.toLayer(
+  Effect.gen(function* () {
+    const { open, current, following, pageChanges } = yield* Sessions
+    return CoreRpcs.of({
+      OpenGraph: ({ graph, wait }) => open(graph, wait ?? false),
       Dispatch: ({ command }) =>
         Effect.flatMap(current, (session) =>
           Effect.tap(session.graph.dispatch(command), session.record),
@@ -174,9 +248,11 @@ export const RealCore = CoreRpcs.toLayer(
       GetPages: () => Effect.flatMap(current, (session) => session.graph.pages),
       GetPage: ({ pageId }) => Effect.flatMap(current, (session) => session.graph.page(pageId)),
       GetBlock: ({ blockId }) => Effect.flatMap(current, (session) => session.graph.block(blockId)),
-      WatchPage: ({ pageId }) => live((session) => session.graph.page(pageId)),
-      WatchQuery: ({ query }) =>
-        Stream.unwrap(Effect.flatMap(current, (session) => watchQuery(session, query))),
+      WatchPage: ({ pageId }) =>
+        following((session) =>
+          pageChanges(pageId).pipe(Stream.mapEffect(() => session.graph.page(pageId))),
+        ),
+      WatchQuery: ({ query }) => following((session) => Stream.unwrap(watchQuery(session, query))),
       Search: ({ text }) =>
         Effect.gen(function* () {
           const session = yield* current
@@ -195,3 +271,30 @@ export const RealCore = CoreRpcs.toLayer(
     })
   }),
 )
+
+const PageHandlers = PageRpcs.toLayer(
+  Effect.gen(function* () {
+    const { current, following } = yield* Sessions
+    return PageRpcs.of({
+      WatchReferences: ({ pageId }) =>
+        following((session) =>
+          session.index.watchBacklinks(pageId).pipe(Stream.map(referencesOf), Stream.orDie),
+        ),
+      WatchNameReferences: ({ name }) =>
+        following((session) =>
+          session.index.watchBacklinksToName(name).pipe(Stream.map(referencesOf), Stream.orDie),
+        ),
+      WatchUnlinkedReferences: ({ pageId }) =>
+        following((session) =>
+          session.index
+            .watchUnlinkedReferences(pageId)
+            .pipe(Stream.map(referencesOf), Stream.orDie),
+        ),
+      WatchPageStats: () => following((session) => Stream.orDie(session.index.watchPageStats)),
+      Ancestors: ({ blockIds }) =>
+        Effect.flatMap(current, (session) => ancestorsOf(session, blockIds)),
+    })
+  }),
+)
+
+export const RealCore = Layer.mergeAll(CoreHandlers, PageHandlers).pipe(Layer.provide(SessionsLive))

@@ -29,8 +29,10 @@ export const recentGraphs = appRuntime.atom(
   Effect.flatMap(Effect.service(GraphLocations), (locations) => locations.recent),
 )
 
+export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)
+
 export const openGraph = appRuntime
-  .fn((source: GraphSource) =>
+  .fn((source: GraphSource, get) =>
     Effect.gen(function* () {
       const locations = yield* GraphLocations
       const location = yield* GraphSource.match(source, {
@@ -39,7 +41,15 @@ export const openGraph = appRuntime
         Recent: ({ name }) => locations.reopen(name),
       })
       const core = yield* CoreClient
-      const opened = yield* core.OpenGraph({ graph: location.name })
+      const graph = location.name
+      const opened = yield* core.OpenGraph({ graph }).pipe(
+        Effect.catchTag("GraphLocked", () =>
+          Effect.suspend(() => {
+            get.set(graphLocked, Option.some(graph))
+            return core.OpenGraph({ graph, wait: true })
+          }).pipe(Effect.ensuring(Effect.sync(() => get.set(graphLocked, Option.none())))),
+        ),
+      )
       yield* Reactivity.invalidate(pagesKey)
       return opened
     }),

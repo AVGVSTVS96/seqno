@@ -1,14 +1,29 @@
+import { useAtomValue } from "@effect/atom-react"
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router"
-import { Schema } from "effect"
+import { Option, Schema } from "effect"
 import { BlockId } from "@seqno/domain"
+import { graphLocked } from "./atoms.ts"
+import { GraphInUse } from "./ui/pages/GraphInUse.tsx"
+import { AllPages, Journals, PageRoute } from "./ui/routes.tsx"
+import { SearchPalette } from "./ui/search/SearchPalette.tsx"
 import { Shell } from "./ui/Shell.tsx"
-import { AllPages, Journals, PageRoute, Search } from "./ui/routes.tsx"
 
 const SearchParams = Schema.Struct({ q: Schema.optionalKey(Schema.String) })
 
 const PageParams = Schema.Struct({ zoom: Schema.optionalKey(BlockId) })
 
-const rootRoute = createRootRoute({ component: Shell })
+const Root = () =>
+  Option.match(useAtomValue(graphLocked), {
+    onSome: (graph) => <GraphInUse graph={graph} />,
+    onNone: () => (
+      <>
+        <Shell />
+        <SearchPalette />
+      </>
+    ),
+  })
+
+const rootRoute = createRootRoute({ component: Root })
 
 const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: "/", component: Journals }),
@@ -23,7 +38,7 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/search",
     validateSearch: Schema.toStandardSchemaV1(SearchParams),
-    component: Search,
+    component: Journals,
   }),
 ])
 

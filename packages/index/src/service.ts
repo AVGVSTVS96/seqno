@@ -30,13 +30,24 @@ export interface SearchResult {
   readonly blocks: ReadonlyArray<BlockHit>
 }
 
+export const PageStat = Schema.Struct({
+  pageId: PageId,
+  backlinks: Schema.Int,
+  created: Schema.NullOr(Schema.Number),
+  updated: Schema.NullOr(Schema.Number),
+})
+export type PageStat = typeof PageStat.Type
+
 const REBUILD_BATCH = 2_000
 
 const decodeBlockHit = Schema.decodeUnknownSync(BlockHit)
 const decodePageHit = Schema.decodeUnknownSync(PageHit)
+const decodePageStat = Schema.decodeUnknownSync(PageStat)
 
 const blockHits = (rows: ReadonlyArray<Row>) =>
   rows.map(([blockId, pageId, text]) => decodeBlockHit({ blockId, pageId, text }))
+
+const REFERENCE_ORDER = "ORDER BY p.day IS NULL, p.day DESC, p.name_lc, b.rid"
 
 const BACKLINKS = `
 SELECT b.id, p.id, b.content FROM pages me
@@ -46,7 +57,76 @@ JOIN blocks b ON b.rid = r.block
 JOIN pages p ON p.rid = b.page
 WHERE me.id = ? AND b.page != me.rid
 GROUP BY b.rid
-ORDER BY p.day IS NULL, p.day DESC, p.name_lc, b.rid`
+${REFERENCE_ORDER}`
+
+const BACKLINKS_TO_NAME = `
+SELECT b.id, p.id, b.content FROM refs r
+JOIN blocks b ON b.rid = r.block
+JOIN pages p ON p.rid = b.page
+WHERE r.target = ?
+GROUP BY b.rid
+${REFERENCE_ORDER}`
+
+const PAGE_NAMES = `
+SELECT n.name FROM pages me JOIN page_names n ON n.page = me.rid WHERE me.id = ?`
+
+const UNLINKED = `
+SELECT b.id, p.id, b.content FROM fts
+JOIN blocks b ON b.rid = fts.rowid
+JOIN pages p ON p.rid = b.page
+JOIN pages me ON me.id = ?1
+WHERE fts MATCH ?2 AND b.page != me.rid
+AND NOT EXISTS (
+  SELECT 1 FROM refs r JOIN page_names n ON n.name = r.target
+  WHERE r.block = b.rid AND n.page = me.rid)
+${REFERENCE_ORDER}`
+
+const PAGE_STATS = `
+SELECT p.id,
+  (SELECT count(DISTINCT r.block) FROM page_names n
+    JOIN refs r ON r.target = n.name
+    JOIN blocks b ON b.rid = r.block
+    WHERE n.page = p.rid AND b.page != p.rid),
+  (SELECT min(created) FROM blocks WHERE page = p.rid),
+  (SELECT max(updated) FROM blocks WHERE page = p.rid)
+FROM pages p`
+
+const phrase = (text: string) => `"${text.replaceAll('"', '""')}"`
+
+const anyPhrase = (names: ReadonlyArray<string>): string | null => {
+  const phrases = names.filter((name) => /[\p{L}\p{N}]/u.test(name)).map(phrase)
+  return phrases.length === 0 ? null : phrases.join(" OR ")
+}
+
+const namesOf = (db: Statements, pageId: PageId) =>
+  db.all(PAGE_NAMES, [pageId]).flatMap(([name]) => (typeof name === "string" ? [name] : []))
+
+const unlinkedOf = (db: Statements, pageId: PageId) => {
+  const match = anyPhrase(namesOf(db, pageId))
+  return match === null ? [] : blockHits(db.all(UNLINKED, [pageId, match]))
+}
+
+const statsOf = (db: Statements) =>
+  db
+    .all(PAGE_STATS)
+    .map(([pageId, backlinks, created, updated]) =>
+      decodePageStat({ pageId, backlinks, created, updated }),
+    )
+
+const sameBlocks = (left: ReadonlyArray<BlockHit>, right: ReadonlyArray<BlockHit>) =>
+  left.length === right.length &&
+  left.every((hit, at) => hit.blockId === right[at]?.blockId && hit.pageId === right[at]?.pageId)
+
+const NAME_READS: ReadonlyArray<ReadKey> = ["page.name", "page.alias"]
+const UNLINKED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "text", "ref", "move", "exist"]
+const STATS_READS: ReadonlyArray<ReadKey> = [
+  ...NAME_READS,
+  "ref",
+  "move",
+  "exist",
+  "created",
+  "updated",
+]
 
 const SEARCH_PAGES = `
 SELECT p.id, p.name FROM page_names n JOIN pages p ON p.rid = n.page
@@ -91,6 +171,15 @@ const make = Effect.gen(function* () {
   const query = (sql: string, params: ReadonlyArray<SqlValue> = []) =>
     sqlite.use((db) => db.all(sql, params))
 
+  const watching = <A>(reads: ReadonlyArray<string>, read: Effect.Effect<A, IndexError>) =>
+    reactivity.stream([...reads, REBUILT], read)
+
+  const backlinks = (pageId: PageId) => sqlite.use((db) => blockHits(db.all(BACKLINKS, [pageId])))
+
+  const unlinkedReferences = (pageId: PageId) => sqlite.use((db) => unlinkedOf(db, pageId))
+
+  const pageStats = sqlite.use(statsOf)
+
   return {
     stamp: sqlite.use(readStamp).pipe(Effect.map(Option.fromNullOr)),
 
@@ -121,7 +210,38 @@ const make = Effect.gen(function* () {
     watch: (live: LiveQuery): Stream.Stream<ReadonlyArray<Row>, IndexError> =>
       reactivity.stream([...live.reads, REBUILT], query(live.sql, live.params)),
 
-    backlinks: (pageId: PageId) => sqlite.use((db) => blockHits(db.all(BACKLINKS, [pageId]))),
+    backlinks,
+
+    watchBacklinks: (pageId: PageId): Stream.Stream<ReadonlyArray<BlockHit>, IndexError> =>
+      watching(
+        NAME_READS,
+        sqlite.use((db) => namesOf(db, pageId)),
+      ).pipe(
+        Stream.switchMap((names) =>
+          watching(
+            [...NAME_READS, "move", ...names.map((name) => `ref:${name}`)],
+            backlinks(pageId),
+          ),
+        ),
+        Stream.changesWith(sameBlocks),
+      ),
+
+    watchBacklinksToName: (name: string): Stream.Stream<ReadonlyArray<BlockHit>, IndexError> => {
+      const target = normalizePageName(name)
+      return watching(
+        [...NAME_READS, "move", `ref:${target}`],
+        sqlite.use((db) => blockHits(db.all(BACKLINKS_TO_NAME, [target]))),
+      ).pipe(Stream.changesWith(sameBlocks))
+    },
+
+    unlinkedReferences,
+
+    watchUnlinkedReferences: (pageId: PageId): Stream.Stream<ReadonlyArray<BlockHit>, IndexError> =>
+      watching(UNLINKED_READS, unlinkedReferences(pageId)).pipe(Stream.changesWith(sameBlocks)),
+
+    pageStats,
+
+    watchPageStats: watching(STATS_READS, pageStats),
 
     search: (text: string, limit = 20): Effect.Effect<SearchResult, IndexError> =>
       sqlite.use((db) => {
