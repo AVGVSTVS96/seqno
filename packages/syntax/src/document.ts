@@ -19,8 +19,8 @@ export const Document = Schema.Struct({
 export type Document = typeof Document.Type
 
 const BOM = "﻿"
-const BULLET = /^([ \t]*)-(?=[ \t]|$)/
-const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})(.*)$/
+const BULLET = /^([ \t]*)-(?=[ \t\r]|$)/
+const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})([^\n]*)$/
 const DIRECTIVE_OPEN = /^[ \t]*#\+BEGIN_(\S+)/i
 
 interface Fence {
@@ -44,7 +44,7 @@ const fenceOpenedBy = (line: string, ownerWidth: number): Fence | null => {
     const run = fence[1] ?? ""
     const info = fence[2] ?? ""
     if (run.startsWith("`") && info.includes("`")) return null
-    const closing = new RegExp(`^[ \\t]*${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t]*$`)
+    const closing = new RegExp(`^[ \\t]*${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t\\r]*$`)
     return { close: (next) => closing.test(next), ownerWidth }
   }
   const directive = DIRECTIVE_OPEN.exec(line)

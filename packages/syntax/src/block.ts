@@ -89,7 +89,7 @@ const TIMESTAMP =
 const PLANNING_LINE = /^[ \t]*(?:(?:SCHEDULED|DEADLINE): <[^>\n]*>[ \t]*)+$/
 const DRAWER_OPEN = /^[ \t]*:([A-Za-z][\w-]*):[ \t]*$/
 const DRAWER_CLOSE = /^[ \t]*:END:[ \t]*$/i
-const FENCE = /^[ \t]*(`{3,}|~{3,})(.*)$/
+const FENCE = /^[ \t]*(`{3,}|~{3,})([^\n]*)$/
 const DIRECTIVE = /^[ \t]*#\+BEGIN_(\S+)/i
 const MACRO = /\{\{([^\s{}]+)(?:[ \t]+((?:(?!\}\})[^\n])*))?\}\}/g
 const BLOCK_REF = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
@@ -126,7 +126,7 @@ const regionsOf = (lines: ReadonlyArray<Line>): ReadonlyArray<Region> => {
     const drawer = DRAWER_OPEN.exec(line.text)
     if (fence !== null && !(fence[1]?.startsWith("`") && fence[2]?.includes("`"))) {
       const run = fence[1] ?? "```"
-      const closing = new RegExp(`^[ \\t]*${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t]*$`)
+      const closing = new RegExp(`^[ \\t]*${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t\\r]*$`)
       open = { kind: "Fence", name: (fence[2] ?? "").trim(), from: line.from, closes: (next) => closing.test(next) }
     } else if (directive !== null) {
       const name = (directive[1] ?? "").toUpperCase()
