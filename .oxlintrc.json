@@ -10,6 +10,12 @@
     "import/no-cycle": "error",
     "typescript/no-non-null-assertion": "error",
     "typescript/ban-ts-comment": "error",
-    "react/react-in-jsx-scope": "off"
-  }
+    "react/react-in-jsx-scope": "off",
+    "seqno/no-comments": "error",
+    "seqno/no-use-effect": "error",
+    "seqno/no-as-cast": "error",
+    "seqno/no-any": "error",
+    "seqno/import-boundaries": "error"
+  },
+  "jsPlugins": ["./tools/lint/src/plugin.ts"]
 }
