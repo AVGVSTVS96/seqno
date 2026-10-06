@@ -9,10 +9,11 @@ Checked end to end in headless Chrome against a production build: open the demo 
  ─────────────────────────────────────────         ──────────────────────────────────
  main.tsx   RegistryProvider + RouterProvider       main.ts   RpcServer(CoreRpcs)
  router.tsx /  /page/$name  /all-pages  /search               + BrowserWorkerRunner
- atoms.ts   appRuntime ── Core (RpcClient) ──────►  stub-core.ts   in-memory handlers
+ atoms.ts   appRuntime ── CoreClient (RpcClient) ►  stub-core.ts   in-memory handlers
             GraphLocations (IndexedDB, FSA, OPFS)   graph-state.ts pure command logic
  ui/        Shell, sidebars, PageView,              locations.ts   reads the stored
-            OutlinerPlaceholder, EditorPlaceholder                 folder handle / OPFS dir
+            @seqno/outliner + EditorSlot                           folder handle / OPFS dir
+            (@seqno/editor)
 ```
 
 - **Shell and routes** (TanStack Router, code-based): journals home `/`, page by name `/page/$name`, `/all-pages`, and `/search?q=` (search params decoded with Effect Schema through `Schema.toStandardSchemaV1`). Left sidebar has journals, all pages, search and favorites. The right sidebar can be toggled and holds a placeholder for linked references. Styling is neutral, uses CSS variables, and follows the system light or dark setting.
@@ -21,20 +22,13 @@ Checked end to end in headless Chrome against a production build: open the demo 
   - Commands: `CreatePage`, `RenamePage`, `DeletePage`, `InsertBlock`, `EditText`, `SetCollapsed`, `DeleteBlocks`, `SetProperty`. These return the right `GraphEvent`s.
   - `SplitBlock`, `MergeWithPrevious`, `Indent`, `Outdent`, `MoveBlocks`, `Undo` and `Redo` return `CommandRejected` ("@seqno/graph implements it").
   - `WatchPage` and `WatchQuery` are live: they re-emit only when their result changes. `WatchQuery` is a plain substring search for now.
-- **State with `@effect/atom-react`**, in `src/atoms.ts`:
-  - `pageTree(pageId)` is a live `WatchPage` stream.
-  - `rows(pageId)` holds the visible structure (depth, has children, collapsed). It only changes when the structure changes, not when text changes.
-  - `block({ pageId, blockId })` is **one atom per visible block**. It uses structural equality, so an edit re-renders only that block's row. A test checks this.
-  - `dispatch` runs with `concurrent: true` so fast typing never cancels an earlier edit. It refreshes the page list only when a page event comes back.
-  - The whole app layer sits in one atom, `appLayer`. Tests swap it for an in-process core through `AtomRegistry.make({ initialValues })`.
+- **State with `@effect/atom-react`**, in `src/atoms.ts`: the page list and its derived journals, favorites and pages by name, live search, and `dispatch` (`concurrent: true`, refreshes the page list when a page event comes back). The whole app layer sits in one atom, `appLayer`; tests swap it for an in-process core through `AtomRegistry.make({ initialValues })`. Page trees and per-block state now live in `@seqno/outliner`.
 - **Open-graph flow**:
   - "Open a folder" uses `showDirectoryPicker`.
   - "Open the demo graph" creates `graphs/demo` in OPFS.
   - Either way the location is saved in IndexedDB (`seqno` / `graphs`, keyed by graph name), and recent graphs are listed on the open screen.
   - The worker reads the same record: it checks folder permission or that the OPFS folder exists, then opens the graph. This proves a `FileSystemDirectoryHandle` saved by the window can be read in the worker.
-- **Placeholders for parallel parts**:
-  - `ui/OutlinerPlaceholder.tsx` renders rows with collapse bullets and `[[page]]` links.
-  - `ui/EditorPlaceholder.tsx` is a textarea mounted only on the focused block. It turns each change into a minimal `EditText` through `text-edit.ts`. Enter inserts a sibling and Escape leaves the block.
+- **Outliner and editor**: pages render through `@seqno/outliner`, and the focused block edits through `@seqno/editor`, joined by `ui/EditorSlot.tsx` (see Integration below).
 
 ## How to run
 
@@ -55,10 +49,6 @@ I ran the browser check with a throwaway Playwright script against `vite preview
 ## Integration points
 
 - **Swap in the real core**: in `src/worker/main.ts`, replace `StubCore` and `BrowserGraphLocations` with layers built on graph, index and vault. Everything else in the worker stays the same.
-- **Swap in the real UI parts**: replace the `OutlinerPlaceholder` and `EditorPlaceholder` imports with `@seqno/outliner` and `@seqno/editor`. The placeholders show what they get from the app:
-  - `rows(pageId)` and `block({ pageId, blockId })`
-  - `focusedBlock`
-  - `dispatch(command)`, which resolves to the `GraphEvent`s
 
 ## Additions to the contract (for integration to reconcile)
 
@@ -78,6 +68,44 @@ I ran the browser check with a throwaway Playwright script against `vite preview
 
 - **Folder graphs**: the stub does not read folder contents. It checks permission and opens a graph with only an empty journal for today. Reading the files is vault's job.
 - **Recent folders after a restart**: reopening one asks for permission again, as Chrome requires. A folder named `demo` would overwrite the demo graph's record.
-- **Placeholders**: no keyboard navigation between blocks, no zoom, no drag, no virtualization. The journals page renders every journal page.
+- **Journals page** renders every journal page, each with its own outliner.
 - **Search**: page hits are matched in the UI against the page list. Block hits come from the stub's substring search until `@seqno/query` and `@seqno/index` land.
 - **Errors**: a rejected `Dispatch` is kept in the `dispatch` atom but not shown anywhere yet.
+
+## Integration (phase1/integrate-app)
+
+`phase1/web`, `phase1/outliner`, `phase1/editor` and `phase1/e2e` are merged, in that order, and wired together.
+
+```
+ PageView ── <Outliner pageId zoom onNavigate editor={EditorSlot}>
+                 │ reads pageTreeAtom (WatchPage)       writes dispatchAtom (Dispatch)
+                 └─ EditorSlot ── <BlockEditor> (CodeMirror, one per focused block)
+                       SplitBlock / MergeWithPrevious / Indent / Outdent ─► onIntent
+                       EditText / Undo / Redo                            ─► dispatch
+                       ToPrevious / ToNext                               ─► FocusPrevious / FocusNext
+                       Escape                                            ─► Exit
+                       textUpdates = pageTreeAtom → this block's text, deduped
+                       searchPages / searchBlocks = pages atom / WatchQuery
+```
+
+- **One core client.** `CoreClient` moved from `@seqno/outliner` into `@seqno/rpc`. `main.tsx` sets `coreRuntime.layer` to `Layer.orDie(WorkerCore)`, the same layer value `appLayer` uses. Atom runtimes share one memo map per registry, so the app and the outliner talk to one worker.
+- **Mount-once editor vs. render-time intents.** The editor reads its host once at mount; the outliner's `onIntent` was a render-time closure, so a Split typed into a block that was empty at mount would have outdented it. `onIntent` now reads the current page tree from the registry when it runs.
+- **Routes**: `/page/$name?zoom=<blockId>` drives the outliner's zoom; bullets and breadcrumbs navigate there. Each page is an `<article>` labelled by its `h1`, the markup the e2e flows rely on.
+- **Removed**: `OutlinerPlaceholder`, `EditorPlaceholder`, `text-edit.ts`, the per-block atoms (`pageTree`, `rows`, `block`, `focusedBlock`) and the test that covered them.
+- **Versions**: one React for the app, 19.3.0 (the outliner had pinned 19.2.8). `@effect/atom-react` 4.0.1 keeps its own `scheduler` 0.27.0 peer; vite is 8.3.3 everywhere in the UI.
+- **Test memory**: root vitest runs 2 workers and the outliner's browser-mode project runs in a later group (`sequence.groupOrder: 1`). Run in parallel, the full suite was OOM-killed inside the 1.5 GB scope; now `pnpm check` peaks around 1.2 GB.
+
+Run it:
+
+```sh
+systemd-run --user --scope -p MemoryMax=1500M -p MemorySwapMax=0 pnpm check                      # 95 tests
+systemd-run --user --scope -p MemoryMax=1500M -p MemorySwapMax=0 pnpm --filter @seqno/e2e test  # 6 pass, 1 fixme
+```
+
+Known gaps after integration:
+
+- **The worker still runs `StubCore`.** graph, index and vault are merged on `phase1/integrate-core`, not here; swapping them into `src/worker/main.ts` is the next integration step. Until then `SplitBlock`, `MergeWithPrevious`, `Indent`, `Outdent`, `MoveBlocks`, `Undo` and `Redo` are rejected by the stub, so Enter, Tab and drag do nothing visible in the running app, and `reload keeps text` stays `fixme`.
+- **Folder graphs in headless Chrome**: clicking "Open a folder" with the e2e harness's seeded OPFS picker closes the page, so the journal flows open the demo graph. The demo journal already has text, so `type in a block` appends to its first block.
+- **Caret column across blocks**: the editor reports `ToPrevious`/`ToNext` with a cursor placement, but the outliner's intents carry none, so moving up lands at the end of the previous block and moving down at the start of the next.
+- **No search RPCs**: `[[`/`#` completion filters the page list in the UI and `((` uses `WatchQuery`'s first result. Real `SearchPages`/`SearchBlocks` RPCs should come from `@seqno/index`.
+- **The first browser-mode run after an install** re-optimizes Vite deps and has been OOM-killed once at the 1.5 GB cap; a rerun passes.

@@ -37,15 +37,12 @@ systemd-run --user --scope -p MemoryMax=1500M -p MemorySwapMax=0 pnpm --filter @
 
 ## For integration
 
-- **`CoreClient` lives here for now.** It is a `Context.Service` holding `RpcClient<CoreRpcs>`. It should move to `@seqno/rpc` so the editor and the web app share one. The app wires it once:
-  ```tsx
-  <RegistryProvider initialValues={[[coreRuntime.layer, Layer.effect(CoreClient)(RpcClient.make(CoreRpcs)).pipe(Layer.provide(workerProtocol))]]}>
-  ```
+- **`CoreClient` now lives in `@seqno/rpc`** (moved at integration). The app sets `coreRuntime.layer` to its worker client layer in `RegistryProvider` `initialValues`.
 - **New contract types** (all in this package):
   - `EditorSlotProps { block, caret, dispatch, onIntent }` and `EditorIntent` (`Split { at } | MergeWithPrevious | Indent | Outdent | FocusPrevious | FocusNext | Exit`), a `Schema.TaggedUnion`.
   - `NavigationTarget`: `Page { name } | Zoom { pageId, blockId | null }`. The app maps these to routes.
 - **Assumption about `PageTree.blocks`**: sibling order is the order blocks appear in the array (pre-order works). The graph must emit blocks in tree order.
-- React is pinned to **19.2.8**, not 19.3.0: `@effect/atom-react` 4.0.1 wants `scheduler <0.28`, and React 19.3 needs 0.28.
+- React is **19.3.0**, aligned with the app at integration. `@effect/atom-react` 4.0.1 gets its own `scheduler` 0.27.0 peer.
 - `pnpm install` added `minimumReleaseAgeExclude: [vite@8.3.3]` to `pnpm-workspace.yaml`: Vitest's browser provider peers resolve the newest Vite for the other workspace packages. I pinned the outliner's own Vite to 8.3.2.
 
 ## Known gaps
