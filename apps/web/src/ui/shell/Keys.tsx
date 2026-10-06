@@ -11,7 +11,7 @@ const labels: Readonly<Record<string, string>> = {
   enter: "⏎",
 }
 
-const labelOf = (key: string) => labels[key] ?? key.toUpperCase()
+const labelOf = (key: string) => labels[key] ?? (key.length === 1 ? key.toUpperCase() : key)
 
 export const Keys = ({
   keys,

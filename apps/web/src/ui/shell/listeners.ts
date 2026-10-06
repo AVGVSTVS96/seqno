@@ -13,7 +13,6 @@ import {
 import { toggleDialog, togglePopover } from "./popover.tsx"
 import { idle, nextKeyState, type KeyState, type ShortcutAction } from "./shortcuts.ts"
 import { recentPages, remember, wideMode } from "./state.ts"
-import { dayNumber } from "./today.ts"
 
 export const contentsItem = { _tag: "Page", name: "contents" } as const satisfies SidebarItem
 
@@ -25,6 +24,9 @@ export const closeSidebarItem = (registry: AtomRegistry.AtomRegistry, item: Side
   const { items } = registry.get(rightSidebar)
   registry.set(rightSidebar, items.length <= 1 ? { _tag: "Clear" } : { _tag: "Close", item })
 }
+
+const dayNumber = (date: Date) =>
+  date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
 
 const isEditable = (target: EventTarget | null) =>
   target instanceof HTMLElement &&

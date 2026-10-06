@@ -34,7 +34,7 @@ export const recentPages = setting(
   {} satisfies Readonly<Record<string, ReadonlyArray<string>>>,
 )
 
-export const recentLimit = 15
+const recentLimit = 15
 
 export const remember = (recent: ReadonlyArray<string>, name: string): ReadonlyArray<string> =>
   recent[0] === name

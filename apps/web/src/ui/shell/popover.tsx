@@ -38,11 +38,8 @@ const place = (popover: HTMLElement, box: DOMRect, placement: Placement) => {
   style.setProperty("--slide", above ? "8px" : "-8px")
 }
 
-export const placeNear = (popover: HTMLElement, anchor: Element, placement: Placement) =>
+const placeNear = (popover: HTMLElement, anchor: Element, placement: Placement) =>
   place(popover, anchor.getBoundingClientRect(), placement)
-
-export const placeAt = (popover: HTMLElement, x: number, y: number, placement: Placement) =>
-  place(popover, new DOMRect(x, y, 0, 0), placement)
 
 const items = (menu: HTMLElement) =>
   [...menu.querySelectorAll<HTMLElement>("[role=menuitem], [role=menuitemradio]")].filter(
@@ -74,7 +71,7 @@ export const onMenuKeyDown = (event: KeyboardEvent<HTMLElement>) => {
   moveFocus(event.currentTarget, step)
 }
 
-export const closePopoverOf = (element: Element) => {
+const closePopoverOf = (element: Element) => {
   const popover = element.closest("[popover]")
   if (popover instanceof HTMLElement) popover.hidePopover()
 }
@@ -83,7 +80,7 @@ export const showPopover = (id: string) => document.getElementById(id)?.showPopo
 
 export const togglePopover = (id: string) => document.getElementById(id)?.togglePopover()
 
-export interface TriggerProps {
+interface TriggerProps {
   readonly ref: Ref<HTMLButtonElement>
   readonly popoverTarget: string
   readonly "aria-haspopup": "menu" | "dialog"
@@ -142,10 +139,9 @@ export const usePopover = ({
     },
     onBeforeToggle: (event) => {
       const target = anchorOverride?.current ?? anchor.current
-      if (event.newState === "open" && target !== null && !event.currentTarget.dataset["placed"]) {
+      if (event.newState === "open" && target !== null) {
         placeNear(event.currentTarget, target, placement)
       }
-      if (event.newState === "closed") delete event.currentTarget.dataset["placed"]
     },
     onToggle: (event) => {
       const opened = event.newState === "open"
@@ -157,14 +153,6 @@ export const usePopover = ({
       else event.currentTarget.focus()
     },
   }
-}
-
-export const openMenuAt = (id: string, x: number, y: number) => {
-  const popover = document.getElementById(id)
-  if (popover === null) return
-  placeAt(popover, x, y, { align: "start", gap: 0, inset: 8 })
-  popover.dataset["placed"] = "true"
-  popover.showPopover()
 }
 
 export const Menu = ({

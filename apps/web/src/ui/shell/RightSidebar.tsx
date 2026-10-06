@@ -317,7 +317,7 @@ export const RightSidebar = () => {
           }
         }}
         onKey={(event) => {
-          const by = { ArrowLeft: 5, ArrowRight: -5 }[event.key]
+          const by = { ArrowLeft: 16, ArrowRight: -16 }[event.key]
           if (by === undefined) return
           event.preventDefault()
           setWidth(rightWidthStep(width, by, window.innerWidth))

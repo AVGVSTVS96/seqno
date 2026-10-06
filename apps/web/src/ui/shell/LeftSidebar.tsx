@@ -15,7 +15,7 @@ import { allPages, dispatch, favorites, leftSidebarOpen, rightSidebar } from "..
 import { GraphSwitcher } from "./GraphSwitcher.tsx"
 import { Keys } from "./Keys.tsx"
 import { keysOf } from "./shortcuts.ts"
-import { Menu, MenuItem, openMenuAt, usePopover } from "./popover.tsx"
+import { Menu, MenuItem, usePopover } from "./popover.tsx"
 import { Resizer } from "./Resizer.tsx"
 import {
   collapsedGroups,
@@ -93,7 +93,7 @@ const NavItem = ({
 const PageLink = ({ page, starred }: { readonly page: Page; readonly starred: boolean }) => {
   const updateSidebar = useAtomSet(rightSidebar)
   const run = useAtomSet(dispatch)
-  const menu = usePopover({ placement: { align: "start", gap: 4, inset: 8 }, kind: "menu" })
+  const menu = usePopover({ placement: { align: "center", gap: 4, inset: 8 }, kind: "menu" })
   const openInSidebar = () =>
     updateSidebar({ _tag: "Open", item: { _tag: "Page", name: page.name } })
   return (
@@ -106,10 +106,6 @@ const PageLink = ({ page, starred }: { readonly page: Page; readonly starred: bo
           if (!event.shiftKey) return
           event.preventDefault()
           openInSidebar()
-        }}
-        onContextMenu={(event) => {
-          event.preventDefault()
-          openMenuAt(menu.id, event.clientX, event.clientY)
         }}
       >
         <IconFile className="page-link-icon" size={16} aria-hidden />
@@ -126,7 +122,7 @@ const PageLink = ({ page, starred }: { readonly page: Page; readonly starred: bo
       <Menu handle={menu} label={page.title} className="page-link-menu">
         {starred ? (
           <MenuItem
-            icon={<IconStarOff size={18} aria-hidden />}
+            icon={<IconStarOff className="page-link-menu-icon" size={18} aria-hidden />}
             onSelect={() =>
               run({
                 _tag: "SetProperty",
@@ -140,8 +136,8 @@ const PageLink = ({ page, starred }: { readonly page: Page; readonly starred: bo
           </MenuItem>
         ) : null}
         <MenuItem
-          icon={<IconLayoutSidebarRight size={18} aria-hidden />}
-          hint="⇧ Click"
+          icon={<IconLayoutSidebarRight className="page-link-menu-icon" size={18} aria-hidden />}
+          hint={<Keys keys={["shift", "Click"]} />}
           onSelect={openInSidebar}
         >
           Open in sidebar
