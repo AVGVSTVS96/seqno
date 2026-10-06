@@ -17,6 +17,8 @@
   "devDependencies": {
     "@effect/vitest": "4.0.1",
     "@types/node": "24.19.1",
+    "@vitest/browser-playwright": "5.0.3",
+    "playwright": "1.63.0",
     "typescript": "7.0.2",
     "vitest": "5.0.3"
   }
