@@ -1,0 +1,23 @@
+{
+  "name": "@seqno/interop",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@seqno/domain": "workspace:*",
+    "@seqno/rpc": "workspace:*",
+    "effect": "4.0.1"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "4.0.1",
+    "@effect/vitest": "4.0.1",
+    "@types/node": "24.19.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}
