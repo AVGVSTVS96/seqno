@@ -142,6 +142,20 @@ export const normalizeFilter = (f: Filter): Filter =>
     Search: (x): Filter => x,
   })
 
+export const childrenOf = (f: Filter): ReadonlyArray<Filter> =>
+  Match.valueTags(f, {
+    And: (x) => x.all,
+    Or: (x) => x.any,
+    Not: (x) => [x.filter],
+    Under: (x) => [x.ancestor],
+    HasBlock: (x) => [x.filter],
+    Compare: () => [],
+    In: () => [],
+    Between: () => [],
+    Has: () => [],
+    Search: () => [],
+  })
+
 const decodeQuery = Schema.decodeUnknownSync(Query)
 
 export const finishQuery = (input: Query): Query => {

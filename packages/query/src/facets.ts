@@ -35,7 +35,7 @@ export const BlockFacets = Schema.Struct({
 export type BlockFacets = typeof BlockFacets.Type
 
 export const tokenize = (text: string): string[] | null =>
-  /^[\x00-\x7f]*$/.test(text)
+  /^\p{ASCII}*$/u.test(text)
     ? text
         .toLowerCase()
         .split(/[^a-z0-9]+/)

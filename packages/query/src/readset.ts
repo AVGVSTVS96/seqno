@@ -1,4 +1,4 @@
-import type { Field, Filter, Query, QueryContext, Value } from "./ast.ts"
+import { childrenOf, type Field, type Filter, type Query, type QueryContext, type Value } from "./ast.ts"
 import { projectionsOf } from "./compile.ts"
 import { evaluate, undersOf, type Assumed, type Names } from "./evaluate.ts"
 import type { BlockFacets, PageFacets, TaskFacets } from "./facets.ts"
@@ -7,11 +7,7 @@ import { literal } from "./literal.ts"
 
 const walk = (f: Filter, visit: (f: Filter) => void): void => {
   visit(f)
-  if (f._tag === "And") f.all.forEach((x) => walk(x, visit))
-  if (f._tag === "Or") f.any.forEach((x) => walk(x, visit))
-  if (f._tag === "Not") walk(f.filter, visit)
-  if (f._tag === "Under") walk(f.ancestor, visit)
-  if (f._tag === "HasBlock") walk(f.filter, visit)
+  for (const child of childrenOf(f)) walk(child, visit)
 }
 
 const equalities = (f: Filter): { readonly field: Field; readonly values: ReadonlyArray<Value> } | null =>
