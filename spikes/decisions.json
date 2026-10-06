@@ -63,6 +63,40 @@
     {
       "match": "Real-iPhone run",
       "answer": "Planned for the iOS phase."
+    },
+    {
+      "match": "Merge bar under lazy open",
+      "answer": "A merge never blocks typing: it runs off the UI thread (web worker now; Loro off the JS thread on iOS in phase 3). 50 ms warm is a target, not a gate. Warm the doc after open and send events only for open pages as tuning."
+    },
+    {
+      "match": "What the 150 MB memory bar measures",
+      "answer": "Whole process on both platforms. 150 MB is the target until the real-iPhone run sets per-platform numbers. If tight, shallow-snapshot compaction."
+    },
+    {
+      "match": "seen/<deviceId>.json",
+      "answer": "Added to the iCloud layout. It's the only thing that makes deletion provably safe."
+    },
+    {
+      "match": "A device that never comes back",
+      "answer": "Explicit 'remove this device' setting. A timeout can come later as a prompt, never silently."
+    },
+    {
+      "match": "Compaction format for big graphs",
+      "answer": "Snapshots (8 ms open vs 1.1 s). Compact rarely: at 100+ uncovered files, at most once an hour."
+    },
+    {
+      "match": "Run the original sync bar",
+      "answer": "Run once, memory-capped, after phase 1 finishes and the Linux box is idle."
     }
+  ],
+  "carryover": [
+    "Validate ids before calling Loro: tree.has(undefined|null) crashes inside wasm and the doc is unsafe afterwards.",
+    "loro-crdt 1.16.2 web/index.d.ts does not export init: import it from loro-crdt/web/loro_wasm.js; alias loro-crdt to loro-crdt/web so there is one wasm instance.",
+    "Import order: import(snapshot) then each update one by one (82 MB WASM); importBatch of everything costs 334 MB.",
+    "Vault writes stay off the keystroke path and are batched (real iCloud write p95 37.6 ms on macOS).",
+    "Check downloadingStatus before reading a synced file: reading an evicted file silently downloads and blocks ~0.85 s.",
+    "Peer and device ids are never reused; a reinstall or backup restore gets a new device id.",
+    "Query tests must compare results against an independent oracle (start from spikes/verify/scripts/queries-oracle.ts), not against the same SQL.",
+    "SQLite index writes can spike to 70-175 ms; keep them in the worker."
   ]
 }
