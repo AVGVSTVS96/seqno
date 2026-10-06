@@ -148,6 +148,21 @@ describe("page search", () => {
     )
   })
 
+  it("opens the chosen page in the sidebar on Shift+Enter and keeps the popup", async () => {
+    const { view, popups, actions } = mount("see ", { _tag: "End" })
+    typeKeys(view, "[[proj")
+    await vi.waitFor(() => assert.strictEqual(labels(popups)?.[0], "Projects"))
+    press(view, "Enter", { shiftKey: true })
+    assert.deepStrictEqual(
+      [actions, text(view), labels(popups)],
+      [
+        [{ _tag: "Open", target: { _tag: "Page", name: "Projects" }, sidebar: true }],
+        "see [[proj]]",
+        ["Projects", "New page proj", "Project X"],
+      ],
+    )
+  })
+
   it("brackets a tag with spaces", async () => {
     const { view, popups } = mount("todo ", { _tag: "End" })
     typeKeys(view, "#pro")

@@ -27,21 +27,21 @@ Measured with `getComputedStyle` / `getBoundingClientRect` on test.logseq.com (2
 
 **Popups** (SPEC "Autocomplete popup", "Slash menu")
 
-| What            | Logseq                                                                            | seqno                                                                               |
-| --------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Anchor          | left = caret just after the trigger − 20px, top = caret line bottom + 3px         | same (measured 1059.9 → 1040, line bottom + 3.0); flips above the line when it must |
-| Window edge     | right edge kept inside the window (512px popup clamped to x = 928)                | same (x = 928 in the `[[Gar` scene)                                                 |
-| Frame           | `--bg-popover`, 1px `--border`, radius 6, padding 6, `--shadow-popover`           | same                                                                                |
-| Width / height  | 512px for `[[ (( #`; 288px and at most 480px for `/`, scrollbar hidden            | same                                                                                |
-| Rows            | 32px, padding 6 8, radius 4, 14/20, `--fg-popup`; chosen `--bg-popup-active`      | same; block rows 52px (72px when wrapped) with the 12px breadcrumb at 0.7           |
-| Group headings  | 32px, padding 8, 12/16 500, `--fg-popup-group`, only when nothing is typed        | same                                                                                |
-| Icons           | slash: 18px Tabler-style at 0.7, 1 when chosen; pages: 14px at 0.5 in a 20px box  | same sizes and opacities                                                            |
-| Matches         | `<mark>` `#fef3ac` / `#262626`, no padding or radius                              | same                                                                                |
-| Hover           | moving the pointer chooses the row; hovered text goes to `--fg-strong`            | same                                                                                |
-| Enter animation | 150ms ease: opacity 0 → 1, scale 0.95 → 1, 8px slide                              | same (slides the other way when flipped above)                                      |
-| Keys            | ↑ ↓ and Ctrl+P / Ctrl+N wrap around; Enter and Mod+Enter pick; Esc leaves editing | same                                                                                |
-| Filtering `/`   | flat list: prefix matches (shortest first), then inside words, then scattered     | same ordering rule; a unit test replays Logseq's own `/to` and `/h` results         |
-| `[[` rows       | pages, "New page X" second after a close match, first otherwise, gone on exact    | same; empty `[[` offers Today, Tomorrow, Yesterday                                  |
+| What            | Logseq                                                                                                                         | seqno                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Anchor          | left = caret just after the trigger − 20px, top = caret line bottom + 3px                                                      | same (measured 1059.9 → 1040, line bottom + 3.0); flips above the line when it must |
+| Window edge     | right edge kept inside the window (512px popup clamped to x = 928)                                                             | same (x = 928 in the `[[Gar` scene)                                                 |
+| Frame           | `--bg-popover`, 1px `--border`, radius 6, padding 6, `--shadow-popover`                                                        | same                                                                                |
+| Width / height  | 512px for `[[ (( #`; 288px and at most 480px for `/`, scrollbar hidden                                                         | same                                                                                |
+| Rows            | 32px, padding 6 8, radius 4, 14/20, `--fg-popup`; chosen `--bg-popup-active`                                                   | same; block rows 52px (72px when wrapped) with the 12px breadcrumb at 0.7           |
+| Group headings  | 32px, padding 8, 12/16 500, `--fg-popup-group`, only when nothing is typed                                                     | same                                                                                |
+| Icons           | slash: 18px Tabler-style at 0.7, 1 when chosen; pages: 14px at 0.5 in a 20px box                                               | same sizes and opacities                                                            |
+| Matches         | `<mark>` `#fef3ac` / `#262626`, no padding or radius                                                                           | same                                                                                |
+| Hover           | moving the pointer chooses the row; hovered text goes to `--fg-strong`                                                         | same                                                                                |
+| Enter animation | 150ms ease: opacity 0 → 1, scale 0.95 → 1, 8px slide                                                                           | same (slides the other way when flipped above)                                      |
+| Keys            | ↑ ↓ and Ctrl+P / Ctrl+N wrap around; Enter and Mod+Enter pick; Shift+Enter opens the choice in the sidebar; Esc leaves editing | same                                                                                |
+| Filtering `/`   | flat list: prefix matches (shortest first), then inside words, then scattered                                                  | same ordering rule; a unit test replays Logseq's own `/to` and `/h` results         |
+| `[[` rows       | pages, "New page X" second after a close match, first otherwise, gone on exact                                                 | same; empty `[[` offers Today, Tomorrow, Yesterday                                  |
 
 **Slash commands** (2.x groups and styling, markdown commands from classic):
 
@@ -102,7 +102,6 @@ No new tokens. Sizes that no token covers are literal and come from SPEC: popup 
 - **Exit animation**: Logseq fades the popup out over 150ms after a pick; seqno removes it at once.
 - **Page search** ranks titles with substring and scattered-letter matching. Logseq 2.x's search is looser (it also lists blocks under `[[`, which a markdown graph can't reference that way).
 - **Scheduled / Deadline** insert today's date; classic opens a date picker first. **Date picker**, **Number children**, **Template**, **Upload an asset** and **Add property** are not in the slash menu yet.
-- **Shift+Enter in a popup** (open the chosen page in the sidebar) is not wired yet. Mod+O, Mod+Shift+O and Alt+→ / Alt+← landed at integration: the editor sends `Open` / `ZoomIn` / `ZoomOut` actions and the app's `EditorSlot` navigates.
 
 ## For the integration (other parts)
 

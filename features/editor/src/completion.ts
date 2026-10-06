@@ -11,7 +11,7 @@ import { Effect, Fiber } from "effect"
 import type { BlockId } from "@seqno/domain"
 import type { SlashCommand } from "./commands.ts"
 import { minimalChange } from "./edits.ts"
-import type { EditorHost } from "./host.ts"
+import type { EditorHost, LinkTarget } from "./host.ts"
 import {
   blockChoices,
   Choice,
@@ -224,6 +224,24 @@ const acceptActive = (view: EditorView) => {
   return popup !== null && accept(view, popup.active)
 }
 
+const targetOf = (choice: Choice): LinkTarget | null =>
+  Choice.$match(choice, {
+    Journal: ({ title }): LinkTarget => ({ _tag: "Page", name: title }),
+    Page: ({ title }): LinkTarget => ({ _tag: "Page", name: title }),
+    NewPage: () => null,
+    Block: ({ hit }): LinkTarget => ({ _tag: "Block", uuid: hit.block.id }),
+    Command: () => null,
+  })
+
+const openActive = (host: EditorHost) => (view: EditorView) => {
+  const popup = view.state.field(popupField)
+  if (popup === null) return false
+  const choice = popup.choices[popup.active]
+  const target = choice === undefined ? null : targetOf(choice)
+  if (target !== null) host.act({ _tag: "Open", target, sidebar: true })
+  return true
+}
+
 export const completion = (blockId: BlockId, host: EditorHost, store: PopupHost) => [
   popupField,
   popupTooltip(store),
@@ -237,6 +255,7 @@ export const completion = (blockId: BlockId, host: EditorHost, store: PopupHost)
       { key: "Ctrl-p", run: move(-1) },
       { key: "Enter", run: acceptActive },
       { key: "Mod-Enter", run: acceptActive },
+      { key: "Shift-Enter", run: openActive(host) },
     ]),
   ),
 ]
