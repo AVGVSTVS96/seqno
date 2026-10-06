@@ -41,6 +41,8 @@ Everything else in the app still has its phase 1 layout. The pairs make each gap
 
 ## What doesn't match yet
 
+This was the state before the shell, blocks, editor and pages leads. Where the merged app stands now, scene by scene, is in `docs/design/UI.md`.
+
 By owner area, most visible first:
 
 - **Shell:** no header bar (Logseq: 48px, menu and search on the left, dots and sidebar toggle on the right); the left sidebar has no graph switcher, icons, group headers or recent list; "Show sidebar" is a text button; the right sidebar has no top bar or item cards; all pages is a bullet list, not Logseq's table; page titles are 25.6px bold instead of 36px / 500, with a "Star" button Logseq doesn't show.
