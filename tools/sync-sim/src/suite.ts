@@ -19,6 +19,7 @@ export const SeedJob = Schema.Struct({
   hours: Schema.Finite,
   compaction: Schema.Boolean,
   bug: Schema.NullOr(Schema.Literals(bugs)),
+  vault: Schema.Literals(["stand-in", "real"]),
 })
 export type SeedJob = typeof SeedJob.Type
 
@@ -37,5 +38,7 @@ export const runJob = (job: SeedJob): Effect.Effect<SeedResult> => {
     hours: job.hours,
     compaction: job.compaction,
   }
-  return runSeed(cfg).pipe(Effect.provide(simLayer(job.bug)))
+  return runSeed(cfg).pipe(
+    Effect.provide(job.vault === "real" ? realVaultLayer : simLayer(job.bug)),
+  )
 }

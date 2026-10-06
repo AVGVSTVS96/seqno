@@ -3,8 +3,7 @@ import { Effect, Option } from "effect"
 import { createRng } from "../src/rng.ts"
 import { FakeICloud } from "../src/cloud.ts"
 import { Scheduler } from "../src/scheduler.ts"
-import { realVaultLayer, runJob } from "../src/suite.ts"
-import { runSeed } from "../src/sim.ts"
+import { runJob } from "../src/suite.ts"
 
 const quietCloud = (sched: Scheduler, style: "dataless" | "stub") =>
   new FakeICloud(
@@ -24,7 +23,14 @@ const quietCloud = (sched: Scheduler, style: "dataless" | "stub") =>
     },
   )
 
-const job = { ops: 200, devices: 5, hours: 12, compaction: true, bug: null }
+const job = {
+  ops: 200,
+  devices: 5,
+  hours: 12,
+  compaction: true,
+  bug: null,
+  vault: "stand-in",
+} as const
 
 describe("fake iCloud", () => {
   it.effect("shows another device's file as dataless until it is downloaded", () =>
@@ -101,13 +107,7 @@ describe("simulated seeds", () => {
     "the real @seqno/vault converges through the fake iCloud with no violation",
     () =>
       Effect.gen(function* () {
-        const result = yield* runSeed({
-          seed: 3,
-          ops: 600,
-          devices: 5,
-          hours: 24,
-          compaction: true,
-        }).pipe(Effect.provide(realVaultLayer))
+        const result = yield* runJob({ ...job, seed: 3, ops: 600, hours: 24, vault: "real" })
         assert.deepStrictEqual(result.violations, {
           lostCoverage: 0,
           ackUnsound: 0,
