@@ -1,5 +1,12 @@
 import { useAtomRefresh, useAtomSet, useAtomValue } from "@effect/atom-react"
-import { IconDatabase, IconFolderOpen, IconSelector, IconTopologyStar } from "@tabler/icons-react"
+import {
+  IconApps,
+  IconDatabase,
+  IconFolderOpen,
+  IconSelector,
+  IconTopologyStar,
+} from "@tabler/icons-react"
+import { useNavigate } from "@tanstack/react-router"
 import { Exit } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { openGraph, recentGraphs, rightSidebar, type GraphSource } from "../../atoms.ts"
@@ -19,6 +26,7 @@ export const GraphSwitcher = ({
   )
   const open = useAtomSet(openGraph, { mode: "promiseExit" })
   const updateSidebar = useAtomSet(rightSidebar)
+  const navigate = useNavigate()
   const menu = usePopover({
     placement: { align: "start", gap: 4, inset: 8 },
     kind: "menu",
@@ -68,6 +76,12 @@ export const GraphSwitcher = ({
               Demo graph
             </MenuItem>
           )}
+          <MenuItem
+            icon={<IconApps size={18} aria-hidden />}
+            onSelect={() => void navigate({ to: "/graphs" })}
+          >
+            All graphs
+          </MenuItem>
         </div>
       </Menu>
     </div>

@@ -39,7 +39,6 @@ test("an edit to an imported block survives a reload", async ({ page, seqno }) =
   )
   await seqno.saved()
   await page.reload()
-  await page.getByRole("button", { name: "Open the demo graph" }).click()
   await expect(journalOf(page).getByRole("treeitem").first()).toHaveText(
     "journal links to project/Alpha and Alpha Project (edited)",
   )

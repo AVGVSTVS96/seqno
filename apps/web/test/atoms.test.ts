@@ -9,6 +9,7 @@ import {
   appLayer,
   favorites,
   journals,
+  lastGraph,
   leftSidebarOpen,
   openGraph,
   pageNamed,
@@ -16,6 +17,7 @@ import {
   resolvedTheme,
   rightSidebar,
   settingsLayer,
+  startingGraph,
   theme,
   type AppServices,
 } from "../src/atoms.ts"
@@ -122,13 +124,16 @@ const DemoLocations = Layer.succeed(GraphLocations, {
   pickFolder: Effect.succeed(inBrowser("notes")),
   demo: Effect.succeed(inBrowser("demo")),
   reopen: (name) => Effect.succeed(inBrowser(name)),
+  resume: (name) => Effect.succeed(inBrowser(name)),
+  forget: () => Effect.void,
   assets: () => Effect.succeed(new Map()),
 })
 
-const testRegistry = () =>
+const testRegistry = (entries = new Map<string, string>()) =>
   AtomRegistry.make({
     initialValues: [
       [appLayer, Layer.merge(TestCore, DemoLocations) satisfies Layer.Layer<AppServices>],
+      [settingsLayer, KeyValueStore.layerStorage(() => memoryStorage(entries))],
     ],
   })
 
@@ -159,6 +164,25 @@ describe("app atoms", () => {
       yield* settle
       const found = registry.get(pageNamed("inbox"))
       assert.deepStrictEqual(AsyncResult.isSuccess(found) ? found.value : null, Option.some(inbox))
+    }),
+  )
+
+  it.effect("remembers the opened graph, so the next start resumes it instead of the demo", () =>
+    Effect.gen(function* () {
+      const entries = new Map<string, string>()
+      const first = testRegistry(entries)
+      assert.deepStrictEqual(startingGraph(first.get(lastGraph)), { _tag: "Demo" })
+      first.mount(openGraph)
+      first.set(openGraph, { _tag: "PickFolder" })
+      yield* settle
+      assert.strictEqual(entries.get("seqno.lastGraph"), '"notes"')
+      const next = testRegistry(entries)
+      assert.deepStrictEqual(startingGraph(next.get(lastGraph)), { _tag: "Resume", name: "notes" })
+      next.mount(openGraph)
+      next.set(openGraph, startingGraph(next.get(lastGraph)))
+      yield* settle
+      const opened = next.get(openGraph)
+      assert.strictEqual(AsyncResult.isSuccess(opened) ? opened.value.graph : null, "notes")
     }),
   )
 })

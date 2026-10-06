@@ -3,8 +3,8 @@ import { useAtomMount, useAtomValue } from "@effect/atom-react"
 import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { leftSidebarOpen, openGraph, rightSidebar } from "../atoms.ts"
-import { GraphNotPicked } from "../graph-locations.ts"
+import { lastGraph, leftSidebarOpen, openGraph, rightSidebar } from "../atoms.ts"
+import { demoGraph, GraphNotPicked } from "../graph-locations.ts"
 import { OpenGraphScreen } from "./OpenGraphScreen.tsx"
 import { Header } from "./shell/Header.tsx"
 import { HelpButton } from "./shell/HelpButton.tsx"
@@ -18,7 +18,7 @@ const problemOf = (cause: Cause.Cause<unknown>) => {
   return error instanceof Error ? error.message : String(error)
 }
 
-const Layout = ({ graph }: { readonly graph: string }) => {
+const Layout = ({ graph, ready = true }: { readonly graph: string; readonly ready?: boolean }) => {
   useAtomMount(shellListeners(useRouter()))
   const leftOpen = useAtomValue(leftSidebarOpen)
   const leftWidth = useAtomValue(leftSidebarWidth)
@@ -40,10 +40,8 @@ const Layout = ({ graph }: { readonly graph: string }) => {
         <Header />
         <div className="main-container">
           <LeftSidebar graph={graph} />
-          <main className="main-content-container">
-            <div className="main-content">
-              <Outlet />
-            </div>
+          <main className="main-content-container" data-scroll-restoration-id="main">
+            <div className="main-content">{ready ? <Outlet /> : null}</div>
           </main>
         </div>
       </div>
@@ -56,9 +54,15 @@ const Layout = ({ graph }: { readonly graph: string }) => {
 const pickerCancelled = (cause: Cause.Cause<unknown>) =>
   Cause.squash(cause) instanceof GraphNotPicked
 
-const Screen = () =>
-  AsyncResult.match(useAtomValue(openGraph), {
-    onInitial: () => <OpenGraphScreen problem={null} />,
+const Screen = () => {
+  const last = useAtomValue(lastGraph)
+  return AsyncResult.match(useAtomValue(openGraph), {
+    onInitial: (initial) =>
+      initial.waiting ? (
+        <Layout graph={last ?? demoGraph} ready={false} />
+      ) : (
+        <OpenGraphScreen problem={null} />
+      ),
     onFailure: (failure) =>
       Option.match(failure.previousSuccess, {
         onSome: (previous) =>
@@ -71,6 +75,7 @@ const Screen = () =>
       }),
     onSuccess: (opened) => <Layout graph={opened.value.graph} />,
   })
+}
 
 export const Shell = () => (
   <>

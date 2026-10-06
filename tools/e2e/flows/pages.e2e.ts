@@ -11,7 +11,6 @@ test.skip(!appAvailable, "waits on apps/web")
 const openShowcaseAt = async (page: Page, path: string) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
   await page.goto(path)
-  await page.getByRole("button", { name: "Open the demo graph" }).click()
 }
 
 const palette = (page: Page) => page.getByRole("dialog", { name: "Search" })
@@ -105,7 +104,6 @@ test("a second tab waits for the graph while the first one has it open", async (
   await expect(page.getByRole("article").first()).toBeVisible()
   const second = await page.context().newPage()
   await second.goto("/")
-  await second.getByRole("button", { name: "Open the demo graph" }).click()
   await expect(
     second.getByRole("heading", { name: "This graph is open in another tab" }),
   ).toBeVisible()
@@ -127,7 +125,6 @@ test("the journals list mounts the newest days first and more as it scrolls", as
   await seedOpfs(page, folder, ["graphs", "demo"])
   await rm(folder, { recursive: true })
   await page.goto("/")
-  await page.getByRole("button", { name: "Open the demo graph" }).click()
   const days = page.getByRole("article")
   await expect(days.nth(1)).toHaveAccessibleName("Jan 12th, 2025")
   expect(await days.count()).toBeLessThan(13)

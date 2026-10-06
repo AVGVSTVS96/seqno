@@ -26,6 +26,8 @@ export class GraphLocations extends Context.Service<
     readonly pickFolder: Effect.Effect<GraphLocation, GraphNotPicked>
     readonly demo: Effect.Effect<GraphLocation, GraphNotPicked>
     readonly reopen: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
+    readonly resume: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
+    readonly forget: (name: string) => Effect.Effect<void>
     readonly assets: (name: string) => Effect.Effect<ReadonlyMap<string, string>>
   }
 >()("@seqno/web/GraphLocations") {}
@@ -60,11 +62,14 @@ const save = (location: GraphLocation) =>
 
 const decodeLocation = Schema.decodeUnknownEffect(GraphLocation)
 
-const granted = (location: GraphLocation) =>
+const permitted = (
+  location: GraphLocation,
+  ask: (handle: FileSystemDirectoryHandle) => Promise<PermissionState>,
+) =>
   GraphLocation.match(location, {
     FolderGraph: ({ handle }) =>
       Effect.tryPromise({
-        try: () => handle.requestPermission({ mode: "readwrite" }),
+        try: () => ask(handle),
         catch: notPicked,
       }).pipe(
         Effect.flatMap((state) =>
@@ -127,7 +132,18 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
     },
     catch: notPicked,
   }).pipe(Effect.flatMap(() => save({ _tag: "OpfsGraph", name: demoGraph }))),
-  reopen: (name) => Effect.flatMap(stored(name), granted),
+  reopen: (name) =>
+    Effect.flatMap(stored(name), (location) =>
+      permitted(location, (handle) => handle.requestPermission({ mode: "readwrite" })),
+    ),
+  resume: (name) =>
+    Effect.flatMap(stored(name), (location) =>
+      permitted(location, (handle) => handle.queryPermission({ mode: "readwrite" })),
+    ),
+  forget: (name) =>
+    Effect.flatMap(graphs("readwrite"), (store) => request(() => store.delete(name))).pipe(
+      Effect.ignore,
+    ),
   assets: (name) =>
     stored(name).pipe(
       Effect.flatMap((location) =>

@@ -33,7 +33,6 @@ test("reload keeps text", async ({ page, seqno }) => {
   await expect(seqno.editor).toHaveText("Welcome to the seqno demo graph, survives reload")
   await seqno.saved()
   await page.reload()
-  await page.getByRole("button", { name: "Open the demo graph" }).click()
   await expect(seqno.today.getByRole("treeitem").first()).toHaveText(
     "Welcome to the seqno demo graph, survives reload",
   )

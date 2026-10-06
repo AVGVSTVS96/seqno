@@ -4,7 +4,7 @@ import { Option, Schema } from "effect"
 import { BlockId } from "@seqno/domain"
 import { graphLocked } from "./atoms.ts"
 import { GraphInUse } from "./ui/pages/GraphInUse.tsx"
-import { AllPages, Journals, PageRoute } from "./ui/routes.tsx"
+import { AllGraphsRoute, AllPages, Journals, PageRoute } from "./ui/routes.tsx"
 import { SearchPalette } from "./ui/search/SearchPalette.tsx"
 import { Shell } from "./ui/Shell.tsx"
 
@@ -34,6 +34,7 @@ const routeTree = rootRoute.addChildren([
     component: PageRoute,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/all-pages", component: AllPages }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/graphs", component: AllGraphsRoute }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/search",
@@ -42,7 +43,7 @@ const routeTree = rootRoute.addChildren([
   }),
 ])
 
-export const router = createRouter({ routeTree })
+export const router = createRouter({ routeTree, scrollRestoration: true })
 
 declare module "@tanstack/react-router" {
   interface Register {

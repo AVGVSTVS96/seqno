@@ -12,7 +12,6 @@ const seqno = (page: Page) => ({
   editor: page.getByRole("treeitem").getByRole("textbox"),
   openDemoGraph: async () => {
     await page.goto("/")
-    await page.getByRole("button", { name: "Open the demo graph" }).click()
   },
   saved: () =>
     expect

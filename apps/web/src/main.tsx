@@ -6,7 +6,7 @@ import { AtomRegistry } from "effect/reactivity"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { coreRuntime } from "@seqno/outliner"
-import { prefersDark, resolvedTheme } from "./atoms.ts"
+import { lastGraph, openGraph, prefersDark, resolvedTheme, startingGraph } from "./atoms.ts"
 import { WorkerCore } from "./core.ts"
 import { router } from "./router.tsx"
 
@@ -27,6 +27,8 @@ registry.subscribe(
   },
   { immediate: true },
 )
+
+registry.set(openGraph, startingGraph(registry.get(lastGraph)))
 
 await Promise.allSettled([
   document.fonts.load('16px "Inter Variable"'),

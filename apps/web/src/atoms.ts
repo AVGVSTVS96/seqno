@@ -1,5 +1,5 @@
 import { BrowserKeyValueStore } from "@effect/platform-browser"
-import { Effect, Equal, Layer, Option, Schema } from "effect"
+import { Clock, Effect, Equal, Layer, Option, Schema } from "effect"
 import type { KeyValueStore } from "effect/persistence"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
@@ -22,11 +22,41 @@ export const GraphSource = Schema.TaggedUnion({
   PickFolder: {},
   Demo: {},
   Recent: { name: Schema.NonEmptyString },
+  Resume: { name: Schema.NonEmptyString },
 })
 export type GraphSource = typeof GraphSource.Type
 
+export const settingsLayer = Atom.make<Layer.Layer<KeyValueStore.KeyValueStore>>(
+  BrowserKeyValueStore.layerLocalStorage,
+).pipe(Atom.keepAlive)
+
+const settingsRuntime = Atom.runtime((get) => get(settingsLayer))
+
+export const lastGraph = Atom.kvs({
+  runtime: settingsRuntime,
+  key: "seqno.lastGraph",
+  schema: Schema.NullOr(Schema.NonEmptyString),
+  defaultValue: (): string | null => null,
+}).pipe(Atom.keepAlive)
+
+export const graphsOpenedAt = Atom.kvs({
+  runtime: settingsRuntime,
+  key: "seqno.graphsOpenedAt",
+  schema: Schema.Record(Schema.String, Schema.Finite),
+  defaultValue: (): Readonly<Record<string, number>> => ({}),
+}).pipe(Atom.keepAlive)
+
+export const startingGraph = (last: string | null): GraphSource =>
+  last === null ? { _tag: "Demo" } : { _tag: "Resume", name: last }
+
 export const recentGraphs = appRuntime.atom(
   Effect.flatMap(Effect.service(GraphLocations), (locations) => locations.recent),
+)
+
+export const forgetGraph = appRuntime.fn((name: string, get) =>
+  Effect.flatMap(Effect.service(GraphLocations), (locations) => locations.forget(name)).pipe(
+    Effect.tap(() => Effect.sync(() => get.refresh(recentGraphs))),
+  ),
 )
 
 export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)
@@ -39,6 +69,7 @@ export const openGraph = appRuntime
         PickFolder: () => locations.pickFolder,
         Demo: () => locations.demo,
         Recent: ({ name }) => locations.reopen(name),
+        Resume: ({ name }) => locations.resume(name),
       })
       const core = yield* CoreClient
       const graph = location.name
@@ -50,6 +81,9 @@ export const openGraph = appRuntime
           }).pipe(Effect.ensuring(Effect.sync(() => get.set(graphLocked, Option.none())))),
         ),
       )
+      const now = yield* Clock.currentTimeMillis
+      get.set(lastGraph, graph)
+      get.set(graphsOpenedAt, { ...get.registry.get(graphsOpenedAt), [graph]: now })
       yield* Reactivity.invalidate(pagesKey)
       return opened
     }),
@@ -115,12 +149,6 @@ export const pageNamed = Atom.family((name: string) =>
     ),
   ),
 )
-
-export const settingsLayer = Atom.make<Layer.Layer<KeyValueStore.KeyValueStore>>(
-  BrowserKeyValueStore.layerLocalStorage,
-).pipe(Atom.keepAlive)
-
-const settingsRuntime = Atom.runtime((get) => get(settingsLayer))
 
 export const ThemeChoice = Schema.Literals(["light", "dark", "system"])
 export type ThemeChoice = typeof ThemeChoice.Type
