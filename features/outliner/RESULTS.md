@@ -94,10 +94,13 @@ Declared on `.seqno-outliner` (in `src/outliner.css`), all measured:
 ## How to run its tests
 
 ```sh
+# from the repo root, so the run shares pnpm test's Vite cache
 systemd-run --user --scope --slice=seqno.slice -p MemoryMax=1500M -p MemorySwapMax=0 \
-  pnpm --filter @seqno/outliner exec vitest run
+  pnpm exec vitest run --project @seqno/outliner
 ```
 
-25 Vitest browser-mode tests (headless Chrome, React Compiler on) against an in-memory core: rows and depth, refs and tags, hover toggle, guide click, 2.x breadcrumbs, caret placement, Enter / Tab / Backspace / arrows, Esc and Shift selection, mouse-drag selection, Undo/Redo in selection mode, subtree highlight, drag and drop, block refs, sidebar shift-clicks, task checkbox and marker, Mod+Enter, properties, SCHEDULED and the logbook, numbered lists, code highlighting, and virtualization with the document scrolling (3,000 rows). `test/theme.ts` gives them the size tokens the app's `theme.css` provides. The run peaks around 1.3 GB, so the full `pnpm test` sits near the 1.5 GB cap when the pool is busy.
+25 Vitest browser-mode tests (headless Chrome, React Compiler on) against an in-memory core: rows and depth, refs and tags, hover toggle, guide click, 2.x breadcrumbs, caret placement, Enter / Tab / Backspace / arrows, Esc and Shift selection, mouse-drag selection, Undo/Redo in selection mode, subtree highlight, drag and drop, block refs, sidebar shift-clicks, task checkbox and marker, Mod+Enter, properties, SCHEDULED and the logbook, numbered lists, code highlighting, and virtualization with the document scrolling (3,000 rows). `test/theme.ts` gives them the size tokens the app's `theme.css` provides.
+
+Memory, on this box's 1.5 GB scope: a warm run peaks around 1.25 GB, the full `pnpm check` around 1.4 GB, and both pass. A cold Vite dependency cache does not fit: Vite re-bundles every dependency (effect, React, Lezer, Tabler) while Chrome is already up and the scope is OOM-killed. A standalone `vitest run` inside `features/outliner` and the root run compute different cache hashes for the same `node_modules/.vite` folder, so alternating between them makes every run cold. Run the outliner from the root as above. If a run is killed right after a dependency or config change, run it again: the killed run usually commits the new cache.
 
 `@seqno/syntax` tests cover the inline parser (spans, nesting, a 1,000-run property test against `analyzeBlock`'s refs), `blockContent`, `propertyValue`, `setMarker` and `clockTotal`.
