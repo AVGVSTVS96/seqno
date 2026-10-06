@@ -14,7 +14,9 @@ export type Of<T extends Form["_tag"]> = Extract<Form, { readonly _tag: T }>
 const DELIM = /[\s,()[\]{}";]/
 const NUMBER = /^[+-]?\d+(\.\d+)?$/
 
-const OPENERS: ReadonlyArray<readonly [open: string, close: string, make: (items: Form[]) => Form]> = [
+const OPENERS: ReadonlyArray<
+  readonly [open: string, close: string, make: (items: Form[]) => Form]
+> = [
   ["#{", "}", (items) => ({ _tag: "Set", items })],
   ["(", ")", (items) => ({ _tag: "List", items })],
   ["[", "]", (items) => ({ _tag: "Vec", items })],

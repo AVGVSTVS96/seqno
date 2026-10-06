@@ -7,7 +7,8 @@ const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "
 const Unit = Schema.Literals(["d", "w", "m", "y"])
 const isUnit = Schema.is(Unit)
 
-export const ymdToMs = (ymd: number) => Date.UTC(Math.floor(ymd / 10_000), (Math.floor(ymd / 100) % 100) - 1, ymd % 100)
+export const ymdToMs = (ymd: number) =>
+  Date.UTC(Math.floor(ymd / 10_000), (Math.floor(ymd / 100) % 100) - 1, ymd % 100)
 
 export const msToYmd = (ms: number) => {
   const d = new Date(ms)
@@ -43,10 +44,13 @@ export const parseDateWord = (word: string): Value | null => {
   if (w === "yesterday") return { _tag: "RelDate", amount: -1, unit: "d" }
   if (w === "tomorrow") return { _tag: "RelDate", amount: 1, unit: "d" }
   const [, amount, unit] = /^([+-]\d+)([dwmy])$/.exec(w) ?? []
-  if (amount !== undefined && unit !== undefined && isUnit(unit)) return { _tag: "RelDate", amount: Number(amount), unit }
+  if (amount !== undefined && unit !== undefined && isUnit(unit))
+    return { _tag: "RelDate", amount: Number(amount), unit }
   const [, year, month, day] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(w) ?? []
-  if (year !== undefined && month !== undefined && day !== undefined) return ymd(year, Number(month), day)
-  const [, name, jday, jyear] = /^([a-z]{3})[a-z]* (\d{1,2})(?:st|nd|rd|th)?, (\d{4})$/.exec(w) ?? []
+  if (year !== undefined && month !== undefined && day !== undefined)
+    return ymd(year, Number(month), day)
+  const [, name, jday, jyear] =
+    /^([a-z]{3})[a-z]* (\d{1,2})(?:st|nd|rd|th)?, (\d{4})$/.exec(w) ?? []
   const index = name === undefined ? -1 : MONTHS.indexOf(name)
   if (index >= 0 && jday !== undefined && jyear !== undefined) return ymd(jyear, index + 1, jday)
   return null

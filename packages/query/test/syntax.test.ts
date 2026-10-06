@@ -4,8 +4,15 @@ import { parseDataviewQuery, parseLogseqQuery, printLogseqQuery, type Query } fr
 
 const OPEN = "todo, doing, now, later, waiting"
 
-const corpus: ReadonlyArray<readonly [id: string, logseq: string, dataview: string, printed: string]> = [
-  ["Q01", "{{query (task now later)}}", "LIST WHERE task.status IN (now, later)", "{{query (task now later)}}"],
+const corpus: ReadonlyArray<
+  readonly [id: string, logseq: string, dataview: string, printed: string]
+> = [
+  [
+    "Q01",
+    "{{query (task now later)}}",
+    "LIST WHERE task.status IN (now, later)",
+    "{{query (task now later)}}",
+  ],
   [
     "Q02",
     "{{query (and (task now doing) (between -2w today) (sort-by priority asc))}}",
@@ -30,21 +37,36 @@ const corpus: ReadonlyArray<readonly [id: string, logseq: string, dataview: stri
     `LIST WHERE task.status IN (${OPEN}) GROUP BY page`,
     "{{query (task todo doing now later waiting) (group-by page)}}",
   ],
-  ["Q06", "{{query (property type book)}}", "LIST WHERE property.type = book", "{{query (property type book)}}"],
+  [
+    "Q06",
+    "{{query (property type book)}}",
+    "LIST WHERE property.type = book",
+    "{{query (property type book)}}",
+  ],
   [
     "Q07",
     "{{query (pages (namespace project) (sort-by page.property.rating desc) (view table page.property.type page.property.rating))}}",
     'TABLE PAGES page.property.type, page.property.rating FROM "project" SORT page.property.rating DESC',
     "{{query (pages (namespace project)) (sort-by page.property.rating desc) (view table page.property.type page.property.rating)}}",
   ],
-  ["Q08", "{{query (and (ref @page) (task todo))}}", "LIST WHERE ref = @page AND task.status = todo", "{{query (and (ref @page) (task todo))}}"],
+  [
+    "Q08",
+    "{{query (and (ref @page) (task todo))}}",
+    "LIST WHERE ref = @page AND task.status = todo",
+    "{{query (and (ref @page) (task todo))}}",
+  ],
   [
     "Q09",
     "{{query (and [[architecture]] (between -7d today))}}",
     "LIST FROM [[architecture]] WHERE page.day BETWEEN -7d AND today",
     "{{query (and [[architecture]] (between -7d today))}}",
   ],
-  ["Q10", "{{query (and (namespace project) (task todo))}}", 'LIST FROM "project" WHERE task.status = todo', "{{query (and (namespace project) (task todo))}}"],
+  [
+    "Q10",
+    "{{query (and (namespace project) (task todo))}}",
+    'LIST FROM "project" WHERE task.status = todo',
+    "{{query (and (namespace project) (task todo))}}",
+  ],
   [
     "Q11",
     '{{query (and (task todo) (under "release"))}}',
@@ -63,7 +85,12 @@ const corpus: ReadonlyArray<readonly [id: string, logseq: string, dataview: stri
     'LIST WHERE text MATCHES "deploy" AND NOT task.status',
     '{{query (and "deploy" (not (task.status)))}}',
   ],
-  ["Q14", '{{query (page-tags "Hidden Finance")}}', 'LIST PAGES WHERE page.tag = "Hidden Finance"', '{{query (pages (page.tag "Hidden Finance"))}}'],
+  [
+    "Q14",
+    '{{query (page-tags "Hidden Finance")}}',
+    'LIST PAGES WHERE page.tag = "Hidden Finance"',
+    '{{query (pages (page.tag "Hidden Finance"))}}',
+  ],
   [
     "Q15",
     "{{query (and (updated >= -1d) (sort-by updated desc))}}",
@@ -87,7 +114,11 @@ describe("both syntaxes read every corpus query into the same AST", () => {
 
 describe("the AST is the typed shape the compiler expects", () => {
   it("Q02: tasks on recent journals sorted by priority", () => {
-    expect(parseLogseqQuery("{{query (and (task NOW doing) (between -2w today) (sort-by priority asc))}}")).toEqual(
+    expect(
+      parseLogseqQuery(
+        "{{query (and (task NOW doing) (between -2w today) (sort-by priority asc))}}",
+      ),
+    ).toEqual(
       Result.succeed({
         find: "blocks",
         where: {
@@ -108,7 +139,9 @@ describe("the AST is the typed shape the compiler expects", () => {
   })
 
   it("Q12: negated recursive ancestor", () => {
-    expect(parseDataviewQuery("LIST WHERE task.status = todo AND NOT UNDER (task.status = doing)")).toEqual(
+    expect(
+      parseDataviewQuery("LIST WHERE task.status = todo AND NOT UNDER (task.status = doing)"),
+    ).toEqual(
       Result.succeed({
         find: "blocks",
         where: {
@@ -159,18 +192,35 @@ describe("the AST is the typed shape the compiler expects", () => {
   })
 })
 
-const failure = (r: Result.Result<unknown, { readonly message: string }>) => (Result.isFailure(r) ? r.failure.message : "succeeded")
+const failure = (r: Result.Result<unknown, { readonly message: string }>) =>
+  Result.isFailure(r) ? r.failure.message : "succeeded"
 
 describe("bad input is a QueryError with a plain message", () => {
   it.each([
-    ["mixed page and block filters", parseLogseqQuery("(and (task todo) (page-tags x))"), "page filters (pages, page-property, page-tags, has-block) can't be mixed with block filters"],
+    [
+      "mixed page and block filters",
+      parseLogseqQuery("(and (task todo) (page-tags x))"),
+      "page filters (pages, page-property, page-tags, has-block) can't be mixed with block filters",
+    ],
     ["unknown field", parseLogseqQuery("(task.colour red)"), 'unknown field "task.colour"'],
     ["unclosed list", parseLogseqQuery("(and (task todo)"), "missing )"],
-    ["unknown view", parseLogseqQuery("(task todo) (view kanban)"), 'unknown view "kanban"; use list, table or board'],
+    [
+      "unknown view",
+      parseLogseqQuery("(task todo) (view kanban)"),
+      'unknown view "kanban"; use list, table or board',
+    ],
     ["negative limit", parseLogseqQuery("(task todo) (limit -1)"), "(limit) takes a whole number"],
     ["fractional limit", parseDataviewQuery("LIST LIMIT 2.5"), "LIMIT takes a whole number"],
-    ["IN without a list", parseDataviewQuery("LIST WHERE task.status IN todo"), "IN takes a list: IN (a, b)"],
-    ["trailing tokens", parseDataviewQuery("LIST WHERE task.status = todo todo"), 'unexpected "todo"'],
+    [
+      "IN without a list",
+      parseDataviewQuery("LIST WHERE task.status IN todo"),
+      "IN takes a list: IN (a, b)",
+    ],
+    [
+      "trailing tokens",
+      parseDataviewQuery("LIST WHERE task.status = todo todo"),
+      'unexpected "todo"',
+    ],
     ["unreadable character", parseDataviewQuery("LIST WHERE ref = !x"), 'can\'t read "!x"'],
   ])("%s", (_, result, message) => expect(failure(result)).toBe(message))
 })

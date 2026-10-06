@@ -32,14 +32,24 @@ export type Field = typeof Field.Type
 export const isField = Schema.is(Field)
 export const isFixedField = Schema.is(FixedField)
 
-export const RelDate = Schema.TaggedStruct("RelDate", { amount: Schema.Int, unit: Schema.Literals(["d", "w", "m", "y"]) })
+export const RelDate = Schema.TaggedStruct("RelDate", {
+  amount: Schema.Int,
+  unit: Schema.Literals(["d", "w", "m", "y"]),
+})
 export type RelDate = typeof RelDate.Type
 export const AbsDate = Schema.TaggedStruct("AbsDate", { ymd: Schema.Int })
 export type AbsDate = typeof AbsDate.Type
 export const Context = Schema.TaggedStruct("Context", { of: Schema.Literals(["page", "block"]) })
 export type Context = typeof Context.Type
 
-export const Value = Schema.Union([Schema.String, Schema.Finite, Schema.Boolean, RelDate, AbsDate, Context])
+export const Value = Schema.Union([
+  Schema.String,
+  Schema.Finite,
+  Schema.Boolean,
+  RelDate,
+  AbsDate,
+  Context,
+])
 export type Value = typeof Value.Type
 
 export const CompareOp = Schema.Literals(["=", "!=", "<", "<=", ">", ">="])
@@ -50,12 +60,22 @@ export type Filter =
   | { readonly _tag: "And"; readonly all: ReadonlyArray<Filter> }
   | { readonly _tag: "Or"; readonly any: ReadonlyArray<Filter> }
   | { readonly _tag: "Not"; readonly filter: Filter }
-  | { readonly _tag: "Compare"; readonly field: Field; readonly op: CompareOp; readonly value: Value }
+  | {
+      readonly _tag: "Compare"
+      readonly field: Field
+      readonly op: CompareOp
+      readonly value: Value
+    }
   | { readonly _tag: "In"; readonly field: Field; readonly values: ReadonlyArray<Value> }
   | { readonly _tag: "Between"; readonly field: Field; readonly from: Value; readonly to: Value }
   | { readonly _tag: "Has"; readonly field: Field }
   | { readonly _tag: "Search"; readonly text: string }
-  | { readonly _tag: "Under"; readonly ancestor: Filter; readonly self: boolean; readonly direct: boolean }
+  | {
+      readonly _tag: "Under"
+      readonly ancestor: Filter
+      readonly self: boolean
+      readonly direct: boolean
+    }
   | { readonly _tag: "HasBlock"; readonly filter: Filter }
 
 export type Under = Extract<Filter, { readonly _tag: "Under" }>
@@ -71,7 +91,11 @@ export const Filter: Schema.Codec<Filter> = Schema.Union([
   Schema.TaggedStruct("Between", { field: Field, from: Value, to: Value }),
   Schema.TaggedStruct("Has", { field: Field }),
   Schema.TaggedStruct("Search", { text: Schema.String }),
-  Schema.TaggedStruct("Under", { ancestor: FilterRef, self: Schema.Boolean, direct: Schema.Boolean }),
+  Schema.TaggedStruct("Under", {
+    ancestor: FilterRef,
+    self: Schema.Boolean,
+    direct: Schema.Boolean,
+  }),
   Schema.TaggedStruct("HasBlock", { filter: FilterRef }),
 ])
 
@@ -104,7 +128,11 @@ export type QueryContext = typeof QueryContext.Type
 
 export const and = (filters: ReadonlyArray<Filter>): Filter | undefined => {
   const [first] = filters
-  return filters.length === 1 ? first : first === undefined ? undefined : { _tag: "And", all: filters }
+  return filters.length === 1
+    ? first
+    : first === undefined
+      ? undefined
+      : { _tag: "And", all: filters }
 }
 
 export const or = (filters: ReadonlyArray<Filter>): Filter => {
@@ -132,7 +160,9 @@ export const normalizeFilter = (f: Filter): Filter =>
     Not: (x): Filter => ({ _tag: "Not", filter: normalizeFilter(x.filter) }),
     In: (x): Filter => {
       const [only] = x.values
-      return x.values.length === 1 && only !== undefined ? { _tag: "Compare", field: x.field, op: "=", value: only } : x
+      return x.values.length === 1 && only !== undefined
+        ? { _tag: "Compare", field: x.field, op: "=", value: only }
+        : x
     },
     Under: (x): Filter => ({ ...x, ancestor: normalizeFilter(x.ancestor) }),
     HasBlock: (x): Filter => ({ _tag: "HasBlock", filter: normalizeFilter(x.filter) }),

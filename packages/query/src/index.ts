@@ -26,9 +26,11 @@ export const printLogseqQuery = (query: Query) => attempt(() => printLogseq(quer
 
 export const compileQuery = (query: Query, ctx: QueryContext) => attempt(() => compile(query, ctx))
 
-export const namesRead = (query: Query, ctx: QueryContext) => attempt(() => Reads.namesOf(query, ctx))
+export const namesRead = (query: Query, ctx: QueryContext) =>
+  attempt(() => Reads.namesOf(query, ctx))
 
-export const readSet = (query: Query, ctx: QueryContext, names: Names) => attempt(() => Reads.readSet(query, ctx, names))
+export const readSet = (query: Query, ctx: QueryContext, names: Names) =>
+  attempt(() => Reads.readSet(query, ctx, names))
 
 export const blockChangeAffects = (
   query: Query,
@@ -36,4 +38,8 @@ export const blockChangeAffects = (
   names: Names,
   before: BlockFacets | null,
   after: BlockFacets | null,
-): boolean => Result.getOrElse(attempt(() => Reads.blockChangeAffects(query, ctx, names, before, after)), () => true)
+): boolean =>
+  Result.getOrElse(
+    attempt(() => Reads.blockChangeAffects(query, ctx, names, before, after)),
+    () => true,
+  )

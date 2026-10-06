@@ -27,18 +27,18 @@ BlockFacets before/after ──blockTouches──────────┼─�
 
 ## Public API (`src/index.ts`)
 
-| export | shape |
-|---|---|
-| `parseLogseqQuery(text)` / `parseDataviewQuery(text)` | `Result<Query, QueryError>` |
-| `printLogseqQuery(query)` | `Result<string, QueryError>` |
-| `compileQuery(query, ctx)` | `Result<Compiled, QueryError>`; `Compiled = { sql, params, projections }`; rows are `[rid, ...projections]` |
-| `translateAdvancedQuery(text)` | `Translated { query, warnings } \| ConvertMe { original, reason }` |
-| `namesRead(query, ctx)` | names to resolve with `ALIASES_SQL` before `readSet` |
-| `readSet(query, ctx, names)` | `Result<string[], QueryError>` |
-| `blockTouches(before, after)` / `pageTouches(before, after)` | `string[]` (`null` = created/deleted) |
-| `blockChangeAffects(query, ctx, names, before, after)` | `boolean` |
-| Schemas | `Query`, `Filter`, `Field`, `Value`, `View`, `Sort`, `QueryContext`, `Compiled`, `SqlValue`, `BlockFacets`, `PageFacets`, `TaskFacets`, `Translation`, `QueryError` |
-| SQL | `SCHEMA` (index DDL), `ALIASES_SQL` (name -> name + aliases) |
+| export                                                       | shape                                                                                                                                                               |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parseLogseqQuery(text)` / `parseDataviewQuery(text)`        | `Result<Query, QueryError>`                                                                                                                                         |
+| `printLogseqQuery(query)`                                    | `Result<string, QueryError>`                                                                                                                                        |
+| `compileQuery(query, ctx)`                                   | `Result<Compiled, QueryError>`; `Compiled = { sql, params, projections }`; rows are `[rid, ...projections]`                                                         |
+| `translateAdvancedQuery(text)`                               | `Translated { query, warnings } \| ConvertMe { original, reason }`                                                                                                  |
+| `namesRead(query, ctx)`                                      | names to resolve with `ALIASES_SQL` before `readSet`                                                                                                                |
+| `readSet(query, ctx, names)`                                 | `Result<string[], QueryError>`                                                                                                                                      |
+| `blockTouches(before, after)` / `pageTouches(before, after)` | `string[]` (`null` = created/deleted)                                                                                                                               |
+| `blockChangeAffects(query, ctx, names, before, after)`       | `boolean`                                                                                                                                                           |
+| Schemas                                                      | `Query`, `Filter`, `Field`, `Value`, `View`, `Sort`, `QueryContext`, `Compiled`, `SqlValue`, `BlockFacets`, `PageFacets`, `TaskFacets`, `Translation`, `QueryError` |
+| SQL                                                          | `SCHEMA` (index DDL), `ALIASES_SQL` (name -> name + aliases)                                                                                                        |
 
 `QueryContext = { today: YYYYMMDD, page?: page name, block?: block uuid }`.
 

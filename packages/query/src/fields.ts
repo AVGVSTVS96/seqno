@@ -40,9 +40,30 @@ const task = (col: keyof TaskFacets, type: FieldType): FieldDef => ({
 })
 
 const FIXED: Record<FixedField, FieldDef> = {
-  id: { owner: "block", type: "id", storage: column((t) => `${t}.id`), key: "exist", keyed: false, values: (f) => [f.id] },
-  created: { owner: "block", type: "time", storage: column((t) => `${t}.created`), key: "created", keyed: false, values: (f) => [f.created] },
-  updated: { owner: "block", type: "time", storage: column((t) => `${t}.updated`), key: "updated", keyed: false, values: (f) => [f.updated] },
+  id: {
+    owner: "block",
+    type: "id",
+    storage: column((t) => `${t}.id`),
+    key: "exist",
+    keyed: false,
+    values: (f) => [f.id],
+  },
+  created: {
+    owner: "block",
+    type: "time",
+    storage: column((t) => `${t}.created`),
+    key: "created",
+    keyed: false,
+    values: (f) => [f.created],
+  },
+  updated: {
+    owner: "block",
+    type: "time",
+    storage: column((t) => `${t}.updated`),
+    key: "updated",
+    keyed: false,
+    values: (f) => [f.updated],
+  },
   ref: {
     owner: "block",
     type: "name",
@@ -54,7 +75,13 @@ const FIXED: Record<FixedField, FieldDef> = {
   tag: {
     owner: "block",
     type: "name",
-    storage: { _tag: "Table", table: "refs", col: "target", cond: (t) => `${t}.tag = 1`, many: true },
+    storage: {
+      _tag: "Table",
+      table: "refs",
+      col: "target",
+      cond: (t) => `${t}.tag = 1`,
+      many: true,
+    },
     key: "tag",
     keyed: true,
     values: (f) => f.tags,
@@ -63,7 +90,14 @@ const FIXED: Record<FixedField, FieldDef> = {
   "task.priority": task("priority", "string"),
   "task.scheduled": task("scheduled", "date"),
   "task.deadline": task("deadline", "date"),
-  page: { owner: "page", type: "name", storage: column((t) => `${t}.name_lc`), key: "page.name", keyed: false, values: (f) => [f.page.name] },
+  page: {
+    owner: "page",
+    type: "name",
+    storage: column((t) => `${t}.name_lc`),
+    key: "page.name",
+    keyed: false,
+    values: (f) => [f.page.name],
+  },
   "page.journal": {
     owner: "page",
     type: "bool",
@@ -72,7 +106,14 @@ const FIXED: Record<FixedField, FieldDef> = {
     keyed: false,
     values: (f) => [f.page.day !== null],
   },
-  "page.day": { owner: "page", type: "date", storage: column((t) => `${t}.day`), key: "page.name", keyed: false, values: (f) => opt(f.page.day) },
+  "page.day": {
+    owner: "page",
+    type: "date",
+    storage: column((t) => `${t}.day`),
+    key: "page.name",
+    keyed: false,
+    values: (f) => opt(f.page.day),
+  },
   "page.tag": {
     owner: "page",
     type: "name",
@@ -84,7 +125,13 @@ const FIXED: Record<FixedField, FieldDef> = {
   "page.alias": {
     owner: "page",
     type: "string",
-    storage: { _tag: "Table", table: "page_names", col: "name", cond: (t) => `${t}.alias = 1`, many: true },
+    storage: {
+      _tag: "Table",
+      table: "page_names",
+      col: "name",
+      cond: (t) => `${t}.alias = 1`,
+      many: true,
+    },
     key: "page.alias",
     keyed: false,
     values: (f) => f.page.aliases,
@@ -112,7 +159,8 @@ const property = (owner: Owner, key: string): FieldDef => ({
   },
   key: owner === "block" ? `property:${key}` : `page.property:${key}`,
   keyed: false,
-  values: (f) => (owner === "block" ? f.props : f.page.props).flatMap(([k, v]) => (k === key ? [v] : [])),
+  values: (f) =>
+    (owner === "block" ? f.props : f.page.props).flatMap(([k, v]) => (k === key ? [v] : [])),
 })
 
 const PROPERTY = /^(page\.)?property\.(.+)$/
@@ -120,5 +168,7 @@ const PROPERTY = /^(page\.)?property\.(.+)$/
 export const fieldDef = (field: Field): FieldDef => {
   if (isFixedField(field)) return FIXED[field]
   const [, page, key] = PROPERTY.exec(field) ?? []
-  return key === undefined ? fail(`field ${field} has no storage`) : property(page === undefined ? "block" : "page", key)
+  return key === undefined
+    ? fail(`field ${field} has no storage`)
+    : property(page === undefined ? "block" : "page", key)
 }

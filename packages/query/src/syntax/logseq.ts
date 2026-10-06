@@ -1,4 +1,16 @@
-import { and, finishQuery, isCompareOp, or, pathRef, type Field, type Filter, type Query, type Sort, type Value, type View } from "../ast.ts"
+import {
+  and,
+  finishQuery,
+  isCompareOp,
+  or,
+  pathRef,
+  type Field,
+  type Filter,
+  type Query,
+  type Sort,
+  type Value,
+  type View,
+} from "../ast.ts"
 import { fail } from "../error.ts"
 import { read, show, type Form } from "./reader.ts"
 import { field, sortField, word } from "./values.ts"
@@ -26,7 +38,8 @@ const compareOrIn = (fieldName: string, args: ReadonlyArray<Form>): Filter => {
   const [first, second] = args
   if (first === undefined) return { _tag: "Has", field: f }
   const op = first._tag === "Sym" ? first.v : ""
-  if (args.length === 2 && second !== undefined && isCompareOp(op)) return { _tag: "Compare", field: f, op, value: value(second, f) }
+  if (args.length === 2 && second !== undefined && isCompareOp(op))
+    return { _tag: "Compare", field: f, op, value: value(second, f) }
   if (args.length === 1) return { _tag: "Compare", field: f, op: "=", value: value(first, f) }
   return { _tag: "In", field: f, values: args.map((a) => value(a, f)) }
 }
@@ -40,7 +53,8 @@ const filter = (f: Form, acc: Acc): Filter | null => {
   }
   if (f._tag === "Wiki") return block(pathRef(f.v))
   if (f._tag === "Str") return block({ _tag: "Search", text: f.v })
-  if (f._tag === "Sym" && (f.v.startsWith("#") || f.v === "@page")) return block(pathRef(word(f.v.replace(/^#/, ""))))
+  if (f._tag === "Sym" && (f.v.startsWith("#") || f.v === "@page"))
+    return block(pathRef(word(f.v.replace(/^#/, ""))))
   if (f._tag !== "List") return fail(`not a query filter: ${show(f)}`)
   const [head, ...args] = f.items
   if (head?._tag !== "Sym") return fail(`not a query filter: ${show(f)}`)
@@ -60,7 +74,12 @@ const filter = (f: Form, acc: Acc): Filter | null => {
       return block({ _tag: "In", field: "task.priority", values: lowerAll(args) })
     case "between": {
       const of = args.length === 3 ? field(name(arg(0))) : "page.day"
-      return block({ _tag: "Between", field: of, from: value(arg(args.length - 2), of), to: value(arg(args.length - 1), of) })
+      return block({
+        _tag: "Between",
+        field: of,
+        from: value(arg(args.length - 2), of),
+        to: value(arg(args.length - 1), of),
+      })
     }
     case "property":
       return block(compareOrIn(`property.${name(arg(0)).toLowerCase()}`, args.slice(1)))
@@ -109,7 +128,8 @@ const filter = (f: Form, acc: Acc): Filter | null => {
       const fields = args.slice(1).map((a) => field(name(a)))
       const [by] = fields
       if (kind === "table") acc.view = { _tag: "Table", columns: fields }
-      else if (kind === "board") acc.view = { _tag: "Board", by: by ?? fail("(view board) needs a field") }
+      else if (kind === "board")
+        acc.view = { _tag: "Board", by: by ?? fail("(view board) needs a field") }
       else if (kind !== "list") fail(`unknown view "${kind}"; use list, table or board`)
       return null
     }
@@ -133,7 +153,10 @@ export const readLogseq = (src: string): Query => {
       .map((f) => filter(f, acc))
       .filter((x) => x !== null),
   )
-  if (acc.pages && acc.blocks) fail("page filters (pages, page-property, page-tags, has-block) can't be mixed with block filters")
+  if (acc.pages && acc.blocks)
+    fail(
+      "page filters (pages, page-property, page-tags, has-block) can't be mixed with block filters",
+    )
   return finishQuery({
     find: acc.pages ? "pages" : "blocks",
     ...(where ? { where } : {}),

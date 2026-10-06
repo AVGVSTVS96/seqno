@@ -1,11 +1,26 @@
-import { and, finishQuery, isCompareOp, or, pathRef, type Field, type Filter, type Query, type Sort, type Value, type View } from "../ast.ts"
+import {
+  and,
+  finishQuery,
+  isCompareOp,
+  or,
+  pathRef,
+  type Field,
+  type Filter,
+  type Query,
+  type Sort,
+  type Value,
+  type View,
+} from "../ast.ts"
 import { fail } from "../error.ts"
 import { field, word } from "./values.ts"
 
 type Text = "Word" | "Str" | "Wiki" | "Tag" | "Punct" | "Op"
-type Tok = { readonly [K in Text]: { readonly _tag: K; readonly v: string } }[Text] | { readonly _tag: "Num"; readonly v: number }
+type Tok =
+  | { readonly [K in Text]: { readonly _tag: K; readonly v: string } }[Text]
+  | { readonly _tag: "Num"; readonly v: number }
 
-const TOKEN = /\s+|"((?:[^"\\]|\\.)*)"|#?\[\[([^\]]+)\]\]|#([\w/.-]+)|(<=|>=|!=|=|<|>)|([(),])|(-)(?=[#["(])|([^\s(),"=<>!]+)/gy
+const TOKEN =
+  /\s+|"((?:[^"\\]|\\.)*)"|#?\[\[([^\]]+)\]\]|#([\w/.-]+)|(<=|>=|!=|=|<|>)|([(),])|(-)(?=[#["(])|([^\s(),"=<>!]+)/gy
 const NUMBER = /^[+-]?\d+(\.\d+)?$/
 
 const lex = (src: string): Tok[] => {
@@ -20,7 +35,8 @@ const lex = (src: string): Tok[] => {
     else if (tag !== undefined) out.push({ _tag: "Tag", v: tag })
     else if (op !== undefined) out.push({ _tag: "Op", v: op })
     else if (punct !== undefined || minus !== undefined) out.push({ _tag: "Punct", v: all })
-    else if (bare !== undefined) out.push(NUMBER.test(bare) ? { _tag: "Num", v: Number(bare) } : { _tag: "Word", v: bare })
+    else if (bare !== undefined)
+      out.push(NUMBER.test(bare) ? { _tag: "Num", v: Number(bare) } : { _tag: "Word", v: bare })
   }
   if (pos < src.length) fail(`can't read "${src.slice(pos, pos + 12)}"`)
   return out
@@ -39,7 +55,8 @@ export const readDataview = (src: string): Query => {
     i++
     return true
   }
-  const expect = (kw: string) => accept(kw) || fail(`expected ${kw} near "${String(peek()?.v ?? "end")}"`)
+  const expect = (kw: string) =>
+    accept(kw) || fail(`expected ${kw} near "${String(peek()?.v ?? "end")}"`)
   const punct = (p: string) => {
     const t = peek()
     if (t?._tag !== "Punct" || t.v !== p) return false
@@ -119,7 +136,9 @@ export const readDataview = (src: string): Query => {
     if (isKw("TEXT") && isKw("MATCHES", i + 1)) {
       i += 2
       const s = next()
-      return s._tag === "Str" ? { _tag: "Search", text: s.v } : fail("MATCHES takes a quoted string")
+      return s._tag === "Str"
+        ? { _tag: "Search", text: s.v }
+        : fail("MATCHES takes a quoted string")
     }
     const f = fieldTok()
     const op = peek()
@@ -178,7 +197,10 @@ export const readDataview = (src: string): Query => {
   let limit: number | undefined
   if (accept("LIMIT")) {
     const n = next()
-    limit = n._tag === "Num" && Number.isInteger(n.v) && n.v >= 0 ? n.v : fail("LIMIT takes a whole number")
+    limit =
+      n._tag === "Num" && Number.isInteger(n.v) && n.v >= 0
+        ? n.v
+        : fail("LIMIT takes a whole number")
   }
   const rest = toks[i]
   if (rest !== undefined) fail(`unexpected "${String(rest.v)}"`)

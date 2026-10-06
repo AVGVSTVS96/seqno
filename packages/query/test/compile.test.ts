@@ -1,7 +1,14 @@
 import { DatabaseSync } from "node:sqlite"
 import { Result } from "effect"
 import { describe, expect, it } from "vitest"
-import { compileQuery, parseDataviewQuery, parseLogseqQuery, SCHEMA, type Query, type QueryContext } from "../src/index.ts"
+import {
+  compileQuery,
+  parseDataviewQuery,
+  parseLogseqQuery,
+  SCHEMA,
+  type Query,
+  type QueryContext,
+} from "../src/index.ts"
 
 interface PageRow {
   readonly name: string
@@ -16,7 +23,11 @@ interface BlockRow {
   readonly page: number
   readonly parent?: string
   readonly content: string
-  readonly task?: { readonly status: string | null; readonly priority?: string; readonly deadline?: number }
+  readonly task?: {
+    readonly status: string | null
+    readonly priority?: string
+    readonly deadline?: number
+  }
   readonly refs?: ReadonlyArray<string>
   readonly tags?: ReadonlyArray<string>
   readonly props?: ReadonlyArray<readonly [string, string]>
@@ -34,9 +45,27 @@ const PAGES: ReadonlyArray<PageRow> = [
 ]
 
 const BLOCKS: ReadonlyArray<BlockRow> = [
-  { id: "spec", page: 1, content: "TODO write spec [[Database]]", task: { status: "todo" }, refs: ["database"] },
-  { id: "draft", page: 1, parent: "spec", content: "DOING draft schema", task: { status: "doing" } },
-  { id: "review", page: 1, parent: "draft", content: "TODO review indexes", task: { status: "todo" } },
+  {
+    id: "spec",
+    page: 1,
+    content: "TODO write spec [[Database]]",
+    task: { status: "todo" },
+    refs: ["database"],
+  },
+  {
+    id: "draft",
+    page: 1,
+    parent: "spec",
+    content: "DOING draft schema",
+    task: { status: "doing" },
+  },
+  {
+    id: "review",
+    page: 1,
+    parent: "draft",
+    content: "TODO review indexes",
+    task: { status: "todo" },
+  },
   {
     id: "ship",
     page: 3,
@@ -46,7 +75,12 @@ const BLOCKS: ReadonlyArray<BlockRow> = [
     tags: ["database"],
   },
   { id: "notes", page: 3, content: "notes about deploy", updated: Date.UTC(2026, 9, 5, 12) },
-  { id: "fix", page: 4, content: "DONE deploy fix\nDEADLINE: <2026-10-08 Thu>", task: { status: "done", deadline: 20261008 } },
+  {
+    id: "fix",
+    page: 4,
+    content: "DONE deploy fix\nDEADLINE: <2026-10-08 Thu>",
+    task: { status: "done", deadline: 20261008 },
+  },
   { id: "rating", page: 2, content: "rating:: 5", props: [["rating", "5"]] },
   { id: "call", page: 4, content: "TODO call [[DB]]", task: { status: "todo" }, refs: ["db"] },
 ]
@@ -59,31 +93,57 @@ const open = () => {
   PAGES.forEach((p, i) => {
     const rid = i + 1
     const name = p.name.toLowerCase()
-    db.prepare("INSERT INTO pages VALUES (?, ?, ?, ?, ?)").run(rid, `page-${rid}`, p.name, name, p.day)
+    db.prepare("INSERT INTO pages VALUES (?, ?, ?, ?, ?)").run(
+      rid,
+      `page-${rid}`,
+      p.name,
+      name,
+      p.day,
+    )
     db.prepare("INSERT INTO page_names VALUES (?, ?, 0)").run(name, rid)
-    for (const a of p.aliases ?? []) db.prepare("INSERT INTO page_names VALUES (?, ?, 1)").run(a, rid)
+    for (const a of p.aliases ?? [])
+      db.prepare("INSERT INTO page_names VALUES (?, ?, 1)").run(a, rid)
     for (const t of p.tags ?? []) db.prepare("INSERT INTO page_tags VALUES (?, ?)").run(rid, t)
     const parts = name.split("/")
-    for (let n = 1; n < parts.length; n++) db.prepare("INSERT INTO page_ns VALUES (?, ?)").run(rid, parts.slice(0, n).join("/"))
-    for (const [k, v] of p.props ?? []) db.prepare("INSERT INTO page_props VALUES (?, ?, ?, ?)").run(rid, k, v, numeric(v))
+    for (let n = 1; n < parts.length; n++)
+      db.prepare("INSERT INTO page_ns VALUES (?, ?)").run(rid, parts.slice(0, n).join("/"))
+    for (const [k, v] of p.props ?? [])
+      db.prepare("INSERT INTO page_props VALUES (?, ?, ?, ?)").run(rid, k, v, numeric(v))
   })
   BLOCKS.forEach((b, i) => {
     const rid = i + 1
     const parent = b.parent === undefined ? null : BLOCKS.findIndex((x) => x.id === b.parent) + 1
-    db.prepare("INSERT INTO blocks VALUES (?, ?, ?, ?, ?, ?, ?)").run(rid, b.id, b.page, parent, b.content, OLD, b.updated ?? OLD)
+    db.prepare("INSERT INTO blocks VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+      rid,
+      b.id,
+      b.page,
+      parent,
+      b.content,
+      OLD,
+      b.updated ?? OLD,
+    )
     db.prepare("INSERT INTO fts(rowid, content) VALUES (?, ?)").run(rid, b.content)
     if (b.task) {
-      db.prepare("INSERT INTO tasks VALUES (?, ?, ?, ?, ?)").run(rid, b.task.status, b.task.priority ?? null, null, b.task.deadline ?? null)
+      db.prepare("INSERT INTO tasks VALUES (?, ?, ?, ?, ?)").run(
+        rid,
+        b.task.status,
+        b.task.priority ?? null,
+        null,
+        b.task.deadline ?? null,
+      )
     }
-    for (const r of b.refs ?? []) db.prepare("INSERT INTO refs VALUES (?, ?, ?)").run(rid, r, b.tags?.includes(r) ? 1 : 0)
-    for (const [k, v] of b.props ?? []) db.prepare("INSERT INTO props VALUES (?, ?, ?, ?)").run(rid, k, v, numeric(v))
+    for (const r of b.refs ?? [])
+      db.prepare("INSERT INTO refs VALUES (?, ?, ?)").run(rid, r, b.tags?.includes(r) ? 1 : 0)
+    for (const [k, v] of b.props ?? [])
+      db.prepare("INSERT INTO props VALUES (?, ?, ?, ?)").run(rid, k, v, numeric(v))
   })
   return db
 }
 
 const db = open()
 
-const label = (q: Query, rid: unknown) => (q.find === "blocks" ? BLOCKS[Number(rid) - 1]?.id : PAGES[Number(rid) - 1]?.name)
+const label = (q: Query, rid: unknown) =>
+  q.find === "blocks" ? BLOCKS[Number(rid) - 1]?.id : PAGES[Number(rid) - 1]?.name
 
 const rows = (parsed: Result.Result<Query, unknown>, ctx: QueryContext = { today: TODAY }) => {
   const query = Result.getOrThrow(parsed)
@@ -97,13 +157,22 @@ const rows = (parsed: Result.Result<Query, unknown>, ctx: QueryContext = { today
     })
 }
 
-const ids = (text: string, ctx?: QueryContext) => rows(parseLogseqQuery(text), ctx).map(([id]) => id)
+const ids = (text: string, ctx?: QueryContext) =>
+  rows(parseLogseqQuery(text), ctx).map(([id]) => id)
 
 describe("compiled SQL returns the right blocks from a real SQLite index", () => {
   it.each([
     ["tasks by status", "(task todo)", ["call", "spec", "review"]],
-    ["negated recursive ancestor", "(and (task todo) (not (under (task doing))))", ["call", "spec"]],
-    ["page reference matches aliases and nested blocks", "[[Database]]", ["ship", "call", "spec", "draft", "review"]],
+    [
+      "negated recursive ancestor",
+      "(and (task todo) (not (under (task doing))))",
+      ["call", "spec"],
+    ],
+    [
+      "page reference matches aliases and nested blocks",
+      "[[Database]]",
+      ["ship", "call", "spec", "draft", "review"],
+    ],
     ["journal day window", "(between -7d today)", ["ship", "notes", "fix", "call"]],
     ["property value", "(property rating 5)", ["rating"]],
     ["numeric property comparison", "(property rating > 3)", ["rating"]],
@@ -112,7 +181,11 @@ describe("compiled SQL returns the right blocks from a real SQLite index", () =>
     ["full text without a task", '(and "deploy" (not (task.status)))', ["notes"]],
     ["deadline in the next week", "(between task.deadline today +7d)", ["fix"]],
     ["updated since yesterday", "(updated >= -1d)", ["notes"]],
-    ["sort with nulls last, then limit", "(and (task todo doing now) (sort-by priority asc) (limit 2))", ["ship", "call"]],
+    [
+      "sort with nulls last, then limit",
+      "(and (task todo doing now) (sort-by priority asc) (limit 2))",
+      ["ship", "call"],
+    ],
     ["tag", "(tag database)", ["ship"]],
   ])("%s", (_, text, expected) => expect(ids(text)).toEqual(expected))
 
@@ -124,12 +197,17 @@ describe("compiled SQL returns the right blocks from a real SQLite index", () =>
   })
 
   it("@page and @block resolve from the context", () => {
-    expect(ids("(and (ref @page) (task todo))", { today: TODAY, page: "database" })).toEqual(["call", "spec"])
+    expect(ids("(and (ref @page) (task todo))", { today: TODAY, page: "database" })).toEqual([
+      "call",
+      "spec",
+    ])
     expect(ids("(child-of (id @block))", { today: TODAY, block: "spec" })).toEqual(["draft"])
   })
 
   it("table views return the shown columns next to each row", () => {
-    expect(rows(parseDataviewQuery("TABLE task.status, page WHERE task.status IN (todo, doing)"))).toEqual([
+    expect(
+      rows(parseDataviewQuery("TABLE task.status, page WHERE task.status IN (todo, doing)")),
+    ).toEqual([
       ["call", "todo", "oct 1st, 2026"],
       ["spec", "todo", "projects/alpha"],
       ["draft", "doing", "projects/alpha"],
@@ -145,7 +223,9 @@ const compileError = (text: string, ctx: QueryContext) => {
 
 describe("queries that can't run fail with a plain message", () => {
   it("@page outside a page", () => {
-    expect(compileError("LIST WHERE ref = @page", { today: TODAY })).toBe("@page is only available inside a page")
+    expect(compileError("LIST WHERE ref = @page", { today: TODAY })).toBe(
+      "@page is only available inside a page",
+    )
   })
 
   it("block fields in a pages query", () => {

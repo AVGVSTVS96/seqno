@@ -146,12 +146,26 @@ const Q17 = `{:title "Count number of blocks in the current page"
          [?b :block/page ?p]]
  :inputs [:current-page]}`
 
-const NAMESPACE_WARNING = "namespace matches every depth (Logseq's :block/namespace only matched direct children)"
-const VIEW_WARNING = "custom :view dropped (views are declared, never code); showing the default list"
+const NAMESPACE_WARNING =
+  "namespace matches every depth (Logseq's :block/namespace only matched direct children)"
+const VIEW_WARNING =
+  "custom :view dropped (views are declared, never code); showing the default list"
 
-const translated: ReadonlyArray<readonly [name: string, source: string, printed: string, warnings: ReadonlyArray<string>]> = [
-  ["docs: all tasks", '{:title "All tasks" :query [:find (pull ?b [*]) :where [?b :block/marker _]]}', "{{query (task.status)}}", []],
-  ["docs: tag project", '{:query [:find (pull ?b [*]) :where [?p :block/name "project"] [?b :block/refs ?p]]}', "{{query (ref project)}}", []],
+const translated: ReadonlyArray<
+  readonly [name: string, source: string, printed: string, warnings: ReadonlyArray<string>]
+> = [
+  [
+    "docs: all tasks",
+    '{:title "All tasks" :query [:find (pull ?b [*]) :where [?b :block/marker _]]}',
+    "{{query (task.status)}}",
+    [],
+  ],
+  [
+    "docs: tag project",
+    '{:query [:find (pull ?b [*]) :where [?p :block/name "project"] [?b :block/refs ?p]]}',
+    "{{query (ref project)}}",
+    [],
+  ],
   [
     "docs: simple query inside advanced",
     '{:title "DOING tasks with priority A" :query (and (todo DOING) (priority A)) :collapsed? true}',
@@ -164,8 +178,18 @@ const translated: ReadonlyArray<readonly [name: string, source: string, printed:
     "{{query (child-of (id @block))}}",
     [],
   ],
-  ["docs: plain string query", '{:title "Search" :query "release notes"}', '{{query "release notes"}}', []],
-  ["Q02 inputs, rules and result-transform sort", Q02, "{{query (and (task now doing) (between -2w today)) (sort-by task.priority asc)}}", []],
+  [
+    "docs: plain string query",
+    '{:title "Search" :query "release notes"}',
+    '{{query "release notes"}}',
+    [],
+  ],
+  [
+    "Q02 inputs, rules and result-transform sort",
+    Q02,
+    "{{query (and (task now doing) (between -2w today)) (sort-by task.priority asc)}}",
+    [],
+  ],
   [
     "Q03 or over scheduled and deadline",
     Q03,
@@ -176,16 +200,34 @@ const translated: ReadonlyArray<readonly [name: string, source: string, printed:
   ["Q08 current page", Q08, "{{query (and (ref @page) (task todo))}}", []],
   ["Q09 page-ref and between", Q09, "{{query (and (between -7d today) [[datalog]])}}", []],
   ["Q10 namespace", Q10, "{{query (and (namespace projects) (task todo))}}", [NAMESPACE_WARNING]],
-  ["Q11 recursive get-children rule", Q11, '{{query (and (under "v23-05") (task todo))}}', ['substring match "v23-05" became a word search']],
-  ["Q12 recursive check-doing rule", Q12, "{{query (and (task todo) (not (under (task doing))))}}", []],
-  ["Q13 rules passed as an input", Q13, '{{query (and "TODO" (not (task.status)))}}', ['substring match "TODO" became a word search']],
+  [
+    "Q11 recursive get-children rule",
+    Q11,
+    '{{query (and (under "v23-05") (task todo))}}',
+    ['substring match "v23-05" became a word search'],
+  ],
+  [
+    "Q12 recursive check-doing rule",
+    Q12,
+    "{{query (and (task todo) (not (under (task doing))))}}",
+    [],
+  ],
+  [
+    "Q13 rules passed as an input",
+    Q13,
+    '{{query (and "TODO" (not (task.status)))}}',
+    ['substring match "TODO" became a word search'],
+  ],
   ["Q14 pages with a tag", Q14, "{{query (pages (page.tag programming))}}", [VIEW_WARNING]],
 ]
 
 describe("Logseq advanced queries that translate", () => {
   it.each(translated)("%s", (_, source, printed, warnings) => {
     const t = translateAdvancedQuery(source)
-    expect(t._tag === "Translated" ? [printLogseqQuery(t.query), t.warnings] : t.reason).toEqual([Result.succeed(printed), warnings])
+    expect(t._tag === "Translated" ? [printLogseqQuery(t.query), t.warnings] : t.reason).toEqual([
+      Result.succeed(printed),
+      warnings,
+    ])
   })
 })
 
@@ -197,7 +239,11 @@ const convertMe: ReadonlyArray<readonly [name: string, source: string, reason: s
     '{:query [:find (pull ?b [*]) :in $ % :where (starts-with ?b "https://")] :rules [[(starts-with ?b ?substr) [?b :block/content ?content] [(clojure.string/starts-with? ?content ?substr)]]]}',
     'content test [(clojure.string/starts-with? ?content "https://")]',
   ],
-  ["unknown attribute", "{:query [:find (pull ?b [*]) :where [?b :block/collapsed? true]]}", "attribute :block/collapsed?"],
+  [
+    "unknown attribute",
+    "{:query [:find (pull ?b [*]) :where [?b :block/collapsed? true]]}",
+    "attribute :block/collapsed?",
+  ],
   ["not a query map", "[:find ?b]", "not a query map"],
   ["unbalanced", "{:query [:find (pull ?b [*])", "missing ]"],
 ]

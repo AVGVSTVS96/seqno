@@ -32,9 +32,17 @@ const cmp = (a: Primitive, op: CompareOp, b: Primitive) => {
   }
 }
 
-const operand = (v: Primitive, lit: Primitive): Primitive | null => (typeof lit === "number" && typeof v === "string" ? toNum(v) : v)
+const operand = (v: Primitive, lit: Primitive): Primitive | null =>
+  typeof lit === "number" && typeof v === "string" ? toNum(v) : v
 
-const compare = (field: Field, op: CompareOp, value: Value, f: BlockFacets, ctx: QueryContext, names: Names): boolean => {
+const compare = (
+  field: Field,
+  op: CompareOp,
+  value: Value,
+  f: BlockFacets,
+  ctx: QueryContext,
+  names: Names,
+): boolean => {
   if (op === "!=") return !compare(field, "=", value, f, ctx, names)
   const def = fieldDef(field)
   if (op === "=" && def.type === "time") return between(field, value, value, f, ctx)
@@ -65,7 +73,8 @@ const phrase = (content: string, text: string): Tri => {
   const needle = tokenize(text)
   if (hay === null || needle === null) return undefined
   if (needle.length === 0) return false
-  for (let i = 0; i + needle.length <= hay.length; i++) if (needle.every((t, j) => hay[i + j] === t)) return true
+  for (let i = 0; i + needle.length <= hay.length; i++)
+    if (needle.every((t, j) => hay[i + j] === t)) return true
   return false
 }
 
@@ -79,10 +88,24 @@ const all = (results: ReadonlyArray<() => Tri>, stop: boolean): Tri => {
   return out
 }
 
-export const evaluate = (f: Filter, facets: BlockFacets, ctx: QueryContext, names: Names, assumed: Assumed = new Map()): Tri =>
+export const evaluate = (
+  f: Filter,
+  facets: BlockFacets,
+  ctx: QueryContext,
+  names: Names,
+  assumed: Assumed = new Map(),
+): Tri =>
   Match.valueTags(f, {
-    And: (x): Tri => all(x.all.map((y) => () => evaluate(y, facets, ctx, names, assumed)), false),
-    Or: (x): Tri => all(x.any.map((y) => () => evaluate(y, facets, ctx, names, assumed)), true),
+    And: (x): Tri =>
+      all(
+        x.all.map((y) => () => evaluate(y, facets, ctx, names, assumed)),
+        false,
+      ),
+    Or: (x): Tri =>
+      all(
+        x.any.map((y) => () => evaluate(y, facets, ctx, names, assumed)),
+        true,
+      ),
     Not: (x): Tri => {
       const r = evaluate(x.filter, facets, ctx, names, assumed)
       return r === undefined ? undefined : !r
@@ -97,12 +120,21 @@ export const evaluate = (f: Filter, facets: BlockFacets, ctx: QueryContext, name
   })
 
 const nodes = (f: Filter): Filter[] =>
-  f._tag === "And" ? f.all.flatMap(nodes) : f._tag === "Or" ? f.any.flatMap(nodes) : f._tag === "Not" ? nodes(f.filter) : [f]
+  f._tag === "And"
+    ? f.all.flatMap(nodes)
+    : f._tag === "Or"
+      ? f.any.flatMap(nodes)
+      : f._tag === "Not"
+        ? nodes(f.filter)
+        : [f]
 
-export const isLocal = (f: Filter): boolean => nodes(f).every((n) => n._tag !== "Under" && n._tag !== "HasBlock")
+export const isLocal = (f: Filter): boolean =>
+  nodes(f).every((n) => n._tag !== "Under" && n._tag !== "HasBlock")
 
 export const undersOf = (f: Filter): Under[] | null => {
-  const found = nodes(f).flatMap((n): Array<Under | null> => (n._tag === "Under" ? [n] : n._tag === "HasBlock" ? [null] : []))
+  const found = nodes(f).flatMap((n): Array<Under | null> =>
+    n._tag === "Under" ? [n] : n._tag === "HasBlock" ? [null] : [],
+  )
   const unders = found.filter((n): n is Under => n !== null)
   return unders.length === found.length && unders.every((u) => isLocal(u.ancestor)) ? unders : null
 }

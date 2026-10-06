@@ -1,4 +1,11 @@
-import { childrenOf, type Field, type Filter, type Query, type QueryContext, type Value } from "./ast.ts"
+import {
+  childrenOf,
+  type Field,
+  type Filter,
+  type Query,
+  type QueryContext,
+  type Value,
+} from "./ast.ts"
 import { projectionsOf } from "./compile.ts"
 import { evaluate, undersOf, type Assumed, type Names } from "./evaluate.ts"
 import type { BlockFacets, PageFacets, TaskFacets } from "./facets.ts"
@@ -10,11 +17,19 @@ const walk = (f: Filter, visit: (f: Filter) => void): void => {
   for (const child of childrenOf(f)) walk(child, visit)
 }
 
-const equalities = (f: Filter): { readonly field: Field; readonly values: ReadonlyArray<Value> } | null =>
-  f._tag === "Compare" && f.op === "=" ? { field: f.field, values: [f.value] } : f._tag === "In" ? { field: f.field, values: f.values } : null
+const equalities = (
+  f: Filter,
+): { readonly field: Field; readonly values: ReadonlyArray<Value> } | null =>
+  f._tag === "Compare" && f.op === "="
+    ? { field: f.field, values: [f.value] }
+    : f._tag === "In"
+      ? { field: f.field, values: f.values }
+      : null
 
 const fieldOf = (f: Filter): Field | null =>
-  f._tag === "Compare" || f._tag === "In" || f._tag === "Between" || f._tag === "Has" ? f.field : null
+  f._tag === "Compare" || f._tag === "In" || f._tag === "Between" || f._tag === "Has"
+    ? f.field
+    : null
 
 export const namesOf = (q: Query, ctx: QueryContext): string[] => {
   const out = new Set<string>()
@@ -23,7 +38,8 @@ export const namesOf = (q: Query, ctx: QueryContext): string[] => {
       const eq = equalities(f)
       if (eq === null) return
       const def = fieldDef(eq.field)
-      if (def.type === "name" || def.keyed) for (const v of eq.values) out.add(String(literal(def, v, ctx, "start")))
+      if (def.type === "name" || def.keyed)
+        for (const v of eq.values) out.add(String(literal(def, v, ctx, "start")))
     })
   return [...out]
 }
@@ -34,7 +50,9 @@ export const readSet = (q: Query, ctx: QueryContext, names: Names): string[] => 
     const def = fieldDef(name)
     if (def.owner === "page") keys.add("move")
     if (def.type === "name") keys.add("page.alias")
-    if (def.keyed && eq) for (const v of eq) for (const n of names(String(literal(def, v, ctx, "start")))) keys.add(`${def.key}:${n}`)
+    if (def.keyed && eq)
+      for (const v of eq)
+        for (const n of names(String(literal(def, v, ctx, "start")))) keys.add(`${def.key}:${n}`)
     else keys.add(def.key)
   }
   if (q.where)
@@ -59,11 +77,14 @@ const symdiff = (a: ReadonlyArray<string>, b: ReadonlyArray<string>) => {
 type Props = ReadonlyArray<readonly [string, string]>
 
 const changedProps = (a: Props, b: Props) => {
-  const joined = (ps: Props, key: string) => ps.flatMap(([k, v]) => (k === key ? [v] : [])).join("\u0000")
+  const joined = (ps: Props, key: string) =>
+    ps.flatMap(([k, v]) => (k === key ? [v] : [])).join("\u0000")
   return [...new Set([...a, ...b].map(([k]) => k))].filter((k) => joined(a, k) !== joined(b, k))
 }
 
-const TASK_FIELDS = ["status", "priority", "scheduled", "deadline"] satisfies ReadonlyArray<keyof TaskFacets>
+const TASK_FIELDS = ["status", "priority", "scheduled", "deadline"] satisfies ReadonlyArray<
+  keyof TaskFacets
+>
 
 const collector = () => {
   const out = new Set<string>()
@@ -79,7 +100,8 @@ const collector = () => {
 
 export const blockTouches = (before: BlockFacets | null, after: BlockFacets | null): string[] => {
   const { out, add, diff } = collector()
-  if (before === null || after === null) ["exist", "tree", "text", "created", "updated"].forEach((k) => add(k))
+  if (before === null || after === null)
+    ["exist", "tree", "text", "created", "updated"].forEach((k) => add(k))
   else {
     if (before.parent !== after.parent) add("tree")
     if (before.page.name !== after.page.name) add("move")
@@ -90,13 +112,15 @@ export const blockTouches = (before: BlockFacets | null, after: BlockFacets | nu
   diff("ref", symdiff(before?.refs ?? [], after?.refs ?? []))
   diff("tag", symdiff(before?.tags ?? [], after?.tags ?? []))
   diff("property", changedProps(before?.props ?? [], after?.props ?? []))
-  for (const f of TASK_FIELDS) if ((before?.task?.[f] ?? null) !== (after?.task?.[f] ?? null)) add(`task.${f}`)
+  for (const f of TASK_FIELDS)
+    if ((before?.task?.[f] ?? null) !== (after?.task?.[f] ?? null)) add(`task.${f}`)
   return [...out]
 }
 
 export const pageTouches = (before: PageFacets | null, after: PageFacets | null): string[] => {
   const { out, add, diff } = collector()
-  if (before === null || after === null || before.name !== after.name || before.day !== after.day) add("page.name")
+  if (before === null || after === null || before.name !== after.name || before.day !== after.day)
+    add("page.name")
   diff("page.tag", symdiff(before?.tags ?? [], after?.tags ?? []))
   diff("page.property", changedProps(before?.props ?? [], after?.props ?? []))
   diff("page.namespace", symdiff(before?.namespaces ?? [], after?.namespaces ?? []))
@@ -124,14 +148,17 @@ export const blockChangeAffects = (
     }
   }
   const shown: Field[] = [...projectionsOf(q), "page"]
-  const projected = (f: BlockFacets) => JSON.stringify(shown.map((field) => fieldDef(field).values(f)))
-  const matches = (f: BlockFacets | null, assumed: Assumed) => (f === null ? false : where === undefined ? true : evaluate(where, f, ctx, names, assumed))
+  const projected = (f: BlockFacets) =>
+    JSON.stringify(shown.map((field) => fieldDef(field).values(f)))
+  const matches = (f: BlockFacets | null, assumed: Assumed) =>
+    f === null ? false : where === undefined ? true : evaluate(where, f, ctx, names, assumed)
   for (let mask = 0; mask < 1 << unders.length; mask++) {
     const assumed: Assumed = new Map(unders.map((u, i) => [u, (mask & (1 << i)) !== 0]))
     const was = matches(before, assumed)
     const is = matches(after, assumed)
     if (was === undefined || is === undefined || was !== is) return true
-    if (was && before !== null && after !== null && projected(before) !== projected(after)) return true
+    if (was && before !== null && after !== null && projected(before) !== projected(after))
+      return true
   }
   return false
 }
