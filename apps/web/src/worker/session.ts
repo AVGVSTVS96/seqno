@@ -1,5 +1,5 @@
-import { Context, Effect, Layer, Option, Schedule } from "effect"
-import type { GraphEvent } from "@seqno/domain"
+import { Context, Effect, Layer, Option, Schedule, Schema } from "effect"
+import { GraphEvent, PageId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
 import { LogseqSyntaxLive, importGraph } from "@seqno/interop"
@@ -16,10 +16,30 @@ export interface Session {
 const serviceOf = <I, S, E, R>(tag: Context.Key<I, S>, layer: Layer.Layer<I, E, R>) =>
   Effect.map(Layer.build(layer), (context) => Context.get(context, tag))
 
+export type Touched = ReadonlySet<PageId>
+
+const decodePageId = Schema.decodeUnknownOption(PageId)
+
+const ownPage = (event: GraphEvent): PageId =>
+  GraphEvent.match(event, {
+    PageUpserted: ({ page }) => page.id,
+    PageDeleted: ({ pageId }) => pageId,
+    BlockUpserted: ({ block }) => block.pageId,
+    BlockMoved: ({ pageId }) => pageId,
+    BlockDeleted: ({ pageId }) => pageId,
+  })
+
+const PAGES_OF_BLOCKS = `
+SELECT DISTINCT p.id FROM blocks b JOIN pages p ON p.rid = b.page
+WHERE b.id IN (SELECT value FROM json_each(?))`
+
 const logged = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.asVoid(Effect.catchCause(effect, (cause) => Effect.logError(cause)))
 
-export const openSession = (place: GraphPlace, changed: Effect.Effect<void>) =>
+export const openSession = (
+  place: GraphPlace,
+  changed: (touched: Touched) => Effect.Effect<void>,
+) =>
   Effect.gen(function* () {
     const { device, peer } = yield* Device
     const graph = yield* serviceOf(
@@ -39,16 +59,24 @@ export const openSession = (place: GraphPlace, changed: Effect.Effect<void>) =>
       }).pipe(Layer.provide(storage)),
     )
 
+    const movedFrom = (events: ReadonlyArray<GraphEvent>) => {
+      const moved = events.flatMap((event) => (event._tag === "BlockMoved" ? [event.blockId] : []))
+      return moved.length === 0
+        ? Effect.succeed([])
+        : Effect.map(index.query(PAGES_OF_BLOCKS, [JSON.stringify(moved)]), (rows) =>
+            rows.flatMap(([id]) => Option.toArray(decodePageId(id))),
+          )
+    }
+
     const record = (events: ReadonlyArray<GraphEvent>) =>
       events.length === 0
         ? Effect.void
-        : graph.version.pipe(
-            Effect.flatMap((version) =>
-              index.apply(events, JSON.stringify([...version].toSorted())),
-            ),
-            Effect.orDie,
-            Effect.andThen(changed),
-          )
+        : Effect.gen(function* () {
+            const touched = new Set([...events.map(ownPage), ...(yield* movedFrom(events))])
+            const version = yield* graph.version
+            yield* index.apply(events, JSON.stringify([...version].toSorted()))
+            yield* changed(touched)
+          }).pipe(Effect.orDie)
 
     const replica = vaultReplica({
       ...graph,
