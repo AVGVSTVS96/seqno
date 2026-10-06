@@ -1,0 +1,238 @@
+.seqno-outliner {
+  --seqno-indent: 24px;
+  --seqno-bullet: 6px;
+  --seqno-line-height: 1.6;
+  --seqno-fg: light-dark(#1f2328, #e6e6e6);
+  --seqno-muted: light-dark(#8c959f, #6e7681);
+  --seqno-guide: light-dark(#e1e4e8, #30363d);
+  --seqno-accent: light-dark(#0969da, #58a6ff);
+  --seqno-selected: light-dark(#ddf4ff, #1f3a5f);
+  color-scheme: light dark;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--seqno-fg);
+  line-height: var(--seqno-line-height);
+}
+
+.seqno-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0 8px;
+  font-size: 0.85em;
+}
+
+.seqno-breadcrumbs a {
+  color: var(--seqno-muted);
+  text-decoration: none;
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seqno-breadcrumbs a + a::before {
+  content: "›";
+  padding-right: 4px;
+}
+
+.seqno-breadcrumbs a[aria-current] {
+  color: var(--seqno-fg);
+}
+
+.seqno-outline {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  outline: none;
+}
+
+.seqno-outline-canvas {
+  position: relative;
+}
+
+.seqno-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  min-height: 30px;
+  box-sizing: border-box;
+}
+
+.seqno-row[aria-selected="true"] {
+  background: var(--seqno-selected);
+}
+
+.seqno-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  margin-left: calc(var(--seqno-indent) / 2 + 12px);
+  border-left: 1px solid var(--seqno-guide);
+}
+
+.seqno-toggle,
+.seqno-bullet {
+  flex: none;
+  width: var(--seqno-indent);
+  height: calc(1em * var(--seqno-line-height) + 4px);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.seqno-toggle {
+  position: absolute;
+  margin-left: calc(var(--seqno-indent) * -1 + 12px);
+  opacity: 0;
+  color: var(--seqno-muted);
+}
+
+.seqno-row:hover .seqno-toggle {
+  opacity: 1;
+}
+
+.seqno-toggle::before {
+  content: "▾";
+}
+
+.seqno-toggle[aria-label="Expand"]::before {
+  content: "▸";
+}
+
+.seqno-bullet {
+  margin-left: 12px;
+}
+
+.seqno-bullet::before {
+  content: "";
+  width: var(--seqno-bullet);
+  height: var(--seqno-bullet);
+  border-radius: 50%;
+  background: var(--seqno-muted);
+}
+
+.seqno-bullet.seqno-folded::before {
+  box-shadow: 0 0 0 4px var(--seqno-guide);
+}
+
+.seqno-content {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 8px 2px 4px;
+  cursor: text;
+  overflow-wrap: anywhere;
+}
+
+.seqno-line {
+  min-height: calc(1em * var(--seqno-line-height));
+  white-space: pre-wrap;
+}
+
+.seqno-h1 {
+  font-size: 2em;
+  font-weight: 600;
+}
+.seqno-h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+}
+.seqno-h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+}
+.seqno-h4,
+.seqno-h5,
+.seqno-h6 {
+  font-weight: 600;
+}
+
+.seqno-marker {
+  margin-right: 6px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--seqno-accent);
+}
+
+.seqno-marker-done,
+.seqno-marker-canceled {
+  color: var(--seqno-muted);
+}
+
+.seqno-page-ref,
+.seqno-tag {
+  color: var(--seqno-accent);
+  text-decoration: none;
+}
+
+.seqno-page-ref::before {
+  content: "[[";
+  color: var(--seqno-muted);
+}
+.seqno-page-ref::after {
+  content: "]]";
+  color: var(--seqno-muted);
+}
+
+.seqno-block-ref {
+  border-bottom: 1px solid var(--seqno-accent);
+  cursor: pointer;
+}
+
+.seqno-property,
+.seqno-planning {
+  font-size: 0.85em;
+  color: var(--seqno-muted);
+}
+
+.seqno-property-key::after,
+.seqno-planning-kind::after {
+  content: ": ";
+}
+
+.seqno-code-block {
+  margin: 4px 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--seqno-guide);
+  overflow-x: auto;
+}
+
+.seqno-plain-editor {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  field-sizing: content;
+}
+
+.seqno-drop-indicator {
+  position: absolute;
+  right: 0;
+  height: 2px;
+  margin-left: 12px;
+  background: var(--seqno-accent);
+  pointer-events: none;
+}
+
+.seqno-add-first {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  color: var(--seqno-muted);
+  cursor: text;
+}
