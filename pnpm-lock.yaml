@@ -95,6 +95,9 @@ importers:
       '@seqno/domain':
         specifier: workspace:*
         version: link:../domain
+      '@seqno/query':
+        specifier: workspace:*
+        version: link:../query
       '@sqlite.org/sqlite-wasm':
         specifier: 3.53.4-build2
         version: 3.53.4-build2

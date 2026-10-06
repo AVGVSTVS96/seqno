@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@seqno/domain": "workspace:*",
+    "@seqno/query": "workspace:*",
     "@sqlite.org/sqlite-wasm": "3.53.4-build2",
     "effect": "4.0.1"
   },
