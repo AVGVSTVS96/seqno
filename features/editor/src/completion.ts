@@ -73,11 +73,13 @@ export const createPopupStore = (): PopupStore & PopupHost => {
 
 const lineBox = (view: EditorView, pos: number): Rect => {
   const glyph = view.coordsAtPos(pos, -1) ?? view.coordsAtPos(pos, 1)
-  const box = glyph ?? view.contentDOM.getBoundingClientRect()
   const lineHeight = Number.parseFloat(getComputedStyle(view.contentDOM).lineHeight)
-  const half = (Number.isNaN(lineHeight) ? view.defaultLineHeight : lineHeight) / 2
-  const middle = (box.top + box.bottom) / 2
-  return { left: box.left, right: box.left, top: middle - half, bottom: middle + half }
+  const height = Number.isNaN(lineHeight) ? view.defaultLineHeight : lineHeight
+  const blockTop = view.documentTop + view.lineBlockAt(pos).top
+  const row = glyph === null ? 0 : Math.floor(((glyph.top + glyph.bottom) / 2 - blockTop) / height)
+  const top = blockTop + row * height
+  const left = glyph?.left ?? view.contentDOM.getBoundingClientRect().left
+  return { left, right: left, top, bottom: top + height }
 }
 
 const popupTooltip = (store: PopupHost) => {
