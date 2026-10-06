@@ -1,3 +1,6 @@
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource-variable/inter/wght-italic.css";
+
 :root {
   color-scheme: light dark;
 
@@ -64,6 +67,7 @@
   --bullet-size: 6.4px;
   --bullet-gap: 4px;
   --scrollbar-width: 6px;
+  --scrollbar-height: 8px;
 
   --space-0-5: 2px;
   --space-1: 4px;
@@ -87,6 +91,12 @@
   --opacity-done: 0.7;
   --opacity-priority: 0.5;
   --opacity-group-title: 0.5;
+  --opacity-header-icon: 0.7;
+  --opacity-header-icon-hover: 1;
+  --opacity-graph-thumb: 0.8;
+  --opacity-popup-icon: 0.7;
+  --opacity-block-control: 0.4;
+  --bullet-hover-scale: 1.2;
 
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
@@ -104,10 +114,11 @@
   --bg-input: light-dark(#f8f8f8, #023643);
   --bg-footer: light-dark(#f3f3f3, #023643);
   --bg-hover: light-dark(#ededed, #094b5a);
-  --bg-button-hover: light-dark(#f3f3f3, #023643);
+  --bg-button-hover: light-dark(#f3f3f3, #08404f);
+  --bg-sidebar-tab: light-dark(#f7f7f7, #023643);
   --bg-menu-active: light-dark(#ededed, #00404d);
   --bg-popup-active: light-dark(#ededed, #023643);
-  --bg-palette-active: light-dark(#e1e1e1, #094b5a);
+  --bg-palette-active: light-dark(#e2e2e2, #094b5a);
   --bg-icon-tile: light-dark(#e8e8e8, #094b5a);
   --bg-block-selected: light-dark(#c0e6fd, #0a3d4b);
   --bg-text-selection: light-dark(#e4f2ff, #338fff);
@@ -128,6 +139,9 @@
   --fg-strong: light-dark(#020817, #f2f2f2);
   --fg-popup: light-dark(rgb(2 8 23 / 0.75), rgb(242 242 242 / 0.75));
   --fg-popup-group: light-dark(rgb(2 8 23 / 0.2), rgb(242 242 242 / 0.2));
+  --fg-menu-active: light-dark(#171717, #ededed);
+  --fg-palette-item: light-dark(#171717, #ededed);
+  --fg-control: light-dark(#433f38, #a4b5b6);
   --fg-muted: light-dark(#6f6f6f, #a0a0a0);
   --fg-subtle: light-dark(#858585, #7e7e7e);
   --fg-quote: light-dark(#433f38, #a4b5b6);
@@ -159,13 +173,15 @@
   --border-separator: light-dark(#e8e8e8, #003542);
   --border-input: light-dark(#dbdbdb, #0e5263);
   --border-block-ref: light-dark(#d8e1e8, #1a6376);
+  --border-palette-active: light-dark(#eaeff6, transparent);
 
   --ring-color: #037dba;
-  --ring-offset: light-dark(#ffffff, #002b36);
+  --ring-offset: light-dark(#ffffff, #002d38);
   --ring: 0 0 0 2px var(--ring-offset), 0 0 0 4px var(--ring-color);
 
   --scrollbar-thumb: light-dark(#e8e8e8, #11505f);
   --scrollbar-track: light-dark(#f8f8f8, rgb(30 60 67 / 0.1));
+  --scrollbar-thumb-active: light-dark(#e2e2e2, rgb(255 255 255 / 0.2));
 
   --shadow-popover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-dialog: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -180,11 +196,27 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --opacity-header-icon: 0.6;
+  --opacity-header-icon-hover: 0.9;
+  --opacity-graph-thumb: 0.5;
 }
 
-html {
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-  scrollbar-width: thin;
+::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+  height: var(--scrollbar-height);
+  background-color: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-active);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 body {

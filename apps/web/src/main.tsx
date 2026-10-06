@@ -1,6 +1,3 @@
-import themeCss from "./theme.css?inline"
-import interCss from "@fontsource-variable/inter/index.css?inline"
-import interItalicCss from "@fontsource-variable/inter/wght-italic.css?inline"
 import appCss from "./styles.css?inline"
 import { RegistryContext, scheduleTask } from "@effect/atom-react"
 import { RouterProvider } from "@tanstack/react-router"
@@ -9,7 +6,7 @@ import { AtomRegistry } from "effect/reactivity"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { coreRuntime } from "@seqno/outliner"
-import { prefersDark, theme } from "./atoms.ts"
+import { prefersDark, resolvedTheme } from "./atoms.ts"
 import { WorkerCore } from "./core.ts"
 import { router } from "./router.tsx"
 
@@ -24,27 +21,23 @@ registry.set(prefersDark, darkScheme.matches)
 darkScheme.addEventListener("change", (event) => registry.set(prefersDark, event.matches))
 
 registry.subscribe(
-  theme,
-  (choice) => {
-    document.documentElement.dataset["theme"] = choice
+  resolvedTheme,
+  (resolved) => {
+    document.documentElement.dataset["theme"] = resolved
   },
   { immediate: true },
 )
+
+await Promise.allSettled([
+  document.fonts.load('16px "Inter Variable"'),
+  document.fonts.load('italic 16px "Inter Variable"'),
+])
 
 const container = document.getElementById("root")
 
 if (container !== null) {
   createRoot(container).render(
     <StrictMode>
-      <style href="seqno/theme" precedence="theme">
-        {themeCss}
-      </style>
-      <style href="seqno/inter" precedence="theme">
-        {interCss}
-      </style>
-      <style href="seqno/inter-italic" precedence="theme">
-        {interItalicCss}
-      </style>
       <style href="seqno/app" precedence="app">
         {appCss}
       </style>
