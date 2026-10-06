@@ -1,6 +1,7 @@
 import { Context, Effect, Layer, Option, Schema, Semaphore, Stream } from "effect"
 import { Reactivity } from "effect/reactivity"
 import { BlockId, GraphEvent, PageId, normalizePageName } from "@seqno/domain"
+import { titleIn } from "./facets.ts"
 import { indexer } from "./indexer.ts"
 import { REBUILT, toInvalidation, type Changes, type ReadKey } from "./keys.ts"
 import {
@@ -38,11 +39,21 @@ export const PageStat = Schema.Struct({
 })
 export type PageStat = typeof PageStat.Type
 
+export const ReferencedPage = Schema.Struct({
+  name: Schema.String,
+  title: Schema.String,
+  backlinks: Schema.Int,
+  created: Schema.NullOr(Schema.Number),
+  updated: Schema.NullOr(Schema.Number),
+})
+export type ReferencedPage = typeof ReferencedPage.Type
+
 const REBUILD_BATCH = 2_000
 
 const decodeBlockHit = Schema.decodeUnknownSync(BlockHit)
 const decodePageHit = Schema.decodeUnknownSync(PageHit)
 const decodePageStat = Schema.decodeUnknownSync(PageStat)
+const decodeReferencedPage = Schema.decodeUnknownSync(ReferencedPage)
 
 const blockHits = (rows: ReadonlyArray<Row>) =>
   rows.map(([blockId, pageId, text]) => decodeBlockHit({ blockId, pageId, text }))
@@ -91,6 +102,29 @@ SELECT p.id,
   (SELECT max(updated) FROM blocks WHERE page = p.rid)
 FROM pages p`
 
+const REFERENCED_PAGES = `
+WITH named AS (
+  SELECT r.target AS target, count(DISTINCT r.block) AS uses, min(r.block) AS first,
+    min(b.created) AS created, max(b.updated) AS updated
+  FROM refs r JOIN blocks b ON b.rid = r.block
+  WHERE NOT EXISTS (SELECT 1 FROM page_names n WHERE n.name = r.target)
+  GROUP BY r.target)
+SELECT named.target, blocks.content, named.uses, named.created, named.updated
+FROM named JOIN blocks ON blocks.rid = named.first
+ORDER BY named.target`
+
+const referencedOf = (db: Statements) =>
+  db.all(REFERENCED_PAGES).map(([name, content, backlinks, created, updated]) =>
+    decodeReferencedPage({
+      name,
+      title:
+        typeof name === "string" && typeof content === "string" ? titleIn(content, name) : name,
+      backlinks,
+      created,
+      updated,
+    }),
+  )
+
 const phrase = (text: string) => `"${text.replaceAll('"', '""')}"`
 
 const anyPhrase = (names: ReadonlyArray<string>): string | null => {
@@ -119,6 +153,7 @@ const sameBlocks = (left: ReadonlyArray<BlockHit>, right: ReadonlyArray<BlockHit
 
 const NAME_READS: ReadonlyArray<ReadKey> = ["page.name", "page.alias"]
 const UNLINKED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "text", "ref", "move", "exist"]
+const REFERENCED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "ref", "exist", "updated"]
 const STATS_READS: ReadonlyArray<ReadKey> = [
   ...NAME_READS,
   "ref",
@@ -179,6 +214,8 @@ const make = Effect.gen(function* () {
   const unlinkedReferences = (pageId: PageId) => sqlite.use((db) => unlinkedOf(db, pageId))
 
   const pageStats = sqlite.use(statsOf)
+
+  const referencedPages = sqlite.use(referencedOf)
 
   return {
     stamp: sqlite.use(readStamp).pipe(Effect.map(Option.fromNullOr)),
@@ -242,6 +279,10 @@ const make = Effect.gen(function* () {
     pageStats,
 
     watchPageStats: watching(STATS_READS, pageStats),
+
+    referencedPages,
+
+    watchReferencedPages: watching(REFERENCED_READS, referencedPages),
 
     search: (text: string, limit = 20): Effect.Effect<SearchResult, IndexError> =>
       sqlite.use((db) => {

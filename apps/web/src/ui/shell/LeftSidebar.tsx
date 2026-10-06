@@ -11,7 +11,8 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import type { Page } from "@seqno/domain"
-import { allPages, dispatch, favorites, leftSidebarOpen, rightSidebar } from "../../atoms.ts"
+import { dispatch, favorites, leftSidebarOpen, rightSidebar } from "../../atoms.ts"
+import { pageNames, type PageName } from "../pages/atoms.ts"
 import { GraphSwitcher } from "./GraphSwitcher.tsx"
 import { Keys } from "./Keys.tsx"
 import { keysOf } from "./shortcuts.ts"
@@ -90,9 +91,14 @@ const NavItem = ({
   </Link>
 )
 
-const PageLink = ({ page, starred }: { readonly page: Page; readonly starred: boolean }) => {
+const PageLink = ({
+  page,
+  onUnfavorite,
+}: {
+  readonly page: PageName
+  readonly onUnfavorite?: () => void
+}) => {
   const updateSidebar = useAtomSet(rightSidebar)
-  const run = useAtomSet(dispatch)
   const menu = usePopover({ placement: { align: "center", gap: 4, inset: 8 }, kind: "menu" })
   const openInSidebar = () =>
     updateSidebar({ _tag: "Open", item: { _tag: "Page", name: page.name } })
@@ -120,21 +126,14 @@ const PageLink = ({ page, starred }: { readonly page: Page; readonly starred: bo
         <IconDots size={14} aria-hidden />
       </button>
       <Menu handle={menu} label={page.title} className="page-link-menu">
-        {starred ? (
+        {onUnfavorite === undefined ? null : (
           <MenuItem
             icon={<IconStarOff className="page-link-menu-icon" size={18} aria-hidden />}
-            onSelect={() =>
-              run({
-                _tag: "SetProperty",
-                target: { _tag: "PageTarget", pageId: page.id },
-                key: "favorite",
-                value: null,
-              })
-            }
+            onSelect={onUnfavorite}
           >
             Unfavorite
           </MenuItem>
-        ) : null}
+        )}
         <MenuItem
           icon={<IconLayoutSidebarRight className="page-link-menu-icon" size={18} aria-hidden />}
           hint={<Keys keys={["shift", "Click"]} />}
@@ -149,12 +148,20 @@ const PageLink = ({ page, starred }: { readonly page: Page; readonly starred: bo
 
 const Favorites = () => {
   const starred = useAtomValue(favorites)
+  const run = useAtomSet(dispatch)
+  const unfavorite = (page: Page) => () =>
+    run({
+      _tag: "SetProperty",
+      target: { _tag: "PageTarget", pageId: page.id },
+      key: "favorite",
+      value: null,
+    })
   return (
     <Group title="Favorites" group="favorites">
       {starred.length === 0 ? null : (
         <ul className="page-links">
           {starred.map((page) => (
-            <PageLink key={page.id} page={page} starred />
+            <PageLink key={page.id} page={page} onUnfavorite={unfavorite(page)} />
           ))}
         </ul>
       )}
@@ -164,7 +171,7 @@ const Favorites = () => {
 
 const Recent = ({ graph }: { readonly graph: string }) => {
   const names = useAtomValue(recentPages)[graph] ?? []
-  const everyPage = useAtomValue(allPages)
+  const everyPage = useAtomValue(pageNames)
   const byName = new Map(everyPage.map((page) => [page.name, page]))
   const visited = names.flatMap((name) => {
     const page = byName.get(name)
@@ -175,7 +182,7 @@ const Recent = ({ graph }: { readonly graph: string }) => {
       {visited.length === 0 ? null : (
         <ul className="page-links">
           {visited.map((page) => (
-            <PageLink key={page.id} page={page} starred={false} />
+            <PageLink key={page.name} page={page} />
           ))}
         </ul>
       )}

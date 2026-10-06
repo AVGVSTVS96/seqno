@@ -1,5 +1,5 @@
 import { Effect, Layer, Stream } from "effect"
-import { Atom } from "effect/reactivity"
+import { Atom, Reactivity } from "effect/reactivity"
 import { normalizePageName, type BlockId, type Command, type PageId } from "@seqno/domain"
 import { CoreClient } from "@seqno/rpc"
 
@@ -27,7 +27,23 @@ export const pageNamedAtom = Atom.family((name: string) =>
   ),
 )
 
+export const pageListKey: ReadonlyArray<string> = ["pages"]
+
 export const dispatchAtom = coreRuntime.fn(
-  (command: Command) => Effect.flatMap(CoreClient, (client) => client.Dispatch({ command })),
+  (command: Command) =>
+    Effect.flatMap(CoreClient, (client) => client.Dispatch({ command })).pipe(
+      Effect.tap((events) =>
+        events.some((event) => event._tag === "PageUpserted" || event._tag === "PageDeleted")
+          ? Reactivity.invalidate(pageListKey)
+          : Effect.void,
+      ),
+    ),
   { concurrent: true },
 )
+
+export interface Editing {
+  readonly blockId: BlockId
+  readonly caret: number
+}
+
+export const editRequest = Atom.make<Editing | null>(null).pipe(Atom.keepAlive)

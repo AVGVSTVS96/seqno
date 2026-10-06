@@ -1,9 +1,9 @@
 import { Effect, Layer, Schema, Stream } from "effect"
-import { Atom } from "effect/reactivity"
+import { AsyncResult, Atom } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
-import type { PageId } from "@seqno/domain"
-import { PageClient } from "@seqno/rpc"
-import { appLayer, settingsLayer } from "../../atoms.ts"
+import type { Page, PageId } from "@seqno/domain"
+import { PageClient, type ReferencedPage } from "@seqno/rpc"
+import { allPages, appLayer, settingsLayer } from "../../atoms.ts"
 import { WorkerPages } from "../../core.ts"
 import { dayOf, TableSort } from "./model.ts"
 
@@ -29,6 +29,21 @@ export const unlinkedReferences = Atom.family((pageId: PageId) =>
 )
 
 export const pageStats = viewRuntime.atom(watch((client) => client.WatchPageStats()))
+
+export const referencedPages = viewRuntime.atom(watch((client) => client.WatchReferencedPages()))
+
+const noReferencedPages: ReadonlyArray<ReferencedPage> = []
+
+export const referencedOnly = Atom.make((get) =>
+  AsyncResult.getOrElse(get(referencedPages), () => noReferencedPages),
+)
+
+export type PageName = Pick<Page, "name" | "title">
+
+export const pageNames = Atom.make((get): ReadonlyArray<PageName> => [
+  ...get(allPages),
+  ...get(referencedOnly),
+])
 
 export const today = Atom.make(() => dayOf(new Date()))
 

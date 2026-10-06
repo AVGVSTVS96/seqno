@@ -2,9 +2,11 @@ import { normalizePageName, type Block, type Page } from "@seqno/domain"
 import type { PageStat } from "@seqno/rpc"
 import { crumbLabel, listValues } from "../pages/model.ts"
 
+export type PageName = Pick<Page, "name" | "title">
+
 export type Item =
   | { readonly _tag: "Create"; readonly title: string }
-  | { readonly _tag: "Page"; readonly page: Page }
+  | { readonly _tag: "Page"; readonly page: PageName }
   | {
       readonly _tag: "Block"
       readonly block: Block
@@ -80,27 +82,38 @@ export const blockHits = (hits: Hits, pages: ReadonlyArray<Page>) => {
   })
 }
 
-const matches = (page: Page, words: ReadonlyArray<string>) =>
+const matches = (page: PageName, words: ReadonlyArray<string>) =>
   words.every((word) => page.title.toLowerCase().includes(word.toLowerCase()))
 
 export const groupsOf = (input: {
   readonly query: string
   readonly hits: Hits
   readonly pages: ReadonlyArray<Page>
+  readonly referenced: ReadonlyArray<PageName>
   readonly stats: ReadonlyArray<PageStat>
   readonly expanded: ReadonlySet<Group["id"]>
 }): ReadonlyArray<Group> => {
-  const { query, hits, pages, stats, expanded } = input
+  const { query, hits, pages, referenced, stats, expanded } = input
   const words = terms(query)
   const name = normalizePageName(query)
   const exists =
     name === "" ||
+    referenced.some((page) => page.name === name) ||
     pages.some(
       (page) =>
         page.name === name ||
         listValues(page.props["alias"] ?? "").some((alias) => normalizePageName(alias) === name),
     )
+  const named = referenced
+    .filter((page) => words.length > 0 && matches(page, words))
+    .toSorted(
+      (left, right) =>
+        Number(right.name === name) - Number(left.name === name) ||
+        left.name.indexOf(name) - right.name.indexOf(name) ||
+        left.name.length - right.name.length,
+    )
   const nodes: ReadonlyArray<Item> = [
+    ...named.map((page): Item => ({ _tag: "Page", page })),
     ...hits.pages.map((page): Item => ({ _tag: "Page", page })),
     ...blockHits(hits, pages).map((hit): Item => ({ _tag: "Block", ...hit })),
   ]
@@ -135,5 +148,5 @@ export const itemKey = (item: Item) =>
   item._tag === "Create"
     ? "create"
     : item._tag === "Page"
-      ? `page:${item.page.id}`
+      ? `page:${item.page.name}`
       : `block:${item.block.id}`

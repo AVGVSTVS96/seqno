@@ -4,17 +4,17 @@ import { useMatchRoute, useRouter } from "@tanstack/react-router"
 import { Exit } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { Fragment, useId, useState, type KeyboardEvent, type ReactNode } from "react"
-import { normalizePageName, type BlockId } from "@seqno/domain"
+import type { BlockId } from "@seqno/domain"
 import type { PageStat } from "@seqno/rpc"
 import {
   allPages,
-  dispatch,
+  createPage,
   openGraph,
   rightSidebar,
   searchOpen,
   type SidebarItem,
 } from "../../atoms.ts"
-import { pageStats } from "../pages/atoms.ts"
+import { pageStats, referencedOnly } from "../pages/atoms.ts"
 import { isSearchKey, paletteHits, paletteQuery, searchShortcut } from "./atoms.ts"
 import { groupsOf, highlight, itemKey, noHits, type Group, type Item } from "./model.ts"
 import { Keys } from "../shell/Keys.tsx"
@@ -82,12 +82,13 @@ const Palette = ({
   const stats = AsyncResult.getOrElse(useAtomValue(pageStats), () => noStats)
   const setOpen = useAtomSet(searchOpen)
   const updateSidebar = useAtomSet(rightSidebar)
-  const run = useAtomSet(dispatch, { mode: "promiseExit" })
+  const create = useAtomSet(createPage, { mode: "promiseExit" })
   const router = useRouter()
   const [expanded, setExpanded] = useState<ReadonlySet<Group["id"]>>(new Set())
   const [active, setActive] = useState({ query, index: 0 })
   const ids = useId()
-  const groups = groupsOf({ query, hits, pages, stats, expanded })
+  const referenced = useAtomValue(referencedOnly)
+  const groups = groupsOf({ query, hits, pages, referenced, stats, expanded })
   const items = groups.flatMap((group) => group.items)
   const index = active.query === query ? Math.min(active.index, items.length - 1) : 0
   const current = items[index]
@@ -115,9 +116,9 @@ const Palette = ({
 
   const open = async (item: Item, sidebar: boolean) => {
     if (item._tag === "Create") {
-      const created = await run({ _tag: "CreatePage", title: item.title })
+      const created = await create(item.title)
       if (Exit.isFailure(created)) return
-      const name = normalizePageName(item.title)
+      const name = created.value
       return sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
     }
     if (item._tag === "Page") {

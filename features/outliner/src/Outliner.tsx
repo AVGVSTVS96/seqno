@@ -10,7 +10,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react"
-import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
+import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
@@ -18,7 +18,14 @@ import type { PageTree } from "@seqno/rpc"
 import { plainText, setMarker, type Inline, type Marker } from "@seqno/syntax"
 import { BlockView } from "./BlockView.tsx"
 import { caretFromPoint, hasTextSelection } from "./caret.ts"
-import { blockAtom, dispatchAtom, pageNamedAtom, pageTreeAtom } from "./core.ts"
+import {
+  blockAtom,
+  dispatchAtom,
+  editRequest,
+  pageNamedAtom,
+  pageTreeAtom,
+  type Editing,
+} from "./core.ts"
 import { moveCommand, type DropTarget } from "./drop.ts"
 import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate } from "./navigation.ts"
@@ -49,7 +56,17 @@ export const Outliner = (props: OutlinerProps) =>
     ),
     onFailure: () => (
       <div className="seqno-outliner-status" role="alert">
-        This page could not be loaded
+        This page could not be loaded.{" "}
+        <a
+          role="link"
+          tabIndex={0}
+          onClick={() => props.onNavigate({ _tag: "Journals" })}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") props.onNavigate({ _tag: "Journals" })
+          }}
+        >
+          Go to journals
+        </a>
       </div>
     ),
     onSuccess: ({ value }) => <OutlineView tree={value} {...props} />,
@@ -59,11 +76,6 @@ const overscan = 800
 const edgeMargin = "400px 0px"
 const orderListKey = "logseq.order-list-type"
 const numbered = /^[ \t]*logseq\.order-list-type::[ \t]*number[ \t]*$/m
-
-interface Editing {
-  readonly blockId: BlockId
-  readonly caret: number
-}
 
 const createdBlock = (events: ReadonlyArray<GraphEvent>, except: BlockId) =>
   events.flatMap((event) =>
@@ -255,7 +267,17 @@ const OutlineView = ({
   const container = useRef<HTMLDivElement>(null)
   const pressed = useRef<BlockId | null>(null)
   const swept = useRef(false)
-  const [editing, setEditing] = useState<Editing | null>(null)
+  const [localEditing, setLocalEditing] = useState<Editing | null>(null)
+  const [request, setRequest] = useAtom(editRequest)
+  const requested =
+    request !== null && !embedded && rows.some((row) => row.block.id === request.blockId)
+      ? request
+      : null
+  const editing = requested ?? localEditing
+  const setEditing = (next: Editing | null) => {
+    setLocalEditing(next)
+    if (request !== null) setRequest(null)
+  }
   const [selection, setSelection] = useState<Selection | null>(null)
   const [dragged, setDragged] = useState<ReadonlyArray<BlockId>>([])
   const [drop, setDrop] = useState<DropTarget | null>(null)

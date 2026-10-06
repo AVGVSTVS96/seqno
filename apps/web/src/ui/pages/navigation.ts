@@ -16,11 +16,13 @@ export const useOpenPage = () => {
 }
 
 export const useNavigateTo = () => {
+  const navigate = useNavigate()
   const open = useOpenPage()
   const updateSidebar = useAtomSet(rightSidebar)
   const known = useAtomValue(allPages)
   return Match.type<NavigationTarget>().pipe(
     Match.tagsExhaustive({
+      Journals: () => navigate({ to: "/" }),
       Page: ({ name }) => open({ name: normalizePageName(name) }),
       Zoom: ({ pageId, blockId }) => {
         const page = known.find((candidate) => candidate.id === pageId)

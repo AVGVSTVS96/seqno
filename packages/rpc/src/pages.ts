@@ -1,6 +1,6 @@
 import { Context, Schema } from "effect"
 import { Rpc, RpcGroup, type RpcClient, type RpcClientError } from "effect/rpc"
-import { Block, BlockId, PageId } from "@seqno/domain"
+import { Block, BlockId, JournalDay, PageId } from "@seqno/domain"
 import { GraphNotOpen } from "./errors.ts"
 
 export const Reference = Schema.Struct({ blockId: BlockId, pageId: PageId })
@@ -13,6 +13,16 @@ export const PageStat = Schema.Struct({
   updated: Schema.NullOr(Schema.Number),
 })
 export type PageStat = typeof PageStat.Type
+
+export const ReferencedPage = Schema.Struct({
+  name: Schema.String,
+  title: Schema.String,
+  journalDay: Schema.NullOr(JournalDay),
+  backlinks: Schema.Int,
+  created: Schema.NullOr(Schema.Number),
+  updated: Schema.NullOr(Schema.Number),
+})
+export type ReferencedPage = typeof ReferencedPage.Type
 
 export const WatchReferences = Rpc.make("WatchReferences", {
   payload: { pageId: PageId },
@@ -41,6 +51,12 @@ export const WatchPageStats = Rpc.make("WatchPageStats", {
   stream: true,
 })
 
+export const WatchReferencedPages = Rpc.make("WatchReferencedPages", {
+  success: Schema.Array(ReferencedPage),
+  error: GraphNotOpen,
+  stream: true,
+})
+
 export const Ancestors = Rpc.make("Ancestors", {
   payload: { blockIds: Schema.Array(BlockId) },
   success: Schema.Array(Block),
@@ -52,6 +68,7 @@ export const PageRpcs = RpcGroup.make(
   WatchNameReferences,
   WatchUnlinkedReferences,
   WatchPageStats,
+  WatchReferencedPages,
   Ancestors,
 )
 

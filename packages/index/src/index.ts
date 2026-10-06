@@ -1,4 +1,12 @@
-export { Index, BlockHit, PageHit, PageStat, type LiveQuery, type SearchResult } from "./service.ts"
+export {
+  Index,
+  BlockHit,
+  PageHit,
+  PageStat,
+  ReferencedPage,
+  type LiveQuery,
+  type SearchResult,
+} from "./service.ts"
 export {
   IndexError,
   Row,

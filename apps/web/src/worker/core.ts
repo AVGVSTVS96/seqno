@@ -34,6 +34,7 @@ import {
   type QueryResult,
   type Reference,
 } from "@seqno/rpc"
+import { defaultConfig, parseJournalDay } from "@seqno/interop"
 import { journalDayOf } from "./journal.ts"
 import { GraphLocks } from "./lock.ts"
 import { Device, GraphPlaces, type GraphPlace } from "./place.ts"
@@ -213,17 +214,12 @@ const SessionsLive = Layer.effect(
         }),
       current,
       following: (watch) =>
-        Stream.unwrap(
-          Effect.as(
-            current,
-            SubscriptionRef.changes(state).pipe(
-              Stream.switchMap((open) =>
-                Option.match(open, {
-                  onNone: () => Stream.empty,
-                  onSome: ([session]) => watch(session),
-                }),
-              ),
-            ),
+        SubscriptionRef.changes(state).pipe(
+          Stream.switchMap((open) =>
+            Option.match(open, {
+              onNone: () => Stream.empty,
+              onSome: ([session]) => watch(session),
+            }),
           ),
         ),
       pageChanges: (pageId) =>
@@ -291,6 +287,20 @@ const PageHandlers = PageRpcs.toLayer(
             .pipe(Stream.map(referencesOf), Stream.orDie),
         ),
       WatchPageStats: () => following((session) => Stream.orDie(session.index.watchPageStats)),
+      WatchReferencedPages: () =>
+        following((session) =>
+          session.index.watchReferencedPages.pipe(
+            Stream.map((pages) =>
+              pages.map((page) => ({
+                ...page,
+                journalDay: Option.getOrNull(
+                  parseJournalDay(page.title, defaultConfig.journalTitleFormat),
+                ),
+              })),
+            ),
+            Stream.orDie,
+          ),
+        ),
       Ancestors: ({ blockIds }) =>
         Effect.flatMap(current, (session) => ancestorsOf(session, blockIds)),
     })

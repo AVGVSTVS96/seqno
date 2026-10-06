@@ -166,6 +166,7 @@ describe("search palette", () => {
         ancestors: [blockOf(6, 2, "**Books** to finish")],
       },
       pages: [garden, reading, today],
+      referenced: [],
       stats: [
         { pageId: garden.id, backlinks: 3, created: 1, updated: 2 },
         { pageId: reading.id, backlinks: 1, created: 1, updated: 3 },
@@ -203,6 +204,7 @@ describe("search palette", () => {
       query: "allotment",
       hits: { pages: [], blocks: [], ancestors: [] },
       pages,
+      referenced: [],
       stats: pages.map((page, at) => ({ pageId: page.id, backlinks: 0, created: 0, updated: at })),
       expanded: new Set(),
     })
@@ -211,12 +213,35 @@ describe("search palette", () => {
       query: "",
       hits: { pages: [], blocks: [], ancestors: [] },
       pages,
+      referenced: [],
       stats: pages.map((page, at) => ({ pageId: page.id, backlinks: 0, created: 0, updated: at })),
       expanded: new Set(),
     })
     assert.deepStrictEqual(
       recent.map((group) => [group.title, group.total, group.items.length]),
       [["Recently updated", 7, 5]],
+    )
+  })
+
+  it("lists a page that exists only as a tag, and offers no Create for it", () => {
+    const groups = groupsOf({
+      query: "greenhouse",
+      hits: { pages: [], blocks: [], ancestors: [] },
+      pages: [garden],
+      referenced: [
+        { name: "greenhouse", title: "greenhouse" },
+        { name: "old greenhouse", title: "Old greenhouse" },
+        { name: "seeds", title: "seeds" },
+      ],
+      stats: [],
+      expanded: new Set(),
+    })
+    assert.deepStrictEqual(
+      groups.map((group) => [
+        group.title,
+        group.items.map((item) => (item._tag === "Page" ? item.page.title : item._tag)),
+      ]),
+      [["Nodes", ["greenhouse", "Old greenhouse"]]],
     )
   })
 })

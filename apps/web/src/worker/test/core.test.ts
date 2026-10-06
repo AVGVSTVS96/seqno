@@ -242,6 +242,28 @@ describe("the core worker on the real graph, vault and index", () => {
     ),
   )
 
+  it.effect("names that are only referenced come back as pages, titled as written", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const core = yield* coreOn(yield* copyOfFixture)
+        yield* core.OpenGraph({ graph: "og" })
+        const referenced = yield* core
+          .WatchReferencedPages()
+          .pipe(Stream.take(1), Stream.runCollect)
+        assert.deepStrictEqual(
+          referenced.flat().map((page) => [page.name, page.title, page.backlinks]),
+          [
+            ["hashtag-not-heading", "hashtag-not-heading", 1],
+            ["multi word tag", "multi word tag", 1],
+            ["page ref", "page ref", 1],
+            ["tag", "tag", 1],
+            ["voice note", "voice note", 1],
+          ],
+        )
+      }),
+    ),
+  )
+
   it.live("a page watch wakes for its own page only, and for blocks moved away from it", () =>
     Effect.scoped(
       Effect.gen(function* () {

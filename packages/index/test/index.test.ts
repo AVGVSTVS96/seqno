@@ -202,6 +202,39 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     ),
   )
 
+  it.effect("lists names that are referenced but have no page, titled as written", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        yield* index.apply(
+          [
+            ...graph,
+            upsertBlock(blockId(9), journal, "sowed tomatoes #Greenhouse", { updatedAt: 3_000 }),
+            upsertBlock(blockId(10), notes, "see [[Seed Inventory]] and #greenhouse."),
+            upsertBlock(blockId(11), notes, "```css\na {\n  color: #3a7d44;\n}\n```"),
+            upsertBlock(blockId(12), notes, "#+BEGIN_QUERY\n{}\n#+END_QUERY"),
+          ],
+          "v1",
+        )
+        assert.deepStrictEqual(yield* index.referencedPages, [
+          { name: "greenhouse", title: "Greenhouse", backlinks: 2, created: 1_000, updated: 3_000 },
+          { name: "other", title: "other", backlinks: 1, created: 1_000, updated: 1_000 },
+          {
+            name: "seed inventory",
+            title: "Seed Inventory",
+            backlinks: 1,
+            created: 1_000,
+            updated: 1_000,
+          },
+        ])
+        yield* index.apply([upsertPage(pageId(4), "Greenhouse")], "v2")
+        assert.deepStrictEqual(
+          (yield* index.referencedPages).map((page) => page.name),
+          ["other", "seed inventory"],
+        )
+      }),
+    ),
+  )
+
   it.live("live backlinks wake for the page's own refs and aliases, not for other edits", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {

@@ -71,7 +71,7 @@ const perform = (
 const recordVisit = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter) => {
   const opened = registry.get(openGraph)
   const visited = router.state.matches.flatMap((match) =>
-    match.routeId === "/page/$name" ? [match.params.name] : [],
+    match.routeId === "/page/$name" && match.search.zoom === undefined ? [match.params.name] : [],
   )[0]
   if (!AsyncResult.isSuccess(opened) || visited === undefined) return
   const graph = opened.value.graph

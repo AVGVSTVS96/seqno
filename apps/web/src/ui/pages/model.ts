@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 import type { Block, BlockId, Page, PageId } from "@seqno/domain"
-import type { PageStat, Reference } from "@seqno/rpc"
+import type { PageStat, ReferencedPage, Reference } from "@seqno/rpc"
 
 export const SortColumn = Schema.Literals(["title", "backlinks", "created", "updated"])
 export type SortColumn = typeof SortColumn.Type
@@ -66,7 +66,7 @@ export const crumbLabel = (text: string) =>
     .trim()
 
 export interface PageRow {
-  readonly page: Page
+  readonly page: Pick<Page, "name" | "title" | "journalDay" | "props">
   readonly backlinks: number
   readonly created: number | null
   readonly updated: number | null
@@ -75,17 +75,26 @@ export interface PageRow {
 export const pageRows = (
   pages: ReadonlyArray<Page>,
   stats: ReadonlyArray<PageStat>,
+  referenced: ReadonlyArray<ReferencedPage> = [],
 ): ReadonlyArray<PageRow> => {
   const byPage = new Map(stats.map((stat) => [stat.pageId, stat]))
-  return pages.map((page) => {
-    const stat = byPage.get(page.id)
-    return {
-      page,
-      backlinks: stat?.backlinks ?? 0,
-      created: stat?.created ?? null,
-      updated: stat?.updated ?? null,
-    }
-  })
+  return [
+    ...pages.map((page) => {
+      const stat = byPage.get(page.id)
+      return {
+        page,
+        backlinks: stat?.backlinks ?? 0,
+        created: stat?.created ?? null,
+        updated: stat?.updated ?? null,
+      }
+    }),
+    ...referenced.map(({ name, title, journalDay, backlinks, created, updated }) => ({
+      page: { name, title, journalDay, props: {} },
+      backlinks,
+      created,
+      updated,
+    })),
+  ]
 }
 
 const compareBy = (column: SortColumn) => (left: PageRow, right: PageRow) => {

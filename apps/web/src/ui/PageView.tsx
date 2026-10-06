@@ -4,8 +4,9 @@ import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
 import { normalizePageName, type BlockId, type Page } from "@seqno/domain"
 import { Outliner } from "@seqno/outliner"
-import { assetResolver, dispatch, pages } from "../atoms.ts"
+import { assetResolver, createPage, pages } from "../atoms.ts"
 import { EditorSlot } from "./EditorSlot.tsx"
+import { referencedOnly } from "./pages/atoms.ts"
 import { listValues } from "./pages/model.ts"
 import { useNavigateTo } from "./pages/navigation.ts"
 import { PageProperties } from "./pages/PageProperties.tsx"
@@ -64,20 +65,21 @@ const named = (all: ReadonlyArray<Page>, name: string) =>
 
 const MissingPage = ({ name }: { readonly name: string }) => {
   const heading = useId()
-  const create = useAtomSet(dispatch)
+  const create = useAtomSet(createPage)
+  const title = useAtomValue(referencedOnly).find((page) => page.name === name)?.title ?? name
   return (
     <div className="seqno-page">
       <PagesStyle />
       <article aria-labelledby={heading}>
         <h1 id={heading} className="seqno-page-title" data-editable={false}>
-          {name}
+          {title}
         </h1>
         <div className="seqno-page-blocks">
           <button
             type="button"
             className="seqno-page-create"
             aria-label="Click here to start writing"
-            onClick={() => create({ _tag: "CreatePage", title: name })}
+            onClick={() => create(title)}
           >
             <span className="seqno-page-create-bullet" />
           </button>

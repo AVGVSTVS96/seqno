@@ -31,30 +31,52 @@ const MARKER = /^(TODO|DOING|DONE|LATER|NOW|WAITING|CANCELED|CANCELLED)(?=\s|$)/
 const PRIORITY = /\[#([ABC])\]/
 const DATE_LINE = /^(SCHEDULED|DEADLINE): <(\d{4})-(\d{2})-(\d{2})/gm
 const WIKI = /\[\[([^\]]+)\]\]/g
-const TAG = /(?:^|\s)#(?!\[\[)([^\s#,[\]()]+)|#\[\[([^\]]+)\]\]/g
+const TAG = /(?:^|\s)#(?!\[\[|\+)([^\s#,[\]()]+)|#\[\[([^\]]+)\]\]/g
 const CODE = /`[^`\n]*`/g
+const FENCE = /^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]*\1[ \t]*$|(?![\s\S]))/gm
+const TAG_TRAILER = /[.:]+$/
 const LIST_KEYS = new Set(["tags", "alias"])
 
 const wikiNames = (text: string) =>
   [...text.matchAll(WIKI)].map((m) => normalizePageName(m[1] ?? ""))
 
+const tagOf = (m: RegExpMatchArray) => m[2] ?? (m[1] ?? "").replace(TAG_TRAILER, "")
+
 const tagNames = (text: string) =>
-  [...text.matchAll(TAG)].map((m) => normalizePageName(m[1] ?? m[2] ?? ""))
+  [...text.matchAll(TAG)]
+    .map(tagOf)
+    .flatMap((name) => (name === "" ? [] : [normalizePageName(name)]))
+
+export const titleIn = (text: string, name: string): string => {
+  const code = withoutCode(text)
+  const raw = [
+    ...[...code.matchAll(WIKI)].map((m) => m[1] ?? ""),
+    ...[...code.matchAll(TAG)].map(tagOf),
+  ].find((candidate) => normalizePageName(candidate) === name)
+  return raw === undefined ? name : raw.trim()
+}
 
 export const toNum = (value: string): number | null => {
   const n = Number(value)
   return value.trim() !== "" && Number.isFinite(n) ? n : null
 }
 
+const listItem = (part: string) =>
+  normalizePageName(
+    part
+      .trim()
+      .replace(/^\[\[(.*)\]\]$/, "$1")
+      .replace(/^#/, ""),
+  )
+
 const propValues = (key: string, raw: string): ReadonlyArray<string> => {
-  const linked = [...wikiNames(raw), ...tagNames(raw)]
-  if (linked.length > 0) return linked
   if (LIST_KEYS.has(key))
     return raw
       .split(",")
-      .map(normalizePageName)
+      .map(listItem)
       .filter((v) => v !== "")
-  return [normalizePageName(raw)]
+  const linked = [...wikiNames(raw), ...tagNames(raw)]
+  return linked.length > 0 ? linked : [normalizePageName(raw)]
 }
 
 const propsOf = (props: Props): ReadonlyArray<Prop> =>
@@ -89,8 +111,10 @@ const taskOf = (text: string): Task | null => {
   }
 }
 
+const withoutCode = (text: string) => text.replace(FENCE, "").replace(CODE, "")
+
 export const blockFacets = (text: string, props: Props): BlockFacets => {
-  const code = text.replace(CODE, "")
+  const code = withoutCode(text)
   const tags = [...new Set(tagNames(code))]
   const refs = [...new Set([...tags, ...linkedProps(props), ...wikiNames(code)])]
   return { refs, tags, props: propsOf(props), task: taskOf(code) }

@@ -14,7 +14,7 @@ import { normalizePageName } from "@seqno/domain"
 import type { PageStat } from "@seqno/rpc"
 import { allPages } from "../../atoms.ts"
 import { PagesStyle } from "../PageView.tsx"
-import { allPagesJournals, allPagesSort, pageStats } from "./atoms.ts"
+import { allPagesJournals, allPagesSort, pageStats, referencedOnly } from "./atoms.ts"
 import { listValues, pageRows, timestamp, visibleRows, type SortColumn } from "./model.ts"
 import { PageLink } from "./PageLink.tsx"
 
@@ -74,7 +74,8 @@ export const AllPages = () => {
   const [sort, setSort] = useAtom(allPagesSort)
   const [journals, setJournals] = useAtom(allPagesJournals)
   const [filter, setFilter] = useState<string | null>(null)
-  const rows = visibleRows(pageRows(everyPage, stats), {
+  const referenced = useAtomValue(referencedOnly)
+  const rows = visibleRows(pageRows(everyPage, stats, referenced), {
     sort,
     filter: filter ?? "",
     journals,
@@ -148,7 +149,7 @@ export const AllPages = () => {
           </thead>
           <tbody>
             {rows.map(({ page, backlinks, created, updated }) => (
-              <tr key={page.id}>
+              <tr key={page.name}>
                 <td className="seqno-table-gutter" />
                 <td>
                   <PageLink page={page} className="seqno-table-page" />

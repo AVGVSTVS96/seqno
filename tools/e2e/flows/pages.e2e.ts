@@ -76,16 +76,50 @@ test("all pages hides journals, sorts by title and filters", async ({ page }) =>
   await page.getByRole("button", { name: "Include journals" }).click()
   await table.getByRole("button", { name: "Page name" }).click()
   await expect(names).toHaveText([
+    "design",
     "Garden Plan",
+    "greenhouse",
     "projects/Greenhouse",
     "Reading List",
     "Seed Inventory",
     "Showcase",
     "Sourdough",
+    "visual check",
   ])
   await page.getByRole("button", { name: "Search pages" }).click()
   await page.getByRole("searchbox", { name: "Search pages" }).fill("gar")
   await expect(names).toHaveText(["Garden Plan"])
+})
+
+test("a page created from the palette opens with the caret in its first block", async ({
+  page,
+  seqno,
+}) => {
+  await openShowcaseAt(page, "/")
+  await page.keyboard.press("Control+k")
+  await palette(page).getByRole("searchbox", { name: "Search" }).fill("Potting Bench")
+  await expect(palette(page).getByRole("option").first()).toContainText("Create page")
+  await page.keyboard.press("Enter")
+  await expect(page).toHaveURL(/\/page\/potting%20bench$/)
+  await expect(seqno.editor).toBeFocused()
+  await page.keyboard.type("typed")
+  await expect(seqno.editor).toHaveText("typed")
+})
+
+test("# suggests a tag that exists only as a tag, and search finds it", async ({ page }) => {
+  await openShowcaseAt(page, "/page/reading%20list")
+  await page.getByRole("treeitem").filter({ hasText: "Books to finish" }).first().click()
+  await page.keyboard.press("End")
+  await page.keyboard.type(" #gre")
+  const popup = page.getByRole("listbox", { name: "Search for a tag" })
+  await expect(popup.getByRole("option", { selected: true })).toHaveText("greenhouse")
+  await expect(popup.getByRole("option").nth(1)).toHaveText("New tag gre")
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Control+k")
+  await palette(page).getByRole("searchbox", { name: "Search" }).fill("greenhouse")
+  await expect(palette(page).getByRole("option").first()).toHaveText("greenhouse")
+  await expect(palette(page).getByText("Create page")).toHaveCount(0)
 })
 
 test("Shift+Enter in the palette opens the result in the right sidebar", async ({ page }) => {

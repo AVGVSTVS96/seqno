@@ -4,6 +4,7 @@ import type { KeyValueStore } from "effect/persistence"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName, type Command, type Page } from "@seqno/domain"
+import { editRequest, pageListKey } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
 import { WorkerCore } from "./core.ts"
 import { BrowserGraphLocations, GraphLocations } from "./graph-locations.ts"
@@ -16,7 +17,7 @@ export const appLayer = Atom.make<Layer.Layer<AppServices, WorkerError>>(
 
 export const appRuntime = Atom.runtime((get) => get(appLayer))
 
-const pagesKey = ["pages"]
+const pagesKey = pageListKey
 
 export const GraphSource = Schema.TaggedUnion({
   PickFolder: {},
@@ -119,6 +120,25 @@ export const dispatch = appRuntime.fn(
       return events
     }),
   { concurrent: true },
+)
+
+export const createPage = appRuntime.fn((title: string, get) =>
+  Effect.gen(function* () {
+    const core = yield* CoreClient
+    const created = yield* core.Dispatch({ command: { _tag: "CreatePage", title } })
+    const page = created.flatMap((event) => (event._tag === "PageUpserted" ? [event.page] : []))[0]
+    if (page !== undefined) {
+      const inserted = yield* core.Dispatch({
+        command: { _tag: "InsertBlock", pageId: page.id, parentId: null, text: "" },
+      })
+      const first = inserted.flatMap((event) =>
+        event._tag === "BlockUpserted" ? [event.block.id] : [],
+      )[0]
+      if (first !== undefined) get.set(editRequest, { blockId: first, caret: 0 })
+    }
+    yield* Reactivity.invalidate(pagesKey)
+    return normalizePageName(title)
+  }),
 )
 
 export const pages = appRuntime

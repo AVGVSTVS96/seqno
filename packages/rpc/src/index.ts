@@ -13,9 +13,11 @@ export {
   PageClient,
   PageRpcs,
   PageStat,
+  ReferencedPage,
   Reference,
   WatchNameReferences,
   WatchPageStats,
+  WatchReferencedPages,
   WatchReferences,
   WatchUnlinkedReferences,
 } from "./pages.ts"

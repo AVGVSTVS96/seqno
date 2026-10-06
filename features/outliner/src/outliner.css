@@ -22,6 +22,19 @@
   color: transparent;
 }
 
+.seqno-outliner-status[role="alert"] {
+  color: var(--fg-subtle);
+}
+
+.seqno-outliner-status a {
+  color: var(--fg-link);
+  cursor: pointer;
+}
+
+.seqno-outliner-status a:hover {
+  color: var(--fg-link-hover);
+}
+
 .seqno-crumbs {
   display: flex;
   align-items: center;
