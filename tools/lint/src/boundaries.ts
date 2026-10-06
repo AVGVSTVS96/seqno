@@ -35,16 +35,16 @@ const allowed: Record<Side, ReadonlyArray<Side>> = {
   pure: ["domain", "pure"],
   core: ["domain", "contract", "pure", "core"],
   worker: ["domain", "contract", "pure", "core", "worker"],
-  ui: ["domain", "contract", "ui"],
+  ui: ["domain", "contract", "pure", "ui"],
   tool: ["domain", "contract", "pure", "core", "worker", "ui", "tool"],
 }
 
 const isUi = (side: Side) => side === "ui"
-const isCoreSide = (side: Side) => side === "pure" || side === "core" || side === "worker"
+const isCoreSide = (side: Side) => side === "core" || side === "worker"
 
 const fixFor = (from: Unit, to: Unit): string => {
   if (isUi(from.side) && isCoreSide(to.side)) {
-    return "UI code reaches the core only through @seqno/rpc: add or use an Rpc in packages/rpc and call it from the UI. Shared types belong in @seqno/domain."
+    return "UI code reaches the core only through @seqno/rpc: add or use an Rpc in packages/rpc and call it from the UI. Shared types belong in @seqno/domain, and pure parsing lives in @seqno/syntax or @seqno/query, which the UI may import."
   }
   if (isUi(to.side)) {
     return "Core code never imports UI code. Move the shared piece into @seqno/domain."

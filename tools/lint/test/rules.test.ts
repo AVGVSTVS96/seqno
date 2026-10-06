@@ -79,6 +79,14 @@ tester.run("import-boundaries", importBoundaries, {
     { code: "import { CoreRpcs } from '@seqno/rpc'", filename: at("apps/web/src/main.tsx") },
     { code: "import { Graph } from '@seqno/graph'", filename: at("apps/web/src/worker/main.ts") },
     {
+      code: "import { analyzeBlock } from '@seqno/syntax'",
+      filename: at("features/outliner/src/StaticBlock.tsx"),
+    },
+    {
+      code: "import { parseLogseqQuery } from '@seqno/query'",
+      filename: at("apps/web/src/atoms.ts"),
+    },
+    {
       code: "import { parse } from '@seqno/syntax'",
       filename: at("packages/index/src/indexer.ts"),
     },
@@ -92,7 +100,7 @@ tester.run("import-boundaries", importBoundaries, {
       code: "import { Graph } from '@seqno/graph'",
       filename: at("features/editor/src/editor.tsx"),
       errors: [
-        "@seqno/editor (ui side) cannot import @seqno/graph (core side). UI code reaches the core only through @seqno/rpc: add or use an Rpc in packages/rpc and call it from the UI. Shared types belong in @seqno/domain.",
+        "@seqno/editor (ui side) cannot import @seqno/graph (core side). UI code reaches the core only through @seqno/rpc: add or use an Rpc in packages/rpc and call it from the UI. Shared types belong in @seqno/domain, and pure parsing lives in @seqno/syntax or @seqno/query, which the UI may import.",
       ],
     },
     {
@@ -106,6 +114,11 @@ tester.run("import-boundaries", importBoundaries, {
       code: "const graph = import('@seqno/index')",
       filename: at("apps/web/src/main.tsx"),
       errors: [/cannot import @seqno\/index \(core side\)/],
+    },
+    {
+      code: "import { Vault } from '@seqno/vault'",
+      filename: at("features/outliner/src/Outliner.tsx"),
+      errors: [/^@seqno\/outliner \(ui side\) cannot import @seqno\/vault \(core side\)/],
     },
     {
       code: "import { boot } from './worker/main.ts'",

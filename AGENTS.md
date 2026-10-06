@@ -52,12 +52,12 @@ A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added t
    ui side ------+          +------ core side
    apps/web                         pure: syntax, query (domain + pure)
    features/*                       core: graph, index, vault, interop
-   (domain, rpc, ui)                worker: apps/web/src/worker/** (core packages, never ui)
+   (domain, rpc, pure, ui)          worker: apps/web/src/worker/** (core packages, never ui)
 
    tools/*  may import anything; nothing imports a tool
 ```
 
-- The UI side imports only `@seqno/domain`, `@seqno/rpc` and other UI packages. It never imports graph, index, vault, interop, syntax or query. It talks to the core only through `@seqno/rpc`.
+- The UI side imports only `@seqno/domain`, `@seqno/rpc`, the pure packages (`@seqno/syntax`, `@seqno/query`) and other UI packages. Blocks render with the same parser the core uses, not a second one. It never imports graph, index, vault or interop, and talks to the core only through `@seqno/rpc`.
 - The core side never imports UI packages.
 - The core worker entry lives in `apps/web/src/worker/`. Files there count as core side: they may import core packages and may not import UI code. UI files in `apps/web` may not import from `src/worker/` (start the worker with `new Worker(new URL(...))`, not an import).
 - Relative imports never leave their package. Import another package by its `@seqno/*` name and list it in `package.json`.
