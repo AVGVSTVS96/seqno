@@ -3,19 +3,15 @@ import { Effect, Layer, Option, Stream, SubscriptionRef } from "effect"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { RpcTest } from "effect/rpc"
 import { BlockId, Command, PageId, type Block, type GraphEvent, type Page } from "@seqno/domain"
-import { CommandRejected, CoreRpcs, type PageTree } from "@seqno/rpc"
+import { CommandRejected, CoreClient, CoreRpcs, type PageTree } from "@seqno/rpc"
 import {
   appLayer,
-  block,
-  dispatch,
   favorites,
   journals,
   openGraph,
   pageNamed,
-  rows,
   type AppServices,
 } from "../src/atoms.ts"
-import { Core } from "../src/core.ts"
 import { GraphLocations, type GraphLocation } from "../src/graph-locations.ts"
 
 const pageOf = (id: string, title: string, journalDay: number | null, favorite: boolean): Page => ({
@@ -107,7 +103,9 @@ const FakeCore = CoreRpcs.toLayer(
   }),
 )
 
-const TestCore = Layer.effect(Core, RpcTest.makeClient(CoreRpcs)).pipe(Layer.provide(FakeCore))
+const TestCore = Layer.effect(CoreClient, RpcTest.makeClient(CoreRpcs)).pipe(
+  Layer.provide(FakeCore),
+)
 
 const inBrowser = (name: string): GraphLocation => ({ _tag: "OpfsGraph", name })
 
@@ -152,61 +150,6 @@ describe("app atoms", () => {
       yield* settle
       const found = registry.get(pageNamed("inbox"))
       assert.deepStrictEqual(AsyncResult.isSuccess(found) ? found.value : null, Option.some(inbox))
-    }),
-  )
-
-  it.effect("notifies only the block that changed, and hides collapsed children", () =>
-    Effect.gen(function* () {
-      const registry = testRegistry()
-      const seen: Array<string> = []
-      const watch = (watched: Block) =>
-        registry.subscribe(
-          block({ pageId: inbox.id, blockId: watched.id }),
-          (value) =>
-            seen.push(
-              `${watched.text}: ${Option.match(value, {
-                onNone: () => "loading",
-                onSome: (found) => `${found.text}${found.collapsed ? " (collapsed)" : ""}`,
-              })}`,
-            ),
-          { immediate: true },
-        )
-      watch(parentBlock)
-      watch(siblingBlock)
-      registry.mount(rows(inbox.id))
-      registry.mount(dispatch)
-      yield* settle
-      assert.deepStrictEqual(
-        registry.get(rows(inbox.id)).map((row) => [row.depth, row.hasChildren]),
-        [
-          [0, true],
-          [1, false],
-          [0, false],
-        ],
-      )
-      registry.set(dispatch, {
-        _tag: "EditText",
-        blockId: siblingBlock.id,
-        from: 7,
-        to: 7,
-        insert: "!",
-      })
-      yield* settle
-      registry.set(dispatch, { _tag: "SetCollapsed", blockId: parentBlock.id, collapsed: true })
-      yield* settle
-      assert.deepStrictEqual(seen, [
-        "parent: parent",
-        "sibling: sibling",
-        "sibling: sibling!",
-        "parent: parent (collapsed)",
-      ])
-      assert.deepStrictEqual(
-        registry.get(rows(inbox.id)).map((row) => [row.depth, row.collapsed]),
-        [
-          [0, true],
-          [0, false],
-        ],
-      )
     }),
   )
 })

@@ -1,8 +1,7 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect"
 import { RpcTest } from "effect/rpc"
 import { Block, BlockId, Command, PageId, type GraphEvent, type Page } from "@seqno/domain"
-import { BlockNotFound, CoreRpcs, type PageTree } from "@seqno/rpc"
-import { CoreClient } from "../src/index.ts"
+import { BlockNotFound, CoreClient, CoreRpcs, type PageTree } from "@seqno/rpc"
 
 export const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
 

@@ -1,4 +1,4 @@
-export { CoreClient, blockAtom, coreRuntime, dispatchAtom, pageTreeAtom } from "./core.ts"
+export { blockAtom, coreRuntime, dispatchAtom, pageTreeAtom } from "./core.ts"
 export { Outliner, type OutlinerProps } from "./Outliner.tsx"
 export { PlainTextEditor } from "./PlainTextEditor.tsx"
 export { EditorIntent, type EditorSlotProps } from "./slot.ts"

@@ -1,13 +1,7 @@
-import { Context, Effect, Layer, Stream } from "effect"
+import { Effect, Layer, Stream } from "effect"
 import { Atom } from "effect/reactivity"
-import type { RpcClient, RpcClientError, RpcGroup } from "effect/rpc"
 import type { BlockId, Command, PageId } from "@seqno/domain"
-import type { CoreRpcs } from "@seqno/rpc"
-
-export class CoreClient extends Context.Service<
-  CoreClient,
-  RpcClient.RpcClient<RpcGroup.Rpcs<typeof CoreRpcs>, RpcClientError.RpcClientError>
->()("@seqno/outliner/CoreClient") {}
+import { CoreClient } from "@seqno/rpc"
 
 export const coreRuntime = Atom.runtime(
   Layer.effect(CoreClient)(

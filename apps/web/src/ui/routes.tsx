@@ -10,7 +10,7 @@ export const Journals = () => {
     <div className="journals">
       {days.length === 0 ? <p className="hint">No journal pages yet.</p> : null}
       {days.map((page) => (
-        <PageView key={page.id} page={page} />
+        <PageView key={page.id} page={page} zoom={null} />
       ))}
     </div>
   )
@@ -20,7 +20,8 @@ const pageRoute = getRouteApi("/page/$name")
 
 export const PageRoute = () => {
   const { name } = pageRoute.useParams()
-  return <PageByName name={name} />
+  const { zoom } = pageRoute.useSearch()
+  return <PageByName name={name} zoom={zoom ?? null} />
 }
 
 export const AllPages = () => {

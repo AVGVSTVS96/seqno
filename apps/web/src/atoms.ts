@@ -1,11 +1,12 @@
 import { Effect, Equal, Layer, Option, Schema, Stream } from "effect"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
-import type { Block, BlockId, Command, Page, PageId } from "@seqno/domain"
-import { Core, WorkerCore } from "./core.ts"
+import type { Command, Page } from "@seqno/domain"
+import { CoreClient } from "@seqno/rpc"
+import { WorkerCore } from "./core.ts"
 import { BrowserGraphLocations, GraphLocations } from "./graph-locations.ts"
 
-export type AppServices = Core | GraphLocations
+export type AppServices = CoreClient | GraphLocations
 
 export const appLayer = Atom.make<Layer.Layer<AppServices, WorkerError>>(
   Layer.merge(WorkerCore, BrowserGraphLocations),
@@ -35,7 +36,7 @@ export const openGraph = appRuntime
         Demo: () => locations.demo,
         Recent: ({ name }) => locations.reopen(name),
       })
-      const core = yield* Core
+      const core = yield* CoreClient
       const opened = yield* core.OpenGraph({ graph: location.name })
       yield* Reactivity.invalidate(pagesKey)
       return opened
@@ -46,7 +47,7 @@ export const openGraph = appRuntime
 export const dispatch = appRuntime.fn(
   (command: Command) =>
     Effect.gen(function* () {
-      const core = yield* Core
+      const core = yield* CoreClient
       const events = yield* core.Dispatch({ command })
       if (events.some((event) => event._tag === "PageUpserted" || event._tag === "PageDeleted")) {
         yield* Reactivity.invalidate(pagesKey)
@@ -57,7 +58,7 @@ export const dispatch = appRuntime.fn(
 )
 
 export const pages = appRuntime
-  .atom(Effect.flatMap(Effect.service(Core), (core) => core.GetPages()))
+  .atom(Effect.flatMap(Effect.service(CoreClient), (core) => core.GetPages()))
   .pipe(appRuntime.factory.withReactivity(pagesKey))
 
 const pageList = (select: (all: ReadonlyArray<Page>) => ReadonlyArray<Page>) =>
@@ -85,61 +86,10 @@ export const pageNamed = Atom.family((name: string) =>
   ),
 )
 
-export const pageTree = Atom.family((pageId: PageId) =>
-  appRuntime.atom(
-    Stream.unwrap(Effect.map(Effect.service(Core), (core) => core.WatchPage({ pageId }))),
-  ),
-)
-
-export interface Row {
-  readonly blockId: BlockId
-  readonly depth: number
-  readonly hasChildren: boolean
-  readonly collapsed: boolean
-}
-
-export const visibleRows = (blocks: ReadonlyArray<Block>): ReadonlyArray<Row> => {
-  const depths = new Map<BlockId, number>()
-  const hidden = new Set<BlockId>()
-  return blocks.flatMap((block, index) => {
-    const parentDepth = block.parentId === null ? -1 : (depths.get(block.parentId) ?? -1)
-    depths.set(block.id, parentDepth + 1)
-    const parentHidden = block.parentId !== null && hidden.has(block.parentId)
-    const parentCollapsed =
-      block.parentId !== null &&
-      blocks.some((other) => other.id === block.parentId && other.collapsed)
-    if (parentHidden || parentCollapsed) {
-      hidden.add(block.id)
-      return []
-    }
-    const hasChildren = blocks[index + 1]?.parentId === block.id
-    return [{ blockId: block.id, depth: parentDepth + 1, hasChildren, collapsed: block.collapsed }]
-  })
-}
-
-export const rows = Atom.family((pageId: PageId) =>
-  Atom.make((get) =>
-    Option.getOrElse(
-      Option.map(AsyncResult.value(get(pageTree(pageId))), (tree) => visibleRows(tree.blocks)),
-      () => [],
-    ),
-  ).pipe(Atom.withEquality(Equal.equals)),
-)
-
-export const block = Atom.family((key: { readonly pageId: PageId; readonly blockId: BlockId }) =>
-  Atom.make((get) =>
-    Option.flatMap(AsyncResult.value(get(pageTree(key.pageId))), (tree) =>
-      Option.fromNullishOr(tree.blocks.find((candidate) => candidate.id === key.blockId)),
-    ),
-  ).pipe(Atom.withEquality(Equal.equals)),
-)
-
-export const focusedBlock = Atom.make(Option.none<BlockId>()).pipe(Atom.keepAlive)
-
 export const rightSidebarOpen = Atom.make(true).pipe(Atom.keepAlive)
 
 export const search = Atom.family((query: string) =>
   appRuntime.atom(
-    Stream.unwrap(Effect.map(Effect.service(Core), (core) => core.WatchQuery({ query }))),
+    Stream.unwrap(Effect.map(Effect.service(CoreClient), (core) => core.WatchQuery({ query }))),
   ),
 )

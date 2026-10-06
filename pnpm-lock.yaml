@@ -35,6 +35,12 @@ importers:
       '@seqno/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@seqno/editor':
+        specifier: workspace:*
+        version: link:../../features/editor
+      '@seqno/outliner':
+        specifier: workspace:*
+        version: link:../../features/outliner
       '@seqno/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc

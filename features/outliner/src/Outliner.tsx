@@ -1,6 +1,13 @@
-import { useRef, useState, type ComponentType, type DragEvent, type KeyboardEvent } from "react"
-import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { Exit } from "effect"
+import {
+  useContext,
+  useRef,
+  useState,
+  type ComponentType,
+  type DragEvent,
+  type KeyboardEvent,
+} from "react"
+import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
+import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
@@ -80,6 +87,7 @@ const OutlineView = ({
   editor: Editor = PlainTextEditor,
 }: OutlinerProps & { readonly tree: PageTree }) => {
   const view = outline(tree, zoom)
+  const registry = useContext(RegistryContext)
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
   const container = useRef<HTMLDivElement>(null)
   const [editing, setEditing] = useState<Editing | null>(null)
@@ -164,11 +172,20 @@ const OutlineView = ({
     container.current?.focus()
   }
 
-  const onIntent = (block: Block) => (intent: EditorIntent) => {
-    const index = indexOf(block.id)
-    const previous = rows[index - 1]?.block
-    const next = rows[index + 1]?.block
-    const siblings = view.children(block.parentId)
+  const latest = (): Outline =>
+    Option.match(AsyncResult.value(registry.get(pageTreeAtom(pageId))), {
+      onNone: () => view,
+      onSome: (current) => outline(current, zoom),
+    })
+
+  const onIntent = (blockId: BlockId) => (intent: EditorIntent) => {
+    const now = latest()
+    const index = now.rows.findIndex((row) => row.block.id === blockId)
+    const block = now.rows[index]?.block
+    if (block === undefined) return
+    const previous = now.rows[index - 1]?.block
+    const next = now.rows[index + 1]?.block
+    const siblings = now.children(block.parentId)
     const isLastChild = siblings[siblings.length - 1]?.id === block.id
     EditorIntent.match(intent, {
       Split: ({ at }) => {
@@ -394,7 +411,7 @@ const OutlineView = ({
                       block={block}
                       caret={Math.min(editing.caret, block.text.length)}
                       dispatch={dispatch}
-                      onIntent={onIntent(block)}
+                      onIntent={onIntent(block.id)}
                     />
                   ) : (
                     <StaticBlock text={block.text} navigate={onNavigate} />
