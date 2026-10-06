@@ -1,0 +1,23 @@
+{
+  "name": "seqno",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "pnpm lint && oxfmt --check && pnpm typecheck && pnpm test",
+    "lint": "oxlint --deny-warnings && node tools/lint/src/imports.ts",
+    "fmt": "oxfmt",
+    "typecheck": "pnpm --recursive --workspace-concurrency=2 typecheck",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.26.0"
+}

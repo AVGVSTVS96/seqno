@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "react", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "ignorePatterns": [".claude/**", "spikes/**", "fixtures/**", "**/node_modules/**", "**/dist/**"],
+  "rules": {
+    "import/no-cycle": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/ban-ts-comment": "error",
+    "react/react-in-jsx-scope": "off"
+  }
+}

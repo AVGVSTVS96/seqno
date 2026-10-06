@@ -11,3 +11,6 @@ spikes/verify/
 spikes/**/tmp/
 spikes/**/scratch/
 .worktrees/
+coverage/
+playwright-report/
+test-results/
