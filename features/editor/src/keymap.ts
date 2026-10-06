@@ -47,6 +47,7 @@ export const blockKeymap = (
   host: EditorHost,
   handoff: Handoff,
   whenConfirmed: (run: () => void) => void,
+  textOf: (draft: string) => string,
 ) => {
   const send = (command: Command) => () => {
     host.dispatch(command)
@@ -71,7 +72,7 @@ export const blockKeymap = (
 
   const merge = (view: EditorView): boolean => {
     if (caret(view) !== 0) return false
-    handoff.carry({ _tag: "Merged", tail: view.state.doc.toString() })
+    handoff.carry({ _tag: "Merged", tail: textOf(view.state.doc.toString()) })
     host.dispatch({ _tag: "MergeWithPrevious", blockId })
     return true
   }

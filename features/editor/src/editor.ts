@@ -5,7 +5,8 @@ import { Effect, Fiber, Stream } from "effect"
 import type { Block, Command } from "@seqno/domain"
 import { autopair } from "./autopair.ts"
 import { completion, createPopupStore, type PopupStore } from "./completion.ts"
-import { editTextCommands, fromGraph, minimalChange, placeCursor, textSync } from "./edits.ts"
+import { fromGraph, minimalChange, placeCursor, textSync } from "./edits.ts"
+import { blockFields } from "./fields.ts"
 import { headingLevel } from "./format.ts"
 import type { Handoff } from "./handoff.ts"
 import type { CursorPlacement, EditorHost } from "./host.ts"
@@ -37,11 +38,21 @@ export const mountBlockEditor = (
   popups = createPopupStore(),
 ): MountedEditor => {
   const arrival = handoff.take()
-  const merged = arrival?._tag === "Merged" ? block.text + arrival.tail : null
-  const sync = textSync(block.text, merged === null ? [] : [merged])
+  const fields = blockFields(block.id, block)
+  const draft = fields.draftOf(block)
+  const merged =
+    arrival?._tag === "Merged"
+      ? fields.draftOf({ ...block, text: block.text + arrival.tail })
+      : null
+  const sync = textSync(draft, merged === null ? [] : [merged])
+  const doc = () => view.state.doc.toString()
   const dispatch = (command: Command) => {
     if (command._tag === "Undo" || command._tag === "Redo") sync.external()
-    host.dispatch(command)
+    host.dispatch(
+      command._tag === "SplitBlock"
+        ? { ...command, at: fields.textCaret(doc(), command.at) }
+        : command,
+    )
   }
   const waiting: Array<() => void> = []
   const whenConfirmed = (run: () => void) => {
@@ -53,9 +64,9 @@ export const mountBlockEditor = (
   const view = new EditorView({
     parent,
     state: EditorState.create({
-      doc: merged ?? block.text,
+      doc: merged ?? draft,
       extensions: [
-        blockKeymap(block.id, { ...host, dispatch }, handoff, whenConfirmed),
+        blockKeymap(block.id, { ...host, dispatch }, handoff, whenConfirmed, fields.textOf),
         completion(block.id, host, popups),
         autopair,
         keymap.of(defaultKeymap),
@@ -66,7 +77,7 @@ export const mountBlockEditor = (
         EditorView.updateListener.of((update) => {
           for (const transaction of update.transactions) {
             if (transaction.docChanged && transaction.annotation(fromGraph) !== true) {
-              for (const command of editTextCommands(block.id, transaction)) host.dispatch(command)
+              for (const command of fields.commit(transaction)) host.dispatch(command)
               sync.local(transaction.newDoc.toString())
             }
           }
@@ -77,19 +88,30 @@ export const mountBlockEditor = (
 
   const placement =
     merged !== null
-      ? EditorSelection.cursor(block.text.length)
-      : placeCursor(view, arrival?._tag === "Caret" ? arrival.cursor : cursor)
+      ? EditorSelection.cursor(fields.draftCaret(block, block.text.length))
+      : placeCursor(
+          view,
+          arrival?._tag === "Caret"
+            ? arrival.cursor
+            : cursor._tag === "Offset"
+              ? { _tag: "Offset", offset: fields.draftCaret(block, cursor.offset) }
+              : cursor,
+        )
   view.dispatch({ selection: EditorSelection.create([placement]), scrollIntoView: true })
   view.focus()
   handoff.arrive(view)
 
   const receive = (next: Block) => {
     const current = view.state.doc.toString()
-    if (sync.isNews(next.text) && current !== next.text) {
-      view.dispatch({
-        changes: minimalChange(current, next.text),
-        annotations: fromGraph.of(true),
-      })
+    const shown = fields.draftOf(next)
+    if (sync.isNews(shown)) {
+      fields.reset(next)
+      if (current !== shown) {
+        view.dispatch({
+          changes: minimalChange(current, shown),
+          annotations: fromGraph.of(true),
+        })
+      }
     }
     if (sync.confirmed()) for (const run of waiting.splice(0)) run()
     if (next.parentId !== parentId) {

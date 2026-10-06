@@ -504,3 +504,60 @@ describe("headings", () => {
     assert.isFalse(view.dom.classList.contains("sq-h2"))
   })
 })
+
+describe("properties", () => {
+  const tomato: Block = {
+    ...blockOf("Tomato bed\nstaked on the south side"),
+    props: { variety: "San Marzano", plants: "6", id: "0001" },
+  }
+
+  it("opens with the shown properties as key:: value lines under the first line", () => {
+    const { view } = mount(tomato.text, { _tag: "Offset", offset: 12 }, { block: tomato })
+    assert.strictEqual(
+      text(view),
+      "Tomato bed\nvariety:: San Marzano\nplants:: 6\nstaked on the south side",
+    )
+    assert.strictEqual(caret(view), 45)
+  })
+
+  it("sends a changed value as SetProperty and a title edit as EditText on the text", () => {
+    const { view, commands } = mount(tomato.text, { _tag: "Offset", offset: 10 }, { block: tomato })
+    typeKeys(view, "s")
+    view.dispatch({
+      selection: EditorSelection.cursor("Tomato beds\nvariety:: San Marzano".length),
+    })
+    typeKeys(view, "!")
+    const afterPlants = text(view).indexOf("plants:: 6") + "plants:: 6".length
+    view.dispatch({ changes: { from: afterPlants, insert: "\npots:: 2" } })
+    view.dispatch({ changes: { from: 0, to: text(view).indexOf("\nplants"), insert: "Tomatoes" } })
+    assert.deepStrictEqual(commands, [
+      { _tag: "EditText", blockId, from: 10, to: 10, insert: "s" },
+      {
+        _tag: "SetProperty",
+        target: { _tag: "BlockTarget", blockId },
+        key: "variety",
+        value: "San Marzano!",
+      },
+      {
+        _tag: "SetProperty",
+        target: { _tag: "BlockTarget", blockId },
+        key: "pots",
+        value: "2",
+      },
+      { _tag: "EditText", blockId, from: 6, to: 10, insert: "e" },
+      {
+        _tag: "SetProperty",
+        target: { _tag: "BlockTarget", blockId },
+        key: "variety",
+        value: null,
+      },
+    ])
+    assert.strictEqual(text(view), "Tomatoes\nplants:: 6\npots:: 2\nstaked on the south side")
+  })
+
+  it("splits the block at the matching offset of the text", () => {
+    const { view, commands } = mount(tomato.text, { _tag: "End" }, { block: tomato })
+    press(view, "Enter")
+    assert.deepStrictEqual(commands, [{ _tag: "SplitBlock", blockId, at: tomato.text.length }])
+  })
+})

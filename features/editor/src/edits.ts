@@ -1,7 +1,6 @@
 import {
   Annotation,
   EditorSelection,
-  type ChangeSpec,
   type SelectionRange,
   type Transaction,
 } from "@codemirror/state"
@@ -25,7 +24,13 @@ export const editTextCommands = (blockId: BlockId, transaction: Transaction): Ar
   return edits
 }
 
-export const minimalChange = (current: string, next: string): ChangeSpec => {
+export interface TextChange {
+  readonly from: number
+  readonly to: number
+  readonly insert: string
+}
+
+export const minimalChange = (current: string, next: string): TextChange => {
   const shorter = Math.min(current.length, next.length)
   let prefix = 0
   while (prefix < shorter && current.charCodeAt(prefix) === next.charCodeAt(prefix)) {

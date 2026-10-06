@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Page } from "@playwright/test"
+import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, test } from "../src/test.ts"
@@ -120,6 +121,24 @@ test("# suggests a tag that exists only as a tag, and search finds it", async ({
   await palette(page).getByRole("searchbox", { name: "Search" }).fill("greenhouse")
   await expect(palette(page).getByRole("option").first()).toHaveText("greenhouse")
   await expect(palette(page).getByText("Create page")).toHaveCount(0)
+})
+
+test("a block's properties are edited as key:: value lines", async ({ page, seqno }) => {
+  await openShowcaseAt(page, "/page/showcase")
+  await scrollToText(page, "Tomato bed", 100)
+  const row = page.getByRole("treeitem").filter({ hasText: "Tomato bed" }).first()
+  await row.getByText("Tomato bed").first().click()
+  await expect(seqno.editor).toContainText("variety:: San Marzano")
+  await page.keyboard.press("ControlOrMeta+End")
+  await page.keyboard.press("Shift+Enter")
+  await page.keyboard.type("watered:: daily")
+  await page.keyboard.press("Escape")
+  await expect(row.locator(".seqno-attr").filter({ hasText: "watered" })).toHaveText(
+    "watered:daily",
+  )
+  await expect(row.locator(".seqno-attr").filter({ hasText: "variety" })).toHaveText(
+    "variety:San Marzano",
+  )
 })
 
 test("Shift+Enter in the palette opens the result in the right sidebar", async ({ page }) => {

@@ -1,0 +1,54 @@
+import { assert, describe, it } from "vitest"
+import { draftOffset, joinProperties, splitProperties, textOffset } from "../src/index.ts"
+
+const tomato = "Tomato bed\nvariety:: San Marzano\nplants:: 6\nstaked on the south side"
+
+describe("property lines while editing", () => {
+  it("splits the run after the first line into props and keeps the rest as text", () => {
+    assert.deepStrictEqual(splitProperties(tomato), {
+      text: "Tomato bed\nstaked on the south side",
+      props: [
+        ["variety", "San Marzano"],
+        ["plants", "6"],
+      ],
+      runFrom: 10,
+      runTo: 43,
+    })
+  })
+
+  it("joins them back to the same text, byte for byte", () => {
+    const { text, props } = splitProperties(tomato)
+    assert.strictEqual(joinProperties(text, props), tomato)
+    assert.strictEqual(joinProperties("only props", []), "only props")
+    assert.strictEqual(joinProperties("", [["type", "book"]]), "type:: book")
+  })
+
+  it("leaves lines that only look like properties in the text", () => {
+    assert.deepStrictEqual(splitProperties("Title\n\nkey:: value").props, [])
+    assert.deepStrictEqual(splitProperties("Title\nkey::value").props, [])
+    assert.deepStrictEqual(splitProperties("```js\nkey:: value\n```").props, [])
+    assert.deepStrictEqual(splitProperties("Title\na:: 1\na:: 2").props, [["a", "1"]])
+    assert.deepStrictEqual(splitProperties("type:: book\nstatus:: read"), {
+      text: "",
+      props: [
+        ["type", "book"],
+        ["status", "read"],
+      ],
+      runFrom: 0,
+      runTo: 25,
+    })
+  })
+
+  it("maps caret offsets between the text and the draft", () => {
+    const draft = splitProperties(tomato)
+    const body = "Tomato bed\n".length
+    assert.deepStrictEqual(
+      [3, 10, body, body + 6].map((at) => draftOffset(draft.text, draft.props, at)),
+      [3, 10, 44, 50],
+    )
+    assert.deepStrictEqual(
+      [3, 10, 20, 43, 44, 50].map((at) => textOffset(draft, at)),
+      [3, 10, 10, 10, 11, 17],
+    )
+  })
+})

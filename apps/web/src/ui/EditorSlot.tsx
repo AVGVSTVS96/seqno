@@ -1,6 +1,6 @@
 import { RegistryContext } from "@effect/atom-react"
 import { useRouter } from "@tanstack/react-router"
-import { Effect, Match, Option, Schema, Stream } from "effect"
+import { Effect, Equal, Match, Option, Schema, Stream } from "effect"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { useContext } from "react"
 import { BlockId, type Block, type Command } from "@seqno/domain"
@@ -31,7 +31,9 @@ const intentOf = Match.type<Command>().pipe(
 )
 
 const sameBlock = (left: Block, right: Block) =>
-  left.text === right.text && left.parentId === right.parentId
+  left.text === right.text &&
+  left.parentId === right.parentId &&
+  Equal.equals(left.props, right.props)
 
 const isBlock = (found: Block | undefined): found is Block => found !== undefined
 
