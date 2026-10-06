@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type ComponentType,
+  type ClipboardEvent,
   type DragEvent,
   type FocusEvent,
   type KeyboardEvent,
@@ -15,7 +16,7 @@ import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
-import { plainText, setMarker, type Inline, type Marker } from "@seqno/syntax"
+import { pastedBlocks, plainText, setMarker, type Inline, type Marker } from "@seqno/syntax"
 import { BlockView } from "./BlockView.tsx"
 import { caretFromPoint, hasTextSelection } from "./caret.ts"
 import {
@@ -516,6 +517,18 @@ const OutlineView = ({
     event.preventDefault()
   }
 
+  const onPaste = (event: ClipboardEvent<HTMLDivElement>) => {
+    const last = topLevel(view, selected).at(-1)
+    if (event.target !== event.currentTarget || last === undefined) return
+    const text = event.clipboardData.getData("text/plain")
+    const blocks = nonEmpty(
+      pastedBlocks(text) ?? (text.trim() === "" ? [] : [{ text, props: {}, children: [] }]),
+    )
+    if (blocks === null) return
+    event.preventDefault()
+    dispatch({ _tag: "InsertBlocks", pageId, parentId: view.parentOf(last), after: last, blocks })
+  }
+
   const onBlur = (event: FocusEvent<HTMLDivElement>) => {
     const next = event.relatedTarget
     if (next instanceof Node && event.currentTarget.contains(next)) return
@@ -694,6 +707,7 @@ const OutlineView = ({
           aria-multiselectable
           tabIndex={0}
           onKeyDown={onKeyDown}
+          onPaste={onPaste}
           onBlur={onBlur}
         >
           {body}

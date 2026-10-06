@@ -1,8 +1,9 @@
-import { Clock, Data, Effect, Option } from "effect"
+import { Clock, Crypto, Data, Effect, Option } from "effect"
 import type { LoroTree, LoroTreeNode, TreeID, UndoManager } from "loro-crdt"
 import {
   Command,
   newBlockId,
+  type BlockDraft,
   newPageId,
   normalizePageName,
   type BlockId,
@@ -117,6 +118,23 @@ const createBlock = (parent: LoroTreeNode, index: number, text: string) =>
     writeBlock(parent.createNode(index), id, text, now)
   })
 
+const createTree = (
+  parent: LoroTreeNode,
+  index: number,
+  draft: BlockDraft,
+): Effect.Effect<void, never, Crypto.Crypto> =>
+  Effect.gen(function* () {
+    const id = yield* Effect.orDie(newBlockId)
+    const now = yield* Clock.currentTimeMillis
+    const node = parent.createNode(index)
+    writeBlock(node, id, draft.text, now)
+    const props = propsOf(node)
+    for (const [key, value] of Object.entries(draft.props)) props.set(key, value)
+    yield* Effect.forEach(draft.children, (child, at) => createTree(node, at, child), {
+      discard: true,
+    })
+  })
+
 const childAfter = (ws: Workspace, parent: LoroTreeNode, after: BlockId | undefined) =>
   after === undefined
     ? Effect.succeed(0)
@@ -157,6 +175,18 @@ export const applyCommand = (ws: Workspace, command: Command) =>
           return yield* reject(`block ${parentId} is not on page ${pageId}`)
         }
         yield* createBlock(parent, yield* childAfter(ws, parent, after), text)
+      }),
+    InsertBlocks: ({ pageId, parentId, after, blocks }) =>
+      Effect.gen(function* () {
+        const page = yield* pageNode(ws, pageId)
+        const parent = parentId === null ? page : yield* blockNode(ws, parentId)
+        if (rootOf(parent).id !== page.id) {
+          return yield* reject(`block ${parentId} is not on page ${pageId}`)
+        }
+        const start = yield* childAfter(ws, parent, after)
+        yield* Effect.forEach(blocks, (draft, at) => createTree(parent, start + at, draft), {
+          discard: true,
+        })
       }),
     EditText: ({ blockId, from, to, insert }) =>
       Effect.gen(function* () {

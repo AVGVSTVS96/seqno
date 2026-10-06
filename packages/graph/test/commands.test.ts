@@ -150,6 +150,41 @@ describe("blocks", () => {
     ),
   )
 
+  it.effect("inserts a pasted tree after a block in one undo step", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const { pageId, ids } = yield* seedPage(graph, "Paste", ["before", "after"])
+        yield* graph.dispatch({
+          _tag: "InsertBlocks",
+          pageId,
+          parentId: null,
+          after: nth(ids, 0),
+          blocks: [
+            {
+              text: "pasted one",
+              props: {},
+              children: [{ text: "pasted child", props: { note: "kept" }, children: [] }],
+            },
+            { text: "pasted two", props: {}, children: [] },
+          ],
+        })
+        const tree = yield* graph.page(pageId)
+        assert.deepStrictEqual(outline(tree), [
+          "before",
+          "pasted one",
+          "  pasted child",
+          "pasted two",
+          "after",
+        ])
+        assert.deepStrictEqual(tree.blocks.find((block) => block.text === "pasted child")?.props, {
+          note: "kept",
+        })
+        yield* graph.dispatch({ _tag: "Undo" })
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["before", "after"])
+      }),
+    ),
+  )
+
   it.effect("rejects a parent from another page", () =>
     withGraph((graph) =>
       Effect.gen(function* () {

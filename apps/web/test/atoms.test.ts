@@ -92,6 +92,7 @@ const FakeCore = CoreRpcs.toLayer(
           CreatePage: () => rejected,
           RenamePage: () => rejected,
           DeletePage: () => rejected,
+          InsertBlocks: () => rejected,
           InsertBlock: () => rejected,
           SplitBlock: () => rejected,
           MergeWithPrevious: () => rejected,

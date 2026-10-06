@@ -37,3 +37,25 @@ test("right-clicking a bullet selects the block and opens its menu", async ({ pa
   await menu.getByRole("menuitem", { name: /^Delete selected blocks/ }).click()
   await expect(rowWith(page, "Winter")).toHaveCount(0)
 })
+
+test("pasting a markdown outline into an empty block makes the blocks", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.goto("/")
+  const today = page.getByRole("main").getByRole("article").first()
+  await today.getByRole("treeitem").first().click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await page.evaluate(() =>
+    navigator.clipboard.writeText("- pasted one\n  - pasted child\n- pasted two"),
+  )
+  await page.keyboard.press("ControlOrMeta+v")
+  await page.keyboard.press("Escape")
+  await expect(today.getByRole("treeitem")).toHaveText([
+    "Welcome to the seqno demo graph",
+    "pasted one",
+    "pasted child",
+    "pasted two",
+    "Open Getting started to see how pages link",
+  ])
+  await expect(today.getByRole("treeitem", { level: 2 })).toHaveText(["pasted child"])
+})

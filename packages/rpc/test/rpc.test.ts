@@ -71,6 +71,7 @@ const InMemoryCore = CoreRpcs.toLayer(
           }).pipe(Effect.mapError(() => new CommandRejected({ reason: "page does not exist" }))),
         RenamePage: () => rejected,
         DeletePage: () => rejected,
+        InsertBlocks: () => rejected,
         EditText: () => rejected,
         SplitBlock: () => rejected,
         MergeWithPrevious: () => rejected,

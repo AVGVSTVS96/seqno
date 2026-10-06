@@ -110,6 +110,7 @@ describe("commands", () => {
       CreatePage: () => "other",
       RenamePage: () => "other",
       DeletePage: () => "other",
+      InsertBlocks: () => "other",
       InsertBlock: () => "other",
       EditText: () => "other",
       SplitBlock: () => "other",

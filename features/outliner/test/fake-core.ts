@@ -68,6 +68,7 @@ const apply = (tree: PageTree, command: Command, nextId: number): Applied => {
     CreatePage: (): Applied => [[], tree],
     RenamePage: (): Applied => [[], tree],
     DeletePage: (): Applied => [[], tree],
+    InsertBlocks: (): Applied => [[], tree],
     InsertBlock: (): Applied => [[], tree],
     MergeWithPrevious: (): Applied => [[], tree],
     Outdent: (): Applied => [[], tree],

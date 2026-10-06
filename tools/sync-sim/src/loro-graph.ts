@@ -214,6 +214,7 @@ const open = (spec: ReplicaSpec) =>
             ids.set(id, node.id)
             return yield* upserted(node)
           }),
+        InsertBlocks: () => reject("the stand-in graph inserts one block at a time"),
         EditText: ({ blockId, from, to, insert }) =>
           Effect.flatMap(blockNode(blockId), (node) => {
             const text = textOf(node)

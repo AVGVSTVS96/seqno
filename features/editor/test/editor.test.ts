@@ -561,3 +561,56 @@ describe("properties", () => {
     assert.deepStrictEqual(commands, [{ _tag: "SplitBlock", blockId, at: tomato.text.length }])
   })
 })
+
+const paste = (target: HTMLElement, clipboard: string) => {
+  const event = new Event("paste", { bubbles: true, cancelable: true })
+  Object.defineProperty(event, "clipboardData", { value: { getData: () => clipboard } })
+  target.dispatchEvent(event)
+}
+
+describe("pasting", () => {
+  const outline = "- pasted one\n  - pasted child\n- pasted two"
+
+  it("fills an empty block with the first pasted block and inserts the rest after it", () => {
+    const { view, commands } = mount("", { _tag: "End" })
+    paste(view.contentDOM, outline)
+    assert.strictEqual(text(view), "pasted one")
+    assert.deepStrictEqual(commands, [
+      { _tag: "EditText", blockId, from: 0, to: 0, insert: "pasted one" },
+      {
+        _tag: "InsertBlocks",
+        pageId: blockOf("").pageId,
+        parentId: blockId,
+        blocks: [{ text: "pasted child", props: {}, children: [] }],
+      },
+      {
+        _tag: "InsertBlocks",
+        pageId: blockOf("").pageId,
+        parentId: null,
+        after: blockId,
+        blocks: [{ text: "pasted two", props: {}, children: [] }],
+      },
+    ])
+  })
+
+  it("inserts every pasted block after a block that has text, and pastes one line inline", () => {
+    const { view, commands } = mount("keep", { _tag: "End" })
+    paste(view.contentDOM, outline)
+    paste(view.contentDOM, "- just this")
+    assert.strictEqual(text(view), "keepjust this")
+    assert.deepStrictEqual(commands[0], {
+      _tag: "InsertBlocks",
+      pageId: blockOf("").pageId,
+      parentId: null,
+      after: blockId,
+      blocks: [
+        {
+          text: "pasted one",
+          props: {},
+          children: [{ text: "pasted child", props: {}, children: [] }],
+        },
+        { text: "pasted two", props: {}, children: [] },
+      ],
+    })
+  })
+})

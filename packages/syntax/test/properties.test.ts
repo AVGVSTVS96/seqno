@@ -1,5 +1,12 @@
 import { assert, describe, it } from "vitest"
-import { draftOffset, joinProperties, splitProperties, textOffset } from "../src/index.ts"
+import {
+  draftOffset,
+  isSingleLine,
+  joinProperties,
+  pastedBlocks,
+  splitProperties,
+  textOffset,
+} from "../src/index.ts"
 
 const tomato = "Tomato bed\nvariety:: San Marzano\nplants:: 6\nstaked on the south side"
 
@@ -50,5 +57,31 @@ describe("property lines while editing", () => {
       [3, 10, 20, 43, 44, 50].map((at) => textOffset(draft, at)),
       [3, 10, 10, 10, 11, 17],
     )
+  })
+})
+
+describe("pasting an outline", () => {
+  it("reads a markdown outline as blocks with their children and properties", () => {
+    assert.deepStrictEqual(
+      pastedBlocks("- pasted one\n  - pasted child\n    note:: kept\n- pasted two"),
+      [
+        {
+          text: "pasted one",
+          props: {},
+          children: [{ text: "pasted child", props: { note: "kept" }, children: [] }],
+        },
+        { text: "pasted two", props: {}, children: [] },
+      ],
+    )
+    assert.deepStrictEqual(pastedBlocks("- a\n\t- b"), [
+      { text: "a", props: {}, children: [{ text: "b", props: {}, children: [] }] },
+    ])
+  })
+
+  it("leaves plain text alone, and tells a lone line from an outline", () => {
+    assert.strictEqual(pastedBlocks("two\nlines"), null)
+    assert.strictEqual(pastedBlocks("intro\n- a\n- b"), null)
+    assert.strictEqual(isSingleLine(pastedBlocks("- just this") ?? []), true)
+    assert.strictEqual(isSingleLine(pastedBlocks("- a\n- b") ?? []), false)
   })
 })

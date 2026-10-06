@@ -7,6 +7,7 @@ import { autopair } from "./autopair.ts"
 import { completion, createPopupStore, type PopupStore } from "./completion.ts"
 import { fromGraph, minimalChange, placeCursor, textSync } from "./edits.ts"
 import { blockFields } from "./fields.ts"
+import { pasteOutline } from "./paste.ts"
 import { headingLevel } from "./format.ts"
 import type { Handoff } from "./handoff.ts"
 import type { CursorPlacement, EditorHost } from "./host.ts"
@@ -68,6 +69,7 @@ export const mountBlockEditor = (
       extensions: [
         blockKeymap(block.id, { ...host, dispatch }, handoff, whenConfirmed, fields.textOf),
         completion(block.id, host, popups),
+        pasteOutline(block, () => parentId, host.dispatch),
         autopair,
         keymap.of(defaultKeymap),
         EditorView.lineWrapping,
