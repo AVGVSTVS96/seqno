@@ -859,6 +859,110 @@
   width: 256px;
 }
 
+.block-menu {
+  --swatch-yellow: rgb(228 199 103);
+  --swatch-red: rgb(244 169 170);
+  --swatch-pink: rgb(231 172 208);
+  --swatch-green: rgb(142 206 170);
+  --swatch-blue: rgb(142 200 246);
+  --swatch-purple: rgb(209 175 236);
+  --swatch-gray: rgb(107 114 128);
+  width: 280px;
+}
+
+.block-menu-colors {
+  display: flex;
+  justify-content: space-between;
+  margin: 12px var(--space-4) 0;
+}
+
+.block-menu-color {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--swatch);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.block-menu-color.is-clear {
+  border: 1.5px solid var(--fg);
+  background: transparent;
+}
+
+.block-menu-color:focus-visible,
+.block-menu-heading:focus-visible {
+  box-shadow: var(--ring);
+  outline: none;
+}
+
+.block-menu-headings {
+  display: flex;
+  justify-content: space-between;
+  margin: var(--space-2) var(--space-2) 0;
+  padding: 0 var(--space-1) var(--space-2);
+}
+
+.block-menu-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  transition:
+    color var(--duration-base) var(--ease-standard),
+    background-color var(--duration-base) var(--ease-standard);
+}
+
+.block-menu-heading:hover {
+  background: var(--bg-ghost-hover);
+  color: var(--fg-ghost-hover);
+}
+
+.block-menu-heading[aria-pressed="true"] {
+  background: var(--bg-button-primary);
+  color: var(--fg-button-primary);
+}
+
+.export-dialog {
+  width: 640px;
+  padding: var(--space-4);
+}
+
+.export-dialog-head {
+  margin-block-end: var(--space-2);
+  font-weight: var(--weight-medium);
+}
+
+.export-dialog-text {
+  width: 100%;
+  height: 280px;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--fg);
+  font: var(--text-sm) / var(--leading-sm) var(--font-mono);
+  resize: vertical;
+}
+
+.export-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-start: var(--space-3);
+}
+
 .page-link-menu {
   width: 240px;
 }

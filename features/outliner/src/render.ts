@@ -1,7 +1,7 @@
 import { createContext, type ComponentType, type MouseEvent } from "react"
 import type { Block, BlockId } from "@seqno/domain"
 import { blockContent, type BlockContent } from "@seqno/syntax"
-import type { Navigate, NavigationTarget } from "./navigation.ts"
+import type { Navigate, NavigationTarget, OpenBlockMenu } from "./navigation.ts"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
 import type { EditorSlotProps } from "./slot.ts"
 
@@ -16,9 +16,11 @@ export interface Renderer {
   readonly Embed: ComponentType<{ readonly target: EmbedTarget }>
   readonly editor: ComponentType<EditorSlotProps>
   readonly resolveAsset: (path: string) => string | undefined
+  readonly openMenu: OpenBlockMenu | undefined
 }
 
 export const RenderContext = createContext<Renderer>({
+  openMenu: undefined,
   navigate: () => undefined,
   depth: 0,
   localBlock: () => undefined,

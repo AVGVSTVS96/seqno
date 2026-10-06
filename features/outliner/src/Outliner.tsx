@@ -28,7 +28,7 @@ import {
 } from "./core.ts"
 import { moveCommand, type DropTarget } from "./drop.ts"
 import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
-import type { Navigate } from "./navigation.ts"
+import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
 import { contentOf, RenderContext, type EmbedTarget, type Renderer } from "./render.ts"
 import { RowView, type RowActions } from "./Row.tsx"
@@ -45,6 +45,7 @@ export interface OutlinerProps {
   readonly editor?: ComponentType<EditorSlotProps>
   readonly embedded?: boolean
   readonly resolveAsset?: (path: string) => string | undefined
+  readonly onBlockMenu?: OpenBlockMenu
 }
 
 export const Outliner = (props: OutlinerProps) =>
@@ -258,6 +259,7 @@ const OutlineView = ({
   editor: Editor = PlainTextEditor,
   embedded = false,
   resolveAsset,
+  onBlockMenu,
 }: OutlinerProps & { readonly tree: PageTree }) => {
   const parent = use(RenderContext)
   const view = outline(tree, zoom, embedded)
@@ -517,6 +519,7 @@ const OutlineView = ({
   const onBlur = (event: FocusEvent<HTMLDivElement>) => {
     const next = event.relatedTarget
     if (next instanceof Node && event.currentTarget.contains(next)) return
+    if (next instanceof Element && next.closest("[data-keeps-selection]") !== null) return
     if (event.target === event.currentTarget) setSelection(null)
   }
 
@@ -586,6 +589,14 @@ const OutlineView = ({
         select(block.id, origin)
       },
       guide: setHoveredGuide,
+      menu: (event) => {
+        const open = onBlockMenu ?? parent.openMenu
+        if (open === undefined) return
+        event.preventDefault()
+        const chosen = selectedSet.has(block.id) ? nonEmpty(topLevel(view, selected)) : null
+        if (chosen === null) select(block.id)
+        open({ pageId, blockIds: chosen ?? [block.id], x: event.clientX, y: event.clientY })
+      },
       fold: (ancestor) => {
         setHoveredGuide(null)
         dispatch({ _tag: "SetCollapsed", blockId: ancestor, collapsed: true })
@@ -600,12 +611,17 @@ const OutlineView = ({
     Embed: EmbedView,
     editor: Editor,
     resolveAsset: resolveAsset ?? parent.resolveAsset,
+    openMenu: onBlockMenu ?? parent.openMenu,
   }
 
   const renderRow = (row: Row, index: number) => {
     const block = row.block
     const isEditing = editing?.blockId === block.id
-    const content = contentOf(block.text)
+    const parsed = contentOf(block.text)
+    const content =
+      parsed.heading === null && parsed.title !== null && block.props["heading"] === "true"
+        ? { ...parsed, heading: Math.min(row.depth + 1, 6) }
+        : parsed
     return (
       <RowView
         key={block.id}

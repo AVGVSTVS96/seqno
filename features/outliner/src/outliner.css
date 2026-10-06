@@ -16,6 +16,22 @@
   text-decoration: none;
 }
 
+:root {
+  --bg-highlight-yellow: light-dark(rgb(254 242 164), rgb(62 48 0));
+  --bg-highlight-red: light-dark(rgb(253 216 216), rgb(84 27 31));
+  --bg-highlight-pink: light-dark(rgb(249 216 236), rgb(80 27 63));
+  --bg-highlight-green: light-dark(rgb(204 235 215), rgb(19 57 41));
+  --bg-highlight-blue: light-dark(rgb(206 231 254), rgb(15 48 88));
+  --bg-highlight-purple: light-dark(rgb(237 219 249), rgb(67 33 85));
+  --bg-highlight-gray: light-dark(rgb(232 232 232), rgb(46 46 46));
+}
+
+.seqno-block-bg {
+  padding: 0 4px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .seqno-outliner-status {
   height: var(--block-row-height);
   overflow: hidden;

@@ -6,6 +6,7 @@ import { AsyncResult } from "effect/reactivity"
 import { lastGraph, leftSidebarOpen, openGraph, rightSidebar } from "../atoms.ts"
 import { demoGraph, GraphNotPicked } from "../graph-locations.ts"
 import { OpenGraphScreen } from "./OpenGraphScreen.tsx"
+import { BlockMenu } from "./shell/BlockMenu.tsx"
 import { Header } from "./shell/Header.tsx"
 import { HelpButton } from "./shell/HelpButton.tsx"
 import { LeftSidebar } from "./shell/LeftSidebar.tsx"
@@ -47,6 +48,7 @@ const Layout = ({ graph, ready = true }: { readonly graph: string; readonly read
       </div>
       <RightSidebar />
       <HelpButton />
+      <BlockMenu />
     </div>
   )
 }

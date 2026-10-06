@@ -102,16 +102,26 @@ const TaskControls = ({
   )
 }
 
+const namedColors = new Set(["yellow", "red", "pink", "green", "blue", "purple", "gray"])
+
+const backgroundOf = (props: Props): string | null => {
+  const value = (props["background-color"] ?? props["background_color"] ?? "").trim()
+  if (namedColors.has(value)) return `var(--bg-highlight-${value})`
+  return /^#[0-9a-f]{3,8}$/i.test(value) ? value : null
+}
+
 const Title = ({
   content,
   title,
+  background,
   onMarker,
 }: {
   readonly content: BlockContent
   readonly title: ReadonlyArray<Inline>
+  readonly background: string | null
   readonly onMarker: (marker: Marker | null) => void
 }) => {
-  const inner = (
+  const parts = (
     <>
       {content.marker === null ? null : (
         <TaskControls marker={content.marker} onMarker={onMarker} />
@@ -119,6 +129,14 @@ const Title = ({
       <Inlines nodes={title} />
     </>
   )
+  const inner =
+    background === null ? (
+      parts
+    ) : (
+      <span className="seqno-block-bg" style={{ backgroundColor: background }}>
+        {parts}
+      </span>
+    )
   const state = taskState(content.marker)
   return content.heading === null ? (
     <div className="seqno-title" data-task={state}>
@@ -175,7 +193,12 @@ export const BlockView = ({
           {content.title === null ? (
             <div className="seqno-title" />
           ) : (
-            <Title content={content} title={content.title} onMarker={onMarker} />
+            <Title
+              content={content}
+              title={content.title}
+              background={backgroundOf(props)}
+              onMarker={onMarker}
+            />
           )}
           {clocked ? (
             <a

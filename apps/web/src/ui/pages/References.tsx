@@ -1,4 +1,4 @@
-import { useAtomValue } from "@effect/atom-react"
+import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { IconCaretRightFilled } from "@tabler/icons-react"
 import { AsyncResult } from "effect/reactivity"
 import { Fragment, useId, useState, type ReactNode } from "react"
@@ -7,6 +7,7 @@ import { Outliner, pageTreeAtom } from "@seqno/outliner"
 import type { Reference } from "@seqno/rpc"
 import { allPages, assetResolver } from "../../atoms.ts"
 import { EditorSlot } from "../EditorSlot.tsx"
+import { blockMenu } from "../shell/BlockMenu.tsx"
 import { linkedReferences, nameReferences, unlinkedReferences } from "./atoms.ts"
 import { markMentions, wordsOf } from "./mentions.ts"
 import {
@@ -80,6 +81,7 @@ const ReferenceBlock = ({
 }) => {
   const navigateTo = useNavigateTo()
   const resolveAsset = useAtomValue(assetResolver)
+  const openMenu = useAtomSet(blockMenu)
   return (
     <div className="seqno-reference">
       <Crumbs pageId={pageId} trail={trail} />
@@ -89,6 +91,7 @@ const ReferenceBlock = ({
         onNavigate={navigateTo}
         editor={EditorSlot}
         resolveAsset={resolveAsset}
+        onBlockMenu={openMenu}
       />
     </div>
   )

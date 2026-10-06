@@ -8,3 +8,12 @@ export type NavigationTarget =
   | { readonly _tag: "SidebarBlock"; readonly blockId: BlockId }
 
 export type Navigate = (target: NavigationTarget) => void
+
+export interface BlockMenuRequest {
+  readonly pageId: PageId
+  readonly blockIds: readonly [BlockId, ...Array<BlockId>]
+  readonly x: number
+  readonly y: number
+}
+
+export type OpenBlockMenu = (request: BlockMenuRequest) => void

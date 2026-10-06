@@ -18,6 +18,7 @@ export interface RowActions {
   readonly drop: (event: DragEvent<HTMLDivElement>) => void
   readonly guide: (ancestor: BlockId | null) => void
   readonly fold: (ancestor: BlockId) => void
+  readonly menu: (event: MouseEvent) => void
 }
 
 export interface RowProps {
@@ -145,13 +146,21 @@ export const RowView = ({
           data-folded={row.hasChildren && !row.expanded ? true : undefined}
           draggable
           onClick={actions.bullet}
+          onContextMenu={actions.menu}
           onDragStart={actions.dragStart}
           onDragEnd={actions.dragEnd}
         >
           {ordinal === null ? <span className="seqno-dot" /> : `${ordinal}.`}
         </button>
       </div>
-      <div className="seqno-content" onClick={actions.content} onPointerDown={actions.press}>
+      <div
+        className="seqno-content"
+        onClick={actions.content}
+        onPointerDown={actions.press}
+        onContextMenu={(event) => {
+          if (selected) actions.menu(event)
+        }}
+      >
         {children}
       </div>
     </div>
