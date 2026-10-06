@@ -105,17 +105,18 @@ const make = (source: GraphSource) =>
     for (const root of tree.roots()) {
       Option.map(pageIdOf(root), (id) => registry.pages.set(id, root.id))
     }
-    const undo = new UndoManager(doc, {
-      mergeInterval: source.undoMergeMs ?? 1000,
-      excludeOriginPrefixes: [LOADED],
-    })
-    const ws: Workspace = { tree, registry, undo }
+    const freshUndo = () =>
+      new UndoManager(doc, {
+        mergeInterval: source.undoMergeMs ?? 1000,
+        excludeOriginPrefixes: [LOADED],
+      })
+    let ws: Workspace = { tree, registry, undo: freshUndo() }
     const batches: Array<LoroEventBatch> = []
     const unsubscribe = doc.subscribe((batch) => void batches.push(batch))
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         unsubscribe()
-        undo.free()
+        ws.undo.free()
         doc.free()
       }),
     )
@@ -221,9 +222,12 @@ const make = (source: GraphSource) =>
 
     const dispatch = (command: Command) =>
       serial(
-        applyCommand(ws, command).pipe(
+        Effect.suspend(() => applyCommand(ws, command)).pipe(
           Effect.catchTag("Unresolved", () =>
-            Effect.andThen(filled.await, applyCommand(ws, command)),
+            Effect.andThen(
+              filled.await,
+              Effect.suspend(() => applyCommand(ws, command)),
+            ),
           ),
           Effect.catchTag("Unresolved", ({ id }) =>
             Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
@@ -236,14 +240,21 @@ const make = (source: GraphSource) =>
 
     const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
 
+    const restartUndo = () => {
+      ws.undo.free()
+      ws = { ...ws, undo: freshUndo() }
+    }
+
     const merge = (updates: ReadonlyArray<Uint8Array>) =>
       serial(
         Effect.suspend(() => {
-          const caughtUp = ownCounter() === flushed
+          const before = ownCounter()
+          const caughtUp = before === flushed
           return importAll(doc, updates).pipe(
             Effect.tap(() =>
               Effect.sync(() => {
                 if (caughtUp) flushed = ownCounter()
+                if (ownCounter() !== before) restartUndo()
               }),
             ),
             Effect.andThen(drain),
