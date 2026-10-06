@@ -1,11 +1,13 @@
 import { RegistryContext } from "@effect/atom-react"
 import { Effect, Match, Option, Stream } from "effect"
-import { AtomRegistry } from "effect/reactivity"
+import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { useContext } from "react"
-import { normalizePageName, type Command } from "@seqno/domain"
-import { BlockEditor, Navigation, type EditorHost } from "@seqno/editor"
+import type { Block, BlockId, Command } from "@seqno/domain"
+import { BlockEditor, createHandoff, EditorAction, type EditorHost } from "@seqno/editor"
 import { pageTreeAtom, type EditorIntent, type EditorSlotProps } from "@seqno/outliner"
 import { pages, search } from "../atoms.ts"
+
+const handoff = createHandoff()
 
 const intentOf = Match.type<Command>().pipe(
   Match.tags({
@@ -17,45 +19,107 @@ const intentOf = Match.type<Command>().pipe(
   Match.option,
 )
 
+const sameBlock = (left: Block, right: Block) =>
+  left.text === right.text && left.parentId === right.parentId
+
+const isBlock = (found: Block | undefined): found is Block => found !== undefined
+
 export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps) => {
   const registry = useContext(RegistryContext)
+  const latest = () => AsyncResult.value(registry.get(pageTreeAtom(block.pageId)))
+  const childrenOf = (parentId: BlockId | null) =>
+    Option.match(latest(), {
+      onNone: () => [],
+      onSome: (tree) => tree.blocks.filter((candidate) => candidate.parentId === parentId),
+    })
+  const current = () =>
+    Option.match(latest(), {
+      onNone: () => block,
+      onSome: (tree) => tree.blocks.find((candidate) => candidate.id === block.id) ?? block,
+    })
+
+  const move = (direction: -1 | 1) => {
+    const { parentId } = current()
+    const siblings = childrenOf(parentId)
+    const index = siblings.findIndex((sibling) => sibling.id === block.id)
+    const target = index + direction
+    if (index === -1 || target < 0 || target >= siblings.length) return
+    const after = siblings[direction === -1 ? index - 2 : index + 1]
+    dispatch({
+      _tag: "MoveBlocks",
+      blockIds: [block.id],
+      parentId,
+      ...(after === undefined ? {} : { after: after.id }),
+    })
+  }
+
+  const collapse = (wanted: boolean | null) => {
+    const self = current()
+    if (childrenOf(self.id).length === 0) return
+    dispatch({ _tag: "SetCollapsed", blockId: self.id, collapsed: wanted ?? !self.collapsed })
+  }
+
+  const mergeNext = () => {
+    const self = current()
+    const siblings = childrenOf(self.parentId)
+    const index = siblings.findIndex((sibling) => sibling.id === self.id)
+    const next = (self.collapsed ? undefined : childrenOf(self.id)[0]) ?? siblings[index + 1]
+    if (index !== -1 && next !== undefined)
+      dispatch({ _tag: "MergeWithPrevious", blockId: next.id })
+  }
+
+  const titles = () =>
+    new Map(
+      Option.getOrElse(AsyncResult.value(registry.get(pages)), () => []).map((page) => [
+        page.id,
+        page.title,
+      ]),
+    )
+
   const host: EditorHost = {
     dispatch: (command) =>
       Option.match(intentOf(command), { onSome: onIntent, onNone: () => dispatch(command) }),
-    navigate: Navigation.match({
-      ToPrevious: () => onIntent({ _tag: "FocusPrevious" }),
-      ToNext: () => onIntent({ _tag: "FocusNext" }),
+    act: EditorAction.match({
+      FocusPrevious: () => onIntent({ _tag: "FocusPrevious" }),
+      FocusNext: () => onIntent({ _tag: "FocusNext" }),
+      Exit: () => onIntent({ _tag: "Exit" }),
+      SelectUp: () => onIntent({ _tag: "Exit" }),
+      SelectDown: () => onIntent({ _tag: "Exit" }),
+      MoveUp: () => move(-1),
+      MoveDown: () => move(1),
+      Collapse: () => collapse(true),
+      Expand: () => collapse(false),
+      ToggleCollapse: () => collapse(null),
+      MergeNext: mergeNext,
     }),
-    searchPages: (query) =>
-      AtomRegistry.getResult(registry, pages).pipe(
-        Effect.map((all) => all.filter((page) => page.name.includes(normalizePageName(query)))),
-        Effect.orElseSucceed(() => []),
-      ),
+    searchPages: () => AtomRegistry.getResult(registry, pages).pipe(Effect.orElseSucceed(() => [])),
     searchBlocks: (query) =>
       AtomRegistry.getResult(registry, search(query)).pipe(
-        Effect.map((result) => result.blocks),
+        Effect.map((result) => {
+          const titleOf = titles()
+          return result.blocks.map((found) => ({
+            block: found,
+            path: [titleOf.get(found.pageId) ?? ""],
+          }))
+        }),
         Effect.orElseSucceed(() => []),
       ),
   }
-  const textUpdates = AtomRegistry.toStreamResult(registry, pageTreeAtom(block.pageId)).pipe(
-    Stream.map((tree) => tree.blocks.find((candidate) => candidate.id === block.id)?.text),
-    Stream.filter((text) => text !== undefined),
-    Stream.changes,
+
+  const updates = AtomRegistry.toStreamResult(registry, pageTreeAtom(block.pageId)).pipe(
+    Stream.map((tree) => tree.blocks.find((candidate) => candidate.id === block.id)),
+    Stream.filter(isBlock),
+    Stream.changesWith(sameBlock),
     Stream.ignore,
   )
+
   return (
-    <div
-      onKeyDown={(event) => {
-        if (event.key === "Escape") onIntent({ _tag: "Exit" })
-      }}
-    >
-      <BlockEditor
-        blockId={block.id}
-        text={block.text}
-        cursor={{ _tag: "Offset", offset: caret }}
-        textUpdates={textUpdates}
-        host={host}
-      />
-    </div>
+    <BlockEditor
+      block={block}
+      cursor={{ _tag: "Offset", offset: caret }}
+      updates={updates}
+      host={host}
+      handoff={handoff}
+    />
   )
 }

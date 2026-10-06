@@ -2,7 +2,11 @@ import { insertNewline } from "@codemirror/commands"
 import { EditorSelection, Prec, type EditorState } from "@codemirror/state"
 import { keymap, type EditorView } from "@codemirror/view"
 import type { BlockId, Command } from "@seqno/domain"
-import type { EditorHost } from "./host.ts"
+import { deletePair } from "./autopair.ts"
+import { goalX, minimalChange } from "./edits.ts"
+import { cycleMarker, insertLink, toggleMark, type Draft } from "./format.ts"
+import type { Handoff } from "./handoff.ts"
+import type { EditorAction, EditorHost } from "./host.ts"
 
 const fenceLine = /^\s*(`{3,}|~{3,})/gm
 
@@ -10,7 +14,7 @@ const insideCodeFence = (state: EditorState, position: number): boolean =>
   (state.sliceDoc(0, position).match(fenceLine)?.length ?? 0) % 2 === 1
 
 const caret = (view: EditorView): number | null => {
-  const main = view.state.selection.main
+  const { main } = view.state.selection
   return main.empty ? main.head : null
 }
 
@@ -20,68 +24,79 @@ const onFirstVisualLine = (view: EditorView, head: number): boolean =>
 const onLastVisualLine = (view: EditorView, head: number): boolean =>
   view.moveToLineBoundary(EditorSelection.cursor(head), true, true).head === view.state.doc.length
 
-const column = (view: EditorView, head: number): number => head - view.state.doc.lineAt(head).from
+const draftOf = (view: EditorView): Draft => {
+  const { from, to } = view.state.selection.main
+  return { text: view.state.doc.toString(), from, to }
+}
 
-export const blockKeymap = (blockId: BlockId, host: EditorHost) => {
-  const split = (view: EditorView): boolean => {
-    const { from, to } = view.state.selection.main
-    if (insideCodeFence(view.state, from)) {
-      return insertNewline(view)
-    }
-    if (from !== to) {
-      view.dispatch({ changes: { from, to }, selection: { anchor: from }, userEvent: "delete" })
-    }
-    host.dispatch({ _tag: "SplitBlock", blockId, at: from })
+const rewrite = (transform: (draft: Draft) => Draft) => (view: EditorView) => {
+  const before = view.state.doc.toString()
+  const after = transform(draftOf(view))
+  view.dispatch({
+    changes: minimalChange(before, after.text),
+    selection: { anchor: after.from, head: after.to },
+    userEvent: "input",
+    scrollIntoView: true,
+  })
+  return true
+}
+
+export const blockKeymap = (
+  blockId: BlockId,
+  host: EditorHost,
+  handoff: Handoff,
+  whenConfirmed: (run: () => void) => void,
+) => {
+  const send = (command: Command) => () => {
+    host.dispatch(command)
     return true
   }
 
-  const mergeWithPrevious = (view: EditorView): boolean => {
-    if (caret(view) !== 0) {
-      return false
+  const act = (action: EditorAction) => () => {
+    host.act(action)
+    return true
+  }
+
+  const split = (view: EditorView): boolean => {
+    const { from, to } = view.state.selection.main
+    if (insideCodeFence(view.state, from)) return insertNewline(view)
+    if (from !== to) {
+      view.dispatch({ changes: { from, to }, selection: { anchor: from }, userEvent: "delete" })
     }
+    handoff.hold(view)
+    whenConfirmed(() => host.dispatch({ _tag: "SplitBlock", blockId, at: from }))
+    return true
+  }
+
+  const merge = (view: EditorView): boolean => {
+    if (caret(view) !== 0) return false
+    handoff.carry({ _tag: "Merged", tail: view.state.doc.toString() })
     host.dispatch({ _tag: "MergeWithPrevious", blockId })
     return true
   }
 
-  const up = (view: EditorView): boolean => {
+  const vertical = (forward: boolean) => (view: EditorView) => {
     const head = caret(view)
-    if (head === null || !onFirstVisualLine(view, head)) {
-      return false
-    }
-    host.navigate({
-      _tag: "ToPrevious",
-      cursor: { _tag: "LastLine", column: column(view, head) },
+    if (head === null) return false
+    if (!(forward ? onLastVisualLine(view, head) : onFirstVisualLine(view, head))) return false
+    const x = goalX(view)
+    handoff.carry({
+      _tag: "Caret",
+      cursor: forward ? { _tag: "FirstLine", x } : { _tag: "LastLine", x },
     })
+    host.act({ _tag: forward ? "FocusNext" : "FocusPrevious" })
     return true
   }
 
-  const down = (view: EditorView): boolean => {
-    const head = caret(view)
-    if (head === null || !onLastVisualLine(view, head)) {
-      return false
-    }
-    host.navigate({ _tag: "ToNext", cursor: { _tag: "FirstLine", column: column(view, head) } })
+  const atEdge = (forward: boolean, action: EditorAction) => (view: EditorView) => {
+    if (caret(view) !== (forward ? view.state.doc.length : 0)) return false
+    host.act(action)
     return true
   }
 
-  const left = (view: EditorView): boolean => {
-    if (caret(view) !== 0) {
-      return false
-    }
-    host.navigate({ _tag: "ToPrevious", cursor: { _tag: "End" } })
-    return true
-  }
-
-  const right = (view: EditorView): boolean => {
-    if (caret(view) !== view.state.doc.length) {
-      return false
-    }
-    host.navigate({ _tag: "ToNext", cursor: { _tag: "Start" } })
-    return true
-  }
-
-  const dispatching = (command: Command) => (): boolean => {
-    host.dispatch(command)
+  const selectBeyond = (forward: boolean) => (view: EditorView) => {
+    if (view.state.selection.main.head !== (forward ? view.state.doc.length : 0)) return false
+    host.act({ _tag: forward ? "SelectDown" : "SelectUp" })
     return true
   }
 
@@ -89,16 +104,31 @@ export const blockKeymap = (blockId: BlockId, host: EditorHost) => {
     keymap.of([
       { key: "Enter", run: split },
       { key: "Shift-Enter", run: insertNewline },
-      { key: "Backspace", run: mergeWithPrevious },
-      { key: "Tab", run: dispatching({ _tag: "Indent", blockIds: [blockId] }) },
-      { key: "Shift-Tab", run: dispatching({ _tag: "Outdent", blockIds: [blockId] }) },
-      { key: "ArrowUp", run: up },
-      { key: "ArrowDown", run: down },
-      { key: "ArrowLeft", run: left },
-      { key: "ArrowRight", run: right },
-      { key: "Mod-z", run: dispatching({ _tag: "Undo" }) },
-      { key: "Mod-Shift-z", run: dispatching({ _tag: "Redo" }) },
-      { key: "Mod-y", run: dispatching({ _tag: "Redo" }) },
+      { key: "Backspace", run: (view) => deletePair(view) || merge(view) },
+      { key: "Tab", run: send({ _tag: "Indent", blockIds: [blockId] }) },
+      { key: "Shift-Tab", run: send({ _tag: "Outdent", blockIds: [blockId] }) },
+      { key: "ArrowUp", run: vertical(false) },
+      { key: "ArrowDown", run: vertical(true) },
+      { key: "ArrowLeft", run: atEdge(false, { _tag: "FocusPrevious" }) },
+      { key: "ArrowRight", run: atEdge(true, { _tag: "FocusNext" }) },
+      { key: "Delete", run: atEdge(true, { _tag: "MergeNext" }) },
+      { key: "Shift-ArrowUp", run: selectBeyond(false) },
+      { key: "Shift-ArrowDown", run: selectBeyond(true) },
+      { key: "Escape", run: act({ _tag: "Exit" }) },
+      { key: "Mod-z", run: send({ _tag: "Undo" }) },
+      { key: "Mod-Shift-z", run: send({ _tag: "Redo" }) },
+      { key: "Mod-y", run: send({ _tag: "Redo" }) },
+      { key: "Mod-Enter", run: rewrite(cycleMarker) },
+      { key: "Mod-b", run: rewrite((draft) => toggleMark(draft, "**")) },
+      { key: "Mod-i", run: rewrite((draft) => toggleMark(draft, "*")) },
+      { key: "Mod-Shift-h", run: rewrite((draft) => toggleMark(draft, "==")) },
+      { key: "Mod-Shift-s", run: rewrite((draft) => toggleMark(draft, "~~")) },
+      { key: "Mod-l", run: rewrite(insertLink) },
+      { key: "Mod-ArrowUp", run: act({ _tag: "Collapse" }) },
+      { key: "Mod-ArrowDown", run: act({ _tag: "Expand" }) },
+      { key: "Mod-;", run: act({ _tag: "ToggleCollapse" }) },
+      { key: "Alt-Shift-ArrowUp", run: act({ _tag: "MoveUp" }) },
+      { key: "Alt-Shift-ArrowDown", run: act({ _tag: "MoveDown" }) },
     ]),
   )
 }
