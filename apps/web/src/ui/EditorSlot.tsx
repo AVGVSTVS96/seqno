@@ -32,16 +32,15 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
       onNone: () => [],
       onSome: (tree) => tree.blocks.filter((candidate) => candidate.parentId === parentId),
     })
-  const parentId = () =>
+  const current = () =>
     Option.match(latest(), {
-      onNone: () => block.parentId,
-      onSome: (tree) =>
-        tree.blocks.find((candidate) => candidate.id === block.id)?.parentId ?? null,
+      onNone: () => block,
+      onSome: (tree) => tree.blocks.find((candidate) => candidate.id === block.id) ?? block,
     })
 
   const move = (direction: -1 | 1) => {
-    const parent = parentId()
-    const siblings = childrenOf(parent)
+    const { parentId } = current()
+    const siblings = childrenOf(parentId)
     const index = siblings.findIndex((sibling) => sibling.id === block.id)
     const target = index + direction
     if (index === -1 || target < 0 || target >= siblings.length) return
@@ -49,14 +48,24 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
     dispatch({
       _tag: "MoveBlocks",
       blockIds: [block.id],
-      parentId: parent,
+      parentId,
       ...(after === undefined ? {} : { after: after.id }),
     })
   }
 
-  const collapse = (collapsed: boolean) => {
-    if (childrenOf(block.id).length > 0)
-      dispatch({ _tag: "SetCollapsed", blockId: block.id, collapsed })
+  const collapse = (wanted: boolean | null) => {
+    const self = current()
+    if (childrenOf(self.id).length === 0) return
+    dispatch({ _tag: "SetCollapsed", blockId: self.id, collapsed: wanted ?? !self.collapsed })
+  }
+
+  const mergeNext = () => {
+    const self = current()
+    const siblings = childrenOf(self.parentId)
+    const index = siblings.findIndex((sibling) => sibling.id === self.id)
+    const next = (self.collapsed ? undefined : childrenOf(self.id)[0]) ?? siblings[index + 1]
+    if (index !== -1 && next !== undefined)
+      dispatch({ _tag: "MergeWithPrevious", blockId: next.id })
   }
 
   const titles = () =>
@@ -74,10 +83,14 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
       FocusPrevious: () => onIntent({ _tag: "FocusPrevious" }),
       FocusNext: () => onIntent({ _tag: "FocusNext" }),
       Exit: () => onIntent({ _tag: "Exit" }),
+      SelectUp: () => onIntent({ _tag: "Exit" }),
+      SelectDown: () => onIntent({ _tag: "Exit" }),
       MoveUp: () => move(-1),
       MoveDown: () => move(1),
       Collapse: () => collapse(true),
       Expand: () => collapse(false),
+      ToggleCollapse: () => collapse(null),
+      MergeNext: mergeNext,
     }),
     searchPages: () => AtomRegistry.getResult(registry, pages).pipe(Effect.orElseSucceed(() => [])),
     searchBlocks: (query) =>

@@ -88,9 +88,15 @@ export const blockKeymap = (
     return true
   }
 
-  const sideways = (forward: boolean) => (view: EditorView) => {
+  const atEdge = (forward: boolean, action: EditorAction) => (view: EditorView) => {
     if (caret(view) !== (forward ? view.state.doc.length : 0)) return false
-    host.act({ _tag: forward ? "FocusNext" : "FocusPrevious" })
+    host.act(action)
+    return true
+  }
+
+  const selectBeyond = (forward: boolean) => (view: EditorView) => {
+    if (view.state.selection.main.head !== (forward ? view.state.doc.length : 0)) return false
+    host.act({ _tag: forward ? "SelectDown" : "SelectUp" })
     return true
   }
 
@@ -103,8 +109,11 @@ export const blockKeymap = (
       { key: "Shift-Tab", run: send({ _tag: "Outdent", blockIds: [blockId] }) },
       { key: "ArrowUp", run: vertical(false) },
       { key: "ArrowDown", run: vertical(true) },
-      { key: "ArrowLeft", run: sideways(false) },
-      { key: "ArrowRight", run: sideways(true) },
+      { key: "ArrowLeft", run: atEdge(false, { _tag: "FocusPrevious" }) },
+      { key: "ArrowRight", run: atEdge(true, { _tag: "FocusNext" }) },
+      { key: "Delete", run: atEdge(true, { _tag: "MergeNext" }) },
+      { key: "Shift-ArrowUp", run: selectBeyond(false) },
+      { key: "Shift-ArrowDown", run: selectBeyond(true) },
       { key: "Escape", run: act({ _tag: "Exit" }) },
       { key: "Mod-z", run: send({ _tag: "Undo" }) },
       { key: "Mod-Shift-z", run: send({ _tag: "Redo" }) },
@@ -117,6 +126,7 @@ export const blockKeymap = (
       { key: "Mod-l", run: rewrite(insertLink) },
       { key: "Mod-ArrowUp", run: act({ _tag: "Collapse" }) },
       { key: "Mod-ArrowDown", run: act({ _tag: "Expand" }) },
+      { key: "Mod-;", run: act({ _tag: "ToggleCollapse" }) },
       { key: "Alt-Shift-ArrowUp", run: act({ _tag: "MoveUp" }) },
       { key: "Alt-Shift-ArrowDown", run: act({ _tag: "MoveDown" }) },
     ]),

@@ -124,15 +124,37 @@ describe("structural keys", () => {
     press(view, "Escape")
     press(view, "ArrowUp", { ctrlKey: true })
     press(view, "ArrowDown", { ctrlKey: true })
+    press(view, ";", { ctrlKey: true })
     press(view, "ArrowUp", { altKey: true, shiftKey: true })
     press(view, "ArrowDown", { altKey: true, shiftKey: true })
     assert.deepStrictEqual(actions, [
       { _tag: "Exit" },
       { _tag: "Collapse" },
       { _tag: "Expand" },
+      { _tag: "ToggleCollapse" },
       { _tag: "MoveUp" },
       { _tag: "MoveDown" },
     ])
+  })
+
+  it("merges the next block in with Delete at the end", () => {
+    const { view, actions } = mount("abc", { _tag: "Offset", offset: 1 })
+    assert.isTrue(press(view, "Delete"))
+    view.dispatch({ selection: { anchor: 2 } })
+    press(view, "Delete")
+    assert.deepStrictEqual([text(view), actions], ["ac", [{ _tag: "MergeNext" }]])
+  })
+
+  it("selects the block once Shift+arrow has nothing left to select in the text", () => {
+    const { view, actions } = mount("one\ntwo", { _tag: "Offset", offset: 5 })
+    press(view, "ArrowDown", { shiftKey: true })
+    const inside = [...actions]
+    view.dispatch({ selection: { anchor: 5, head: 7 } })
+    press(view, "ArrowDown", { shiftKey: true })
+    view.dispatch({ selection: { anchor: 2, head: 0 } })
+    press(view, "ArrowUp", { shiftKey: true })
+    assert.deepStrictEqual(inside, [])
+    assert.deepStrictEqual(actions, [{ _tag: "SelectDown" }, { _tag: "SelectUp" }])
   })
 })
 

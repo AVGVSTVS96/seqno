@@ -77,6 +77,13 @@ test("Mod+Enter rotates the task marker", async ({ page, seqno }) => {
   await expect(seqno.editor).toHaveText(`DOING ${welcome}`)
 })
 
+test("Delete at the end pulls the next block in", async ({ page, seqno }) => {
+  await page.keyboard.press("Delete")
+  await expect(seqno.editor).toHaveText(`${welcome}Open [[Getting started]] to see how pages link`)
+  await page.keyboard.type("!")
+  await expect(seqno.editor).toHaveText(`${welcome}!Open [[Getting started]] to see how pages link`)
+})
+
 test("Backspace at the start merges, and typing goes in at the seam", async ({ page, seqno }) => {
   await page.keyboard.press("ArrowDown")
   await page.keyboard.press("Home")

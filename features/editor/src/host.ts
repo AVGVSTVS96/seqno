@@ -19,8 +19,12 @@ export const EditorAction = Schema.TaggedUnion({
   Exit: {},
   MoveUp: {},
   MoveDown: {},
+  SelectUp: {},
+  SelectDown: {},
   Collapse: {},
   Expand: {},
+  ToggleCollapse: {},
+  MergeNext: {},
 })
 export type EditorAction = typeof EditorAction.Type
 

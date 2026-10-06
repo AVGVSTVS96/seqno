@@ -1,12 +1,6 @@
 import {
-  IconAntennaBars2,
-  IconAntennaBars3,
-  IconAntennaBars5,
-  IconAntennaBarsOff,
-  IconAppWindow,
-  IconBrackets,
   IconBracketsContain,
-  IconBrandX,
+  IconBrandYoutube,
   IconCalculator,
   IconCalendar,
   IconCalendarMinus,
@@ -14,8 +8,9 @@ import {
   IconCalendarPlus,
   IconCalendarStats,
   IconCircle,
-  IconCircleCheck,
+  IconCircleCheckFilled,
   IconCircleDashed,
+  IconCircleHalf,
   IconCircleHalf2,
   IconCircleX,
   IconClock,
@@ -28,23 +23,24 @@ import {
   IconH4,
   IconH5,
   IconH6,
-  IconHtml,
-  IconLayoutBottombar,
+  IconId,
+  IconLetterT,
+  IconLineDashed,
   IconLink,
   IconListNumbers,
   IconMath,
-  IconMathFunction,
-  IconPhoto,
-  IconProgress,
+  IconParentheses,
+  IconPhotoShare,
   IconQuote,
   IconSearch,
-  IconTypography,
+  IconSourceCode,
+  IconSquareRoundedX,
   IconUnderline,
-  IconVideo,
-  type TablerIcon,
+  IconZoomCode,
 } from "@tabler/icons-react"
 import type { Marker, Priority } from "@seqno/syntax"
 import { clockTime, journalTitle, planningDate, shiftDays } from "./dates.ts"
+import { priorityBars, type CommandIcon } from "./icons.tsx"
 import {
   caretAt,
   insertLink,
@@ -68,7 +64,7 @@ export interface Applied {
 export interface SlashCommand {
   readonly label: string
   readonly group: string
-  readonly icon: TablerIcon
+  readonly icon: CommandIcon
   readonly apply: (draft: Draft, now: Date) => Applied
 }
 
@@ -95,36 +91,36 @@ const fenced = (language: string) => (draft: Draft) => {
 const command = (
   group: string,
   label: string,
-  icon: TablerIcon,
+  icon: CommandIcon,
   apply: SlashCommand["apply"],
 ): SlashCommand => ({ label, group, icon, apply })
 
-const marker = (name: Marker, icon: TablerIcon) =>
+const marker = (name: Marker, icon: CommandIcon) =>
   command("TASK STATUS", name, icon, (draft) => atEnd(setMarker(draft, name)))
 
-const heading = (level: number, icon: TablerIcon) =>
+const heading = (level: number, icon: CommandIcon) =>
   command("Heading", `Heading ${level}`, icon, (draft) => atEnd(setHeading(draft, level)))
 
-const priority = (level: Priority, icon: TablerIcon) =>
+const priority = (level: Priority, icon: CommandIcon) =>
   command("PRIORITY", `Priority ${level}`, icon, (draft) => atEnd(setPriority(draft, level)))
 
-const planning = (label: string, kind: "SCHEDULED" | "DEADLINE", icon: TablerIcon) =>
+const planning = (label: string, kind: "SCHEDULED" | "DEADLINE", icon: CommandIcon) =>
   command("TASK DATE", label, icon, (draft, now) => ({
     draft: setPlanning(draft, kind, planningDate(now)),
   }))
 
 export const slashCommands: ReadonlyArray<SlashCommand> = [
   command("BASIC", "Page reference", IconFileSymlink, reference("[[]]", 2, "Page")),
-  command("BASIC", "Page embed", IconAppWindow, reference("{{embed [[]]}}", 4, "Page")),
-  command("BASIC", "Block reference", IconBrackets, reference("(())", 2, "Block")),
-  command("BASIC", "Block embed", IconLayoutBottombar, reference("{{embed (())}}", 4, "Block")),
+  command("BASIC", "Page embed", IconId, reference("{{embed [[]]}}", 4, "Page")),
+  command("BASIC", "Block reference", IconParentheses, reference("(())", 2, "Block")),
+  command("BASIC", "Block embed", IconId, reference("{{embed (())}}", 4, "Block")),
   command("FORMAT", "Link", IconLink, (draft) => ({ draft: insertLink(draft) })),
-  command("FORMAT", "Image link", IconPhoto, text("![]()", 3)),
+  command("FORMAT", "Image link", IconPhotoShare, text("![]()", 3)),
   command("FORMAT", "Underline", IconUnderline, text("<ins></ins>", 6)),
   command("FORMAT", "Code block", IconCode, fenced("")),
   command("FORMAT", "Quote", IconQuote, (draft) => ({ draft: quoteLine(draft) })),
   command("FORMAT", "Math block", IconMath, text("$$$$", 2)),
-  command("Heading", "Normal text", IconTypography, (draft) => atEnd(setHeading(draft, null))),
+  command("Heading", "Normal text", IconLetterT, (draft) => atEnd(setHeading(draft, null))),
   heading(1, IconH1),
   heading(2, IconH2),
   heading(3, IconH3),
@@ -132,20 +128,18 @@ export const slashCommands: ReadonlyArray<SlashCommand> = [
   heading(5, IconH5),
   heading(6, IconH6),
   marker("TODO", IconCircle),
-  marker("DOING", IconCircleHalf2),
+  marker("DOING", IconCircleHalf),
   marker("LATER", IconCircleDashed),
-  marker("NOW", IconProgress),
-  marker("DONE", IconCircleCheck),
+  marker("NOW", IconCircleHalf2),
+  marker("DONE", IconCircleCheckFilled),
   marker("WAITING", IconClockPause),
   marker("CANCELED", IconCircleX),
   planning("Deadline", "DEADLINE", IconCalendarStats),
   planning("Scheduled", "SCHEDULED", IconCalendarMonth),
-  priority("A", IconAntennaBars5),
-  priority("B", IconAntennaBars3),
-  priority("C", IconAntennaBars2),
-  command("PRIORITY", "No priority", IconAntennaBarsOff, (draft) =>
-    atEnd(setPriority(draft, null)),
-  ),
+  priority("A", priorityBars(3)),
+  priority("B", priorityBars(2)),
+  priority("C", priorityBars(1)),
+  command("PRIORITY", "No priority", IconLineDashed, (draft) => atEnd(setPriority(draft, null))),
   command("TIME & DATE", "Tomorrow", IconCalendarPlus, journal(1)),
   command("TIME & DATE", "Yesterday", IconCalendarMinus, journal(-1)),
   command("TIME & DATE", "Today", IconCalendar, journal(0)),
@@ -154,10 +148,17 @@ export const slashCommands: ReadonlyArray<SlashCommand> = [
     draft: setOrderedList(draft),
   })),
   command("ADVANCED", "Query", IconSearch, text("{{query }}", 2)),
-  command("ADVANCED", "Query function", IconMathFunction, text("{{function }}", 2)),
+  command("ADVANCED", "Advanced Query", IconSearch, text("#+BEGIN_QUERY\n\n#+END_QUERY", 13)),
+  command("ADVANCED", "Query function", IconZoomCode, text("{{function }}", 2)),
   command("ADVANCED", "Calculator", IconCalculator, fenced("calc")),
-  command("ADVANCED", "Embed HTML", IconHtml, text("@@html: @@", 2)),
-  command("ADVANCED", "Embed Video URL", IconVideo, text("{{video }}", 2)),
-  command("ADVANCED", "Embed Twitter tweet", IconBrandX, text("{{tweet }}", 2)),
+  command("ADVANCED", "Embed HTML", IconSourceCode, text("@@html: @@", 2)),
+  command("ADVANCED", "Embed Video URL", IconBrandYoutube, text("{{video }}", 2)),
+  command(
+    "ADVANCED",
+    "Embed YouTube timestamp",
+    IconBrandYoutube,
+    text("{{youtube-timestamp }}", 2),
+  ),
+  command("ADVANCED", "Embed Twitter tweet", IconSquareRoundedX, text("{{tweet }}", 2)),
   command("ADVANCED", "Cloze", IconBracketsContain, text("{{cloze }}", 2)),
 ]
