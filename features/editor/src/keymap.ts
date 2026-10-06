@@ -1,22 +1,13 @@
 import { insertNewline } from "@codemirror/commands"
-import { syntaxTree } from "@codemirror/language"
 import { EditorSelection, Prec, type EditorState } from "@codemirror/state"
 import { keymap, type EditorView } from "@codemirror/view"
 import type { BlockId, Command } from "@seqno/domain"
 import type { EditorHost } from "./host.ts"
 
-const insideFencedCode = (state: EditorState, position: number): boolean => {
-  for (let node = syntaxTree(state).resolveInner(position, -1); ;) {
-    if (node.name === "FencedCode") {
-      return true
-    }
-    const parent = node.parent
-    if (parent === null) {
-      return false
-    }
-    node = parent
-  }
-}
+const fenceLine = /^\s*(`{3,}|~{3,})/gm
+
+const insideCodeFence = (state: EditorState, position: number): boolean =>
+  (state.sliceDoc(0, position).match(fenceLine)?.length ?? 0) % 2 === 1
 
 const caret = (view: EditorView): number | null => {
   const main = view.state.selection.main
@@ -34,7 +25,7 @@ const column = (view: EditorView, head: number): number => head - view.state.doc
 export const blockKeymap = (blockId: BlockId, host: EditorHost) => {
   const split = (view: EditorView): boolean => {
     const { from, to } = view.state.selection.main
-    if (insideFencedCode(view.state, from)) {
+    if (insideCodeFence(view.state, from)) {
       return insertNewline(view)
     }
     if (from !== to) {

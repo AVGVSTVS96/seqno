@@ -149,6 +149,12 @@ describe("structural keys", () => {
     ])
   })
 
+  it("splits again once the cursor is past the closing fence", () => {
+    const { view, commands } = mount("```\ncode\n```", { _tag: "End" })
+    press(view, "Enter")
+    assert.deepStrictEqual(commands, [{ _tag: "SplitBlock", blockId, at: 12 }])
+  })
+
   it("inserts a soft line break on Shift-Enter", () => {
     const { view, commands } = mount("one", { _tag: "End" })
     press(view, "Enter", { shiftKey: true })
