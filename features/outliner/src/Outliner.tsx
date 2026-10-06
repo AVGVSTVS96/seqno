@@ -254,6 +254,7 @@ const OutlineView = ({
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
   const container = useRef<HTMLDivElement>(null)
   const pressed = useRef<BlockId | null>(null)
+  const swept = useRef(false)
   const [editing, setEditing] = useState<Editing | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [dragged, setDragged] = useState<ReadonlyArray<BlockId>>([])
@@ -514,7 +515,7 @@ const OutlineView = ({
           select(block.id, selection?.anchor ?? editing?.blockId ?? block.id)
           return
         }
-        if (editing?.blockId === block.id || hasTextSelection()) return
+        if (editing?.blockId === block.id || hasTextSelection() || swept.current) return
         edit(block, caretFromPoint(event.clientX, event.clientY) ?? block.text.length)
       },
       dragStart: (event) => {
@@ -545,6 +546,7 @@ const OutlineView = ({
       press: (event) => {
         if (event.button !== 0 || event.shiftKey) return
         pressed.current = block.id
+        swept.current = false
         window.addEventListener(
           "pointerup",
           () => {
@@ -557,6 +559,7 @@ const OutlineView = ({
         const origin = pressed.current
         if (origin === null || (event.buttons & 1) === 0) return
         if (origin === block.id && selection?.anchor !== origin) return
+        swept.current = true
         window.getSelection()?.removeAllRanges()
         select(block.id, origin)
       },
