@@ -115,55 +115,66 @@ describe("files that are not downloaded yet", () => {
   )
 })
 
+const tokens = (text: string) => text.match(/[a-c]\d+/g)?.toSorted() ?? []
+
 describe("delays and reordering", () => {
-  it.effect("two devices typing through a slow, reordering cloud end up identical", () =>
-    Effect.gen(function* () {
-      const cloud = cloudOf("dataless", false, 0.3)
-      const { mac, ipad } = yield* pair(cloud)
-      for (let round = 0; round < 10; round++) {
-        yield* mac.type(`a${round} `)
-        yield* ipad.type(`b${round} `)
-        cloud.step()
-        yield* mac.sync
-        cloud.step()
-        yield* ipad.sync
-      }
-      for (let round = 0; round < 4; round++) {
-        cloud.settle()
-        yield* mac.sync
-        yield* ipad.sync
-      }
-      assert.strictEqual(mac.text(), ipad.text())
-      assert.deepStrictEqual(
-        mac
-          .text()
-          .match(/[ab]\d/g)
-          ?.toSorted(),
-        [
-          "a0",
-          "a1",
-          "a2",
-          "a3",
-          "a4",
-          "a5",
-          "a6",
-          "a7",
-          "a8",
-          "a9",
-          "b0",
-          "b1",
-          "b2",
-          "b3",
-          "b4",
-          "b5",
-          "b6",
-          "b7",
-          "b8",
-          "b9",
-        ],
-      )
-    }),
-  )
+  for (const seed of [1, 2, 3, 4, 5]) {
+    it.effect(
+      `seed ${seed}: three devices typing and compacting through a slow cloud converge`,
+      () =>
+        Effect.gen(function* () {
+          const cloud = makeFakeCloud({
+            seed,
+            placeholders: "dataless",
+            autoDownload: false,
+            deliverChance: 0.3,
+          })
+          const members = ["mac", "ipad", "phone"]
+          const devices = yield* Effect.forEach(members, (id, index) =>
+            makeDevice({
+              id,
+              peer: `${index + 1}`,
+              members,
+              storage: cloud.layer(id),
+              compactAfterFiles: 4,
+            }),
+          )
+          for (let round = 0; round < 12; round++) {
+            for (const [index, device] of devices.entries()) {
+              yield* device.type(`${"abc"[index]}${round} `)
+              cloud.step()
+              yield* device.sync
+            }
+          }
+          for (let round = 0; round < 6; round++) {
+            cloud.settle()
+            for (const device of devices) yield* device.sync
+          }
+          const fresh = yield* makeDevice({
+            id: "laptop",
+            peer: "4",
+            members,
+            storage: cloud.layer("laptop"),
+          })
+          for (let round = 0; round < 3; round++) {
+            cloud.settle()
+            yield* fresh.sync
+          }
+          const expected = ["a", "b", "c"].flatMap((prefix) =>
+            Array.from({ length: 12 }, (_, round) => `${prefix}${round}`),
+          )
+          assert.deepStrictEqual(
+            [...devices, fresh].map((device) => tokens(device.text())),
+            [expected, expected, expected, expected].map((list) => list.toSorted()),
+          )
+          assert.deepStrictEqual(new Set(devices.map((device) => device.text())).size, 1)
+          assert.strictEqual(fresh.text(), devices[0]?.text())
+          const files = cloud.files()
+          assert.strictEqual(files.filter((path) => path.startsWith("snapshots/")).length, 1)
+          assert.isBelow(files.filter((path) => path.startsWith("updates/")).length, 36)
+        }),
+    )
+  }
 })
 
 describe("compaction", () => {

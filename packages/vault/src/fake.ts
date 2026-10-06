@@ -79,19 +79,14 @@ export const makeFakeCloud = (options: FakeCloudOptions): FakeCloud => {
   })
 
   const step = () => {
+    const held = new Set<string>()
     const due = jobs.splice(0).filter((job) => {
-      if (next() < options.deliverChance) return true
+      const key = `${job._tag}:${job.device}:${job.path}`
+      if (!held.has(key) && next() < options.deliverChance) return true
+      held.add(key)
       jobs.push(job)
       return false
     })
-    for (let index = due.length - 1; index > 0; index--) {
-      const other = Math.floor(next() * (index + 1))
-      const job = due[index]
-      const swap = due[other]
-      if (job === undefined || swap === undefined) continue
-      due[index] = swap
-      due[other] = job
-    }
     due.forEach(run)
   }
 
