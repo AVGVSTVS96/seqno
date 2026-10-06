@@ -23,6 +23,7 @@ Open `design-out/compare.html`. A tick box shows difference images (black where 
 | Scene                    | Reference      | What it shows                                                |
 | ------------------------ | -------------- | ------------------------------------------------------------ |
 | `journals`               | Logseq 2.x     | journals home with three days                                |
+| `page`                   | Logseq 2.x     | Garden Plan with its linked references                       |
 | `showcase-top`           | Logseq classic | Showcase page, top: properties, headings, text styles, lists |
 | `showcase-lower`         | Logseq classic | Showcase page from Properties down: code blocks, tasks       |
 | `editing`                | Logseq 2.x     | a journal block in edit mode, caret at the end               |
@@ -37,6 +38,7 @@ How it works:
 
 - **seqno** (`design/seqno.ts`): every scene gets a fresh browser context. The showcase graph (`fixtures/graphs/showcase`, journals shifted so the newest is today) is seeded into the demo graph's OPFS folder with `seedOpfs`, and `seqno.theme` / `seqno.leftSidebar` go into localStorage before the app loads. Locators are role based (`treeitem`, `listbox`, `dialog`, `complementary "Right sidebar"`), so a scene starts passing as soon as the UI exposes those roles.
 - **Logseq** (`design/logseq.ts`): one context per reference app. The harness pastes the showcase markdown into the browser-only demo graph (2.x: today's journal, two earlier journals, Garden Plan and Reading List; classic: a new "Showcase" page, with the SVG asset served by a route). It never signs in or opens a folder. Theme, sidebars and pages switch through Logseq's own shortcuts (`t t`, `t l`, `t r`, `g a`); every edit a scene makes is restored afterwards.
+- `scrollToText` scrolls the target row into view, then scrolls its nearest scrolling ancestor back by the offset (the main column in seqno, `#main-content-container` in Logseq), so the lower showcase frames line up.
 - Before a shot the pointer moves to the corner and the harness waits for fonts and finite animations to finish (`settled`), so pairs are stable run to run.
 - `design/scenes.ts` holds both sides of each scene. Adding a scene is one entry there.
 

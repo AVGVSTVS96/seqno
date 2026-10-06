@@ -65,6 +65,12 @@ export const scrollToText = async (
       }
       ;(scroller ?? document.scrollingElement)?.scrollBy({ top: -by, behavior: "instant" })
     }, offset)
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".seqno-gap")].every((gap) => {
+        const box = gap.getBoundingClientRect()
+        return box.height === 0 || box.bottom <= 0 || box.top >= window.innerHeight
+      }),
+    )
     return
   }
   if (tries === 0) throw new Error(`no block with "${text}" after scrolling`)
