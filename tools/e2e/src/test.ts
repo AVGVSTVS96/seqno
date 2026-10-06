@@ -1,5 +1,11 @@
 import { expect, test as base, type Page } from "@playwright/test"
 import { journalTitle } from "./journal.ts"
+import { opfsFiles } from "./opfs.ts"
+
+const updateFiles = async (page: Page) =>
+  Object.keys(await opfsFiles(page, ["graphs", "demo", "updates"]))
+    .toSorted()
+    .join("\n")
 
 const seqno = (page: Page) => ({
   today: page.getByRole("article", { name: journalTitle(new Date()), exact: true }),
@@ -8,6 +14,14 @@ const seqno = (page: Page) => ({
     await page.goto("/")
     await page.getByRole("button", { name: "Open the demo graph" }).click()
   },
+  saved: () =>
+    expect
+      .poll(async () => {
+        const before = await updateFiles(page)
+        await page.waitForTimeout(500)
+        return before !== "" && before === (await updateFiles(page))
+      })
+      .toBe(true),
 })
 
 export const test = base.extend<{ seqno: ReturnType<typeof seqno> }>({

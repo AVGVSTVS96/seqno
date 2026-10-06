@@ -234,8 +234,22 @@ const make = (source: GraphSource) =>
         ),
       )
 
+    const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
+
     const merge = (updates: ReadonlyArray<Uint8Array>) =>
-      serial(Effect.andThen(importAll(doc, updates), drain))
+      serial(
+        Effect.suspend(() => {
+          const caughtUp = ownCounter() === flushed
+          return importAll(doc, updates).pipe(
+            Effect.tap(() =>
+              Effect.sync(() => {
+                if (caughtUp) flushed = ownCounter()
+              }),
+            ),
+            Effect.andThen(drain),
+          )
+        }),
+      )
 
     const load = (loaded: ReadonlyArray<PageTree>) =>
       serial(

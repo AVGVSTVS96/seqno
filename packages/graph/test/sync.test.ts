@@ -127,6 +127,27 @@ describe("persistence", () => {
         }),
       ),
   )
+  it.effect("an empty graph that merges its own saved files continues after them", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const graph = yield* openGraph("7")
+        yield* seedPage(graph, "Saved", ["one"])
+        const files: Array<LocalUpdate> = []
+        const save = (update: LocalUpdate) => Effect.sync(() => void files.push(update))
+        const first = yield* graph.flush(save)
+
+        const reopened = yield* openGraph("7")
+        yield* reopened.merge(files.map(({ bytes }) => bytes))
+        assert.deepStrictEqual(yield* reopened.flush(save), Option.none())
+        yield* reopened.dispatch({ _tag: "CreatePage", title: "Later" })
+        const next = yield* reopened.flush(save)
+        assert.deepStrictEqual(
+          Option.map(next, ({ start }) => start),
+          Option.map(first, ({ end }) => end),
+        )
+      }),
+    ),
+  )
 })
 
 describe("lazy open", () => {

@@ -26,13 +26,14 @@ test("type in a block", async ({ page, seqno }) => {
   )
 })
 
-test.fixme("reload keeps text", async ({ page, seqno }) => {
+test("reload keeps text", async ({ page, seqno }) => {
   await seqno.openDemoGraph()
   await seqno.today.getByRole("treeitem").first().click()
   await page.keyboard.type(", survives reload")
   await expect(seqno.editor).toHaveText("Welcome to the seqno demo graph, survives reload")
+  await seqno.saved()
   await page.reload()
-  await page.getByRole("button", { name: /demo/ }).first().click()
+  await page.getByRole("button", { name: "Open the demo graph" }).click()
   await expect(seqno.today.getByRole("treeitem").first()).toHaveText(
     "Welcome to the seqno demo graph, survives reload",
   )
