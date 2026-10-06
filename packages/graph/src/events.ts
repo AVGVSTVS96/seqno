@@ -108,10 +108,10 @@ export const translate = (
     })
   }
 
-  for (const id of deleted) {
+  for (const id of new Set(deleted)) {
     const node = tree.getNodeByID(id)
     const parent = formerParent.get(id)
-    if (node === undefined) continue
+    if (node === undefined || !tree.isNodeDeleted(id)) continue
     if (parent === undefined) {
       Option.map(pageIdOf(node), (pageId) => {
         deleteSubtree(node, { pageId, parentId: null })

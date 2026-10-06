@@ -148,15 +148,15 @@ const make = (source: GraphSource) =>
       (id) =>
         Effect.sync(() => {
           if (!registry.loaded.has(id)) indexPage(id, blockIdOf)
-        }).pipe(
-          Effect.andThen(Effect.yieldNow),
-        ),
+        }).pipe(Effect.andThen(Effect.yieldNow)),
       { discard: true },
     ).pipe(Effect.andThen(filled.open), Effect.forkScoped)
 
     const pages = serial(
       Effect.sync(() =>
-        tree.roots().flatMap((root) => (tree.isNodeDeleted(root.id) ? [] : Option.toArray(readPage(root)))),
+        tree
+          .roots()
+          .flatMap((root) => (tree.isNodeDeleted(root.id) ? [] : Option.toArray(readPage(root)))),
       ),
     )
 
@@ -164,7 +164,9 @@ const make = (source: GraphSource) =>
       serial(
         Effect.suspend(() => {
           const node = Option.flatMap(Option.fromUndefinedOr(registry.pages.get(id)), (nodeId) =>
-            tree.isNodeDeleted(nodeId) ? Option.none() : Option.fromUndefinedOr(tree.getNodeByID(nodeId)),
+            tree.isNodeDeleted(nodeId)
+              ? Option.none()
+              : Option.fromUndefinedOr(tree.getNodeByID(nodeId)),
           )
           return Option.match(Option.flatMap(node, readPage), {
             onNone: () => Effect.fail(new PageNotFound({ pageId: id })),
@@ -185,9 +187,13 @@ const make = (source: GraphSource) =>
     const findBlock = (id: BlockId) =>
       Effect.suspend(() => {
         const node = Option.flatMap(Option.fromUndefinedOr(registry.blocks.get(id)), (nodeId) =>
-          tree.isNodeDeleted(nodeId) ? Option.none() : Option.fromUndefinedOr(tree.getNodeByID(nodeId)),
+          tree.isNodeDeleted(nodeId)
+            ? Option.none()
+            : Option.fromUndefinedOr(tree.getNodeByID(nodeId)),
         )
-        const found = Option.flatMap(node, (at) => Option.flatMap(placementOf(at), (placement) => readBlock(at, placement)))
+        const found = Option.flatMap(node, (at) =>
+          Option.flatMap(placementOf(at), (placement) => readBlock(at, placement)),
+        )
         return Option.match(found, {
           onNone: () => Effect.fail(new BlockNotFound({ blockId: id })),
           onSome: ({ block }) => Effect.succeed(block),
@@ -198,7 +204,9 @@ const make = (source: GraphSource) =>
       serial(
         findBlock(id).pipe(
           Effect.catchTag("BlockNotFound", (missing) =>
-            registry.blocks.has(id) ? Effect.fail(missing) : Effect.andThen(filled.await, findBlock(id)),
+            registry.blocks.has(id)
+              ? Effect.fail(missing)
+              : Effect.andThen(filled.await, findBlock(id)),
           ),
         ),
       )
@@ -206,7 +214,9 @@ const make = (source: GraphSource) =>
     const dispatch = (command: Command) =>
       serial(
         applyCommand(ws, command).pipe(
-          Effect.catchTag("Unresolved", () => Effect.andThen(filled.await, applyCommand(ws, command))),
+          Effect.catchTag("Unresolved", () =>
+            Effect.andThen(filled.await, applyCommand(ws, command)),
+          ),
           Effect.catchTag("Unresolved", ({ id }) =>
             Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
           ),
@@ -250,9 +260,7 @@ const make = (source: GraphSource) =>
       events: Stream.fromPubSub(pubsub),
       flush,
       snapshot: serial(Effect.sync(() => doc.export({ mode: "snapshot" }))),
-      version: serial(
-        Effect.sync(() => new Map(doc.oplogVersion().toJSON())),
-      ),
+      version: serial(Effect.sync(() => new Map(doc.oplogVersion().toJSON()))),
       loaded: filled.await,
     })
   })

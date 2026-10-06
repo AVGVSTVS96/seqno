@@ -49,8 +49,7 @@ export interface BlockState {
 export const isTreeId = (value: unknown): value is TreeID =>
   typeof value === "string" && /^\d+@\d+$/.test(value)
 
-export const childrenOf = (node: LoroTreeNode): ReadonlyArray<LoroTreeNode> =>
-  node.children() ?? []
+export const childrenOf = (node: LoroTreeNode): ReadonlyArray<LoroTreeNode> => node.children() ?? []
 
 export const blockIdOf = (node: LoroTreeNode): Option.Option<BlockId> =>
   decodeBlockId(node.data.get("uuid"))

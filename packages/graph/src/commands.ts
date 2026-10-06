@@ -67,7 +67,7 @@ const isWithin = (node: LoroTreeNode, ancestor: LoroTreeNode): boolean =>
   node.id === ancestor.id || ancestors(node).some((up) => up.id === ancestor.id)
 
 const position = (node: LoroTreeNode): ReadonlyArray<number> =>
-  [node, ...ancestors(node)].map((at) => at.index() ?? 0).reverse()
+  [node, ...ancestors(node)].map((at) => at.index() ?? 0).toReversed()
 
 const byPosition = (a: LoroTreeNode, b: LoroTreeNode): number => {
   const [left, right] = [position(a), position(b)]
@@ -76,15 +76,18 @@ const byPosition = (a: LoroTreeNode, b: LoroTreeNode): number => {
 }
 
 const selection = (ws: Workspace, ids: ReadonlyArray<BlockId>) =>
-  Effect.map(Effect.forEach(ids, (id) => blockNode(ws, id)), (nodes) => {
-    const chosen = new Set(nodes.map((node) => node.id))
-    const roots = nodes.filter(
-      (node, at) =>
-        nodes.findIndex((other) => other.id === node.id) === at &&
-        !ancestors(node).some((up) => chosen.has(up.id)),
-    )
-    return roots.toSorted(byPosition)
-  })
+  Effect.map(
+    Effect.forEach(ids, (id) => blockNode(ws, id)),
+    (nodes) => {
+      const chosen = new Set(nodes.map((node) => node.id))
+      const roots = nodes.filter(
+        (node, at) =>
+          nodes.findIndex((other) => other.id === node.id) === at &&
+          !ancestors(node).some((up) => chosen.has(up.id)),
+      )
+      return roots.toSorted(byPosition)
+    },
+  )
 
 const isPage = (node: LoroTreeNode): boolean => node.parent() === undefined
 
@@ -145,8 +148,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         yield* checkTitle(ws, title, page.id)
         page.data.set("title", title)
       }),
-    DeletePage: ({ pageId }) =>
-      Effect.map(pageNode(ws, pageId), (page) => ws.tree.delete(page.id)),
+    DeletePage: ({ pageId }) => Effect.map(pageNode(ws, pageId), (page) => ws.tree.delete(page.id)),
     InsertBlock: ({ pageId, parentId, after, text }) =>
       Effect.gen(function* () {
         const page = yield* pageNode(ws, pageId)
@@ -243,7 +245,10 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         if (roots.some((node) => isWithin(parent, node))) {
           return yield* reject("blocks cannot move inside themselves")
         }
-        if (anchor !== undefined && (anchor.parent()?.id !== parent.id || roots.some((node) => node.id === anchor.id))) {
+        if (
+          anchor !== undefined &&
+          (anchor.parent()?.id !== parent.id || roots.some((node) => node.id === anchor.id))
+        ) {
           return yield* reject(`block ${after} is not a child of the target parent`)
         }
         roots.reduce<LoroTreeNode | undefined>((previous, node) => {
@@ -253,7 +258,9 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         }, anchor)
       }),
     DeleteBlocks: ({ blockIds }) =>
-      Effect.map(selection(ws, blockIds), (roots) => roots.forEach((node) => ws.tree.delete(node.id))),
+      Effect.map(selection(ws, blockIds), (roots) =>
+        roots.forEach((node) => ws.tree.delete(node.id)),
+      ),
     SetCollapsed: ({ blockId, collapsed }) =>
       Effect.map(blockNode(ws, blockId), (node) => node.data.set("collapsed", collapsed)),
     SetProperty: ({ target, key, value }) =>
