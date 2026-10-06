@@ -23,6 +23,7 @@ export interface RowProps {
   readonly content: BlockContent
   readonly ordinal: number | null
   readonly firstChild: boolean
+  readonly nextPath: ReadonlyArray<BlockId>
   readonly selected: boolean
   readonly highlight: Highlight | undefined
   readonly dropZone: DropZone | null
@@ -51,6 +52,7 @@ export const RowView = ({
   content,
   ordinal,
   firstChild,
+  nextPath,
   selected,
   highlight,
   dropZone,
@@ -103,6 +105,7 @@ export const RowView = ({
           className="seqno-guide"
           aria-hidden
           data-first={level === depth - 1 && firstChild ? true : undefined}
+          data-last={nextPath[level] === ancestor ? undefined : true}
           data-hovered={hoveredGuide === ancestor ? true : undefined}
           style={{
             left: indent(level, "var(--block-control-size) + var(--bullet-box) / 2 - 2px"),

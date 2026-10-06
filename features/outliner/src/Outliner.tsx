@@ -57,6 +57,7 @@ export const Outliner = (props: OutlinerProps) =>
 
 const overscan = 800
 const edgeMargin = "400px 0px"
+const orderListKey = "logseq.order-list-type"
 const numbered = /^[ \t]*logseq\.order-list-type::[ \t]*number[ \t]*$/m
 
 interface Editing {
@@ -85,7 +86,8 @@ const viewportOf = (element: HTMLElement | null, current: Viewport): Viewport =>
 const ordinalsOf = (rows: ReadonlyArray<Row>): ReadonlyArray<number | null> => {
   const streaks = new Map<BlockId | null, number>()
   return rows.map((row) => {
-    const streak = numbered.test(row.block.text) ? (streaks.get(row.block.parentId) ?? 0) + 1 : 0
+    const listed = row.block.props[orderListKey] === "number" || numbered.test(row.block.text)
+    const streak = listed ? (streaks.get(row.block.parentId) ?? 0) + 1 : 0
     streaks.set(row.block.parentId, streak)
     return streak === 0 ? null : streak
   })
@@ -567,6 +569,7 @@ const OutlineView = ({
         content={content}
         ordinal={ordinals[index] ?? null}
         firstChild={index > 0 && rows[index - 1]?.block.id === block.parentId}
+        nextPath={rows[index + 1]?.path ?? []}
         selected={selectedSet.has(block.id)}
         highlight={highlighted.get(index)}
         dropZone={drop?.blockId === block.id ? drop.zone : null}
@@ -583,7 +586,11 @@ const OutlineView = ({
             onIntent={onIntent(block.id)}
           />
         ) : (
-          <BlockView content={content} onMarker={(marker) => setTask(block, marker)} />
+          <BlockView
+            content={content}
+            props={block.props}
+            onMarker={(marker) => setTask(block, marker)}
+          />
         )}
       </RowView>
     )

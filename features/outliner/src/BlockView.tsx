@@ -1,6 +1,15 @@
 import { use, useState, type MouseEvent, type ReactNode } from "react"
 import { Match } from "effect"
-import { clockTotal, type BlockContent, type Body, type Inline, type Marker } from "@seqno/syntax"
+import type { Props } from "@seqno/domain"
+import {
+  clockTotal,
+  isHiddenProperty,
+  propertyValue,
+  type BlockContent,
+  type Body,
+  type Inline,
+  type Marker,
+} from "@seqno/syntax"
 import { CodeBlock } from "./CodeBlock.tsx"
 import { Inlines } from "./Inline.tsx"
 import { RenderContext, toPage } from "./render.ts"
@@ -133,21 +142,31 @@ const Logbook = ({ entries }: { readonly entries: ReadonlyArray<string> }) => (
   </div>
 )
 
+const shownProperties = (props: Props, content: BlockContent) => [
+  ...Object.entries(props).flatMap(([key, value]) =>
+    isHiddenProperty(key) ? [] : [{ key, value: propertyValue(key, value) }],
+  ),
+  ...content.properties,
+]
+
 export const BlockView = ({
   content,
+  props,
   onMarker,
 }: {
   readonly content: BlockContent
+  readonly props: Props
   readonly onMarker: (marker: Marker | null) => void
 }) => {
   const renderer = use(RenderContext)
   const [drawer, setDrawer] = useState(false)
   const logbook = content.logbook
   const clocked = logbook !== null && logbook.seconds > 0
+  const properties = shownProperties(props, content)
   const empty =
     content.title === null &&
     content.body.length === 0 &&
-    content.properties.length === 0 &&
+    properties.length === 0 &&
     content.planning.length === 0
   return (
     <div className="seqno-block">
@@ -181,10 +200,10 @@ export const BlockView = ({
           <span className="seqno-planning-date">&lt;{entry.date}&gt;</span>
         </div>
       ))}
-      {content.properties.length === 0 ? null : (
+      {properties.length === 0 ? null : (
         <div className="seqno-attrs">
-          {content.properties.map((property) => (
-            <div key={property.span.from} className="seqno-attr">
+          {properties.map((property) => (
+            <div key={property.key} className="seqno-attr">
               <a
                 href="#"
                 className="seqno-attr-key"

@@ -1,3 +1,5 @@
+import type { Block } from "@seqno/domain"
+import { isHiddenProperty } from "@seqno/syntax"
 import type { Row } from "./tree.ts"
 
 export interface Viewport {
@@ -14,12 +16,16 @@ const lineHeight = 24
 const rowPadding = 4
 const hiddenLine = /^\s*(?:id|collapsed)::/
 
-export const estimateHeight = (text: string) => {
+const propertiesBox = 16
+
+export const estimateHeight = (block: Block) => {
   let lines = 0
-  for (const line of text.split("\n")) {
+  for (const line of block.text.split("\n")) {
     if (!hiddenLine.test(line)) lines += Math.max(1, Math.ceil(line.length / lineChars))
   }
-  return rowPadding + lineHeight * Math.max(1, lines)
+  const shown = Object.keys(block.props).filter((key) => !isHiddenProperty(key)).length
+  const properties = shown === 0 ? 0 : propertiesBox + lineHeight * shown
+  return rowPadding + lineHeight * Math.max(1, lines) + properties
 }
 
 export const offsets = (
@@ -29,7 +35,7 @@ export const offsets = (
   const tops = [0]
   let total = 0
   for (const row of rows) {
-    total += heights.get(row.block.id) ?? estimateHeight(row.block.text)
+    total += heights.get(row.block.id) ?? estimateHeight(row.block)
     tops.push(total)
   }
   return tops
