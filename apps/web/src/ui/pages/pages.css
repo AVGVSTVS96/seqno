@@ -22,7 +22,7 @@
 }
 
 .seqno-page-title {
-  margin: 0;
+  margin: 0 0 var(--title-to-blocks);
   padding: var(--block-padding-block) 0 var(--block-padding-block) 2px;
   font-size: var(--text-title);
   line-height: var(--leading-title);
@@ -68,18 +68,15 @@
 }
 
 .seqno-page-title-problem {
-  margin: 0 0 0 2px;
+  margin: calc(-1 * var(--title-to-blocks)) 0 0 2px;
+  padding-bottom: calc(var(--title-to-blocks) - var(--leading-sm));
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
   color: var(--fg-danger);
 }
 
 .seqno-page-blocks {
-  margin: var(--title-to-blocks) 0 0 calc(-1 * (var(--block-control-size) - 2px));
-}
-
-.seqno-page[data-zoomed="true"] .seqno-page-blocks {
-  margin-top: 0;
+  margin-left: calc(-1 * (var(--block-control-size) - 2px));
 }
 
 .seqno-page-properties {
