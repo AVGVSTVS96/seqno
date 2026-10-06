@@ -1,4 +1,5 @@
 import {
+  Clock,
   Context,
   Crypto,
   Effect,
@@ -25,6 +26,7 @@ import { emptyRegistry } from "./registry.ts"
 import {
   TREE,
   blockIdOf,
+  loadPage,
   pageIdOf,
   placementOf,
   readBlock,
@@ -71,6 +73,7 @@ export class Graph extends Context.Service<
     readonly merge: (
       updates: ReadonlyArray<Uint8Array>,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, ImportFailed>
+    readonly load: (pages: ReadonlyArray<PageTree>) => Effect.Effect<ReadonlyArray<GraphEvent>>
     readonly events: Stream.Stream<GraphEvent>
     readonly flush: <E, R>(
       write: (update: LocalUpdate) => Effect.Effect<void, E, R>,
@@ -82,6 +85,8 @@ export class Graph extends Context.Service<
 >()("@seqno/graph/Graph") {
   static readonly layer = (source: GraphSource) => Layer.effect(Graph, make(source))
 }
+
+const LOADED = "seqno:load"
 
 const importAll = (doc: LoroDoc, files: ReadonlyArray<Uint8Array>) =>
   Effect.try({
@@ -100,7 +105,10 @@ const make = (source: GraphSource) =>
     for (const root of tree.roots()) {
       Option.map(pageIdOf(root), (id) => registry.pages.set(id, root.id))
     }
-    const undo = new UndoManager(doc, { mergeInterval: source.undoMergeMs ?? 1000 })
+    const undo = new UndoManager(doc, {
+      mergeInterval: source.undoMergeMs ?? 1000,
+      excludeOriginPrefixes: [LOADED],
+    })
     const ws: Workspace = { tree, registry, undo }
     const batches: Array<LoroEventBatch> = []
     const unsubscribe = doc.subscribe((batch) => void batches.push(batch))
@@ -229,6 +237,19 @@ const make = (source: GraphSource) =>
     const merge = (updates: ReadonlyArray<Uint8Array>) =>
       serial(Effect.andThen(importAll(doc, updates), drain))
 
+    const load = (loaded: ReadonlyArray<PageTree>) =>
+      serial(
+        Clock.currentTimeMillis.pipe(
+          Effect.flatMap((now) =>
+            Effect.sync(() => {
+              loaded.forEach((one) => loadPage(tree, one, now))
+              doc.commit({ origin: LOADED })
+            }),
+          ),
+          Effect.andThen(drain),
+        ),
+      )
+
     const flush = <E, R>(write: (update: LocalUpdate) => Effect.Effect<void, E, R>) =>
       flushing.withPermits(1)(
         Effect.gen(function* () {
@@ -257,6 +278,7 @@ const make = (source: GraphSource) =>
       block,
       dispatch,
       merge,
+      load,
       events: Stream.fromPubSub(pubsub),
       flush,
       snapshot: serial(Effect.sync(() => doc.export({ mode: "snapshot" }))),

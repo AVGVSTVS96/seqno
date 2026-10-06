@@ -1,5 +1,5 @@
 import { Option, Schema } from "effect"
-import { LoroMap, LoroText, type LoroTreeNode, type TreeID } from "loro-crdt"
+import { LoroMap, LoroText, type LoroTree, type LoroTreeNode, type TreeID } from "loro-crdt"
 import {
   BlockId,
   JournalDay,
@@ -9,6 +9,7 @@ import {
   type Block,
   type Page,
 } from "@seqno/domain"
+import type { PageTree } from "@seqno/rpc"
 
 export const TREE = "blocks"
 
@@ -114,6 +115,26 @@ export const writeBlock = (node: LoroTreeNode, id: BlockId, text: string, now: n
   node.data.ensureMergeableMap("props")
   node.data.set("created", now)
   node.data.set("updated", now)
+}
+
+const writeProps = (node: LoroTreeNode, props: Props): void => {
+  const map = propsOf(node)
+  Object.entries(props).forEach(([key, value]) => map.set(key, value))
+}
+
+export const loadPage = (tree: LoroTree, { page, blocks }: PageTree, now: number): void => {
+  const root = tree.createNode()
+  writePage(root, page.id, page.title)
+  if (page.journalDay !== null) root.data.set("journalDay", page.journalDay)
+  writeProps(root, page.props)
+  const nodes = new Map<BlockId, LoroTreeNode>()
+  for (const block of blocks) {
+    const node = (block.parentId === null ? root : (nodes.get(block.parentId) ?? root)).createNode()
+    writeBlock(node, block.id, block.text, now)
+    if (block.collapsed) node.data.set("collapsed", true)
+    writeProps(node, block.props)
+    nodes.set(block.id, node)
+  }
 }
 
 export const touch = (node: LoroTreeNode, now: number): void => {
