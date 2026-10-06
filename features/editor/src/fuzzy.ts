@@ -11,6 +11,8 @@ const Prefix = 1
 const Substring = 2
 const Scattered = 3
 
+export const scatteredKind = Scattered
+
 const scattered = (label: string, query: string): Match | null => {
   const ranges: Array<[number, number]> = []
   let at = 0

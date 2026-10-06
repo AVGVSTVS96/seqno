@@ -1,10 +1,10 @@
 import { StateEffect, StateField, type EditorState, type Transaction } from "@codemirror/state"
 import { Data } from "effect"
-import { normalizePageName, type BlockId, type Page } from "@seqno/domain"
+import { normalizePageName, type BlockId } from "@seqno/domain"
 import { slashCommands, type SlashCommand } from "./commands.ts"
-import { journalTitle, shiftDays } from "./dates.ts"
-import { rankBy, type Range } from "./fuzzy.ts"
-import type { BlockHit } from "./host.ts"
+import { journalTitle, shiftDays, shiftMonths } from "./dates.ts"
+import { rankBy, scatteredKind, type Range } from "./fuzzy.ts"
+import type { BlockHit, PageName } from "./host.ts"
 
 export type PopupKind = "Page" | "Tag" | "Block" | "Slash"
 
@@ -64,14 +64,21 @@ export const commandChoices = (query: string): ReadonlyArray<Choice> =>
         Choice.Command({ command: item, ranges: match.ranges }),
       )
 
+const relativeDays: ReadonlyArray<readonly [string, (now: Date) => Date]> = [
+  ["Today", (now) => now],
+  ["Tomorrow", (now) => shiftDays(now, 1)],
+  ["Yesterday", (now) => shiftDays(now, -1)],
+  ["Next week", (now) => shiftDays(now, 7)],
+  ["This week", (now) => now],
+  ["Last week", (now) => shiftDays(now, -7)],
+  ["Next month", (now) => shiftMonths(now, 1)],
+  ["This month", (now) => now],
+  ["Last month", (now) => shiftMonths(now, -1)],
+  ["Next year", (now) => shiftMonths(now, 12)],
+]
+
 const journalChoices = (now: Date): ReadonlyArray<Choice> =>
-  (
-    [
-      ["Today", 0],
-      ["Tomorrow", 1],
-      ["Yesterday", -1],
-    ] as const
-  ).map(([label, days]) => Choice.Journal({ label, title: journalTitle(shiftDays(now, days)) }))
+  relativeDays.map(([label, day]) => Choice.Journal({ label, title: journalTitle(day(now)) }))
 
 const localChoices = (kind: PopupKind, query: string): ReadonlyArray<Choice> | null => {
   if (kind === "Slash") return commandChoices(query)
@@ -162,9 +169,14 @@ export const popupField = StateField.define<Popup | null>({
 const pageLimit = 20
 const blockLimit = 10
 
-export const pageChoices = (pages: ReadonlyArray<Page>, query: string): ReadonlyArray<Choice> => {
+export const pageChoices = (
+  pages: ReadonlyArray<PageName>,
+  query: string,
+): ReadonlyArray<Choice> => {
   const wanted = query.trim()
-  const ranked = rankBy(pages, (page) => page.title, wanted)
+  const found = rankBy(pages, (page) => page.title, wanted)
+  const close = found.filter(({ match }) => match.kind !== scatteredKind)
+  const ranked = (close.length > 0 ? close : found)
     .slice(0, pageLimit)
     .map(({ item, match }) => Choice.Page({ title: item.title, ranges: match.ranges }))
   if (wanted === "" || pages.some((page) => page.name === normalizePageName(wanted))) {

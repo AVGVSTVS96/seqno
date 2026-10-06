@@ -52,12 +52,12 @@ const small = { size: 14, stroke: 2 } as const
 
 const Content = ({ choice, popup }: { readonly choice: Choice; readonly popup: Popup }) =>
   Choice.$match(choice, {
-    Command: ({ command, ranges }) => (
+    Command: ({ command }) => (
       <span className="sq-popup-command">
         <span className="sq-popup-command-icon" aria-hidden>
           <command.icon size={18} stroke={2} />
         </span>
-        <Marked text={command.label} ranges={ranges} />
+        <span className="sq-popup-text">{command.label}</span>
       </span>
     ),
     Page: ({ title, ranges }) => (
@@ -71,7 +71,9 @@ const Content = ({ choice, popup }: { readonly choice: Choice; readonly popup: P
         <Icon>
           <IconPlus {...small} />
         </Icon>
-        <span className="sq-popup-text">New page {title}</span>
+        <span className="sq-popup-text">
+          {popup.kind === "Tag" ? "New tag" : "New page"} {title}
+        </span>
       </span>
     ),
     Journal: ({ label }) => (

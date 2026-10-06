@@ -7,4 +7,5 @@ export {
   LinkTarget,
   type BlockHit,
   type EditorHost,
+  type PageName,
 } from "./host.ts"

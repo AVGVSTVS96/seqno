@@ -22,6 +22,19 @@ const labels = (popups: MountedEditor["popups"]) =>
     }
   }) ?? null
 
+const relativeDates = [
+  "Today",
+  "Tomorrow",
+  "Yesterday",
+  "Next week",
+  "This week",
+  "Last week",
+  "Next month",
+  "This month",
+  "Last month",
+  "Next year",
+]
+
 const active = (popups: MountedEditor["popups"]) => popupOf(popups)?.active ?? null
 
 describe("slash menu", () => {
@@ -99,7 +112,7 @@ describe("slash menu", () => {
     typeKeys(view, "/page ref")
     press(view, "Enter")
     assert.deepStrictEqual([text(view), caret(view)], ["[[]]", 2])
-    assert.deepStrictEqual(labels(popups), ["Today", "Tomorrow", "Yesterday"])
+    assert.deepStrictEqual(labels(popups), relativeDates)
   })
 
   it("closes when nothing matches, and ignores a slash inside a word", () => {
@@ -115,10 +128,7 @@ describe("page search", () => {
   it("offers today's journals for an empty [[", () => {
     const { view, popups } = mount("", { _tag: "End" })
     typeKeys(view, "[[")
-    assert.deepStrictEqual(
-      [text(view), labels(popups)],
-      ["[[]]", ["Today", "Tomorrow", "Yesterday"]],
-    )
+    assert.deepStrictEqual([text(view), labels(popups)], ["[[]]", relativeDates])
   })
 
   it("ranks pages and offers a new page right after a close match", async () => {
@@ -145,6 +155,16 @@ describe("page search", () => {
         [labels(plan.popups), labels(exact.popups)],
         [["New page plan", "Garden Plan"], ["Projects"]],
       ),
+    )
+  })
+
+  it("lists a tag-only page first for #, and leaves out pages matched only by scattered letters", async () => {
+    const { view, popups, pages } = mount("", { _tag: "End" })
+    pages.push({ name: "projects/greenhouse", title: "projects/Greenhouse" })
+    pages.push({ name: "greenhouse", title: "greenhouse" })
+    typeKeys(view, "#gre")
+    await vi.waitFor(() =>
+      assert.deepStrictEqual(labels(popups), ["greenhouse", "New page gre", "projects/Greenhouse"]),
     )
   })
 

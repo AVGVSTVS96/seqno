@@ -8,6 +8,7 @@ import {
   type CursorPlacement,
   type EditorAction,
   type Handoff,
+  type PageName,
 } from "@seqno/editor"
 
 export const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
@@ -43,7 +44,7 @@ export interface Session {
   readonly actions: Array<EditorAction>
   readonly searches: Array<string>
   readonly handoff: Handoff
-  readonly pages: Array<Page>
+  readonly pages: Array<PageName>
 }
 
 export const session = (): Session => ({
