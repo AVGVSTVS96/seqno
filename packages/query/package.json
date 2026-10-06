@@ -1,0 +1,25 @@
+{
+  "name": "@seqno/query",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "oxlint src test",
+    "fmt": "oxfmt src test"
+  },
+  "dependencies": {
+    "effect": "4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "oxfmt": "0.72.0",
+    "oxlint": "1.87.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}
