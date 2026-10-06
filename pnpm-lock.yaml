@@ -257,6 +257,9 @@ importers:
       '@seqno/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
+      '@seqno/vault':
+        specifier: workspace:*
+        version: link:../../packages/vault
       effect:
         specifier: 4.0.1
         version: 4.0.1

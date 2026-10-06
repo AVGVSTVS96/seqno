@@ -1,6 +1,7 @@
 import { Effect, Layer, Schema } from "effect"
 import { LoroGraphs } from "./loro-graph.ts"
 import { bugs, loroVaults, type Bug } from "./loro-vault.ts"
+import { realVaults } from "./real-vault.ts"
 import { runSeed, type SeedResult, type SimConfig } from "./sim.ts"
 
 export const suites = {
@@ -25,6 +26,8 @@ export const decodeSeedJob = Schema.decodeUnknownSync(Schema.fromJsonString(Seed
 
 export const simLayer = (bug: Bug | null) =>
   Layer.mergeAll(LoroGraphs, loroVaults(bug ?? undefined))
+
+export const realVaultLayer = Layer.mergeAll(LoroGraphs, realVaults)
 
 export const runJob = (job: SeedJob): Effect.Effect<SeedResult> => {
   const cfg: SimConfig = {

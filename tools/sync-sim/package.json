@@ -13,6 +13,7 @@
   "dependencies": {
     "@seqno/domain": "workspace:*",
     "@seqno/rpc": "workspace:*",
+    "@seqno/vault": "workspace:*",
     "effect": "4.0.1",
     "loro-crdt": "1.16.2"
   },

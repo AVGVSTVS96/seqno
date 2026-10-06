@@ -3,7 +3,8 @@ import { Effect, Option } from "effect"
 import { createRng } from "../src/rng.ts"
 import { FakeICloud } from "../src/cloud.ts"
 import { Scheduler } from "../src/scheduler.ts"
-import { runJob } from "../src/suite.ts"
+import { realVaultLayer, runJob } from "../src/suite.ts"
+import { runSeed } from "../src/sim.ts"
 
 const quietCloud = (sched: Scheduler, style: "dataless" | "stub") =>
   new FakeICloud(
@@ -92,6 +93,34 @@ describe("simulated seeds", () => {
         assert.strictEqual(first.seed, 11)
         assert.isTrue(first.ok)
         assert.deepStrictEqual({ ...first, cpuMs: 0 }, { ...second, cpuMs: 0 })
+      }),
+    60_000,
+  )
+
+  it.effect(
+    "the real @seqno/vault converges through the fake iCloud with no violation",
+    () =>
+      Effect.gen(function* () {
+        const result = yield* runSeed({
+          seed: 3,
+          ops: 600,
+          devices: 5,
+          hours: 24,
+          compaction: true,
+        }).pipe(Effect.provide(realVaultLayer))
+        assert.deepStrictEqual(result.violations, {
+          lostCoverage: 0,
+          ackUnsound: 0,
+          multiWriter: 0,
+          placeholderRead: 0,
+          diverged: 0,
+          lostOps: 0,
+          bootstrap: 0,
+          noConvergence: 0,
+        })
+        assert.isTrue(result.ok)
+        assert.strictEqual(result.snapshotsWritten, 1)
+        assert.deepStrictEqual([result.files.peakCount, result.files.finalCount], [113, 53])
       }),
     60_000,
   )
