@@ -1,5 +1,6 @@
 import { Context, Layer } from "effect"
 import type { Props } from "@seqno/domain"
+import * as Syntax from "@seqno/syntax"
 
 export interface OutlineBlock {
   readonly text: string
@@ -21,19 +22,8 @@ export class LogseqSyntax extends Context.Service<
   }
 >()("@seqno/interop/LogseqSyntax") {}
 
-const bullet = /^([ \t]*)-(?: (.*))?$/
 const property = /^([^\s:]+):: (.*)$/
-const fence = /^\s*(```|~~~)/
 const opensVerbatim = /^\s*(```|~~~|#\+BEGIN_)/i
-
-const indentWidth = (indent: string): number =>
-  [...indent].reduce((width, char) => width + (char === "\t" ? 4 : 1), 0)
-
-const dedent = (line: string, prefix: string): string => {
-  let index = 0
-  while (index < prefix.length && line[index] === prefix[index]) index += 1
-  return line.slice(index)
-}
 
 interface PropertyRun {
   readonly props: Props
@@ -61,7 +51,7 @@ const propertyRun = (lines: ReadonlyArray<string>): PropertyRun => {
   return { props, collapsed, length }
 }
 
-const blockFromLines = (lines: ReadonlyArray<string>, children: ReadonlyArray<OutlineBlock>) => {
+const fromLines = (lines: ReadonlyArray<string>, children: ReadonlyArray<OutlineBlock>) => {
   const head = lines[0] ?? ""
   const whole = propertyRun(lines)
   if (head !== "" && whole.length === lines.length) {
@@ -72,56 +62,19 @@ const blockFromLines = (lines: ReadonlyArray<string>, children: ReadonlyArray<Ou
   return { text: body.join("\n"), props: run.props, collapsed: run.collapsed, children }
 }
 
-interface Draft {
-  readonly width: number
-  readonly continuation: string
-  readonly lines: Array<string>
-  readonly children: Array<Draft>
-  fenced: boolean
-}
-
-const finish = (draft: Draft): OutlineBlock =>
-  blockFromLines(draft.lines, draft.children.map(finish))
+const fromSyntax = (block: Syntax.Block): OutlineBlock =>
+  fromLines(block.text.split("\n"), block.children.map(fromSyntax))
 
 const parse = (source: string): Outline => {
-  const lines = source.replace(/\r\n/g, "\n").split("\n")
-  if (lines.at(-1) === "") lines.pop()
-  const firstBullet = lines.findIndex((line) => bullet.test(line))
-  const preamble = firstBullet === -1 ? lines : lines.slice(0, firstBullet)
+  const outline = Syntax.toOutline(Syntax.parse(source.replaceAll("\r\n", "\n")))
+  const preamble = outline.preamble === "" ? [] : outline.preamble.split("\n")
+  if (preamble.at(-1) === "") preamble.pop()
   const pageRun = propertyRun(preamble)
-  const preambleRest = preamble.slice(pageRun.length)
-  const pageProps = preambleRest.every((line) => line.trim() === "") ? pageRun.props : {}
-  const roots: Array<Draft> = []
-  if (preambleRest.some((line) => line.trim() !== "")) {
-    roots.push({ width: -1, continuation: "", lines: [...preamble], children: [], fenced: false })
-  }
-  const stack: Array<Draft> = []
-  for (const line of firstBullet === -1 ? [] : lines.slice(firstBullet)) {
-    const current = stack.at(-1)
-    const match = bullet.exec(line)
-    const indent = match?.[1] ?? ""
-    const width = indentWidth(indent)
-    if (current !== undefined && (match === null || (current.fenced && width > current.width))) {
-      const content = dedent(line, current.continuation)
-      if (fence.test(content)) current.fenced = !current.fenced
-      current.lines.push(content)
-      continue
-    }
-    while ((stack.at(-1)?.width ?? -1) >= width) stack.pop()
-    const head = match?.[2] ?? ""
-    const draft: Draft = {
-      width,
-      continuation: `${indent}  `,
-      lines: [head],
-      children: [],
-      fenced: fence.test(head),
-    }
-    const parent = stack.at(-1)
-    if (parent === undefined) roots.push(draft)
-    else parent.children.push(draft)
-    stack.push(draft)
-  }
-  return { props: pageProps, blocks: roots.map(finish) }
+  const rest = preamble.slice(pageRun.length)
+  const blocks = outline.blocks.map(fromSyntax)
+  return rest.every((line) => line.trim() === "")
+    ? { props: pageRun.props, blocks }
+    : { props: {}, blocks: [fromLines(preamble, []), ...blocks] }
 }
 
 const propertyLines = (props: Props, collapsed: boolean): Array<string> => [
@@ -129,23 +82,25 @@ const propertyLines = (props: Props, collapsed: boolean): Array<string> => [
   ...(collapsed ? ["collapsed:: true"] : []),
 ]
 
-const printBlock = (block: OutlineBlock, depth: number): Array<string> => {
-  const indent = "\t".repeat(depth)
+const toSyntax = (block: OutlineBlock): Syntax.Block => {
   const [head = "", ...rest] = block.text === "" ? [] : block.text.split("\n")
   const props = propertyLines(block.props, block.collapsed)
-  const lines = block.text === "" ? props : [head, ...props, ...rest]
-  const [first = "", ...continuation] = lines
-  return [
-    first === "" ? `${indent}-` : `${indent}- ${first}`,
-    ...continuation.map((line) => (line === "" ? "" : `${indent}  ${line}`)),
-    ...block.children.flatMap((child) => printBlock(child, depth + 1)),
-  ]
+  return {
+    text: (block.text === "" ? props : [head, ...props, ...rest]).join("\n"),
+    children: block.children.map(toSyntax),
+  }
 }
 
 const print = (outline: Outline): string => {
   const props = propertyLines(outline.props, false)
-  const blocks = outline.blocks.flatMap((block) => printBlock(block, 0))
-  return [...props, ...(props.length > 0 && blocks.length > 0 ? [""] : []), ...blocks].join("\n")
+  const preamble = [...props, ...(props.length > 0 && outline.blocks.length > 0 ? ["", ""] : [])]
+  return Syntax.render({
+    preamble: preamble.join("\n"),
+    blocks: outline.blocks.map(toSyntax),
+    format: Syntax.logseqFormat,
+  })
+    .replace(/^[ \t]+$/gm, "")
+    .replace(/^([ \t]*-) $/gm, "$1")
 }
 
 export const LogseqSyntaxLive = Layer.succeed(LogseqSyntax, LogseqSyntax.of({ parse, print }))

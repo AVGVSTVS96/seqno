@@ -126,6 +126,9 @@ importers:
       '@seqno/rpc':
         specifier: workspace:*
         version: link:../rpc
+      '@seqno/syntax':
+        specifier: workspace:*
+        version: link:../syntax
       effect:
         specifier: 4.0.1
         version: 4.0.1

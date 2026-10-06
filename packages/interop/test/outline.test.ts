@@ -63,6 +63,21 @@ describe("outline syntax", () => {
     assert.strictEqual(roundTrip(source), source)
   })
 
+  it("keeps a bare bullet whose content starts on the next line", () => {
+    const source = [
+      "-",
+      "  #+BEGIN_TIP",
+      "  backlinks open the page",
+      "  #+END_TIP",
+      "- next",
+    ].join("\n")
+    assert.deepStrictEqual(
+      parse(source).blocks.map((block) => block.text),
+      ["\n#+BEGIN_TIP\nbacklinks open the page\n#+END_TIP", "next"],
+    )
+    assert.strictEqual(roundTrip(source), source)
+  })
+
   it("ends an unclosed fence at the next sibling bullet", () => {
     assert.deepStrictEqual(
       parse("- ```\n  open\n- sibling").blocks.map((block) => block.text),

@@ -5,7 +5,7 @@
 ```
 Logseq folder ──GraphFolder.list/read──> importGraph ──> ImportedGraph { config, pages: PageTree[], issues }
                                              │
-                                     LogseqSyntax.parse   (stand-in for @seqno/syntax)
+                                     LogseqSyntax.parse   (tree from @seqno/syntax)
 
 PageTree[] ──renderMirror──> Map<path, markdown> ──writeMirror──> GraphFolder.write/remove
                  │                                     (designated device only, changed files only)
@@ -31,7 +31,7 @@ PageTree[] ──renderMirror──> Map<path, markdown> ──writeMirror──
 
 ## Interfaces added inside this package (for integration)
 
-- `LogseqSyntax` (`Context.Service`): `parse(source) => Outline` and `print(Outline) => string`. `Outline = { props, blocks: OutlineBlock[] }` and `OutlineBlock = { text, props, collapsed, children }`. `LogseqSyntaxLive` is a small stand-in parser. **Integration swaps in `@seqno/syntax` by giving it a layer for this service.**
+- `LogseqSyntax` (`Context.Service`): `parse(source) => Outline` and `print(Outline) => string`. `Outline = { props, blocks: OutlineBlock[] }` and `OutlineBlock = { text, props, collapsed, children }`. `LogseqSyntaxLive` builds the block tree with `@seqno/syntax` (`parse`, `toOutline`, `render`), then splits the leading `key:: value` run into `props`. Integration wired this; on the 333 files of logseq/docs it round-trips 190 byte-for-byte, against 188 for the old stand-in, with no file getting worse.
 - `GraphFolder` (`Context.Service`): `list` (relative POSIX paths, recursive), `read`, `write` (atomic, creates parent folders), `remove`. `layerFileSystem(root)` builds it on Effect's `FileSystem` and `Path` (node). The vault's File System Access and OPFS adapters need a few lines each to provide it.
 - `LogseqConfig` (Schema), `parseConfig`, `printConfig`, `defaultConfig`.
 - `ImportedGraph`, `ImportIssue`, `MirrorOutcome` are Schemas, so they can cross the worker boundary.
@@ -55,7 +55,7 @@ There are 18 tests in `test/names.test.ts`, `test/outline.test.ts` and `test/gra
 
 ## Known gaps
 
-- The stand-in parser's exact round trip covers canonical Logseq output: tab indentation, `- ` bullets, page props followed by one blank line, no trailing newline. It parses 2-space indentation but prints tabs. `collapsed:: true` is printed as the last property. Leading non-property text above the first bullet becomes the first block. `@seqno/syntax` should own exactness.
+- The exact round trip covers canonical Logseq output: tab indentation, `- ` bullets, page props followed by one blank line, no trailing newline. It parses 2-space indentation but prints tabs. `collapsed:: true` is printed as the last property. Leading non-property text above the first bullet becomes the first block. `@seqno/syntax` should own exactness.
 - Block property extraction stops at the first line that is not canonical (`key:: value` with exactly one space), at a duplicate key, at a numeric key (JS objects would reorder it), and after a fence or `#+BEGIN_` opener. Those lines stay in `text`, so nothing is lost.
 - Org-mode files, whiteboards (`.edn`) and `assets/` are not imported. Org files are reported as `Unsupported`.
 - Re-importing mints new page ids and new ids for blocks without `id::`. Import is a one-time step, not a sync.

@@ -11,6 +11,7 @@
   "dependencies": {
     "@seqno/domain": "workspace:*",
     "@seqno/rpc": "workspace:*",
+    "@seqno/syntax": "workspace:*",
     "effect": "4.0.1"
   },
   "devDependencies": {
