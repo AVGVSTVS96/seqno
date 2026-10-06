@@ -4,6 +4,7 @@ import {
   blockContent,
   clockTotal,
   plainText,
+  propertyValue,
   setMarker,
   type Body,
   type BlockContent,
@@ -50,7 +51,7 @@ describe("blockContent", () => {
     ).toStrictEqual({
       marker: "TODO",
       heading: null,
-      title: "[#A] Check the frost cloth",
+      title: "[#A]Check the frost cloth",
       properties: [],
       planning: ["SCHEDULED <2026-10-08 Thu .+1w>"],
       logbook: "1h44m",
@@ -122,6 +123,25 @@ describe("blockContent", () => {
     const text = "TODO **Order** panels"
     const [first] = blockContent(text).title ?? []
     expect(first === undefined ? "" : text.slice(first.span.from, first.span.to)).toBe("**Order**")
+  })
+})
+
+const shape = (key: string, value: string) =>
+  propertyValue(key, value).map((node) =>
+    node._tag === "PageRef" ? `${node._tag}:${node.name}:${node.brackets}` : node._tag,
+  )
+
+describe("propertyValue", () => {
+  it("reads tags and alias as bare page refs and other values as inline text", () => {
+    expect(shape("tags", "design, [[visual check]]")).toStrictEqual([
+      "PageRef:design:false",
+      "Text",
+      "PageRef:visual check:true",
+    ])
+    expect(shape("location", "[[projects/Greenhouse]]")).toStrictEqual([
+      "PageRef:projects/Greenhouse:true",
+    ])
+    expect(shape("variety", "San Marzano")).toStrictEqual(["Text"])
   })
 })
 

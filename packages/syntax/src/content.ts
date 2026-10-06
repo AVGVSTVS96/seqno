@@ -70,6 +70,21 @@ const PLANNING = /(SCHEDULED|DEADLINE): <([^>\n]*)>/g
 const CLOCK_DURATION = /=>\s*(\d+):(\d{2})(?::(\d{2}))?\s*$/
 const FENCE_INFO = /^[ \t]*(?:`{3,}|~{3,})[ \t]*([^\s`]*)/
 
+const LEADING_PRIORITY = /^\[#([ABC])\][ \t]*/
+
+const titleOf = (line: string, start: number): ReadonlyArray<Inline> => {
+  const leading = LEADING_PRIORITY.exec(line.slice(start))
+  const priority = leading?.[1]
+  if (leading === null || (priority !== "A" && priority !== "B" && priority !== "C")) {
+    return parseInline(line.slice(start), start)
+  }
+  const rest = start + leading[0].length
+  return [
+    { _tag: "Priority", priority, span: { from: start, to: start + 4 } },
+    ...parseInline(line.slice(rest), rest),
+  ]
+}
+
 export const isHiddenProperty = (key: string) =>
   HIDDEN_KEYS.has(key) || key.startsWith("logseq.") || key.startsWith("hl-")
 
@@ -104,6 +119,9 @@ const listValue = (value: string, from: number): ReadonlyArray<Inline> => {
   }
   return nodes
 }
+
+export const propertyValue = (key: string, value: string, from = 0): ReadonlyArray<Inline> =>
+  LIST_KEYS.has(key.toLowerCase()) ? listValue(value, from) : parseInline(value, from)
 
 const durationOf = (entry: string): number => {
   const match = CLOCK_DURATION.exec(entry)
@@ -235,7 +253,7 @@ export const blockContent = (text: string): BlockContent => {
   return {
     marker: hasTitle ? syntax.marker : null,
     heading: heading === "" ? null : heading.trim().length,
-    title: hasTitle ? parseInline(first.text.slice(titleStart), titleStart) : null,
+    title: hasTitle ? titleOf(first.text, titleStart) : null,
     properties: syntax.properties
       .filter((property) => !isHiddenProperty(property.key))
       .map((property) => {
@@ -243,9 +261,7 @@ export const blockContent = (text: string): BlockContent => {
         const valueFrom = property.span.from + line.indexOf(property.value, line.indexOf("::") + 2)
         return {
           key: property.key,
-          value: LIST_KEYS.has(property.key)
-            ? listValue(property.value, valueFrom)
-            : parseInline(property.value, valueFrom),
+          value: propertyValue(property.key, property.value, valueFrom),
           span: property.span,
         }
       }),
