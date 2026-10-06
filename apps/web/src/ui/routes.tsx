@@ -42,16 +42,27 @@ export const AllPages = () => {
   )
 }
 
-const BlockResults = ({ query }: { readonly query: string }) => {
+const Results = ({ text }: { readonly text: string }) => {
   const everyPage = useAtomValue(allPages)
   const titles = new Map(everyPage.map((page) => [page.id, page]))
-  return AsyncResult.match(useAtomValue(search(query)), {
+  return AsyncResult.match(useAtomValue(search(text)), {
     onInitial: () => <p className="hint">Searching…</p>,
     onFailure: () => <p className="problem">The search could not run.</p>,
-    onSuccess: (result) =>
-      result.value._tag === "BlockRows" ? (
-        <ul className="results">
-          {result.value.blocks.map((found) => {
+    onSuccess: ({ value }) => (
+      <>
+        {value.pages.length === 0 ? null : (
+          <ul className="results" aria-label="Pages">
+            {value.pages.map((page) => (
+              <li key={page.id}>
+                <Link to="/page/$name" params={{ name: page.name }}>
+                  {page.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        <ul className="results" aria-label="Blocks">
+          {value.blocks.map((found) => {
             const page = titles.get(found.pageId)
             return (
               <li key={found.id}>
@@ -65,7 +76,8 @@ const BlockResults = ({ query }: { readonly query: string }) => {
             )
           })}
         </ul>
-      ) : null,
+      </>
+    ),
   })
 }
 
@@ -75,9 +87,6 @@ export const Search = () => {
   const { q } = searchRoute.useSearch()
   const query = q ?? ""
   const navigate = useNavigate()
-  const everyPage = useAtomValue(allPages)
-  const needle = query.trim().toLowerCase()
-  const pageHits = needle.length === 0 ? [] : everyPage.filter((page) => page.name.includes(needle))
   return (
     <div className="search">
       <input
@@ -90,18 +99,7 @@ export const Search = () => {
           navigate({ to: "/search", search: { q: event.currentTarget.value }, replace: true })
         }
       />
-      {pageHits.length === 0 ? null : (
-        <ul className="results">
-          {pageHits.map((page) => (
-            <li key={page.id}>
-              <Link to="/page/$name" params={{ name: page.name }}>
-                {page.title}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      {needle.length === 0 ? null : <BlockResults query={needle} />}
+      {query.trim().length === 0 ? null : <Results text={query.trim()} />}
     </div>
   )
 }

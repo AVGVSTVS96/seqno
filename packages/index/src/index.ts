@@ -9,4 +9,4 @@ export {
   type Statements,
 } from "./sqlite.ts"
 export { SCHEMA, SCHEMA_VERSION } from "./schema.ts"
-export type { Facet, ReadKey } from "./keys.ts"
+export { isReadKey, type Facet, type ReadKey } from "./keys.ts"

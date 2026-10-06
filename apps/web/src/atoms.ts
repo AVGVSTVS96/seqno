@@ -1,4 +1,4 @@
-import { Effect, Equal, Layer, Option, Schema, Stream } from "effect"
+import { Effect, Equal, Layer, Option, Schema } from "effect"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
 import type { Command, Page } from "@seqno/domain"
@@ -88,8 +88,6 @@ export const pageNamed = Atom.family((name: string) =>
 
 export const rightSidebarOpen = Atom.make(true).pipe(Atom.keepAlive)
 
-export const search = Atom.family((query: string) =>
-  appRuntime.atom(
-    Stream.unwrap(Effect.map(Effect.service(CoreClient), (core) => core.WatchQuery({ query }))),
-  ),
+export const search = Atom.family((text: string) =>
+  appRuntime.atom(Effect.flatMap(Effect.service(CoreClient), (core) => core.Search({ text }))),
 )

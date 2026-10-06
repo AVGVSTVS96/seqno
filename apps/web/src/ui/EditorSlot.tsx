@@ -33,7 +33,7 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
       ),
     searchBlocks: (query) =>
       AtomRegistry.getResult(registry, search(query)).pipe(
-        Effect.map((result) => (result._tag === "BlockRows" ? result.blocks : [])),
+        Effect.map((result) => result.blocks),
         Effect.orElseSucceed(() => []),
       ),
   }

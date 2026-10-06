@@ -28,6 +28,12 @@ export const QueryResult = Schema.TaggedUnion({
 })
 export type QueryResult = typeof QueryResult.Type
 
+export const SearchHits = Schema.Struct({
+  pages: Schema.Array(Page),
+  blocks: Schema.Array(Block),
+})
+export type SearchHits = typeof SearchHits.Type
+
 export const OpenGraph = Rpc.make("OpenGraph", {
   payload: { graph: Schema.NonEmptyString },
   success: GraphOpened,
@@ -71,6 +77,12 @@ export const WatchQuery = Rpc.make("WatchQuery", {
   stream: true,
 })
 
+export const Search = Rpc.make("Search", {
+  payload: { text: Schema.String },
+  success: SearchHits,
+  error: GraphNotOpen,
+})
+
 export const CoreRpcs = RpcGroup.make(
   OpenGraph,
   Dispatch,
@@ -79,4 +91,5 @@ export const CoreRpcs = RpcGroup.make(
   GetBlock,
   WatchPage,
   WatchQuery,
+  Search,
 )

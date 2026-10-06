@@ -17,6 +17,8 @@ export {
   OpenGraph,
   PageTree,
   QueryResult,
+  Search,
+  SearchHits,
   WatchPage,
   WatchQuery,
 } from "./rpcs.ts"
