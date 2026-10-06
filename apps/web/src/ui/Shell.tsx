@@ -1,108 +1,88 @@
-import { useAtom, useAtomValue } from "@effect/atom-react"
-import { Link, Outlet } from "@tanstack/react-router"
-import { Cause } from "effect"
+import shellCss from "./shell/shell.css?inline"
+import { useAtomMount, useAtomValue } from "@effect/atom-react"
+import { Outlet, useRouter } from "@tanstack/react-router"
+import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import type { BlockId } from "@seqno/domain"
-import { blockAtom } from "@seqno/outliner"
-import {
-  favorites,
-  leftSidebarOpen,
-  openGraph,
-  pages,
-  rightSidebar,
-  SidebarItem,
-  sidebarItemKey,
-} from "../atoms.ts"
+import { leftSidebarOpen, openGraph, rightSidebar } from "../atoms.ts"
+import { GraphNotPicked } from "../graph-locations.ts"
 import { OpenGraphScreen } from "./OpenGraphScreen.tsx"
-import { PageByName, PageView } from "./PageView.tsx"
+import { Header } from "./shell/Header.tsx"
+import { HelpButton } from "./shell/HelpButton.tsx"
+import { LeftSidebar } from "./shell/LeftSidebar.tsx"
+import { shellListeners } from "./shell/listeners.ts"
+import { RightSidebar } from "./shell/RightSidebar.tsx"
+import { leftSidebarWidth, rightSidebarWidth, wideMode } from "./shell/state.ts"
 
 const problemOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
   return error instanceof Error ? error.message : String(error)
 }
 
-const LeftSidebar = ({ graph }: { readonly graph: string }) => {
-  const starred = useAtomValue(favorites)
-  return (
-    <aside className="left-sidebar">
-      <div className="graph-name">{graph}</div>
-      <nav className="nav">
-        <Link to="/" activeOptions={{ exact: true }}>
-          Journals
-        </Link>
-        <Link to="/all-pages">All pages</Link>
-        <Link to="/search" search={{}}>
-          Search
-        </Link>
-      </nav>
-      <section className="favorites">
-        <h2>Favorites</h2>
-        {starred.length === 0 ? (
-          <p className="hint">Star a page to keep it here.</p>
-        ) : (
-          starred.map((page) => (
-            <Link key={page.id} to="/page/$name" params={{ name: page.name }}>
-              {page.title}
-            </Link>
-          ))
-        )}
-      </section>
-    </aside>
-  )
-}
-
-const SidebarBlock = ({ blockId }: { readonly blockId: BlockId }) => {
-  const known = AsyncResult.getOrElse(useAtomValue(pages), () => [])
-  return AsyncResult.match(useAtomValue(blockAtom(blockId)), {
-    onInitial: () => <p className="hint">Loading…</p>,
-    onFailure: () => <p className="problem">This block could not be loaded.</p>,
-    onSuccess: ({ value }) => {
-      const page = known.find((candidate) => candidate.id === value.pageId)
-      return page === undefined ? null : <PageView page={page} zoom={value.id} />
-    },
-  })
-}
-
-const SidebarEntry = ({ item }: { readonly item: SidebarItem }) =>
-  SidebarItem.match(item, {
-    Page: ({ name }) => <PageByName name={name} zoom={null} />,
-    Block: ({ blockId }) => <SidebarBlock blockId={blockId} />,
-  })
-
-const RightSidebar = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => (
-  <aside className="right-sidebar" aria-label="Right sidebar">
-    {items.length === 0 ? (
-      <p className="hint">Shift-click a page or block to open it here.</p>
-    ) : (
-      items.map((item) => <SidebarEntry key={sidebarItemKey(item)} item={item} />)
-    )}
-  </aside>
-)
-
 const Layout = ({ graph }: { readonly graph: string }) => {
-  const [sidebar, updateSidebar] = useAtom(rightSidebar)
+  useAtomMount(shellListeners(useRouter()))
   const leftOpen = useAtomValue(leftSidebarOpen)
+  const leftWidth = useAtomValue(leftSidebarWidth)
+  const rightWidth = useAtomValue(rightSidebarWidth)
+  const rightOpen = useAtomValue(rightSidebar).open
+  const wide = useAtomValue(wideMode)
   return (
-    <div className="app" data-left-open={leftOpen} data-right-open={sidebar.open}>
-      {leftOpen ? <LeftSidebar graph={graph} /> : null}
-      <div className="main">
-        <header className="topbar">
-          <button type="button" className="ghost" onClick={() => updateSidebar({ _tag: "Toggle" })}>
-            {sidebar.open ? "Hide sidebar" : "Show sidebar"}
-          </button>
-        </header>
-        <main className="main-column">
-          <Outlet />
-        </main>
+    <div
+      className="app"
+      data-left-open={leftOpen}
+      data-right-open={rightOpen}
+      data-wide={wide}
+      style={{
+        "--left-sidebar-width": `${leftWidth}px`,
+        "--right-sidebar-width": `${rightWidth}vw`,
+      }}
+    >
+      <div className="left-container">
+        <Header />
+        <div className="main-container">
+          <LeftSidebar graph={graph} />
+          <main className="main-content-container">
+            <div className="main-content">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
-      {sidebar.open ? <RightSidebar items={sidebar.items} /> : null}
+      <RightSidebar />
+      <HelpButton />
     </div>
   )
 }
 
-export const Shell = () =>
+const pickerCancelled = (cause: Cause.Cause<unknown>) =>
+  Cause.squash(cause) instanceof GraphNotPicked
+
+const Screen = () =>
   AsyncResult.match(useAtomValue(openGraph), {
     onInitial: () => <OpenGraphScreen problem={null} />,
-    onFailure: (failure) => <OpenGraphScreen problem={problemOf(failure.cause)} />,
+    onFailure: (failure) =>
+      Option.match(failure.previousSuccess, {
+        onSome: (previous) =>
+          pickerCancelled(failure.cause) ? (
+            <Layout graph={previous.value.graph} />
+          ) : (
+            <OpenGraphScreen problem={problemOf(failure.cause)} />
+          ),
+        onNone: () => <OpenGraphScreen problem={problemOf(failure.cause)} />,
+      }),
     onSuccess: (opened) => <Layout graph={opened.value.graph} />,
   })
+
+export const Shell = () => (
+  <>
+    <style href="seqno/shell" precedence="app">
+      {shellCss}
+    </style>
+    <Screen />
+  </>
+)
+
+declare module "react" {
+  interface CSSProperties {
+    readonly [variable: `--${string}`]: string | number | undefined
+  }
+}
