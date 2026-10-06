@@ -13,6 +13,7 @@
   "dependencies": {
     "@seqno/domain": "workspace:*",
     "@seqno/graph": "workspace:*",
+    "@seqno/index": "workspace:*",
     "@seqno/rpc": "workspace:*",
     "@seqno/vault": "workspace:*",
     "effect": "4.0.1",
