@@ -11,15 +11,21 @@ import { summarize, type Finished } from "../src/summary.ts"
 
 const childJob = process.env["SYNC_SIM_JOB"]
 
+const send = (message: unknown) => process.send?.(message, () => process.exit(0)) ?? process.exit(1)
+
 const runChild = async (raw: string) => {
   const job = decodeSeedJob(raw)
-  const send = (message: unknown) =>
-    process.send?.(message, () => process.exit(0)) ?? process.exit(1)
   try {
     const result = await Effect.runPromise(runJob(job))
     send({ ...result, rssMB: Math.round(process.resourceUsage().maxRSS / 1024) })
   } catch (error) {
-    send({ seed: job.seed, crash: String(error instanceof Error ? (error.stack ?? error.message) : error).split("\n").slice(0, 3).join(" ") })
+    send({
+      seed: job.seed,
+      crash: String(error instanceof Error ? (error.stack ?? error.message) : error)
+        .split("\n")
+        .slice(0, 3)
+        .join(" "),
+    })
   }
 }
 
@@ -105,21 +111,30 @@ const runParent = async () => {
         crash(`still running after ${options["timeout-s"]}s`)
         child.kill("SIGKILL")
       }, options["timeout-s"] * 1000)
-      child.on("message", (message: SeedResult & { readonly rssMB: number } | { readonly seed: number; readonly crash: string }) => {
-        if ("crash" in message) {
-          crash(message.crash)
-          return
-        }
-        reported = true
-        results.push(message)
-        stream(message)
-        if (!message.ok) {
-          process.stderr.write(`seed ${message.seed} FAILED: ${message.problems.slice(0, 3).join(" | ")}\n`)
-        }
-        if (results.length % 10 === 0) {
-          report()
-        }
-      })
+      child.on(
+        "message",
+        (
+          message:
+            | (SeedResult & { readonly rssMB: number })
+            | { readonly seed: number; readonly crash: string },
+        ) => {
+          if ("crash" in message) {
+            crash(message.crash)
+            return
+          }
+          reported = true
+          results.push(message)
+          stream(message)
+          if (!message.ok) {
+            process.stderr.write(
+              `seed ${message.seed} FAILED: ${message.problems.slice(0, 3).join(" | ")}\n`,
+            )
+          }
+          if (results.length % 10 === 0) {
+            report()
+          }
+        },
+      )
       child.on("error", (error) => crash(String(error)))
       child.on("exit", (code, signal) => {
         clearTimeout(timer)

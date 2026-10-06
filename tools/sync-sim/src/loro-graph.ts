@@ -36,7 +36,9 @@ const vvOf = (version: VersionVector): VV => Object.fromEntries(version.toJSON()
 
 const versionOf = (vv: VV): VersionVector =>
   VersionVector.parseJSON(
-    new Map(Object.entries(vv).flatMap(([peer, n]) => (isPeerId(peer) ? [[peer, n] as const] : []))),
+    new Map(
+      Object.entries(vv).flatMap(([peer, n]) => (isPeerId(peer) ? [[peer, n] as const] : [])),
+    ),
   )
 
 const blobSpan = (bytes: Uint8Array, checksum: boolean): Option.Option<Span> => {
@@ -58,6 +60,66 @@ const sortKeys = (_key: string, value: unknown): unknown =>
 
 const reject = (reason: string) => Effect.fail(new CommandRejected({ reason }))
 
+const idOf = (node: Node): string => {
+  const id = node.data.get("id")
+  return typeof id === "string" ? id : node.id
+}
+const rootOf = (node: Node): Node => {
+  let cur = node
+  for (let up = cur.parent(); up !== undefined; up = cur.parent()) {
+    cur = up
+  }
+  return cur
+}
+const textOf = (node: Node): LoroText | undefined => {
+  const src = node.data.get("src")
+  return src instanceof LoroText ? src : undefined
+}
+const propsOf = (node: Node): Props => {
+  const props = node.data.get("props")
+  if (!(props instanceof LoroMap)) {
+    return {}
+  }
+  return Object.fromEntries(
+    props.entries().flatMap(([key, value]) => (typeof value === "string" ? [[key, value]] : [])),
+  )
+}
+const createdAt = (node: Node): number => {
+  const at = node.data.get("created")
+  return typeof at === "number" ? at : 0
+}
+const blockOf = (node: Node): Block => {
+  const parent = node.parent()
+  return {
+    id: BlockId.make(idOf(node)),
+    pageId: PageId.make(idOf(rootOf(node))),
+    parentId:
+      parent === undefined || parent.parent() === undefined ? null : BlockId.make(idOf(parent)),
+    text: textOf(node)?.toString() ?? "",
+    collapsed: node.data.get("collapsed") === true,
+    props: propsOf(node),
+  }
+}
+const pageOf = (node: Node): Page => {
+  const title = node.data.get("title")
+  const text = typeof title === "string" ? title : ""
+  return {
+    id: PageId.make(idOf(node)),
+    name: normalizePageName(text),
+    title: text,
+    journalDay: null,
+    props: propsOf(node),
+  }
+}
+
+const upserted = (node: Node) =>
+  Effect.map(Clock.currentTimeMillis, (now): ReadonlyArray<GraphEvent> => [
+    { _tag: "BlockUpserted", block: blockOf(node), createdAt: createdAt(node), updatedAt: now },
+  ])
+
+const unsupported = (name: string) =>
+  reject(`${name} is not implemented by the sync-sim stand-in graph`)
+
 const open = (spec: ReplicaSpec) =>
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
@@ -76,10 +138,6 @@ const open = (spec: ReplicaSpec) =>
     const mint = <A, E>(effect: Effect.Effect<A, E, Crypto.Crypto>) =>
       Effect.orDie(Effect.provideService(effect, Crypto.Crypto, crypto))
 
-    const idOf = (node: Node): string => {
-      const id = node.data.get("id")
-      return typeof id === "string" ? id : node.id
-    }
     const nodeOf = (id: string): Node | undefined => {
       const treeId = ids.get(id)
       return isTreeId(treeId) && tree.has(treeId) ? tree.getNodeByID(treeId) : undefined
@@ -88,56 +146,6 @@ const open = (spec: ReplicaSpec) =>
       const node = nodeOf(id)
       return node !== undefined && !tree.isNodeDeleted(node.id) ? node : undefined
     }
-    const rootOf = (node: Node): Node => {
-      let cur = node
-      for (let up = cur.parent(); up !== undefined; up = cur.parent()) {
-        cur = up
-      }
-      return cur
-    }
-    const textOf = (node: Node): LoroText | undefined => {
-      const src = node.data.get("src")
-      return src instanceof LoroText ? src : undefined
-    }
-    const propsOf = (node: Node): Props => {
-      const props = node.data.get("props")
-      if (!(props instanceof LoroMap)) {
-        return {}
-      }
-      return Object.fromEntries(
-        props.entries().flatMap(([key, value]) => (typeof value === "string" ? [[key, value]] : [])),
-      )
-    }
-    const created = (node: Node): number => {
-      const at = node.data.get("created")
-      return typeof at === "number" ? at : 0
-    }
-    const blockOf = (node: Node): Block => {
-      const parent = node.parent()
-      return {
-        id: BlockId.make(idOf(node)),
-        pageId: PageId.make(idOf(rootOf(node))),
-        parentId: parent === undefined || parent.parent() === undefined ? null : BlockId.make(idOf(parent)),
-        text: textOf(node)?.toString() ?? "",
-        collapsed: node.data.get("collapsed") === true,
-        props: propsOf(node),
-      }
-    }
-    const pageOf = (node: Node): Page => {
-      const title = node.data.get("title")
-      const text = typeof title === "string" ? title : ""
-      return {
-        id: PageId.make(idOf(node)),
-        name: normalizePageName(text),
-        title: text,
-        journalDay: null,
-        props: propsOf(node),
-      }
-    }
-    const upserted = (node: Node) =>
-      Effect.map(Clock.currentTimeMillis, (now): ReadonlyArray<GraphEvent> => [
-        { _tag: "BlockUpserted", block: blockOf(node), createdAt: created(node), updatedAt: now },
-      ])
     const committed = <A, E>(effect: Effect.Effect<A, E>) =>
       Effect.tap(effect, () => Effect.sync(() => doc.commit()))
 
@@ -165,8 +173,6 @@ const open = (spec: ReplicaSpec) =>
       const current = moving?.parent()?.id === parent.id ? moving.index() : undefined
       return Effect.succeed(index + 1 - (current !== undefined && current < index ? 1 : 0))
     }
-    const unsupported = (name: string) =>
-      reject(`${name} is not implemented by the sync-sim stand-in graph`)
 
     const apply = (command: Command): Effect.Effect<ReadonlyArray<GraphEvent>, CommandRejected> =>
       Command.match(command, {
@@ -232,14 +238,12 @@ const open = (spec: ReplicaSpec) =>
                 return yield* reject(`block ${blockId} cannot move relative to itself`)
               }
               const anchor = previous === undefined ? undefined : yield* blockNode(previous)
-              const parent =
-                parentId !== null
-                  ? yield* blockNode(parentId)
-                  : rootOf(anchor ?? node)
+              const parent = parentId !== null ? yield* blockNode(parentId) : rootOf(anchor ?? node)
               const index = yield* slotAfter(parent, previous, node)
               yield* Effect.try({
                 try: () => tree.move(node.id, parent.id, index),
-                catch: () => new CommandRejected({ reason: `moving ${blockId} would form a cycle` }),
+                catch: () =>
+                  new CommandRejected({ reason: `moving ${blockId} would form a cycle` }),
               })
               events.push({
                 _tag: "BlockMoved",
@@ -339,11 +343,14 @@ const open = (spec: ReplicaSpec) =>
         }),
       children: (pageId, parentId) =>
         Effect.sync(() =>
-          (aliveNode(parentId ?? pageId)?.children() ?? []).map((child) => BlockId.make(idOf(child))),
+          (aliveNode(parentId ?? pageId)?.children() ?? []).map((child) =>
+            BlockId.make(idOf(child)),
+          ),
         ),
       fate: (id) => Effect.sync(() => fate(id)),
       version: Effect.sync(() => vvOf(doc.oplogVersion())),
-      exportUpdates: (from) => Effect.sync(() => doc.export({ mode: "update", from: versionOf(from) })),
+      exportUpdates: (from) =>
+        Effect.sync(() => doc.export({ mode: "update", from: versionOf(from) })),
       exportSnapshot: Effect.sync(() => doc.export({ mode: "snapshot" })),
       importBlobs: (blobs) => Effect.sync(() => importBlobs(blobs)),
       canonical: Effect.sync(() => {

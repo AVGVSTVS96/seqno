@@ -48,6 +48,11 @@ const baseName = (name: string) => name.replace(/ \d+(\.[a-z]+)$/, "$1")
 
 const visibleName = (raw: string): Listed["name"] => (stubTarget(raw) ?? raw).normalize("NFC")
 
+const elapsedSince = (time: number) =>
+  Effect.map(Clock.currentTimeMillis, (now) =>
+    now - time < 0 ? Number.POSITIVE_INFINITY : now - time,
+  )
+
 const attach =
   (bug: Bug | undefined) =>
   (spec: VaultSpec, fs: CloudFs, replica: Replica): Effect.Effect<VaultSync, never, Graphs> =>
@@ -68,11 +73,6 @@ const attach =
       let lastSeenJson = ""
       let lastSeenAt = Number.NEGATIVE_INFINITY
       let lastSnapshotAt = Number.NEGATIVE_INFINITY
-
-      const elapsedSince = (time: number) =>
-        Effect.map(Clock.currentTimeMillis, (now) =>
-          now - time < 0 ? Number.POSITIVE_INFINITY : now - time,
-        )
 
       const list = (dir: string) =>
         Effect.map(fs.list(dir), (raws) =>
@@ -120,7 +120,11 @@ const attach =
       const importUpdates = (updates: ReadonlyArray<Listed>) =>
         Effect.gen(function* () {
           const have = yield* replica.version
-          const batch: Array<{ readonly path: string; readonly bytes: Uint8Array; readonly span: Span }> = []
+          const batch: Array<{
+            readonly path: string
+            readonly bytes: Uint8Array
+            readonly span: Span
+          }> = []
           let waiting = 0
           for (const file of updates) {
             if (consumed.has(file.path)) {
@@ -178,7 +182,10 @@ const attach =
           for (const file of snapshots) {
             const known = snapshotVV.get(file.name)
             const needed = known !== undefined && !covers(have, known)
-            if (checked.has(file.name) && !(needed && updatesSettled && (yield* waitedFor(file.name)))) {
+            if (
+              checked.has(file.name) &&
+              !(needed && updatesSettled && (yield* waitedFor(file.name)))
+            ) {
               behind ||= needed
               continue
             }
@@ -229,7 +236,11 @@ const attach =
           if (device === undefined || device === me) {
             continue
           }
-          const bytes = yield* readable({ path: `seen/${file.name}`, name: file.name, stub: file.stub })
+          const bytes = yield* readable({
+            path: `seen/${file.name}`,
+            name: file.name,
+            stub: file.stub,
+          })
           const seen = Option.flatMap(bytes, (b) => decodeSeen(new TextDecoder().decode(b)))
           if (Option.isNone(seen)) {
             continue
@@ -302,7 +313,8 @@ const attach =
           const name = `${digest.slice(0, 32)}.loro`
           const path = `snapshots/${name}`
           const taken =
-            Option.isSome(yield* fs.stat(path)) || Option.isSome(yield* fs.stat(`snapshots/.${name}.icloud`))
+            Option.isSome(yield* fs.stat(path)) ||
+            Option.isSome(yield* fs.stat(`snapshots/.${name}.icloud`))
           if (taken) {
             return
           }
@@ -326,7 +338,8 @@ const attach =
           const witnesses = live.filter(([name]) => confirmed(name))
           const own = yield* replica.version
           const memberAcks = spec.members.map((m) => (m === me ? own : (acks.get(m)?.vv ?? {})))
-          const acked = (vv: VV) => bug === "gc-without-acks" || memberAcks.every((ack) => covers(ack, vv))
+          const acked = (vv: VV) =>
+            bug === "gc-without-acks" || memberAcks.every((ack) => covers(ack, vv))
           const witnessed = (vv: VV) =>
             bug === "gc-without-witness" || witnesses.some(([, w]) => covers(w, vv))
 
@@ -346,7 +359,8 @@ const attach =
               continue
             }
             const above = witnesses.some(
-              ([name, w]) => name !== file.name && covers(w, vv) && (!covers(vv, w) || name > file.name),
+              ([name, w]) =>
+                name !== file.name && covers(w, vv) && (!covers(vv, w) || name > file.name),
             )
             if (above) {
               yield* remove(file.path)

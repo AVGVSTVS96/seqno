@@ -4,7 +4,7 @@ import { bugs, loroVaults, type Bug } from "./loro-vault.ts"
 import { runSeed, type SeedResult, type SimConfig } from "./sim.ts"
 
 export const suites = {
-  ci: { seeds: 50, ops: 200, hours: 12 },
+  ci: { seeds: 50, ops: 600, hours: 24 },
   "1k": { seeds: 1000, ops: 1000, hours: 48 },
   "10k": { seeds: 100, ops: 10000, hours: 48 },
 } as const
@@ -23,7 +23,8 @@ export type SeedJob = typeof SeedJob.Type
 
 export const decodeSeedJob = Schema.decodeUnknownSync(Schema.fromJsonString(SeedJob))
 
-export const simLayer = (bug: Bug | null) => Layer.mergeAll(LoroGraphs, loroVaults(bug ?? undefined))
+export const simLayer = (bug: Bug | null) =>
+  Layer.mergeAll(LoroGraphs, loroVaults(bug ?? undefined))
 
 export const runJob = (job: SeedJob): Effect.Effect<SeedResult> => {
   const cfg: SimConfig = {

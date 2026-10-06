@@ -86,6 +86,8 @@ const deterministicCrypto = (bytes: (size: number) => Uint8Array): Crypto.Crypto
     digest: () => Effect.die(new Error("the sim's id minting never digests")),
   })
 
+const ownerOf = (path: string) => /^updates\/d(\d+)\//.exec(path)?.[1]
+
 const checkIntent = (oracle: Replica, intent: Intent) =>
   Effect.gen(function* () {
     const problems: string[] = []
@@ -156,7 +158,6 @@ export const runSeed = (cfg: SimConfig) =>
       }
     }
     const deviceIds = Array.from({ length: cfg.devices }, (_, i) => DeviceId.make(`d${i}`))
-    const ownerOf = (path: string) => /^updates\/d(\d+)\//.exec(path)?.[1]
 
     const serverTruth = new Map<string, Uint8Array>()
     const spans = new Map<string, Span>()
@@ -195,12 +196,16 @@ export const runSeed = (cfg: SimConfig) =>
       Option.getOrElse(graphs.blobSpan(bytes, false), () => ({ start: {}, end: {} }))
 
     const passPending: boolean[] = Array.from({ length: cfg.devices }, () => false)
-    let schedulePass: (device: number, delay: number) => void = () => undefined
 
     const cloud = new FakeICloud(
       sched,
       rng.fork(),
-      { conflictCopyRate: 0.01, downloadFailRate: 0.03, evictEveryMs: 45 * MINUTE, evictFraction: 0.3 },
+      {
+        conflictCopyRate: 0.01,
+        downloadFailRate: 0.03,
+        evictEveryMs: 45 * MINUTE,
+        evictFraction: 0.3,
+      },
       Array.from({ length: cfg.devices }, () => rng.pick(kinds)),
       {
         onServerWrite: (path, bytes, owner, conflictCopy) => {
@@ -233,7 +238,10 @@ export const runSeed = (cfg: SimConfig) =>
           }
           const missing = everOnServer.missingFrom(now)
           if (missing.length > 0) {
-            fail("lostCoverage", `after deleting ${path} the server no longer holds ${missing.slice(0, 3).join(" ")}`)
+            fail(
+              "lostCoverage",
+              `after deleting ${path} the server no longer holds ${missing.slice(0, 3).join(" ")}`,
+            )
           }
         },
         onDeviceWrite: (device, path, bytes) => {
@@ -360,7 +368,7 @@ export const runSeed = (cfg: SimConfig) =>
         }
       })
 
-    schedulePass = (d, delay) => {
+    function schedulePass(d: number, delay: number) {
       if (passPending[d] === true) {
         return
       }
@@ -411,7 +419,8 @@ export const runSeed = (cfg: SimConfig) =>
           Math.min(sched.now + IDLE_FLUSH, at(firstOpAt, d) + MAX_FLUSH_DELAY),
           Effect.suspend(() =>
             at(pendingOps, d) > 0 &&
-            (sched.now - at(lastOpAt, d) >= IDLE_FLUSH || sched.now - at(firstOpAt, d) >= MAX_FLUSH_DELAY)
+            (sched.now - at(lastOpAt, d) >= IDLE_FLUSH ||
+              sched.now - at(firstOpAt, d) >= MAX_FLUSH_DELAY)
               ? flush(d)
               : Effect.void,
           ),
@@ -561,7 +570,9 @@ export const runSeed = (cfg: SimConfig) =>
 
     yield* sched.runWhile(() => sched.now < finishAt)
 
-    const oracle = yield* onDevice(0)(graphs.open({ deviceId: DeviceId.make("oracle"), peer: 999_001 }))
+    const oracle = yield* onDevice(0)(
+      graphs.open({ deviceId: DeviceId.make("oracle"), peer: 999_001 }),
+    )
     yield* oracle.importBlobs(exported)
     const target = yield* oracle.version
     if (!vvEqual(target, flushedVV)) {
@@ -585,8 +596,12 @@ export const runSeed = (cfg: SimConfig) =>
       fail("lostOps", problem)
     }
 
-    const fresh = yield* onDevice(0)(graphs.open({ deviceId: DeviceId.make("fresh"), peer: 999_002 }))
-    yield* fresh.importBlobs([...cloud.server].filter(([p]) => p.endsWith(".loro")).map(([, f]) => f.bytes))
+    const fresh = yield* onDevice(0)(
+      graphs.open({ deviceId: DeviceId.make("fresh"), peer: 999_002 }),
+    )
+    yield* fresh.importBlobs(
+      [...cloud.server].filter(([p]) => p.endsWith(".loro")).map(([, f]) => f.bytes),
+    )
     if (!vvEqual(yield* fresh.version, target) || (yield* fresh.canonical) !== reference) {
       fail("bootstrap", "a new device reading only the cloud files does not reach the oracle state")
     }

@@ -18,7 +18,12 @@ export interface CloudConfig {
 }
 
 export interface CloudHooks {
-  readonly onServerWrite: (path: string, bytes: Uint8Array, owner: number, conflictCopy: boolean) => void
+  readonly onServerWrite: (
+    path: string,
+    bytes: Uint8Array,
+    owner: number,
+    conflictCopy: boolean,
+  ) => void
   readonly onServerDelete: (path: string) => void
   readonly onDeviceWrite: (device: number, path: string, bytes: Uint8Array) => void
   readonly onDeviceRemove: (device: number, path: string) => void
@@ -192,7 +197,11 @@ export class FakeICloud {
           const prefix = `${dir}/`
           const out: string[] = []
           for (const [sub, names] of d.dirs) {
-            if (names.size > 0 && sub.startsWith(prefix) && !sub.slice(prefix.length).includes("/")) {
+            if (
+              names.size > 0 &&
+              sub.startsWith(prefix) &&
+              !sub.slice(prefix.length).includes("/")
+            ) {
               out.push(sub.slice(prefix.length))
             }
           }
@@ -215,7 +224,11 @@ export class FakeICloud {
           if (entry === undefined || (entry.bytes === null && stub)) {
             return Option.none()
           }
-          return Option.some({ size: entry.size, mtime: entry.mtime, dataless: entry.bytes === null })
+          return Option.some({
+            size: entry.size,
+            mtime: entry.mtime,
+            dataless: entry.bytes === null,
+          })
         }),
       read: (path) =>
         Effect.suspend((): Effect.Effect<Uint8Array, NotDownloaded | NotFound> => {
@@ -464,7 +477,11 @@ export class FakeICloud {
   private scheduleEviction(d: DeviceState) {
     this.sched.soon(this.rng.exp(this.cfg.evictEveryMs), () => {
       for (const [path, entry] of d.view) {
-        if (entry.bytes !== null && !d.outbox.has(path) && this.rng.chance(this.cfg.evictFraction)) {
+        if (
+          entry.bytes !== null &&
+          !d.outbox.has(path) &&
+          this.rng.chance(this.cfg.evictFraction)
+        ) {
           entry.bytes = null
           this.stats.evictions++
         }

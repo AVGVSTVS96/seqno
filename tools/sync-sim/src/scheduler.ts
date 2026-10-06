@@ -26,16 +26,26 @@ export class Scheduler {
   }
 
   runWhile(keepGoing: () => boolean): Effect.Effect<void> {
-    const self = this
-    return Effect.gen(function* () {
+    return Effect.gen({ self: this }, function* () {
       while (keepGoing()) {
-        const task = self.pop()
+        const task = this.pop()
         if (task === undefined) {
           return
         }
-        self.now = task.at
+        this.now = task.at
         yield* task.run
       }
+    })
+  }
+
+  runUntil(time: number): Effect.Effect<void> {
+    return Effect.gen({ self: this }, function* () {
+      for (let next = this.heap[0]; next !== undefined && next.at <= time; next = this.heap[0]) {
+        this.pop()
+        this.now = next.at
+        yield* next.run
+      }
+      this.now = Math.max(this.now, time)
     })
   }
 

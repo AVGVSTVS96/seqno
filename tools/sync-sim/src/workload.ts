@@ -92,37 +92,43 @@ export class Workload {
   }
 
   apply(replica: Replica, device: number, kind: OpKind): Effect.Effect<boolean> {
-    const self = this
-    return Effect.gen(function* () {
-      const page = yield* self.pickPage(replica)
+    return Effect.gen({ self: this }, function* () {
+      const page = yield* this.pickPage(replica)
       const effective = Option.isNone(page) ? "createPage" : kind
-      const done = yield* self.run(replica, device, effective)
+      const done = yield* this.run(replica, device, effective)
       if (done) {
-        self.intent.counts[effective]++
+        this.intent.counts[effective]++
       }
       return done
     })
   }
 
   cyclePair(a: Replica, b: Replica): Effect.Effect<boolean> {
-    const self = this
-    return Effect.gen(function* () {
+    return Effect.gen({ self: this }, function* () {
       for (let i = 0; i < 8; i++) {
-        const x = yield* self.pickBlock(a)
-        const y = yield* self.pickBlock(a)
+        const x = yield* this.pickBlock(a)
+        const y = yield* this.pickBlock(a)
         if (Option.isNone(x) || Option.isNone(y) || x.value === y.value) {
           continue
         }
         if (Option.isNone(yield* b.block(x.value)) || Option.isNone(yield* b.block(y.value))) {
           continue
         }
-        const first = yield* self.send(a, { _tag: "MoveBlocks", blockIds: [x.value], parentId: y.value })
+        const first = yield* this.send(a, {
+          _tag: "MoveBlocks",
+          blockIds: [x.value],
+          parentId: y.value,
+        })
         if (Option.isNone(first)) {
           continue
         }
-        const second = yield* self.send(b, { _tag: "MoveBlocks", blockIds: [y.value], parentId: x.value })
-        self.intent.counts.moveBlock += Option.isSome(second) ? 2 : 1
-        self.intent.counts.cyclePairs += Option.isSome(second) ? 1 : 0
+        const second = yield* this.send(b, {
+          _tag: "MoveBlocks",
+          blockIds: [y.value],
+          parentId: x.value,
+        })
+        this.intent.counts.moveBlock += Option.isSome(second) ? 2 : 1
+        this.intent.counts.cyclePairs += Option.isSome(second) ? 1 : 0
         return true
       }
       return false
@@ -148,7 +154,7 @@ export class Workload {
     alive: (id: Id) => Effect.Effect<boolean>,
   ): Effect.Effect<Option.Option<Id>> {
     const rng = this.rng
-    return Effect.gen(function* () {
+    return Effect.gen({ self: this }, function* () {
       for (let i = 0; i < 16 && ids.length > 0; i++) {
         const r = rng.next()
         const id = ids[ids.length - 1 - Math.floor(ids.length * r * r)]
@@ -169,16 +175,15 @@ export class Workload {
   }
 
   private pickParent(replica: Replica): Effect.Effect<Option.Option<Parent>> {
-    const self = this
-    return Effect.gen(function* () {
-      if (!self.rng.chance(0.3)) {
-        const block = yield* self.pickBlock(replica)
+    return Effect.gen({ self: this }, function* () {
+      if (!this.rng.chance(0.3)) {
+        const block = yield* this.pickBlock(replica)
         if (Option.isSome(block)) {
           const found = yield* replica.block(block.value)
           return Option.map(found, (b): Parent => ({ pageId: b.pageId, parentId: b.id }))
         }
       }
-      const page = yield* self.pickPage(replica)
+      const page = yield* this.pickPage(replica)
       return Option.map(page, (pageId): Parent => ({ pageId, parentId: null }))
     })
   }
@@ -193,16 +198,15 @@ export class Workload {
   }
 
   private insertUnit(replica: Replica, blockId: BlockId, device: number) {
-    const self = this
-    return Effect.gen(function* () {
+    return Effect.gen({ self: this }, function* () {
       const block = yield* replica.block(blockId)
       if (Option.isNone(block)) {
         return false
       }
       const ends = unitEnds(block.value.text)
-      const at = ends[self.rng.int(0, ends.length - 1)] ?? 0
-      const token = self.token(device)
-      const sent = yield* self.send(replica, {
+      const at = ends[this.rng.int(0, ends.length - 1)] ?? 0
+      const token = this.token(device)
+      const sent = yield* this.send(replica, {
         _tag: "EditText",
         blockId,
         from: at,
@@ -210,18 +214,17 @@ export class Workload {
         insert: `${token} `,
       })
       if (Option.isSome(sent)) {
-        self.intent.tokens.set(token, blockId)
+        this.intent.tokens.set(token, blockId)
       }
       return Option.isSome(sent)
     })
   }
 
   private createBlock(replica: Replica, parent: Parent, device: number) {
-    const self = this
-    return Effect.gen(function* () {
-      const after = yield* self.pickSlot(replica, parent, undefined)
-      const token = self.token(device)
-      const sent = yield* self.send(replica, {
+    return Effect.gen({ self: this }, function* () {
+      const after = yield* this.pickSlot(replica, parent, undefined)
+      const token = this.token(device)
+      const sent = yield* this.send(replica, {
         _tag: "InsertBlock",
         pageId: parent.pageId,
         parentId: parent.parentId,
@@ -230,8 +233,8 @@ export class Workload {
       })
       for (const event of Option.getOrElse(sent, () => [])) {
         if (event._tag === "BlockUpserted") {
-          self.intent.blocks.push(event.block.id)
-          self.intent.tokens.set(token, event.block.id)
+          this.intent.blocks.push(event.block.id)
+          this.intent.tokens.set(token, event.block.id)
         }
       }
       return Option.isSome(sent)
@@ -239,17 +242,18 @@ export class Workload {
   }
 
   private run(replica: Replica, device: number, kind: OpKind): Effect.Effect<boolean> {
-    const self = this
     const { intent, rng } = this
     return Match.value(kind).pipe(
       Match.when("insertText", () =>
-        Effect.flatMap(self.pickBlock(replica), (block) =>
-          Option.isNone(block) ? Effect.succeed(false) : self.insertUnit(replica, block.value, device),
+        Effect.flatMap(this.pickBlock(replica), (block) =>
+          Option.isNone(block)
+            ? Effect.succeed(false)
+            : this.insertUnit(replica, block.value, device),
         ),
       ),
       Match.when("deleteText", () =>
-        Effect.gen(function* () {
-          const picked = yield* self.pickBlock(replica)
+        Effect.gen({ self: this }, function* () {
+          const picked = yield* this.pickBlock(replica)
           const block = yield* Option.match(picked, {
             onNone: () => Effect.succeed(Option.none()),
             onSome: replica.block,
@@ -267,7 +271,7 @@ export class Workload {
           const n = Math.min(rng.int(1, 3), units - k)
           const from = ends[k] ?? 0
           const to = ends[k + n] ?? from
-          const sent = yield* self.send(replica, {
+          const sent = yield* this.send(replica, {
             _tag: "EditText",
             blockId: block.value.id,
             from,
@@ -283,17 +287,19 @@ export class Workload {
         }),
       ),
       Match.when("createBlock", () =>
-        Effect.flatMap(self.pickParent(replica), (parent) =>
-          Option.isNone(parent) ? Effect.succeed(false) : self.createBlock(replica, parent.value, device),
+        Effect.flatMap(this.pickParent(replica), (parent) =>
+          Option.isNone(parent)
+            ? Effect.succeed(false)
+            : this.createBlock(replica, parent.value, device),
         ),
       ),
       Match.when("deleteBlock", () =>
-        Effect.gen(function* () {
-          const block = yield* self.pickBlock(replica)
+        Effect.gen({ self: this }, function* () {
+          const block = yield* this.pickBlock(replica)
           if (Option.isNone(block)) {
             return false
           }
-          const sent = yield* self.send(replica, { _tag: "DeleteBlocks", blockIds: [block.value] })
+          const sent = yield* this.send(replica, { _tag: "DeleteBlocks", blockIds: [block.value] })
           if (Option.isSome(sent)) {
             intent.explicitlyDeleted.add(block.value)
           }
@@ -301,17 +307,21 @@ export class Workload {
         }),
       ),
       Match.when("moveBlock", () =>
-        Effect.gen(function* () {
-          const block = yield* self.pickBlock(replica)
-          const parent = yield* self.pickParent(replica)
-          if (Option.isNone(block) || Option.isNone(parent) || parent.value.parentId === block.value) {
+        Effect.gen({ self: this }, function* () {
+          const block = yield* this.pickBlock(replica)
+          const parent = yield* this.pickParent(replica)
+          if (
+            Option.isNone(block) ||
+            Option.isNone(parent) ||
+            parent.value.parentId === block.value
+          ) {
             return false
           }
-          const after = yield* self.pickSlot(replica, parent.value, block.value)
+          const after = yield* this.pickSlot(replica, parent.value, block.value)
           if (parent.value.parentId === null && after === undefined) {
             return false
           }
-          const sent = yield* self.send(replica, {
+          const sent = yield* this.send(replica, {
             _tag: "MoveBlocks",
             blockIds: [block.value],
             parentId: parent.value.parentId,
@@ -321,41 +331,41 @@ export class Workload {
         }),
       ),
       Match.when("renamePage", () =>
-        Effect.gen(function* () {
-          const page = yield* self.pickPage(replica)
+        Effect.gen({ self: this }, function* () {
+          const page = yield* this.pickPage(replica)
           if (Option.isNone(page)) {
             return false
           }
-          const sent = yield* self.send(replica, {
+          const sent = yield* this.send(replica, {
             _tag: "RenamePage",
             pageId: page.value,
-            title: `page ${device}.${self.seq++}`,
+            title: `page ${device}.${this.seq++}`,
           })
           return Option.isSome(sent)
         }),
       ),
       Match.when("createPage", () =>
-        Effect.gen(function* () {
-          const sent = yield* self.send(replica, {
+        Effect.gen({ self: this }, function* () {
+          const sent = yield* this.send(replica, {
             _tag: "CreatePage",
-            title: `page ${device}.${self.seq++}`,
+            title: `page ${device}.${this.seq++}`,
           })
           for (const event of Option.getOrElse(sent, () => [])) {
             if (event._tag === "PageUpserted") {
               intent.pages.push(event.page.id)
-              yield* self.createBlock(replica, { pageId: event.page.id, parentId: null }, device)
+              yield* this.createBlock(replica, { pageId: event.page.id, parentId: null }, device)
             }
           }
           return Option.isSome(sent)
         }),
       ),
       Match.when("deletePage", () =>
-        Effect.gen(function* () {
-          const page = yield* self.pickPage(replica)
+        Effect.gen({ self: this }, function* () {
+          const page = yield* this.pickPage(replica)
           if (Option.isNone(page)) {
             return false
           }
-          const sent = yield* self.send(replica, { _tag: "DeletePage", pageId: page.value })
+          const sent = yield* this.send(replica, { _tag: "DeletePage", pageId: page.value })
           if (Option.isSome(sent)) {
             intent.explicitlyDeleted.add(page.value)
           }

@@ -51,19 +51,43 @@ export const summarize = (
       events: catchUps.length,
       neverCaughtUp: catchUps.filter((c) => c.catchUpMs < 0).length,
       catchUpMin: {
-        p50: minutes(pct(catchUps.map((c) => c.catchUpMs), 0.5)),
-        p99: minutes(pct(catchUps.map((c) => c.catchUpMs), 0.99)),
+        p50: minutes(
+          pct(
+            catchUps.map((c) => c.catchUpMs),
+            0.5,
+          ),
+        ),
+        p99: minutes(
+          pct(
+            catchUps.map((c) => c.catchUpMs),
+            0.99,
+          ),
+        ),
         max: minutes(Math.max(0, ...catchUps.map((c) => c.catchUpMs))),
       },
       othersSeeItsOfflineEditsMin: {
-        p50: minutes(pct(catchUps.map((c) => c.publishMs), 0.5)),
+        p50: minutes(
+          pct(
+            catchUps.map((c) => c.publishMs),
+            0.5,
+          ),
+        ),
         max: minutes(Math.max(0, ...catchUps.map((c) => c.publishMs))),
       },
     },
     cloudFiles: {
-      peakCount: { mean: mean(results.map((r) => r.files.peakCount)), max: Math.max(0, ...results.map((r) => r.files.peakCount)) },
-      finalCount: { mean: mean(results.map((r) => r.files.finalCount)), max: Math.max(0, ...results.map((r) => r.files.finalCount)) },
-      finalBytes: { mean: mean(results.map((r) => r.files.finalBytes)), max: Math.max(0, ...results.map((r) => r.files.finalBytes)) },
+      peakCount: {
+        mean: mean(results.map((r) => r.files.peakCount)),
+        max: Math.max(0, ...results.map((r) => r.files.peakCount)),
+      },
+      finalCount: {
+        mean: mean(results.map((r) => r.files.finalCount)),
+        max: Math.max(0, ...results.map((r) => r.files.finalCount)),
+      },
+      finalBytes: {
+        mean: mean(results.map((r) => r.files.finalBytes)),
+        max: Math.max(0, ...results.map((r) => r.files.finalBytes)),
+      },
       snapshotsWritten: sum(results.map((r) => r.snapshotsWritten)),
       sameSnapshotFromTwoDevices: sum(results.map((r) => r.sameSnapshotFromTwoDevices)),
     },
@@ -75,7 +99,9 @@ export const summarize = (
       downloadFailures: sum(results.map((r) => r.cloud.downloadFailures)),
     },
     ops: {
-      perSeedMean: mean(results.map((r) => sum(Object.values(r.ops)) - r.ops.rejected - r.ops.cyclePairs)),
+      perSeedMean: mean(
+        results.map((r) => sum(Object.values(r.ops)) - r.ops.rejected - r.ops.cyclePairs),
+      ),
       rejected: sum(results.map((r) => r.ops.rejected)),
       cyclePairs: sum(results.map((r) => r.ops.cyclePairs)),
     },
