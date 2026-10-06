@@ -1,4 +1,4 @@
-import fc from "fast-check"
+import * as fc from "fast-check"
 import { describe, expect, it } from "vitest"
 import { type Block, type Outline, parse, print, render, toOutline } from "../src/index.ts"
 
@@ -47,7 +47,9 @@ describe("parse and print", () => {
           children: [
             {
               text: "child with [[Page Ref]] and #tag\ncollapsed:: true",
-              children: [{ text: "grandchild ((650e8f2a-1b2c-4d5e-8f90-123456789abc))", children: [] }],
+              children: [
+                { text: "grandchild ((650e8f2a-1b2c-4d5e-8f90-123456789abc))", children: [] },
+              ],
             },
           ],
         },
@@ -150,9 +152,15 @@ const tricky = fc.constantFrom(
 describe("properties", () => {
   it("prints every input byte-for-byte", () => {
     fc.assert(
-      fc.property(fc.oneof(fc.array(tricky, { maxLength: 40 }).map((parts) => parts.join("")), fc.string({ unit: "binary" })), (source) => {
-        expect(print(parse(source))).toBe(source)
-      }),
+      fc.property(
+        fc.oneof(
+          fc.array(tricky, { maxLength: 40 }).map((parts) => parts.join("")),
+          fc.string({ unit: "binary" }),
+        ),
+        (source) => {
+          expect(print(parse(source))).toBe(source)
+        },
+      ),
       { numRuns: 3000 },
     )
   })
@@ -173,24 +181,51 @@ describe("properties", () => {
     fc.string({ unit: fc.constantFrom("a", " ", "#", "[", "]", "(", ")", ":") }),
   )
   const fenced = fc
-    .tuple(fc.constantFrom("```", "~~~", "```js"), fc.array(fc.constantFrom("- inside", "  - deeper", "", "x"), { maxLength: 3 }))
+    .tuple(
+      fc.constantFrom("```", "~~~", "```js"),
+      fc.array(fc.constantFrom("- inside", "  - deeper", "", "x"), { maxLength: 3 }),
+    )
     .map(([open, body]) => [open, ...body, open.slice(0, 3)])
   const text = fc
-    .tuple(fc.string({ unit: fc.constantFrom("a", " ", "-", "\t", "#") }), fc.array(fc.oneof(plainLine.map((line) => [line]), fenced), { maxLength: 4 }))
+    .tuple(
+      fc.string({ unit: fc.constantFrom("a", " ", "-", "\t", "#") }),
+      fc.array(
+        fc.oneof(
+          plainLine.map((line) => [line]),
+          fenced,
+        ),
+        { maxLength: 4 },
+      ),
+    )
     .map(([first, groups]) => [first, ...groups.flat()].join("\n"))
 
-  const tree: fc.Arbitrary<ReadonlyArray<Block>> = fc.letrec<{ blocks: ReadonlyArray<Block> }>((self) => ({
-    blocks: fc.array(
-      fc.record(
-        { text, children: fc.oneof({ depthSize: "small", withCrossShrink: true }, fc.constant([]), self("blocks")) },
-        { noNullPrototype: true },
+  const tree: fc.Arbitrary<ReadonlyArray<Block>> = fc.letrec<{ blocks: ReadonlyArray<Block> }>(
+    (self) => ({
+      blocks: fc.array(
+        fc.record(
+          {
+            text,
+            children: fc.oneof(
+              { depthSize: "small", withCrossShrink: true },
+              fc.constant([]),
+              self("blocks"),
+            ),
+          },
+          { noNullPrototype: true },
+        ),
+        { maxLength: 4 },
       ),
-      { maxLength: 4 },
-    ),
-  })).blocks
+    }),
+  ).blocks
 
   const outline: fc.Arbitrary<Outline> = fc.record({
-    preamble: fc.constantFrom("", "title:: Foo\n", "title:: Foo\nalias:: bar\n\n", "---\ntitle: x\n---\n", "\n"),
+    preamble: fc.constantFrom(
+      "",
+      "title:: Foo\n",
+      "title:: Foo\nalias:: bar\n\n",
+      "---\ntitle: x\n---\n",
+      "\n",
+    ),
     blocks: tree.filter((blocks) => blocks.length > 0),
     format: fc.record({
       indent: fc.constantFrom("\t", "  ", "    "),

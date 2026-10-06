@@ -44,7 +44,11 @@ const lastNode = (nodes: ReadonlyArray<Node>): Node | undefined => {
 const indentUnit = (nodes: ReadonlyArray<Node>): string => {
   for (const parent of nodes) {
     const child = parent.children[0]
-    if (child !== undefined && child.indent.startsWith(parent.indent) && child.indent !== parent.indent) {
+    if (
+      child !== undefined &&
+      child.indent.startsWith(parent.indent) &&
+      child.indent !== parent.indent
+    ) {
       return child.indent.slice(parent.indent.length)
     }
   }
@@ -62,7 +66,8 @@ export const toOutline = (document: Document): Outline => {
 
   const toBlock = (node: Node): Block => {
     const prefix = `${node.indent}  `
-    const [first = "", ...rest] = node === last && finalNewline ? node.lines.slice(0, -1) : node.lines
+    const [first = "", ...rest] =
+      node === last && finalNewline ? node.lines.slice(0, -1) : node.lines
     const head = first.startsWith(" ") || first.startsWith("\t") ? first.slice(1) : first
     const lines = [head, ...rest.map((line) => line.slice(commonPrefix(line, prefix)))]
     return { text: lines.map(unCr).join("\n"), children: node.children.map(toBlock) }
@@ -90,7 +95,8 @@ export const render = (outline: Outline): string => {
   }
 
   const body = outline.blocks.flatMap((block) => blockLines(block, 0)).join("\n")
-  const separator = body !== "" && outline.preamble !== "" && !outline.preamble.endsWith("\n") ? "\n" : ""
+  const separator =
+    body !== "" && outline.preamble !== "" && !outline.preamble.endsWith("\n") ? "\n" : ""
   const ending = body !== "" && finalNewline ? "\n" : ""
   const text = outline.preamble + separator + body + ending
   return (bom ? BOM : "") + (eol === "\n" ? text : text.replaceAll("\n", eol))

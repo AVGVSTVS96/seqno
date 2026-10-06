@@ -99,7 +99,10 @@ export const parse = (source: string): Document => {
   }
 
   const head = preamble.length === 0 ? "" : `${preamble.join("\n")}\n`
-  return { preamble: bom + (roots.length === 0 ? head.slice(0, -1) : head), blocks: roots.map(freeze) }
+  return {
+    preamble: bom + (roots.length === 0 ? head.slice(0, -1) : head),
+    blocks: roots.map(freeze),
+  }
 }
 
 const nodeLines = (node: Node): ReadonlyArray<string> => [

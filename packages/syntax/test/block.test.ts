@@ -1,4 +1,4 @@
-import fc from "fast-check"
+import * as fc from "fast-check"
 import { describe, expect, it } from "vitest"
 import { analyzeBlock, applyEdit, setProperty } from "../src/index.ts"
 
@@ -24,17 +24,39 @@ describe("analyzeBlock", () => {
     expect(syntax.id).toBe(uuid)
     expect(syntax.collapsed).toBe(true)
     expect(syntax.props).toStrictEqual({ id: uuid.toUpperCase(), collapsed: "true" })
-    expect(syntax.scheduled).toStrictEqual({ day: 20240115, time: "10:30", repeater: { kind: ".+", amount: 1, unit: "w" } })
-    expect(syntax.deadline).toStrictEqual({ day: 20240201, time: null, repeater: { kind: "++", amount: 2, unit: "d" } })
-    expect(syntax.regions.map((region) => [region.kind, region.name, text.slice(region.span.from, region.span.to)])).toStrictEqual([
-      ["Drawer", "LOGBOOK", ":LOGBOOK:\nCLOCK: [2024-01-10 Wed 09:00:00]--[2024-01-10 Wed 09:30:00] =>  00:30:00\n:END:"],
+    expect(syntax.scheduled).toStrictEqual({
+      day: 20240115,
+      time: "10:30",
+      repeater: { kind: ".+", amount: 1, unit: "w" },
+    })
+    expect(syntax.deadline).toStrictEqual({
+      day: 20240201,
+      time: null,
+      repeater: { kind: "++", amount: 2, unit: "d" },
+    })
+    expect(
+      syntax.regions.map((region) => [
+        region.kind,
+        region.name,
+        text.slice(region.span.from, region.span.to),
+      ]),
+    ).toStrictEqual([
+      [
+        "Drawer",
+        "LOGBOOK",
+        ":LOGBOOK:\nCLOCK: [2024-01-10 Wed 09:00:00]--[2024-01-10 Wed 09:30:00] =>  00:30:00\n:END:",
+      ],
     ])
   })
 
   it("finds page refs, nested refs, tags, block refs and embeds", () => {
     const text = `see [[a [[b]] c]], #tag, #[[multi word]] and ((${uuid}))\n{{embed [[page]]}} done.`
     const syntax = analyzeBlock(text)
-    expect(syntax.refs.map((ref) => (ref._tag === "BlockRef" ? `${ref._tag}:${ref.uuid}` : `${ref._tag}:${ref.name}`))).toStrictEqual([
+    expect(
+      syntax.refs.map((ref) =>
+        ref._tag === "BlockRef" ? `${ref._tag}:${ref.uuid}` : `${ref._tag}:${ref.name}`,
+      ),
+    ).toStrictEqual([
       "PageRef:a [[b]] c",
       "PageRef:b",
       "Tag:tag",
@@ -42,9 +64,13 @@ describe("analyzeBlock", () => {
       `BlockRef:${uuid}`,
       "PageRef:page",
     ])
-    expect(syntax.macros.map((macro) => [macro.name, macro.args, text.slice(macro.span.from, macro.span.to)])).toStrictEqual([
-      ["embed", "[[page]]", "{{embed [[page]]}}"],
-    ])
+    expect(
+      syntax.macros.map((macro) => [
+        macro.name,
+        macro.args,
+        text.slice(macro.span.from, macro.span.to),
+      ]),
+    ).toStrictEqual([["embed", "[[page]]", "{{embed [[page]]}}"]])
     expect(syntax.refs.map((ref) => text.slice(ref.span.from, ref.span.to))).toStrictEqual([
       "[[a [[b]] c]]",
       "[[b]]",
@@ -71,19 +97,29 @@ describe("analyzeBlock", () => {
     ].join("\n")
     const syntax = analyzeBlock(text)
     expect(syntax.heading).toBe(2)
-    expect(syntax.refs.map((ref) => (ref._tag === "BlockRef" ? ref.uuid : ref.name))).toStrictEqual(["kept"])
+    expect(syntax.refs.map((ref) => (ref._tag === "BlockRef" ? ref.uuid : ref.name))).toStrictEqual(
+      ["kept"],
+    )
     expect(syntax.regions.map((region) => `${region.kind}:${region.name}`)).toStrictEqual([
       "Fence:clojure",
       "Directive:QUERY",
       "Directive:QUOTE",
     ])
-    expect(syntax.macros.map((macro) => `${macro.name}|${macro.args}`)).toStrictEqual(["query|(and [[x]] (task TODO))"])
+    expect(syntax.macros.map((macro) => `${macro.name}|${macro.args}`)).toStrictEqual([
+      "query|(and [[x]] (task TODO))",
+    ])
   })
 
   it("reads page properties from a preamble, with tags and alias lists as refs", () => {
     const syntax = analyzeBlock("title:: My Page\ntags:: one, [[Two Words]], #three\nalias:: mp\n")
-    expect(syntax.props).toStrictEqual({ title: "My Page", tags: "one, [[Two Words]], #three", alias: "mp" })
-    expect(syntax.refs.map((ref) => (ref._tag === "BlockRef" ? ref.uuid : ref.name))).toStrictEqual(["one", "Two Words", "three", "mp"])
+    expect(syntax.props).toStrictEqual({
+      title: "My Page",
+      tags: "one, [[Two Words]], #three",
+      alias: "mp",
+    })
+    expect(syntax.refs.map((ref) => (ref._tag === "BlockRef" ? ref.uuid : ref.name))).toStrictEqual(
+      ["one", "Two Words", "three", "mp"],
+    )
     expect(syntax.marker).toBe(null)
   })
 
@@ -95,13 +131,27 @@ describe("analyzeBlock", () => {
 describe("setProperty", () => {
   it("adds, replaces and removes property lines with minimal edits", () => {
     const text = "DONE task\nSCHEDULED: <2024-01-15 Mon>\nbody"
-    const added = applyEdit(text, setProperty(text, "collapsed", "true") ?? { from: 0, to: 0, insert: "" })
+    const added = applyEdit(
+      text,
+      setProperty(text, "collapsed", "true") ?? { from: 0, to: 0, insert: "" },
+    )
     expect(added).toBe("DONE task\ncollapsed:: true\nSCHEDULED: <2024-01-15 Mon>\nbody")
     expect(setProperty(added, "collapsed", "true")).toBe(null)
-    expect(setProperty(added, "collapsed", "false")).toStrictEqual({ from: 10, to: 26, insert: "collapsed:: false" })
-    expect(applyEdit(added, setProperty(added, "collapsed", null) ?? { from: 0, to: 0, insert: "" })).toBe(text)
+    expect(setProperty(added, "collapsed", "false")).toStrictEqual({
+      from: 10,
+      to: 26,
+      insert: "collapsed:: false",
+    })
+    expect(
+      applyEdit(added, setProperty(added, "collapsed", null) ?? { from: 0, to: 0, insert: "" }),
+    ).toBe(text)
     expect(setProperty("", "id", uuid)).toStrictEqual({ from: 0, to: 0, insert: `id:: ${uuid}` })
-    expect(applyEdit("a:: 1\nb:: 2", setProperty("a:: 1\nb:: 2", "a", null) ?? { from: 0, to: 0, insert: "" })).toBe("b:: 2")
+    expect(
+      applyEdit(
+        "a:: 1\nb:: 2",
+        setProperty("a:: 1\nb:: 2", "a", null) ?? { from: 0, to: 0, insert: "" },
+      ),
+    ).toBe("b:: 2")
   })
 
   it("round-trips: setting then clearing a new property restores the text", () => {

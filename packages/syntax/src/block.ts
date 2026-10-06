@@ -81,7 +81,8 @@ const VERBATIM = new Set(["QUERY", "SRC", "EXAMPLE", "EXPORT", "COMMENT"])
 const LIST_KEYS = new Set(["tags", "alias"])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PROPERTY = /^([^\s:]+)::(?:[ \t]+(.*?))?[ \t]*$/
-const MARKER = /^(TODO|DOING|DONE|LATER|NOW|WAITING|WAIT|CANCELED|CANCELLED|IN-PROGRESS|STARTED)(?=[ \t]|$)/
+const MARKER =
+  /^(TODO|DOING|DONE|LATER|NOW|WAITING|WAIT|CANCELED|CANCELLED|IN-PROGRESS|STARTED)(?=[ \t]|$)/
 const PRIORITY = /\[#([ABC])\]/
 const HEADING = /^(#{1,6})[ \t]/
 const TIMESTAMP =
@@ -112,11 +113,20 @@ const linesOf = (text: string): ReadonlyArray<Line> => {
 
 const regionsOf = (lines: ReadonlyArray<Line>): ReadonlyArray<Region> => {
   const regions: Array<Region> = []
-  let open: { kind: Region["kind"]; name: string; from: number; closes: (line: string) => boolean } | null = null
+  let open: {
+    kind: Region["kind"]
+    name: string
+    from: number
+    closes: (line: string) => boolean
+  } | null = null
   for (const line of lines) {
     if (open !== null) {
       if (open.closes(line.text)) {
-        regions.push({ kind: open.kind, name: open.name, span: { from: open.from, to: line.from + line.text.length } })
+        regions.push({
+          kind: open.kind,
+          name: open.name,
+          span: { from: open.from, to: line.from + line.text.length },
+        })
         open = null
       }
       continue
@@ -127,21 +137,40 @@ const regionsOf = (lines: ReadonlyArray<Line>): ReadonlyArray<Region> => {
     if (fence !== null && !(fence[1]?.startsWith("`") && fence[2]?.includes("`"))) {
       const run = fence[1] ?? "```"
       const closing = new RegExp(`^[ \\t]*${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t\\r]*$`)
-      open = { kind: "Fence", name: (fence[2] ?? "").trim(), from: line.from, closes: (next) => closing.test(next) }
+      open = {
+        kind: "Fence",
+        name: (fence[2] ?? "").trim(),
+        from: line.from,
+        closes: (next) => closing.test(next),
+      }
     } else if (directive !== null) {
       const name = (directive[1] ?? "").toUpperCase()
-      open = { kind: "Directive", name, from: line.from, closes: (next) => next.trimStart().toUpperCase().startsWith(`#+END_${name}`) }
+      open = {
+        kind: "Directive",
+        name,
+        from: line.from,
+        closes: (next) => next.trimStart().toUpperCase().startsWith(`#+END_${name}`),
+      }
     } else if (drawer !== null && drawer[1]?.toUpperCase() !== "END") {
-      open = { kind: "Drawer", name: (drawer[1] ?? "").toUpperCase(), from: line.from, closes: (next) => DRAWER_CLOSE.test(next) }
+      open = {
+        kind: "Drawer",
+        name: (drawer[1] ?? "").toUpperCase(),
+        from: line.from,
+        closes: (next) => DRAWER_CLOSE.test(next),
+      }
     }
   }
   return regions
 }
 
-const inside = (spans: ReadonlyArray<Span>, at: number) => spans.some((span) => at >= span.from && at < span.to)
+const inside = (spans: ReadonlyArray<Span>, at: number) =>
+  spans.some((span) => at >= span.from && at < span.to)
 
 const timestampsOf = (lines: ReadonlyArray<Line>) => {
-  const found: { scheduled: Timestamp | null; deadline: Timestamp | null } = { scheduled: null, deadline: null }
+  const found: { scheduled: Timestamp | null; deadline: Timestamp | null } = {
+    scheduled: null,
+    deadline: null,
+  }
   for (const line of lines) {
     for (const match of line.text.matchAll(TIMESTAMP)) {
       const [, which, year, month, day, time, kind, amount, unit] = match
@@ -157,7 +186,10 @@ const timestampsOf = (lines: ReadonlyArray<Line>) => {
   return found
 }
 
-const propertiesOf = (lines: ReadonlyArray<Line>, regions: ReadonlyArray<Region>): ReadonlyArray<Property> => {
+const propertiesOf = (
+  lines: ReadonlyArray<Line>,
+  regions: ReadonlyArray<Region>,
+): ReadonlyArray<Property> => {
   const properties: Array<Property> = []
   const start = PROPERTY.test(lines[0]?.text ?? "") ? 0 : 1
   for (const line of lines.slice(start)) {
@@ -170,7 +202,10 @@ const propertiesOf = (lines: ReadonlyArray<Line>, regions: ReadonlyArray<Region>
       })
       continue
     }
-    const drawer = regions.find((region) => region.kind === "Drawer" && region.span.from <= line.from && line.from < region.span.to)
+    const drawer = regions.find(
+      (region) =>
+        region.kind === "Drawer" && region.span.from <= line.from && line.from < region.span.to,
+    )
     if (drawer === undefined && !PLANNING_LINE.test(line.text)) break
   }
   return properties
@@ -221,26 +256,40 @@ export const analyzeBlock = (text: string): BlockSyntax => {
   const title = lines[0]?.text ?? ""
   const regions = regionsOf(lines)
   const code = [
-    ...regions.filter((region) => region.kind !== "Directive" || VERBATIM.has(region.name)).map((region) => region.span),
+    ...regions
+      .filter((region) => region.kind !== "Directive" || VERBATIM.has(region.name))
+      .map((region) => region.span),
     ...[...text.matchAll(INLINE_CODE)].map(spanOf),
   ]
   const macros = [...text.matchAll(MACRO)]
     .filter((match) => !inside(code, match.index ?? 0))
-    .map((match): Macro => ({ name: (match[1] ?? "").toLowerCase(), args: (match[2] ?? "").trim(), span: spanOf(match) }))
+    .map((match): Macro => ({
+      name: (match[1] ?? "").toLowerCase(),
+      args: (match[2] ?? "").trim(),
+      span: spanOf(match),
+    }))
   const queries = macros.filter((macro) => macro.name === "query").map((macro) => macro.span)
   const excluded = [...code, ...queries]
 
   const blockRefs = [...text.matchAll(BLOCK_REF)]
     .filter((match) => !inside(excluded, match.index ?? 0))
-    .map((match): Ref => ({ _tag: "BlockRef", uuid: (match[1] ?? "").toLowerCase(), span: spanOf(match) }))
+    .map((match): Ref => ({
+      _tag: "BlockRef",
+      uuid: (match[1] ?? "").toLowerCase(),
+      span: spanOf(match),
+    }))
   const tags = [...text.matchAll(TAG)].flatMap((match): ReadonlyArray<Ref> => {
     const name = (match[1] ?? "").replace(/[.:]+$/, "")
     const from = match.index ?? 0
-    return name === "" || inside(excluded, from) ? [] : [{ _tag: "Tag", name, span: { from, to: from + 1 + name.length } }]
+    return name === "" || inside(excluded, from)
+      ? []
+      : [{ _tag: "Tag", name, span: { from, to: from + 1 + name.length } }]
   })
   const properties = propertiesOf(lines, regions)
   const listed = properties.filter((property) => LIST_KEYS.has(property.key)).flatMap(listRefs)
-  const refs = [...pageRefsOf(text, excluded), ...tags, ...blockRefs, ...listed].sort((a, b) => a.span.from - b.span.from)
+  const refs = [...pageRefsOf(text, excluded), ...tags, ...blockRefs, ...listed].toSorted(
+    (a, b) => a.span.from - b.span.from,
+  )
 
   const props = Object.fromEntries(properties.map((property) => [property.key, property.value]))
   const id = properties.find((property) => property.key === "id")?.value ?? ""
@@ -265,7 +314,10 @@ export const setProperty = (text: string, key: string, value: string | null): Te
   if (existing !== undefined) {
     if (value === null) {
       const from = existing.span.from === 0 ? 0 : existing.span.from - 1
-      const to = existing.span.from === 0 && existing.span.to < text.length ? existing.span.to + 1 : existing.span.to
+      const to =
+        existing.span.from === 0 && existing.span.to < text.length
+          ? existing.span.to + 1
+          : existing.span.to
       return { from, to, insert: "" }
     }
     const line = `${key}:: ${value}`
