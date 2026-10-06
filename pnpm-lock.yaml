@@ -115,6 +115,34 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1))
 
+  packages/interop:
+    dependencies:
+      '@seqno/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@seqno/rpc':
+        specifier: workspace:*
+        version: link:../rpc
+      effect:
+        specifier: 4.0.1
+        version: 4.0.1
+    devDependencies:
+      '@effect/platform-node':
+        specifier: 4.0.1
+        version: 4.0.1(effect@4.0.1)(redis@6.3.0)
+      '@effect/vitest':
+        specifier: 4.0.1
+        version: 4.0.1(effect@4.0.1)(vitest@5.0.3(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1)))
+      '@types/node':
+        specifier: 24.19.1
+        version: 24.19.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1))
+
   packages/query:
     dependencies:
       effect:
