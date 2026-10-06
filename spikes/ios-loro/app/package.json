@@ -1,0 +1,22 @@
+{
+  "name": "ios-loro-app",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "private": true,
+  "scripts": {
+    "prebuild": "expo prebuild --platform ios --clean"
+  },
+  "dependencies": {
+    "expo": "~57.0.26",
+    "expo-status-bar": "~57.0.1",
+    "loro-react-native": "file:../loro-react-native-1.16.2.tgz",
+    "loro.js": "0.3.0",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "uniffi-bindgen-react-native": "0.31.0-2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  }
+}

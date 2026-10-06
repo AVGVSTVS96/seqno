@@ -1,0 +1,495 @@
+{
+  "env": {
+    "chrome": "Chrome/153.0.8010.52",
+    "headless": true,
+    "loro": "1.16.2",
+    "sqliteWasm": "3.53.4-build2",
+    "node": "v24.21.0",
+    "cpu": "AMD Ryzen 7 5700G with Radeon Graphics",
+    "cores": 16,
+    "ramGB": 14.91,
+    "loadavg1m": 1.31,
+    "date": "2026-10-06T09:36:46.234Z"
+  },
+  "fixture": {
+    "seed": 20261006,
+    "blocks": 50000,
+    "treeNodes": 51992,
+    "digest": "5405c909c0dd19e2"
+  },
+  "bars": [
+    {
+      "name": "open: snapshot -> full block map, median of cold workers",
+      "value": 1193.41,
+      "bar": "<= 1000 ms",
+      "pass": false
+    },
+    {
+      "name": "open: snapshot + 200 update files -> full block map, median of cold workers",
+      "value": 1405.73,
+      "bar": "<= 1000 ms",
+      "pass": false
+    },
+    {
+      "name": "keystroke p95, main thread -> worker (insert, commit, event -> block map) -> main thread",
+      "value": 0.16,
+      "bar": "<= 16 ms",
+      "pass": true
+    },
+    {
+      "name": "merge 1k remote edits (import + events -> block map), median",
+      "value": 49.43,
+      "bar": "<= 50 ms",
+      "pass": true
+    },
+    {
+      "name": "memory: worker JS heap + WASM + main JS heap, peak of after-open / after-10k-edits",
+      "value": 132.92,
+      "bar": "<= 150 MB",
+      "pass": true
+    }
+  ],
+  "allStateChecksPass": true,
+  "open": {
+    "snapshotOnly": {
+      "openMsMedian": 1193.41,
+      "importMsMedian": 15.78,
+      "blockMapMsMedian": 1177.63,
+      "spawnToBlockMapMsMedian": 1333.09,
+      "wasmMBAfterBlockMapMax": 88,
+      "runs": [
+        {
+          "wasmInitMs": 22.94,
+          "fetchMs": 70.01,
+          "files": 1,
+          "importMs": 37.44,
+          "blockMapMs": 1332.96,
+          "openMs": 1370.39,
+          "wasmAfterImportMB": 34,
+          "wasmAfterBlockMapMB": 88,
+          "treeNodes": 51865,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1523.78
+        },
+        {
+          "wasmInitMs": 18.95,
+          "fetchMs": 66.88,
+          "files": 1,
+          "importMs": 14.17,
+          "blockMapMs": 1191.99,
+          "openMs": 1206.16,
+          "wasmAfterImportMB": 34,
+          "wasmAfterBlockMapMB": 88,
+          "treeNodes": 51865,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1346.49
+        },
+        {
+          "wasmInitMs": 19.8,
+          "fetchMs": 64.29,
+          "files": 1,
+          "importMs": 15.78,
+          "blockMapMs": 1177.63,
+          "openMs": 1193.4,
+          "wasmAfterImportMB": 34,
+          "wasmAfterBlockMapMB": 88,
+          "treeNodes": 51865,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1333.08
+        },
+        {
+          "wasmInitMs": 18.98,
+          "fetchMs": 66.84,
+          "files": 1,
+          "importMs": 14.35,
+          "blockMapMs": 1158.23,
+          "openMs": 1172.58,
+          "wasmAfterImportMB": 34,
+          "wasmAfterBlockMapMB": 88,
+          "treeNodes": 51865,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1313.37
+        },
+        {
+          "wasmInitMs": 19.06,
+          "fetchMs": 69.24,
+          "files": 1,
+          "importMs": 16.06,
+          "blockMapMs": 1162.84,
+          "openMs": 1178.89,
+          "wasmAfterImportMB": 34,
+          "wasmAfterBlockMapMB": 88,
+          "treeNodes": 51865,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1321.85
+        }
+      ]
+    },
+    "snapshotThen200Updates": {
+      "openMsMedian": 1405.73,
+      "importMsMedian": 270.55,
+      "blockMapMsMedian": 1136.23,
+      "spawnToBlockMapMsMedian": 1788.52,
+      "wasmMBAfterBlockMapMax": 121,
+      "runs": [
+        {
+          "wasmInitMs": 19.1,
+          "fetchMs": 274.11,
+          "files": 201,
+          "importMs": 284.2,
+          "blockMapMs": 1052.6,
+          "openMs": 1336.8,
+          "wasmAfterImportMB": 82,
+          "wasmAfterBlockMapMB": 121,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1691.63
+        },
+        {
+          "wasmInitMs": 17.63,
+          "fetchMs": 269.16,
+          "files": 201,
+          "importMs": 259.92,
+          "blockMapMs": 1070.87,
+          "openMs": 1330.79,
+          "wasmAfterImportMB": 82,
+          "wasmAfterBlockMapMB": 121,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1678.81
+        },
+        {
+          "wasmInitMs": 18.67,
+          "fetchMs": 310.86,
+          "files": 201,
+          "importMs": 269.5,
+          "blockMapMs": 1136.23,
+          "openMs": 1405.73,
+          "wasmAfterImportMB": 82,
+          "wasmAfterBlockMapMB": 121,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1792.78
+        },
+        {
+          "wasmInitMs": 18,
+          "fetchMs": 295.42,
+          "files": 201,
+          "importMs": 270.55,
+          "blockMapMs": 1145.35,
+          "openMs": 1415.9,
+          "wasmAfterImportMB": 82,
+          "wasmAfterBlockMapMB": 121,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1788.51
+        },
+        {
+          "wasmInitMs": 17.91,
+          "fetchMs": 318.69,
+          "files": 201,
+          "importMs": 286.95,
+          "blockMapMs": 1165.68,
+          "openMs": 1452.63,
+          "wasmAfterImportMB": 82,
+          "wasmAfterBlockMapMB": 121,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1853.8
+        }
+      ]
+    },
+    "importBatchSnapshotAnd200Updates": {
+      "openMsMedian": 1523.49,
+      "importMsMedian": 1002.5,
+      "blockMapMsMedian": 521.01,
+      "spawnToBlockMapMsMedian": 1907.72,
+      "wasmMBAfterBlockMapMax": 334,
+      "runs": [
+        {
+          "wasmInitMs": 19.64,
+          "fetchMs": 294.86,
+          "files": 201,
+          "importMs": 998.63,
+          "blockMapMs": 485.47,
+          "openMs": 1484.1,
+          "wasmAfterImportMB": 334,
+          "wasmAfterBlockMapMB": 334,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1855.23
+        },
+        {
+          "wasmInitMs": 18.95,
+          "fetchMs": 274.71,
+          "files": 201,
+          "importMs": 969.14,
+          "blockMapMs": 544.89,
+          "openMs": 1514.03,
+          "wasmAfterImportMB": 334,
+          "wasmAfterBlockMapMB": 334,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1865.1
+        },
+        {
+          "wasmInitMs": 20.09,
+          "fetchMs": 323.01,
+          "files": 201,
+          "importMs": 1019.72,
+          "blockMapMs": 530.14,
+          "openMs": 1549.86,
+          "wasmAfterImportMB": 334,
+          "wasmAfterBlockMapMB": 334,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1954.25
+        },
+        {
+          "wasmInitMs": 19.08,
+          "fetchMs": 314.04,
+          "files": 201,
+          "importMs": 1002.5,
+          "blockMapMs": 521.01,
+          "openMs": 1523.5,
+          "wasmAfterImportMB": 334,
+          "wasmAfterBlockMapMB": 334,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1917.71
+        },
+        {
+          "wasmInitMs": 18.5,
+          "fetchMs": 309.34,
+          "files": 201,
+          "importMs": 1026.5,
+          "blockMapMs": 496.98,
+          "openMs": 1523.49,
+          "wasmAfterImportMB": 334,
+          "wasmAfterBlockMapMB": 334,
+          "treeNodes": 51992,
+          "digestOk": true,
+          "spawnToBlockMapMs": 1907.71
+        }
+      ]
+    },
+    "firstPageOnly": {
+      "note": "no full block map: snapshot + 200 updates, then page list + every block of the biggest page",
+      "page": "bf076a81-56e0-4fdb-a595-e24571e3c498",
+      "fixtureBlocks": 1086,
+      "firstPageReadyMsMedian": 387.91,
+      "runs": [
+        {
+          "importMs": 346.06,
+          "pageListMs": 16.74,
+          "pageMs": 26.15,
+          "firstPageReadyMs": 388.96,
+          "pages": 1865,
+          "pageBlocks": 1088,
+          "wasmMB": 82
+        },
+        {
+          "importMs": 341.68,
+          "pageListMs": 16.68,
+          "pageMs": 25.96,
+          "firstPageReadyMs": 384.31,
+          "pages": 1865,
+          "pageBlocks": 1088,
+          "wasmMB": 82
+        },
+        {
+          "importMs": 345.47,
+          "pageListMs": 16.08,
+          "pageMs": 25.57,
+          "firstPageReadyMs": 387.13,
+          "pages": 1865,
+          "pageBlocks": 1088,
+          "wasmMB": 82
+        },
+        {
+          "importMs": 344.43,
+          "pageListMs": 17.13,
+          "pageMs": 26.35,
+          "firstPageReadyMs": 387.91,
+          "pages": 1865,
+          "pageBlocks": 1088,
+          "wasmMB": 82
+        },
+        {
+          "importMs": 344.8,
+          "pageListMs": 16.64,
+          "pageMs": 27.02,
+          "firstPageReadyMs": 388.46,
+          "pages": 1865,
+          "pageBlocks": 1088,
+          "wasmMB": 82
+        }
+      ]
+    }
+  },
+  "keystroke": {
+    "worker": {
+      "n": 2000,
+      "mean": 0.086,
+      "p50": 0.09,
+      "p95": 0.115,
+      "p99": 0.145,
+      "max": 0.395
+    },
+    "roundTrip": {
+      "n": 2000,
+      "mean": 0.119,
+      "p50": 0.12,
+      "p95": 0.155,
+      "p99": 0.195,
+      "max": 0.72
+    }
+  },
+  "move": {
+    "worker": {
+      "n": 500,
+      "mean": 0.045,
+      "p50": 0.045,
+      "p95": 0.055,
+      "p99": 0.065,
+      "max": 0.205
+    },
+    "roundTrip": {
+      "n": 500,
+      "mean": 0.068,
+      "p50": 0.065,
+      "p95": 0.08,
+      "p99": 0.095,
+      "max": 0.295
+    },
+    "subtreeBlocks": {
+      "n": 500,
+      "mean": 4.85,
+      "p50": 4,
+      "p95": 12,
+      "p99": 21,
+      "max": 32
+    },
+    "note": "subtree moves to a different parent, no official bar; 16 ms frame budget for reference"
+  },
+  "merge": {
+    "edits": 1000,
+    "kinds": {
+      "deleteBlock": 57,
+      "insertText": 526,
+      "deleteText": 180,
+      "createBlock": 130,
+      "moveBlock": 107
+    },
+    "loroOps": 8353,
+    "bytes": 30514,
+    "msMedian": 49.43,
+    "msRuns": [
+      56.14,
+      49.43,
+      47.12,
+      45.99,
+      52.32
+    ],
+    "afterImportBatchOpen": {
+      "note": "same merge into a doc opened with importBatch (fully built state, ~3x the WASM memory)",
+      "msMedian": 22.29,
+      "msRuns": [
+        22.29,
+        21.6,
+        23.44,
+        23.12,
+        21.62
+      ]
+    }
+  },
+  "localEdits": {
+    "totalMs": 858.5149999856949,
+    "perEdit": {
+      "n": 10000,
+      "mean": 0.082,
+      "p50": 0.085,
+      "p95": 0.115,
+      "p99": 0.135,
+      "max": 4.705
+    },
+    "batchedSave": {
+      "editsPerSave": 25,
+      "exportMs": {
+        "n": 400,
+        "mean": 0.086,
+        "p50": 0.075,
+        "p95": 0.105,
+        "p99": 0.17,
+        "max": 2.325
+      },
+      "bytes": {
+        "n": 400,
+        "mean": 865.698,
+        "p50": 842,
+        "p95": 1203,
+        "p99": 1438,
+        "max": 1672
+      }
+    },
+    "digestOk": true
+  },
+  "memory": {
+    "afterOpen": {
+      "workerJsHeapMB": 8.68,
+      "wasmMB": 121.38,
+      "mainJsHeapMB": 1.2,
+      "totalMB": 131.26
+    },
+    "afterLocalEdits": {
+      "workerJsHeapMB": 10.34,
+      "wasmMB": 121.38,
+      "mainJsHeapMB": 1.2,
+      "totalMB": 132.92
+    }
+  },
+  "sizes": {
+    "initial": {
+      "snapshotBytes": 17099660,
+      "shallowSnapshotBytes": 9166207,
+      "updateFiles": 200,
+      "editsInUpdateFiles": 3153,
+      "updateFileBytes": {
+        "mean": 428,
+        "min": 106,
+        "max": 915,
+        "total": 85568
+      }
+    },
+    "afterSession": {
+      "snapshotBytes": 17975944,
+      "snapshotExportMs": 267.88499999046326,
+      "shallowSnapshotBytes": 9536727,
+      "shallowExportMs": 1967.3349999785423
+    }
+  },
+  "sqliteIndex": {
+    "rows": {
+      "pages": 3327,
+      "blocks": 50290,
+      "refs": 59334
+    },
+    "openMs": 58.25,
+    "insertBlocksMs": 513.714999973774,
+    "insertRefsMs": 180.2750000357628,
+    "ftsRebuildMs": 129.84499996900558,
+    "indexesAndCommitMs": 114.91000002622604,
+    "totalBuildMs": 938.7450000047684,
+    "dbBytes": 17924096,
+    "sampleQueries": {
+      "backlinksOfBusiestPage": {
+        "rows": 2922,
+        "ms": 5.584999978542328
+      },
+      "ftsMatchRoadmap": {
+        "rows": 50,
+        "ms": 6.205000042915344
+      }
+    }
+  }
+}

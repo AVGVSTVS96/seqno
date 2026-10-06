@@ -1,0 +1,1 @@
+../../../app/modules/seqno-vault/ios/VaultCore.swift

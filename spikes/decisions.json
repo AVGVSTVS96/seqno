@@ -1,0 +1,68 @@
+{
+  "needsYou": [
+    {
+      "now": false,
+      "when": "Decide at phase 3 (iOS)",
+      "title": "Apple Developer Program, or the no-account fallback",
+      "detail": "Nothing to do now. Phases 0-2 and the desktop app don't need it. At phase 3, choose: the paid account (iCloud sync on iOS, no weekly re-install), or the untested fallback where you pick an iCloud Drive folder once and re-install the app every 7 days."
+    }
+  ],
+  "decided": [
+    {
+      "match": "How should seqno open a graph",
+      "answer": "Lazy open: the page list and the visible page load first, the rest fills in behind them."
+    },
+    {
+      "match": "Merge passes by a thin margin",
+      "answer": "Accepted. Merges run in the worker and never block typing. Verify re-measures on a quiet machine."
+    },
+    {
+      "match": "where does 'iCloud Drive/seqno",
+      "answer": "The app's own iCloud folder. It shows up as iCloud Drive > seqno in Files and Finder, which matches the plan."
+    },
+    {
+      "match": "Filename normalization",
+      "answer": "Sync files keep plain ASCII names, and page names get normalized when they're read."
+    },
+    {
+      "match": "Enroll in the Apple Developer Program",
+      "answer": "Folded into the one Needs you item. Individual is fine."
+    },
+    {
+      "match": "Which text syntax",
+      "answer": "The Logseq-style {{query ...}} syntax, because you want queries to feel the same as Logseq."
+    },
+    {
+      "match": "How durable should the SQLite index",
+      "answer": "Relaxed. The index is rebuildable, so it carries a version stamp and rebuilds itself if it ever falls out of sync."
+    },
+    {
+      "match": "Which Rust opt-level",
+      "answer": "opt-level=3. Same engine, 2-6x faster."
+    },
+    {
+      "match": "How should mobile build the in-memory block map",
+      "answer": "Lazy, same as web."
+    },
+    {
+      "match": "Merge (51-63 ms) and peak memory",
+      "answer": "Not a decision yet. Verify re-measures on a quiet Mac first."
+    },
+    {
+      "match": "iOS iCloud container",
+      "answer": "Waits on the Apple Developer Program item."
+    },
+    {
+      "match": "Real iCloud on iOS",
+      "answer": "Waits on the Apple Developer Program item, then one test on your iPhone."
+    },
+    {
+      "match": "Real NSFileVersion conflicts",
+      "answer": "Tested in the iOS phase, once a second device can sync."
+    },
+    {
+      "match": "Real-iPhone run",
+      "answer": "Planned for the iOS phase."
+    }
+  ]
+}

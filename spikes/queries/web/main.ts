@@ -1,0 +1,5 @@
+const params = Object.fromEntries([...new URLSearchParams(location.search)].map(([k, v]) => [k, Number(v)]))
+const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" })
+worker.onmessage = (event) => Object.assign(window, { __result: event.data })
+worker.onerror = (event) => Object.assign(window, { __result: { error: event.message } })
+worker.postMessage(params)

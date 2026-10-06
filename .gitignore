@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.expo/
+Pods/
+*.log
+*.loro
+*.tgz
+spikes/**/results/
+spikes/verify/
+spikes/**/tmp/
+spikes/**/scratch/
+.worktrees/
