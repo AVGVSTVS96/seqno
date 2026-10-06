@@ -70,6 +70,8 @@ const todos: LiveQuery = {
   reads: ["task.status"],
 }
 
+const ids = (hits: ReadonlyArray<{ readonly blockId: BlockId }>) => hits.map((hit) => hit.blockId)
+
 const usingIndex =
   (sqlite: Layer.Layer<Sqlite, unknown>) =>
   <A, E, R>(body: (index: Index["Service"]) => Effect.Effect<A, E, R>) =>
@@ -156,6 +158,111 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
           [1],
         ])
       }),
+    ),
+  )
+
+  it.effect("finds unlinked mentions of a page's name and aliases, skipping linked ones", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        yield* index.apply(
+          [
+            ...graph,
+            upsertBlock(blockId(9), notes, "the project plan needs a review"),
+            upsertBlock(blockId(10), journal, "PROJ budget, and [[Project]] linked too"),
+            upsertBlock(blockId(11), project, "this project page mentions itself"),
+            upsertBlock(blockId(12), notes, "projection is a different word"),
+          ],
+          "v1",
+        )
+        assert.deepStrictEqual(yield* index.unlinkedReferences(project), [
+          { blockId: blockId(9), pageId: notes, text: "the project plan needs a review" },
+        ])
+        assert.deepStrictEqual(yield* index.unlinkedReferences(pageId(99)), [])
+      }),
+    ),
+  )
+
+  it.effect("counts backlinks and reads first and last edit times per page", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        yield* index.apply(
+          [...graph, upsertBlock(blockId(9), notes, "edited later", { updatedAt: 5_000 })],
+          "v1",
+        )
+        const stats = yield* index.pageStats
+        assert.deepStrictEqual(
+          stats.toSorted((left, right) => left.pageId.localeCompare(right.pageId)),
+          [
+            { pageId: project, backlinks: 5, created: 1_000, updated: 1_000 },
+            { pageId: journal, backlinks: 0, created: 1_000, updated: 1_000 },
+            { pageId: notes, backlinks: 0, created: 1_000, updated: 5_000 },
+          ],
+        )
+      }),
+    ),
+  )
+
+  it.live("live backlinks wake for the page's own refs and aliases, not for other edits", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        yield* index.apply(graph, "v1")
+        const updates = yield* Stream.toQueue(index.watchBacklinks(notes), {
+          capacity: "unbounded",
+        })
+        assert.deepStrictEqual(yield* Queue.take(updates), [])
+        yield* index.apply([upsertBlock(blockId(9), journal, "plain words about notes")], "v2")
+        yield* index.apply([upsertBlock(blockId(10), journal, "see [[Project]] again")], "v3")
+        yield* Effect.sleep("20 millis")
+        assert.strictEqual(yield* Queue.size(updates), 0)
+        yield* index.apply([upsertBlock(blockId(9), journal, "about [[Notes]]")], "v4")
+        assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9)])
+        yield* index.apply([upsertPage(notes, "Notes", { alias: "jottings" })], "v5")
+        yield* index.apply([upsertBlock(blockId(11), project, "#jottings")], "v6")
+        assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9), blockId(11)])
+      }).pipe(Effect.scoped),
+    ),
+  )
+
+  it.live("live backlinks reach a name that has no page yet", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        yield* index.apply(graph, "v1")
+        const updates = yield* Stream.toQueue(index.watchBacklinksToName("Visual Check"), {
+          capacity: "unbounded",
+        })
+        assert.deepStrictEqual(yield* Queue.take(updates), [])
+        yield* index.apply([upsertBlock(blockId(9), notes, "needs a #[[visual check]]")], "v2")
+        assert.deepStrictEqual(yield* Queue.take(updates), [
+          { blockId: blockId(9), pageId: notes, text: "needs a #[[visual check]]" },
+        ])
+      }).pipe(Effect.scoped),
+    ),
+  )
+
+  it.live("live unlinked references and page stats follow text edits", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        yield* index.apply(graph, "v1")
+        const unlinked = yield* Stream.toQueue(index.watchUnlinkedReferences(notes), {
+          capacity: "unbounded",
+        })
+        const stats = yield* Stream.toQueue(index.watchPageStats, { capacity: "unbounded" })
+        const updatedNotes = (all: ReadonlyArray<{ readonly pageId: PageId; updated: unknown }>) =>
+          all.find((stat) => stat.pageId === notes)?.updated
+        assert.deepStrictEqual(yield* Queue.take(unlinked), [])
+        assert.strictEqual(updatedNotes(yield* Queue.take(stats)), 1_000)
+        yield* index.apply(
+          [upsertBlock(blockId(7), notes, "Deploy on Friday", { updatedAt: 7_000 })],
+          "v2",
+        )
+        assert.strictEqual(updatedNotes(yield* Queue.take(stats)), 7_000)
+        yield* Effect.sleep("20 millis")
+        assert.strictEqual(yield* Queue.size(unlinked), 0)
+        yield* index.apply([upsertBlock(blockId(9), journal, "check the notes later")], "v3")
+        assert.deepStrictEqual(yield* Queue.take(unlinked), [
+          { blockId: blockId(9), pageId: journal, text: "check the notes later" },
+        ])
+      }).pipe(Effect.scoped),
     ),
   )
 
