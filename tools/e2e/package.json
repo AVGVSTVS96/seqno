@@ -1,0 +1,14 @@
+{
+  "name": "@seqno/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "effect": "4.0.1"
+  }
+}
