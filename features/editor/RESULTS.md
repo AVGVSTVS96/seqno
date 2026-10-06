@@ -4,7 +4,7 @@ The focused-block editor: one CodeMirror 6 view, mounted only on the block that 
 
 ## What works
 
-```
+````
  key / input                      what the host receives
  ───────────────────────────────  ─────────────────────────────────────────────
  typing, paste, completion        EditText { blockId, from, to, insert }  (one per changed range)
@@ -17,7 +17,7 @@ The focused-block editor: one CodeMirror 6 view, mounted only on the block that 
  ArrowUp on first visual line     navigate ToPrevious { cursor: LastLine { column } }
  ArrowDown on last visual line    navigate ToNext     { cursor: FirstLine { column } }
  ArrowLeft at 0 / Right at end    navigate ToPrevious { End } / ToNext { Start }
-```
+````
 
 - **Command mapping** (`src/edits.ts`): a multi-range transaction becomes EditTexts in descending order, so each one applies to the text the previous one left. Offsets are UTF-16 code units, matching the scaffold note.
 - **Cursor placement**: the outliner passes a navigation's `cursor` straight into the next editor's `cursor` option. `CursorPlacement` is `Start | End | Offset | FirstLine | LastLine`, clamped to the text.
