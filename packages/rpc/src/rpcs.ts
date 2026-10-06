@@ -1,0 +1,82 @@
+import { Schema } from "effect"
+import { Rpc, RpcGroup } from "effect/rpc"
+import { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
+import {
+  BlockNotFound,
+  CommandRejected,
+  GraphNotOpen,
+  GraphUnavailable,
+  PageNotFound,
+  QueryInvalid,
+} from "./errors.ts"
+
+export const GraphOpened = Schema.Struct({
+  graph: Schema.String,
+  pages: Schema.Array(Page),
+})
+export type GraphOpened = typeof GraphOpened.Type
+
+export const PageTree = Schema.Struct({
+  page: Page,
+  blocks: Schema.Array(Block),
+})
+export type PageTree = typeof PageTree.Type
+
+export const QueryResult = Schema.TaggedUnion({
+  BlockRows: { blocks: Schema.Array(Block) },
+  PageRows: { pages: Schema.Array(Page) },
+})
+export type QueryResult = typeof QueryResult.Type
+
+export const OpenGraph = Rpc.make("OpenGraph", {
+  payload: { graph: Schema.NonEmptyString },
+  success: GraphOpened,
+  error: GraphUnavailable,
+})
+
+export const Dispatch = Rpc.make("Dispatch", {
+  payload: { command: Command },
+  success: Schema.Array(GraphEvent),
+  error: Schema.Union([GraphNotOpen, CommandRejected]),
+})
+
+export const GetPages = Rpc.make("GetPages", {
+  success: Schema.Array(Page),
+  error: GraphNotOpen,
+})
+
+export const GetPage = Rpc.make("GetPage", {
+  payload: { pageId: PageId },
+  success: PageTree,
+  error: Schema.Union([GraphNotOpen, PageNotFound]),
+})
+
+export const GetBlock = Rpc.make("GetBlock", {
+  payload: { blockId: BlockId },
+  success: Block,
+  error: Schema.Union([GraphNotOpen, BlockNotFound]),
+})
+
+export const WatchPage = Rpc.make("WatchPage", {
+  payload: { pageId: PageId },
+  success: PageTree,
+  error: Schema.Union([GraphNotOpen, PageNotFound]),
+  stream: true,
+})
+
+export const WatchQuery = Rpc.make("WatchQuery", {
+  payload: { query: Schema.String },
+  success: QueryResult,
+  error: Schema.Union([GraphNotOpen, QueryInvalid]),
+  stream: true,
+})
+
+export const CoreRpcs = RpcGroup.make(
+  OpenGraph,
+  Dispatch,
+  GetPages,
+  GetPage,
+  GetBlock,
+  WatchPage,
+  WatchQuery,
+)

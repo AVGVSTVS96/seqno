@@ -14,3 +14,4 @@ spikes/**/scratch/
 coverage/
 playwright-report/
 test-results/
+.claude/worktrees/
