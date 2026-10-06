@@ -59,23 +59,25 @@ Measured with `getComputedStyle` / `getBoundingClientRect` on test.logseq.com (2
 
 **Shortcuts while editing** (from Logseq's keymap):
 
-| Keys                         | What                                                          |
-| ---------------------------- | ------------------------------------------------------------- |
-| Enter / Shift+Enter          | new block / new line (Enter inside a ``` fence is a new line) |
-| Tab / Shift+Tab              | indent / outdent                                              |
-| Backspace at start           | merge into the block above                                    |
-| Delete at end                | merge the next block in                                       |
-| ↑ ↓ on the first / last line | previous / next block, same horizontal position               |
-| ← → at the edges             | previous block's end / next block's start                     |
-| Shift+↑ / Shift+↓ past text  | select the block                                              |
-| Esc                          | leave editing, block selected                                 |
-| Mod+Enter                    | TODO → DOING → DONE → none (LATER → NOW → DONE)               |
-| Mod+B, Mod+I                 | `**bold**`, `*italic*` (wrap, unwrap, or an empty pair)       |
-| Mod+Shift+H, Mod+Shift+S     | `==highlight==`, `~~strike~~`                                 |
-| Mod+L                        | `[label]()` from the selection, `[](url)` for a URL           |
-| Mod+↑ / Mod+↓, Mod+;         | collapse / expand, toggle                                     |
-| Alt+Shift+↑ / ↓              | move the block among its siblings                             |
-| Mod+Z, Mod+Shift+Z, Mod+Y    | undo, redo (the graph's history)                              |
+| Keys                                 | What                                                          |
+| ------------------------------------ | ------------------------------------------------------------- |
+| Enter / Shift+Enter                  | new block / new line (Enter inside a ``` fence is a new line) |
+| Tab / Shift+Tab                      | indent / outdent                                              |
+| Backspace at start                   | merge into the block above                                    |
+| Delete at end                        | merge the next block in                                       |
+| ↑ ↓ on the first / last line         | previous / next block, same horizontal position               |
+| ← → at the edges                     | previous block's end / next block's start                     |
+| Shift+↑ / Shift+↓ past text          | select the block                                              |
+| Esc                                  | leave editing, block selected                                 |
+| Mod+Enter                            | TODO → DOING → DONE → none (LATER → NOW → DONE)               |
+| Mod+B, Mod+I                         | `**bold**`, `*italic*` (wrap, unwrap, or an empty pair)       |
+| Mod+Shift+H, Mod+Shift+S             | `==highlight==`, `~~strike~~`                                 |
+| Mod+L                                | `[label]()` from the selection, `[](url)` for a URL           |
+| Mod+↑ / Mod+↓, Mod+;                 | collapse / expand, toggle                                     |
+| Alt+Shift+↑ / ↓                      | move the block among its siblings                             |
+| Mod+Z, Mod+Shift+Z, Mod+Y            | undo, redo (the graph's history)                              |
+| Mod+O, Mod+Shift+O                   | follow the link under the caret, or open it in the sidebar    |
+| Alt+→ / Alt+← (Mod+. / Mod+, on Mac) | zoom into the block, zoom out one level                       |
 
 Auto-pairs follow Logseq: `[ { ( `` ` `` ~`pair (no`(`right after a word),`* _ ^ = / +` only wrap a selection, typing a closer steps over it, Backspace between an empty pair deletes both.
 
@@ -100,7 +102,7 @@ No new tokens. Sizes that no token covers are literal and come from SPEC: popup 
 - **Exit animation**: Logseq fades the popup out over 150ms after a pick; seqno removes it at once.
 - **Page search** ranks titles with substring and scattered-letter matching. Logseq 2.x's search is looser (it also lists blocks under `[[`, which a markdown graph can't reference that way).
 - **Scheduled / Deadline** insert today's date; classic opens a date picker first. **Date picker**, **Number children**, **Template**, **Upload an asset** and **Add property** are not in the slash menu yet.
-- **Mod+O / Mod+Shift+O** (follow a link, open in sidebar), **Alt+→ / Alt+←** (zoom) and Shift+Enter in a popup (open in sidebar) need a navigation callback in `EditorSlotProps`; the slot has none.
+- **Shift+Enter in a popup** (open the chosen page in the sidebar) is not wired yet. Mod+O, Mod+Shift+O and Alt+→ / Alt+← landed at integration: the editor sends `Open` / `ZoomIn` / `ZoomOut` actions and the app's `EditorSlot` navigates.
 
 ## For the integration (other parts)
 

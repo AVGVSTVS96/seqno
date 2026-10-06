@@ -137,6 +137,47 @@ describe("structural keys", () => {
     ])
   })
 
+  it("follows the link under the caret with Mod+O, into the sidebar with Mod+Shift+O", () => {
+    const { view, actions } = mount("see [[Garden Plan]] and #seeds", {
+      _tag: "Offset",
+      offset: 8,
+    })
+    assert.isTrue(press(view, "o", { ctrlKey: true }))
+    view.dispatch({ selection: { anchor: 26 } })
+    assert.isTrue(press(view, "O", { ctrlKey: true, shiftKey: true, keyCode: 79 }))
+    view.dispatch({ selection: { anchor: 1 } })
+    assert.isTrue(press(view, "o", { ctrlKey: true }))
+    assert.deepStrictEqual(actions, [
+      { _tag: "Open", target: { _tag: "Page", name: "Garden Plan" }, sidebar: false },
+      { _tag: "Open", target: { _tag: "Page", name: "seeds" }, sidebar: true },
+    ])
+  })
+
+  it("follows markdown links and block refs inside formatting", () => {
+    const { view, actions } = mount(
+      "**[docs](https://docs.logseq.com)** and ((01920000-0000-7000-8000-000000000001))",
+      { _tag: "Offset", offset: 4 },
+    )
+    press(view, "o", { ctrlKey: true })
+    view.dispatch({ selection: { anchor: 50 } })
+    press(view, "o", { ctrlKey: true })
+    assert.deepStrictEqual(actions, [
+      { _tag: "Open", target: { _tag: "Url", url: "https://docs.logseq.com" }, sidebar: false },
+      {
+        _tag: "Open",
+        target: { _tag: "Block", uuid: "01920000-0000-7000-8000-000000000001" },
+        sidebar: false,
+      },
+    ])
+  })
+
+  it("zooms into the block with Alt+Right and out with Alt+Left", () => {
+    const { view, actions } = mount("text", { _tag: "Offset", offset: 2 })
+    press(view, "ArrowRight", { altKey: true })
+    press(view, "ArrowLeft", { altKey: true })
+    assert.deepStrictEqual(actions, [{ _tag: "ZoomIn" }, { _tag: "ZoomOut" }])
+  })
+
   it("merges the next block in with Delete at the end", () => {
     const { view, actions } = mount("abc", { _tag: "Offset", offset: 1 })
     assert.isTrue(press(view, "Delete"))

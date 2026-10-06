@@ -13,6 +13,13 @@ export const CursorPlacement = Schema.TaggedUnion({
 })
 export type CursorPlacement = typeof CursorPlacement.Type
 
+export const LinkTarget = Schema.TaggedUnion({
+  Url: { url: Schema.String },
+  Page: { name: Schema.String },
+  Block: { uuid: Schema.String },
+})
+export type LinkTarget = typeof LinkTarget.Type
+
 export const EditorAction = Schema.TaggedUnion({
   FocusPrevious: {},
   FocusNext: {},
@@ -25,6 +32,9 @@ export const EditorAction = Schema.TaggedUnion({
   Expand: {},
   ToggleCollapse: {},
   MergeNext: {},
+  ZoomIn: {},
+  ZoomOut: {},
+  Open: { target: LinkTarget, sidebar: Schema.Boolean },
 })
 export type EditorAction = typeof EditorAction.Type
 

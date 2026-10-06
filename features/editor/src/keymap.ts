@@ -7,6 +7,7 @@ import { goalX, minimalChange } from "./edits.ts"
 import { cycleMarker, insertLink, toggleMark, type Draft } from "./format.ts"
 import type { Handoff } from "./handoff.ts"
 import type { EditorAction, EditorHost } from "./host.ts"
+import { linkAt } from "./links.ts"
 
 const fenceLine = /^\s*(`{3,}|~{3,})/gm
 
@@ -100,6 +101,12 @@ export const blockKeymap = (
     return true
   }
 
+  const follow = (sidebar: boolean) => (view: EditorView) => {
+    const target = linkAt(view.state.doc.toString(), view.state.selection.main.head)
+    if (target !== null) host.act({ _tag: "Open", target, sidebar })
+    return true
+  }
+
   return Prec.high(
     keymap.of([
       { key: "Enter", run: split },
@@ -129,6 +136,10 @@ export const blockKeymap = (
       { key: "Mod-;", run: act({ _tag: "ToggleCollapse" }) },
       { key: "Alt-Shift-ArrowUp", run: act({ _tag: "MoveUp" }) },
       { key: "Alt-Shift-ArrowDown", run: act({ _tag: "MoveDown" }) },
+      { key: "Mod-o", run: follow(false) },
+      { key: "Mod-Shift-o", run: follow(true) },
+      { key: "Alt-ArrowRight", mac: "Mod-.", run: act({ _tag: "ZoomIn" }) },
+      { key: "Alt-ArrowLeft", mac: "Mod-,", run: act({ _tag: "ZoomOut" }) },
     ]),
   )
 }
