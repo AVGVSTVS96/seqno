@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   test: {
     name: "@seqno/outliner",
+    sequence: { groupOrder: 1 },
     browser: {
       enabled: true,
       headless: true,
