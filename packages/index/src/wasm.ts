@@ -50,7 +50,10 @@ export const layerWasm = (options: { readonly directory: string; readonly file: 
         try: () => module.installOpfsSAHPoolVfs({ directory: options.directory }),
         catch: toIndexError,
       })
-      return yield* Effect.try({ try: () => new pool.OpfsSAHPoolDb(options.file), catch: toIndexError })
+      return yield* Effect.try({
+        try: () => new pool.OpfsSAHPoolDb(options.file),
+        catch: toIndexError,
+      })
     }),
   )
 

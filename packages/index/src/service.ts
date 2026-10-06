@@ -3,7 +3,14 @@ import { Reactivity } from "effect/reactivity"
 import { BlockId, GraphEvent, PageId, normalizePageName } from "@seqno/domain"
 import { indexer } from "./indexer.ts"
 import { REBUILT, toInvalidation, type Changes, type ReadKey } from "./keys.ts"
-import { RELAXED, SCHEMA_VERSION, readStamp, recreate, schemaVersion, writeStamp } from "./schema.ts"
+import {
+  RELAXED,
+  SCHEMA_VERSION,
+  readStamp,
+  recreate,
+  schemaVersion,
+  writeStamp,
+} from "./schema.ts"
 import { IndexError, Sqlite, type Row, type SqlValue, type Statements } from "./sqlite.ts"
 
 export interface LiveQuery {
@@ -114,8 +121,7 @@ const make = Effect.gen(function* () {
     watch: (live: LiveQuery): Stream.Stream<ReadonlyArray<Row>, IndexError> =>
       reactivity.stream([...live.reads, REBUILT], query(live.sql, live.params)),
 
-    backlinks: (pageId: PageId) =>
-      sqlite.use((db) => blockHits(db.all(BACKLINKS, [pageId]))),
+    backlinks: (pageId: PageId) => sqlite.use((db) => blockHits(db.all(BACKLINKS, [pageId]))),
 
     search: (text: string, limit = 20): Effect.Effect<SearchResult, IndexError> =>
       sqlite.use((db) => {

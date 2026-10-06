@@ -43,13 +43,13 @@ const SUBTREE = `WITH RECURSIVE sub(rid) AS (SELECT ?1 UNION ALL SELECT b.rid FR
 
 const names = (rows: ReadonlyArray<Row>) => rows.map((row) => decodeName(row)[0])
 
-export const indexer = (db: Statements, changes: Changes) => {
-  const ridOf = (rows: ReadonlyArray<Row>, missing: string): number => {
-    const row = rows[0]
-    if (row === undefined) throw new IndexError({ message: missing })
-    return decodeRid(row)[0]
-  }
+const ridOf = (rows: ReadonlyArray<Row>, missing: string): number => {
+  const row = rows[0]
+  if (row === undefined) throw new IndexError({ message: missing })
+  return decodeRid(row)[0]
+}
 
+export const indexer = (db: Statements, changes: Changes) => {
   const pageRid = (id: PageId) =>
     ridOf(
       db.all("SELECT rid FROM pages WHERE id = ?", [id]),
@@ -71,18 +71,27 @@ export const indexer = (db: Statements, changes: Changes) => {
   }
 
   const readFacets = (rid: number): BlockFacets => {
-    const refs = db.all("SELECT target, tag FROM refs WHERE block = ?", [rid]).map((row) => decodeRef(row))
+    const refs = db
+      .all("SELECT target, tag FROM refs WHERE block = ?", [rid])
+      .map((row) => decodeRef(row))
     const task = db.all("SELECT status, priority, scheduled, deadline FROM tasks WHERE block = ?", [
       rid,
     ])[0]
     return {
       refs: refs.map(([target]) => target),
       tags: refs.flatMap(([target, tag]) => (tag === 1 ? [target] : [])),
-      props: db.all("SELECT key, value FROM props WHERE block = ? ORDER BY rowid", [rid]).map((row) => decodeProp(row)),
+      props: db
+        .all("SELECT key, value FROM props WHERE block = ? ORDER BY rowid", [rid])
+        .map((row) => decodeProp(row)),
       task:
         task === undefined
           ? null
-          : decodeTask({ status: task[0], priority: task[1], scheduled: task[2], deadline: task[3] }),
+          : decodeTask({
+              status: task[0],
+              priority: task[1],
+              scheduled: task[2],
+              deadline: task[3],
+            }),
     }
   }
 
@@ -215,7 +224,9 @@ export const indexer = (db: Statements, changes: Changes) => {
       const row = db.all("SELECT rid FROM pages WHERE id = ?", [pageId])[0]
       if (row === undefined) return
       const [rid] = decodeRid(row)
-      const blocks = db.all("SELECT rid FROM blocks WHERE page = ?", [rid]).map((r) => decodeRid(r)[0])
+      const blocks = db
+        .all("SELECT rid FROM blocks WHERE page = ?", [rid])
+        .map((r) => decodeRid(r)[0])
       for (const block of blocks) removeBlock(block)
       if (blocks.length > 0) touchLifecycle()
       syncPageFacets(rid, readPageFacets(rid), NO_PAGE_FACETS)

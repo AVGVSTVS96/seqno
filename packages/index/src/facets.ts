@@ -35,7 +35,8 @@ const TAG = /(?:^|\s)#(?!\[\[)([^\s#,[\]()]+)|#\[\[([^\]]+)\]\]/g
 const CODE = /`[^`\n]*`/g
 const LIST_KEYS = new Set(["tags", "alias"])
 
-const wikiNames = (text: string) => [...text.matchAll(WIKI)].map((m) => normalizePageName(m[1] ?? ""))
+const wikiNames = (text: string) =>
+  [...text.matchAll(WIKI)].map((m) => normalizePageName(m[1] ?? ""))
 
 const tagNames = (text: string) =>
   [...text.matchAll(TAG)].map((m) => normalizePageName(m[1] ?? m[2] ?? ""))
@@ -48,7 +49,11 @@ export const toNum = (value: string): number | null => {
 const propValues = (key: string, raw: string): ReadonlyArray<string> => {
   const linked = [...wikiNames(raw), ...tagNames(raw)]
   if (linked.length > 0) return linked
-  if (LIST_KEYS.has(key)) return raw.split(",").map(normalizePageName).filter((v) => v !== "")
+  if (LIST_KEYS.has(key))
+    return raw
+      .split(",")
+      .map(normalizePageName)
+      .filter((v) => v !== "")
   return [normalizePageName(raw)]
 }
 
@@ -76,7 +81,8 @@ const taskOf = (text: string): Task | null => {
   }
   if (marker === undefined && scheduled === null && deadline === null) return null
   return {
-    status: marker === undefined ? null : marker === "CANCELLED" ? "canceled" : marker.toLowerCase(),
+    status:
+      marker === undefined ? null : marker === "CANCELLED" ? "canceled" : marker.toLowerCase(),
     priority: priority === undefined ? null : priority.toLowerCase(),
     scheduled,
     deadline,

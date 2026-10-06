@@ -42,13 +42,14 @@ export const toIndexError = (cause: unknown): IndexError =>
     ? cause
     : new IndexError({ message: cause instanceof Error ? cause.message : String(cause) })
 
+const attempt = <A>(body: () => A) => Effect.try({ try: body, catch: toIndexError })
+
 export const makeSqlite = (driver: Driver) => {
   const db: Statements = {
     exec: driver.exec,
     run: (sql, params = []) => driver.run(sql, params),
     all: (sql, params = []) => driver.all(sql, params).map(toRow),
   }
-  const attempt = <A>(body: () => A) => Effect.try({ try: body, catch: toIndexError })
   return Sqlite.of({
     use: (body) => attempt(() => body(db)),
     transaction: (body) =>
