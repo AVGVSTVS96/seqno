@@ -9,6 +9,9 @@
   --shadow-button-primary-hover:
     inset 0 1px 0 0 rgb(255 255 255 / 0.15), inset 0 -2px 0 0 rgb(0 0 0 / 0.15);
   --bg-ghost-hover: light-dark(rgb(244 244 245 / 0.7), #004152);
+  --fg-ghost-hover: light-dark(#0f172a, #fafafa);
+  --bg-menu-action-hover: light-dark(#f3f3f3, #004152);
+  --fg-menu-action-hover: light-dark(#0f172a, #d1d1d1);
   --bg-switch-off: light-dark(#c7c7c7, #d4d4d4);
   --bg-switch-on: #037dba;
   --ring-choice: light-dark(#106ba3, #8abbbb);
@@ -664,7 +667,7 @@
 .icon-button.sidebar-item-action:hover,
 .icon-button.sidebar-item-action[aria-expanded="true"] {
   background: var(--bg-ghost-hover);
-  color: var(--fg-strong);
+  color: var(--fg-ghost-hover);
 }
 
 .sidebar-item-content {
@@ -675,7 +678,7 @@
   margin: 0 var(--space-3) 20px;
 }
 
-.sidebar-item-content :is(.page-header, article > header:first-child) {
+.sidebar-item-content :is(.page-header, article > header:first-child, .seqno-page-title) {
   display: none;
 }
 
@@ -884,7 +887,9 @@
 }
 
 .graphs-menu-actions .menu-item:focus {
-  opacity: 1;
+  background: var(--bg-menu-action-hover);
+  color: var(--fg-menu-action-hover);
+  opacity: 0.9;
 }
 
 .tooltip {
@@ -1033,7 +1038,8 @@
   cursor: pointer;
 }
 
-.theme-choice[aria-checked="true"] {
+.theme-choice[aria-checked="true"],
+.theme-choice:hover {
   opacity: 1;
 }
 
@@ -1325,7 +1331,7 @@
 
 .icon-button.shortcuts-close:hover {
   background: var(--bg-ghost-hover);
-  color: var(--fg-strong);
+  color: var(--fg-ghost-hover);
 }
 
 .shortcuts-body {
