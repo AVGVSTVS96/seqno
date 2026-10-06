@@ -35,7 +35,7 @@ test("screenshots of the running app", async ({ page, seqno }) => {
   await page.getByRole("link", { name: "Search" }).click()
   await page.getByRole("searchbox", { name: "Search" }).fill("item")
   await expect(
-    page.getByRole("list", { name: "Blocks" }).getByRole("listitem").first(),
+    page.getByRole("listbox", { name: "Nodes" }).getByRole("option").first(),
   ).toBeVisible()
   await page.screenshot({ path: screen("search") })
 })

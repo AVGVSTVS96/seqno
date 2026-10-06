@@ -47,6 +47,18 @@ export const scenes: ReadonlyArray<Scene> = [
     seqno: (page) => seqno.openSeqno(page, "/"),
   },
   {
+    id: "page",
+    title: "A page with its linked references",
+    reference: "test",
+    leftSidebar: true,
+    caret: false,
+    logseq: async (page) => {
+      await logseq.goToPage(page, "test", "Garden Plan")
+      return nothing
+    },
+    seqno: (page) => seqno.openSeqno(page, "/page/garden%20plan"),
+  },
+  {
     id: "showcase-top",
     title: "Showcase page, top",
     reference: "demo",
