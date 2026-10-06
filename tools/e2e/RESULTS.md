@@ -1,5 +1,51 @@
 # @seqno/e2e: phase 1 results
 
+## Design harness
+
+`design/` puts seqno next to Logseq, scene by scene, in light and dark, at 1440×900. It writes `<scene>-<theme>.logseq.png`, `<scene>-<theme>.seqno.png` and one `compare.html` with every pair side by side into `design-out/` (gitignored). The measured values behind the comparison are in `docs/design/SPEC.md`.
+
+```sh
+# build and serve your own seqno first (your port, never 4173 or 4777-4799)
+pnpm --filter @seqno/web build
+pnpm --filter @seqno/web preview --port 4181 --strictPort &
+
+cd tools/e2e
+SEQNO_E2E_BASE_URL=http://localhost:4181/ pnpm design                    # every scene, both apps, both themes
+SEQNO_E2E_BASE_URL=http://localhost:4181/ pnpm design slash search       # only these scenes
+SEQNO_E2E_BASE_URL=http://localhost:4181/ pnpm design --app seqno        # only seqno (seconds; Logseq shots stay)
+pnpm design --app logseq --theme dark journals                           # only the reference, one theme
+```
+
+Wrap each in `systemd-run --user --scope --slice=seqno.slice -p MemoryMax=1500M -p MemorySwapMax=0 -E SEQNO_E2E_BASE_URL=...` on the shared box. If `/tmp` is full, add `-E TMPDIR=<a folder on /home>`: Chrome profiles and the temporary showcase copy go there.
+
+Open `design-out/compare.html`. A tick box shows difference images (black where the pixels match). Each pair lists what failed, for example `missing: slash menu (role listbox)`: seqno scenes record a missing step and still take the screenshot, so the shot shows what is there today.
+
+| Scene                    | Reference      | What it shows                                                |
+| ------------------------ | -------------- | ------------------------------------------------------------ |
+| `journals`               | Logseq 2.x     | journals home with three days                                |
+| `showcase-top`           | Logseq classic | Showcase page, top: properties, headings, text styles, lists |
+| `showcase-lower`         | Logseq classic | Showcase page from Properties down: code blocks, tasks       |
+| `editing`                | Logseq 2.x     | a journal block in edit mode, caret at the end               |
+| `autocomplete`           | Logseq 2.x     | `[[Gar` typed, page autocomplete open                        |
+| `slash`                  | Logseq 2.x     | `/` typed, slash menu open                                   |
+| `search`                 | Logseq 2.x     | Mod+K palette with "greenhouse" typed                        |
+| `right-sidebar`          | Logseq 2.x     | Garden Plan shift-clicked into the right sidebar             |
+| `left-sidebar-collapsed` | Logseq 2.x     | journals with the left sidebar closed                        |
+| `all-pages`              | Logseq 2.x     | all pages (`g a`)                                            |
+
+How it works:
+
+- **seqno** (`design/seqno.ts`): every scene gets a fresh browser context. The showcase graph (`fixtures/graphs/showcase`, journals shifted so the newest is today) is seeded into the demo graph's OPFS folder with `seedOpfs`, and `seqno.theme` / `seqno.leftSidebar` go into localStorage before the app loads. Locators are role based (`treeitem`, `listbox`, `dialog`, `complementary "Right sidebar"`), so a scene starts passing as soon as the UI exposes those roles.
+- **Logseq** (`design/logseq.ts`): one context per reference app. The harness pastes the showcase markdown into the browser-only demo graph (2.x: today's journal, two earlier journals, Garden Plan and Reading List; classic: a new "Showcase" page, with the SVG asset served by a route). It never signs in or opens a folder. Theme, sidebars and pages switch through Logseq's own shortcuts (`t t`, `t l`, `t r`, `g a`); every edit a scene makes is restored afterwards.
+- Before a shot the pointer moves to the corner and the harness waits for fonts and finite animations to finish (`settled`), so pairs are stable run to run.
+- `design/scenes.ts` holds both sides of each scene. Adding a scene is one entry there.
+
+Known quirks of the references:
+
+- Logseq 2.x renders a pasted `[[projects/Greenhouse]]` as an empty `[[]]`, and pasted `TODO`/`DOING` as plain text (2.x keeps task state in properties). Compare markers against the classic scenes.
+- The classic scenes show classic's chrome (its own left sidebar, an "Add a graph" button); only their page content is the reference. Chrome comes from 2.x.
+- Logseq 2.x opens with the left sidebar closed at 1440px; every scene sets the sidebar explicitly.
+
 ## What works
 
 | Piece                                                                                                                                   | Where                                | State                                    |

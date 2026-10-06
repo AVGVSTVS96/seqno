@@ -4,5 +4,5 @@
     "lib": ["es2024", "dom", "dom.iterable", "dom.asynciterable"],
     "types": ["node"]
   },
-  "include": ["src", "flows", "playwright.config.ts"]
+  "include": ["src", "flows", "design", "playwright.config.ts"]
 }
