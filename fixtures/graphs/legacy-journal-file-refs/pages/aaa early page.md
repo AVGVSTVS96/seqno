@@ -1,0 +1,3 @@
+- page processed before the journal it names [[2026_04_02]]
+- default-format ref to an existing journal [[May 18th, 2021]]
+- default-format ref with no journal file [[May 19th, 2021]]

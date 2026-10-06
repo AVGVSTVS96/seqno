@@ -1,0 +1,4 @@
+{:meta/version 1
+ :preferred-format "Markdown"
+ :journal/page-title-format "MMM do, yyyy"
+ :file/name-format :triple-lowbar}

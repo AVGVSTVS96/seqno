@@ -1,0 +1,15 @@
+- TODO
+- DONE
+- I recorded a [[voice note]].
+  - TODO
+- TODO todo item
+- LATER later item
+- NOW now item
+- DOING doing item
+- WAIT waiting item
+- WAITING waiting full item
+- IN-PROGRESS in-progress item
+- DONE done item
+- CANCELED canceled item
+- CANCELLED cancelled item
+- TODO [#A] high priority item
