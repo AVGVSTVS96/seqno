@@ -3,8 +3,8 @@ import { basename, join, relative, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { Page, Route } from "@playwright/test"
 
-const routes = "**/__seqno_e2e__/**"
-const seedPage = "/__seqno_e2e__/seed"
+const harnessPath = "/__seqno_e2e__/"
+const routes = `**${harnessPath}**`
 const pickedFolders = "seqno-e2e-picked"
 
 export const fixtureGraph = (name: string) =>
@@ -18,7 +18,7 @@ export const seedOpfs = async (page: Page, from: string, to: ReadonlyArray<strin
       path: join(entry.parentPath, entry.name),
       dir: [...to, ...relative(from, entry.parentPath).split(sep).filter(Boolean)],
       name: entry.name,
-      url: `/__seqno_e2e__/file/${i}`,
+      url: `${harnessPath}file/${i}`,
     }))
   const served = new Map(files.map((file) => [file.url, file.path]))
   const serve = (route: Route) => {
@@ -28,7 +28,7 @@ export const seedOpfs = async (page: Page, from: string, to: ReadonlyArray<strin
       : route.fulfill({ path })
   }
   await page.route(routes, serve)
-  await page.goto(seedPage)
+  await page.goto(`${harnessPath}seed`)
   await page.evaluate(async (writes) => {
     const root = navigator.storage.getDirectory()
     await Promise.all(
