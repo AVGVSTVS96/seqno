@@ -1,6 +1,6 @@
 import { Effect, Layer, Stream } from "effect"
 import { Atom } from "effect/reactivity"
-import type { BlockId, Command, PageId } from "@seqno/domain"
+import { normalizePageName, type BlockId, type Command, type PageId } from "@seqno/domain"
 import { CoreClient } from "@seqno/rpc"
 
 export const coreRuntime = Atom.runtime(
@@ -15,6 +15,16 @@ export const pageTreeAtom = Atom.family((pageId: PageId) =>
 
 export const blockAtom = Atom.family((blockId: BlockId) =>
   coreRuntime.atom(Effect.flatMap(CoreClient, (client) => client.GetBlock({ blockId }))),
+)
+
+export const pageNamedAtom = Atom.family((name: string) =>
+  coreRuntime.atom(
+    Effect.flatMap(CoreClient, (client) =>
+      Effect.map(client.GetPages(), (pages) =>
+        pages.find((page) => page.name === normalizePageName(name)),
+      ),
+    ),
+  ),
 )
 
 export const dispatchAtom = coreRuntime.fn(

@@ -6,6 +6,8 @@ export interface Row {
   readonly depth: number
   readonly hasChildren: boolean
   readonly expanded: boolean
+  readonly end: number
+  readonly path: ReadonlyArray<BlockId>
 }
 
 export interface Outline {
@@ -17,7 +19,7 @@ export interface Outline {
 
 const none: ReadonlyArray<Block> = []
 
-export const outline = (tree: PageTree, zoom: BlockId | null): Outline => {
+export const outline = (tree: PageTree, zoom: BlockId | null, embedded = false): Outline => {
   const byId = new Map(tree.blocks.map((block) => [block.id, block]))
   const childrenOf = new Map<BlockId | null, Array<Block>>()
   for (const block of tree.blocks) {
@@ -39,18 +41,22 @@ export const outline = (tree: PageTree, zoom: BlockId | null): Outline => {
     trail.unshift(at)
   }
   const rows: Array<Row> = []
-  const visit = (block: Block, depth: number) => {
+  const visit = (block: Block, path: ReadonlyArray<BlockId>) => {
     const hasChildren = children(block.id).length > 0
-    const expanded = hasChildren && (block === root || !block.collapsed)
-    rows.push({ block, depth, hasChildren, expanded })
+    const expanded = hasChildren && ((block === root && !embedded) || !block.collapsed)
+    const index = rows.length
+    const row = { block, depth: path.length, hasChildren, expanded, end: index + 1, path }
+    rows.push(row)
     if (expanded) {
+      const inner = [...path, block.id]
       for (const child of children(block.id)) {
-        visit(child, depth + 1)
+        visit(child, inner)
       }
+      rows[index] = { ...row, end: rows.length }
     }
   }
   for (const top of root === undefined ? children(null) : [root]) {
-    visit(top, 0)
+    visit(top, [])
   }
   return {
     rows,

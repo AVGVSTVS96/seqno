@@ -1,0 +1,61 @@
+export const themeTokens = `
+:root {
+  --font-sans: system-ui, sans-serif;
+  --font-mono: monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --leading-sm: 20px;
+  --text-base: 16px;
+  --leading-base: 24px;
+  --text-h1: 32px;
+  --leading-h1: 48px;
+  --text-h2: 24px;
+  --leading-h2: 36px;
+  --text-h3: 19.2px;
+  --leading-h3: 28.8px;
+  --text-tag: 14.4px;
+  --leading-tag: 21.6px;
+  --text-inline-code: 14.4px;
+  --leading-inline-code: 20.88px;
+  --text-marker: 13.6px;
+  --leading-marker: 20.4px;
+  --text-code: 14px;
+  --leading-code: 23.2px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-marker: 650;
+  --weight-bold: 700;
+  --block-indent: 30px;
+  --block-padding-block: 2px;
+  --block-row-height: 28px;
+  --block-control-size: 22px;
+  --bullet-box: 16px;
+  --bullet-size: 6.4px;
+  --bullet-gap: 4px;
+  --bullet-hover-scale: 1.2;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-full: 9999px;
+  --opacity-block-control: 0.4;
+  --opacity-bullet: 0.8;
+  --bullet: #c7c7c7;
+  --guide: #e5e5e5;
+  --fg: #171717;
+  --fg-control: #433f38;
+  --fg-link: #1b6898;
+  --bg-checkbox: #9dbbd8;
+  --bg-block-selected: #c0e6fd;
+}
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
+}
+`

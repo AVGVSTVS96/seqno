@@ -9,6 +9,12 @@ export const EditorIntent = Schema.TaggedUnion({
   FocusPrevious: {},
   FocusNext: {},
   Exit: {},
+  SelectUp: {},
+  SelectDown: {},
+  MoveUp: {},
+  MoveDown: {},
+  Collapse: {},
+  Expand: {},
 })
 export type EditorIntent = typeof EditorIntent.Type
 

@@ -1,4 +1,18 @@
 import { Option, Schema } from "effect"
+import {
+  BLOCK_REF,
+  HEADING,
+  INLINE_CODE,
+  LIST_KEYS,
+  MACRO,
+  MARKER,
+  PLANNING_LINE,
+  PRIORITY,
+  PROPERTY,
+  TAG,
+  TAG_TRAILER,
+  UUID,
+} from "./patterns.ts"
 
 export const Span = Schema.Struct({ from: Schema.Int, to: Schema.Int })
 export type Span = typeof Span.Type
@@ -78,24 +92,12 @@ const decodeMarker = Schema.decodeUnknownOption(Marker)
 const decodePriority = Schema.decodeUnknownOption(Priority)
 const decodeRepeater = Schema.decodeUnknownOption(Repeater)
 const VERBATIM = new Set(["QUERY", "SRC", "EXAMPLE", "EXPORT", "COMMENT"])
-const LIST_KEYS = new Set(["tags", "alias"])
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const PROPERTY = /^([^\s:]+)::(?:[ \t]+(.*?))?[ \t]*$/
-const MARKER =
-  /^(TODO|DOING|DONE|LATER|NOW|WAITING|WAIT|CANCELED|CANCELLED|IN-PROGRESS|STARTED)(?=[ \t]|$)/
-const PRIORITY = /\[#([ABC])\]/
-const HEADING = /^(#{1,6})[ \t]/
 const TIMESTAMP =
   /(SCHEDULED|DEADLINE): <(\d{4})-(\d{2})-(\d{2})(?: [^\s\d>]+)?(?: (\d{1,2}:\d{2}))?(?: (\.\+|\+\+|\+)(\d+)([hdwmy]))?>/g
-const PLANNING_LINE = /^[ \t]*(?:(?:SCHEDULED|DEADLINE): <[^>\n]*>[ \t]*)+$/
 const DRAWER_OPEN = /^[ \t]*:([A-Za-z][\w-]*):[ \t]*$/
 const DRAWER_CLOSE = /^[ \t]*:END:[ \t]*$/i
 const FENCE = /^[ \t]*(`{3,}|~{3,})([^\n]*)$/
 const DIRECTIVE = /^[ \t]*#\+BEGIN_(\S+)/i
-const MACRO = /\{\{([^\s{}]+)(?:[ \t]+((?:(?!\}\})[^\n])*))?\}\}/g
-const BLOCK_REF = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
-const TAG = /(?<=^|[\s,(])#(?!\[\[)([^\s#,;!?"'()[\]{}+][^\s,;!?"'()[\]{}]*)/g
-const INLINE_CODE = /`[^`\n]*`/g
 
 interface Line {
   readonly text: string
@@ -279,7 +281,7 @@ export const analyzeBlock = (text: string): BlockSyntax => {
       span: spanOf(match),
     }))
   const tags = [...text.matchAll(TAG)].flatMap((match): ReadonlyArray<Ref> => {
-    const name = (match[1] ?? "").replace(/[.:]+$/, "")
+    const name = (match[1] ?? "").replace(TAG_TRAILER, "")
     const from = match.index ?? 0
     return name === "" || inside(excluded, from)
       ? []
