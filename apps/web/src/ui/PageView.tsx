@@ -4,7 +4,7 @@ import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
 import { normalizePageName, type BlockId, type Page } from "@seqno/domain"
 import { Outliner } from "@seqno/outliner"
-import { dispatch, pages } from "../atoms.ts"
+import { assetResolver, dispatch, pages } from "../atoms.ts"
 import { EditorSlot } from "./EditorSlot.tsx"
 import { listValues } from "./pages/model.ts"
 import { useNavigateTo } from "./pages/navigation.ts"
@@ -30,6 +30,7 @@ export const PageView = ({
 }) => {
   const heading = useId()
   const navigateTo = useNavigateTo()
+  const resolveAsset = useAtomValue(assetResolver)
   const zoomed = zoom !== null
   return (
     <div className="seqno-page" data-zoomed={zoomed}>
@@ -38,7 +39,13 @@ export const PageView = ({
         {zoomed ? null : <PageTitle page={page} id={heading} link={inJournals} />}
         <div className="seqno-page-blocks">
           {zoomed ? null : <PageProperties page={page} />}
-          <Outliner pageId={page.id} zoom={zoom} onNavigate={navigateTo} editor={EditorSlot} />
+          <Outliner
+            pageId={page.id}
+            zoom={zoom}
+            onNavigate={navigateTo}
+            editor={EditorSlot}
+            resolveAsset={resolveAsset}
+          />
         </div>
       </article>
       {zoomed ? null : <References page={page} unlinked={!inJournals} />}

@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "include": ["src", "test", "vite.config.ts", "vitest.config.ts"],
   "compilerOptions": {
-    "lib": ["es2024", "dom", "dom.iterable"],
+    "lib": ["es2024", "dom", "dom.iterable", "dom.asynciterable"],
     "jsx": "react-jsx",
     "types": ["vite/client", "wicg-file-system-access"]
   }

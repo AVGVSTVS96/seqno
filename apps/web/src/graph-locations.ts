@@ -22,6 +22,7 @@ export class GraphLocations extends Context.Service<
     readonly pickFolder: Effect.Effect<GraphLocation, GraphNotPicked>
     readonly demo: Effect.Effect<GraphLocation, GraphNotPicked>
     readonly reopen: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
+    readonly assets: (name: string) => Effect.Effect<ReadonlyMap<string, string>>
   }
 >()("@seqno/web/GraphLocations") {}
 
@@ -73,6 +74,38 @@ const granted = (location: GraphLocation) =>
     OpfsGraph: () => Effect.succeed(location),
   })
 
+const folderOf = (location: GraphLocation) =>
+  GraphLocation.match(location, {
+    FolderGraph: ({ handle }) => Promise.resolve(handle),
+    OpfsGraph: async ({ name }) => {
+      const root = await navigator.storage.getDirectory()
+      const folder = await root.getDirectoryHandle("graphs")
+      return folder.getDirectoryHandle(name)
+    },
+  })
+
+type Asset = readonly [path: string, url: string]
+
+const filesUnder = async (
+  folder: FileSystemDirectoryHandle,
+  prefix: string,
+): Promise<ReadonlyArray<Asset>> => {
+  const found: Array<Promise<ReadonlyArray<Asset>>> = []
+  for await (const [name, entry] of folder.entries()) {
+    if (entry instanceof FileSystemFileHandle) {
+      found.push(entry.getFile().then((file) => [[`${prefix}${name}`, URL.createObjectURL(file)]]))
+    } else if (entry instanceof FileSystemDirectoryHandle) {
+      found.push(filesUnder(entry, `${prefix}${name}/`))
+    }
+  }
+  return (await Promise.all(found)).flat()
+}
+
+const stored = (name: string) =>
+  Effect.flatMap(graphs("readonly"), (store) => request(() => store.get(name))).pipe(
+    Effect.flatMap((found) => Effect.mapError(decodeLocation(found), notPicked)),
+  )
+
 export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
   recent: Effect.flatMap(graphs("readonly"), (store) => request(() => store.getAll())).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(GraphLocation))),
@@ -90,9 +123,18 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
     },
     catch: notPicked,
   }).pipe(Effect.flatMap(() => save({ _tag: "OpfsGraph", name: "demo" }))),
-  reopen: (name) =>
-    Effect.flatMap(graphs("readonly"), (store) => request(() => store.get(name))).pipe(
-      Effect.flatMap((stored) => Effect.mapError(decodeLocation(stored), notPicked)),
-      Effect.flatMap(granted),
+  reopen: (name) => Effect.flatMap(stored(name), granted),
+  assets: (name) =>
+    stored(name).pipe(
+      Effect.flatMap((location) =>
+        Effect.tryPromise({
+          try: async () => {
+            const assets = await (await folderOf(location)).getDirectoryHandle("assets")
+            return new Map(await filesUnder(assets, "assets/"))
+          },
+          catch: notPicked,
+        }),
+      ),
+      Effect.orElseSucceed(() => new Map<string, string>()),
     ),
 })

@@ -56,6 +56,24 @@ export const openGraph = appRuntime
   )
   .pipe(Atom.keepAlive)
 
+const noAssets: ReadonlyMap<string, string> = new Map()
+
+const graphAssets = appRuntime.atom((get) =>
+  Option.match(AsyncResult.value(get(openGraph)), {
+    onNone: () => Effect.succeed(noAssets),
+    onSome: ({ graph }) =>
+      Effect.acquireRelease(
+        Effect.flatMap(Effect.service(GraphLocations), (locations) => locations.assets(graph)),
+        (assets) => Effect.sync(() => assets.forEach((url) => URL.revokeObjectURL(url))),
+      ),
+  }),
+)
+
+export const assetResolver = Atom.make((get) => {
+  const assets = AsyncResult.getOrElse(get(graphAssets), () => noAssets)
+  return (path: string) => assets.get(path.replace(/^(?:\.{1,2}\/|\/)+/, ""))
+})
+
 export const dispatch = appRuntime.fn(
   (command: Command) =>
     Effect.gen(function* () {

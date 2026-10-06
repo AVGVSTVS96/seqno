@@ -5,7 +5,7 @@ import { Fragment, useId, useState, type ReactNode } from "react"
 import type { Block, BlockId, Page, PageId } from "@seqno/domain"
 import { Outliner, pageTreeAtom } from "@seqno/outliner"
 import type { Reference } from "@seqno/rpc"
-import { allPages } from "../../atoms.ts"
+import { allPages, assetResolver } from "../../atoms.ts"
 import { EditorSlot } from "../EditorSlot.tsx"
 import { linkedReferences, nameReferences, unlinkedReferences } from "./atoms.ts"
 import { markMentions, wordsOf } from "./mentions.ts"
@@ -79,10 +79,17 @@ const ReferenceBlock = ({
   readonly trail: ReadonlyArray<Block>
 }) => {
   const navigateTo = useNavigateTo()
+  const resolveAsset = useAtomValue(assetResolver)
   return (
     <div className="seqno-reference">
       <Crumbs pageId={pageId} trail={trail} />
-      <Outliner pageId={pageId} zoom={blockId} onNavigate={navigateTo} editor={EditorSlot} />
+      <Outliner
+        pageId={pageId}
+        zoom={blockId}
+        onNavigate={navigateTo}
+        editor={EditorSlot}
+        resolveAsset={resolveAsset}
+      />
     </div>
   )
 }

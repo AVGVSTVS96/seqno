@@ -563,6 +563,10 @@
   vertical-align: middle;
 }
 
+img.seqno-image {
+  margin-top: var(--space-2);
+}
+
 .seqno-image.is-missing {
   display: inline-flex;
   align-items: center;

@@ -122,6 +122,7 @@ const DemoLocations = Layer.succeed(GraphLocations, {
   pickFolder: Effect.succeed(inBrowser("notes")),
   demo: Effect.succeed(inBrowser("demo")),
   reopen: (name) => Effect.succeed(inBrowser(name)),
+  assets: () => Effect.succeed(new Map()),
 })
 
 const testRegistry = () =>
