@@ -45,16 +45,16 @@ tree "blocks"
 
 ## Command semantics (Logseq defaults)
 
-| Command | Behavior |
-|---|---|
-| `InsertBlock` | no `after` means first child; `after` must be a child of the target parent |
-| `SplitBlock` | the text after `at` becomes the next sibling, or the first child if the block has expanded children. `at = 0` on a non-empty block inserts an empty block above, so the block keeps its id |
-| `MergeWithPrevious` | appends to the previous visible block (the deepest last expanded descendant of the previous sibling, or the parent). Children move to the parent in place, or under the target |
-| `Indent` | each selected root goes under its previous sibling, in document order |
-| `Outdent` | Logseq's default (non-logical) outdent: the block goes after its parent and adopts its following siblings |
-| `MoveBlocks` | `parentId: null` means the top level of `after`'s page, or of the first block's page |
-| `CreatePage` / `RenamePage` | reject empty names and names already in use |
-| `Undo` / `Redo` | do nothing and return `[]` when the stack is empty |
+| Command                     | Behavior                                                                                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `InsertBlock`               | no `after` means first child; `after` must be a child of the target parent                                                                                                                 |
+| `SplitBlock`                | the text after `at` becomes the next sibling, or the first child if the block has expanded children. `at = 0` on a non-empty block inserts an empty block above, so the block keeps its id |
+| `MergeWithPrevious`         | appends to the previous visible block (the deepest last expanded descendant of the previous sibling, or the parent). Children move to the parent in place, or under the target             |
+| `Indent`                    | each selected root goes under its previous sibling, in document order                                                                                                                      |
+| `Outdent`                   | Logseq's default (non-logical) outdent: the block goes after its parent and adopts its following siblings                                                                                  |
+| `MoveBlocks`                | `parentId: null` means the top level of `after`'s page, or of the first block's page                                                                                                       |
+| `CreatePage` / `RenamePage` | reject empty names and names already in use                                                                                                                                                |
+| `Undo` / `Redo`             | do nothing and return `[]` when the stack is empty                                                                                                                                         |
 
 Selections are reduced to their top-most blocks and sorted into document order. Every command validates before it changes anything, so a rejected command leaves no ops behind.
 
