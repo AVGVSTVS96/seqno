@@ -1,4 +1,4 @@
-import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
+import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconColorSwatch,
   IconDots,
@@ -6,11 +6,14 @@ import {
   IconLayoutSidebarRight,
   IconMenu2,
   IconSearch,
+  IconSettings,
 } from "@tabler/icons-react"
 import { useMatchRoute, useNavigate } from "@tanstack/react-router"
-import { Option } from "effect"
-import { AsyncResult } from "effect/reactivity"
+import { Effect, Option } from "effect"
+import { AsyncResult, AtomRegistry } from "effect/reactivity"
+import { useContext } from "react"
 import type { Page } from "@seqno/domain"
+import { pageTreeAtom } from "@seqno/outliner"
 import {
   dispatch,
   journals,
@@ -21,8 +24,10 @@ import {
 } from "../../atoms.ts"
 import { Appearance } from "./Appearance.tsx"
 import { DeletePage } from "./DeletePage.tsx"
+import { exported, pageMarkdown } from "./Export.tsx"
 import { IconButton } from "./IconButton.tsx"
 import { Menu, MenuItem, MenuSeparator, openDialog, showPopover, usePopover } from "./popover.tsx"
+import { settingsDialogId } from "./Settings.tsx"
 import { keysOf } from "./shortcuts.ts"
 
 const useCurrentPage = (): Page | undefined => {
@@ -40,6 +45,17 @@ const deleteDialog = "seqno-delete-page"
 const MoreMenu = () => {
   const page = useCurrentPage()
   const run = useAtomSet(dispatch)
+  const registry = useContext(RegistryContext)
+  const setExported = useAtomSet(exported)
+  const exportPage = (target: Page) =>
+    void Effect.runPromise(
+      AtomRegistry.getResult(registry, pageTreeAtom(target.id)).pipe(
+        Effect.map((tree) =>
+          setExported({ name: target.title, text: pageMarkdown(target.props, tree.blocks) }),
+        ),
+        Effect.ignore,
+      ),
+    )
   const navigate = useNavigate()
   const more = usePopover({ placement: { align: "start", gap: -2, inset: 11 }, kind: "menu" })
   const appearance = usePopover({
@@ -69,9 +85,16 @@ const MoreMenu = () => {
             {page.journalDay === null ? (
               <MenuItem onSelect={() => openDialog(deleteDialog)}>Delete page</MenuItem>
             ) : null}
+            <MenuItem onSelect={() => exportPage(page)}>Export page</MenuItem>
             <MenuSeparator />
           </>
         )}
+        <MenuItem
+          icon={<IconSettings size={18} aria-hidden />}
+          onSelect={() => openDialog(settingsDialogId)}
+        >
+          Settings
+        </MenuItem>
         <MenuItem
           icon={<IconColorSwatch size={18} aria-hidden />}
           onSelect={() => showPopover(appearance.id)}

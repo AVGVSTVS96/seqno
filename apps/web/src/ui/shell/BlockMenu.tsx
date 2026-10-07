@@ -12,16 +12,15 @@ import {
 } from "@tabler/icons-react"
 import { AsyncResult, Atom } from "effect/reactivity"
 import type { ComponentType } from "react"
-import type { Block, BlockId, Command } from "@seqno/domain"
+import type { Block, Command } from "@seqno/domain"
 import { pageTreeAtom, type BlockMenuRequest } from "@seqno/outliner"
 import { blockContent } from "@seqno/syntax"
 import { dispatch, rightSidebar } from "../../atoms.ts"
+import { childrenOf, exported, markdownOf } from "./Export.tsx"
 import { Keys } from "./Keys.tsx"
 import { MenuItem, MenuSeparator, onMenuKeyDown } from "./popover.tsx"
 
 export const blockMenu = Atom.make<BlockMenuRequest | null>(null).pipe(Atom.keepAlive)
-
-const exported = Atom.make<string | null>(null)
 
 const colors = ["yellow", "red", "pink", "green", "blue", "purple", "gray"] as const
 
@@ -69,28 +68,6 @@ const headingCommands = (block: Block, heading: Heading): ReadonlyArray<Command>
           },
         ]
   return [...text, ...prop]
-}
-
-const childrenOf = (blocks: ReadonlyArray<Block>) => {
-  const map = new Map<BlockId | null, Array<Block>>()
-  for (const block of blocks) {
-    const siblings = map.get(block.parentId)
-    if (siblings === undefined) map.set(block.parentId, [block])
-    else siblings.push(block)
-  }
-  return (id: BlockId | null): ReadonlyArray<Block> => map.get(id) ?? []
-}
-
-const markdownOf = (
-  children: (id: BlockId | null) => ReadonlyArray<Block>,
-  block: Block,
-  level: number,
-): string => {
-  const pad = "\t".repeat(level)
-  return [
-    `${pad}- ${block.text.replaceAll("\n", `\n${pad}  `)}`,
-    ...children(block.id).map((child) => markdownOf(children, child, level + 1)),
-  ].join("\n")
 }
 
 const copy = (text: string) => void navigator.clipboard.writeText(text).catch(() => undefined)
@@ -247,7 +224,9 @@ const MenuView = ({
       >
         Copy block embed
       </MenuItem>
-      <MenuItem onSelect={() => setExported(markdown())}>Copy / Export as..</MenuItem>
+      <MenuItem onSelect={() => setExported({ name: "blocks", text: markdown() })}>
+        Copy / Export as..
+      </MenuItem>
       <MenuItem
         hint={<Keys keys={["mod", "x"]} />}
         onSelect={() => {
@@ -294,56 +273,13 @@ const LoadedMenu = ({
   )
 }
 
-const ExportDialog = ({
-  text,
-  onClose,
-}: {
-  readonly text: string
-  readonly onClose: () => void
-}) => (
-  <dialog
-    className="dialog export-dialog"
-    aria-label="Export blocks"
-    ref={(dialog) => {
-      if (dialog !== null && !dialog.open) dialog.showModal()
-    }}
-    onClose={onClose}
-    onClick={(event) => {
-      if (event.target === event.currentTarget) event.currentTarget.close()
-    }}
-  >
-    <div className="export-dialog-head">
-      <span className="export-dialog-title">Text</span>
-    </div>
-    <textarea className="export-dialog-text" readOnly value={text} aria-label="Exported text" />
-    <div className="export-dialog-actions">
-      <button
-        type="button"
-        className="button-primary"
-        onClick={(event) => {
-          void navigator.clipboard.writeText(text).catch(() => undefined)
-          event.currentTarget.closest("dialog")?.close()
-        }}
-      >
-        Copy
-      </button>
-    </div>
-  </dialog>
-)
-
 export const BlockMenu = () => {
   const [request, setRequest] = useAtom(blockMenu)
-  const [text, setText] = useAtom(exported)
-  return (
-    <>
-      {request === null ? null : (
-        <LoadedMenu
-          key={`${request.x},${request.y},${request.blockIds.join()}`}
-          request={request}
-          onClose={() => setRequest(null)}
-        />
-      )}
-      {text === null ? null : <ExportDialog text={text} onClose={() => setText(null)} />}
-    </>
+  return request === null ? null : (
+    <LoadedMenu
+      key={`${request.x},${request.y},${request.blockIds.join()}`}
+      request={request}
+      onClose={() => setRequest(null)}
+    />
   )
 }

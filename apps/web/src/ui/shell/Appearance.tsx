@@ -40,10 +40,48 @@ const Preview = ({ choice }: { readonly choice: ThemeChoice }) => (
   </span>
 )
 
-export const Appearance = ({ handle }: { readonly handle: PopoverHandle }) => {
+export const ThemeChoices = ({ labelledBy }: { readonly labelledBy: string }) => {
   const [choice, setChoice] = useAtom(theme)
-  const resolved = useAtomValue(resolvedTheme)
+  return (
+    <div role="radiogroup" aria-labelledby={labelledBy} className="theme-choices">
+      {choices.map((option) => (
+        <button
+          key={option}
+          type="button"
+          role="radio"
+          aria-checked={choice === option}
+          className="theme-choice"
+          onClick={() => setChoice(option)}
+        >
+          <Preview choice={option} />
+          <span className="theme-choice-label">{option}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export const WideModeSwitch = ({ labelledBy }: { readonly labelledBy: string }) => {
   const [wide, setWide] = useAtom(wideMode)
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={wide}
+      aria-labelledby={labelledBy}
+      className="switch"
+      onClick={() => setWide(!wide)}
+    >
+      <span className="switch-thumb" />
+    </button>
+  )
+}
+
+export const themeLabelOf = (resolved: "light" | "dark") =>
+  resolved === "dark" ? "Switch to light theme" : "Switch to dark theme"
+
+export const Appearance = ({ handle }: { readonly handle: PopoverHandle }) => {
+  const resolved = useAtomValue(resolvedTheme)
   const themeLabel = useId()
   const wideLabel = useId()
   return (
@@ -57,38 +95,11 @@ export const Appearance = ({ handle }: { readonly handle: PopoverHandle }) => {
       onBeforeToggle={handle.onBeforeToggle}
       onToggle={handle.onToggle}
     >
-      <Row
-        label={resolved === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-        labelId={themeLabel}
-        keys={keysOf("ToggleTheme")}
-      >
-        <div role="radiogroup" aria-labelledby={themeLabel} className="theme-choices">
-          {choices.map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="radio"
-              aria-checked={choice === option}
-              className="theme-choice"
-              onClick={() => setChoice(option)}
-            >
-              <Preview choice={option} />
-              <span className="theme-choice-label">{option}</span>
-            </button>
-          ))}
-        </div>
+      <Row label={themeLabelOf(resolved)} labelId={themeLabel} keys={keysOf("ToggleTheme")}>
+        <ThemeChoices labelledBy={themeLabel} />
       </Row>
       <Row label="Wide mode" labelId={wideLabel} keys={keysOf("ToggleWideMode")}>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={wide}
-          aria-labelledby={wideLabel}
-          className="switch"
-          onClick={() => setWide(!wide)}
-        >
-          <span className="switch-thumb" />
-        </button>
+        <WideModeSwitch labelledBy={wideLabel} />
       </Row>
     </div>
   )

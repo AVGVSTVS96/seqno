@@ -7,11 +7,13 @@ import { lastGraph, leftSidebarOpen, openGraph, rightSidebar } from "../atoms.ts
 import { demoGraph, GraphNotPicked } from "../graph-locations.ts"
 import { OpenGraphScreen } from "./OpenGraphScreen.tsx"
 import { BlockMenu } from "./shell/BlockMenu.tsx"
+import { ExportDialog } from "./shell/Export.tsx"
 import { Header } from "./shell/Header.tsx"
 import { HelpButton } from "./shell/HelpButton.tsx"
 import { LeftSidebar } from "./shell/LeftSidebar.tsx"
 import { shellListeners } from "./shell/listeners.ts"
 import { RightSidebar } from "./shell/RightSidebar.tsx"
+import { Settings } from "./shell/Settings.tsx"
 import { leftSidebarWidth, rightSidebarWidth, wideMode } from "./shell/state.ts"
 
 const problemOf = (cause: Cause.Cause<unknown>) => {
@@ -49,6 +51,8 @@ const Layout = ({ graph, ready = true }: { readonly graph: string; readonly read
       <RightSidebar />
       <HelpButton />
       <BlockMenu />
+      <ExportDialog />
+      <Settings />
     </div>
   )
 }

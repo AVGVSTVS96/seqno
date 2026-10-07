@@ -49,6 +49,23 @@ const groups: ReadonlyArray<
 const keysFor = (binding: ShortcutAction | ReadonlyArray<string>) =>
   typeof binding === "string" ? keysOf(binding) : binding
 
+export const ShortcutGroups = () =>
+  groups.map(([group, rows]) => (
+    <section key={group} className="shortcuts-group" aria-label={group}>
+      <h3 className="shortcuts-group-title">{group}</h3>
+      <dl className="shortcuts-list">
+        {rows.map(([label, binding]) => (
+          <div key={label} className="shortcuts-row">
+            <dt>{label}</dt>
+            <dd>
+              <Keys keys={keysFor(binding)} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  ))
+
 const Shortcuts = () => {
   const title = useId()
   return (
@@ -67,21 +84,7 @@ const Shortcuts = () => {
         </button>
       </div>
       <div className="shortcuts-body">
-        {groups.map(([group, rows]) => (
-          <section key={group} className="shortcuts-group" aria-label={group}>
-            <h3 className="shortcuts-group-title">{group}</h3>
-            <dl className="shortcuts-list">
-              {rows.map(([label, binding]) => (
-                <div key={label} className="shortcuts-row">
-                  <dt>{label}</dt>
-                  <dd>
-                    <Keys keys={keysFor(binding)} />
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        ))}
+        <ShortcutGroups />
       </div>
     </Dialog>
   )
