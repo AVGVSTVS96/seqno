@@ -163,7 +163,42 @@ export const allPages = pageList((all) =>
   all.toSorted((left, right) => left.name.localeCompare(right.name)),
 )
 
-export const favorites = pageList((all) => all.filter((page) => page.props["favorite"] === "true"))
+export const favoriteNames = Atom.kvs({
+  runtime: settingsRuntime,
+  key: "seqno.favorites",
+  schema: Schema.Record(Schema.String, Schema.Array(Schema.String)),
+  defaultValue: (): Readonly<Record<string, ReadonlyArray<string>>> => ({}),
+}).pipe(Atom.keepAlive)
+
+const openedGraph = (read: <A>(atom: Atom.Atom<A>) => A) =>
+  Option.map(AsyncResult.value(read(openGraph)), (opened) => opened.graph)
+
+export const favorites = Atom.make((get): ReadonlyArray<Page> => {
+  const names = Option.match(openedGraph(get), {
+    onNone: () => [],
+    onSome: (graph) => get(favoriteNames)[graph] ?? [],
+  })
+  const byName = new Map(
+    Option.getOrElse(AsyncResult.value(get(pages)), () => []).map((page) => [page.name, page]),
+  )
+  return names.flatMap((name) => byName.get(name) ?? [])
+}).pipe(Atom.withEquality(Equal.equals))
+
+export const toggleFavorite = Atom.writable(
+  () => null,
+  (ctx, name: string) =>
+    Option.map(
+      openedGraph((atom) => ctx.get(atom)),
+      (graph) => {
+        const all = ctx.get(favoriteNames)
+        const mine = all[graph] ?? []
+        ctx.set(favoriteNames, {
+          ...all,
+          [graph]: mine.includes(name) ? mine.filter((other) => other !== name) : [...mine, name],
+        })
+      },
+    ),
+)
 
 export const pageNamed = Atom.family((name: string) =>
   Atom.make((get) =>

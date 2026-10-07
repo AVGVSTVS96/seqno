@@ -272,3 +272,24 @@ test("page properties are edited as key:: value lines too", async ({ page }) => 
     "zonesouth",
   )
 })
+
+test("Add to Favorites lists the page in the sidebar and leaves its file alone", async ({
+  page,
+}) => {
+  await openShowcaseAt(page, "/page/reading%20list")
+  await page.getByRole("button", { name: "More" }).click()
+  await page.getByRole("menuitem", { name: "Add to Favorites" }).click()
+  const sidebar = page.getByRole("complementary", { name: "Left sidebar" })
+  const favorites = sidebar.getByRole("region", { name: "Favorites" })
+  await expect(favorites.getByRole("link")).toHaveText(["Reading List"])
+  await page.getByRole("button", { name: "More" }).click()
+  await page.getByRole("menuitem", { name: "Export page" }).click()
+  const text = page.getByRole("dialog", { name: "Export" }).getByRole("textbox")
+  await expect(text).not.toHaveValue(/favorite/)
+  await page.keyboard.press("Escape")
+  await page.reload()
+  await expect(favorites.getByRole("link")).toHaveText(["Reading List"])
+  await page.getByRole("button", { name: "More" }).click()
+  await page.getByRole("menuitem", { name: "Unfavorite" }).click()
+  await expect(favorites.getByRole("link")).toHaveCount(0)
+})

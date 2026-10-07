@@ -19,21 +19,22 @@ import {
   settingsLayer,
   startingGraph,
   theme,
+  toggleFavorite,
   type AppServices,
 } from "../src/atoms.ts"
 import { GraphLocations, type GraphLocation } from "../src/graph-locations.ts"
 
-const pageOf = (id: string, title: string, journalDay: number | null, favorite: boolean): Page => ({
+const pageOf = (id: string, title: string, journalDay: number | null): Page => ({
   id: PageId.make(id),
   name: title.toLowerCase(),
   title,
   journalDay,
-  props: favorite ? { favorite: "true" } : {},
+  props: {},
 })
 
-const inbox = pageOf("01920000-0000-7000-8000-0000000000a1", "Inbox", null, true)
-const older = pageOf("01920000-0000-7000-8000-0000000000a2", "Oct 5th, 2026", 20261005, false)
-const today = pageOf("01920000-0000-7000-8000-0000000000a3", "Oct 6th, 2026", 20261006, false)
+const inbox = pageOf("01920000-0000-7000-8000-0000000000a1", "Inbox", null)
+const older = pageOf("01920000-0000-7000-8000-0000000000a2", "Oct 5th, 2026", 20261005)
+const today = pageOf("01920000-0000-7000-8000-0000000000a3", "Oct 6th, 2026", 20261006)
 
 const blockOf = (id: string, parent: string | null, text: string, collapsed: boolean): Block => ({
   id: BlockId.make(id),
@@ -145,7 +146,8 @@ const settle = Effect.promise(() => new Promise((resolve) => setTimeout(resolve,
 describe("app atoms", () => {
   it.effect("opens a graph and derives journals, favorites and pages by name", () =>
     Effect.gen(function* () {
-      const registry = testRegistry()
+      const entries = new Map<string, string>()
+      const registry = testRegistry(entries)
       registry.mount(journals)
       registry.mount(favorites)
       registry.set(openGraph, { _tag: "Demo" })
@@ -159,10 +161,16 @@ describe("app atoms", () => {
         registry.get(journals).map((page) => page.title),
         ["Oct 6th, 2026", "Oct 5th, 2026"],
       )
+      assert.deepStrictEqual(registry.get(favorites), [])
+      registry.set(toggleFavorite, "inbox")
+      yield* settle
       assert.deepStrictEqual(
-        registry.get(favorites).map((page) => page.title),
-        ["Inbox"],
+        [registry.get(favorites).map((page) => page.title), entries.get("seqno.favorites")],
+        [["Inbox"], '{"demo":["inbox"]}'],
       )
+      registry.set(toggleFavorite, "inbox")
+      yield* settle
+      assert.deepStrictEqual(registry.get(favorites), [])
       registry.mount(pageNamed("inbox"))
       yield* settle
       const found = registry.get(pageNamed("inbox"))

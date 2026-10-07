@@ -11,7 +11,7 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import type { Page } from "@seqno/domain"
-import { dispatch, favorites, leftSidebarOpen, rightSidebar } from "../../atoms.ts"
+import { favorites, leftSidebarOpen, rightSidebar, toggleFavorite } from "../../atoms.ts"
 import { pageNames, type PageName } from "../pages/atoms.ts"
 import { GraphSwitcher } from "./GraphSwitcher.tsx"
 import { Keys } from "./Keys.tsx"
@@ -46,7 +46,7 @@ const Group = ({
             expanded ? [...collapsed, group] : collapsed.filter((other) => other !== group),
           )
   return (
-    <section className="sidebar-group" data-group={group ?? "navigations"}>
+    <section className="sidebar-group" aria-label={title} data-group={group ?? "navigations"}>
       {toggle === undefined ? (
         <h2 className="sidebar-group-header">
           <span className="sidebar-group-title">{title}</span>
@@ -148,14 +148,8 @@ const PageLink = ({
 
 const Favorites = () => {
   const starred = useAtomValue(favorites)
-  const run = useAtomSet(dispatch)
-  const unfavorite = (page: Page) => () =>
-    run({
-      _tag: "SetProperty",
-      target: { _tag: "PageTarget", pageId: page.id },
-      key: "favorite",
-      value: null,
-    })
+  const toggle = useAtomSet(toggleFavorite)
+  const unfavorite = (page: Page) => () => toggle(page.name)
   return (
     <Group title="Favorites" group="favorites">
       {starred.length === 0 ? null : (

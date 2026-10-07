@@ -17,8 +17,6 @@ export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => [
   {
     path: "pages/Getting started.md",
     text: [
-      "favorite:: true",
-      "",
       "- seqno is a local-first outliner",
       "\t- Every block is markdown source",
       "\t- Click a block to edit it",

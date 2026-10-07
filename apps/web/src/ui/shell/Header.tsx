@@ -15,12 +15,13 @@ import { useContext } from "react"
 import type { Page } from "@seqno/domain"
 import { pageTreeAtom } from "@seqno/outliner"
 import {
-  dispatch,
+  favorites,
   journals,
   leftSidebarOpen,
   pageNamed,
   rightSidebar,
   searchOpen,
+  toggleFavorite,
 } from "../../atoms.ts"
 import { Appearance } from "./Appearance.tsx"
 import { DeletePage } from "./DeletePage.tsx"
@@ -44,7 +45,6 @@ const deleteDialog = "seqno-delete-page"
 
 const MoreMenu = () => {
   const page = useCurrentPage()
-  const run = useAtomSet(dispatch)
   const registry = useContext(RegistryContext)
   const setExported = useAtomSet(exported)
   const exportPage = (target: Page) =>
@@ -63,23 +63,15 @@ const MoreMenu = () => {
     kind: "dialog",
     anchorOverride: more.anchor,
   })
-  const starred = page?.props["favorite"] === "true"
+  const toggle = useAtomSet(toggleFavorite)
+  const starred = useAtomValue(favorites).some((favorite) => favorite.id === page?.id)
   return (
     <>
       <IconButton label="More" icon={<IconDots size={20} aria-hidden />} {...more.trigger} />
       <Menu handle={more} label="More" className="more-menu">
         {page === undefined ? null : (
           <>
-            <MenuItem
-              onSelect={() =>
-                run({
-                  _tag: "SetProperty",
-                  target: { _tag: "PageTarget", pageId: page.id },
-                  key: "favorite",
-                  value: starred ? null : "true",
-                })
-              }
-            >
+            <MenuItem onSelect={() => toggle(page.name)}>
               {starred ? "Unfavorite" : "Add to Favorites"}
             </MenuItem>
             {page.journalDay === null ? (
