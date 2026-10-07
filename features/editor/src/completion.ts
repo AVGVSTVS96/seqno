@@ -1,4 +1,10 @@
-import { Prec, type EditorState, type Transaction, type TransactionSpec } from "@codemirror/state"
+import {
+  Prec,
+  StateEffect,
+  type EditorState,
+  type Transaction,
+  type TransactionSpec,
+} from "@codemirror/state"
 import {
   EditorView,
   keymap,
@@ -10,6 +16,13 @@ import {
 import { Effect, Fiber } from "effect"
 import type { BlockId } from "@seqno/domain"
 import type { SlashCommand } from "./commands.ts"
+import {
+  datePicker,
+  datePickerField,
+  openDatePicker,
+  type DatePickerFrame,
+  type DatePickerHost,
+} from "./planning.ts"
 import { minimalChange } from "./edits.ts"
 import type { EditorHost, LinkTarget } from "./host.ts"
 import {
@@ -33,20 +46,25 @@ export interface PopupFrame {
 
 export interface PopupStore {
   readonly frame: () => PopupFrame | null
+  readonly picker: () => DatePickerFrame | null
   readonly subscribe: (listener: () => void) => () => void
 }
 
 interface PopupHost extends PopupStore {
   readonly attach: (dom: HTMLElement | null) => void
+  readonly pickerHost: DatePickerHost
   readonly sync: (view: EditorView) => void
 }
 
 export const createPopupStore = (): PopupStore & PopupHost => {
   let frame: PopupFrame | null = null
+  let picker: DatePickerFrame | null = null
   let dom: HTMLElement | null = null
+  let pickerDom: HTMLElement | null = null
   const listeners = new Set<() => void>()
   return {
     frame: () => frame,
+    picker: () => picker,
     subscribe: (listener) => {
       listeners.add(listener)
       return () => {
@@ -56,16 +74,29 @@ export const createPopupStore = (): PopupStore & PopupHost => {
     attach: (element) => {
       dom = element
     },
+    pickerHost: {
+      attach: (element) => {
+        pickerDom = element
+      },
+    },
     sync: (view) => {
       const popup = view.state.field(popupField)
+      const kind = view.state.field(datePickerField)
       const next =
         popup === null || dom === null
           ? null
           : frame?.popup === popup && frame.dom === dom
             ? frame
             : { popup, dom, view }
-      if (next === frame) return
+      const nextPicker =
+        kind === null || pickerDom === null
+          ? null
+          : picker?.kind === kind && picker.dom === pickerDom
+            ? picker
+            : { kind, dom: pickerDom, view }
+      if (next === frame && nextPicker === picker) return
       frame = next
+      picker = nextPicker
       for (const listener of listeners) listener()
     },
   }
@@ -200,13 +231,29 @@ const runCommand = (view: EditorView, popup: Popup, command: SlashCommand, now: 
   const changed = step(removed.state, {
     changes: minimalChange(text, draft.text),
     selection: { anchor: draft.from, head: draft.to },
-    effects:
-      applied.open === undefined ? [] : [openPopup.of({ kind: applied.open, from: draft.from })],
+    effects: [
+      ...(applied.open === undefined
+        ? []
+        : [openPopup.of({ kind: applied.open, from: draft.from })]),
+      ...(applied.pick === undefined ? [] : [openDatePicker.of(applied.pick)]),
+      ...(applied.notice === undefined ? [] : [notice.of(applied.notice)]),
+    ],
     userEvent: "input.complete",
     scrollIntoView: true,
   })
   view.dispatch([removed, changed])
 }
+
+const notice = StateEffect.define<string>()
+
+const notices = (host: EditorHost) =>
+  EditorView.updateListener.of((update) => {
+    for (const transaction of update.transactions) {
+      for (const effect of transaction.effects) {
+        if (effect.is(notice)) host.act({ _tag: "Notify", message: effect.value })
+      }
+    }
+  })
 
 export const accept = (view: EditorView, index: number, now = new Date()): boolean => {
   const popup = view.state.field(popupField)
@@ -258,6 +305,8 @@ const openActive = (host: EditorHost) => (view: EditorView) => {
 export const completion = (blockId: BlockId, host: EditorHost, store: PopupHost) => [
   popupField,
   popupTooltip(store),
+  datePicker(store.pickerHost),
+  notices(host),
   searchPlugin(blockId, host),
   EditorView.updateListener.of((update) => store.sync(update.view)),
   Prec.highest(

@@ -67,6 +67,32 @@ test("the slash menu lists commands and runs the chosen one", async ({ page, seq
   await expect(menu).toHaveCount(0)
 })
 
+test("/Scheduled picks a date in a calendar, and an empty block gets a warning", async ({
+  page,
+  seqno,
+}) => {
+  await page.keyboard.type(" /Scheduled")
+  await page.keyboard.press("Enter")
+  const picker = page.getByRole("dialog", { name: "Scheduled date" })
+  await picker.getByRole("button", { name: "Next month" }).click()
+  await picker.getByRole("gridcell", { name: "15", exact: true }).click()
+  await picker.getByRole("button", { name: "Submit" }).click()
+  await expect(picker).toHaveCount(0)
+  const now = new Date()
+  const day = new Date(now.getFullYear(), now.getMonth() + 1, 15)
+  const stamp = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-15 ${day.toLocaleString("en-US", { weekday: "short" })}`
+  await expect(seqno.editor).toHaveText(`${welcome}SCHEDULED: <${stamp}>`)
+  await expect(seqno.editor).toBeFocused()
+
+  await page.keyboard.press("Escape")
+  await seqno.today.getByRole("button", { name: "Add a block" }).click()
+  await expect(seqno.editor).toBeFocused()
+  await page.keyboard.type("/Deadline")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("status").getByText("Please add some content first.")).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "Deadline date" })).toHaveCount(0)
+})
+
 test("[[ suggests pages and completes the reference", async ({ page, seqno }) => {
   await page.keyboard.type(" [[Get")
   const popup = page.getByRole("listbox", { name: "Search for a page" })

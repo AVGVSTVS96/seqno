@@ -39,7 +39,8 @@ import {
   IconZoomCode,
 } from "@tabler/icons-react"
 import type { Marker, Priority } from "@seqno/syntax"
-import { clockTime, journalTitle, planningDate, shiftDays } from "./dates.ts"
+import { clockTime, journalTitle, shiftDays } from "./dates.ts"
+import type { Planning } from "./planning.ts"
 import { priorityBars, type CommandIcon } from "./icons.tsx"
 import {
   caretAt,
@@ -49,7 +50,6 @@ import {
   setHeading,
   setMarker,
   setOrderedList,
-  setPlanning,
   setPriority,
   type Draft,
 } from "./format.ts"
@@ -59,6 +59,8 @@ export type RefKind = "Page" | "Block"
 export interface Applied {
   readonly draft: Draft
   readonly open?: RefKind
+  readonly pick?: Planning
+  readonly notice?: string
 }
 
 export interface SlashCommand {
@@ -104,10 +106,12 @@ const heading = (level: number, icon: CommandIcon) =>
 const priority = (level: Priority, icon: CommandIcon) =>
   command("PRIORITY", `Priority ${level}`, icon, (draft) => atEnd(setPriority(draft, level)))
 
-const planning = (label: string, kind: "SCHEDULED" | "DEADLINE", icon: CommandIcon) =>
-  command("TASK DATE", label, icon, (draft, now) => ({
-    draft: setPlanning(draft, kind, planningDate(now)),
-  }))
+const planning = (label: string, kind: Planning, icon: CommandIcon) =>
+  command("TASK DATE", label, icon, (draft) =>
+    draft.text.trim() === ""
+      ? { draft, notice: "Please add some content first." }
+      : { draft, pick: kind },
+  )
 
 export const slashCommands: ReadonlyArray<SlashCommand> = [
   command("BASIC", "Page reference", IconFileSymlink, reference("[[]]", 2, "Page")),

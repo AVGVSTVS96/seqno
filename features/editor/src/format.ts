@@ -108,7 +108,8 @@ export const setPlanning = (draft: Draft, kind: "SCHEDULED" | "DEADLINE", date: 
   }
   const firstLineEnd = draft.text.indexOf("\n")
   const at = firstLineEnd === -1 ? draft.text.length : firstLineEnd
-  return replace(draft, { from: at, to: at, insert: `\n${stamp}` })
+  const from = at - (/[ \t]*$/.exec(draft.text.slice(0, at))?.[0].length ?? 0)
+  return replace(draft, { from, to: at, insert: `\n${stamp}` })
 }
 
 export const setOrderedList = (draft: Draft): Draft => {

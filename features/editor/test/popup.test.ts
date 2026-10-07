@@ -1,5 +1,6 @@
 import { afterEach, assert, describe, it, vi } from "@effect/vitest"
 import type { MountedEditor } from "@seqno/editor"
+import { submitDate } from "../src/planning.ts"
 import { blockId, caret, mount, otherBlockId, press, text, typeKeys, unmountAll } from "./mount.ts"
 
 afterEach(unmountAll)
@@ -113,6 +114,32 @@ describe("slash menu", () => {
     press(view, "Enter")
     assert.deepStrictEqual([text(view), caret(view)], ["[[]]", 2])
     assert.deepStrictEqual(labels(popups), relativeDates)
+  })
+
+  it("opens the date picker for Scheduled, and warns instead on an empty block", () => {
+    const { view, popups } = mount("water the beds", { _tag: "End" })
+    typeKeys(view, " /scheduled")
+    press(view, "Enter")
+    assert.deepStrictEqual(
+      [text(view), popups.picker()?.kind ?? null, popupOf(popups)],
+      ["water the beds ", "SCHEDULED", null],
+    )
+    submitDate(view, "SCHEDULED", {
+      date: new Date(2026, 9, 8),
+      time: "09:30",
+      repeater: { count: 1, unit: "w" },
+    })
+    assert.deepStrictEqual(
+      [text(view), popups.picker()],
+      ["water the beds\nSCHEDULED: <2026-10-08 Thu 09:30 .+1w>", null],
+    )
+    const empty = mount("", { _tag: "End" })
+    typeKeys(empty.view, "/deadline")
+    press(empty.view, "Enter")
+    assert.deepStrictEqual(
+      [text(empty.view), empty.popups.picker(), empty.actions],
+      ["", null, [{ _tag: "Notify", message: "Please add some content first." }]],
+    )
   })
 
   it("closes when nothing matches, and ignores a slash inside a word", () => {

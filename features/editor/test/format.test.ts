@@ -56,6 +56,10 @@ describe("block text transforms", () => {
       ],
       ["TODO sow\nSCHEDULED: <2026-10-06 Tue>\nnotes", "TODO sow\nDEADLINE: <2026-10-06 Tue>"],
     )
+    assert.strictEqual(
+      setPlanning(at("water the beds  "), "SCHEDULED", "2026-10-06 Tue").text,
+      "water the beds\nSCHEDULED: <2026-10-06 Tue>",
+    )
   })
 
   it("numbers the block through Logseq's list property", () => {
