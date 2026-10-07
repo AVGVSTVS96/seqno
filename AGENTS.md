@@ -110,10 +110,10 @@ Every lint message says how to fix the problem. Do not weaken a rule in `.oxlint
 - `BlockId`, `PageId` (UUIDv7, branded), `DeviceId` (filename-safe ASCII, branded). Mint ids with `newBlockId` / `newPageId` (need the Effect `Crypto` service).
 - `Block { id, pageId, parentId: BlockId | null, text, collapsed, props }`. Sibling order comes from the Loro tree, not a field.
 - `Page { id, name, title, journalDay: number | null, props }`. `name` is `normalizePageName(title)`: NFC, trimmed, lowercase.
-- `Command`: `CreatePage, RenamePage, DeletePage, InsertBlock, EditText, SplitBlock, MergeWithPrevious, Indent, Outdent, MoveBlocks, DeleteBlocks, SetCollapsed, SetProperty, Undo, Redo`.
+- `Command`: `CreatePage, RenamePage, DeletePage, InsertBlock, InsertBlocks, EditText, SplitBlock, MergeWithPrevious, Indent, Outdent, MoveBlocks, DeleteBlocks, SetCollapsed, SetProperty, Undo, Redo`. `InsertBlocks` inserts a tree of `BlockDraft`s (text, props, children) in one commit.
 - `GraphEvent`: `PageUpserted, PageDeleted, BlockUpserted, BlockMoved, BlockDeleted`.
 
-`@seqno/rpc` exports `CoreRpcs`: `OpenGraph`, `Dispatch`, `GetPages`, `GetPage`, `GetBlock`, `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks).
+`@seqno/rpc` exports `CoreRpcs`: `OpenGraph`, `Dispatch`, `GetPages`, `GetPage`, `GetBlock`, `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks), `WatchBlockRefCounts` (stream, blocks referencing each block). `PageRpcs` adds backlinks, page stats, `Ancestors` and `WatchReferencedPages` (names that exist only as references).
 
 If you need something the contract lacks, add it inside your own package and say so in your `RESULTS.md`; integration reconciles it.
 
