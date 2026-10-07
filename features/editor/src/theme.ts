@@ -60,8 +60,11 @@ export const editorTheme = EditorView.theme({
     backgroundColor: "transparent",
     display: "flex",
     flexDirection: "column",
+    maxHeight: "min(600px, var(--popup-room, 600px))",
   },
-  ".cm-tooltip.sq-popup-host:has(> .sq-popup-slash)": { maxHeight: "480px" },
+  ".cm-tooltip.sq-popup-host:has(> .sq-popup-slash)": {
+    maxHeight: "min(480px, var(--popup-room, 480px))",
+  },
   "@keyframes sq-popup-below": enter("calc(-1 * var(--space-2))"),
   "@keyframes sq-popup-above": enter("var(--space-2)"),
   ".sq-popup": {

@@ -82,15 +82,28 @@ const lineBox = (view: EditorView, pos: number): Rect => {
   return { left, right: left, top, bottom: top + height }
 }
 
+const popupGap = 3
+const popupEdge = 8
+
 const popupTooltip = (store: PopupHost) => {
   const create = (view: EditorView): TooltipView => {
     const dom = document.createElement("div")
     dom.className = "sq-popup-host"
     store.attach(dom)
+    let anchor: Rect | null = null
     return {
       dom,
-      offset: { x: -20, y: 3 },
-      getCoords: (pos) => lineBox(view, pos),
+      offset: { x: -20, y: popupGap },
+      getCoords: (pos) => {
+        anchor = lineBox(view, pos)
+        return anchor
+      },
+      positioned: (space) => {
+        if (anchor === null) return
+        const below = space.bottom - anchor.bottom - popupGap - popupEdge
+        const above = anchor.top - space.top - popupGap - popupEdge
+        dom.style.setProperty("--popup-room", `${Math.max(below, above)}px`)
+      },
       destroy: () => store.attach(null),
     }
   }
