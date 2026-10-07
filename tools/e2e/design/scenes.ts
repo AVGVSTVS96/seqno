@@ -194,6 +194,9 @@ export const scenes: ReadonlyArray<Scene> = [
       await page.locator(".ls-all-pages .ls-table-row").first().waitFor()
       return nothing
     },
-    seqno: (page) => seqno.openSeqno(page, "/all-pages", false),
+    seqno: async (page, step) => {
+      await seqno.openSeqno(page, "/all-pages", false)
+      await step("all pages table rows", () => page.getByRole("row").nth(1).waitFor())
+    },
   },
 ]
