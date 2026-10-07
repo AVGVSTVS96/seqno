@@ -300,7 +300,3 @@
 .seqno-palette-actions button > span:first-child {
   opacity: 0.6;
 }
-
-.seqno-palette .key {
-  font-weight: var(--weight-medium);
-}

@@ -287,7 +287,7 @@ const Palette = ({
                 </button>
                 <button type="button" onClick={() => void open(current, true)}>
                   <span>Open in sidebar</span>
-                  <Keys keys={["shift", "enter"]} combo={false} />
+                  <Keys keys={["shift", "enter"]} />
                 </button>
                 <button type="button" onClick={() => copyRef(current)}>
                   <span>Copy ref</span>
