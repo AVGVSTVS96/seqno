@@ -53,6 +53,10 @@ describe("BlockEditor", () => {
     assert.strictEqual(container.querySelectorAll(".cm-editor").length, 1)
     assert.strictEqual(content?.textContent, "edit **me**")
     assert.strictEqual(document.activeElement, content)
+    assert.deepStrictEqual(
+      ["spellcheck", "autocorrect", "autocapitalize"].map((name) => content?.getAttribute(name)),
+      ["true", "on", "sentences"],
+    )
     await act(() => root.unmount())
     roots.splice(0)
     assert.strictEqual(container.innerHTML, "")

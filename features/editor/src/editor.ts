@@ -81,6 +81,11 @@ export const mountBlockEditor = (
         autopair,
         keymap.of(defaultKeymap),
         EditorView.lineWrapping,
+        EditorView.contentAttributes.of({
+          spellcheck: "true",
+          autocorrect: "on",
+          autocapitalize: "sentences",
+        }),
         editorTheme,
         headingClass,
         tooltips({ parent: parent.ownerDocument.body }),
