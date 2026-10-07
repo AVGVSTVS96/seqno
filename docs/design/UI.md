@@ -1,6 +1,6 @@
 # seqno next to Logseq: where the UI stands
 
-The four UI parts (shell, blocks, editor, pages) are merged on `main` and wired together, and polish round 1 (`docs/design/polish-1/RESULTS.md`) worked through the critic's findings. This page goes scene by scene through the design harness: what matches Logseq now, and what's left. Light and dark were both compared in every scene, at 1440×900.
+The four UI parts (shell, blocks, editor, pages) are merged on `main` and wired together, and two polish rounds (`docs/design/polish-1/RESULTS.md`, `docs/design/polish-2/RESULTS.md`) worked through the critic's findings. This page goes scene by scene through the design harness: what matches Logseq now, and what's left. Light and dark were both compared in every scene, at 1440×900.
 
 ```
  header ─ ≡ ⌕ ············································· ⌂ ⋯ ▣      shell
@@ -18,19 +18,20 @@ Each part's own measurements are in its RESULTS.md: `apps/web/src/ui/shell/RESUL
 
 ## Scenes
 
-| Scene                    | Reference | Verdict                                                                           |
-| ------------------------ | --------- | --------------------------------------------------------------------------------- |
-| `journals`               | 2.x       | Matches pixel for pixel except the graph's nav entries seqno doesn't have         |
-| `page`                   | 2.x       | Matches; seqno also draws page properties (2.x drops them when pasted)            |
-| `showcase-top`           | classic   | Content matches classic; property order differs                                   |
-| `showcase-lower`         | classic   | Code blocks, tasks and properties line up; rows are 2.x's 28px (classic 29px)     |
-| `editing`                | 2.x       | Matches; entering edit mode moves no glyph                                        |
-| `autocomplete`           | 2.x       | Popup matches; 2.x also lists blocks under `[[`                                   |
-| `slash`                  | 2.x       | Matches; markdown wording ("Page reference") where 2.x says "Node reference"      |
-| `search`                 | 2.x       | Palette and footer match, tag pages first with #; no Filters group                |
-| `right-sidebar`          | 2.x       | Card rows land on Logseq's x after the integration fix; top bar has only Contents |
-| `left-sidebar-collapsed` | 2.x       | Matches                                                                           |
-| `all-pages`              | 2.x       | Table matches, tag-only pages included; fewer header actions                      |
+| Scene                    | Reference | Verdict                                                                       |
+| ------------------------ | --------- | ----------------------------------------------------------------------------- |
+| `journals`               | 2.x       | Matches pixel for pixel except the graph's nav entries seqno doesn't have     |
+| `page`                   | 2.x       | Matches; seqno also draws page properties (2.x drops them when pasted)        |
+| `showcase-top`           | classic   | Content matches classic, properties in the file's order                       |
+| `showcase-lower`         | classic   | Code blocks, tasks and properties line up; rows are 2.x's 28px (classic 29px) |
+| `showcase-queries`       | classic   | Query blocks match: header, chips, bracketed groups, page panels, breadcrumbs |
+| `editing`                | 2.x       | Matches; entering edit mode moves no glyph                                    |
+| `autocomplete`           | 2.x       | Popup matches; 2.x also lists blocks under `[[`                               |
+| `slash`                  | 2.x       | Matches; markdown wording ("Page reference") where 2.x says "Node reference"  |
+| `search`                 | 2.x       | Palette and footer match, tag pages first with #; no Filters group            |
+| `right-sidebar`          | 2.x       | Card rows land on Logseq's x; top bar has Contents and Help, no Page graph    |
+| `left-sidebar-collapsed` | 2.x       | Matches                                                                       |
+| `all-pages`              | 2.x       | Table matches, tag-only pages included; fewer header actions                  |
 
 ### journals
 
@@ -60,13 +61,23 @@ Left:
 
 Compared with classic for markdown content, with 2.x's spacing for what both share.
 
-Matches: properties box, h1 to h3 with their rules, bold, italic, highlight, strike, inline code, links, bare URLs, tags, numbered lists, guides, Solarized code blocks (gutter, line numbers, language label, colors), task checkbox and marker offsets within 0.5px, priorities, SCHEDULED / DEADLINE, logbook total, quotes, embeds. Images in `../assets/` now load (480×240 sketch at classic's 8px offset).
+Matches: properties box in the file's order, h1 to h3 with their rules, bold, italic, highlight, strike, inline code, links, bare URLs, tags, numbered lists, guides, Solarized code blocks (gutter, line numbers, language label, colors, plain member dots), task checkbox and marker offsets within 0.5px, priorities, SCHEDULED / DEADLINE, logbook total, quotes, embeds, reference counts that open classic's refs panel. Images in `../assets/` load (480×240 sketch at classic's 8px offset) and show classic's hover fade, actions and resize corner.
 
 Left:
 
-- Property order follows the core's Loro map, not the file (Tomato bed shows sown, location, plants, variety; classic shows the file's order). Needs the graph to keep an order.
 - Rows are 2.x's 28px; classic's are 29px (a 1px block border), so long classic pages drift 1px per row. 2.x is the reference for shared layout, so this stays.
 - The page title sits where 2.x puts it, not where classic does.
+
+### showcase-queries
+
+Compared with classic, which draws `{{query}}` the same way for markdown graphs.
+
+Matches: the 18px Live query header (14px search icon, 12px text at 0.9), the count right-aligned with the 18px table icon, 30px clause chips (14px, 4px padding, 1px border, radius 4), `and` groups drawn as `( AND chip chip )` with the thin 36px brackets at 0.3, the `+` in classic's color, results 4px in, each page in an 8px-padded panel (`#f8f8f8` / `#023643`), the page title as a link, breadcrumbs with chevrons and siblings under one crumb, `No matched result` at 14px / 0.9.
+
+Left:
+
+- No query settings icon, so the table icon sits where classic's settings icon is; the `+` opens the query text rather than classic's clause builder.
+- The two apps list different matches (classic's demo graph has its own tasks), so the panels differ in content, not in layout.
 
 ### editing
 
@@ -107,11 +118,11 @@ Left:
 
 ### right-sidebar
 
-Matches: 40vw panel with its 300ms width transition, the Contents tab, card header (caret, icon, title, ⋯ and ×), card menu, resizer. Inside cards, rows start at x = 876 and bullets at x = 898, Logseq's exact numbers. Block cards keep 2.x's 8px top gap and show the block without a second breadcrumb (the card header already names the page).
+Matches: 40vw panel with its 300ms width transition, the Contents and Help tabs, card header (caret, icon, title, ⋯ and ×), card menu, resizer. Inside cards, rows start at x = 876 and bullets at x = 898, Logseq's exact numbers. Block cards keep 2.x's 8px top gap and show the block without a second breadcrumb (the card header already names the page).
 
 Left:
 
-- The top bar has only Contents; 2.x also has Page graph and Help.
+- The top bar has Contents and Help (the keyboard shortcuts card); 2.x also has Page graph, so Help sits 100px further left.
 - 2.x shows an "Open properties" row (a DB-graph feature); seqno shows the page's properties block instead.
 
 ### left-sidebar-collapsed
@@ -159,31 +170,44 @@ Surfaces the scenes don't capture, each compared with the live apps:
 - **Header menu**: Export page and Settings in 2.x's positions; Settings is a two-pane dialog (General, Keymap).
 - **Index**: tag-only pages everywhere 2.x shows them, per-block reference counts like classic.
 
+## Beyond the scenes (polish round 2)
+
+Surfaces the scenes don't capture, each compared with the live apps:
+
+- **Outlining**: nesting any block under any other survives a reload; Ctrl+Z / Ctrl+Shift+Z work with nothing focused, one step per command, editing the block they change; renaming a page rewrites every reference to it in one undo step.
+- **Blocks**: the 28px add-block strip under the last block (0.5 on hover), Enter on a `key:: value` line adds a property line, plain text pastes as one block per paragraph and a URL over a selection becomes a link, `$$` pairs, ↑/↓ keep the character column.
+- **Bullet menu**: centered under the pointer, 5px below, like 2.x.
+- **Date picker**: `/Scheduled` and `/Deadline` open classic's calendar with Add time and Add repeater; an empty block gets classic's top-right toast instead.
+- **References**: the count badge opens classic's refs panel under the block.
+- **Images**: hover fade with Delete, Copy, Maximize, and a resize corner that writes `{:width N}`.
+- **Shortcuts**: `g s` opens Settings › Keymap (search, folding groups, the editing keys); the help menu opens the same list as a Help card in the right sidebar. Settings sits on 2.x's coordinates with its type sizes.
+- **Favorites** no longer write into the page file. A first visit opens with the left sidebar closed. The palette footer's chips land on 2.x's x.
+
 ## Gaps across scenes
 
 Most visible first.
 
-1. **Property order** follows the Loro map, not the file, on blocks and pages (and in the editor's draft).
-2. **Features seqno doesn't have:** Flashcards, Graph view, Page graph, Plugins, palette Commands and Filters, all-pages views and filters, linked reference filters and their hover toolbar, the multi-block selection toolbar, Export as OPML / HTML / EDN.
-3. **`[[` lists pages only**; 2.x also lists matching blocks.
+1. **Features seqno doesn't have:** Flashcards, Graph view, Page graph, Plugins, palette Commands and Filters, all-pages views and filters, linked reference filters and their hover toolbar, the multi-block selection toolbar, Export as OPML / HTML / EDN, the query builder's clause menu and settings, Settings' Editor / Advanced / Features tabs.
+2. **`[[` lists pages only**; 2.x also lists matching blocks.
+3. **Favorites** live in app storage, not `config.edn`.
 4. **Small motion gaps:** no exit animation for the palette or the editor popups. After a long jump down a page (1,500px at once), the rows below appear one observer tick later (under 100ms); normal scrolling has them mounted 800px ahead.
 
 ## Tokens
 
 No new theme tokens at integration. The palette now sets the shell's `--bg-kbd-separator` to its measured `rgb(255 255 255 / 0.14)` in dark, instead of keeping a second `--bg-keys-separator` token.
 
-Polish round 1 added component tokens, listed in `docs/design/polish-1/RESULTS.md`: Logseq's highlight colors for block backgrounds (`--bg-highlight-*`, both themes), the block menu's swatches (`--swatch-*`) and the code editor's active line.
+Polish round 1 added component tokens, listed in `docs/design/polish-1/RESULTS.md`: Logseq's highlight colors for block backgrounds (`--bg-highlight-*`, both themes), the block menu's swatches (`--swatch-*`) and the code editor's active line. Round 2's (query chips, refs panel, image fade, date picker, toast, keymap list) are listed in `docs/design/polish-2/RESULTS.md`.
 
 ## How to check it
 
 ```sh
-# build and serve (port 4189 was polish round 1's)
-pnpm --filter @seqno/web build && pnpm --filter @seqno/web preview --port 4189 --strictPort
+# build and serve (port 4190 was polish round 2's)
+pnpm --filter @seqno/web build && pnpm --filter @seqno/web preview --port 4190 --strictPort
 
 cd tools/e2e
-SEQNO_E2E_BASE_URL=http://localhost:4189/ pnpm exec playwright test         # e2e flows
-SEQNO_E2E_BASE_URL=http://localhost:4189/ pnpm design                       # every scene, both apps, both themes
-SEQNO_E2E_BASE_URL=http://localhost:4189/ SEQNO_SCREENS=1 \
+SEQNO_E2E_BASE_URL=http://localhost:4190/ pnpm exec playwright test         # e2e flows
+SEQNO_E2E_BASE_URL=http://localhost:4190/ pnpm design                       # every scene, both apps, both themes
+SEQNO_E2E_BASE_URL=http://localhost:4190/ SEQNO_SCREENS=1 \
   pnpm exec playwright test flows/screens.e2e.ts                            # refresh docs/screens
 ```
 
