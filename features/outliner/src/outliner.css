@@ -567,7 +567,6 @@
   transition: color var(--duration-slow) ease;
 }
 
-.seqno-pageref-link:hover,
 .seqno-link:hover {
   color: var(--fg-link-hover);
 }
