@@ -18,6 +18,7 @@ export interface RowActions {
   readonly drop: (event: DragEvent<HTMLDivElement>) => void
   readonly guide: (ancestor: BlockId | null) => void
   readonly fold: (ancestor: BlockId) => void
+  readonly references: () => void
   readonly menu: (event: MouseEvent) => void
 }
 
@@ -33,6 +34,8 @@ export interface RowProps {
   readonly hoveredGuide: BlockId | null
   readonly canToggle: boolean
   readonly references: number
+  readonly referencesOpen: boolean
+  readonly below: ReactNode
   readonly measure: Ref<HTMLDivElement>
   readonly actions: RowActions
   readonly children: ReactNode
@@ -63,6 +66,8 @@ export const RowView = ({
   hoveredGuide,
   canToggle,
   references,
+  referencesOpen,
+  below,
   measure,
   actions,
   children,
@@ -166,13 +171,18 @@ export const RowView = ({
         {children}
       </div>
       {references === 0 ? null : (
-        <span
+        <button
+          type="button"
           className="seqno-refs-count"
-          title={references === 1 ? "1 reference" : `${references} references`}
+          title="Open block references"
+          aria-label={references === 1 ? "1 reference" : `${references} references`}
+          aria-expanded={referencesOpen}
+          onClick={actions.references}
         >
           {references}
-        </span>
+        </button>
       )}
+      {below}
     </div>
   )
 }

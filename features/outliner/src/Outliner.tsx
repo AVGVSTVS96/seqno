@@ -31,6 +31,7 @@ import { moveCommand, type DropTarget } from "./drop.ts"
 import { historyFocus, historyStep, type Editing, type HistoryStep } from "./history.ts"
 import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
+import { BlockRefs } from "./BlockRefs.tsx"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
 import { isMoveChord } from "./platform.ts"
 import { QueryView } from "./Query.tsx"
@@ -327,6 +328,14 @@ const OutlineView = ({
   const [dragged, setDragged] = useState<ReadonlyArray<BlockId>>([])
   const [drop, setDrop] = useState<DropTarget | null>(null)
   const [hoveredGuide, setHoveredGuide] = useState<BlockId | null>(null)
+  const [toggledRefs, setToggledRefs] = useState<ReadonlySet<BlockId>>(() => new Set())
+  const refsOpen = (blockId: BlockId) =>
+    toggledRefs.has(blockId) !== (blockId === zoom && !embedded)
+  const toggleRefs = (blockId: BlockId) => {
+    const next = new Set(toggledRefs)
+    if (!next.delete(blockId)) next.add(blockId)
+    setToggledRefs(next)
+  }
   const [viewport, setViewport] = useState<Viewport>(() => ({
     top: 0,
     bottom: window.innerHeight,
@@ -661,6 +670,7 @@ const OutlineView = ({
         select(block.id, origin)
       },
       guide: setHoveredGuide,
+      references: () => toggleRefs(block.id),
       menu: (event) => {
         const open = onBlockMenu ?? parent.openMenu
         if (open === undefined) return
@@ -695,6 +705,10 @@ const OutlineView = ({
       parsed.heading === null && parsed.title !== null && block.props["heading"] === "true"
         ? { ...parsed, heading: Math.min(row.depth + 1, 6) }
         : parsed
+    const ownRef = (block.props["id"] ?? "").toLowerCase()
+    const refId = counts[block.id] === undefined && ownRef !== "" ? ownRef : block.id
+    const references = counts[refId] ?? 0
+    const refsShown = references > 0 && refsOpen(block.id)
     return (
       <RowView
         key={block.id}
@@ -708,7 +722,9 @@ const OutlineView = ({
         dropZone={drop?.blockId === block.id ? drop.zone : null}
         hoveredGuide={hoveredGuide}
         canToggle={row.hasChildren && !(block.id === zoom && !embedded)}
-        references={counts[block.id] ?? counts[(block.props["id"] ?? "").toLowerCase()] ?? 0}
+        references={references}
+        referencesOpen={refsShown}
+        below={refsShown ? <BlockRefs uuid={refId} /> : null}
         measure={measure}
         actions={actionsFor(row)}
       >

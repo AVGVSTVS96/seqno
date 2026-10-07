@@ -224,6 +224,14 @@ const byPage = (blocks: ReadonlyArray<Block>) => {
   return [...groups]
 }
 
+export const BlockGroups = ({ blocks }: { readonly blocks: ReadonlyArray<Block> }) => (
+  <div className="seqno-query-groups">
+    {byPage(blocks).map(([pageId, onPage]) => (
+      <PageGroup key={pageId} pageId={pageId} blocks={onPage} />
+    ))}
+  </div>
+)
+
 const countOf = (result: QueryResult) =>
   result._tag === "BlockRows" ? result.blocks.length : result.pages.length
 
@@ -256,11 +264,7 @@ const Results = ({ result, table }: { readonly result: QueryResult; readonly tab
       ))}
     </Table>
   ) : (
-    <div className="seqno-query-groups">
-      {byPage(result.blocks).map(([pageId, blocks]) => (
-        <PageGroup key={pageId} pageId={pageId} blocks={blocks} />
-      ))}
-    </div>
+    <BlockGroups blocks={result.blocks} />
   )
 }
 

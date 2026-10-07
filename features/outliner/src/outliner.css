@@ -97,6 +97,7 @@
   position: relative;
   isolation: isolate;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--bullet-gap);
   box-sizing: border-box;
@@ -294,12 +295,50 @@
   flex: none;
   margin: 3px 0 0 calc(var(--space-2) - var(--bullet-gap));
   padding: 1px 4px;
+  border: 0;
   border-radius: 2px;
   background: var(--bg-sidebar-tab);
   color: var(--fg-control);
+  font: inherit;
   font-size: var(--text-sm);
   line-height: 17px;
   opacity: 0.8;
+  cursor: pointer;
+  transition: opacity var(--duration-base);
+}
+
+.seqno-refs-count:hover {
+  opacity: 1;
+}
+
+.seqno-refs-count[aria-expanded="true"] {
+  color: var(--fg-link);
+}
+
+.seqno-block-refs {
+  --bg-block-refs: light-dark(#f3f3f3, #023643);
+  flex: 0 0 calc(100% - var(--block-control-size) - var(--bullet-box) - var(--bullet-gap));
+  margin: calc(-1 * var(--bullet-gap)) 0 0
+    calc(var(--block-control-size) + var(--bullet-box) + var(--bullet-gap));
+  white-space: normal;
+  cursor: default;
+}
+
+.seqno-block-refs .seqno-query-group {
+  padding: var(--space-4);
+  background: var(--bg-block-refs);
+}
+
+.seqno-block-refs .seqno-query-group-head {
+  padding-left: var(--space-3);
+}
+
+.seqno-block-refs .seqno-query-crumbs {
+  margin-left: var(--space-6);
+}
+
+.seqno-block-refs .seqno-query-crumb:first-child > svg {
+  display: none;
 }
 
 .seqno-content {

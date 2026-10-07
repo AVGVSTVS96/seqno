@@ -112,3 +112,29 @@ test("clicking under the last block adds a block and edits it", async ({ page, s
   const tree = page.getByRole("main").getByRole("tree").first()
   await expect(tree.getByRole("treeitem", { level: 1 }).last()).toHaveText(/^Autumn/)
 })
+
+test("a block's reference count opens the blocks that reference it, open when zoomed in", async ({
+  page,
+}) => {
+  await openShowcase(page, "/page/showcase")
+  await scrollToText(page, "Water in the morning", 100)
+  const rule = rowWith(page, "Water in the morning")
+  const count = rule.getByRole("button", { name: "2 references" }).first()
+  const panel = rule.getByRole("region", { name: "Block references" }).first()
+  await count.click()
+  await expect(count).toHaveAttribute("aria-expanded", "true")
+  await expect(panel.getByRole("region")).toHaveAccessibleName("Showcase")
+  await expect(panel.getByRole("navigation", { name: "Parent blocks" })).toHaveText([
+    "References",
+    "ReferencesThe same rule, embedded:",
+  ])
+  await expect(panel.getByRole("treeitem").first()).toHaveText(
+    /^The rule above, by reference: Water in the morning, never at night\./,
+  )
+  await count.click()
+  await expect(panel).toHaveCount(0)
+  await rule.getByRole("button", { name: "Zoom into block" }).first().click()
+  await expect(
+    rowWith(page, "Water in the morning").getByRole("region", { name: "Block references" }).first(),
+  ).toBeVisible()
+})

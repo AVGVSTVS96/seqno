@@ -24,6 +24,12 @@ export const queryAtom = Atom.family((query: string) =>
   coreRuntime.atom(Stream.unwrap(Effect.map(CoreClient, (client) => client.WatchQuery({ query })))),
 )
 
+export const blockReferencesAtom = Atom.family((uuid: string) =>
+  coreRuntime.atom(
+    Stream.unwrap(Effect.map(CoreClient, (client) => client.WatchBlockReferences({ uuid }))),
+  ),
+)
+
 export const blockAtom = Atom.family((blockId: BlockId) =>
   coreRuntime.atom(Effect.flatMap(CoreClient, (client) => client.GetBlock({ blockId }))),
 )
