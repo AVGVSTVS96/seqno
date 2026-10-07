@@ -21,9 +21,16 @@ const rowWith = (page: Page, text: string) =>
 test("right-clicking a bullet selects the block and opens its menu", async ({ page }) => {
   await openShowcase(page, "/page/garden%20plan")
   const winter = rowWith(page, "Winter")
-  await winter.getByRole("button", { name: "Zoom into block" }).first().click({ button: "right" })
+  const bullet = await winter.getByRole("button", { name: "Zoom into block" }).first().boundingBox()
+  const pointer = { x: (bullet?.x ?? 0) + 8, y: (bullet?.y ?? 0) + 8 }
+  await page.mouse.click(pointer.x, pointer.y, { button: "right" })
   const menu = page.getByRole("menu", { name: "Block actions" })
   await expect(menu).toBeVisible()
+  await menu.evaluate((element) =>
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
+  )
+  const box = await menu.boundingBox()
+  expect([(box?.x ?? 0) - pointer.x, (box?.y ?? 0) - pointer.y]).toEqual([-139, 5])
   await expect(winter).toHaveAttribute("aria-selected", "true")
   await menu.getByRole("button", { name: "yellow background" }).click()
   await expect(menu).toHaveCount(0)

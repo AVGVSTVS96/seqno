@@ -74,14 +74,16 @@ const copy = (text: string) => void navigator.clipboard.writeText(text).catch(()
 
 const close = (menu: HTMLElement) => menu.closest<HTMLElement>("[popover]")?.hidePopover()
 
+const pointerGap = 5
+
 const placeAt = (menu: HTMLElement, x: number, y: number) => {
-  const below = y + menu.offsetHeight + 8 <= window.innerHeight
-  const top = below ? y : Math.max(8, y - menu.offsetHeight)
+  const below = y + pointerGap + menu.offsetHeight + 8 <= window.innerHeight
+  const top = below ? y + pointerGap : Math.max(8, y - pointerGap - menu.offsetHeight)
   menu.style.setProperty("--anchor-x", `${x}px`)
   menu.style.setProperty("--anchor-y", `${top}px`)
-  menu.style.setProperty("--shift", "0%")
+  menu.style.setProperty("--shift", "calc(1px - 50%)")
   menu.style.setProperty("--inset", "8px")
-  menu.style.setProperty("--origin", below ? "0% 0%" : "0% 100%")
+  menu.style.setProperty("--origin", below ? "50% 0%" : "50% 100%")
 }
 
 const MenuView = ({
