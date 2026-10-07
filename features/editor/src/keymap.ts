@@ -145,3 +145,17 @@ export const blockKeymap = (
     ]),
   )
 }
+
+export const propertiesKeymap = (host: EditorHost) =>
+  Prec.high(
+    keymap.of([
+      { key: "Enter", run: insertNewline },
+      {
+        key: "Escape",
+        run: () => {
+          host.act({ _tag: "Exit" })
+          return true
+        },
+      },
+    ]),
+  )

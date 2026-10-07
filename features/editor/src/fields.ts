@@ -1,5 +1,5 @@
 import type { Transaction } from "@codemirror/state"
-import type { Block, BlockId, Command, Props } from "@seqno/domain"
+import type { Block, BlockId, Command, PropertyTarget, Props } from "@seqno/domain"
 import {
   draftOffset,
   isHiddenProperty,
@@ -24,6 +24,21 @@ export interface BlockFields {
   readonly commit: (transaction: Transaction) => ReadonlyArray<Command>
 }
 
+const propertyLine = /^([^\s:]+):: (.*)$/
+
+const pageFields = (draft: string): Fields => {
+  const props: Array<PropertyLine> = []
+  for (const line of draft.split("\n")) {
+    const match = propertyLine.exec(line)
+    const key = match?.[1]
+    const value = match?.[2]
+    if (key !== undefined && value !== undefined && !props.some(([seen]) => seen === key)) {
+      props.push([key, value])
+    }
+  }
+  return { text: "", props }
+}
+
 const sameLines = (left: ReadonlyArray<PropertyLine>, right: ReadonlyArray<PropertyLine>) =>
   left.length === right.length &&
   left.every(([key, value], at) => right[at]?.[0] === key && right[at]?.[1] === value)
@@ -31,6 +46,8 @@ const sameLines = (left: ReadonlyArray<PropertyLine>, right: ReadonlyArray<Prope
 export const blockFields = (
   blockId: BlockId,
   block: Pick<Block, "text" | "props">,
+  target: PropertyTarget = { _tag: "BlockTarget", blockId },
+  hidden: (key: string) => boolean = isHiddenProperty,
 ): BlockFields => {
   let order: ReadonlyArray<string> = []
 
@@ -41,7 +58,7 @@ export const blockFields = (
 
   const linesOf = (props: Props): ReadonlyArray<PropertyLine> =>
     Object.entries(props)
-      .filter(([key]) => order.includes(key) || !isHiddenProperty(key))
+      .filter(([key]) => order.includes(key) || !hidden(key))
       .toSorted(([left], [right]) => rank(left) - rank(right))
 
   const fieldsOf = (source: Pick<Block, "text" | "props">): Fields => ({
@@ -54,7 +71,7 @@ export const blockFields = (
 
   const property = (key: string, value: string | null): Command => ({
     _tag: "SetProperty",
-    target: { _tag: "BlockTarget", blockId },
+    target,
     key,
     value,
   })
@@ -71,7 +88,8 @@ export const blockFields = (
       committed = fieldsOf(source)
     },
     commit: (transaction) => {
-      const next = splitProperties(transaction.newDoc.toString())
+      const draft = transaction.newDoc.toString()
+      const next = target._tag === "PageTarget" ? pageFields(draft) : splitProperties(draft)
       order = next.props.map(([key]) => key)
       const before = committed
       committed = { text: next.text, props: next.props }

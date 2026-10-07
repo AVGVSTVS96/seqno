@@ -132,10 +132,11 @@ export const timestamp = (millis: number | null) => {
 
 const hidden = new Set(["title", "filters", "favorite", "id", "collapsed", "icon", "public"])
 
+export const isHiddenPageProp = (key: string) =>
+  hidden.has(key.toLowerCase()) || key.startsWith("logseq.")
+
 export const visibleProps = (props: Page["props"]): ReadonlyArray<readonly [string, string]> =>
-  Object.entries(props).filter(
-    ([key]) => !hidden.has(key.toLowerCase()) && !key.startsWith("logseq."),
-  )
+  Object.entries(props).filter(([key]) => !isHiddenPageProp(key))
 
 export const listValues = (value: string) =>
   value

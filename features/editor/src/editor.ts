@@ -2,7 +2,7 @@ import { defaultKeymap } from "@codemirror/commands"
 import { EditorSelection, EditorState } from "@codemirror/state"
 import { EditorView, keymap, tooltips } from "@codemirror/view"
 import { Effect, Fiber, Stream } from "effect"
-import type { Block, Command } from "@seqno/domain"
+import type { Block, Command, PropertyTarget } from "@seqno/domain"
 import { autopair } from "./autopair.ts"
 import { completion, createPopupStore, type PopupStore } from "./completion.ts"
 import { fromGraph, minimalChange, placeCursor, textSync } from "./edits.ts"
@@ -11,7 +11,7 @@ import { pasteOutline } from "./paste.ts"
 import { headingLevel } from "./format.ts"
 import type { Handoff } from "./handoff.ts"
 import type { CursorPlacement, EditorHost } from "./host.ts"
-import { blockKeymap } from "./keymap.ts"
+import { blockKeymap, propertiesKeymap } from "./keymap.ts"
 import { editorTheme } from "./theme.ts"
 
 export interface BlockEditorOptions {
@@ -20,6 +20,8 @@ export interface BlockEditorOptions {
   readonly updates: Stream.Stream<Block>
   readonly host: EditorHost
   readonly handoff: Handoff
+  readonly properties?: PropertyTarget
+  readonly hidden?: (key: string) => boolean
 }
 
 export interface MountedEditor {
@@ -35,11 +37,11 @@ const headingClass = EditorView.editorAttributes.compute(["doc"], (state) => {
 
 export const mountBlockEditor = (
   parent: HTMLElement,
-  { block, cursor, updates, host, handoff }: BlockEditorOptions,
+  { block, cursor, updates, host, handoff, properties, hidden }: BlockEditorOptions,
   popups = createPopupStore(),
 ): MountedEditor => {
   const arrival = handoff.take()
-  const fields = blockFields(block.id, block)
+  const fields = blockFields(block.id, block, properties, hidden)
   const draft = fields.draftOf(block)
   const merged =
     arrival?._tag === "Merged"
@@ -67,9 +69,11 @@ export const mountBlockEditor = (
     state: EditorState.create({
       doc: merged ?? draft,
       extensions: [
-        blockKeymap(block.id, { ...host, dispatch }, handoff, whenConfirmed, fields.textOf),
+        properties === undefined
+          ? blockKeymap(block.id, { ...host, dispatch }, handoff, whenConfirmed, fields.textOf)
+          : propertiesKeymap(host),
         completion(block.id, host, popups),
-        pasteOutline(block, () => parentId, host.dispatch),
+        properties === undefined ? pasteOutline(block, () => parentId, host.dispatch) : [],
         autopair,
         keymap.of(defaultKeymap),
         EditorView.lineWrapping,

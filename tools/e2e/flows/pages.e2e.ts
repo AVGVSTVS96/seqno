@@ -203,3 +203,19 @@ test("the header menu exports the page as markdown and opens Settings", async ({
   await settings.getByRole("tab", { name: "Keymap" }).click()
   await expect(settings.getByText("Toggle left sidebar")).toBeVisible()
 })
+
+test("page properties are edited as key:: value lines too", async ({ page }) => {
+  await openShowcaseAt(page, "/page/garden%20plan")
+  await page.getByRole("definition").filter({ hasText: "14B" }).click()
+  const editor = page.getByRole("textbox").first()
+  await expect(editor).toContainText("plot:: 14B")
+  await page.keyboard.press("ControlOrMeta+End")
+  await page.keyboard.press("Enter")
+  await page.keyboard.type("zone:: south")
+  await page.keyboard.press("Escape")
+  const properties = page.getByLabel("Page properties")
+  await expect(properties.getByRole("term")).toHaveCount(3)
+  await expect(properties.locator(".seqno-property").filter({ hasText: "zone" })).toHaveText(
+    "zonesouth",
+  )
+})
