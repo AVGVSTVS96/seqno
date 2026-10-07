@@ -96,3 +96,19 @@ test("clicking into a code block edits the code in place", async ({ page }) => {
   await expect(block.locator(".cm-editor")).toHaveCount(0)
   await expect(block).toContainText("for bed in beds:  # every bed")
 })
+
+test("clicking under the last block adds a block and edits it", async ({ page, seqno }) => {
+  await openShowcase(page, "/page/garden%20plan")
+  const strip = page
+    .getByRole("article", { name: "Garden Plan" })
+    .getByRole("button", { name: "Add a block" })
+  await expect(strip).toHaveCSS("opacity", "0")
+  await strip.hover()
+  await expect(strip).toHaveCSS("opacity", "0.5")
+  await strip.click()
+  await expect(seqno.editor).toHaveText("")
+  await page.keyboard.type("Autumn")
+  await page.keyboard.press("Escape")
+  const tree = page.getByRole("main").getByRole("tree").first()
+  await expect(tree.getByRole("treeitem", { level: 1 }).last()).toHaveText(/^Autumn/)
+})

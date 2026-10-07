@@ -925,7 +925,8 @@ img.seqno-image {
   field-sizing: content;
 }
 
-.seqno-add-first {
+.seqno-add-first,
+.seqno-add-last {
   display: flex;
   width: 100%;
   margin: 0;
@@ -936,7 +937,19 @@ img.seqno-image {
   cursor: text;
 }
 
-.seqno-add-first .seqno-bullet {
+.seqno-add-last {
+  margin-top: 1px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+}
+
+.seqno-add-last:hover,
+.seqno-add-last:focus-visible {
+  opacity: 0.5;
+}
+
+.seqno-add-first .seqno-bullet,
+.seqno-add-last .seqno-bullet {
   background: none;
 }
 

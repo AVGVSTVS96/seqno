@@ -45,6 +45,7 @@ export const PageView = ({
           <Outliner
             pageId={page.id}
             zoom={zoom}
+            addable
             onNavigate={navigateTo}
             editor={EditorSlot}
             resolveAsset={resolveAsset}

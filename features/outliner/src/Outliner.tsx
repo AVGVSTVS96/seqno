@@ -54,6 +54,7 @@ export interface OutlinerProps {
   readonly onNavigate: Navigate
   readonly editor?: ComponentType<EditorSlotProps>
   readonly embedded?: boolean
+  readonly addable?: boolean
   readonly resolveAsset?: (path: string) => string | undefined
   readonly onBlockMenu?: OpenBlockMenu
 }
@@ -180,6 +181,25 @@ const Breadcrumbs = ({
   )
 }
 
+const AddBlock = ({
+  className,
+  label,
+  onAdd,
+}: {
+  readonly className: string
+  readonly label: string
+  readonly onAdd: () => void
+}) => (
+  <button type="button" className={className} aria-label={label} onClick={onAdd}>
+    <span className="seqno-control">
+      <span className="seqno-toggle-space" />
+      <span className="seqno-bullet">
+        <span className="seqno-dot" />
+      </span>
+    </span>
+  </button>
+)
+
 const stopEvent = (event: { stopPropagation: () => void }) => event.stopPropagation()
 
 const Embed = ({ children }: { readonly children: ReactNode }) => (
@@ -279,6 +299,7 @@ const OutlineView = ({
   onNavigate,
   editor: Editor = PlainTextEditor,
   embedded = false,
+  addable = false,
   resolveAsset,
   onBlockMenu,
 }: OutlinerProps & { readonly tree: PageTree }) => {
@@ -712,6 +733,22 @@ const OutlineView = ({
     )
   }
 
+  const tail = view.children(zoom)
+  const addBlock = (parentId: BlockId | null, last: BlockId | undefined) =>
+    after(
+      {
+        _tag: "InsertBlock",
+        pageId,
+        parentId,
+        ...(last === undefined ? {} : { after: last }),
+        text: "",
+      },
+      (events) => {
+        const created = events.find((event) => event._tag === "BlockUpserted")
+        if (created?._tag === "BlockUpserted") setEditing({ blockId: created.block.id, caret: 0 })
+      },
+    )
+
   const gapKey = (part: { readonly from: number; readonly to: number }) =>
     part.from === 0 ? "gap-start" : part.to === rows.length ? "gap-end" : `gap-${part.from}`
   const body = parts.flatMap((part) =>
@@ -754,28 +791,19 @@ const OutlineView = ({
           onBlur={onBlur}
         >
           {body}
-          {rows.length === 0 && !embedded ? (
-            <button
-              type="button"
+          {embedded ? null : rows.length === 0 ? (
+            <AddBlock
               className="seqno-add-first"
-              aria-label="Click here to start writing"
-              onClick={() =>
-                after({ _tag: "InsertBlock", pageId, parentId: null, text: "" }, (events) => {
-                  const created = events.find((event) => event._tag === "BlockUpserted")
-                  if (created?._tag === "BlockUpserted") {
-                    setEditing({ blockId: created.block.id, caret: 0 })
-                  }
-                })
-              }
-            >
-              <span className="seqno-control">
-                <span className="seqno-toggle-space" />
-                <span className="seqno-bullet">
-                  <span className="seqno-dot" />
-                </span>
-              </span>
-            </button>
-          ) : null}
+              label="Click here to start writing"
+              onAdd={() => addBlock(null, undefined)}
+            />
+          ) : !addable || tail.at(-1)?.text.trim() === "" ? null : (
+            <AddBlock
+              className="seqno-add-last"
+              label="Add a block"
+              onAdd={() => addBlock(zoom, tail.at(-1)?.id)}
+            />
+          )}
         </div>
       </div>
     </RenderContext>
