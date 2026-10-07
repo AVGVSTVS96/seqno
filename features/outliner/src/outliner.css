@@ -818,3 +818,66 @@ img.seqno-image {
 .seqno-preview-blocks {
   margin-left: calc(-1 * (var(--block-control-size) - 2px));
 }
+
+.seqno-codeblock {
+  --bg-code-active-line: light-dark(rgb(0 0 0 / 0.05), rgb(255 255 255 / 0.05));
+}
+
+.seqno-codeblock:not(.is-editing) {
+  cursor: text;
+}
+
+.seqno-code-editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.seqno-code-editor .cm-editor {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.seqno-code-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.seqno-code-editor .cm-scroller {
+  font: inherit;
+  line-height: inherit;
+}
+
+.seqno-code-editor .cm-content {
+  padding: var(--code-padding);
+  caret-color: var(--fg);
+}
+
+.seqno-code-editor .cm-line {
+  padding: 0 var(--space-1);
+}
+
+.seqno-code-editor .cm-cursor {
+  border-left-color: var(--fg);
+}
+
+.seqno-code-editor .cm-selectionBackground,
+.seqno-code-editor .cm-focused .cm-selectionBackground {
+  background: var(--bg-text-selection);
+}
+
+.seqno-code-editor .cm-gutters {
+  min-width: 31px;
+  border: 0;
+  background: var(--bg-code-gutter);
+  color: var(--fg-code-line-number);
+}
+
+.seqno-code-editor .cm-lineNumbers .cm-gutterElement {
+  min-width: 21px;
+  padding: 0 5px;
+}
+
+.seqno-code-editor .cm-activeLine,
+.seqno-code-editor .cm-activeLineGutter {
+  background: var(--bg-code-active-line);
+}

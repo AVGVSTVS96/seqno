@@ -683,6 +683,9 @@ const OutlineView = ({
             content={content}
             props={block.props}
             onMarker={(marker) => setTask(block, marker)}
+            onCode={(start, end, insert) =>
+              dispatch({ _tag: "EditText", blockId: block.id, from: start, to: end, insert })
+            }
           />
         )}
       </RowView>

@@ -1,6 +1,6 @@
 import type { Parser, SyntaxNodeRef, Tree } from "@lezer/common"
 import { parser as css } from "@lezer/css"
-import { highlightTree, tagHighlighter, tags } from "@lezer/highlight"
+import { highlightTree, tagHighlighter, tags, type Tag } from "@lezer/highlight"
 import { parser as html } from "@lezer/html"
 import { parser as javascript } from "@lezer/javascript"
 import { parser as python } from "@lezer/python"
@@ -89,7 +89,7 @@ const languages: ReadonlyMap<string, Language> = new Map([
   ["python", { parser: python, refine: plain }],
 ])
 
-const highlighter = tagHighlighter([
+const rules: ReadonlyArray<{ readonly tag: Tag | ReadonlyArray<Tag>; readonly class: string }> = [
   { tag: [tags.keyword, tags.modifier, tags.self], class: "keyword" },
   {
     tag: [tags.definition(tags.variableName), tags.function(tags.definition(tags.variableName))],
@@ -109,7 +109,16 @@ const highlighter = tagHighlighter([
   { tag: tags.comment, class: "comment" },
   { tag: tags.tagName, class: "tag" },
   { tag: tags.meta, class: "meta" },
-])
+]
+
+const highlighter = tagHighlighter(rules)
+
+export const editorHighlighter = tagHighlighter(
+  rules.map(({ tag, class: kind }) => ({ tag, class: kind === "" ? "" : `seqno-tok-${kind}` })),
+)
+
+export const parserFor = (language: string): Parser | undefined =>
+  languages.get(language.toLowerCase())?.parser
 
 const tokensOf = (code: string, kinds: ReadonlyArray<string>) => {
   const lines: Array<Array<Token>> = [[]]

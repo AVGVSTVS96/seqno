@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test"
+import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, test } from "../src/test.ts"
@@ -72,4 +73,19 @@ test("resting on a page ref previews the page, and leaving closes it", async ({ 
   )
   await page.mouse.move(1200, 860)
   await expect(preview).toHaveCount(0, { timeout: 3000 })
+})
+
+test("clicking into a code block edits the code in place", async ({ page }) => {
+  await openShowcase(page, "/page/showcase")
+  await scrollToText(page, "def water", 120)
+  const block = page.locator(".seqno-codeblock").filter({ hasText: "def water" })
+  const before = await block.boundingBox()
+  await block.getByText("for bed in beds:").click()
+  await expect(block.locator(".cm-editor")).toBeVisible()
+  expect((await block.boundingBox())?.height).toBe(before?.height)
+  await page.keyboard.press("End")
+  await page.keyboard.type("  # every bed")
+  await page.keyboard.press("Escape")
+  await expect(block.locator(".cm-editor")).toHaveCount(0)
+  await expect(block).toContainText("for bed in beds:  # every bed")
 })

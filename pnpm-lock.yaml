@@ -169,6 +169,18 @@ importers:
 
   features/outliner:
     dependencies:
+      '@codemirror/commands':
+        specifier: 6.11.1
+        version: 6.11.1
+      '@codemirror/language':
+        specifier: 6.12.4
+        version: 6.12.4
+      '@codemirror/state':
+        specifier: 6.7.6
+        version: 6.7.6
+      '@codemirror/view':
+        specifier: 6.43.13
+        version: 6.43.13
       '@effect/atom-react':
         specifier: 4.0.1
         version: 4.0.1(effect@4.0.1)(react@19.3.0)(scheduler@0.27.0)

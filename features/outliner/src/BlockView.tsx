@@ -37,7 +37,9 @@ const Heading = ({
   )
 }
 
-const BodyView = ({ body }: { readonly body: Body }) =>
+type CodeChange = (from: number, to: number, insert: string) => void
+
+const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: CodeChange }) =>
   Match.valueTags(body, {
     Paragraph: ({ inline }) => (
       <div className="seqno-line">
@@ -49,7 +51,15 @@ const BodyView = ({ body }: { readonly body: Body }) =>
         <Inlines nodes={inline} />
       </Heading>
     ),
-    Code: ({ language, code }) => <CodeBlock language={language} code={code} />,
+    Code: ({ language, code, codeFrom }) => (
+      <CodeBlock
+        language={language}
+        code={code}
+        {...(onCode === undefined
+          ? {}
+          : { onEdit: (next: string) => onCode(codeFrom, codeFrom + code.length, next) })}
+      />
+    ),
     Quote: ({ lines }) => (
       <blockquote className="seqno-quote">
         {lines.map((line, index) => (
@@ -173,10 +183,12 @@ export const BlockView = ({
   content,
   props,
   onMarker,
+  onCode,
 }: {
   readonly content: BlockContent
   readonly props: Props
   readonly onMarker: (marker: Marker | null) => void
+  readonly onCode?: CodeChange
 }) => {
   const renderer = use(RenderContext)
   const [drawer, setDrawer] = useState(false)
@@ -249,7 +261,7 @@ export const BlockView = ({
         </div>
       )}
       {content.body.map((body) => (
-        <BodyView key={body.span.from} body={body} />
+        <BodyView key={body.span.from} body={body} {...(onCode === undefined ? {} : { onCode })} />
       ))}
     </div>
   )

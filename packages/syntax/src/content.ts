@@ -14,6 +14,7 @@ export type Body =
       readonly _tag: "Code"
       readonly language: string
       readonly code: string
+      readonly codeFrom: number
       readonly span: Span
     }
   | {
@@ -202,6 +203,7 @@ export const blockContent = (text: string): BlockContent => {
                 ? (/BEGIN_SRC[ \t]+(\S+)/i.exec(line.text)?.[1] ?? "")
                 : "",
           code: inner.map((entry) => entry.text).join("\n"),
+          codeFrom: inner[0]?.from ?? line.from + line.text.length + 1,
           span,
         })
       }
