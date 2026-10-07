@@ -246,7 +246,7 @@ test("the header menu exports the page as markdown and opens Settings", async ({
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Export page" }).click()
   const text = page.getByRole("dialog", { name: "Export" }).getByRole("textbox")
-  await expect(text).toHaveValue(/^plot:: 14B\nalias:: Allotment\n\n- Beds run north/)
+  await expect(text).toHaveValue(/^alias:: Allotment\nplot:: 14B\n\n- Beds run north/)
   await expect(text).toHaveValue(/\n\t- Garlic along the fence/)
   await page.keyboard.press("Escape")
   await page.getByRole("button", { name: "More" }).click()
