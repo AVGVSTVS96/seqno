@@ -75,7 +75,11 @@ export const scrollToText = async (
   }
   if (tries === 0) throw new Error(`no block with "${text}" after scrolling`)
   const tree = await page.getByRole("tree").first().boundingBox()
-  await page.mouse.move((tree?.x ?? 720) + 200, (tree?.y ?? 450) + 200)
+  const height = page.viewportSize()?.height ?? 900
+  await page.mouse.move(
+    (tree?.x ?? 720) + 200,
+    Math.min(Math.max(tree?.y ?? 0, 0) + 200, height - 100),
+  )
   await page.mouse.wheel(0, 600)
   await page.waitForFunction(() => new Promise((resolve) => requestAnimationFrame(resolve)))
   return scrollToText(page, text, offset, tries - 1)

@@ -81,3 +81,6 @@ description:: One page that draws every element seqno renders.
 	  :LOGBOOK:
 	  CLOCK: [2026-10-04 Sun 09:12:30]--[2026-10-04 Sun 10:47:05] =>  01:34:35
 	  :END:
+- ## Queries
+	- {{query (task NOW DOING)}}
+	- {{query (and (task TODO) (priority A))}}

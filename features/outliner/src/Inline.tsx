@@ -165,6 +165,8 @@ const Macro = ({
   const renderer = use(RenderContext)
   const [target] = name === "embed" ? parseInline(args.trim()) : []
   const Embed = renderer.Embed
+  const Query = renderer.Query
+  if (renderer.depth < maxDepth && name === "query") return <Query query={args.trim()} />
   if (renderer.depth < maxDepth && target?._tag === "BlockRef" && isBlockId(target.uuid)) {
     return <Embed target={{ _tag: "Block", blockId: target.uuid }} />
   }

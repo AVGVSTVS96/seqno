@@ -32,6 +32,7 @@ import { historyFocus, historyStep, type Editing, type HistoryStep } from "./his
 import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
+import { QueryView } from "./Query.tsx"
 import {
   clickOnEnter,
   contentOf,
@@ -658,6 +659,7 @@ const OutlineView = ({
     depth: parent.depth + (embedded ? 1 : 0),
     localBlock: (blockId) => tree.blocks.find((block) => block.id === blockId),
     Embed: EmbedView,
+    Query: QueryView,
     editor: Editor,
     resolveAsset: resolveAsset ?? parent.resolveAsset,
     openMenu: onBlockMenu ?? parent.openMenu,
