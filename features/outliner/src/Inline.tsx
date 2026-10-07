@@ -1,13 +1,22 @@
-import { use, type ReactNode } from "react"
+import { use, useRef, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { useAtomValue } from "@effect/atom-react"
 import { Match, Schema } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { IconPhoto } from "@tabler/icons-react"
+import { IconCopy, IconMaximize, IconPhoto, IconTrash } from "@tabler/icons-react"
 import { BlockId, type Block } from "@seqno/domain"
 import { parseInline, plainText, type Inline, type LinkTarget } from "@seqno/syntax"
 import { blockAtom, pageTreeAtom } from "./core.ts"
 import { usePreview } from "./Preview.tsx"
-import { clickOnEnter, contentOf, follow, maxDepth, RenderContext, toPage } from "./render.ts"
+import {
+  BlockSource,
+  clickOnEnter,
+  contentOf,
+  follow,
+  maxDepth,
+  RenderContext,
+  toPage,
+} from "./render.ts"
 
 const isBlockId = Schema.is(BlockId)
 const safeUrl = /^(?:https?|mailto|ftp):/i
@@ -140,16 +149,115 @@ const Link = ({
     ),
   })
 
-const Image = ({ url, alt }: { readonly url: string; readonly alt: string }) => {
+const copyImage = async (image: HTMLImageElement) => {
+  const canvas = document.createElement("canvas")
+  canvas.width = image.naturalWidth || image.width
+  canvas.height = image.naturalHeight || image.height
+  canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height)
+  const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"))
+  if (png !== null) await navigator.clipboard.write([new ClipboardItem({ "image/png": png })])
+}
+
+const ImageViewer = ({
+  source,
+  alt,
+  onClose,
+}: {
+  readonly source: string
+  readonly alt: string
+  readonly onClose: () => void
+}) =>
+  createPortal(
+    <dialog
+      className="seqno-image-viewer"
+      aria-label={alt === "" ? "Image" : alt}
+      ref={(dialog) => {
+        if (dialog !== null && !dialog.open) dialog.showModal()
+      }}
+      onClose={onClose}
+      onClick={(event) => event.currentTarget.close()}
+    >
+      <img src={source} alt={alt} />
+    </dialog>,
+    document.body,
+  )
+
+const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Image" }> }) => {
   const renderer = use(RenderContext)
+  const edit = use(BlockSource)
+  const [full, setFull] = useState(false)
+  const picture = useRef<HTMLImageElement>(null)
+  const { url, alt, span, size, width } = node
   const source = renderer.resolveAsset(url) ?? (absoluteUrl.test(url) ? url : undefined)
-  return source === undefined ? (
-    <span className="seqno-image is-missing" title={url}>
-      <IconPhoto size={16} stroke={1.5} aria-hidden />
-      {alt === "" ? url : alt}
+  if (source === undefined) {
+    return (
+      <span className="seqno-image is-missing" title={url}>
+        <IconPhoto size={16} stroke={1.5} aria-hidden />
+        {alt === "" ? url : alt}
+      </span>
+    )
+  }
+  const keepWidth = (frame: HTMLElement) => {
+    const before = frame.offsetWidth
+    window.addEventListener(
+      "pointerup",
+      () => {
+        const after = Math.round(frame.offsetWidth)
+        if (edit === null || after === before) return
+        const suffix = `{:width ${after}}`
+        if (size === null) edit(span.to, span.to, suffix)
+        else edit(size.from, size.to, suffix)
+      },
+      { once: true },
+    )
+  }
+  return (
+    <span
+      className="seqno-image-frame"
+      style={width === null ? undefined : { width }}
+      onPointerDown={(event) => keepWidth(event.currentTarget)}
+    >
+      <img
+        ref={picture}
+        className="seqno-image"
+        src={source}
+        alt={alt}
+        loading="lazy"
+        draggable={false}
+      />
+      <span className="seqno-image-overlay" aria-hidden />
+      <span className="seqno-image-actions" onClick={stop} onPointerDown={stop}>
+        {edit === null ? null : (
+          <button
+            type="button"
+            title="Delete image"
+            aria-label="Delete image"
+            onClick={() => edit(span.from, span.to, "")}
+          >
+            <IconTrash size={18} stroke={2} aria-hidden />
+          </button>
+        )}
+        <button
+          type="button"
+          title="Copy image"
+          aria-label="Copy image"
+          onClick={() => {
+            if (picture.current !== null) void copyImage(picture.current).catch(() => undefined)
+          }}
+        >
+          <IconCopy size={18} stroke={2} aria-hidden />
+        </button>
+        <button
+          type="button"
+          title="Maximize image"
+          aria-label="Maximize image"
+          onClick={() => setFull(true)}
+        >
+          <IconMaximize size={18} stroke={2} aria-hidden />
+        </button>
+      </span>
+      {full ? <ImageViewer source={source} alt={alt} onClose={() => setFull(false)} /> : null}
     </span>
-  ) : (
-    <img className="seqno-image" src={source} alt={alt} loading="lazy" draggable={false} />
   )
 }
 
@@ -247,6 +355,6 @@ const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
       </mark>
     ),
     Link: ({ target, label }) => <Link target={target} label={label} />,
-    Image: ({ url, alt }) => <Image url={url} alt={alt} />,
+    Image: (image) => <Image node={image} />,
   })
 }

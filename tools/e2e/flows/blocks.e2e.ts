@@ -138,3 +138,35 @@ test("a block's reference count opens the blocks that reference it, open when zo
     rowWith(page, "Water in the morning").getByRole("region", { name: "Block references" }).first(),
   ).toBeVisible()
 })
+
+test("hovering an image shows its actions, and the corner resizes it for good", async ({
+  page,
+}) => {
+  await openShowcase(page, "/page/showcase")
+  await scrollToText(page, "Plant the tree", 400)
+  const frame = page.getByRole("main").locator(".seqno-image-frame").first()
+  await frame.hover()
+  await page.getByRole("button", { name: "Maximize image" }).click()
+  const viewer = page.getByRole("dialog", { name: "Greenhouse sketch" })
+  await expect(viewer).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(viewer).toHaveCount(0)
+  const box = await frame.boundingBox()
+  const corner = {
+    x: (box?.x ?? 0) + (box?.width ?? 0) - 3,
+    y: (box?.y ?? 0) + (box?.height ?? 0) - 3,
+  }
+  await page.mouse.move(corner.x, corner.y)
+  await page.mouse.down()
+  await page.mouse.move(corner.x - 100, corner.y, { steps: 5 })
+  await page.mouse.up()
+  await expect(frame).toHaveCSS("width", "380px")
+  const row = page
+    .getByRole("main")
+    .getByRole("treeitem")
+    .filter({ has: page.locator(".seqno-image-frame") })
+    .first()
+  await row.locator(".seqno-image-frame").hover()
+  await row.getByRole("button", { name: "Delete image" }).click()
+  await expect(page.getByRole("main").locator(".seqno-image-frame")).toHaveCount(0)
+})

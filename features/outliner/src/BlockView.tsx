@@ -12,7 +12,7 @@ import {
 } from "@seqno/syntax"
 import { CodeBlock } from "./CodeBlock.tsx"
 import { Inlines } from "./Inline.tsx"
-import { clickOnEnter, RenderContext, toPage } from "./render.ts"
+import { BlockSource, clickOnEnter, RenderContext, toPage } from "./render.ts"
 import { isCanceled, switchable, taskState } from "./tasks.ts"
 
 const stop = (event: MouseEvent) => event.stopPropagation()
@@ -201,68 +201,74 @@ export const BlockView = ({
     properties.length === 0 &&
     content.planning.length === 0
   return (
-    <div className="seqno-block">
-      {content.title === null && !clocked && !empty ? null : (
-        <div className="seqno-title-row">
-          {content.title === null ? (
-            <div className="seqno-title" />
-          ) : (
-            <Title
-              content={content}
-              title={content.title}
-              background={backgroundOf(props)}
-              onMarker={onMarker}
-            />
-          )}
-          {clocked ? (
-            <a
-              role="link"
-              tabIndex={0}
-              onKeyDown={clickOnEnter}
-              className="seqno-clock"
-              aria-expanded={drawer}
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                setDrawer(!drawer)
-              }}
-            >
-              {clockTotal(logbook.seconds)}
-            </a>
-          ) : null}
-        </div>
-      )}
-      {drawer && logbook !== null ? <Logbook entries={logbook.entries} /> : null}
-      {content.planning.map((entry) => (
-        <div key={entry.span.from} className="seqno-planning">
-          <span className="seqno-planning-label">{entry.kind}: </span>
-          <span className="seqno-planning-date">&lt;{entry.date}&gt;</span>
-        </div>
-      ))}
-      {properties.length === 0 ? null : (
-        <div className="seqno-attrs">
-          {properties.map((property) => (
-            <div key={property.key} className="seqno-attr">
+    <BlockSource value={onCode ?? null}>
+      <div className="seqno-block">
+        {content.title === null && !clocked && !empty ? null : (
+          <div className="seqno-title-row">
+            {content.title === null ? (
+              <div className="seqno-title" />
+            ) : (
+              <Title
+                content={content}
+                title={content.title}
+                background={backgroundOf(props)}
+                onMarker={onMarker}
+              />
+            )}
+            {clocked ? (
               <a
                 role="link"
                 tabIndex={0}
                 onKeyDown={clickOnEnter}
-                className="seqno-attr-key"
-                onClick={toPage(renderer.navigate, property.key)}
+                className="seqno-clock"
+                aria-expanded={drawer}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setDrawer(!drawer)
+                }}
               >
-                {property.key}
+                {clockTotal(logbook.seconds)}
               </a>
-              <span className="seqno-attr-colon">:</span>
-              <span className="seqno-attr-value">
-                <Inlines nodes={property.value} />
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      {content.body.map((body) => (
-        <BodyView key={body.span.from} body={body} {...(onCode === undefined ? {} : { onCode })} />
-      ))}
-    </div>
+            ) : null}
+          </div>
+        )}
+        {drawer && logbook !== null ? <Logbook entries={logbook.entries} /> : null}
+        {content.planning.map((entry) => (
+          <div key={entry.span.from} className="seqno-planning">
+            <span className="seqno-planning-label">{entry.kind}: </span>
+            <span className="seqno-planning-date">&lt;{entry.date}&gt;</span>
+          </div>
+        ))}
+        {properties.length === 0 ? null : (
+          <div className="seqno-attrs">
+            {properties.map((property) => (
+              <div key={property.key} className="seqno-attr">
+                <a
+                  role="link"
+                  tabIndex={0}
+                  onKeyDown={clickOnEnter}
+                  className="seqno-attr-key"
+                  onClick={toPage(renderer.navigate, property.key)}
+                >
+                  {property.key}
+                </a>
+                <span className="seqno-attr-colon">:</span>
+                <span className="seqno-attr-value">
+                  <Inlines nodes={property.value} />
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {content.body.map((body) => (
+          <BodyView
+            key={body.span.from}
+            body={body}
+            {...(onCode === undefined ? {} : { onCode })}
+          />
+        ))}
+      </div>
+    </BlockSource>
   )
 }

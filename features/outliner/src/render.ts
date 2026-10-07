@@ -31,6 +31,10 @@ export const RenderContext = createContext<Renderer>({
   resolveAsset: () => undefined,
 })
 
+export type SourceEdit = (from: number, to: number, insert: string) => void
+
+export const BlockSource = createContext<SourceEdit | null>(null)
+
 export const maxDepth = 3
 
 export interface Activation {
