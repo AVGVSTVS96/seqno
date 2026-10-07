@@ -835,6 +835,11 @@
   cursor: default;
 }
 
+.seqno-query-groups {
+  display: flex;
+  flex-direction: column;
+}
+
 .seqno-query-group {
   margin: var(--space-2) 0;
   padding: var(--space-2);
@@ -1062,7 +1067,7 @@
 }
 
 .seqno-add-last {
-  margin-top: 1px;
+  margin: 1px 0 calc(-1px - var(--block-row-height));
   border-radius: var(--radius-sm);
   opacity: 0;
 }

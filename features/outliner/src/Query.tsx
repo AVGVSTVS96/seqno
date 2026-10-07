@@ -10,7 +10,7 @@ import {
 import { Cause } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { Block, Page, PageId } from "@seqno/domain"
-import type { PageTree, QueryResult } from "@seqno/rpc"
+import type { QueryResult } from "@seqno/rpc"
 import { plainText } from "@seqno/syntax"
 import { pageTreeAtom, queryAtom } from "./core.ts"
 import { Inlines } from "./Inline.tsx"
@@ -104,8 +104,7 @@ const PageName = ({ page }: { readonly page: Pick<Page, "name" | "title"> }) => 
   )
 }
 
-const trailOf = (tree: PageTree, block: Block): ReadonlyArray<Block> => {
-  const byId = new Map(tree.blocks.map((found) => [found.id, found]))
+const trailOf = (byId: ReadonlyMap<string, Block>, block: Block): ReadonlyArray<Block> => {
   const trail: Array<Block> = []
   let parent = block.parentId === null ? undefined : byId.get(block.parentId)
   while (parent !== undefined) {
@@ -156,9 +155,10 @@ const PageGroup = ({
   const tree = AsyncResult.getOrElse(useAtomValue(pageTreeAtom(pageId)), () => null)
   if (tree === null) return null
   const chosen = new Set(blocks.map((block) => block.id))
+  const byId = new Map(tree.blocks.map((found) => [found.id, found]))
   const siblings = new Map<string, { trail: ReadonlyArray<Block>; blocks: Array<Block> }>()
   for (const block of blocks) {
-    const trail = trailOf(tree, block)
+    const trail = trailOf(byId, block)
     if (trail.some((parent) => chosen.has(parent.id))) continue
     const key = block.parentId ?? ""
     const group = siblings.get(key) ?? { trail, blocks: [] }
