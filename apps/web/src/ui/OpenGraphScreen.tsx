@@ -2,8 +2,8 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { IconDots } from "@tabler/icons-react"
 import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
-import { forgetGraph, graphsOpenedAt, openGraph, recentGraphs } from "../atoms.ts"
-import { graphTitle, type GraphLocation } from "../graph-locations.ts"
+import { attemptedGraph, forgetGraph, graphsOpenedAt, openGraph, recentGraphs } from "../atoms.ts"
+import { demoGraph, graphTitle, type GraphLocation } from "../graph-locations.ts"
 import { Menu, MenuItem, usePopover } from "./shell/popover.tsx"
 
 const openedOn = (at: number) =>
@@ -113,6 +113,48 @@ export const AllGraphs = ({ problem }: { readonly problem: string | null }) => {
         </p>
       )}
       <RecentGraphs disabled={opening} />
+    </div>
+  )
+}
+
+export const OpenFailed = ({ problem }: { readonly problem: string }) => {
+  const attempted = useAtomValue(attemptedGraph)
+  const open = useAtomSet(openGraph)
+  const opening = AsyncResult.isWaiting(useAtomValue(openGraph))
+  return (
+    <div className="seqno-all-graphs">
+      <div className="welcome-main">
+        <title>Graphs</title>
+        <h1 className="welcome-title">
+          {attempted === null ? "The graph" : graphTitle(attempted)} could not be opened
+        </h1>
+        <p className="welcome-problem" role="alert">
+          {problem}
+        </p>
+        <div className="welcome-actions">
+          {attempted === null ? null : (
+            <button
+              type="button"
+              className="button-primary"
+              disabled={opening}
+              onClick={() => open({ _tag: "Recent", name: attempted })}
+            >
+              Retry
+            </button>
+          )}
+          {attempted === demoGraph ? null : (
+            <button
+              type="button"
+              className="button-secondary"
+              disabled={opening}
+              onClick={() => open({ _tag: "Demo" })}
+            >
+              Open the demo graph
+            </button>
+          )}
+        </div>
+        <RecentGraphs disabled={opening} />
+      </div>
     </div>
   )
 }

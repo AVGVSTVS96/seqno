@@ -62,6 +62,8 @@ export const forgetGraph = appRuntime.fn((name: string, get) =>
 
 export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)
 
+export const attemptedGraph = Atom.make<string | null>(null).pipe(Atom.keepAlive)
+
 export const openGraph = appRuntime
   .fn((source: GraphSource, get) =>
     Effect.gen(function* () {
@@ -74,6 +76,7 @@ export const openGraph = appRuntime
       })
       const core = yield* CoreClient
       const graph = location.name
+      get.set(attemptedGraph, graph)
       const opened = yield* core.OpenGraph({ graph }).pipe(
         Effect.catchTag("GraphLocked", () =>
           Effect.suspend(() => {
