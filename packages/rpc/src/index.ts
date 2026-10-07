@@ -34,6 +34,7 @@ export {
   Search,
   SearchHits,
   WatchBlockRefCounts,
+  WatchBlockReferences,
   WatchPage,
   WatchQuery,
 } from "./rpcs.ts"

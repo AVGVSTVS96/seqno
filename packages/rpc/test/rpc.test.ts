@@ -110,6 +110,7 @@ const InMemoryCore = CoreRpcs.toLayer(
       WatchQuery: () => Stream.empty,
       Search: () => whenOpen(Effect.succeed({ pages: [], blocks: [] })),
       WatchBlockRefCounts: () => Stream.empty,
+      WatchBlockReferences: () => Stream.empty,
     })
   }),
 )

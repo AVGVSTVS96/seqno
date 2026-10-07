@@ -141,6 +141,15 @@ const blockRefCountsOf = (db: Statements): Readonly<Record<string, number>> => {
   return counts
 }
 
+const BLOCK_REFERENCES = `
+SELECT b.id, p.id, b.content FROM blocks b
+JOIN pages p ON p.rid = b.page
+WHERE instr(lower(b.content), ?1) > 0
+${REFERENCE_ORDER}`
+
+const blockReferencesOf = (db: Statements, blockId: string) =>
+  blockHits(db.all(BLOCK_REFERENCES, [`((${blockId.toLowerCase()}))`]))
+
 const phrase = (text: string) => `"${text.replaceAll('"', '""')}"`
 
 const anyPhrase = (names: ReadonlyArray<string>): string | null => {
@@ -304,6 +313,12 @@ const make = Effect.gen(function* () {
     blockRefCounts: sqlite.use(blockRefCountsOf),
 
     watchBlockRefCounts: watching(BLOCK_REF_READS, sqlite.use(blockRefCountsOf)),
+
+    watchBlockReferences: (blockId: string): Stream.Stream<ReadonlyArray<BlockHit>, IndexError> =>
+      watching(
+        [...BLOCK_REF_READS, "move"],
+        sqlite.use((db) => blockReferencesOf(db, blockId)),
+      ).pipe(Stream.changesWith(sameBlocks)),
 
     search: (text: string, limit = 20): Effect.Effect<SearchResult, IndexError> =>
       sqlite.use((db) => {

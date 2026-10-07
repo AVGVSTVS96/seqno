@@ -100,6 +100,7 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
         WatchQuery: () => Stream.empty,
         Search: () => Effect.succeed({ pages: [], blocks: [] }),
         WatchBlockRefCounts: () => Stream.empty,
+        WatchBlockReferences: () => Stream.empty,
         Dispatch: ({ command }) => {
           commands.push(command)
           return SubscriptionRef.modify(state, (tree) =>

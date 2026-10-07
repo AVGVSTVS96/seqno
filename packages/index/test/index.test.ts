@@ -268,6 +268,23 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     ),
   )
 
+  it.live("lists the blocks that reference a block, live", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        const target = blockId(1).toUpperCase()
+        yield* index.apply(graph, "v1")
+        const updates = yield* Stream.toQueue(index.watchBlockReferences(target), {
+          capacity: "unbounded",
+        })
+        assert.deepStrictEqual(yield* Queue.take(updates), [])
+        yield* index.apply([upsertBlock(blockId(9), journal, `see ((${blockId(1)}))`)], "v2")
+        assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9)])
+        yield* index.apply([upsertBlock(blockId(10), notes, `{{embed ((${target}))}}`)], "v3")
+        assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9), blockId(10)])
+      }).pipe(Effect.scoped),
+    ),
+  )
+
   it.live("live backlinks wake for the page's own refs and aliases, not for other edits", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {

@@ -90,6 +90,13 @@ export const WatchBlockRefCounts = Rpc.make("WatchBlockRefCounts", {
   stream: true,
 })
 
+export const WatchBlockReferences = Rpc.make("WatchBlockReferences", {
+  payload: { uuid: Schema.String },
+  success: Schema.Array(Block),
+  error: GraphNotOpen,
+  stream: true,
+})
+
 export const CoreRpcs = RpcGroup.make(
   OpenGraph,
   Dispatch,
@@ -100,4 +107,5 @@ export const CoreRpcs = RpcGroup.make(
   WatchQuery,
   Search,
   WatchBlockRefCounts,
+  WatchBlockReferences,
 )

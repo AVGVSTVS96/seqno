@@ -261,6 +261,18 @@ const CoreHandlers = CoreRpcs.toLayer(
       WatchQuery: ({ query }) => following((session) => Stream.unwrap(watchQuery(session, query))),
       WatchBlockRefCounts: () =>
         following((session) => Stream.orDie(session.index.watchBlockRefCounts)),
+      WatchBlockReferences: ({ uuid }) =>
+        following((session) =>
+          session.index.watchBlockReferences(uuid).pipe(
+            Stream.orDie,
+            Stream.mapEffect((hits) =>
+              blocksOf(
+                session,
+                hits.map((hit) => hit.blockId),
+              ),
+            ),
+          ),
+        ),
       Search: ({ text }) =>
         Effect.gen(function* () {
           const session = yield* current
