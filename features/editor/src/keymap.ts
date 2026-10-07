@@ -73,6 +73,7 @@ export const blockKeymap = (
   const merge = (view: EditorView): boolean => {
     if (caret(view) !== 0) return false
     handoff.carry({ _tag: "Merged", tail: textOf(view.state.doc.toString()) })
+    if (handoff.replaying()) handoff.hold(view)
     host.dispatch({ _tag: "MergeWithPrevious", blockId })
     return true
   }

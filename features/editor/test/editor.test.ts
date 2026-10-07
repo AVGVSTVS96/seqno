@@ -403,6 +403,20 @@ describe("keys typed while the next block is on its way", () => {
     }),
   )
 
+  it("keeps keys typed after a replayed Backspace for the block it merges into", () => {
+    const within = session()
+    const first = mount("first", { _tag: "End" }, { within })
+    press(first.view, "Enter")
+    for (const key of ["Backspace", "X", "Y", "Z"]) keyOnWindow(key)
+    const fresh = mount("", { _tag: "Start" }, { within, block: blockOf("", otherBlockId) })
+    assert.deepStrictEqual(within.commands.at(-1), {
+      _tag: "MergeWithPrevious",
+      blockId: otherBlockId,
+    })
+    const merged = mount("first", { _tag: "End" }, { within })
+    assert.deepStrictEqual([text(fresh.view), text(merged.view)], ["", "firstXYZ"])
+  })
+
   it("lets go of the keys when the pointer goes elsewhere", () => {
     const within = session()
     const { view } = mount("one", { _tag: "End" }, { within })

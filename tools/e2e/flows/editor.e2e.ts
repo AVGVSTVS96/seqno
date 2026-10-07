@@ -38,6 +38,13 @@ test("a burst of Enter, text and Tab builds the outline in order", async ({ page
   await expect(seqno.today.getByRole("treeitem", { level: 2 })).toHaveText(["cde"])
 })
 
+test("Enter, Backspace and typing at machine speed lose no keys", async ({ page, seqno }) => {
+  for (const key of ["Enter", "Backspace", "X", "Y", "Z"]) await page.keyboard.press(key)
+  await expect(seqno.editor).toHaveText(`${welcome}XYZ`)
+  await page.keyboard.press("Escape")
+  await expect(seqno.today.getByRole("treeitem")).toHaveText([`${welcome}XYZ`, second])
+})
+
 test("ArrowDown keeps the caret's horizontal position", async ({ page, seqno }) => {
   await page.keyboard.press("Home")
   for (let step = 0; step < "Welcome to".length; step++) await page.keyboard.press("ArrowRight")

@@ -15,12 +15,14 @@ export interface Handoff {
   readonly carry: (arrival: Arrival) => void
   readonly take: () => Arrival | null
   readonly arrive: (view: EditorView) => void
+  readonly replaying: () => boolean
 }
 
 export const createHandoff = (): Handoff => {
   let held: Array<Keystroke> | null = null
   let holder: EditorView | null = null
   let carried: Arrival | null = null
+  let delivering = false
 
   const capture = (event: KeyboardEvent) => {
     const stroke = keystrokeOf(event)
@@ -41,12 +43,17 @@ export const createHandoff = (): Handoff => {
 
   const deliver = (view: EditorView) => {
     const keys = release()
-    for (const [index, stroke] of keys.entries()) {
-      press(view, stroke)
-      if (held !== null) {
-        held.unshift(...keys.slice(index + 1))
-        return
+    delivering = true
+    try {
+      for (const [index, stroke] of keys.entries()) {
+        press(view, stroke)
+        if (held !== null) {
+          held.unshift(...keys.slice(index + 1))
+          return
+        }
       }
+    } finally {
+      delivering = false
     }
   }
 
@@ -78,5 +85,6 @@ export const createHandoff = (): Handoff => {
     arrive: (view) => {
       if (held !== null) deliver(view)
     },
+    replaying: () => delivering,
   }
 }
