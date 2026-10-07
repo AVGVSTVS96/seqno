@@ -268,9 +268,9 @@ describe("blocks", () => {
         const [a, b, b2] = [nth(ids, 0), nth(ids, 2), nth(ids, 4)]
         const merged = yield* graph.dispatch({ _tag: "MergeWithPrevious", blockId: b })
         assert.deepStrictEqual(tags(merged), [
-          "BlockMoved",
-          "BlockMoved",
           "BlockUpserted",
+          "BlockMoved",
+          "BlockMoved",
           "BlockDeleted",
         ])
         assert.deepStrictEqual(outline(yield* graph.page(pageId)), [

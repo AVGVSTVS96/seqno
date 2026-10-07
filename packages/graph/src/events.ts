@@ -85,17 +85,24 @@ export const translate = (
       }),
     )
 
-  for (const [id, change] of changed) {
+  const sent = new Set<TreeID>()
+  const send = (id: TreeID): void => {
+    if (sent.has(id)) return
+    sent.add(id)
     const node = tree.getNodeByID(id)
-    if (node === undefined || tree.isNodeDeleted(id)) continue
-    if (node.parent() === undefined) {
+    if (node === undefined || tree.isNodeDeleted(id)) return
+    const parent = node.parent()
+    if (parent !== undefined) send(parent.id)
+    const change = changed.get(id)
+    if (change === undefined) return
+    if (parent === undefined) {
       Option.map(readPage(node), (page) => {
         registry.pages.set(page.id, id)
         events.push({ _tag: "PageUpserted", page })
       })
-      continue
+      return
     }
-    Option.map(placementUnder(node.parent()?.id ?? id), (at) => {
+    Option.map(placementUnder(parent.id), (at) => {
       Option.map(readBlock(node, at), ({ block, createdAt, updatedAt }) => {
         registry.blocks.set(block.id, id)
         if (change.upserted) events.push({ _tag: "BlockUpserted", block, createdAt, updatedAt })
@@ -107,6 +114,7 @@ export const translate = (
       })
     })
   }
+  changed.forEach((_, id) => send(id))
 
   for (const id of new Set(deleted)) {
     const node = tree.getNodeByID(id)

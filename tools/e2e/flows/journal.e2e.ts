@@ -54,3 +54,26 @@ test("Enter splits a block and Tab indents the new one", async ({ page, seqno })
     "Open Getting started to see how pages link",
   ])
 })
+
+test("an older block nested under a new one survives a reload", async ({ page, seqno }) => {
+  await seqno.openDemoGraph()
+  await seqno.today.getByRole("treeitem").first().click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await page.keyboard.type("New parent")
+  await page.keyboard.press("Escape")
+  await seqno.today.getByRole("treeitem").getByText("Open Getting started").click()
+  await page.keyboard.press("Tab")
+  await expect(seqno.today.getByRole("treeitem", { level: 2 })).toHaveCount(1)
+  await page.keyboard.press("Escape")
+  await seqno.saved()
+  await page.reload()
+  await expect(seqno.today.getByRole("treeitem")).toHaveText([
+    "Welcome to the seqno demo graph",
+    "New parent",
+    "Open Getting started to see how pages link",
+  ])
+  await expect(seqno.today.getByRole("treeitem", { level: 2 })).toHaveText([
+    "Open Getting started to see how pages link",
+  ])
+})
