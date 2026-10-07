@@ -501,16 +501,16 @@ describe("events", () => {
   )
 })
 
-describe("undo steps", () => {
-  const typed = (blockId: BlockId, at: number, text: string): ReadonlyArray<Command> =>
-    [...text].map((char, offset) => ({
-      _tag: "EditText",
-      blockId,
-      from: at + offset,
-      to: at + offset,
-      insert: char,
-    }))
+const typed = (blockId: BlockId, at: number, text: string): ReadonlyArray<Command> =>
+  [...text].map((char, offset) => ({
+    _tag: "EditText",
+    blockId,
+    from: at + offset,
+    to: at + offset,
+    insert: char,
+  }))
 
+describe("undo steps", () => {
   it.effect("undoes typing, then each structural change, one step at a time", () =>
     withGraph((graph) =>
       Effect.gen(function* () {
