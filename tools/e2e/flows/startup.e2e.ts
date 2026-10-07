@@ -30,6 +30,7 @@ test("the app opens the last graph on every load and a reload keeps the route", 
 
 test("all graphs is a page in the shell, reached from the graph switcher", async ({ page }) => {
   await page.goto("/")
+  await page.getByRole("button", { name: "Toggle left sidebar" }).click()
   await page.getByRole("button", { name: "Demo" }).click()
   await page.getByRole("menuitem", { name: "All graphs" }).click()
   await expect(page).toHaveURL(/\/graphs$/)
