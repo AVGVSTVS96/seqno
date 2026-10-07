@@ -11,6 +11,7 @@ import { ExportDialog } from "./shell/Export.tsx"
 import { Header } from "./shell/Header.tsx"
 import { HelpButton } from "./shell/HelpButton.tsx"
 import { LeftSidebar } from "./shell/LeftSidebar.tsx"
+import { Notices } from "./shell/Notices.tsx"
 import { shellListeners } from "./shell/listeners.ts"
 import { RightSidebar } from "./shell/RightSidebar.tsx"
 import { Settings } from "./shell/Settings.tsx"
@@ -64,6 +65,7 @@ const Layout = ({
       <BlockMenu />
       <ExportDialog />
       <Settings />
+      <Notices />
     </div>
   )
 }

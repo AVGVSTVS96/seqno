@@ -35,6 +35,7 @@ export const EditorAction = Schema.TaggedUnion({
   ZoomIn: {},
   ZoomOut: {},
   Open: { target: LinkTarget, sidebar: Schema.Boolean },
+  Notify: { message: Schema.String },
 })
 export type EditorAction = typeof EditorAction.Type
 

@@ -14,6 +14,7 @@ import {
 import { blockAtom, pageTreeAtom, type EditorIntent, type EditorSlotProps } from "@seqno/outliner"
 import { pages } from "../atoms.ts"
 import { referencedOnly } from "./pages/atoms.ts"
+import { notify } from "./shell/Notices.tsx"
 import { useNavigateTo } from "./pages/navigation.ts"
 import { searchHits } from "./search/atoms.ts"
 import { blockHits } from "./search/model.ts"
@@ -116,6 +117,7 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
       ZoomIn: () => navigateTo({ _tag: "Zoom", pageId: block.pageId, blockId: block.id }),
       ZoomOut: zoomOut,
       Open: ({ target, sidebar }) => open(target, sidebar),
+      Notify: ({ message }) => notify(registry, message),
     }),
     searchPages: () =>
       AtomRegistry.getResult(registry, pages).pipe(
