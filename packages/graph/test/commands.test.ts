@@ -500,3 +500,64 @@ describe("events", () => {
     ),
   )
 })
+
+describe("undo steps", () => {
+  const typed = (blockId: BlockId, at: number, text: string): ReadonlyArray<Command> =>
+    [...text].map((char, offset) => ({
+      _tag: "EditText",
+      blockId,
+      from: at + offset,
+      to: at + offset,
+      insert: char,
+    }))
+
+  it.effect("undoes typing, then each structural change, one step at a time", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const pageId = createdPage(yield* graph.dispatch({ _tag: "CreatePage", title: "Probe" }))
+        const first = createdBlock(
+          yield* graph.dispatch({ _tag: "InsertBlock", pageId, parentId: null, text: "" }),
+        )
+        for (const step of typed(first, 0, "abc")) yield* graph.dispatch(step)
+        const split = yield* graph.dispatch({ _tag: "SplitBlock", blockId: first, at: 3 })
+        const second = nth(
+          split.flatMap((event) =>
+            event._tag === "BlockUpserted" && event.block.id !== first ? [event.block.id] : [],
+          ),
+          0,
+        )
+        for (const step of typed(second, 0, "def")) yield* graph.dispatch(step)
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["abc", "def"])
+
+        const afterEachUndo: Array<ReadonlyArray<string>> = []
+        for (let step = 0; step < 4; step++) {
+          yield* graph.dispatch({ _tag: "Undo" })
+          afterEachUndo.push(outline(yield* graph.page(pageId)))
+        }
+        assert.deepStrictEqual(afterEachUndo, [["abc", ""], ["abc"], [""], []])
+        yield* graph.dispatch({ _tag: "Undo" })
+        assert.deepStrictEqual(yield* graph.pages, [])
+
+        yield* graph.dispatch({ _tag: "Redo" })
+        yield* graph.dispatch({ _tag: "Redo" })
+        yield* graph.dispatch({ _tag: "Redo" })
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["abc"])
+      }),
+    ),
+  )
+
+  it.effect("keeps typing in one block apart from typing in the next", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const { pageId, ids } = yield* seedPage(graph, "Two", ["a", "b"])
+        const [a, b] = [nth(ids, 0), nth(ids, 1)]
+        for (const step of typed(a, 1, "xy")) yield* graph.dispatch(step)
+        for (const step of typed(b, 1, "zw")) yield* graph.dispatch(step)
+        yield* graph.dispatch({ _tag: "Undo" })
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["axy", "b"])
+        yield* graph.dispatch({ _tag: "Undo" })
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a", "b"])
+      }),
+    ),
+  )
+})

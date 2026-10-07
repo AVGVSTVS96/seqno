@@ -20,7 +20,6 @@ export const openGraph = (
       peer: PeerId.make(peer),
       snapshot: Option.fromUndefinedOr(files.snapshot),
       updates: files.updates ?? [],
-      undoMergeMs: 0,
     }).pipe(Layer.provide(WebCrypto)),
   ).pipe(Effect.map((context) => Context.get(context, Graph)))
 

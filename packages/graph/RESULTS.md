@@ -25,7 +25,7 @@ class Graph {
   version: Effect<ReadonlyMap<string, number>>
   loaded: Effect<void>
 }
-Graph.layer({ peer, snapshot: Option<Uint8Array>, updates, undoMergeMs? })
+Graph.layer({ peer, snapshot: Option<Uint8Array>, updates })
 ```
 
 `PageTree`, `CommandRejected`, `PageNotFound` and `BlockNotFound` come from `@seqno/rpc`, so the worker's `Dispatch`, `GetPage` and `GetBlock` handlers can pass results straight through.
@@ -81,7 +81,7 @@ There are 22 tests in `test/commands.test.ts` (every command, the rejections, un
 - **Merges can emit extra events.** Importing concurrent ops makes Loro re-emit some unchanged nodes. Those turn into idempotent `BlockUpserted` / `BlockMoved` events. Deletes are checked against the live tree, so a re-created node never shows up as deleted.
 - **Undoing a delete re-creates nodes** with the same `uuid` (Loro's `UndoManager` behavior). The registry follows the uuid, so ids stay stable. Edits another device made to the old node at the same time are lost.
 - **`MergeWithPrevious` drops the merged block's own properties**, as Logseq does.
-- **Undo merge window**: defaults to Loro's 1000 ms, so fast typing undoes as one step, and so does a structural command made within 1 s of typing. Tests use `undoMergeMs: 0`.
+- **Undo steps follow Logseq's**: back-to-back `EditText` and block `SetProperty` commands on one block form one undo step (a Loro undo group), and every other command is a step of its own, however fast they come. Merges from other devices close the open group.
 - **Page names can repeat across devices.** Two devices creating the same name concurrently get two pages. Dedupe belongs in sync/integration.
 - **Not measured here**: open time and memory at 50k blocks. The open path is the spike's measured one (import, page list, one page: about 390 ms), but there's no bench in this package yet.
 - **Shared file touched**: `pnpm-lock.yaml` at the root (the new package's deps).

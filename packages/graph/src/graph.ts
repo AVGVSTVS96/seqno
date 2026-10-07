@@ -51,7 +51,6 @@ export interface GraphSource {
   readonly peer: PeerId
   readonly snapshot: Option.Option<Uint8Array>
   readonly updates: ReadonlyArray<Uint8Array>
-  readonly undoMergeMs?: number
 }
 
 export interface LocalUpdate {
@@ -88,6 +87,13 @@ export class Graph extends Context.Service<
 
 const LOADED = "seqno:load"
 
+const typedBlock = (command: Command): BlockId | null =>
+  command._tag === "EditText"
+    ? command.blockId
+    : command._tag === "SetProperty" && command.target._tag === "BlockTarget"
+      ? command.target.blockId
+      : null
+
 const importAll = (doc: LoroDoc, files: ReadonlyArray<Uint8Array>) =>
   Effect.try({
     try: () => files.forEach((bytes) => doc.import(bytes)),
@@ -106,11 +112,21 @@ const make = (source: GraphSource) =>
       Option.map(pageIdOf(root), (id) => registry.pages.set(id, root.id))
     }
     const freshUndo = () =>
-      new UndoManager(doc, {
-        mergeInterval: source.undoMergeMs ?? 1000,
-        excludeOriginPrefixes: [LOADED],
-      })
+      new UndoManager(doc, { mergeInterval: 0, excludeOriginPrefixes: [LOADED] })
     let ws: Workspace = { tree, registry, undo: freshUndo() }
+    let typingIn: BlockId | null = null
+    const endTyping = () => {
+      if (typingIn !== null) ws.undo.groupEnd()
+      typingIn = null
+    }
+    const groupTyping = (command: Command) => {
+      const block = typedBlock(command)
+      if (block === typingIn) return
+      endTyping()
+      if (block === null) return
+      ws.undo.groupStart()
+      typingIn = block
+    }
     const batches: Array<LoroEventBatch> = []
     const unsubscribe = doc.subscribe((batch) => void batches.push(batch))
     yield* Effect.addFinalizer(() =>
@@ -222,7 +238,10 @@ const make = (source: GraphSource) =>
 
     const dispatch = (command: Command) =>
       serial(
-        Effect.suspend(() => applyCommand(ws, command)).pipe(
+        Effect.suspend(() => {
+          groupTyping(command)
+          return applyCommand(ws, command)
+        }).pipe(
           Effect.catchTag("Unresolved", () =>
             Effect.andThen(
               filled.await,
@@ -241,6 +260,7 @@ const make = (source: GraphSource) =>
     const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
 
     const restartUndo = () => {
+      endTyping()
       ws.undo.free()
       ws = { ...ws, undo: freshUndo() }
     }
@@ -250,6 +270,7 @@ const make = (source: GraphSource) =>
         Effect.suspend(() => {
           const before = ownCounter()
           const caughtUp = before === flushed
+          endTyping()
           return importAll(doc, updates).pipe(
             Effect.tap(() =>
               Effect.sync(() => {
