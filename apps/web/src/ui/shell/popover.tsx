@@ -266,14 +266,9 @@ export const useTooltip = (content: TooltipContent | undefined, placement: Place
 
 export const openDialog = (id: string) => {
   const dialog = document.getElementById(id)
-  if (dialog instanceof HTMLDialogElement && !dialog.open) dialog.showModal()
-}
-
-export const toggleDialog = (id: string) => {
-  const dialog = document.getElementById(id)
-  if (!(dialog instanceof HTMLDialogElement)) return
-  if (dialog.open) dialog.close()
-  else dialog.showModal()
+  if (!(dialog instanceof HTMLDialogElement) || dialog.open) return
+  dialog.showModal()
+  if (dialog.dataset["focusSelf"] !== undefined) dialog.focus()
 }
 
 export const closeDialogOf = (element: Element) => element.closest("dialog")?.close()
@@ -282,16 +277,19 @@ export const Dialog = ({
   id,
   label,
   className,
+  focusSelf = false,
   children,
 }: {
   readonly id: string
   readonly label: string
   readonly className?: string
+  readonly focusSelf?: boolean
   readonly children: ReactNode
 }) => (
   <dialog
     id={id}
     aria-label={label}
+    {...(focusSelf ? { tabIndex: -1, "data-focus-self": "" } : {})}
     className={className === undefined ? "dialog" : `dialog ${className}`}
     onClick={(event) => {
       if (event.target === event.currentTarget) event.currentTarget.close()

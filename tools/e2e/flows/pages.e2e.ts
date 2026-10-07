@@ -253,8 +253,31 @@ test("the header menu exports the page as markdown and opens Settings", async ({
   await page.getByRole("menuitem", { name: "Settings" }).click()
   const settings = page.getByRole("dialog", { name: "Settings" })
   await expect(settings.getByRole("radio", { name: "system" })).toBeVisible()
+  await expect(settings).toBeFocused()
   await settings.getByRole("tab", { name: "Keymap" }).click()
-  await expect(settings.getByText("Toggle left sidebar")).toBeVisible()
+  await expect(settings.getByText("Toggle the left sidebar")).toBeVisible()
+})
+
+test("g s opens the searchable keymap, and Help lists it in the right sidebar", async ({
+  page,
+}) => {
+  await openShowcaseAt(page, "/")
+  await page.getByRole("main").getByRole("tree").first().waitFor()
+  await page.keyboard.type("gs")
+  const settings = page.getByRole("dialog", { name: "Settings" })
+  await expect(settings.getByRole("tab", { name: "Keymap" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  )
+  await settings.getByRole("searchbox", { name: "Search shortcuts" }).fill("block up")
+  await expect(settings.getByRole("listitem")).toHaveText([/^Move block up/])
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await page.getByRole("button", { name: "Help" }).click()
+  await page.getByRole("menuitem", { name: "Keyboard shortcuts" }).click()
+  const sidebar = page.getByRole("complementary", { name: "Right sidebar" })
+  await expect(sidebar.getByRole("button", { name: "Keyboard shortcuts" })).toBeVisible()
+  await expect(sidebar.getByRole("region", { name: "Editing" })).toContainText("Bold")
 })
 
 test("page properties are edited as key:: value lines too", async ({ page }) => {

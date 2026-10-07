@@ -238,6 +238,7 @@ export const searchOpen = Atom.make(false).pipe(Atom.keepAlive)
 export const SidebarItem = Schema.TaggedUnion({
   Page: { name: Schema.String },
   Block: { blockId: BlockId },
+  Help: {},
 })
 export type SidebarItem = typeof SidebarItem.Type
 
@@ -258,6 +259,7 @@ export const sidebarItemKey = (item: SidebarItem) =>
   SidebarItem.match(item, {
     Page: ({ name }) => `page:${normalizePageName(name)}`,
     Block: ({ blockId }) => `block:${blockId}`,
+    Help: () => "help",
   })
 
 const without = (items: ReadonlyArray<SidebarItem>, item: SidebarItem) =>

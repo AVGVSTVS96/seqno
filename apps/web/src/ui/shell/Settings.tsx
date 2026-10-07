@@ -1,18 +1,16 @@
-import { useAtomValue } from "@effect/atom-react"
+import { useAtom, useAtomValue } from "@effect/atom-react"
 import { IconAdjustmentsHorizontal, IconKeyboard, IconX } from "@tabler/icons-react"
-import { useId, useState, type ReactNode } from "react"
+import { useId, type ReactNode } from "react"
 import { resolvedTheme } from "../../atoms.ts"
+import { revision } from "../../version.ts"
 import { ThemeChoices, themeLabelOf, WideModeSwitch } from "./Appearance.tsx"
-import { ShortcutGroups } from "./HelpButton.tsx"
 import { Keys } from "./Keys.tsx"
 import { closeDialogOf, Dialog } from "./popover.tsx"
+import { ShortcutList } from "./ShortcutList.tsx"
 import { keysOf } from "./shortcuts.ts"
+import { settingsDialogId, settingsTab, type SettingsTab } from "./state.ts"
 
-export const settingsDialogId = "seqno-settings"
-
-type Tab = "general" | "keymap"
-
-const tabs: ReadonlyArray<readonly [Tab, string, ReactNode]> = [
+const tabs: ReadonlyArray<readonly [SettingsTab, string, ReactNode]> = [
   ["general", "General", <IconAdjustmentsHorizontal key="general" size={16} aria-hidden />],
   ["keymap", "Keymap", <IconKeyboard key="keymap" size={16} aria-hidden />],
 ]
@@ -36,10 +34,16 @@ const Row = ({
 
 const General = () => {
   const resolved = useAtomValue(resolvedTheme)
+  const versionLabel = useId()
   const themeLabel = useId()
   const wideLabel = useId()
   return (
     <>
+      <Row label="Current version" labelId={versionLabel}>
+        <span className="settings-version" aria-labelledby={versionLabel}>
+          {revision}
+        </span>
+      </Row>
       <Row label={themeLabelOf(resolved)} labelId={themeLabel}>
         <ThemeChoices labelledBy={themeLabel} />
         <Keys keys={keysOf("ToggleTheme")} />
@@ -53,10 +57,10 @@ const General = () => {
 }
 
 export const Settings = () => {
-  const [tab, setTab] = useState<Tab>("general")
+  const [tab, setTab] = useAtom(settingsTab)
   const title = tabs.find(([id]) => id === tab)?.[1] ?? "General"
   return (
-    <Dialog id={settingsDialogId} label="Settings" className="settings">
+    <Dialog id={settingsDialogId} label="Settings" className="settings" focusSelf>
       <div className="settings-nav">
         <h1 className="settings-title">Settings</h1>
         <div role="tablist" aria-orientation="vertical" className="settings-tabs">
@@ -75,7 +79,7 @@ export const Settings = () => {
           ))}
         </div>
       </div>
-      <div className="settings-panel" role="tabpanel" aria-label={title} tabIndex={-1} autoFocus>
+      <div className="settings-panel" role="tabpanel" aria-label={title}>
         <button
           type="button"
           aria-label="Close"
@@ -85,13 +89,7 @@ export const Settings = () => {
           <IconX size={18} aria-hidden />
         </button>
         <h2 className="settings-panel-title">{title}</h2>
-        {tab === "general" ? (
-          <General />
-        ) : (
-          <div className="settings-keymap">
-            <ShortcutGroups />
-          </div>
-        )}
+        {tab === "general" ? <General /> : <ShortcutList />}
       </div>
     </Dialog>
   )

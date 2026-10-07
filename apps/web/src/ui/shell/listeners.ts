@@ -11,15 +11,15 @@ import {
   theme,
   type SidebarItem,
 } from "../../atoms.ts"
-import { toggleDialog, togglePopover } from "./popover.tsx"
+import { openDialog, togglePopover } from "./popover.tsx"
 import { idle, nextKeyState, type KeyState, type ShortcutAction } from "./shortcuts.ts"
-import { recentPages, remember, wideMode } from "./state.ts"
+import { recentPages, remember, settingsDialogId, settingsTab, wideMode } from "./state.ts"
 
 export const contentsItem = { _tag: "Page", name: "contents" } as const satisfies SidebarItem
 
 export const helpMenuId = "seqno-help"
 
-export const shortcutsDialogId = "seqno-shortcuts"
+export const helpItem = { _tag: "Help" } as const satisfies SidebarItem
 
 export const closeSidebarItem = (registry: AtomRegistry.AtomRegistry, item: SidebarItem) => {
   const { items } = registry.get(rightSidebar)
@@ -48,7 +48,10 @@ const perform = (
   GoJournals: () => void router.navigate({ to: "/" }),
   GoHome: () => void router.navigate({ to: "/" }),
   GoAllPages: () => void router.navigate({ to: "/all-pages" }),
-  GoShortcuts: () => toggleDialog(shortcutsDialogId),
+  GoShortcuts: () => {
+    registry.set(settingsTab, "keymap")
+    openDialog(settingsDialogId)
+  },
   CloseTopSidebarItem: () => {
     const { open, items } = registry.get(rightSidebar)
     const top = items[0]

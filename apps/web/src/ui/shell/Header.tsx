@@ -28,8 +28,8 @@ import { DeletePage } from "./DeletePage.tsx"
 import { exported, pageMarkdown } from "./Export.tsx"
 import { IconButton } from "./IconButton.tsx"
 import { Menu, MenuItem, MenuSeparator, openDialog, showPopover, usePopover } from "./popover.tsx"
-import { settingsDialogId } from "./Settings.tsx"
 import { keysOf } from "./shortcuts.ts"
+import { settingsDialogId, settingsTab } from "./state.ts"
 
 const useCurrentPage = (): Page | undefined => {
   const matchRoute = useMatchRoute()
@@ -64,6 +64,7 @@ const MoreMenu = () => {
     anchorOverride: more.anchor,
   })
   const toggle = useAtomSet(toggleFavorite)
+  const setSettingsTab = useAtomSet(settingsTab)
   const starred = useAtomValue(favorites).some((favorite) => favorite.id === page?.id)
   return (
     <>
@@ -83,7 +84,10 @@ const MoreMenu = () => {
         )}
         <MenuItem
           icon={<IconSettings size={18} aria-hidden />}
-          onSelect={() => openDialog(settingsDialogId)}
+          onSelect={() => {
+            setSettingsTab("general")
+            openDialog(settingsDialogId)
+          }}
         >
           Settings
         </MenuItem>

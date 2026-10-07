@@ -1,6 +1,7 @@
 import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconCaretRightFilled,
+  IconCommand,
   IconDots,
   IconFile,
   IconListDetails,
@@ -23,9 +24,10 @@ import {
 } from "../../atoms.ts"
 import { PageByName, PageView } from "../PageView.tsx"
 import { IconButton } from "./IconButton.tsx"
-import { closeSidebarItem, contentsItem } from "./listeners.ts"
+import { closeSidebarItem, contentsItem, helpItem } from "./listeners.ts"
 import { Menu, MenuItem, MenuSeparator, usePopover } from "./popover.tsx"
 import { Resizer } from "./Resizer.tsx"
+import { ShortcutList } from "./ShortcutList.tsx"
 import { rightSidebarWidth, rightWidthAt, rightWidthStep } from "./state.ts"
 
 const PageTitle = ({ name }: { readonly name: string }) => {
@@ -52,11 +54,19 @@ const ContentsTitle = () => (
   </span>
 )
 
+const HelpTitle = () => (
+  <span className="sidebar-item-contents">
+    <IconCommand size={18} aria-hidden />
+    <span className="sidebar-item-text">Keyboard shortcuts</span>
+  </span>
+)
+
 const ItemTitle = ({ item }: { readonly item: SidebarItem }) =>
   SidebarItem.match(item, {
     Page: ({ name }) =>
       name === contentsItem.name ? <ContentsTitle /> : <PageTitle name={name} />,
     Block: ({ blockId }) => <BlockTitle blockId={blockId} />,
+    Help: () => <HelpTitle />,
   })
 
 const SidebarBlock = ({ blockId }: { readonly blockId: BlockId }) => {
@@ -107,6 +117,11 @@ const ItemBody = ({ item }: { readonly item: SidebarItem }) =>
     Page: ({ name }) =>
       name === contentsItem.name ? <ContentsBody /> : <PageByName name={name} zoom={null} />,
     Block: ({ blockId }) => <SidebarBlock blockId={blockId} />,
+    Help: () => (
+      <div className="sidebar-help">
+        <ShortcutList />
+      </div>
+    ),
   })
 
 interface CardActions {
@@ -264,6 +279,7 @@ const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
               () =>
                 void navigate({ to: "/page/$name", params: { name: normalizePageName(name) } }),
             Block: () => null,
+            Help: () => null,
           }),
         }
         return (
@@ -332,6 +348,13 @@ export const RightSidebar = () => {
               onClick={() => updateSidebar({ _tag: "Open", item: contentsItem })}
             >
               Contents
+            </button>
+            <button
+              type="button"
+              className="sidebar-tab"
+              onClick={() => updateSidebar({ _tag: "Open", item: helpItem })}
+            >
+              Help
             </button>
           </div>
           <Cards items={sidebar.items} />

@@ -66,3 +66,9 @@ export const rightWidthStep = (percent: number, pixels: number, windowWidth: num
   const ratio = percent / 100 + pixels / windowWidth
   return Math.round(Math.min(rightMaxRatio, Math.max(minRatio, ratio)) * 1000) / 10
 }
+
+export const settingsDialogId = "seqno-settings"
+
+export type SettingsTab = "general" | "keymap"
+
+export const settingsTab = Atom.make<SettingsTab>("general").pipe(Atom.keepAlive)

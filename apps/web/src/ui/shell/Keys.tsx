@@ -9,6 +9,13 @@ const labels: Readonly<Record<string, string>> = {
   shift: "⇧",
   ctrl: "Ctrl",
   enter: "⏎",
+  tab: "Tab",
+  escape: "Esc",
+  backspace: "Backspace",
+  arrowup: "↑",
+  arrowdown: "↓",
+  arrowleft: "←",
+  arrowright: "→",
 }
 
 const labelOf = (key: string) => labels[key] ?? (key.length === 1 ? key.toUpperCase() : key)

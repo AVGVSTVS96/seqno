@@ -1,96 +1,14 @@
-import { IconCommand, IconHelpSmall, IconX } from "@tabler/icons-react"
-import { useId } from "react"
-import { Keys } from "./Keys.tsx"
-import { helpMenuId, shortcutsDialogId } from "./listeners.ts"
-import {
-  closeDialogOf,
-  Dialog,
-  MenuItem,
-  onMenuKeyDown,
-  openDialog,
-  usePopover,
-  useTooltip,
-} from "./popover.tsx"
-import { keysOf, type ShortcutAction } from "./shortcuts.ts"
+import { useAtomSet } from "@effect/atom-react"
+import { IconBook, IconCommand, IconHelpSmall } from "@tabler/icons-react"
+import { rightSidebar } from "../../atoms.ts"
+import { revision } from "../../version.ts"
+import { helpItem, helpMenuId } from "./listeners.ts"
+import { MenuItem, MenuSeparator, onMenuKeyDown, usePopover, useTooltip } from "./popover.tsx"
 
-const groups: ReadonlyArray<
-  readonly [string, ReadonlyArray<readonly [string, ShortcutAction | ReadonlyArray<string>]>]
-> = [
-  [
-    "Navigation",
-    [
-      ["Search pages and blocks", ["mod", "k"]],
-      ["Go to journals", "GoJournals"],
-      ["Go to home", "GoHome"],
-      ["Go to all pages", "GoAllPages"],
-      ["Go to keyboard shortcuts", "GoShortcuts"],
-    ],
-  ],
-  [
-    "Sidebars",
-    [
-      ["Toggle left sidebar", "ToggleLeftSidebar"],
-      ["Toggle right sidebar", "ToggleRightSidebar"],
-      ["Toggle Contents in sidebar", "ToggleContents"],
-      ["Open today's page in the right sidebar", "OpenTodayInSidebar"],
-      ["Closes the top item in the right sidebar", "CloseTopSidebarItem"],
-    ],
-  ],
-  [
-    "Appearance",
-    [
-      ["Toggle between dark/light theme", "ToggleTheme"],
-      ["Toggle wide mode", "ToggleWideMode"],
-      ["Toggle help", "ToggleHelp"],
-    ],
-  ],
-]
-
-const keysFor = (binding: ShortcutAction | ReadonlyArray<string>) =>
-  typeof binding === "string" ? keysOf(binding) : binding
-
-export const ShortcutGroups = () =>
-  groups.map(([group, rows]) => (
-    <section key={group} className="shortcuts-group" aria-label={group}>
-      <h3 className="shortcuts-group-title">{group}</h3>
-      <dl className="shortcuts-list">
-        {rows.map(([label, binding]) => (
-          <div key={label} className="shortcuts-row">
-            <dt>{label}</dt>
-            <dd>
-              <Keys keys={keysFor(binding)} />
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  ))
-
-const Shortcuts = () => {
-  const title = useId()
-  return (
-    <Dialog id={shortcutsDialogId} label="Keyboard shortcuts" className="shortcuts">
-      <div className="shortcuts-header">
-        <h2 id={title} className="shortcuts-title">
-          Keyboard shortcuts
-        </h2>
-        <button
-          type="button"
-          aria-label="Close"
-          className="icon-button shortcuts-close"
-          onClick={(event) => closeDialogOf(event.currentTarget)}
-        >
-          <IconX size={18} aria-hidden />
-        </button>
-      </div>
-      <div className="shortcuts-body">
-        <ShortcutGroups />
-      </div>
-    </Dialog>
-  )
-}
+const logseqDocs = "https://docs.logseq.com"
 
 export const HelpButton = () => {
+  const updateSidebar = useAtomSet(rightSidebar)
   const menu = usePopover({
     id: helpMenuId,
     placement: { align: "end", gap: 8, inset: 8, side: "top" },
@@ -125,12 +43,22 @@ export const HelpButton = () => {
       >
         <MenuItem
           icon={<IconCommand size={20} aria-hidden />}
-          onSelect={() => openDialog(shortcutsDialogId)}
+          onSelect={() => updateSidebar({ _tag: "Open", item: helpItem })}
         >
           Keyboard shortcuts
         </MenuItem>
+        <MenuItem
+          icon={<IconBook size={20} aria-hidden />}
+          onSelect={() => void window.open(logseqDocs, "_blank", "noopener")}
+        >
+          Logseq documentation
+        </MenuItem>
+        <MenuSeparator />
+        <div className="help-menu-footer">
+          <span>seqno</span>
+          <span>Revision {revision}</span>
+        </div>
       </div>
-      <Shortcuts />
     </div>
   )
 }

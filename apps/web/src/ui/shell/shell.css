@@ -985,8 +985,13 @@
 }
 
 .settings {
-  width: 960px;
-  height: 630px;
+  width: 962px;
+  height: 632px;
+  inset-block-end: 18px;
+}
+
+.settings:focus-visible {
+  outline: none;
 }
 
 .settings[open] {
@@ -996,16 +1001,16 @@
 .settings-nav {
   flex: none;
   width: 256px;
-  padding: var(--space-6) var(--space-4);
+  padding: 20px var(--space-4) var(--space-4);
   background: var(--bg-sidebar-item-header);
 }
 
 .settings-title {
-  margin: 0 0 var(--space-4) var(--space-2);
+  margin: 0 0 20px var(--space-2);
   color: var(--fg-strong);
   font-size: 24px;
   line-height: 32px;
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
 }
 
 .settings-tabs {
@@ -1025,6 +1030,8 @@
   background: transparent;
   color: var(--fg);
   font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
   text-align: start;
   cursor: pointer;
 }
@@ -1039,7 +1046,7 @@
   outline: none;
   flex: 1;
   min-width: 0;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-4);
   overflow-y: auto;
 }
 
@@ -1050,24 +1057,30 @@
 }
 
 .settings-panel-title {
-  margin: 0 0 var(--space-6);
+  margin: 6px 0 var(--space-6);
   color: var(--fg-strong);
-  font-size: var(--text-heading);
-  line-height: var(--leading-heading);
-  font-weight: var(--weight-medium);
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
+  font-weight: var(--weight-regular);
 }
 
 .settings-row {
   display: grid;
   grid-template-columns: 205px 1fr;
   align-items: start;
-  margin: 0 var(--space-1) var(--space-6);
+  margin: 0 var(--space-1) var(--space-4);
 }
 
 .settings-label {
   color: var(--fg);
+  font-size: var(--text-sm);
+  line-height: 28px;
   font-weight: var(--weight-medium);
-  opacity: 0.85;
+  opacity: 0.7;
+}
+
+.settings-version {
+  line-height: 28px;
 }
 
 .settings-control {
@@ -1075,12 +1088,6 @@
   gap: var(--space-4);
   align-items: center;
   font-size: var(--text-sm);
-}
-
-.settings-keymap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
 }
 
 .page-link-menu {
@@ -1530,81 +1537,6 @@
   justify-content: flex-end;
 }
 
-.shortcuts {
-  width: 640px;
-  max-height: 80vh;
-}
-
-.shortcuts[open] {
-  display: flex;
-  flex-direction: column;
-}
-
-.shortcuts-header {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-6) var(--space-4) var(--space-4) var(--space-6);
-}
-
-.shortcuts-title {
-  margin: 0;
-  color: var(--fg-strong);
-  font-size: var(--text-lg);
-  line-height: var(--leading-lg);
-  font-weight: var(--weight-semibold);
-}
-
-.icon-button.shortcuts-close {
-  padding: var(--space-1-5);
-  color: var(--fg-subtle);
-}
-
-.icon-button.shortcuts-close:hover {
-  background: var(--bg-ghost-hover);
-  color: var(--fg-ghost-hover);
-}
-
-.shortcuts-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-height: 0;
-  padding: 0 var(--space-4) var(--space-6);
-  overflow-y: auto;
-}
-
-.shortcuts-group-title {
-  display: flex;
-  align-items: center;
-  height: var(--header-button-size);
-  margin: 0 0 var(--space-2);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--bg-sidebar-item-header);
-  color: var(--fg);
-  font-size: var(--text-base);
-  line-height: var(--leading-base);
-  font-weight: var(--weight-semibold);
-}
-
-.shortcuts-list {
-  margin: 0;
-  padding: 0 var(--space-2);
-}
-
-.shortcuts-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: var(--header-button-size);
-}
-
-.shortcuts-row dd {
-  margin: 0;
-}
-
 .welcome {
   display: flex;
   justify-content: center;
@@ -1842,4 +1774,124 @@
 
 .notice-close:hover {
   background: var(--bg-button-hover);
+}
+
+.shortcut-list {
+  --border-shortcut-search: light-dark(#ededed, #0e5263);
+  --bg-shortcut-group: light-dark(#f3f3f3, #08404f);
+  display: flex;
+  flex-direction: column;
+}
+
+.shortcut-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.shortcut-search > svg {
+  position: absolute;
+  left: var(--space-2);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.shortcut-search input {
+  width: 100%;
+  height: 30px;
+  padding: var(--space-1) 28px;
+  border: 1px solid var(--border-shortcut-search);
+  border-radius: var(--radius-md);
+  background: var(--bg-popover);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+
+.shortcut-search input:focus {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.shortcut-empty {
+  margin: var(--space-4) var(--space-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.shortcut-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: var(--space-1) 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-shortcut-group);
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  line-height: 22.5px;
+  cursor: pointer;
+}
+
+.shortcut-group-head strong {
+  font-weight: var(--weight-semibold);
+}
+
+.shortcut-group-head > svg {
+  transition: rotate var(--duration-base);
+}
+
+.shortcut-group-head[aria-expanded="false"] > svg {
+  rotate: -90deg;
+}
+
+.shortcut-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: var(--space-1) calc(-1 * var(--space-1));
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.shortcut-row:hover {
+  background: var(--bg-button-hover);
+}
+
+.shortcut-label {
+  padding: 0 var(--space-1);
+}
+
+.shortcut-keys {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+}
+
+.sidebar-help {
+  padding: var(--space-2) var(--space-3) var(--space-4);
+}
+
+.help-menu-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1) var(--space-3) var(--space-1-5);
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
 }
