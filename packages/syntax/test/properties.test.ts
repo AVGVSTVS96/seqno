@@ -78,8 +78,23 @@ describe("pasting an outline", () => {
     ])
   })
 
-  it("leaves plain text alone, and tells a lone line from an outline", () => {
-    assert.strictEqual(pastedBlocks("two\nlines"), null)
+  it("splits plain text into blocks at blank lines, keeping code fences whole", () => {
+    assert.deepStrictEqual(pastedBlocks("line one\nline two\n\nline three\n"), [
+      { text: "line one\nline two", props: {}, children: [] },
+      { text: "line three", props: {}, children: [] },
+    ])
+    assert.deepStrictEqual(pastedBlocks("```\na\n\nb\n```\n\n\nafter"), [
+      { text: "```\na\n\nb\n```", props: {}, children: [] },
+      { text: "after", props: {}, children: [] },
+    ])
+    assert.strictEqual(pastedBlocks("\n  \n"), null)
+  })
+
+  it("leaves mixed text alone, and tells a lone line from an outline", () => {
+    assert.deepStrictEqual(pastedBlocks("two\nlines"), [
+      { text: "two\nlines", props: {}, children: [] },
+    ])
+    assert.strictEqual(isSingleLine(pastedBlocks("two\nlines") ?? []), true)
     assert.strictEqual(pastedBlocks("intro\n- a\n- b"), null)
     assert.strictEqual(isSingleLine(pastedBlocks("- just this") ?? []), true)
     assert.strictEqual(isSingleLine(pastedBlocks("- a\n- b") ?? []), false)

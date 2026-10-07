@@ -13,11 +13,33 @@ const pasted = (block: Block): PastedBlock => {
   return { text, props: Object.fromEntries(props), children: block.children.map(pasted) }
 }
 
+const fence = /^\s*(`{3,}|~{3,})/
+
+const paragraphs = (source: string): ReadonlyArray<string> => {
+  const found: Array<string> = []
+  let lines: Array<string> = []
+  let fenced = false
+  for (const line of source.split("\n")) {
+    if (fence.test(line)) fenced = !fenced
+    if (!fenced && line.trim() === "") {
+      if (lines.length > 0) found.push(lines.join("\n"))
+      lines = []
+    } else lines.push(line)
+  }
+  if (lines.length > 0) found.push(lines.join("\n"))
+  return found
+}
+
+const plain = (text: string): PastedBlock => ({ text, props: {}, children: [] })
+
 export const pastedBlocks = (source: string): ReadonlyArray<PastedBlock> | null => {
-  const outline = toOutline(parse(source.replaceAll("\r\n", "\n")))
-  return outline.blocks.length === 0 || outline.preamble.trim() !== ""
-    ? null
-    : outline.blocks.map(pasted)
+  const text = source.replaceAll("\r\n", "\n")
+  const outline = toOutline(parse(text))
+  if (outline.blocks.length === 0) {
+    const found = paragraphs(text)
+    return found.length === 0 ? null : found.map(plain)
+  }
+  return outline.preamble.trim() === "" ? outline.blocks.map(pasted) : null
 }
 
 export const isSingleLine = (blocks: ReadonlyArray<PastedBlock>) => {

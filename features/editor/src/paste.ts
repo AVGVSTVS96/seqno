@@ -27,6 +27,8 @@ const insert = (
       ]
 }
 
+const url = /^[a-z][a-z\d+.-]*:\/\/\S+$/i
+
 const asText = (block: PastedBlock) => joinProperties(block.text, Object.entries(block.props))
 
 export const pasteOutline = (
@@ -36,7 +38,19 @@ export const pasteOutline = (
 ) =>
   EditorView.domEventHandlers({
     paste: (event, view) => {
-      const blocks = pastedBlocks(event.clipboardData?.getData("text/plain") ?? "")
+      const clipboard = event.clipboardData?.getData("text/plain") ?? ""
+      const { from, to } = view.state.selection.main
+      if (from !== to && url.test(clipboard.trim())) {
+        event.preventDefault()
+        const link = `[${view.state.sliceDoc(from, to)}](${clipboard.trim()})`
+        view.dispatch({
+          changes: { from, to, insert: link },
+          selection: { anchor: from + link.length },
+          userEvent: "input.paste",
+        })
+        return true
+      }
+      const blocks = pastedBlocks(clipboard)
       const [first, ...rest] = blocks ?? []
       if (blocks === null || first === undefined) return false
       event.preventDefault()

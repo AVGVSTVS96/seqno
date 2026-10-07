@@ -623,6 +623,27 @@ describe("pasting", () => {
     ])
   })
 
+  it("splits pasted plain text into blocks at its blank lines", () => {
+    const { view, commands } = mount("", { _tag: "End" })
+    paste(view.contentDOM, "line one\nline two\n\nline three")
+    assert.strictEqual(text(view), "line one\nline two")
+    assert.deepStrictEqual(commands.at(-1), {
+      _tag: "InsertBlocks",
+      pageId: blockOf("").pageId,
+      parentId: null,
+      after: blockId,
+      blocks: [{ text: "line three", props: {}, children: [] }],
+    })
+  })
+
+  it("links the selected text when a URL is pasted over it", () => {
+    const { view } = mount("read the docs today", { _tag: "End" })
+    view.dispatch({ selection: EditorSelection.single(9, 13) })
+    paste(view.contentDOM, "https://docs.logseq.com\n")
+    assert.strictEqual(text(view), "read the [docs](https://docs.logseq.com) today")
+    assert.strictEqual(caret(view), 40)
+  })
+
   it("inserts every pasted block after a block that has text, and pastes one line inline", () => {
     const { view, commands } = mount("keep", { _tag: "End" })
     paste(view.contentDOM, outline)
