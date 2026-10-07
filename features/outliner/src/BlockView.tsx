@@ -12,7 +12,7 @@ import {
 } from "@seqno/syntax"
 import { CodeBlock } from "./CodeBlock.tsx"
 import { Inlines } from "./Inline.tsx"
-import { RenderContext, toPage } from "./render.ts"
+import { clickOnEnter, RenderContext, toPage } from "./render.ts"
 import { isCanceled, switchable, taskState } from "./tasks.ts"
 
 const stop = (event: MouseEvent) => event.stopPropagation()
@@ -86,7 +86,9 @@ const TaskControls = ({
         <span className="seqno-marker">{marker}</span>
       ) : (
         <a
-          href="#"
+          role="link"
+          tabIndex={0}
+          onKeyDown={clickOnEnter}
           className="seqno-marker is-switch"
           title={`Change ${marker} to ${next}`}
           onClick={(event) => {
@@ -202,7 +204,9 @@ export const BlockView = ({
           )}
           {clocked ? (
             <a
-              href="#"
+              role="link"
+              tabIndex={0}
+              onKeyDown={clickOnEnter}
               className="seqno-clock"
               aria-expanded={drawer}
               onClick={(event) => {
@@ -228,7 +232,9 @@ export const BlockView = ({
           {properties.map((property) => (
             <div key={property.key} className="seqno-attr">
               <a
-                href="#"
+                role="link"
+                tabIndex={0}
+                onKeyDown={clickOnEnter}
                 className="seqno-attr-key"
                 onClick={toPage(renderer.navigate, property.key)}
               >

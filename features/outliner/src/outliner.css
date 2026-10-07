@@ -752,3 +752,55 @@ img.seqno-image {
 .seqno-add-first .seqno-bullet {
   background: none;
 }
+
+.seqno-preview {
+  position: fixed;
+  inset: auto;
+  width: 610px;
+  margin: 0;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-6);
+  overflow: hidden auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-popover);
+  box-shadow: var(--shadow-popover);
+  color: var(--fg);
+  opacity: 1;
+  scale: 1;
+  transition:
+    opacity var(--duration-base) ease,
+    scale var(--duration-base) ease,
+    translate var(--duration-base) ease;
+}
+
+.seqno-preview[data-side="bottom"] {
+  transform-origin: 50% 0%;
+}
+
+.seqno-preview[data-side="top"] {
+  transform-origin: 50% 100%;
+}
+
+@starting-style {
+  .seqno-preview:popover-open {
+    opacity: 0;
+    scale: 0.95;
+  }
+}
+
+.seqno-preview-page {
+  padding: var(--space-2) var(--page-padding-inline) 0;
+}
+
+.seqno-preview-title {
+  margin: 0 0 var(--title-to-blocks);
+  padding: var(--block-padding-block) 0 var(--block-padding-block) 2px;
+  color: var(--fg-title);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-medium);
+}
+
+.seqno-preview-blocks {
+  margin-left: calc(-1 * (var(--block-control-size) - 2px));
+}

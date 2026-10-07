@@ -1,4 +1,4 @@
-import { createContext, type ComponentType, type MouseEvent } from "react"
+import { createContext, type ComponentType, type KeyboardEvent } from "react"
 import type { Block, BlockId } from "@seqno/domain"
 import { blockContent, type BlockContent } from "@seqno/syntax"
 import type { Navigate, NavigationTarget, OpenBlockMenu } from "./navigation.ts"
@@ -13,7 +13,7 @@ export interface Renderer {
   readonly navigate: Navigate
   readonly depth: number
   readonly localBlock: (blockId: BlockId) => Block | undefined
-  readonly Embed: ComponentType<{ readonly target: EmbedTarget }>
+  readonly Embed: ComponentType<{ readonly target: EmbedTarget; readonly bare?: boolean }>
   readonly editor: ComponentType<EditorSlotProps>
   readonly resolveAsset: (path: string) => string | undefined
   readonly openMenu: OpenBlockMenu | undefined
@@ -31,13 +31,23 @@ export const RenderContext = createContext<Renderer>({
 
 export const maxDepth = 3
 
+export interface Activation {
+  readonly shiftKey: boolean
+  readonly preventDefault: () => void
+  readonly stopPropagation: () => void
+}
+
 export const follow =
   (navigate: Navigate, target: NavigationTarget, inSidebar: NavigationTarget) =>
-  (event: MouseEvent) => {
+  (event: Activation) => {
     event.preventDefault()
     event.stopPropagation()
     navigate(event.shiftKey ? inSidebar : target)
   }
+
+export const clickOnEnter = (event: KeyboardEvent<HTMLElement>) => {
+  if (event.key === "Enter") event.currentTarget.click()
+}
 
 export const toPage = (navigate: Navigate, name: string) =>
   follow(navigate, { _tag: "Page", name }, { _tag: "SidebarPage", name })

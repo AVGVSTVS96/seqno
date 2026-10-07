@@ -3,7 +3,7 @@ import { IconCaretRightFilled } from "@tabler/icons-react"
 import { AsyncResult } from "effect/reactivity"
 import { Fragment, useId, useState, type ReactNode } from "react"
 import type { Block, BlockId, Page, PageId } from "@seqno/domain"
-import { Outliner, pageTreeAtom } from "@seqno/outliner"
+import { clickOnEnter, Outliner, pageTreeAtom } from "@seqno/outliner"
 import type { Reference } from "@seqno/rpc"
 import { allPages, assetResolver } from "../../atoms.ts"
 import { EditorSlot } from "../EditorSlot.tsx"
@@ -52,7 +52,9 @@ const Crumbs = ({
             </span>
           )}
           <a
-            href="#"
+            role="link"
+            tabIndex={0}
+            onKeyDown={clickOnEnter}
             onClick={(event) => {
               event.preventDefault()
               navigateTo(

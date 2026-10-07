@@ -31,7 +31,13 @@ import { moveCommand, type DropTarget } from "./drop.ts"
 import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
-import { contentOf, RenderContext, type EmbedTarget, type Renderer } from "./render.ts"
+import {
+  clickOnEnter,
+  contentOf,
+  RenderContext,
+  type EmbedTarget,
+  type Renderer,
+} from "./render.ts"
 import { RowView, type RowActions } from "./Row.tsx"
 import { highlights, selectedRange, type Selection } from "./selection.ts"
 import { EditorIntent, type EditorSlotProps } from "./slot.ts"
@@ -152,7 +158,7 @@ const Breadcrumbs = ({
   }
   return (
     <nav className="seqno-crumbs" aria-label="Breadcrumbs">
-      <a href="#" onClick={go(null)}>
+      <a role="link" tabIndex={0} onKeyDown={clickOnEnter} onClick={go(null)}>
         {title}
       </a>
       {trail.map((block) => (
@@ -160,7 +166,7 @@ const Breadcrumbs = ({
           <span className="seqno-crumb-sep" aria-hidden>
             /
           </span>
-          <a href="#" onClick={go(block.id)}>
+          <a role="link" tabIndex={0} onKeyDown={clickOnEnter} onClick={go(block.id)}>
             {labelOf(contentOf(block.text).title ?? [])}
           </a>
         </span>
@@ -192,31 +198,34 @@ const useEmbedProps = () => {
   }
 }
 
-const BlockEmbed = ({ blockId }: { readonly blockId: BlockId }) => {
+const BlockEmbed = ({ blockId, bare }: { readonly blockId: BlockId; readonly bare: boolean }) => {
   const props = useEmbedProps()
   return AsyncResult.match(useAtomValue(blockAtom(blockId)), {
-    onInitial: () => <Embed>{null}</Embed>,
+    onInitial: () => (bare ? null : <Embed>{null}</Embed>),
     onFailure: () => <span className="seqno-blockref is-missing">(({blockId}))</span>,
-    onSuccess: ({ value }) => (
-      <Embed>
-        <Outliner {...props} pageId={value.pageId} zoom={value.id} embedded />
-      </Embed>
-    ),
+    onSuccess: ({ value }) => {
+      const embedded = <Outliner {...props} pageId={value.pageId} zoom={value.id} embedded />
+      return bare ? embedded : <Embed>{embedded}</Embed>
+    },
   })
 }
 
-const PageEmbed = ({ name }: { readonly name: string }) => {
+const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boolean }) => {
   const props = useEmbedProps()
   return AsyncResult.match(useAtomValue(pageNamedAtom(name)), {
-    onInitial: () => <Embed>{null}</Embed>,
+    onInitial: () => (bare ? null : <Embed>{null}</Embed>),
     onFailure: () => <span className="seqno-macro">{`{{embed [[${name}]]}}`}</span>,
     onSuccess: ({ value }) =>
       value === undefined ? (
         <span className="seqno-macro">{`{{embed [[${name}]]}}`}</span>
+      ) : bare ? (
+        <Outliner {...props} pageId={value.id} zoom={null} embedded />
       ) : (
         <Embed>
           <a
-            href="#"
+            role="link"
+            tabIndex={0}
+            onKeyDown={clickOnEnter}
             className="seqno-embed-title"
             onClick={(event) => {
               event.preventDefault()
@@ -235,11 +244,17 @@ const PageEmbed = ({ name }: { readonly name: string }) => {
   })
 }
 
-const EmbedView = ({ target }: { readonly target: EmbedTarget }) =>
+const EmbedView = ({
+  target,
+  bare = false,
+}: {
+  readonly target: EmbedTarget
+  readonly bare?: boolean
+}) =>
   target._tag === "Block" ? (
-    <BlockEmbed blockId={target.blockId} />
+    <BlockEmbed blockId={target.blockId} bare={bare} />
   ) : (
-    <PageEmbed name={target.name} />
+    <PageEmbed name={target.name} bare={bare} />
   )
 
 const dropZone = (event: DragEvent<HTMLDivElement>, row: Row): DropTarget => {

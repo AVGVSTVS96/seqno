@@ -59,3 +59,17 @@ test("pasting a markdown outline into an empty block makes the blocks", async ({
   ])
   await expect(today.getByRole("treeitem", { level: 2 })).toHaveText(["pasted child"])
 })
+
+test("resting on a page ref previews the page, and leaving closes it", async ({ page }) => {
+  await openShowcase(page, "/")
+  const ref = page.getByRole("main").getByRole("link", { name: "Garden Plan" }).first()
+  await ref.hover()
+  const preview = page.getByRole("dialog", { name: "Preview" })
+  await expect(preview).toBeVisible({ timeout: 3000 })
+  await expect(preview).toContainText("Garden Plan")
+  await expect(preview.getByRole("treeitem").first()).toHaveText(
+    "Beds run north to south so neither row shades the other.",
+  )
+  await page.mouse.move(1200, 860)
+  await expect(preview).toHaveCount(0, { timeout: 3000 })
+})

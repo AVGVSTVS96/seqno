@@ -6,7 +6,8 @@ import { IconPhoto } from "@tabler/icons-react"
 import { BlockId, type Block } from "@seqno/domain"
 import { parseInline, plainText, type Inline, type LinkTarget } from "@seqno/syntax"
 import { blockAtom, pageTreeAtom } from "./core.ts"
-import { contentOf, follow, maxDepth, RenderContext, toPage } from "./render.ts"
+import { usePreview } from "./Preview.tsx"
+import { clickOnEnter, contentOf, follow, maxDepth, RenderContext, toPage } from "./render.ts"
 
 const isBlockId = Schema.is(BlockId)
 const safeUrl = /^(?:https?|mailto|ftp):/i
@@ -19,10 +20,12 @@ export const Inlines = ({ nodes }: { readonly nodes: ReadonlyArray<Inline> }): R
 
 const RefBody = ({ block, children }: { readonly block: Block; readonly children?: ReactNode }) => {
   const renderer = use(RenderContext)
+  const preview = usePreview({ _tag: "Block", blockId: block.id })
   const title = contentOf(block.text).title ?? []
   return (
     <span
       className="seqno-blockref"
+      {...preview.trigger}
       onClick={follow(
         renderer.navigate,
         { _tag: "Zoom", pageId: block.pageId, blockId: block.id },
@@ -37,6 +40,7 @@ const RefBody = ({ block, children }: { readonly block: Block; readonly children
             <Inlines nodes={title} />
           </RenderContext>
         ))}
+      {preview.popup}
     </span>
   )
 }
@@ -87,16 +91,21 @@ const PageLink = ({
   readonly children: ReactNode
 }) => {
   const renderer = use(RenderContext)
+  const preview = usePreview({ _tag: "Page", name })
   return (
     <span className={brackets ? "seqno-pageref has-brackets" : "seqno-pageref"}>
       <a
-        href="#"
+        role="link"
+        tabIndex={0}
         className="seqno-pageref-link"
         data-from={from}
         onClick={toPage(renderer.navigate, name)}
+        onKeyDown={clickOnEnter}
+        {...preview.trigger}
       >
         {children}
       </a>
+      {preview.popup}
     </span>
   )
 }
@@ -165,6 +174,26 @@ const Macro = ({
   return <span className="seqno-macro">{raw}</span>
 }
 
+const TagLink = ({ name }: { readonly name: string }) => {
+  const renderer = use(RenderContext)
+  const preview = usePreview({ _tag: "Page", name })
+  return (
+    <>
+      <a
+        role="link"
+        tabIndex={0}
+        className="seqno-tag"
+        onClick={toPage(renderer.navigate, name)}
+        onKeyDown={clickOnEnter}
+        {...preview.trigger}
+      >
+        #{name}
+      </a>
+      {preview.popup}
+    </>
+  )
+}
+
 const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
   const renderer = use(RenderContext)
   return Match.valueTags(node, {
@@ -179,17 +208,19 @@ const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
         {name}
       </PageLink>
     ),
-    Tag: ({ name }) => (
-      <a href="#" className="seqno-tag" onClick={toPage(renderer.navigate, name)}>
-        #{name}
-      </a>
-    ),
+    Tag: ({ name }) => <TagLink name={name} />,
     BlockRef: ({ uuid }) => <BlockRef uuid={uuid} />,
     Macro: ({ name, args }) => (
       <Macro name={name} args={args} raw={`{{${args === "" ? name : `${name} ${args}`}}}`} />
     ),
     Priority: ({ priority }) => (
-      <a href="#" className="seqno-priority" onClick={toPage(renderer.navigate, priority)}>
+      <a
+        role="link"
+        tabIndex={0}
+        className="seqno-priority"
+        onClick={toPage(renderer.navigate, priority)}
+        onKeyDown={clickOnEnter}
+      >
         [#{priority}]
       </a>
     ),
