@@ -240,7 +240,7 @@
   display: flex;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) 6px var(--space-2) var(--space-3);
   border-top: 1px solid var(--border-palette-footer);
   background: var(--bg-footer);
   font-size: var(--text-sm);
@@ -277,6 +277,7 @@
   background: none;
   color: var(--fg);
   font: inherit;
+  font-weight: var(--weight-medium);
   line-height: var(--leading-sm);
   opacity: var(--opacity-palette-action);
   cursor: pointer;
@@ -284,6 +285,15 @@
 }
 
 .seqno-palette-actions button:hover {
+  opacity: 1;
+}
+
+.seqno-palette-actions button[data-active="true"] {
+  background: var(--bg-ghost-hover);
+  opacity: 0.8;
+}
+
+.seqno-palette-actions button[data-active="true"] > span:first-child {
   opacity: 1;
 }
 

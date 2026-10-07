@@ -69,6 +69,14 @@ const Row = ({ item, query }: { readonly item: Item; readonly query: string }) =
   </>
 )
 
+const refOf = (item: Item) =>
+  item._tag === "Block"
+    ? `((${item.block.id}))`
+    : `[[${item._tag === "Page" ? item.page.title : item.title}]]`
+
+const copyRef = (item: Item) =>
+  void navigator.clipboard.writeText(refOf(item)).catch(() => undefined)
+
 const Palette = ({
   onRoute,
   onClose,
@@ -161,6 +169,15 @@ const Palette = ({
     } else if (event.key === "Enter" && current !== undefined) {
       event.preventDefault()
       void open(current, event.shiftKey)
+    } else if (
+      (event.metaKey || event.ctrlKey) &&
+      event.key.toLowerCase() === "c" &&
+      current !== undefined &&
+      current._tag !== "Create" &&
+      event.currentTarget.selectionStart === event.currentTarget.selectionEnd
+    ) {
+      event.preventDefault()
+      copyRef(current)
     }
   }
 
@@ -254,7 +271,7 @@ const Palette = ({
         {current === undefined ? null : (
           <div className="seqno-palette-actions">
             {current._tag === "Create" ? (
-              <button type="button" onClick={() => void open(current, false)}>
+              <button type="button" data-active onClick={() => void open(current, false)}>
                 <span>Create</span>
                 <Keys keys={["enter"]} />
               </button>
@@ -267,6 +284,10 @@ const Palette = ({
                 <button type="button" onClick={() => void open(current, true)}>
                   <span>Open in sidebar</span>
                   <Keys keys={["shift", "enter"]} combo={false} />
+                </button>
+                <button type="button" onClick={() => copyRef(current)}>
+                  <span>Copy ref</span>
+                  <Keys keys={["mod", "c"]} />
                 </button>
               </>
             )}
