@@ -2,7 +2,7 @@ import { normalizePageName, type Block, type Page } from "@seqno/domain"
 import type { PageStat } from "@seqno/rpc"
 import { crumbLabel, listValues } from "../pages/model.ts"
 
-export type PageName = Pick<Page, "name" | "title">
+export type PageName = Pick<Page, "name" | "title"> & { readonly tag?: boolean }
 
 export type Item =
   | { readonly _tag: "Create"; readonly title: string }

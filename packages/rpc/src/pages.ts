@@ -17,6 +17,7 @@ export type PageStat = typeof PageStat.Type
 export const ReferencedPage = Schema.Struct({
   name: Schema.String,
   title: Schema.String,
+  tag: Schema.Boolean,
   journalDay: Schema.NullOr(JournalDay),
   backlinks: Schema.Int,
   created: Schema.NullOr(Schema.Number),

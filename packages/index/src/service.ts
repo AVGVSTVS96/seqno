@@ -42,6 +42,7 @@ export type PageStat = typeof PageStat.Type
 export const ReferencedPage = Schema.Struct({
   name: Schema.String,
   title: Schema.String,
+  tag: Schema.Boolean,
   backlinks: Schema.Int,
   created: Schema.NullOr(Schema.Number),
   updated: Schema.NullOr(Schema.Number),
@@ -105,20 +106,21 @@ FROM pages p`
 const REFERENCED_PAGES = `
 WITH named AS (
   SELECT r.target AS target, count(DISTINCT r.block) AS uses, min(r.block) AS first,
-    min(b.created) AS created, max(b.updated) AS updated
+    max(r.tag) AS tag, min(b.created) AS created, max(b.updated) AS updated
   FROM refs r JOIN blocks b ON b.rid = r.block
   WHERE NOT EXISTS (SELECT 1 FROM page_names n WHERE n.name = r.target)
   GROUP BY r.target)
-SELECT named.target, blocks.content, named.uses, named.created, named.updated
+SELECT named.target, blocks.content, named.tag, named.uses, named.created, named.updated
 FROM named JOIN blocks ON blocks.rid = named.first
 ORDER BY named.target`
 
 const referencedOf = (db: Statements) =>
-  db.all(REFERENCED_PAGES).map(([name, content, backlinks, created, updated]) =>
+  db.all(REFERENCED_PAGES).map(([name, content, tag, backlinks, created, updated]) =>
     decodeReferencedPage({
       name,
       title:
         typeof name === "string" && typeof content === "string" ? titleIn(content, name) : name,
+      tag: tag === 1,
       backlinks,
       created,
       updated,

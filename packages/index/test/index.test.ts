@@ -216,11 +216,26 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
           "v1",
         )
         assert.deepStrictEqual(yield* index.referencedPages, [
-          { name: "greenhouse", title: "Greenhouse", backlinks: 2, created: 1_000, updated: 3_000 },
-          { name: "other", title: "other", backlinks: 1, created: 1_000, updated: 1_000 },
+          {
+            name: "greenhouse",
+            title: "Greenhouse",
+            tag: true,
+            backlinks: 2,
+            created: 1_000,
+            updated: 3_000,
+          },
+          {
+            name: "other",
+            title: "other",
+            tag: false,
+            backlinks: 1,
+            created: 1_000,
+            updated: 1_000,
+          },
           {
             name: "seed inventory",
             title: "Seed Inventory",
+            tag: false,
             backlinks: 1,
             created: 1_000,
             updated: 1_000,

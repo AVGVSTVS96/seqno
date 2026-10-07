@@ -1,5 +1,5 @@
 import { useAtom, useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react"
-import { IconFile, IconPointFilled, IconSquarePlus2 } from "@tabler/icons-react"
+import { IconFile, IconHash, IconPointFilled, IconSquarePlus2 } from "@tabler/icons-react"
 import { useMatchRoute, useRouter } from "@tanstack/react-router"
 import { Exit } from "effect"
 import { AsyncResult } from "effect/reactivity"
@@ -34,7 +34,11 @@ const iconOf = (item: Item): ReactNode =>
   item._tag === "Create" ? (
     <IconSquarePlus2 size={14} aria-hidden />
   ) : item._tag === "Page" ? (
-    <IconFile size={14} aria-hidden />
+    item.page.tag === true ? (
+      <IconHash size={14} aria-hidden />
+    ) : (
+      <IconFile size={14} aria-hidden />
+    )
   ) : (
     <IconPointFilled size={14} aria-hidden />
   )
