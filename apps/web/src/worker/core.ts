@@ -246,7 +246,9 @@ const CoreHandlers = CoreRpcs.toLayer(
       GetBlock: ({ blockId }) => Effect.flatMap(current, (session) => session.graph.block(blockId)),
       WatchPage: ({ pageId }) =>
         following((session) =>
-          pageChanges(pageId).pipe(Stream.mapEffect(() => session.graph.page(pageId))),
+          pageChanges(pageId).pipe(
+            Stream.filterMapEffect(() => Effect.result(session.graph.page(pageId))),
+          ),
         ),
       WatchQuery: ({ query }) => following((session) => Stream.unwrap(watchQuery(session, query))),
       WatchBlockRefCounts: () =>

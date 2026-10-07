@@ -1,6 +1,7 @@
 import type { ParsedLocation, RegisteredRouter } from "@tanstack/react-router"
 import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
 import { normalizePageName } from "@seqno/domain"
+import { historyAtom, historyStep } from "@seqno/outliner"
 import {
   journals,
   leftSidebarOpen,
@@ -133,6 +134,12 @@ export const shellListeners = Atom.family((router: RegisteredRouter) =>
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing || isEditable(event.target)) {
         registry.set(keyState, idle)
+        return
+      }
+      const step = historyStep(event)
+      if (step !== null) {
+        event.preventDefault()
+        registry.set(historyAtom, step)
         return
       }
       const next = nextKeyState(registry.get(keyState), event)

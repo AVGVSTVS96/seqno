@@ -88,7 +88,7 @@ I ran the browser check with a throwaway Playwright script against `vite preview
                        searchPages / searchBlocks = pages atom / WatchQuery
 ```
 
-- **One core client.** `CoreClient` moved from `@seqno/outliner` into `@seqno/rpc`. `main.tsx` sets `coreRuntime.layer` to `Layer.orDie(WorkerCore)`, the same layer value `appLayer` uses. Atom runtimes share one memo map per registry, so the app and the outliner talk to one worker.
+- **One core client.** `CoreClient` moved from `@seqno/outliner` into `@seqno/rpc`. `main.tsx` sets the outliner's `coreLayer` atom to `Layer.orDie(WorkerCore)`, the same layer value `appLayer` uses. Atom runtimes share one memo map per registry, so the app and the outliner talk to one worker.
 - **Mount-once editor vs. render-time intents.** The editor reads its host once at mount; the outliner's `onIntent` was a render-time closure, so a Split typed into a block that was empty at mount would have outdented it. `onIntent` now reads the current page tree from the registry when it runs.
 - **Routes**: `/page/$name?zoom=<blockId>` drives the outliner's zoom; bullets and breadcrumbs navigate there. Each page is an `<article>` labelled by its `h1`, the markup the e2e flows rely on.
 - **Removed**: `OutlinerPlaceholder`, `EditorPlaceholder`, `text-edit.ts`, the per-block atoms (`pageTree`, `rows`, `block`, `focusedBlock`) and the test that covered them.

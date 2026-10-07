@@ -1,0 +1,45 @@
+import { appAvailable } from "../src/env.ts"
+import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
+import { expect, test } from "../src/test.ts"
+
+test.skip(!appAvailable, "waits on apps/web")
+
+test("each Ctrl+Z takes back one step and edits the block it changed", async ({ page, seqno }) => {
+  await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
+  await page.goto("/")
+  await page.keyboard.press("Control+k")
+  await page.getByRole("dialog", { name: "Search" }).getByRole("searchbox").fill("Undo Probe")
+  await page.keyboard.press("Enter")
+  await expect(seqno.editor).toBeFocused()
+  await page.keyboard.type("abc", { delay: 80 })
+  await page.keyboard.press("Enter")
+  await page.keyboard.type("def", { delay: 80 })
+  await page.keyboard.press("Escape")
+  await page.mouse.click(1000, 700)
+  const rows = page.getByRole("main").getByRole("treeitem")
+  const recent = page.getByRole("complementary", { name: "Left sidebar" }).getByText("Undo Probe")
+  await expect(rows).toHaveText(["abc", "def"])
+  await expect(seqno.editor).toHaveCount(0)
+
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(rows.nth(1).getByRole("textbox")).toHaveText("")
+  await expect(rows.nth(1).getByRole("textbox")).toBeFocused()
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(rows).toHaveCount(1)
+  await expect(seqno.editor).toHaveText("abc")
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(seqno.editor).toHaveText("")
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(rows).toHaveCount(0)
+  await expect(recent).toBeVisible()
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(recent).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Click here to start writing" })).toBeVisible()
+
+  await page.keyboard.press("ControlOrMeta+Shift+z")
+  await expect(recent).toBeVisible()
+  await page.keyboard.press("ControlOrMeta+Shift+z")
+  await expect(seqno.editor).toBeFocused()
+  await page.keyboard.press("ControlOrMeta+Shift+z")
+  await expect(seqno.editor).toHaveText("abc")
+})

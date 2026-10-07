@@ -49,8 +49,12 @@ export const mountBlockEditor = (
       : null
   const sync = textSync(draft, merged === null ? [] : [merged])
   const doc = () => view.state.doc.toString()
+  let fromHistory = false
   const dispatch = (command: Command) => {
-    if (command._tag === "Undo" || command._tag === "Redo") sync.external()
+    if (command._tag === "Undo" || command._tag === "Redo") {
+      sync.external()
+      fromHistory = true
+    }
     host.dispatch(
       command._tag === "SplitBlock"
         ? { ...command, at: fields.textCaret(doc(), command.at) }
@@ -83,6 +87,7 @@ export const mountBlockEditor = (
         EditorView.updateListener.of((update) => {
           for (const transaction of update.transactions) {
             if (transaction.docChanged && transaction.annotation(fromGraph) !== true) {
+              fromHistory = false
               for (const command of fields.commit(transaction)) host.dispatch(command)
               sync.local(transaction.newDoc.toString())
             }
@@ -113,11 +118,14 @@ export const mountBlockEditor = (
     if (sync.isNews(shown)) {
       fields.reset(next)
       if (current !== shown) {
+        const change = minimalChange(current, shown)
         view.dispatch({
-          changes: minimalChange(current, shown),
+          changes: change,
           annotations: fromGraph.of(true),
+          ...(fromHistory ? { selection: { anchor: change.from + change.insert.length } } : {}),
         })
       }
+      fromHistory = false
     }
     if (sync.confirmed()) for (const run of waiting.splice(0)) run()
     if (next.parentId !== parentId) {

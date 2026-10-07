@@ -26,9 +26,9 @@ import {
   editRequest,
   pageNamedAtom,
   pageTreeAtom,
-  type Editing,
 } from "./core.ts"
 import { moveCommand, type DropTarget } from "./drop.ts"
+import { historyFocus, historyStep, type Editing, type HistoryStep } from "./history.ts"
 import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
@@ -345,11 +345,28 @@ const OutlineView = ({
     return () => edgeObserver.unobserve(element)
   }
 
-  const dispatch = (command: Command) => {
-    void run(command)
-  }
   const after = (command: Command, then: (events: ReadonlyArray<GraphEvent>) => void) => {
     void run(command).then(Exit.match({ onFailure: () => undefined, onSuccess: then }))
+  }
+  const history = (step: HistoryStep) => {
+    const before = latest().rows.map((row) => row.block)
+    const current = editing?.blockId
+    after({ _tag: step }, (events) => {
+      const focus = historyFocus(events, before)
+      const kept =
+        focus === null
+          ? current !== undefined &&
+            !events.some((event) => event._tag === "BlockDeleted" && event.blockId === current)
+          : focus.blockId === current
+      if (kept) return
+      setSelection(null)
+      setLocalEditing(null)
+      setRequest(focus)
+    })
+  }
+  const dispatch = (command: Command) => {
+    if (command._tag === "Undo" || command._tag === "Redo") history(command._tag)
+    else void run(command)
   }
 
   const indexOf = (blockId: BlockId) => rows.findIndex((row) => row.block.id === blockId)
@@ -486,8 +503,8 @@ const OutlineView = ({
     const chosen = nonEmpty(topLevel(view, selected))
     const vertical = key === "ArrowUp" || key === "ArrowDown"
     const down = key === "ArrowDown"
-    if (mod && key === "z" && !event.shiftKey) dispatch({ _tag: "Undo" })
-    else if (mod && ((key === "z" && event.shiftKey) || key === "y")) dispatch({ _tag: "Redo" })
+    const step = historyStep(event)
+    if (step !== null) history(step)
     else if (vertical && event.altKey && event.shiftKey && chosen !== null) {
       moveBy(view, chosen, down ? 1 : -1)
     } else if (vertical && mod) {

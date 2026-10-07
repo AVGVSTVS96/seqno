@@ -294,6 +294,26 @@ describe("the core worker on the real graph, vault and index", () => {
     ),
   )
 
+  it.live("a page watch stays open while undo removes its page, and redo brings it back", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const core = yield* coreOn(yield* copyOfFixture)
+        yield* core.OpenGraph({ graph: "og" })
+        const created = yield* core.Dispatch({ command: { _tag: "CreatePage", title: "Probe" } })
+        const pageId =
+          created.flatMap((event) => (event._tag === "PageUpserted" ? [event.page.id] : []))[0] ??
+          assert.fail("no page was created")
+        const watched = yield* Stream.toQueue(core.WatchPage({ pageId }), {
+          capacity: "unbounded",
+        })
+        assert.strictEqual((yield* Queue.take(watched)).page.title, "Probe")
+        yield* core.Dispatch({ command: { _tag: "Undo" } })
+        yield* core.Dispatch({ command: { _tag: "Redo" } })
+        assert.strictEqual((yield* Queue.take(watched)).page.title, "Probe")
+      }),
+    ),
+  )
+
   it.live("a second core waits for a graph until the first one closes it", () =>
     Effect.scoped(
       Effect.gen(function* () {

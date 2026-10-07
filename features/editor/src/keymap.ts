@@ -14,6 +14,13 @@ const fenceLine = /^\s*(`{3,}|~{3,})/gm
 const insideCodeFence = (state: EditorState, position: number): boolean =>
   (state.sliceDoc(0, position).match(fenceLine)?.length ?? 0) % 2 === 1
 
+const historyStep = (event: KeyboardEvent): "Undo" | "Redo" | null => {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null
+  const key = event.key.toLowerCase()
+  if (key === "z") return event.shiftKey ? "Redo" : "Undo"
+  return key === "y" && !event.shiftKey ? "Redo" : null
+}
+
 const caret = (view: EditorView): number | null => {
   const { main } = view.state.selection
   return main.empty ? main.head : null
@@ -103,6 +110,12 @@ export const blockKeymap = (
     return true
   }
 
+  const history = (event: KeyboardEvent) => {
+    const step = historyStep(event)
+    if (step !== null) host.dispatch({ _tag: step })
+    return step !== null
+  }
+
   const follow = (sidebar: boolean) => (view: EditorView) => {
     const target = linkAt(view.state.doc.toString(), view.state.selection.main.head)
     if (target !== null) host.act({ _tag: "Open", target, sidebar })
@@ -111,6 +124,7 @@ export const blockKeymap = (
 
   return Prec.high(
     keymap.of([
+      { any: (_view, event) => history(event) },
       { key: "Enter", run: split },
       { key: "Shift-Enter", run: insertNewline },
       { key: "Backspace", run: (view) => deletePair(view) || merge(view) },
@@ -124,9 +138,6 @@ export const blockKeymap = (
       { key: "Shift-ArrowUp", run: selectBeyond(false) },
       { key: "Shift-ArrowDown", run: selectBeyond(true) },
       { key: "Escape", run: act({ _tag: "Exit" }) },
-      { key: "Mod-z", run: send({ _tag: "Undo" }) },
-      { key: "Mod-Shift-z", run: send({ _tag: "Redo" }) },
-      { key: "Mod-y", run: send({ _tag: "Redo" }) },
       { key: "Mod-Enter", run: rewrite(cycleMarker) },
       { key: "Mod-b", run: rewrite((draft) => toggleMark(draft, "**")) },
       { key: "Mod-i", run: rewrite((draft) => toggleMark(draft, "*")) },

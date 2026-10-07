@@ -5,7 +5,7 @@ import { Layer } from "effect"
 import { AtomRegistry } from "effect/reactivity"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
-import { coreRuntime } from "@seqno/outliner"
+import { coreLayer } from "@seqno/outliner"
 import { lastGraph, openGraph, prefersDark, resolvedTheme, startingGraph } from "./atoms.ts"
 import { WorkerCore } from "./core.ts"
 import { router } from "./router.tsx"
@@ -13,7 +13,7 @@ import { router } from "./router.tsx"
 const registry = AtomRegistry.make({
   scheduleTask,
   defaultIdleTTL: 400,
-  initialValues: [[coreRuntime.layer, Layer.orDie(WorkerCore)]],
+  initialValues: [[coreLayer, Layer.orDie(WorkerCore)]],
 })
 
 const darkScheme = matchMedia("(prefers-color-scheme: dark)")

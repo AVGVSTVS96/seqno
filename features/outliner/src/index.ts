@@ -1,12 +1,14 @@
 export {
   blockAtom,
+  coreLayer,
   coreRuntime,
   dispatchAtom,
   editRequest,
+  historyAtom,
   pageListKey,
   pageTreeAtom,
-  type Editing,
 } from "./core.ts"
+export { historyStep, type Editing, type HistoryStep } from "./history.ts"
 export type { BlockMenuRequest, Navigate, NavigationTarget, OpenBlockMenu } from "./navigation.ts"
 export { Outliner, type OutlinerProps } from "./Outliner.tsx"
 export { PlainTextEditor } from "./PlainTextEditor.tsx"

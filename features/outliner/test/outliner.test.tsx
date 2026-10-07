@@ -3,7 +3,7 @@ import { expect, test } from "vitest"
 import { page, userEvent } from "vitest/browser"
 import { render } from "vitest-browser-react"
 import type { Block, BlockId } from "@seqno/domain"
-import { coreRuntime, Outliner, type NavigationTarget } from "../src/index.ts"
+import { coreLayer, Outliner, type NavigationTarget } from "../src/index.ts"
 import { block, fakeCore, id, pageId } from "./fake-core.ts"
 import { themeTokens } from "./theme.ts"
 
@@ -13,7 +13,7 @@ const mount = async (blocks: ReadonlyArray<Block>, zoom: BlockId | null = null) 
   const screen = await render(
     <div style={{ width: "600px" }}>
       <style>{themeTokens}</style>
-      <RegistryProvider initialValues={[[coreRuntime.layer, core.layer]]}>
+      <RegistryProvider initialValues={[[coreLayer, core.layer]]}>
         <Outliner pageId={pageId} zoom={zoom} onNavigate={(target) => navigations.push(target)} />
       </RegistryProvider>
     </div>,
