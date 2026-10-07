@@ -37,10 +37,13 @@ Graph.layer({ peer, snapshot: Option<Uint8Array>, updates })
 
 ```
 tree "blocks"
-  root node = page   { uuid: PageId, title, journalDay?, props: mergeable LoroMap }
+  root node = page   { uuid: PageId, title, journalDay?, props: mergeable LoroMap,
+                       propKeys: mergeable LoroList }
   child node = block { uuid: BlockId, text: mergeable LoroText, props: mergeable LoroMap,
-                       collapsed?, created, updated }
+                       propKeys: mergeable LoroList, collapsed?, created, updated }
 ```
+
+- `propKeys` keeps the order properties were written in (a Loro map has its own order). Loading a page seeds it in file order, a new key is pushed at the end, a removed key leaves it. `Block.props` and `Page.props` come back in that order; keys missing from the list (older graphs, a concurrent set) follow in map order.
 
 - Every node read is decoded with Schema. A malformed node from another peer gets skipped instead of crashing.
 - Text and props use `ensureMergeableText` / `ensureMergeableMap`. If two peers create the container at the same time, they get the same container and their edits merge.

@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Fiber, Stream } from "effect"
 import { TestClock } from "effect/testing"
-import type { BlockId, Command } from "@seqno/domain"
+import { BlockId, PageId, type Command } from "@seqno/domain"
 import { createdBlock, createdPage, nth, openGraph, outline, seedPage, tags } from "./support.ts"
 
 const rejection = <A, E extends { readonly _tag: string }>(effect: Effect.Effect<A, E>) =>
@@ -577,6 +577,88 @@ describe("batches", () => {
         assert.deepStrictEqual(
           [tree.page.title, ...outline(tree)],
           ["Garden Plan", "see [[Garden Plan]]"],
+        )
+      }),
+    ),
+  )
+})
+
+describe("property order", () => {
+  it.effect("keeps properties in the order they were written, new ones last", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const { pageId, ids } = yield* seedPage(graph, "Beds", ["Tomato bed"])
+        const target = { _tag: "BlockTarget", blockId: nth(ids, 0) } as const
+        for (const [key, value] of [
+          ["zeta", "1"],
+          ["alpha", "2"],
+          ["mid", "3"],
+          ["beta", "4"],
+        ] as const) {
+          yield* graph.dispatch({ _tag: "SetProperty", target, key, value })
+        }
+        yield* graph.dispatch({ _tag: "SetProperty", target, key: "alpha", value: null })
+        yield* graph.dispatch({ _tag: "SetProperty", target, key: "zeta", value: "one" })
+        yield* graph.dispatch({ _tag: "SetProperty", target, key: "alpha", value: "back" })
+        assert.deepStrictEqual(Object.entries((yield* graph.block(nth(ids, 0))).props), [
+          ["zeta", "one"],
+          ["mid", "3"],
+          ["beta", "4"],
+          ["alpha", "back"],
+        ])
+        yield* graph.dispatch({
+          _tag: "SetProperty",
+          target: { _tag: "PageTarget", pageId },
+          key: "type",
+          value: "plan",
+        })
+        yield* graph.dispatch({
+          _tag: "SetProperty",
+          target: { _tag: "PageTarget", pageId },
+          key: "alias",
+          value: "Plots",
+        })
+        assert.deepStrictEqual(Object.keys((yield* graph.page(pageId)).page.props), [
+          "type",
+          "alias",
+        ])
+      }),
+    ),
+  )
+
+  it.effect("loads properties in the order the file lists them", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
+        const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
+        yield* graph.load([
+          {
+            page: {
+              id: pageId,
+              name: "showcase",
+              title: "Showcase",
+              journalDay: null,
+              props: { alias: "Demo", tags: "garden", type: "guide", description: "all of it" },
+            },
+            blocks: [
+              {
+                id: blockId,
+                pageId,
+                parentId: null,
+                text: "Tomato bed",
+                collapsed: false,
+                props: { variety: "San Marzano", location: "bed 2", sown: "March", plants: "6" },
+              },
+            ],
+          },
+        ])
+        const tree = yield* graph.page(pageId)
+        assert.deepStrictEqual(
+          [Object.keys(tree.page.props), Object.keys(tree.blocks[0]?.props ?? {})],
+          [
+            ["alias", "tags", "type", "description"],
+            ["variety", "location", "sown", "plants"],
+          ],
         )
       }),
     ),

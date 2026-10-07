@@ -159,6 +159,41 @@ test("a block's properties are edited as key:: value lines", async ({ page, seqn
   )
 })
 
+test("properties keep the file's order, and new ones go last", async ({ page, seqno }) => {
+  await openShowcaseAt(page, "/page/showcase")
+  await scrollToText(page, "Tomato bed", 100)
+  const row = page.getByRole("treeitem").filter({ hasText: "Tomato bed" }).first()
+  const keys = row.locator(".seqno-attr .seqno-attr-key")
+  await expect(keys).toHaveText(["variety", "location", "sown", "plants"])
+  await row.getByText("Tomato bed").first().click()
+  await expect(seqno.editor).toHaveText(
+    "Tomato bedvariety:: San Marzanolocation:: [[projects/Greenhouse]]sown:: [[Oct 4th, 2026]]plants:: 6",
+  )
+  await page.keyboard.press("ControlOrMeta+End")
+  for (const line of ["zeta:: 1", "alpha:: 2", "mid:: 3", "beta:: 4"]) {
+    await page.keyboard.press("Shift+Enter")
+    await page.keyboard.type(line)
+  }
+  await page.keyboard.press("Escape")
+  await expect(keys).toHaveText([
+    "variety",
+    "location",
+    "sown",
+    "plants",
+    "zeta",
+    "alpha",
+    "mid",
+    "beta",
+  ])
+  await page.getByRole("link", { name: "Kitchen Sink" }).first().scrollIntoViewIfNeeded()
+  await expect(page.getByLabel("Page properties").getByRole("term")).toHaveText([
+    "alias",
+    "tags",
+    "type",
+    "description",
+  ])
+})
+
 test("Shift+Enter in the palette opens the result in the right sidebar", async ({ page }) => {
   await openShowcaseAt(page, "/")
   await page.keyboard.press("Control+k")

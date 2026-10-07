@@ -1,5 +1,12 @@
 import { Option, Schema } from "effect"
-import { LoroMap, LoroText, type LoroTree, type LoroTreeNode, type TreeID } from "loro-crdt"
+import {
+  LoroList,
+  LoroMap,
+  LoroText,
+  type LoroTree,
+  type LoroTreeNode,
+  type TreeID,
+} from "loro-crdt"
 import {
   BlockId,
   JournalDay,
@@ -15,11 +22,14 @@ export const TREE = "blocks"
 
 const EpochMillis = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
+const PropKeys = Schema.Array(Schema.String)
+
 const PageData = Schema.Struct({
   uuid: PageId,
   title: Schema.String,
   journalDay: Schema.optionalKey(JournalDay),
   props: Schema.optionalKey(Props),
+  propKeys: Schema.optionalKey(PropKeys),
 })
 
 const BlockData = Schema.Struct({
@@ -27,6 +37,7 @@ const BlockData = Schema.Struct({
   text: Schema.optionalKey(Schema.String),
   collapsed: Schema.optionalKey(Schema.Boolean),
   props: Schema.optionalKey(Props),
+  propKeys: Schema.optionalKey(PropKeys),
   created: Schema.optionalKey(EpochMillis),
   updated: Schema.optionalKey(EpochMillis),
 })
@@ -58,6 +69,12 @@ export const blockIdOf = (node: LoroTreeNode): Option.Option<BlockId> =>
 export const pageIdOf = (node: LoroTreeNode): Option.Option<PageId> =>
   decodePageId(node.data.get("uuid"))
 
+const inOrder = (props: Props = {}, keys: ReadonlyArray<string> = []): Props => {
+  const listed = [...new Set(keys)].filter((key) => key in props)
+  const rest = Object.keys(props).filter((key) => !listed.includes(key))
+  return Object.fromEntries([...listed, ...rest].map((key) => [key, props[key] ?? ""]))
+}
+
 export const readPage = (node: LoroTreeNode): Option.Option<Page> =>
   Option.flatMap(decodePageData(node.data.toJSON()), (data) => {
     const name = normalizePageName(data.title)
@@ -68,7 +85,7 @@ export const readPage = (node: LoroTreeNode): Option.Option<Page> =>
           name,
           title: data.title,
           journalDay: data.journalDay ?? null,
-          props: data.props ?? {},
+          props: inOrder(data.props, data.propKeys),
         })
   })
 
@@ -80,7 +97,7 @@ export const readBlock = (node: LoroTreeNode, at: Placement): Option.Option<Bloc
       parentId: at.parentId,
       text: data.text ?? "",
       collapsed: data.collapsed ?? false,
-      props: data.props ?? {},
+      props: inOrder(data.props, data.propKeys),
     },
     createdAt: data.created ?? 0,
     updatedAt: data.updated ?? data.created ?? 0,
@@ -91,9 +108,30 @@ export const textOf = (node: LoroTreeNode): LoroText => {
   return text instanceof LoroText ? text : node.data.ensureMergeableText("text")
 }
 
-export const propsOf = (node: LoroTreeNode): LoroMap => {
+const propsOf = (node: LoroTreeNode): LoroMap => {
   const props = node.data.get("props")
   return props instanceof LoroMap ? props : node.data.ensureMergeableMap("props")
+}
+
+const propKeysOf = (node: LoroTreeNode): LoroList => {
+  const keys = node.data.get("propKeys")
+  return keys instanceof LoroList ? keys : node.data.ensureMergeableList("propKeys")
+}
+
+export const setProp = (node: LoroTreeNode, key: string, value: string | null): void => {
+  const props = propsOf(node)
+  const keys = propKeysOf(node)
+  const listed = keys.toArray()
+  if (value === null) {
+    props.delete(key)
+    listed
+      .flatMap((listedKey, at) => (listedKey === key ? [at] : []))
+      .toReversed()
+      .forEach((at) => keys.delete(at, 1))
+    return
+  }
+  props.set(key, value)
+  if (!listed.includes(key)) keys.push(key)
 }
 
 export const textValue = (node: LoroTreeNode): string => {
@@ -117,10 +155,8 @@ export const writeBlock = (node: LoroTreeNode, id: BlockId, text: string, now: n
   node.data.set("updated", now)
 }
 
-const writeProps = (node: LoroTreeNode, props: Props): void => {
-  const map = propsOf(node)
-  Object.entries(props).forEach(([key, value]) => map.set(key, value))
-}
+export const writeProps = (node: LoroTreeNode, props: Props): void =>
+  Object.entries(props).forEach(([key, value]) => setProp(node, key, value))
 
 export const loadPage = (tree: LoroTree, { page, blocks }: PageTree, now: number): void => {
   const root = tree.createNode()

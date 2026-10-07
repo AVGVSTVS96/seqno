@@ -15,12 +15,13 @@ import type { Registry } from "./registry.ts"
 import {
   childrenOf,
   isCollapsed,
-  propsOf,
   readPage,
+  setProp,
   textOf,
   touch,
   writeBlock,
   writePage,
+  writeProps,
 } from "./tree.ts"
 
 export class Unresolved extends Data.TaggedError("Unresolved")<{ readonly id: BlockId }> {}
@@ -128,8 +129,7 @@ const createTree = (
     const now = yield* Clock.currentTimeMillis
     const node = parent.createNode(index)
     writeBlock(node, id, draft.text, now)
-    const props = propsOf(node)
-    for (const [key, value] of Object.entries(draft.props)) props.set(key, value)
+    writeProps(node, draft.props)
     yield* Effect.forEach(draft.children, (child, at) => createTree(node, at, child), {
       discard: true,
     })
@@ -296,9 +296,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
     SetProperty: ({ target, key, value }) =>
       Effect.gen(function* () {
         const node = yield* targetNode(ws, target)
-        const props = propsOf(node)
-        if (value === null) props.delete(key)
-        else props.set(key, value)
+        setProp(node, key, value)
         if (!isPage(node)) touch(node, yield* Clock.currentTimeMillis)
       }),
     Undo: () => Effect.sync(() => void ws.undo.undo()),
