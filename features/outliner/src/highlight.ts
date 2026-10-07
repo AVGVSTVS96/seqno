@@ -101,7 +101,7 @@ const rules: ReadonlyArray<{ readonly tag: Tag | ReadonlyArray<Tag>; readonly cl
   },
   { tag: [tags.typeName, tags.namespace], class: "type" },
   { tag: [tags.className, tags.labelName], class: "qualifier" },
-  { tag: tags.derefOperator, class: "" },
+  { tag: tags.derefOperator, class: "plain" },
   { tag: [tags.operator, tags.function(tags.punctuation), tags.angleBracket], class: "operator" },
   { tag: [tags.string, tags.regexp, tags.character, tags.attributeValue], class: "string" },
   { tag: [tags.number, tags.unit, tags.atom, tags.bool, tags.null, tags.color], class: "number" },
