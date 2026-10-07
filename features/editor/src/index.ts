@@ -9,3 +9,4 @@ export {
   type EditorHost,
   type PageName,
 } from "./host.ts"
+export { editorBindings, type Binding } from "./bindings.ts"

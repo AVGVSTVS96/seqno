@@ -3,6 +3,7 @@ import { EditorSelection, Prec, type EditorState } from "@codemirror/state"
 import { keymap, type EditorView } from "@codemirror/view"
 import type { BlockId, Command } from "@seqno/domain"
 import { deletePair } from "./autopair.ts"
+import { bound, editorBindings } from "./bindings.ts"
 import { goalX, minimalChange } from "./edits.ts"
 import { cycleMarker, insertLink, toggleMark, type Draft } from "./format.ts"
 import type { Handoff } from "./handoff.ts"
@@ -134,34 +135,34 @@ export const blockKeymap = (
   return Prec.high(
     keymap.of([
       { any: (_view, event) => history(event) },
-      { key: "Enter", run: split },
-      { key: "Shift-Enter", run: insertNewline },
+      { ...bound(editorBindings.newBlock), run: split },
+      { ...bound(editorBindings.newLine), run: insertNewline },
       { key: "Backspace", run: (view) => deletePair(view) || merge(view) },
-      { key: "Tab", run: send({ _tag: "Indent", blockIds: [blockId] }) },
-      { key: "Shift-Tab", run: send({ _tag: "Outdent", blockIds: [blockId] }) },
+      { ...bound(editorBindings.indent), run: send({ _tag: "Indent", blockIds: [blockId] }) },
+      { ...bound(editorBindings.outdent), run: send({ _tag: "Outdent", blockIds: [blockId] }) },
       { key: "ArrowUp", run: vertical(false) },
       { key: "ArrowDown", run: vertical(true) },
       { key: "ArrowLeft", run: atEdge(false, { _tag: "FocusPrevious" }) },
       { key: "ArrowRight", run: atEdge(true, { _tag: "FocusNext" }) },
       { key: "Delete", run: atEdge(true, { _tag: "MergeNext" }) },
-      { key: "Shift-ArrowUp", run: selectBeyond(false) },
-      { key: "Shift-ArrowDown", run: selectBeyond(true) },
-      { key: "Escape", run: act({ _tag: "Exit" }) },
-      { key: "Mod-Enter", run: rewrite(cycleMarker) },
-      { key: "Mod-b", run: rewrite((draft) => toggleMark(draft, "**")) },
-      { key: "Mod-i", run: rewrite((draft) => toggleMark(draft, "*")) },
-      { key: "Mod-Shift-h", run: rewrite((draft) => toggleMark(draft, "==")) },
-      { key: "Mod-Shift-s", run: rewrite((draft) => toggleMark(draft, "~~")) },
-      { key: "Mod-l", run: rewrite(insertLink) },
-      { key: "Mod-ArrowUp", run: act({ _tag: "Collapse" }) },
-      { key: "Mod-ArrowDown", run: act({ _tag: "Expand" }) },
-      { key: "Mod-;", run: act({ _tag: "ToggleCollapse" }) },
-      { key: "Alt-Shift-ArrowUp", mac: "Mod-Shift-ArrowUp", run: act({ _tag: "MoveUp" }) },
-      { key: "Alt-Shift-ArrowDown", mac: "Mod-Shift-ArrowDown", run: act({ _tag: "MoveDown" }) },
-      { key: "Mod-o", run: follow(false) },
-      { key: "Mod-Shift-o", run: follow(true) },
-      { key: "Alt-ArrowRight", mac: "Mod-.", run: act({ _tag: "ZoomIn" }) },
-      { key: "Alt-ArrowLeft", mac: "Mod-,", run: act({ _tag: "ZoomOut" }) },
+      { ...bound(editorBindings.selectAbove), run: selectBeyond(false) },
+      { ...bound(editorBindings.selectBelow), run: selectBeyond(true) },
+      { ...bound(editorBindings.exit), run: act({ _tag: "Exit" }) },
+      { ...bound(editorBindings.cycleTask), run: rewrite(cycleMarker) },
+      { ...bound(editorBindings.bold), run: rewrite((draft) => toggleMark(draft, "**")) },
+      { ...bound(editorBindings.italic), run: rewrite((draft) => toggleMark(draft, "*")) },
+      { ...bound(editorBindings.highlight), run: rewrite((draft) => toggleMark(draft, "==")) },
+      { ...bound(editorBindings.strike), run: rewrite((draft) => toggleMark(draft, "~~")) },
+      { ...bound(editorBindings.link), run: rewrite(insertLink) },
+      { ...bound(editorBindings.collapse), run: act({ _tag: "Collapse" }) },
+      { ...bound(editorBindings.expand), run: act({ _tag: "Expand" }) },
+      { ...bound(editorBindings.toggleCollapse), run: act({ _tag: "ToggleCollapse" }) },
+      { ...bound(editorBindings.moveUp), run: act({ _tag: "MoveUp" }) },
+      { ...bound(editorBindings.moveDown), run: act({ _tag: "MoveDown" }) },
+      { ...bound(editorBindings.follow), run: follow(false) },
+      { ...bound(editorBindings.followInSidebar), run: follow(true) },
+      { ...bound(editorBindings.zoomIn), run: act({ _tag: "ZoomIn" }) },
+      { ...bound(editorBindings.zoomOut), run: act({ _tag: "ZoomOut" }) },
     ]),
   )
 }
