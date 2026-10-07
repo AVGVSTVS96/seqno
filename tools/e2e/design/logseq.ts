@@ -139,20 +139,20 @@ const lastPlainWords = (
   return lastPlainWords(words.slice(0, -1), [word, ...run])
 }
 
-const lastBullet = (markdown: string) =>
-  (
-    markdown
-      .split("\n")
-      .filter((line) => /^\s*- /.test(line))
-      .at(-1) ?? ""
-  ).replace(/^\s*- /, "")
+const bullets = (markdown: string) =>
+  markdown
+    .split("\n")
+    .filter((line) => /^\s*- /.test(line))
+    .map((line) => line.replace(/^\s*- /, ""))
+
+const lastBullet = (markdown: string) => bullets(markdown).at(-1) ?? ""
 
 const probeText = (markdown: string) =>
-  lastPlainWords(
-    lastBullet(markdown)
-      .replace(/==|~~|[*`]/g, "")
-      .split(/\s+/),
-  ).join(" ")
+  bullets(markdown)
+    .filter((bullet) => !bullet.startsWith("{{"))
+    .map((bullet) => lastPlainWords(bullet.replace(/==|~~|[*`]/g, "").split(/\s+/)))
+    .findLast((words) => words.length > 0)
+    ?.join(" ") ?? ""
 
 const startEditing = async (page: Page) => {
   if (await page.evaluate(() => document.activeElement instanceof HTMLTextAreaElement)) return

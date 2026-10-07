@@ -87,6 +87,31 @@ export const scenes: ReadonlyArray<Scene> = [
     },
   },
   {
+    id: "showcase-queries",
+    title: "Showcase page, bottom: query blocks",
+    reference: "demo",
+    leftSidebar: true,
+    caret: false,
+    logseq: async (page) => {
+      await logseq.goToPage(page, "demo", "Showcase")
+      await page.locator(".custom-query").first().waitFor()
+      await logseq.scrollToText(page, "Queries", 16)
+      return nothing
+    },
+    seqno: async (page, step) => {
+      await seqno.openSeqno(page, "/page/showcase")
+      await step("the Queries heading", () => seqno.scrollToText(page, "Queries", 16))
+      await step("query results", () =>
+        page
+          .getByRole("region", { name: "Live query" })
+          .first()
+          .getByRole("region")
+          .first()
+          .waitFor(),
+      )
+    },
+  },
+  {
     id: "editing",
     title: "Editing a block",
     reference: "test",
