@@ -332,7 +332,10 @@
 .seqno-journal {
   min-height: var(--journal-first-min-height);
   padding-bottom: var(--journal-padding-bottom);
-  border-bottom: 1px solid var(--border);
+}
+
+.seqno-journal + .seqno-journal {
+  border-top: 1px solid var(--border);
 }
 
 .seqno-journals-more {

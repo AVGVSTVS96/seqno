@@ -63,6 +63,7 @@
 .seqno-crumbs a {
   display: block;
   flex: none;
+  padding-top: 1.6px;
   max-width: 28ch;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -499,6 +500,7 @@
 
 .seqno-pageref.has-brackets::before {
   content: "[[";
+  margin-right: 1px;
 }
 
 .seqno-pageref.has-brackets::after {

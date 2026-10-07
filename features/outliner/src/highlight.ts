@@ -54,12 +54,17 @@ const scriptLocals = (tree: Tree, code: string, paint: Paint) => {
   })
 }
 
-const cssSelectors = (tree: Tree, _code: string, paint: Paint) =>
+const isPropertyName = (word: string) => typeof CSS !== "undefined" && CSS.supports(word, "inherit")
+
+const cssSelectors = (tree: Tree, code: string, paint: Paint) =>
   tree.iterate({
     enter: (node) => {
       if (node.name === "ClassSelector" || node.name === "IdSelector") {
         paint(node.from, node.to, "qualifier")
         return false
+      }
+      if (node.name === "ValueName" && isPropertyName(code.slice(node.from, node.to))) {
+        paint(node.from, node.to, "variable")
       }
       return undefined
     },
@@ -96,6 +101,7 @@ const highlighter = tagHighlighter([
   },
   { tag: [tags.typeName, tags.namespace], class: "type" },
   { tag: [tags.className, tags.labelName], class: "qualifier" },
+  { tag: tags.derefOperator, class: "" },
   { tag: [tags.operator, tags.function(tags.punctuation), tags.angleBracket], class: "operator" },
   { tag: [tags.string, tags.regexp, tags.character, tags.attributeValue], class: "string" },
   { tag: [tags.number, tags.unit, tags.atom, tags.bool, tags.null, tags.color], class: "number" },
