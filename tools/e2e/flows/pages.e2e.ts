@@ -69,6 +69,24 @@ test("clicking a page title renames the page", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sourdough starter")
 })
 
+test("renaming a page rewrites the links to it and keeps its references", async ({ page }) => {
+  await openShowcaseAt(page, "/page/garden%20plan")
+  const references = page.getByRole("region", { name: /^Linked references/ })
+  await expect(references.getByRole("region")).toHaveCount(3)
+  await page.getByRole("heading", { level: 1, name: "Garden Plan" }).click()
+  const title = page.getByRole("textbox", { name: "Page title" })
+  await title.press("End")
+  await title.pressSequentially(" X")
+  await title.press("Enter")
+  await expect(page).toHaveURL(/\/page\/garden%20plan%20x$/)
+  await expect(references.getByRole("region")).toHaveCount(3)
+  await expect(references).toContainText("compost bay for the Garden Plan X")
+  await page.keyboard.press("g")
+  await page.keyboard.press("a")
+  const names = page.getByRole("table", { name: "All pages" }).locator("tbody tr td:nth-child(2)")
+  await expect(names.filter({ hasText: /^Garden Plan/ })).toHaveText(["Garden Plan X"])
+})
+
 test("all pages hides journals, sorts by title and filters", async ({ page }) => {
   await openShowcaseAt(page, "/all-pages")
   const table = page.getByRole("table", { name: "All pages" })

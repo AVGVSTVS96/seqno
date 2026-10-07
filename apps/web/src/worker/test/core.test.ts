@@ -314,6 +314,56 @@ describe("the core worker on the real graph, vault and index", () => {
     ),
   )
 
+  it.effect("renaming a page rewrites the references to it in one undo step", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const core = yield* coreOn(yield* copyOfFixture)
+        yield* core.OpenGraph({ graph: "og" })
+        const created = (title: string) =>
+          Effect.map(
+            core.Dispatch({ command: { _tag: "CreatePage", title } }),
+            (events) =>
+              events.flatMap((event) =>
+                event._tag === "PageUpserted" ? [event.page.id] : [],
+              )[0] ?? assert.fail(`no page ${title}`),
+          )
+        const garden = yield* created("Garden Plan")
+        const notes = yield* created("Notes")
+        yield* core.Dispatch({
+          command: {
+            _tag: "InsertBlock",
+            pageId: notes,
+            parentId: null,
+            text: "see [[Garden Plan]] and #[[garden plan]]",
+          },
+        })
+        yield* core.Dispatch({
+          command: {
+            _tag: "SetProperty",
+            target: { _tag: "PageTarget", pageId: notes },
+            key: "tags",
+            value: "Garden Plan, compost",
+          },
+        })
+        yield* core.Dispatch({
+          command: { _tag: "RenamePage", pageId: garden, title: "Garden Plan X" },
+        })
+        const renamed = yield* core.GetPage({ pageId: notes })
+        assert.deepStrictEqual(
+          [renamed.page.props["tags"], ...renamed.blocks.map((block) => block.text)],
+          ["Garden Plan X, compost", "see [[Garden Plan X]] and #[[Garden Plan X]]"],
+        )
+        yield* core.Dispatch({ command: { _tag: "Undo" } })
+        const restored = yield* core.GetPage({ pageId: notes })
+        assert.deepStrictEqual(
+          [restored.page.props["tags"], ...restored.blocks.map((block) => block.text)],
+          ["Garden Plan, compost", "see [[Garden Plan]] and #[[garden plan]]"],
+        )
+        assert.strictEqual((yield* core.GetPage({ pageId: garden })).page.title, "Garden Plan")
+      }),
+    ),
+  )
+
   it.live("a second core waits for a graph until the first one closes it", () =>
     Effect.scoped(
       Effect.gen(function* () {

@@ -20,7 +20,7 @@ import {
 } from "loro-crdt"
 import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
-import { applyCommand, type Workspace } from "./commands.ts"
+import { applyCommand, type Unresolved, type Workspace } from "./commands.ts"
 import { translate } from "./events.ts"
 import { emptyRegistry } from "./registry.ts"
 import {
@@ -68,6 +68,9 @@ export class Graph extends Context.Service<
     readonly block: (id: BlockId) => Effect.Effect<Block, BlockNotFound>
     readonly dispatch: (
       command: Command,
+    ) => Effect.Effect<ReadonlyArray<GraphEvent>, CommandRejected>
+    readonly dispatchAll: (
+      commands: ReadonlyArray<Command>,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, CommandRejected>
     readonly merge: (
       updates: ReadonlyArray<Uint8Array>,
@@ -236,6 +239,16 @@ const make = (source: GraphSource) =>
         ),
       )
 
+    const committed = (applied: Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto>) =>
+      applied.pipe(
+        Effect.catchTag("Unresolved", ({ id }) =>
+          Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
+        ),
+        Effect.provideService(Crypto.Crypto, crypto),
+        Effect.andThen(Effect.sync(() => doc.commit())),
+        Effect.andThen(drain),
+      )
+
     const dispatch = (command: Command) =>
       serial(
         Effect.suspend(() => {
@@ -248,13 +261,21 @@ const make = (source: GraphSource) =>
               Effect.suspend(() => applyCommand(ws, command)),
             ),
           ),
-          Effect.catchTag("Unresolved", ({ id }) =>
-            Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
-          ),
-          Effect.provideService(Crypto.Crypto, crypto),
-          Effect.andThen(Effect.sync(() => doc.commit())),
-          Effect.andThen(drain),
+          committed,
         ),
+      )
+
+    const dispatchAll = (commands: ReadonlyArray<Command>) =>
+      serial(
+        Effect.andThen(
+          filled.await,
+          Effect.suspend(() => {
+            endTyping()
+            return Effect.forEach(commands, (command) => applyCommand(ws, command), {
+              discard: true,
+            })
+          }),
+        ).pipe(committed),
       )
 
     const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
@@ -323,6 +344,7 @@ const make = (source: GraphSource) =>
       page,
       block,
       dispatch,
+      dispatchAll,
       merge,
       load,
       events: Stream.fromPubSub(pubsub),

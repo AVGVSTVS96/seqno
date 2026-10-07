@@ -18,6 +18,9 @@ class Graph {
   page: (id: PageId) => Effect<PageTree, PageNotFound>
   block: (id: BlockId) => Effect<Block, BlockNotFound>
   dispatch: (command: Command) => Effect<ReadonlyArray<GraphEvent>, CommandRejected>
+  dispatchAll: (
+    commands: ReadonlyArray<Command>,
+  ) => Effect<ReadonlyArray<GraphEvent>, CommandRejected> // one commit, one undo step
   merge: (updates: ReadonlyArray<Uint8Array>) => Effect<ReadonlyArray<GraphEvent>, ImportFailed>
   events: Stream<GraphEvent>
   flush: (write: (u: LocalUpdate) => Effect<void, E, R>) => Effect<Option<LocalUpdate>, E, R>

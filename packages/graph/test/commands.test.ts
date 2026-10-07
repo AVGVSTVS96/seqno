@@ -561,3 +561,24 @@ describe("undo steps", () => {
     ),
   )
 })
+
+describe("batches", () => {
+  it.effect("applies several commands as one undo step", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const { pageId, ids } = yield* seedPage(graph, "Garden Plan", ["see [[Garden Plan]]"])
+        yield* graph.dispatchAll([
+          { _tag: "RenamePage", pageId, title: "Garden Plan X" },
+          { _tag: "EditText", blockId: nth(ids, 0), from: 4, to: 19, insert: "[[Garden Plan X]]" },
+        ])
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["see [[Garden Plan X]]"])
+        yield* graph.dispatch({ _tag: "Undo" })
+        const tree = yield* graph.page(pageId)
+        assert.deepStrictEqual(
+          [tree.page.title, ...outline(tree)],
+          ["Garden Plan", "see [[Garden Plan]]"],
+        )
+      }),
+    ),
+  )
+})

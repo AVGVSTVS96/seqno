@@ -38,6 +38,7 @@ import { defaultConfig, parseJournalDay } from "@seqno/interop"
 import { journalDayOf } from "./journal.ts"
 import { GraphLocks } from "./lock.ts"
 import { Device, GraphPlaces, type GraphPlace } from "./place.ts"
+import { referenceEdits } from "./rename.ts"
 import { openSession, type Session, type Touched } from "./session.ts"
 
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
@@ -239,7 +240,14 @@ const CoreHandlers = CoreRpcs.toLayer(
       OpenGraph: ({ graph, wait }) => open(graph, wait ?? false),
       Dispatch: ({ command }) =>
         Effect.flatMap(current, (session) =>
-          Effect.tap(session.graph.dispatch(command), session.record),
+          Effect.tap(
+            command._tag === "RenamePage"
+              ? Effect.flatMap(referenceEdits(session, command.pageId, command.title), (edits) =>
+                  session.graph.dispatchAll([command, ...edits]),
+                )
+              : session.graph.dispatch(command),
+            session.record,
+          ),
         ),
       GetPages: () => Effect.flatMap(current, (session) => session.graph.pages),
       GetPage: ({ pageId }) => Effect.flatMap(current, (session) => session.graph.page(pageId)),
