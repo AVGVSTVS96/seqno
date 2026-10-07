@@ -222,20 +222,20 @@ const settingsRegistry = (entries: Map<string, string>, systemDark = false) =>
   })
 
 describe("app settings", () => {
-  it("theme and the left sidebar start as system and open, and persist as JSON", () => {
+  it("theme and the left sidebar start as system and closed, and persist as JSON", () => {
     const entries = new Map<string, string>()
     const first = settingsRegistry(entries)
     assert.strictEqual(first.get(theme), "system")
-    assert.strictEqual(first.get(leftSidebarOpen), true)
+    assert.strictEqual(first.get(leftSidebarOpen), false)
     first.set(theme, "dark")
-    first.set(leftSidebarOpen, false)
+    first.set(leftSidebarOpen, true)
     assert.deepStrictEqual(Object.fromEntries(entries), {
       "seqno.theme": '"dark"',
-      "seqno.leftSidebar": "false",
+      "seqno.leftSidebar": "true",
     })
     const reopened = settingsRegistry(entries)
     assert.strictEqual(reopened.get(theme), "dark")
-    assert.strictEqual(reopened.get(leftSidebarOpen), false)
+    assert.strictEqual(reopened.get(leftSidebarOpen), true)
   })
 
   it("the system theme resolves through the color scheme preference", () => {

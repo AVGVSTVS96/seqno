@@ -6,6 +6,7 @@ test.skip(!appAvailable, "waits on apps/web")
 
 test("each Ctrl+Z takes back one step and edits the block it changed", async ({ page, seqno }) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
+  await page.evaluate(() => localStorage.setItem("seqno.leftSidebar", "true"))
   await page.goto("/")
   await page.keyboard.press("Control+k")
   await page.getByRole("dialog", { name: "Search" }).getByRole("searchbox").fill("Undo Probe")

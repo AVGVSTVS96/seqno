@@ -299,7 +299,9 @@ test("page properties are edited as key:: value lines too", async ({ page }) => 
 test("Add to Favorites lists the page in the sidebar and leaves its file alone", async ({
   page,
 }) => {
-  await openShowcaseAt(page, "/page/reading%20list")
+  await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
+  await page.evaluate(() => localStorage.setItem("seqno.leftSidebar", "true"))
+  await page.goto("/page/reading%20list")
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Add to Favorites" }).click()
   const sidebar = page.getByRole("complementary", { name: "Left sidebar" })

@@ -230,7 +230,7 @@ export const leftSidebarOpen = Atom.kvs({
   runtime: settingsRuntime,
   key: "seqno.leftSidebar",
   schema: Schema.Boolean,
-  defaultValue: () => true,
+  defaultValue: () => false,
 }).pipe(Atom.keepAlive)
 
 export const searchOpen = Atom.make(false).pipe(Atom.keepAlive)
