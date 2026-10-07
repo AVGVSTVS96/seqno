@@ -8,8 +8,8 @@ export const CursorPlacement = Schema.TaggedUnion({
   Start: {},
   End: {},
   Offset: { offset: Offset },
-  FirstLine: { x: Schema.Number },
-  LastLine: { x: Schema.Number },
+  FirstLine: { column: Offset },
+  LastLine: { column: Offset },
 })
 export type CursorPlacement = typeof CursorPlacement.Type
 

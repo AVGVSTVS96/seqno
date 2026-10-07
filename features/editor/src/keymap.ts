@@ -4,7 +4,7 @@ import { keymap, type EditorView } from "@codemirror/view"
 import type { BlockId, Command } from "@seqno/domain"
 import { deletePair } from "./autopair.ts"
 import { bound, editorBindings } from "./bindings.ts"
-import { goalX, minimalChange } from "./edits.ts"
+import { minimalChange } from "./edits.ts"
 import { cycleMarker, insertLink, toggleMark, type Draft } from "./format.ts"
 import type { Handoff } from "./handoff.ts"
 import type { EditorAction, EditorHost } from "./host.ts"
@@ -99,10 +99,10 @@ export const blockKeymap = (
     const head = caret(view)
     if (head === null) return false
     if (!(forward ? onLastVisualLine(view, head) : onFirstVisualLine(view, head))) return false
-    const x = goalX(view)
+    const column = head - view.moveToLineBoundary(EditorSelection.cursor(head), false, true).head
     handoff.carry({
       _tag: "Caret",
-      cursor: forward ? { _tag: "FirstLine", x } : { _tag: "LastLine", x },
+      cursor: forward ? { _tag: "FirstLine", column } : { _tag: "LastLine", column },
     })
     host.act({ _tag: forward ? "FocusNext" : "FocusPrevious" })
     return true

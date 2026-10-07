@@ -1,4 +1,3 @@
-import type { Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { expect, test } from "../src/test.ts"
 
@@ -6,13 +5,6 @@ test.skip(!appAvailable, "waits on apps/web")
 
 const welcome = "Welcome to the seqno demo graph"
 const second = "Open Getting started to see how pages link"
-
-const caretX = (page: Page) =>
-  page.evaluate(() => {
-    const selection = window.getSelection()
-    const range = selection?.rangeCount === 1 ? selection.getRangeAt(0) : null
-    return range?.getClientRects()[0]?.x ?? Number.NaN
-  })
 
 test.beforeEach(async ({ page, seqno }) => {
   await seqno.openDemoGraph()
@@ -30,6 +22,14 @@ test("keys typed right after Enter land in the new block", async ({ page, seqno 
   ])
 })
 
+test("Ctrl+V right after Enter pastes into the new block", async ({ page, seqno }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.evaluate(() => navigator.clipboard.writeText("pasted at once"))
+  await page.keyboard.press("Enter")
+  await page.keyboard.press("ControlOrMeta+v")
+  await expect(seqno.today.getByRole("treeitem")).toHaveText([welcome, "pasted at once", second])
+})
+
 test("a burst of Enter, text and Tab builds the outline in order", async ({ page, seqno }) => {
   for (const key of ["Enter", "a", "b", "Enter", "c", "d", "Tab", "e", "Escape"]) {
     await page.keyboard.press(key)
@@ -45,15 +45,19 @@ test("Enter, Backspace and typing at machine speed lose no keys", async ({ page,
   await expect(seqno.today.getByRole("treeitem")).toHaveText([`${welcome}XYZ`, second])
 })
 
-test("ArrowDown keeps the caret's horizontal position", async ({ page, seqno }) => {
+test("ArrowDown and ArrowUp keep the caret's character offset, like Logseq", async ({
+  page,
+  seqno,
+}) => {
   await page.keyboard.press("Home")
   for (let step = 0; step < "Welcome to".length; step++) await page.keyboard.press("ArrowRight")
-  const before = await caretX(page)
   await page.keyboard.press("ArrowDown")
-  await expect(seqno.editor).toHaveText("Open [[Getting started]] to see how pages link")
-  expect(Math.abs((await caretX(page)) - before)).toBeLessThan(6)
+  await page.keyboard.type("|")
+  await expect(seqno.editor).toHaveText("Open [[Get|ting started]] to see how pages link")
+  await page.keyboard.press("Backspace")
   await page.keyboard.press("ArrowUp")
-  expect(Math.abs((await caretX(page)) - before)).toBeLessThan(1)
+  await page.keyboard.type("|")
+  await expect(seqno.editor).toHaveText(`Welcome to| the seqno demo graph`)
 })
 
 test("the slash menu lists commands and runs the chosen one", async ({ page, seqno }) => {

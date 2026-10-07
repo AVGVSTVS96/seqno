@@ -83,30 +83,19 @@ export const textSync = (confirmed: string, pending: Array<string>): TextSync =>
   }
 }
 
-const atX = (view: EditorView, x: number, edge: number, side: -1 | 1): SelectionRange => {
-  const glyph = view.coordsAtPos(edge, side)
-  if (glyph === null) return EditorSelection.cursor(edge)
-  const content = view.contentDOM.getBoundingClientRect()
-  const clamped = Math.min(Math.max(x, content.left), content.right)
-  const pos = view.posAtCoords({ x: clamped, y: (glyph.top + glyph.bottom) / 2 }, false)
-  return EditorSelection.cursor(pos, 0, undefined, x - content.left)
-}
-
 export const placeCursor = (view: EditorView, placement: CursorPlacement): SelectionRange => {
   const length = view.state.doc.length
   return CursorPlacement.match(placement, {
     Start: () => EditorSelection.cursor(0),
     End: () => EditorSelection.cursor(length),
     Offset: ({ offset }) => EditorSelection.cursor(Math.min(offset, length)),
-    FirstLine: ({ x }) => atX(view, x, 0, 1),
-    LastLine: ({ x }) => atX(view, x, length, -1),
+    FirstLine: ({ column }) => {
+      const end = view.moveToLineBoundary(EditorSelection.cursor(0), true, true).head
+      return EditorSelection.cursor(Math.min(column, end))
+    },
+    LastLine: ({ column }) => {
+      const start = view.moveToLineBoundary(EditorSelection.cursor(length), false, true).head
+      return EditorSelection.cursor(Math.min(start + column, length))
+    },
   })
-}
-
-export const goalX = (view: EditorView): number => {
-  const { main } = view.state.selection
-  const left = view.contentDOM.getBoundingClientRect().left
-  return main.goalColumn === undefined
-    ? (view.coordsAtPos(main.head, main.assoc < 0 ? -1 : 1)?.left ?? left)
-    : left + main.goalColumn
 }

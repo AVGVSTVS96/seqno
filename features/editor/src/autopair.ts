@@ -29,6 +29,19 @@ export const autopair = EditorView.inputHandler.of((view, from, to, text) => {
     view.dispatch({ selection: { anchor: from + 1 }, userEvent: "select" })
     return true
   }
+  if (
+    text === "$" &&
+    selected === "" &&
+    before === "$" &&
+    state.sliceDoc(from - 2, from - 1) !== "$"
+  ) {
+    view.dispatch({
+      changes: { from, to, insert: "$$$" },
+      selection: { anchor: from + 1 },
+      userEvent: "input.type",
+    })
+    return true
+  }
   const close = pairs[text]
   if (close === undefined) return false
   if (selected === "" && onlyAroundSelection.has(text)) return false

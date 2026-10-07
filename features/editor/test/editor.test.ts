@@ -264,6 +264,14 @@ describe("auto-pairs", () => {
     assert.deepStrictEqual([text(view), caret(view)], ["x []", 4])
   })
 
+  it("closes $$ math once the second dollar is typed", () => {
+    const { view } = mount("", { _tag: "End" })
+    typeKeys(view, " $$x")
+    assert.deepStrictEqual([text(view), caret(view)], [" $$x$$", 4])
+    typeKeys(view, " $5")
+    assert.strictEqual(text(view), " $$x $5$$")
+  })
+
   it("does not pair a parenthesis right after a word", () => {
     const { view } = mount("", { _tag: "End" })
     typeKeys(view, "a(")
@@ -299,14 +307,20 @@ describe("moving between blocks", () => {
     )
   })
 
-  it("hands the caret's horizontal position to the next editor", () => {
+  it("hands the caret's column in its line to the next editor, like Logseq", () => {
     const within = session()
-    const { view } = mount("one\ntwo", { _tag: "Offset", offset: 5 }, { within })
+    const { view } = mount("one\ntwo", { _tag: "Offset", offset: 6 }, { within })
     press(view, "ArrowDown")
     assert.deepStrictEqual(within.handoff.take(), {
       _tag: "Caret",
-      cursor: { _tag: "FirstLine", x: 0 },
+      cursor: { _tag: "FirstLine", column: 2 },
     })
+  })
+
+  it("lands on the same column, or the line's end when it is shorter", () => {
+    const below = mount("abcdefgh\nsecond", { _tag: "FirstLine", column: 5 })
+    const above = mount("first\nab", { _tag: "LastLine", column: 5 })
+    assert.deepStrictEqual([caret(below.view), caret(above.view)], [5, 8])
   })
 
   it("stays inside the block while a line remains in that direction", () => {
