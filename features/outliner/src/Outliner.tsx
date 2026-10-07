@@ -32,6 +32,7 @@ import { historyFocus, historyStep, type Editing, type HistoryStep } from "./his
 import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
+import { isMoveChord } from "./platform.ts"
 import { QueryView } from "./Query.tsx"
 import {
   clickOnEnter,
@@ -506,7 +507,7 @@ const OutlineView = ({
     const down = key === "ArrowDown"
     const step = historyStep(event)
     if (step !== null) history(step)
-    else if (vertical && event.altKey && event.shiftKey && chosen !== null) {
+    else if (vertical && isMoveChord(event) && chosen !== null) {
       moveBy(view, chosen, down ? 1 : -1)
     } else if (vertical && mod) {
       for (const id of selected) {
