@@ -14,6 +14,13 @@ const fenceLine = /^\s*(`{3,}|~{3,})/gm
 const insideCodeFence = (state: EditorState, position: number): boolean =>
   (state.sliceDoc(0, position).match(fenceLine)?.length ?? 0) % 2 === 1
 
+const propertyLine = /^[^\s:]+:: /
+
+const atPropertyLineEnd = (state: EditorState, from: number, to: number): boolean => {
+  const line = state.doc.lineAt(from)
+  return from === to && from === line.to && propertyLine.test(line.text)
+}
+
 const historyStep = (event: KeyboardEvent): "Undo" | "Redo" | null => {
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return null
   const key = event.key.toLowerCase()
@@ -68,7 +75,9 @@ export const blockKeymap = (
 
   const split = (view: EditorView): boolean => {
     const { from, to } = view.state.selection.main
-    if (insideCodeFence(view.state, from)) return insertNewline(view)
+    if (insideCodeFence(view.state, from) || atPropertyLineEnd(view.state, from, to)) {
+      return insertNewline(view)
+    }
     if (from !== to) {
       view.dispatch({ changes: { from, to }, selection: { anchor: from }, userEvent: "delete" })
     }
@@ -147,8 +156,8 @@ export const blockKeymap = (
       { key: "Mod-ArrowUp", run: act({ _tag: "Collapse" }) },
       { key: "Mod-ArrowDown", run: act({ _tag: "Expand" }) },
       { key: "Mod-;", run: act({ _tag: "ToggleCollapse" }) },
-      { key: "Alt-Shift-ArrowUp", run: act({ _tag: "MoveUp" }) },
-      { key: "Alt-Shift-ArrowDown", run: act({ _tag: "MoveDown" }) },
+      { key: "Alt-Shift-ArrowUp", mac: "Mod-Shift-ArrowUp", run: act({ _tag: "MoveUp" }) },
+      { key: "Alt-Shift-ArrowDown", mac: "Mod-Shift-ArrowDown", run: act({ _tag: "MoveDown" }) },
       { key: "Mod-o", run: follow(false) },
       { key: "Mod-Shift-o", run: follow(true) },
       { key: "Alt-ArrowRight", mac: "Mod-.", run: act({ _tag: "ZoomIn" }) },

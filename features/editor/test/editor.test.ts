@@ -569,6 +569,22 @@ describe("properties", () => {
     assert.strictEqual(text(view), "Tomatoes\nplants:: 6\npots:: 2\nstaked on the south side")
   })
 
+  it("adds a line for another property on Enter at the end of a key:: value line", () => {
+    const bed: Block = { ...blockOf("Tomato bed"), props: { variety: "San Marzano", plants: "6" } }
+    const { view, commands } = mount(bed.text, { _tag: "End" }, { block: bed })
+    view.dispatch({ selection: EditorSelection.cursor(text(view).length) })
+    assert.isTrue(press(view, "Enter"))
+    typeKeys(view, "color:: red")
+    assert.strictEqual(text(view), "Tomato bed\nvariety:: San Marzano\nplants:: 6\ncolor:: red")
+    assert.deepStrictEqual(commands.at(-1), {
+      _tag: "SetProperty",
+      target: { _tag: "BlockTarget", blockId },
+      key: "color",
+      value: "red",
+    })
+    assert.isFalse(commands.some((command) => command._tag === "SplitBlock"))
+  })
+
   it("splits the block at the matching offset of the text", () => {
     const { view, commands } = mount(tomato.text, { _tag: "End" }, { block: tomato })
     press(view, "Enter")
