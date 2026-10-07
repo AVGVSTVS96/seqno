@@ -30,7 +30,14 @@ export type Inline =
       readonly target: LinkTarget
       readonly span: Span
     }
-  | { readonly _tag: "Image"; readonly alt: string; readonly url: string; readonly span: Span }
+  | {
+      readonly _tag: "Image"
+      readonly alt: string
+      readonly url: string
+      readonly width: number | null
+      readonly size: Span | null
+      readonly span: Span
+    }
 
 type Emphasis = "Bold" | "Italic" | "Strike" | "Highlight"
 
@@ -41,6 +48,7 @@ const TAG_AT = sticky(TAG)
 const MACRO_AT = sticky(MACRO)
 const PRIORITY_AT = sticky(PRIORITY)
 const URL_AT = /https?:\/\/[^\s<>()[\]{}"'`]+/y
+const IMAGE_SIZE_AT = /\{\s*:(?:width|height)\b[^}\n]*\}/y
 const URL_TRAILER = /[.,;:!?]+$/
 const UUID_REF = /^\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)$/i
 const PAGE_TARGET = /^\[\[(.+)\]\]$/
@@ -190,9 +198,21 @@ const atomAt = (source: string, at: number, base: number): Token | null => {
     const target = targetOf(source.slice(labelEnd + 2, targetEnd))
     const end = targetEnd + 1
     if (image) {
-      return target._tag === "Url"
-        ? { node: { _tag: "Image", alt: label, url: target.url, span: span(end) }, end }
-        : null
+      if (target._tag !== "Url") return null
+      const attrs = matchAt(IMAGE_SIZE_AT, source, end)
+      const sized = attrs === null ? end : end + attrs[0].length
+      const width = Number(/:width\s+(\d+(?:\.\d+)?)/.exec(attrs?.[0] ?? "")?.[1] ?? Number.NaN)
+      return {
+        node: {
+          _tag: "Image",
+          alt: label,
+          url: target.url,
+          width: Number.isNaN(width) ? null : width,
+          size: attrs === null ? null : { from: base + end, to: base + sized },
+          span: span(sized),
+        },
+        end: sized,
+      }
     }
     return {
       node: {

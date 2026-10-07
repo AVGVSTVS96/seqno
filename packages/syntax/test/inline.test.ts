@@ -122,6 +122,24 @@ describe("parseInline", () => {
     ])
   })
 
+  it("reads classic's size suffix on an image, as part of the image", () => {
+    const [sized, after] = parseInline("![s](a.png){:height 240, :width 480} x")
+    expect(sized).toStrictEqual({
+      _tag: "Image",
+      alt: "s",
+      url: "a.png",
+      width: 480,
+      size: { from: 11, to: 36 },
+      span: { from: 0, to: 36 },
+    })
+    expect(after).toStrictEqual({ _tag: "Text", text: " x", span: { from: 36, to: 38 } })
+    expect(parseInline("![s](a.png){not size}")[1]).toStrictEqual({
+      _tag: "Text",
+      text: "{not size}",
+      span: { from: 11, to: 21 },
+    })
+  })
+
   it("leaves snake_case, lone markers and unclosed brackets as text", () => {
     expect(show(parseInline("snake_case_name a * b == c [[open #"))).toStrictEqual([
       "Text(snake_case_name a * b == c [[open #)@0-35",
