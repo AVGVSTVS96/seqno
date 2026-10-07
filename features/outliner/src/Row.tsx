@@ -32,6 +32,7 @@ export interface RowProps {
   readonly dropZone: DropZone | null
   readonly hoveredGuide: BlockId | null
   readonly canToggle: boolean
+  readonly references: number
   readonly measure: Ref<HTMLDivElement>
   readonly actions: RowActions
   readonly children: ReactNode
@@ -61,6 +62,7 @@ export const RowView = ({
   dropZone,
   hoveredGuide,
   canToggle,
+  references,
   measure,
   actions,
   children,
@@ -163,6 +165,14 @@ export const RowView = ({
       >
         {children}
       </div>
+      {references === 0 ? null : (
+        <span
+          className="seqno-refs-count"
+          title={references === 1 ? "1 reference" : `${references} references`}
+        >
+          {references}
+        </span>
+      )}
     </div>
   )
 }

@@ -249,6 +249,8 @@ const CoreHandlers = CoreRpcs.toLayer(
           pageChanges(pageId).pipe(Stream.mapEffect(() => session.graph.page(pageId))),
         ),
       WatchQuery: ({ query }) => following((session) => Stream.unwrap(watchQuery(session, query))),
+      WatchBlockRefCounts: () =>
+        following((session) => Stream.orDie(session.index.watchBlockRefCounts)),
       Search: ({ text }) =>
         Effect.gen(function* () {
           const session = yield* current

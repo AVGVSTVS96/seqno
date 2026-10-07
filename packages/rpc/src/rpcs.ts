@@ -84,6 +84,12 @@ export const Search = Rpc.make("Search", {
   error: GraphNotOpen,
 })
 
+export const WatchBlockRefCounts = Rpc.make("WatchBlockRefCounts", {
+  success: Schema.Record(Schema.String, Schema.Int),
+  error: GraphNotOpen,
+  stream: true,
+})
+
 export const CoreRpcs = RpcGroup.make(
   OpenGraph,
   Dispatch,
@@ -93,4 +99,5 @@ export const CoreRpcs = RpcGroup.make(
   WatchPage,
   WatchQuery,
   Search,
+  WatchBlockRefCounts,
 )

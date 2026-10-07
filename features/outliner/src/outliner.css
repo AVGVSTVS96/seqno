@@ -288,6 +288,18 @@
   opacity: var(--opacity-bullet);
 }
 
+.seqno-refs-count {
+  flex: none;
+  margin: 3px 0 0 calc(var(--space-2) - var(--bullet-gap));
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--bg-sidebar-tab);
+  color: var(--fg-control);
+  font-size: var(--text-sm);
+  line-height: 17px;
+  opacity: 0.8;
+}
+
 .seqno-content {
   flex: 1;
   min-width: 0;

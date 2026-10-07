@@ -125,6 +125,20 @@ const referencedOf = (db: Statements) =>
     }),
   )
 
+const BLOCK_REF_SOURCES = `SELECT content FROM blocks WHERE instr(content, '((') > 0`
+
+const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
+
+const blockRefCountsOf = (db: Statements): Readonly<Record<string, number>> => {
+  const counts: Record<string, number> = {}
+  for (const [content] of db.all(BLOCK_REF_SOURCES)) {
+    if (typeof content !== "string") continue
+    const targets = new Set([...content.matchAll(blockRef)].map((m) => (m[1] ?? "").toLowerCase()))
+    for (const target of targets) counts[target] = (counts[target] ?? 0) + 1
+  }
+  return counts
+}
+
 const phrase = (text: string) => `"${text.replaceAll('"', '""')}"`
 
 const anyPhrase = (names: ReadonlyArray<string>): string | null => {
@@ -154,6 +168,7 @@ const sameBlocks = (left: ReadonlyArray<BlockHit>, right: ReadonlyArray<BlockHit
 const NAME_READS: ReadonlyArray<ReadKey> = ["page.name", "page.alias"]
 const UNLINKED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "text", "ref", "move", "exist"]
 const REFERENCED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "ref", "exist", "updated"]
+const BLOCK_REF_READS: ReadonlyArray<ReadKey> = ["text", "exist"]
 const STATS_READS: ReadonlyArray<ReadKey> = [
   ...NAME_READS,
   "ref",
@@ -283,6 +298,10 @@ const make = Effect.gen(function* () {
     referencedPages,
 
     watchReferencedPages: watching(REFERENCED_READS, referencedPages),
+
+    blockRefCounts: sqlite.use(blockRefCountsOf),
+
+    watchBlockRefCounts: watching(BLOCK_REF_READS, sqlite.use(blockRefCountsOf)),
 
     search: (text: string, limit = 20): Effect.Effect<SearchResult, IndexError> =>
       sqlite.use((db) => {

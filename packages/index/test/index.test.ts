@@ -235,6 +235,24 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     ),
   )
 
+  it.effect("counts the blocks that reference each block", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        const target = "0192a5c4-7e10-7a3b-9c4d-5e6f70819203"
+        yield* index.apply(
+          [
+            ...graph,
+            upsertBlock(blockId(9), notes, `see ((${target})) and ((${target.toUpperCase()}))`),
+            upsertBlock(blockId(10), notes, `{{embed ((${target}))}}`),
+            upsertBlock(blockId(11), notes, "no refs ((here))"),
+          ],
+          "v1",
+        )
+        assert.deepStrictEqual(yield* index.blockRefCounts, { [target]: 2 })
+      }),
+    ),
+  )
+
   it.live("live backlinks wake for the page's own refs and aliases, not for other edits", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {

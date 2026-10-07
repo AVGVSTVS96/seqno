@@ -21,6 +21,7 @@ import { BlockView } from "./BlockView.tsx"
 import { caretFromPoint, hasTextSelection } from "./caret.ts"
 import {
   blockAtom,
+  blockRefCountsAtom,
   dispatchAtom,
   editRequest,
   pageNamedAtom,
@@ -79,6 +80,8 @@ export const Outliner = (props: OutlinerProps) =>
     ),
     onSuccess: ({ value }) => <OutlineView tree={value} {...props} />,
   })
+
+const noCounts: Readonly<Record<string, number>> = {}
 
 const overscan = 800
 const edgeMargin = "400px 0px"
@@ -278,6 +281,7 @@ const OutlineView = ({
   onBlockMenu,
 }: OutlinerProps & { readonly tree: PageTree }) => {
   const parent = use(RenderContext)
+  const counts = AsyncResult.getOrElse(useAtomValue(blockRefCountsAtom), () => noCounts)
   const view = outline(tree, zoom, embedded)
   const rows = view.rows
   const registry = useContext(RegistryContext)
@@ -663,6 +667,7 @@ const OutlineView = ({
         dropZone={drop?.blockId === block.id ? drop.zone : null}
         hoveredGuide={hoveredGuide}
         canToggle={row.hasChildren && !(block.id === zoom && !embedded)}
+        references={counts[block.id] ?? counts[(block.props["id"] ?? "").toLowerCase()] ?? 0}
         measure={measure}
         actions={actionsFor(row)}
       >
