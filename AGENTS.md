@@ -28,9 +28,9 @@ The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.
 | `@seqno/interop`  | `packages/interop`  | core     | Logseq OG graph import, markdown mirror writer.                                                 |
 | `@seqno/web`      | `apps/web`          | ui       | Vite app: shell, routing. `apps/web/src/worker/**` is the core worker (worker side).            |
 | `@seqno/outliner` | `features/outliner` | ui       | Virtualized block tree view, keyboard navigation, collapse, zoom, drag.                         |
-| `@seqno/editor`   | `features/editor`   | ui       | Focused-block CodeMirror editor, live markdown styling, `[[ (( #` autocomplete.                 |
+| `@seqno/editor`   | `features/editor`   | ui       | Focused-block CodeMirror editor, `[[ (( #` autocomplete, the `/` menu.                          |
 | `@seqno/sync-sim` | `tools/sync-sim`    | tool     | Multi-device fake-iCloud simulator for the sync protocol (stand-in graph; real vault optional). |
-| `@seqno/e2e`      | `tools/e2e`         | tool     | Playwright harness, Feature Map, agent verify skill, CI workflow.                               |
+| `@seqno/e2e`      | `tools/e2e`         | tool     | Playwright flows, the feature map and the design harness.                                       |
 | `@seqno/lint`     | `tools/lint`        | tool     | The `seqno` oxlint plugin that enforces the rules below.                                        |
 | -                 | `fixtures/`         | -        | Real Logseq graphs, 50k-block generator, edge-case graphs.                                      |
 
