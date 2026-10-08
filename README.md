@@ -1,4 +1,9 @@
-# seqno
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo/wordmark-dark.svg">
+    <img alt="seqno" src="docs/logo/wordmark.svg" height="44">
+  </picture>
+</h1>
 
 A local-first outliner.
 
