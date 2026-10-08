@@ -12,3 +12,4 @@ playwright-report/
 test-results/
 .claude/worktrees/
 tools/e2e/design-out/
+.vercel/
