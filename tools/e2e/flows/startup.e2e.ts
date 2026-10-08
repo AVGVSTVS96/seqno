@@ -1,4 +1,6 @@
+import { rm } from "node:fs/promises"
 import type { Page } from "@playwright/test"
+import { materializeShowcase } from "../design/showcase.ts"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, test } from "../src/test.ts"
@@ -60,7 +62,9 @@ test("Ctrl+Z after a reload undoes only the last edit", async ({ page, seqno }) 
 })
 
 test("Back returns to the same scroll position in the journals", async ({ page }) => {
-  await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
+  const showcase = await materializeShowcase(new Date())
+  await seedOpfs(page, showcase, ["graphs", "demo"])
+  await rm(showcase, { recursive: true })
   await page.goto("/")
   const main = page.getByRole("main")
   await expect(main.getByRole("article").nth(2)).toBeVisible()
