@@ -2,6 +2,8 @@
 
 A local-first outliner.
 
+[![ci](https://github.com/AVGVSTVS96/seqno/actions/workflows/ci.yml/badge.svg)](https://github.com/AVGVSTVS96/seqno/actions/workflows/ci.yml)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/showcase-dark.png">
   <img alt="A seqno page with properties, headings, links, tags and nested blocks" src="docs/screenshots/showcase-light.png">
