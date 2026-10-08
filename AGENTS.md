@@ -2,7 +2,7 @@
 
 A TypeScript rebuild of Logseq: a local-first outliner. Web first (Chrome and Edge), then iOS (Expo) and desktop (Electron).
 
-The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.2). SQLite is a rebuildable index. Phase 0 decisions live in `spikes/*/RESULTS.md` and `spikes/decisions.json`; `spikes/` is read-only reference code.
+The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.2). SQLite is a rebuildable index. How it fits together is in `docs/architecture.md`; why each piece was chosen is in `docs/decisions.md`.
 
 ## Commands
 
@@ -14,31 +14,25 @@ The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.
 | `pnpm typecheck` | `tsc --noEmit` in every workspace package                        |
 | `pnpm test`      | Vitest across every workspace package (one project per package)  |
 
-This machine runs many agents at once. Wrap every install, build, typecheck and test:
-
-```sh
-systemd-run --user --scope -p MemoryMax=1500M -p MemorySwapMax=0 pnpm check
-```
-
 ## Repo map
 
-| Package           | Folder              | Side     | Job                                                                                  |
-| ----------------- | ------------------- | -------- | ------------------------------------------------------------------------------------ |
-| `@seqno/domain`   | `packages/domain`   | domain   | Schemas, branded ids, Command and GraphEvent unions. Pure.                           |
-| `@seqno/rpc`      | `packages/rpc`      | contract | UI <-> core-worker contract (Effect RPC).                                            |
-| `@seqno/syntax`   | `packages/syntax`   | pure     | Logseq markdown <-> block tree, exact round-trip. Pure.                              |
-| `@seqno/query`    | `packages/query`    | pure     | Query text (Logseq-style and Dataview-style) -> AST -> SQL. Pure.                    |
-| `@seqno/graph`    | `packages/graph`    | core     | Loro graph: lazy open, commands, undo/redo, GraphEvents.                             |
-| `@seqno/index`    | `packages/index`    | core     | SQLite schema, indexer from GraphEvents, backlinks, FTS, live queries.               |
-| `@seqno/vault`    | `packages/vault`    | core     | Edit-log files: File System Access, OPFS and node-fs adapters, compaction.           |
-| `@seqno/interop`  | `packages/interop`  | core     | Logseq OG graph import, markdown mirror writer.                                      |
-| `@seqno/web`      | `apps/web`          | ui       | Vite app: shell, routing. `apps/web/src/worker/**` is the core worker (worker side). |
-| `@seqno/outliner` | `features/outliner` | ui       | Virtualized block tree view, keyboard navigation, collapse, zoom, drag.              |
-| `@seqno/editor`   | `features/editor`   | ui       | Focused-block CodeMirror editor, live markdown styling, `[[ (( #` autocomplete.      |
-| `@seqno/sync-sim` | `tools/sync-sim`    | tool     | Multi-device fake-iCloud simulator driving the real graph and vault.                 |
-| `@seqno/e2e`      | `tools/e2e`         | tool     | Playwright harness, Feature Map, agent verify skill, CI workflow.                    |
-| `@seqno/lint`     | `tools/lint`        | tool     | The `seqno` oxlint plugin that enforces the rules below.                             |
-| -                 | `fixtures/`         | -        | Real Logseq graphs, 50k-block generator, edge-case graphs.                           |
+| Package           | Folder              | Side     | Job                                                                                             |
+| ----------------- | ------------------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `@seqno/domain`   | `packages/domain`   | domain   | Schemas, branded ids, Command and GraphEvent unions. Pure.                                      |
+| `@seqno/rpc`      | `packages/rpc`      | contract | UI <-> core-worker contract (Effect RPC).                                                       |
+| `@seqno/syntax`   | `packages/syntax`   | pure     | Logseq markdown <-> block tree, exact round-trip. Pure.                                         |
+| `@seqno/query`    | `packages/query`    | pure     | Query text (Logseq-style and Dataview-style) -> AST -> SQL. Pure.                               |
+| `@seqno/graph`    | `packages/graph`    | core     | Loro graph: lazy open, commands, undo/redo, GraphEvents.                                        |
+| `@seqno/index`    | `packages/index`    | core     | SQLite schema, indexer from GraphEvents, backlinks, FTS, live queries.                          |
+| `@seqno/vault`    | `packages/vault`    | core     | Edit-log files: File System Access, OPFS and node-fs adapters, compaction.                      |
+| `@seqno/interop`  | `packages/interop`  | core     | Logseq OG graph import, markdown mirror writer.                                                 |
+| `@seqno/web`      | `apps/web`          | ui       | Vite app: shell, routing. `apps/web/src/worker/**` is the core worker (worker side).            |
+| `@seqno/outliner` | `features/outliner` | ui       | Virtualized block tree view, keyboard navigation, collapse, zoom, drag.                         |
+| `@seqno/editor`   | `features/editor`   | ui       | Focused-block CodeMirror editor, live markdown styling, `[[ (( #` autocomplete.                 |
+| `@seqno/sync-sim` | `tools/sync-sim`    | tool     | Multi-device fake-iCloud simulator for the sync protocol (stand-in graph; real vault optional). |
+| `@seqno/e2e`      | `tools/e2e`         | tool     | Playwright harness, Feature Map, agent verify skill, CI workflow.                               |
+| `@seqno/lint`     | `tools/lint`        | tool     | The `seqno` oxlint plugin that enforces the rules below.                                        |
+| -                 | `fixtures/`         | -        | Real Logseq graphs, 50k-block generator, edge-case graphs.                                      |
 
 A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added to `repoMap` in `tools/lint/src/boundaries.ts` and to this table, or lint fails.
 
@@ -113,12 +107,12 @@ Every lint message says how to fix the problem. Do not weaken a rule in `.oxlint
 - `Command`: `CreatePage, RenamePage, DeletePage, InsertBlock, InsertBlocks, EditText, SplitBlock, MergeWithPrevious, Indent, Outdent, MoveBlocks, DeleteBlocks, SetCollapsed, SetProperty, Undo, Redo`. `InsertBlocks` inserts a tree of `BlockDraft`s (text, props, children) in one commit.
 - `GraphEvent`: `PageUpserted, PageDeleted, BlockUpserted, BlockMoved, BlockDeleted`.
 
-`@seqno/rpc` exports `CoreRpcs`: `OpenGraph`, `Dispatch`, `GetPages`, `GetPage`, `GetBlock`, `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks), `WatchBlockRefCounts` (stream, blocks referencing each block). `PageRpcs` adds backlinks, page stats, `Ancestors` and `WatchReferencedPages` (names that exist only as references).
+`@seqno/rpc` exports `CoreRpcs`: `OpenGraph`, `Dispatch`, `GetPages`, `GetPage`, `GetBlock`, `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks), `WatchBlockRefCounts` (stream, blocks referencing each block), `WatchBlockReferences` (stream, the blocks that reference one block). `PageRpcs` adds backlinks, page stats, `Ancestors` and `WatchReferencedPages` (names that exist only as references).
 
-If you need something the contract lacks, add it inside your own package and say so in your `RESULTS.md`; integration reconciles it.
+If you need something the contract lacks, add it in your package and note it in that package's README.
 
 ## Working in this repo
 
-- Each part works in its own git worktree on `phase1/<part>`. Never edit another part's folder.
-- Commit with conventional-commit messages, author `Bassim Shahidy <bassim101@gmail.com>`. Only `git add` your own paths.
-- Finish each part with `RESULTS.md` in its folder: what works, how to run its tests, known gaps.
+- Commit with conventional-commit messages, and run `pnpm check` first.
+- Keep each package's README current: what it does, how to test it, known gaps.
+- `pnpm --filter @seqno/e2e test` runs the browser flows; `SEQNO_SCREENS=1` on `flows/screens.e2e.ts` refreshes `docs/screenshots`.

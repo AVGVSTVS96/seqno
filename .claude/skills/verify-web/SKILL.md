@@ -5,13 +5,7 @@ description: Launch the seqno web app in headless Chrome and check a user-facing
 
 # Verify a seqno web feature
 
-Headless only. Never open a visible browser, the Playwright HTML report or the trace viewer: each one opens a window on a machine someone else is using. Run every command inside the memory limit, since many agents share this machine:
-
-```sh
-systemd-run --user --scope -p MemoryMax=1500M -p MemorySwapMax=0 <command>
-```
-
-Commands below leave that prefix out to stay readable. Add it anyway.
+Headless only. Never open a visible browser, the Playwright HTML report or the trace viewer: each one opens a window on a machine someone may be using.
 
 ## 1. Find the flow
 

@@ -1,6 +1,7 @@
 {
   "name": "seqno",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "check": "pnpm lint && oxfmt --check && pnpm typecheck && pnpm test",
