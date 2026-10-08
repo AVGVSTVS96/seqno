@@ -6,10 +6,6 @@ Pods/
 *.log
 *.loro
 *.tgz
-spikes/**/results/
-spikes/verify/
-spikes/**/tmp/
-spikes/**/scratch/
 .worktrees/
 coverage/
 playwright-report/

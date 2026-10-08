@@ -1,9 +1,0 @@
-{
-  "name": "ios-loro-spike",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "loro-crdt": "1.16.2",
-    "loro.js": "0.3.0"
-  }
-}

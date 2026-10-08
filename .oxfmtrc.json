@@ -4,5 +4,5 @@
   "semi": false,
   "singleQuote": false,
   "trailingComma": "all",
-  "ignorePatterns": [".claude/**", "spikes/**", "fixtures/**", "pnpm-lock.yaml"]
+  "ignorePatterns": [".claude/**", "fixtures/**", "pnpm-lock.yaml"]
 }
