@@ -41,7 +41,7 @@ A couple of years ago I watched my favorite note-taking app get worse and worse,
 
 ## How it works
 
-Every edit goes into a [Loro](https://loro.dev) CRDT log, so devices merge without conflicts. SQLite runs in a worker as a fast index you can always rebuild.
+Every edit goes into a [Loro](https://loro.dev) CRDT log, built so devices merge without conflicts. SQLite runs in a worker as a fast index you can always rebuild.
 
 Built with [TypeScript](https://www.typescriptlang.org) 7, [Effect](https://effect.website) 4, [Loro](https://loro.dev), [SQLite](https://sqlite.org/wasm), [React](https://react.dev) 19, [CodeMirror](https://codemirror.net) 6 and [Vite](https://vite.dev) 8.
 
@@ -49,18 +49,18 @@ More in [architecture](docs/architecture.md), [decisions](docs/decisions.md) and
 
 ## Status
 
-Early. The web app runs in Chrome and Edge; iOS and desktop come next. It's not ready for your real notes yet.
+Early. The web app runs in Chrome and Edge. Hardening comes next, then iOS and desktop. It's not ready for your real notes yet.
 
 ## Try it
 
-Needs Node 24 and pnpm.
+Open **[seqno-app.vercel.app](https://seqno-app.vercel.app)** in Chrome or Edge. A demo graph opens, and everything you type stays in your browser.
+
+To run it yourself, with Node 24 and pnpm:
 
 ```sh
 pnpm install
 pnpm --filter @seqno/web dev
 ```
-
-Open the URL it prints and click **Open the demo graph**.
 
 ## License
 
