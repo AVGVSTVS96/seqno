@@ -67,6 +67,10 @@ pnpm install
 pnpm --filter @seqno/web dev
 ```
 
+## Credits
+
+The hero on [seqno's homepage](https://seqno.vercel.app) is directly inspired by the opening screen of [Buzz](https://buzz.xyz), Block's open-source app, and its cursor-shy bees by Wes Billman ([block/buzz#1982](https://github.com/block/buzz/pull/1982)).
+
 ## License
 
 [MIT](LICENSE)
