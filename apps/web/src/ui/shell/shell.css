@@ -1730,7 +1730,8 @@
   line-height: var(--leading-sm);
 }
 
-.chooser-folder-button {
+.chooser-folder-button,
+.chooser-link {
   padding: 0;
   border: 0;
   background: none;
@@ -1740,7 +1741,12 @@
   transition: color var(--duration-slow) ease;
 }
 
-.chooser-folder-button:hover {
+.chooser-link {
+  text-decoration: none;
+}
+
+.chooser-folder-button:hover,
+.chooser-link:hover {
   color: var(--fg-link-hover);
 }
 

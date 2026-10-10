@@ -11,6 +11,7 @@ import {
   type DemoGraph,
   type GraphLocation,
 } from "../graph-locations.ts"
+import { homepage } from "../version.ts"
 import { useSwitchGraph } from "./shell/GraphSwitcher.tsx"
 import { Menu, MenuItem, usePopover } from "./shell/popover.tsx"
 
@@ -226,7 +227,10 @@ export const GraphChooser = () => {
         </h1>
         <p className="chooser-lead">
           Pick a demo graph to look around. It lives in this browser, and the graph menu switches to
-          the other one any time.
+          the other one any time.{" "}
+          <a className="chooser-link" href={homepage}>
+            What is seqno?
+          </a>
         </p>
         <ul className="chooser-options" aria-labelledby={heading}>
           {demoGraphs.map((name) => (

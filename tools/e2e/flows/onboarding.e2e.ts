@@ -28,6 +28,24 @@ test("a first visit offers both demo graphs before any graph opens", async ({ pa
   await expect(page.getByRole("main")).toHaveCount(0)
 })
 
+test("the chooser and the help menu lead back to the seqno homepage, in the same tab", async ({
+  page,
+}) => {
+  await page.route("https://seqno.vercel.app/**", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<title>seqno home</title>" }),
+  )
+  await page.goto("/")
+  const about = page.getByRole("link", { name: "What is seqno?" })
+  await expect(about).toHaveAttribute("href", "https://seqno.vercel.app")
+  await expect(about).not.toHaveAttribute("target", /.+/)
+  await page.getByRole("button", { name: "Getting started", exact: true }).click()
+  await expect(page.getByRole("main")).not.toBeEmpty()
+  await page.getByRole("button", { name: "Help" }).click()
+  await page.getByRole("menuitem", { name: "About seqno" }).click()
+  await expect(page).toHaveURL("https://seqno.vercel.app/")
+  await expect(page).toHaveTitle("seqno home")
+})
+
 test("the chooser opens Getting started on today's journal", async ({ page, seqno }) => {
   await openDemo(page)
   await expect(seqno.today.getByRole("treeitem").first()).toBeVisible()
