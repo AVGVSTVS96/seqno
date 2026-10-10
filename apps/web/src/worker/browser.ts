@@ -13,7 +13,7 @@ const starters = new Map<
   { readonly version: number; readonly files: (today: JournalDay) => ReadonlyArray<StarterFile> }
 >([
   ["demo", { version: 1, files: demoGraph }],
-  ["developer", { version: 1, files: developerGraph }],
+  ["developer", { version: 2, files: developerGraph }],
 ])
 
 const opfsFolder = (path: ReadonlyArray<string>) =>
