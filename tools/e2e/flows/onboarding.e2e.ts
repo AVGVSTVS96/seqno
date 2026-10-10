@@ -11,6 +11,97 @@ const leftSidebar = (page: Page) => page.getByRole("complementary", { name: "Lef
 
 const tip = (page: Page) => page.getByRole("note", { name: "Tip" })
 
+interface TipEvent {
+  readonly key: string
+  readonly open: boolean
+  readonly at: number
+  readonly menuOpen: boolean
+}
+
+declare global {
+  interface Window {
+    seqnoTips?: Array<TipEvent>
+  }
+}
+
+const recordTips = (page: Page) =>
+  page.addInitScript(() => {
+    const events: Array<TipEvent> = []
+    window.seqnoTips = events
+    new MutationObserver((records) => {
+      for (const { target } of records) {
+        if (!(target instanceof HTMLElement) || !target.classList.contains("hint")) continue
+        events.push({
+          key: target.dataset["key"] ?? "",
+          open: target.dataset["open"] === "true",
+          at: performance.now(),
+          menuOpen: document.querySelector('[role="menu"]:popover-open') !== null,
+        })
+      }
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ["data-open"] })
+  })
+
+const tipEvents = (page: Page) => page.evaluate(() => window.seqnoTips ?? [])
+
+const openedTips = async (page: Page) =>
+  (await tipEvents(page)).filter((event) => event.open).map((event) => event.key)
+
+const textUnderTip = (page: Page) =>
+  page.evaluate(() => {
+    const shown = document.querySelector('.hint[data-open="true"]')
+    if (shown === null) return ["no tip"]
+    const box = shown.getBoundingClientRect()
+    const range = document.createRange()
+    const walker = document.createTreeWalker(
+      document.querySelector(".app") ?? document.body,
+      NodeFilter.SHOW_TEXT,
+    )
+    const covered: Array<string> = []
+    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+      if (node.textContent?.trim() === "" || node.parentElement?.closest(".hint") != null) continue
+      range.selectNodeContents(node)
+      for (const line of range.getClientRects()) {
+        if (
+          line.width > 0 &&
+          line.left < box.right &&
+          box.left < line.right &&
+          line.top < box.bottom &&
+          box.top < line.bottom
+        ) {
+          covered.push(node.textContent ?? "")
+        }
+      }
+    }
+    return covered
+  })
+
+const caretAim = (page: Page) =>
+  page.evaluate(() => {
+    const shown = document.querySelector('.hint[data-open="true"]')
+    if (!(shown instanceof HTMLElement)) return "no tip"
+    const caret = shown.querySelector(".hint-caret")?.getBoundingClientRect()
+    const target = [...document.querySelectorAll("[style]")].find(
+      (element) =>
+        element instanceof HTMLElement &&
+        element.style.getPropertyValue("anchor-name") === `--hint-${shown.dataset["hint"] ?? ""}`,
+    )
+    if (caret === undefined || target === undefined) return "no caret or target"
+    const aim = target.getBoundingClientRect()
+    const tipBox = shown.getBoundingClientRect()
+    const side = shown.dataset["side"] ?? "bottom"
+    const across =
+      side === "left" || side === "right"
+        ? caret.top + caret.height / 2 - (aim.top + aim.height / 2)
+        : caret.left + caret.width / 2 - (aim.left + aim.width / 2)
+    const facing = {
+      right: caret.left < tipBox.left && aim.right <= caret.left + 1,
+      left: caret.right > tipBox.right && aim.left >= caret.right - 1,
+      bottom: caret.top < tipBox.top && aim.bottom <= caret.top + 1,
+      top: caret.bottom > tipBox.bottom && aim.top >= caret.bottom - 1,
+    }[side]
+    return `${facing === true ? "faces" : "turned away from"} its target, ${Math.round(Math.abs(across))}px off center`
+  })
+
 test("a first visit offers both demo graphs before any graph opens", async ({ page }) => {
   await page.goto("/")
   const welcome = page.getByRole("heading", { level: 1, name: "Welcome to seqno" })
@@ -170,6 +261,70 @@ test.describe("tips in a demo graph", () => {
       .getByRole("button", { name: "Contents", exact: true })
       .click()
     await expect(tip(page)).not.toHaveText(/^Contents/)
+  })
+
+  test("a tip sits in empty space and its caret points at the center of what it is about", async ({
+    page,
+  }) => {
+    await openDemo(page)
+    await page.getByRole("button", { name: "Toggle left sidebar" }).click()
+    await expect(tip(page)).toHaveText(/Switch graphs here\.$/)
+    await expect.poll(() => caretAim(page)).toBe("faces its target, 0px off center")
+    await expect.poll(() => textUnderTip(page)).toEqual([])
+    await tip(page).getByRole("button", { name: "Dismiss tip" }).click()
+    await expect(tip(page)).toHaveText("Click to open this page.")
+    await expect.poll(() => caretAim(page)).toBe("faces its target, 0px off center")
+    await expect.poll(() => textUnderTip(page)).toEqual([])
+  })
+
+  test("no tip appears while a menu is open, and the next one waits for the menu to close", async ({
+    page,
+  }) => {
+    await recordTips(page)
+    await openDemo(page)
+    await page.getByRole("button", { name: "Help" }).click()
+    const help = page.getByRole("menu", { name: "Help" })
+    await expect(help).toBeVisible()
+    await page.waitForTimeout(1500)
+    await expect(tip(page)).toHaveCount(0)
+    await page.keyboard.press("Escape")
+    await expect(help).toBeHidden()
+    await expect(tip(page)).toHaveText(/from the left sidebar\.$/)
+    expect((await tipEvents(page)).filter((event) => event.open && event.menuOpen)).toEqual([])
+  })
+
+  test("choosing a graph, then switching graphs from the graph menu, shows only the new graph's tip", async ({
+    page,
+  }) => {
+    await recordTips(page)
+    await openDemo(page)
+    await page.getByRole("button", { name: "Toggle left sidebar" }).click()
+    await leftSidebar(page).getByRole("button", { name: "Getting started" }).click()
+    await page
+      .getByRole("menu", { name: "Graphs" })
+      .getByRole("menuitemradio", { name: "Developer graph" })
+      .click()
+    await expect(tip(page)).toHaveText("This is the Developer graph. Switch graphs here.")
+    expect(await openedTips(page)).toEqual(["graph-menu:developer"])
+    await page.mouse.move(900, 500)
+    await page.waitForTimeout(1500)
+    await expect(tip(page)).toHaveText("This is the Developer graph. Switch graphs here.")
+    expect(await openedTips(page)).toEqual(["graph-menu:developer"])
+  })
+
+  test("a tip seen only a moment leaves quietly when you act elsewhere, and comes back once things settle", async ({
+    page,
+  }) => {
+    await recordTips(page)
+    await openDemo(page)
+    await expect(tip(page)).toHaveText(/from the left sidebar\.$/)
+    await page.keyboard.press("Shift")
+    await expect(tip(page)).toHaveCount(0)
+    await expect(tip(page)).toHaveText(/from the left sidebar\.$/)
+    expect(await openedTips(page)).toEqual(["graph-menu:demo", "graph-menu:demo"])
+    expect(
+      await page.evaluate(() => localStorage.getItem("seqno.dismissedHints") ?? "[]"),
+    ).not.toContain("graph-menu:demo")
   })
 
   test("a folder of your own never shows tips", async ({ page }, testInfo) => {

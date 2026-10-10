@@ -22,32 +22,39 @@
   );
   --hint-enter: 420ms;
   --hint-exit: 120ms;
+  --hint-caret-size: 10px;
+  --hint-caret-edge: -5.5px;
+  --hint-caret-start: calc(var(--hint-caret, 16px) - 6px);
+  --hint-surface: light-dark(#ffffff, #073f4c);
+  --hint-outline: light-dark(#d6d6d6, #1d5d6c);
+  --hint-shadow: drop-shadow(0 1px 1px light-dark(rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.25)))
+    drop-shadow(0 4px 10px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.3)));
+  --hint-from: 0 -6px;
+  --hint-origin: var(--hint-caret, 16px) -7px;
   position: fixed;
   position-anchor: var(--hint-anchor);
-  inset: anchor(bottom, -100vh) auto auto anchor(left, -100vw);
+  top: calc(anchor(top, -100vh) + var(--hint-y, 0px));
+  left: calc(anchor(left, -100vw) + var(--hint-x, 0px));
   z-index: 90;
   display: flex;
   gap: var(--space-1);
   align-items: flex-start;
+  box-sizing: border-box;
   width: max-content;
-  max-width: 272px;
-  margin: var(--space-2) 0 0 calc(-1 * var(--space-1));
+  max-width: var(--hint-width, 272px);
+  margin: 0;
   padding: var(--space-2) var(--space-1) var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hint-outline);
   border-radius: var(--radius-lg);
-  background: var(--bg-popover);
-  box-shadow: var(--shadow-dialog);
+  background: var(--hint-surface);
+  filter: var(--hint-shadow);
   color: var(--fg-strong);
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
-  position-try-fallbacks:
-    flip-block,
-    flip-inline,
-    flip-block flip-inline;
   position-visibility: anchors-visible;
-  transform-origin: 12px 0;
+  transform-origin: var(--hint-origin);
   opacity: 0;
-  translate: 0 -6px;
+  translate: var(--hint-from);
   scale: 0.96;
   visibility: hidden;
   pointer-events: none;
@@ -55,15 +62,28 @@
     opacity var(--hint-exit) var(--ease-in),
     translate var(--hint-exit) var(--ease-in),
     scale var(--hint-exit) var(--ease-in),
+    filter var(--duration-medium) var(--ease-standard),
     visibility 0s linear var(--hint-exit);
 }
 
-.hint[data-hint="graph-menu"] {
-  inset: anchor(top, -100vh) auto auto anchor(right, -100vw);
-  margin: 0 0 0 var(--space-2);
-  transform-origin: 0 12px;
-  translate: -6px 0;
-  position-try-fallbacks: flip-block;
+.hint[data-lifted="true"] {
+  --hint-shadow: drop-shadow(0 2px 3px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.3)))
+    drop-shadow(0 10px 24px light-dark(rgb(0 0 0 / 0.14), rgb(0 0 0 / 0.45)));
+}
+
+.hint[data-side="right"] {
+  --hint-from: -6px 0;
+  --hint-origin: -7px var(--hint-caret);
+}
+
+.hint[data-side="left"] {
+  --hint-from: 6px 0;
+  --hint-origin: calc(100% + 7px) var(--hint-caret);
+}
+
+.hint[data-side="top"] {
+  --hint-from: 0 6px;
+  --hint-origin: var(--hint-caret) calc(100% + 7px);
 }
 
 .hint[data-open="true"] {
@@ -76,30 +96,45 @@
     opacity 160ms ease-out,
     translate var(--hint-enter) var(--ease-spring),
     scale var(--hint-enter) var(--ease-spring),
+    filter var(--duration-medium) var(--ease-standard),
     visibility 0s;
 }
 
-@starting-style {
-  .hint[data-open="true"] {
-    opacity: 0;
-    translate: 0 -6px;
-    scale: 0.96;
-  }
-}
-
-@starting-style {
-  .hint[data-hint="graph-menu"][data-open="true"] {
-    translate: -6px 0;
-  }
-}
-
-.app:has(.cm-editor.cm-focused) .hint[data-open="true"] {
-  opacity: 0;
-  visibility: hidden;
+.hint-caret {
+  position: absolute;
+  top: var(--hint-caret-edge);
+  left: var(--hint-caret-start);
+  box-sizing: border-box;
+  width: var(--hint-caret-size);
+  height: var(--hint-caret-size);
+  border: 0 solid var(--hint-outline);
+  border-width: 1px 0 0 1px;
+  border-radius: 2px 0 0 0;
+  background: var(--hint-surface);
+  rotate: 45deg;
   pointer-events: none;
-  transition:
-    opacity var(--hint-exit) var(--ease-in),
-    visibility 0s linear var(--hint-exit);
+}
+
+.hint[data-side="right"] .hint-caret {
+  top: var(--hint-caret-start);
+  left: var(--hint-caret-edge);
+  border-width: 0 0 1px 1px;
+  border-radius: 0 0 0 2px;
+}
+
+.hint[data-side="left"] .hint-caret {
+  top: var(--hint-caret-start);
+  right: var(--hint-caret-edge);
+  left: auto;
+  border-width: 1px 1px 0 0;
+  border-radius: 0 2px 0 0;
+}
+
+.hint[data-side="top"] .hint-caret {
+  top: auto;
+  bottom: var(--hint-caret-edge);
+  border-width: 0 1px 1px 0;
+  border-radius: 0 0 2px 0;
 }
 
 .hint-text {
@@ -142,12 +177,5 @@
   .hint[data-open="true"] {
     translate: none;
     scale: none;
-  }
-
-  @starting-style {
-    .hint[data-open="true"] {
-      translate: none;
-      scale: none;
-    }
   }
 }

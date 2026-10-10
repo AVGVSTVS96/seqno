@@ -12,7 +12,7 @@ The Vite web app for Chrome and Edge: React UI on the main thread (UI side), and
 | `src/ui/Shell.tsx`, `src/ui/shell/`    | Header, left and right sidebars, menus, dialogs, settings, export, keyboard shortcuts.                       |
 | `src/ui/PageView.tsx`, `src/ui/pages/` | Page title and properties, linked and unlinked references, journals, the all pages table.                    |
 | `src/ui/search/`                       | The Mod+K search palette.                                                                                    |
-| `src/ui/hints/`                        | Tips that point at real controls in the demo graphs, each shown on a real event and dismissed for good.      |
+| `src/ui/hints/`                        | Tips that point at real controls in the demo graphs, placed in empty space and shown once you are idle.      |
 | `src/ui/EditorSlot.tsx`                | Mounts `@seqno/editor` inside `@seqno/outliner` rows.                                                        |
 | `src/worker/`                          | `RealCore`: serves `CoreRpcs` and `PageRpcs`, takes one Web Lock per graph, runs one session per open graph. |
 

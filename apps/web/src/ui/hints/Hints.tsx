@@ -23,11 +23,13 @@ export const Hints = () => {
             aria-label="Tip"
             className="hint"
             data-hint={id}
+            data-key={key}
             data-open={open}
             aria-hidden={!open}
             inert={!open}
             style={{ "--hint-anchor": anchorName(id) }}
           >
+            <span className="hint-caret" aria-hidden />
             <p className="hint-text">
               {spot.text}
               {spot.keys === undefined ? null : (
