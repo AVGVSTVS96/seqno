@@ -106,7 +106,7 @@ describe("the core worker on the real graph, vault and index", () => {
       Effect.scoped(
         Effect.gen(function* () {
           const today = journalDayOf(yield* Clock.currentTimeMillis)
-          const core = yield* coreOn(yield* emptyFolder, demoGraph(today))
+          const core = yield* coreOn(yield* emptyFolder, { version: 1, files: demoGraph(today) })
           const opened = yield* core.OpenGraph({ graph: "demo" })
           assert.deepStrictEqual(
             opened.pages

@@ -58,6 +58,14 @@
     visibility 0s linear var(--hint-exit);
 }
 
+.hint[data-hint="graph-menu"] {
+  inset: anchor(top, -100vh) auto auto anchor(right, -100vw);
+  margin: 0 0 0 var(--space-2);
+  transform-origin: 0 12px;
+  translate: -6px 0;
+  position-try-fallbacks: flip-block;
+}
+
 .hint[data-open="true"] {
   opacity: 1;
   translate: 0 0;
@@ -76,6 +84,12 @@
     opacity: 0;
     translate: 0 -6px;
     scale: 0.96;
+  }
+}
+
+@starting-style {
+  .hint[data-hint="graph-menu"][data-open="true"] {
+    translate: -6px 0;
   }
 }
 
