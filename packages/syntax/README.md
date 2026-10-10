@@ -14,6 +14,7 @@ A pure parser for Logseq markdown: file to block tree and back, byte for byte, p
 | `properties.ts` | `splitProperties` / `joinProperties`: the `key:: value` lines after a block's first line, split from and joined back into its text.                                                                  |
 | `paste.ts`      | `pastedBlocks`: pasted text as an outline, or one block per paragraph.                                                                                                                               |
 | `rename.ts`     | `renameRefs`, `renameInProperty`: rewrite `[[refs]]` and `#tags` when a page is renamed.                                                                                                             |
+| `video.ts`      | `parseVideo`, `parseTimestamp`: the URL in `{{video}}` as YouTube (id, start), Vimeo (id, unlisted hash) or a direct file, and `{{youtube-timestamp}}` as seconds.                                   |
 
 A block's text is its full markdown with bullet indentation removed, property and planning lines included. Refs inside code, fences and queries are ignored.
 
