@@ -63,9 +63,12 @@ export const scrollToText = async (
   offset: number,
   tries = 40,
 ): Promise<void> => {
-  const target = page.getByRole("treeitem").filter({ hasText: text }).first()
-  if ((await target.count()) > 0) {
-    await target.evaluate((element, by) => {
+  const scrolled = await page.evaluate(
+    ([wanted, by]) => {
+      const element = [...document.querySelectorAll("[role=treeitem]")].find((row) =>
+        row.textContent?.includes(wanted),
+      )
+      if (element === undefined) return false
       element.scrollIntoView({ block: "start", behavior: "instant" })
       let scroller = element.parentElement
       while (
@@ -78,7 +81,11 @@ export const scrollToText = async (
         scroller = scroller.parentElement
       }
       ;(scroller ?? document.scrollingElement)?.scrollBy({ top: -by, behavior: "instant" })
-    }, offset)
+      return true
+    },
+    [text, offset] as const,
+  )
+  if (scrolled) {
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".seqno-gap")].every((gap) => {
         const box = gap.getBoundingClientRect()
