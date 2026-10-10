@@ -263,6 +263,33 @@ test.describe("tips in a demo graph", () => {
     await expect(tip(page)).not.toHaveText(/^Contents/)
   })
 
+  test("the graph menu tip goes even when the menu closes before its toggle event arrives", async ({
+    page,
+  }) => {
+    await openDemo(page)
+    await page.getByRole("button", { name: "Toggle left sidebar" }).click()
+    await expect(tip(page)).toHaveText(/Switch graphs here\.$/)
+    const trigger = leftSidebar(page).getByRole("button", { name: "Getting started" })
+    const toggle = await trigger.evaluate((button) => {
+      const menu = button instanceof HTMLButtonElement ? button.popoverTargetElement : null
+      if (!(button instanceof HTMLButtonElement && menu instanceof HTMLElement)) return "no menu"
+      const toggled = new Promise<string>((resolve) =>
+        menu.addEventListener(
+          "toggle",
+          (event) => resolve(`${event.oldState} to ${event.newState}`),
+          { once: true },
+        ),
+      )
+      button.click()
+      menu.hidePopover()
+      return toggled
+    })
+    expect(toggle).toBe("closed to closed")
+    await expect(tip(page)).toHaveText("Click to open this page.")
+    await page.reload()
+    await expect(tip(page)).toHaveText("Click to open this page.")
+  })
+
   test("a tip sits in empty space and its caret points at the center of what it is about", async ({
     page,
   }) => {

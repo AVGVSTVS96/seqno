@@ -362,10 +362,6 @@ const track = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter, gr
     showing = { ...showing, placement: measured.placement }
   }
 
-  const opened = (current: Candidate) =>
-    current.spot.done === "opened" &&
-    elementsOf(current.spot).some((element) => element.getAttribute("aria-expanded") === "true")
-
   const candidacy = (found: Candidate | null): HintState => {
     if (found === null) return { ...state, active: null }
     const entry: ShownHint = { id: found.hint.id, key: found.hint.key, spot: found.spot }
@@ -380,10 +376,6 @@ const track = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter, gr
 
   const refresh = () => {
     if (stopped) return
-    if (candidate !== null && opened(candidate)) {
-      dismiss(candidate.hint.id)
-      return
-    }
     if (occupied()) {
       hide()
       return
@@ -417,6 +409,19 @@ const track = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter, gr
             )
           : false
     if (did) dismiss(hint.id)
+  }
+
+  const opening = (event: ToggleEvent) => {
+    if (event.newState !== "open") return
+    const opens = (spot: Spot) =>
+      spot.done === "opened" &&
+      elementsOf(spot).some(
+        (element) =>
+          element instanceof HTMLButtonElement && element.popoverTargetElement === event.target,
+      )
+    hints.forEach((hint) => {
+      if (hint.spots.some(opens)) dismiss(hint.id)
+    })
   }
 
   const pressedDown = (event: PointerEvent) => {
@@ -465,6 +470,7 @@ const track = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter, gr
     [window, "scroll", scrolled],
     [window, "scrollend", changed],
     [window, "resize", place],
+    [document, "beforetoggle", (event) => event instanceof ToggleEvent && opening(event)],
     [document, "toggle", changed],
     [document, "focusin", changed],
     [document, "focusout", changed],
@@ -479,7 +485,7 @@ const track = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter, gr
     subtree: true,
     childList: true,
     attributes: true,
-    attributeFilter: ["data-open", "data-left-open", "aria-expanded", "open"],
+    attributeFilter: ["data-open", "data-left-open", "open"],
   })
   listeners.forEach(([target, type, listener]) =>
     target.addEventListener(type, listener, { capture: true, passive: true }),
