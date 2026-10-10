@@ -23,6 +23,11 @@ export const openDemo = async (page: Page, path = "/", graph = "Getting started"
   await expect(page.getByRole("main")).not.toBeEmpty()
 }
 
+export const restOfToday = [
+  "Scroll down for the days before today. This graph is a sample to explore: two weeks of notes on a small vegetable garden, with recipes, projects and a Reading list along the way.",
+  "Rain all morning, so no watering today. The lettuce seedlings go into bed 2 later this week.",
+]
+
 const seqno = (page: Page) => ({
   today: page.getByRole("article", { name: journalTitle(new Date()), exact: true }),
   editor: page.getByRole("treeitem").getByRole("textbox"),

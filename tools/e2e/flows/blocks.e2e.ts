@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test"
 import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
-import { expect, openDemo, test } from "../src/test.ts"
+import { expect, openDemo, restOfToday, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
@@ -64,6 +64,7 @@ test("pasting a markdown outline into an empty block makes the blocks", async ({
     "pasted child",
     "pasted two",
     "Open Getting started to see how pages link",
+    ...restOfToday,
   ])
   await expect(today.getByRole("treeitem", { level: 2 })).toHaveText(["pasted child"])
 })

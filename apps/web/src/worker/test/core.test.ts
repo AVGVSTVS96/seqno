@@ -22,6 +22,7 @@ import { layerNode } from "@seqno/index/node"
 import { CoreRpcs, PageRpcs } from "@seqno/rpc"
 import { nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
+import { demoGraph } from "../demo.ts"
 import { developerGraph } from "../developer.ts"
 import { journalDayOf } from "../journal.ts"
 import { layerWebLocks } from "../lock.ts"
@@ -99,6 +100,134 @@ const named = <A extends { readonly title: string }>(items: ReadonlyArray<A>, ti
   items.find((item) => item.title === title) ?? assert.fail(`no page titled ${title}`)
 
 describe("the core worker on the real graph, vault and index", () => {
+  it.effect(
+    "the Getting started graph imports whole, every link has a page and its queries match",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const today = journalDayOf(yield* Clock.currentTimeMillis)
+          const core = yield* coreOn(yield* emptyFolder, demoGraph(today))
+          const opened = yield* core.OpenGraph({ graph: "demo" })
+          assert.deepStrictEqual(
+            opened.pages
+              .filter((page) => page.journalDay === null)
+              .map((page) => page.title)
+              .toSorted(),
+            [
+              "Aliases",
+              "As We May Think",
+              "Basil",
+              "Block refs and embeds",
+              "Compost",
+              "Contents",
+              "Digital gardens",
+              "Garden",
+              "Getting started",
+              "Harvest log",
+              "Ideas",
+              "Linking",
+              "Namespaces",
+              "Properties",
+              "Queries",
+              "Reading list",
+              "Tasks",
+              "Three Sisters",
+              "Tomatoes",
+              "projects/Cold frame",
+              "projects/Seed swap",
+              "recipes/Basil pesto",
+              "recipes/Roasted tomato sauce",
+            ],
+          )
+          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 15)
+          const trees = yield* Effect.forEach(opened.pages, (page) =>
+            core.GetPage({ pageId: page.id }),
+          )
+          assert.deepStrictEqual(
+            trees
+              .filter((tree) => !tree.blocks.some((block) => block.text.trim() !== ""))
+              .map((tree) => tree.page.title),
+            [],
+          )
+          const referenced = yield* core
+            .WatchReferencedPages()
+            .pipe(Stream.take(1), Stream.runCollect)
+          assert.deepStrictEqual(
+            referenced.flat().map((page) => page.name),
+            ["question"],
+          )
+          const blocks = trees.flatMap((tree) => tree.blocks)
+          const ids = new Set(blocks.flatMap((block) => [block.id, block.props["id"] ?? ""]))
+          const refs = blocks.flatMap((block) =>
+            [...block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/g)].map((match) => match[1] ?? ""),
+          )
+          assert.strictEqual(refs.length, 7)
+          assert.deepStrictEqual(
+            refs.filter((ref) => !ids.has(ref)),
+            [],
+          )
+          const results = (query: string) =>
+            core.WatchQuery({ query }).pipe(
+              Stream.take(1),
+              Stream.runCollect,
+              Effect.map((found) =>
+                found.flatMap((result) =>
+                  result._tag === "BlockRows"
+                    ? result.blocks.map((block) => block.text.split("\n")[0] ?? "")
+                    : result.pages.map((page) => page.title),
+                ),
+              ),
+            )
+          assert.deepStrictEqual((yield* results("{{query (task NOW DOING)}}")).toSorted(), [
+            "DOING Type `/` for dates, priorities, headings, code blocks and more",
+            "NOW [Braiding Sweetgrass](https://en.wikipedia.org/wiki/Braiding_Sweetgrass)",
+          ])
+          assert.deepStrictEqual(
+            (yield* results("{{query (and [[harvest]] (between -7d today))}}")).toSorted(),
+            [
+              "Far too many at once. Next time, sow a short row every two weeks instead of one long one: [succession planting](https://en.wikipedia.org/wiki/Succession_planting).",
+              "Picked 1.4 kg of tomatoes, the most in one go so far #harvest",
+              "Pulled the first radishes #harvest",
+              "The basil was about to flower, so it all came in at once #harvest",
+            ],
+          )
+          assert.deepStrictEqual(
+            (yield* results("{{query (property crop [[Tomatoes]])}}")).toSorted(),
+            [
+              "First ripe tomato! One Sungold, eaten standing next to the bed #harvest",
+              "Picked 1.4 kg of tomatoes, the most in one go so far #harvest",
+            ],
+          )
+          assert.deepStrictEqual(
+            (yield* results(
+              "{{query (and (task TODO DOING) (task.deadline <= +14d))}}",
+            )).toSorted(),
+            ["TODO [#A] Hinge the window onto the frame", "TODO [#B] Bring the seeds to the swap"],
+          )
+          assert.deepStrictEqual(
+            (yield* results("{{query (and (namespace projects) (task TODO DOING))}}")).toSorted(),
+            [
+              "TODO Cut the boards so the back is taller than the front, for a sloping lid that sheds rain",
+              "TODO Label the envelopes: variety, year, plot 14",
+              "TODO [#A] Hinge the window onto the frame",
+              "TODO [#B] Bring the seeds to the swap",
+            ],
+          )
+          assert.deepStrictEqual(yield* results("LIST WHERE task.status = waiting"), [
+            "WAITING Hear back from the garden committee about a second tap at the far end",
+          ])
+          assert.deepStrictEqual(
+            (yield* results("{{query (page-property type recipe)}}")).toSorted(),
+            ["recipes/Basil pesto", "recipes/Roasted tomato sauce"],
+          )
+          assert.deepStrictEqual(
+            (yield* results("{{query (page-property type plant)}}")).toSorted(),
+            ["Basil", "Three Sisters", "Tomatoes"],
+          )
+        }),
+      ),
+  )
+
   it.effect(
     "the developer demo graph imports whole, its block refs resolve and its queries match",
     () =>

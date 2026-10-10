@@ -1,5 +1,5 @@
 import { appAvailable } from "../src/env.ts"
-import { expect, test } from "../src/test.ts"
+import { expect, restOfToday, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
@@ -19,6 +19,7 @@ test("keys typed right after Enter land in the new block", async ({ page, seqno 
     welcome,
     "typed without waiting",
     second,
+    ...restOfToday,
   ])
 })
 
@@ -27,7 +28,12 @@ test("Ctrl+V right after Enter pastes into the new block", async ({ page, seqno 
   await page.evaluate(() => navigator.clipboard.writeText("pasted at once"))
   await page.keyboard.press("Enter")
   await page.keyboard.press("ControlOrMeta+v")
-  await expect(seqno.today.getByRole("treeitem")).toHaveText([welcome, "pasted at once", second])
+  await expect(seqno.today.getByRole("treeitem")).toHaveText([
+    welcome,
+    "pasted at once",
+    second,
+    ...restOfToday,
+  ])
 })
 
 test("a burst of Enter, text and Tab builds the outline in order", async ({ page, seqno }) => {
@@ -128,7 +134,10 @@ test("Backspace at the start merges, and typing goes in at the seam", async ({ p
   await page.keyboard.type("+")
   await expect(seqno.editor).toHaveText(`${welcome}+Open [[Getting started]] to see how pages link`)
   await page.keyboard.press("Escape")
-  await expect(seqno.today.getByRole("treeitem")).toHaveText([`${welcome}+${second}`])
+  await expect(seqno.today.getByRole("treeitem")).toHaveText([
+    `${welcome}+${second}`,
+    ...restOfToday,
+  ])
 })
 
 test("Mod+O follows the ref under the caret, Mod+Shift+O opens it in the sidebar", async ({

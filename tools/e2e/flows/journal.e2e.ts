@@ -1,6 +1,6 @@
 import { appAvailable } from "../src/env.ts"
 import { journalTitle } from "../src/journal.ts"
-import { expect, test } from "../src/test.ts"
+import { expect, restOfToday, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
@@ -52,6 +52,7 @@ test("Enter splits a block and Tab indents the new one", async ({ page, seqno })
     "Welcome to the seqno demo graph",
     "a new child",
     "Open Getting started to see how pages link",
+    ...restOfToday,
   ])
 })
 
@@ -72,6 +73,7 @@ test("an older block nested under a new one survives a reload", async ({ page, s
     "Welcome to the seqno demo graph",
     "New parent",
     "Open Getting started to see how pages link",
+    ...restOfToday,
   ])
   await expect(seqno.today.getByRole("treeitem", { level: 2 })).toHaveText([
     "Open Getting started to see how pages link",
