@@ -112,6 +112,7 @@ const scrollWhenTall = (main: HTMLElement, target: number) => {
 
 const scrollMemory = (router: RegisteredRouter) => {
   const offsets = new Map<string, number>()
+  let restored: string | null = null
   let stopWaiting = nothing
   const stopSaving = router.subscribe("onBeforeLoad", ({ fromLocation }) => {
     const main = mainColumn()
@@ -119,9 +120,12 @@ const scrollMemory = (router: RegisteredRouter) => {
       offsets.set(keyOf(fromLocation), main.scrollTop)
   })
   const stopRestoring = router.subscribe("onRendered", ({ toLocation }) => {
+    const key = keyOf(toLocation)
+    if (key === restored) return
+    restored = key
     stopWaiting()
     const main = mainColumn()
-    if (main !== null) stopWaiting = scrollWhenTall(main, offsets.get(keyOf(toLocation)) ?? 0)
+    if (main !== null) stopWaiting = scrollWhenTall(main, offsets.get(key) ?? 0)
   })
   return () => {
     stopSaving()
