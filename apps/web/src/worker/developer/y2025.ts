@@ -1,0 +1,245 @@
+import type { StarterFile } from "../place.ts"
+import { ids, on, post, pr, ref, yt } from "./kit.ts"
+
+export const y2025: ReadonlyArray<StarterFile> = [
+  on(
+    20250106,
+    "- header and hero rebuilt after VoidZero's site [[projects/portfolio]]",
+    "- nav links fire on `mousedown`, not `click` #decision #portfolio",
+    "\t- perceived performance. the page starts loading before the button comes back up",
+    `\t- ${pr("AVGVSTVS96/astroSite", 564)}`,
+  ),
+  on(
+    20250125,
+    '- `"packageManager": "bun@1.2.0"` in the site\'s package.json #decision #portfolio',
+    "\t- npm and pnpm commands now error out, so nobody runs the wrong one by accident",
+    `\t- ${pr("AVGVSTVS96/astroSite", 566)}`,
+  ),
+  on(
+    20250126,
+    "- react-shiki gets the custom theme work from my site's experiments [[projects/react-shiki]]",
+    "- a `delay` option throttles highlighting #decision #react-shiki",
+    "\t- streamed code changes on every token. this caps how often it re-highlights",
+    `\t- ${pr("AVGVSTVS96/react-shiki", 7)}`,
+  ),
+  on(20250202, "- react-shiki has tests now: vitest + React Testing Library"),
+  on(
+    20250203,
+    "- inline code detection is a rehype plugin, `rehypeInlineCodeProperty` #decision #react-shiki",
+    "\t- react-markdown 9 removed the `inline` prop. the plugin adds it back",
+    "\t- it checks for a `pre` parent in the AST. more accurate than guessing from line endings, which `isInlineCode` does",
+    `\t- ${pr("AVGVSTVS96/react-shiki", 12)}`,
+  ),
+  on(
+    20250222,
+    `- [[Theo Browne]]: "Nothing better than finding a random GitHub repo with 5 stars that perfectly solves your problem". it was react-shiki [[projects/react-shiki]]`,
+    `\t- my reply: "👀 Happy to help!" ${post("1893112863591473475", "433 likes")}`,
+    `\t- standing on the shoulders of giants. none of it works without [[Anthony Fu]]'s Shiki ${post("1893115167287767167")}`,
+    `\t- explained \`rehypeInlineCodeProperty\` in the replies ${post("1893141230118195576")}`,
+  ),
+  on(
+    20250223,
+    `- custom TextMate grammars: pass one as \`lang\` at runtime, or preload them [[projects/react-shiki]] ${pr("AVGVSTVS96/react-shiki", 26)}`,
+  ),
+  on(
+    20250302,
+    `- multi-theme: light, dark, dim, as CSS variables [[projects/react-shiki]] ${pr("AVGVSTVS96/react-shiki", 31)}`,
+  ),
+  on(
+    20250312,
+    "- karting videos [[racing]]",
+    `\t- ${yt("How to CORNER in Karting", "guzileTcuZI")}`,
+    `\t- ${yt("Taking a corner FLAT OUT can be SLOWER", "yJEA9mF6xkk")}`,
+  ),
+  on(
+    20250331,
+    "- dropped my own highlighter cache for Shiki's `getSingletonHighlighter` #decision #react-shiki",
+    "\t- Shiki manages the instance and loads languages and themes on demand",
+    "\t- less code of mine to keep correct",
+    `\t- ${pr("AVGVSTVS96/react-shiki", 38)}`,
+  ),
+  on(
+    20250405,
+    "- `codeToHast`, then hast straight to React with `hast-util-to-jsx-runtime`. `html-react-parser` is gone #decision #react-shiki",
+    "\t- the old path went hast → HTML string → React. skipping the middle step: 5-10% faster",
+    "\t- a benchmark file in the repo proves it",
+    `\t- ${pr("AVGVSTVS96/react-shiki", 41)}`,
+  ),
+  on(
+    20250411,
+    "- every Shiki option passes through the hook and the component #decision #react-shiki",
+    "\t- feature parity with Shiki itself",
+    "\t- the default tabindex transformer is gone (a breaking change)",
+    "\t- `useStableOptions` keeps option objects deep-stable so a new object literal doesn't re-init the highlighter",
+    `\t- ${pr("AVGVSTVS96/react-shiki", 50)}`,
+  ),
+  on(
+    20250412,
+    `- react-shiki: 387 stars, 3k+ weekly downloads ${post("1911124354621899069")} [[projects/react-shiki]]`,
+  ),
+  on(
+    20250428,
+    `- I'd rather use a TUI than a GUI. lazygit is done before a git app finishes opening ${post("1916892194763321349")} [[terminal]]`,
+  ),
+  on(
+    20250530,
+    "- three entry points: `react-shiki`, `react-shiki/web`, `react-shiki/core` #decision #react-shiki",
+    "\t- full bundle ~6.4 MB minified (1.2 MB gzipped), web ~3.8 MB (695 KB), core brings its own highlighter",
+    "\t- you ship only the languages and themes you use. nothing breaks for people on the full bundle",
+    `\t- ${pr("AVGVSTVS96/react-shiki", 59)}`,
+    `- line numbers the next day ${pr("AVGVSTVS96/react-shiki", 61)}`,
+  ),
+  on(
+    20250626,
+    `- keep running into Radix issues. AriaKit looks like the future ${post("1938178711762964534")} [[design]]`,
+  ),
+  on(
+    20250711,
+    "- one nvim socket per tmux pane, so an agent can drive the editor beside it #idea [[terminal]]",
+    '\t- ```sh\n\t  nvim --listen /tmp/nvim-$(tmux display-message -p "#S-#I-#P")\n\t  ```',
+    `\t- ${post("1943572882250174666")}`,
+  ),
+  on(
+    20250721,
+    `- tmux-resurrect fork: restore paste buffers too [[terminal]] ${pr("AVGVSTVS96/tmux-resurrect", 3)}`,
+  ),
+  on(
+    20250804,
+    "- keyboards: the Alice layout, Work Louder's Nomad [E], ergo boards [[keyboards]]",
+    `\t- ${yt("Keychron Q10 Review - CHUNKY Boy!", "iILh3Uu8_XM")}`,
+    `\t- ${yt("I'm obsessed with ergo keyboards", "Mn_06K0f0VA")}`,
+  ),
+  on(
+    20250907,
+    "- `outputFormat`: React nodes by default, an HTML string if you ask #decision #react-shiki",
+    `  id:: ${ids.reactDefault}`,
+    "\t- React conversion is 15-45% slower than handing HTML to `dangerouslySetInnerHTML`",
+    "\t- but the default stays the safe one. HTML is opt-in, and the component sets it for you",
+    `\t- on my own site I went HTML-first for speed: ${ref(ids.htmlFast)}`,
+    `\t- ${pr("AVGVSTVS96/react-shiki", 92)}`,
+  ),
+  on(
+    20250909,
+    `- what I'm chasing with every commit: APIs that feel beautiful and DX that feels right ${post("1965309541559763260")} [[open source]]`,
+  ),
+  on(
+    20250924,
+    `- SF: if you come with nothing to show, you'll build it. never got "cool crowd" vibes, everyone loves talking about code ${post("1970742130168733992")} [[SF]]`,
+  ),
+  on(
+    20250928,
+    `- Electron doesn't deserve the hate. build once, ship everywhere ${post("1972107730858266707")}`,
+  ),
+  on(
+    20250929,
+    "- portfolio refresh, using Astro's experimental fonts API [[projects/portfolio]] [[design]]",
+    "\t- ![Astro experimental fonts config](https://pbs.twimg.com/media/G2CsFbLaUAA4hmb.jpg)",
+    `- never fell into tutorial hell. building is how it sticks ${post("1972765139360510090")} [[learning to code]]`,
+  ),
+  on(
+    20251002,
+    "- react-shiki takes a custom regex `engine`. Oniguruma stays the default #decision #react-shiki",
+    "\t- people run it in different environments. they pick the engine that fits theirs",
+    `\t- ${pr("AVGVSTVS96/react-shiki", 100)}`,
+  ),
+  on(
+    20251005,
+    "- [lakhs](https://lakhs.app): a USD/INR converter for those of us who are confused by lakhs and crores",
+  ),
+  on(
+    20251006,
+    `- devtools drinkup. pulled my laptop out to show what I'm working on. normal at a dev event ${post("1975279305581355222")} [[SF]]`,
+  ),
+  on(
+    20251012,
+    "- differential: a terminal diff viewer. config, delta compatibility, git metadata, an interactive mode, five phases in two days [[terminal]]",
+  ),
+  on(
+    20251014,
+    '- PR to folke\'s persistence.nvim: `branch = "any"` #decision #persistence-scope',
+    "\t- I'd rather always fall back to a known session. a new branch shouldn't make my saved sessions disappear",
+    `\t- ${pr("folke/persistence.nvim", 108)}`,
+  ),
+  on(
+    20251015,
+    `- Factory's Droid is the first agent that's made me feel I can build anything I want. ~10 side projects going at once ${post("1978605789611999387", "162 likes")}`,
+    `- missing piece: resume an interactive session by id. I run many sessions across tmux windows, several on the same repo ${post("1978898196194824265")}`,
+  ),
+  on(
+    20251018,
+    `- three years of LLMs and I still can't ask Siri to turn off auto-brightness ${post("1979438955411181863")}`,
+  ),
+  on(
+    20251022,
+    "- kbtrack: a script that logs the new keyboard's battery life [[keyboards]]",
+    "\t- connected means on. one session per discharge cycle, resumed until it charges",
+  ),
+  on(
+    20251031,
+    `- heat map diffs for code review. well done, needs dark mode ${post("1984198729696792663")}`,
+    `- idea: continue a local agent session from the web or my phone ${post("1984398024781730153")} #idea`,
+  ),
+  on(20251101, `- ${yt("Chess is When You Microdose Infinity", "Ctwc8t5CsQs")} [[exurb1a]]`),
+  on(
+    20251108,
+    `- the fast-model era: open weights plus better harnesses will matter more than the labs' next intelligence bump ${post("1987304511422320685")}`,
+  ),
+  on(
+    20251111,
+    `- Kimi K2 Thinking caught an architectural contradiction that Sonnet 4.5 and GPT-5 both missed ${post("1988345578850578763")}`,
+    `- TS AI Conf. well run, enjoyable ${post("1988096186704887808")}`,
+    `- game feel: movement directly proportional to the stick. deadzone tuning and nothing else ${post("1988191750926782512")} [[racing]]`,
+  ),
+  on(
+    20251113,
+    `- Tailwind v4 is CSS-native: utilities in markup, plain CSS, or your own utilities, whichever fits the spot ${post("1989083163642167532")} [[design]]`,
+  ),
+  on(
+    20251123,
+    `- always wished neovim had something like Cursor's tab completion. [[ThePrimeagen]] says he's building it ${post("1992404893655761131")}`,
+    `- Aqua Voice for dictation. love the membership stat card idea ${post("1992404412988621002")}`,
+  ),
+  on(20251127, `- tawk: awk from plain English ${pr("AVGVSTVS96/astroSite", 582)} [[terminal]]`),
+  on(
+    20251129,
+    `- Raycast extension that triggers Obsidian QuickAdd macros ${pr("raycast/extensions", 23250)}`,
+  ),
+  on(
+    20251202,
+    `- iTerm2 isn't the pick anymore. Ghostty, WezTerm, Kitty, and Ghostty first ${post("1995647302472794428")} [[terminal]]`,
+  ),
+  on(
+    20251205,
+    "- react-shiki: a `tokens` output for custom renderers, and `deferRender` to highlight only once a block scrolls into view [[projects/react-shiki]]",
+    "- throttling is a `useThrottledDebounce` hook, adapted from Streamdown's #decision #react-shiki",
+    "\t- updates right away once the throttle window has passed, debounces rapid changes inside it",
+    "\t- credited Hayden Bleasel, who wrote the original",
+    `\t- ${pr("AVGVSTVS96/react-shiki", 112)}`,
+  ),
+  on(
+    20251206,
+    `- the Steelcase Gesture beats my Aeron for long stretches. the Aeron's hard edges show ${post("1997151246960996726")}`,
+  ),
+  on(
+    20251213,
+    `- react-shiki docs on Astro Starlight, with Pagefind search ${pr("AVGVSTVS96/react-shiki", 120)}`,
+    "- streaming demo with play, pause and speed controls, Dec 22",
+  ),
+  on(
+    20251224,
+    "- [[projects/openleaf]]: minimal, end-to-end encrypted markdown notes",
+    "- open source, credited, after a closed app I liked #decision #openleaf",
+    `\t- if you're not trying to make money with it, it should be open source. asked its maker if they'd mind an open clone with attribution ${post("2004843273480012164")}`,
+    "- AES-256-GCM with Web Crypto, a BIP39 mnemonic opens the vault #decision #openleaf",
+    "\t- notes are encrypted before they're stored",
+    "- title and content encrypt as one JSON blob #bug #openleaf",
+    "\t- they were encrypted separately with different IVs, and only the title's IV was stored. content wouldn't decrypt",
+    `\t- ${pr("AVGVSTVS96/openleaf", 3)}`,
+  ),
+  on(
+    20251229,
+    "- a new note isn't saved until its first real edit #decision #openleaf",
+    "\t- back out of an empty note and it's discarded",
+    `\t- ${pr("AVGVSTVS96/openleaf", 9)}`,
+  ),
+]

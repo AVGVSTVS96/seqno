@@ -1,0 +1,186 @@
+import type { StarterFile } from "../place.ts"
+import { ids, on, post, pr, ref, thumb, yt } from "./kit.ts"
+
+export const y2024: ReadonlyArray<StarterFile> = [
+  on(
+    20240108,
+    "- dark mode on the site [[projects/portfolio]] [[dark mode]]",
+    "- table of contents marks the section you're in, not just its heading #decision #portfolio",
+    "\t- remark-sectionize wraps each heading and what follows it in a `<section>`, so the observer watches whole sections",
+    `\t- ${pr("AVGVSTVS96/astroSite", 9)}`,
+    `- ${yt("Rethinking React", "KuhfT6-I3QU")} [[Theo Browne]]`,
+  ),
+  on(
+    20240124,
+    `- ${yt("Don't Contribute to Open Source", "5nY_cy8zcO4")} [[Theo Browne]] [[open source]]`,
+    "- Theo most days now",
+  ),
+  on(
+    20240129,
+    "- first PR to someone else's repo: a missing word in the astro-icon docs [[open source]]",
+    `\t- ${pr("natemoo-re/astro-icon", 197)}`,
+  ),
+  on(
+    20240201,
+    "- forked remark-sectionize and gave it TypeScript types and type tests #decision #portfolio",
+    "\t- the site had a hand-written `declare module` for it. now the types ship with the plugin",
+    `\t- ${pr("AVGVSTVS96/remark-sectionize", 1)}. the site switched to my published fork on Feb 26`,
+  ),
+  on(
+    20240302,
+    "- Dune Part Two week: reviews, the ending, the Ixian problem, the most evil emperor [[Quinn's Ideas]] [[sci-fi]]",
+    `\t- ${yt("What Does Dune's Ending Actually Mean?", "Wzc93-osVpM")}`,
+  ),
+  on(20240318, `- ${yt("Carl Sagan's Pale Blue Dot", "GO5FwsblpT8")}. liked it`),
+  on(
+    20240326,
+    "- killed the theme flash: the theme is set in the base layout before first paint #decision #portfolio",
+    "\t- pages flashed the wrong theme while loading (FOUC)",
+    "\t- one script applies the saved theme immediately, the toggle script only toggles",
+    `\t- ${pr("AVGVSTVS96/astroSite", 100)}`,
+  ),
+  on(20240331, "- command menu for the site, ⌘K [[projects/portfolio]]"),
+  on(20240405, "- practice repo for stacked PRs with Graphite. 14 small PRs in three days"),
+  on(
+    20240406,
+    "- split keyboard binge [[keyboards]]",
+    `\t- ${yt("The Voyager: It's the Keyboard We've All Been Waiting For", "IKKsREAlkoE")}`,
+    `\t- ${yt("Good in Theory, Bad in Practice - A brief history of Ortholinear Keyboards", "ZVgEIX3db8w")}`,
+    `\t- ${yt("Build your own Mechanical Keyboard… the RIGHT Way", "bBon6WwkdJE")}`,
+  ),
+  on(
+    20240419,
+    "- the rainbow gradient uses LCH colors now #decision #portfolio",
+    "\t- the rainbow looks better in LCH",
+    `\t- ${pr("AVGVSTVS96/astroSite", 212)}`,
+    "- accent color picker, saved to local storage [[design]]",
+  ),
+  on(
+    20240420,
+    "- PR: a regex so Tailwind IntelliSense works inside TS strings and arrays [[open source]]",
+    `\t- ${pr("paolotiu/tailwind-intellisense-regex-list", 29)}`,
+    "\t- wrote it up as a blog post on the site two days later",
+  ),
+  on(
+    20240421,
+    `- ${yt("LIFE BEYOND: Visions of Alien Life", "dww8Hekngmg")}, melodysheep. 108 minutes. liked it [[sci-fi]]`,
+    `\t- the Fermi paradox: ${ref(ids.darkForest)}`,
+  ),
+  on(
+    20240505,
+    '- "Minimal Typography" page on the site, laid out on a 4x8 grid. Inter via Fontsource [[design]] [[projects/portfolio]]',
+  ),
+  on(
+    20240515,
+    "- the site's chat page runs on the Vercel AI SDK now. GPT-4o in the model picker the week it came out [[projects/portfolio]]",
+  ),
+  on(
+    20240605,
+    "- `dvh` instead of `vh` in the base layout #decision #portfolio",
+    "\t- mobile browser bars grow and shrink. `dvh` follows them",
+    `\t- ${pr("AVGVSTVS96/astroSite", 401)}`,
+  ),
+  on(
+    20240626,
+    "- chat code blocks highlight with Shiki now [[projects/react-shiki]]",
+    "- one Shiki highlighter instance, made once, reused by every block #decision #react-shiki",
+    "\t- performance",
+    `\t- ${pr("AVGVSTVS96/astroSite", 453)}`,
+  ),
+  on(
+    20240629,
+    "- all the Shiki logic moved into a `useShiki` hook. the component just renders what the hook returns [[projects/react-shiki]]",
+  ),
+  on(20240705, "- Biome for lint and format on the site [[projects/portfolio]]"),
+  on(
+    20240708,
+    "- every chat message is memoized #decision #portfolio",
+    "\t- each streamed token re-rendered every earlier message, markdown and code block",
+    `\t- ${pr("AVGVSTVS96/astroSite", 495)}`,
+  ),
+  on(
+    20240720,
+    "- astro-fouc-killer: the no-flash theme trick as an Astro integration [[projects/astro-fouc-killer]]",
+    "- two scripts: a tiny inline one in the head reads the storage key and sets the theme, the rest loads normally #decision #astro-fouc-killer",
+    "\t- no flash, and users can still pick their own `localStorageKey`",
+    `\t- ${pr("AVGVSTVS96/astro-fouc-killer", 2)}`,
+  ),
+  on(
+    20240722,
+    "- code blocks: sanitize Shiki's HTML with DOMPurify and set it with `dangerouslySetInnerHTML` #decision #portfolio",
+    `  id:: ${ids.htmlFast}`,
+    "\t- parsing the HTML into React elements was the bottleneck for code block rendering",
+    "\t- the hook always returns sanitized HTML, so the logic lives in one place",
+    `\t- ${pr("AVGVSTVS96/astroSite", 521)}`,
+  ),
+  on(
+    20240727,
+    `- ${yt("Nothing Ever Stops Existing", "Wmi_6D6vwBQ")} [[Jacob Geller]]`,
+    "\t- Babbage, DEVS, Arrival, Slaughterhouse-Five. I love Jacob Geller's essays",
+    `\t- ${thumb("Nothing Ever Stops Existing", "Wmi_6D6vwBQ")}`,
+  ),
+  on(20240801, "- started react-shiki [[projects/react-shiki]]"),
+  on(
+    20240805,
+    "- react-shiki is published [[projects/react-shiki]]",
+    `\t- \`addDefaultStyles\`, clsx, changesets for releases. ${pr("AVGVSTVS96/react-shiki", 2)}`,
+  ),
+  on(
+    20240812,
+    `- data pushed to GitHub stays reachable, even from private and deleted repos. rotate leaked keys #rule ${post("1823133570497704267")}`,
+  ),
+  on(
+    20240817,
+    `- ${yt("Then Next Comes", "o1OsDWT_DUc")} [[exurb1a]]`,
+    "\t- a museum a million years from now, looking back through 100 objects",
+  ),
+  on(
+    20240818,
+    "- keyboards again [[keyboards]]",
+    `\t- ${yt("Nuphy Halo75 Unboxing and Sound Test - Rose Glacier Switches", "aIUYFTgB2iQ")}`,
+    `\t- ${yt("Nuphy's Best Keyboard - Gem80 Full Review", "7w8TOPASrQ4")}`,
+    `\t- ${yt("The Ultimate Minimalist Keyboard For Programming | Wireless Corne", "wTMcH7u-vu0")}`,
+    "\t- ceramic keycaps",
+  ),
+  on(
+    20240901,
+    "- the theme toggle removes its transition styles with `setTimeout`, not `requestAnimationFrame` #decision #portfolio",
+    "\t- fine in Chrome. in Firefox the removal ran before the styles applied",
+    `\t- ${pr("AVGVSTVS96/astroSite", 545)}`,
+  ),
+  on(
+    20240902,
+    `- ${yt("How To Lube Your Mechanical Keyboard Switches", "_BG-8QrA-6c")} [[keyboards]]`,
+  ),
+  on(
+    20240915,
+    "- first NixOS config, started from Dustin Lyons' template [[projects/dotfiles]]",
+    `\t- ${pr("dustinlyons/nixos-config", 114)}`,
+  ),
+  on(
+    20240922,
+    `- ${yt("I Built My Dream Keyboard from Absolute Scratch", "7UXsD7nSfDY")}, Christian Selig [[keyboards]]`,
+  ),
+  on(
+    20241111,
+    "- one nix config, same setup on NixOS and macOS #decision #dotfiles",
+    "\t- parity between hosts: the same programs, shells and theme everywhere",
+    `\t- ${pr("AVGVSTVS96/nixos-config", 2)} · ${pr("AVGVSTVS96/nixos-config", 3)}`,
+  ),
+  on(
+    20241115,
+    "- split keyboards, round three: Kinesis Advantage360, Keychron Q11, staggered → ortholinear [[keyboards]]",
+    `\t- ${yt("From Staggered to Ortholinear Keyboard", "q6aWERU2Gd0")}`,
+  ),
+  on(20241205, "- site on Tailwind v4 [[projects/portfolio]]"),
+  on(
+    20241209,
+    "- Historia Civilis binge: the Bronze Age collapse, the Spartan constitution, the trial of Charles I, all of Caesar in Gaul [[Historia Civilis]] [[history]]",
+    `\t- ${yt("The Bronze Age Collapse", "aq4G-7v-_xI")}`,
+  ),
+  on(
+    20241224,
+    "- neovim config out of the nix repo, into its own. nix just symlinks it [[projects/dotfiles]] [[terminal]]",
+    `\t- ${pr("AVGVSTVS96/nixos-config", 13)}`,
+  ),
+]

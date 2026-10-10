@@ -246,31 +246,64 @@ describe("the core worker on the real graph, vault and index", () => {
               .toSorted(),
             [
               "About this graph",
+              "Anthony Fu",
+              "Brian Klaas",
+              "CGP Grey",
               "CRDTs",
               "Contents",
               "Emil Kowalski",
+              "Historia Civilis",
+              "Jacob Geller",
               "Martin Kleppmann",
+              "Quinn's Ideas",
+              "Rome",
+              "Ryan Norbauer",
+              "SF",
+              "ThePrimeagen",
               "Theo Browne",
               "Wes Billman",
               "dark mode",
+              "design",
+              "exurb1a",
+              "history",
+              "keyboards",
+              "learning to code",
+              "making things",
               "motion design",
               "naming",
+              "notes apps",
               "open source",
               "people",
+              "philosophy",
+              "projects/PATCH.md",
+              "projects/astro-fouc-killer",
+              "projects/better-github-skill",
               "projects/brand-it",
+              "projects/codexbar",
               "projects/commonplace",
+              "projects/dotfiles",
+              "projects/fastgpt",
               "projects/hex",
+              "projects/openleaf",
+              "projects/persistence-scope.nvim",
+              "projects/portfolio",
               "projects/prompt-picker",
               "projects/react-shiki",
               "projects/seqno",
               "projects/seqno/numbers",
+              "projects/vim-herdr-navigator",
               "prompting",
+              "racing",
               "reading",
               "review",
+              "sci-fi",
               "snippets",
+              "systems of power",
+              "terminal",
+              "watching",
             ],
           )
-          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 18)
+          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 184)
           const blocks = (yield* Effect.forEach(opened.pages, (page) =>
             core.GetPage({ pageId: page.id }),
           )).flatMap((tree) => tree.blocks)
@@ -278,7 +311,7 @@ describe("the core worker on the real graph, vault and index", () => {
           const refs = blocks.flatMap((block) =>
             [...block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/g)].map((match) => match[1] ?? ""),
           )
-          assert.strictEqual(refs.length, 8)
+          assert.strictEqual(refs.length, 23)
           assert.deepStrictEqual(
             refs.filter((ref) => !ids.has(ref)),
             [],
@@ -309,6 +342,34 @@ describe("the core worker on the real graph, vault and index", () => {
               "one writer per file in the synced folder. delete only after another device confirms the snapshot",
               "queries: Logseq syntax first, Dataview second",
             ],
+          )
+          const decided = (project: string) =>
+            Effect.map(
+              texts(`{{query (and [[decision]] [[${project}]])}}`),
+              (rows) => rows.filter((text) => text.includes(`#decision #${project}`)).length,
+            )
+          assert.deepStrictEqual(
+            yield* Effect.forEach(
+              [
+                "react-shiki",
+                "portfolio",
+                "seqno",
+                "openleaf",
+                "hex",
+                "fastgpt",
+                "dotfiles",
+                "patch-md",
+                "commonplace",
+                "better-github-skill",
+                "persistence-scope",
+                "vim-herdr-navigator",
+                "astro-fouc-killer",
+                "codexbar",
+                "prompt-picker",
+              ],
+              decided,
+            ),
+            [16, 10, 5, 5, 4, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1],
           )
         }),
       ),
