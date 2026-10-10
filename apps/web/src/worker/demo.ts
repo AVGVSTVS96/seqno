@@ -26,7 +26,7 @@ interface Picture {
   readonly path: string
   readonly by: string
   readonly license: string
-  readonly width?: number
+  readonly width: number
 }
 
 const commons = "https://upload.wikimedia.org/wikipedia/commons"
@@ -38,6 +38,7 @@ const pictures = {
     path: "thumb/5/52/Raised_vegetable_bed_at_Boreham%2C_Essex%2C_England.jpg/960px-Raised_vegetable_bed_at_Boreham%2C_Essex%2C_England.jpg",
     by: "Acabashi",
     license: licenses.bySa4,
+    width: 640,
   },
   seedlings: {
     alt: "Tomato and basil seedlings in a seed tray",
@@ -61,6 +62,7 @@ const pictures = {
     path: "thumb/4/4f/Tomatoes%2C_heirloom_-_Massachusetts.jpg/960px-Tomatoes%2C_heirloom_-_Massachusetts.jpg",
     by: "Daderot",
     license: licenses.cc0,
+    width: 560,
   },
   basil: {
     alt: "A bushy basil plant",
@@ -84,6 +86,7 @@ const pictures = {
     path: "thumb/f/f7/Compost_bins_in_Brighthelm_Garden_2023-06-16.jpg/960px-Compost_bins_in_Brighthelm_Garden_2023-06-16.jpg",
     by: "Andy Li",
     license: licenses.cc0,
+    width: 640,
   },
   pesto: {
     alt: "Pesto in a marble mortar, surrounded by basil leaves",
@@ -104,7 +107,7 @@ const pictures = {
 } satisfies Record<string, Picture>
 
 const picture = (indent: string, { alt, file, path, by, license, width }: Picture) => [
-  `${indent}- ![${alt}](${commons}/${path})${width === undefined ? "" : `{:width ${width}}`}`,
+  `${indent}- ![${alt}](${commons}/${path}){:width ${width}}`,
   `${indent}  credit:: ${by}, ${license}, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:${file})`,
 ]
 
@@ -183,7 +186,6 @@ export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => {
     journal(
       -8,
       "- Read [A Brief History & Ethos of the Digital Garden](https://maggieappleton.com/garden-history) by Maggie Appleton. Notes on [[Digital gardens]].",
-      "- Funny: this graph is about a garden, and it is one.",
     ),
     journal(
       -9,
@@ -324,7 +326,7 @@ export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => {
       "- A few keys do special jobs:",
       "\t- `alias::` gives a page more names. See [[Aliases]].",
       "\t- `id::` gives a block a fixed address, so other blocks can point at it. See [[Block refs and embeds]].",
-      "\t- `collapsed:: true` keeps a block folded, like this one. Click its arrow to open it.",
+      "\t- Add `collapsed:: true` and a block stays folded, like this one. Click its arrow to open it.",
       "\t  collapsed:: true",
       "\t\t- Seed packets keep for about three years in a cool, dry tin.",
       "- Queries can filter on properties. Every page with `type:: recipe`:",
@@ -479,9 +481,8 @@ export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => {
       "type:: recipe",
       "serves:: 4",
       "time:: 1 hour 30 minutes",
-      "based-on:: [Marcella Hazan's tomato sauce](https://cooking.nytimes.com/recipes/1015178-marcella-hazans-tomato-sauce)",
       "",
-      "- [Marcella Hazan's](https://en.wikipedia.org/wiki/Marcella_Hazan) famous sauce is just tomatoes, butter, an onion and salt. This is that, with the tomatoes roasted first, because ours come in every shape and size.",
+      "- [Marcella Hazan's](https://en.wikipedia.org/wiki/Marcella_Hazan) [famous sauce](https://cooking.nytimes.com/recipes/1015178-marcella-hazans-tomato-sauce) is just tomatoes, butter, an onion and salt. This is that, with the tomatoes roasted first, because ours come in every shape and size.",
       "- Ingredients",
       "\t- 1 kg ripe [[Tomatoes]], halved. Split ones are fine",
       "\t- 70 g butter",
@@ -593,7 +594,6 @@ export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => {
       "As We May Think",
       "author:: Vannevar Bush",
       "published:: The Atlantic, July 1945",
-      "read-it:: [theatlantic.com](https://www.theatlantic.com/magazine/archive/1945/07/as-we-may-think/303881/)",
       "",
       ...picture("", pictures.bush),
       "- Bush ran the US science effort during the Second World War. Right after it, he wrote about a problem we still have: we make knowledge faster than we can find it again.",
@@ -601,6 +601,7 @@ export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => {
       "- > The human mind does not work that way. It operates by association.",
       `  id:: ${ids.association}`,
       "- Every link in this graph is a small trail like his. See [[Linking]].",
+      "- The whole essay is free to read at [The Atlantic](https://www.theatlantic.com/magazine/archive/1945/07/as-we-may-think/303881/).",
     ),
     page(
       "Digital gardens",

@@ -40,7 +40,13 @@ test("a burst of Enter, text and Tab builds the outline in order", async ({ page
   for (const key of ["Enter", "a", "b", "Enter", "c", "d", "Tab", "e", "Escape"]) {
     await page.keyboard.press(key)
   }
-  await expect(seqno.today.getByRole("treeitem")).toHaveText([welcome, "ab", "cde", second])
+  await expect(seqno.today.getByRole("treeitem")).toHaveText([
+    welcome,
+    "ab",
+    "cde",
+    second,
+    ...restOfToday,
+  ])
   await expect(seqno.today.getByRole("treeitem", { level: 2 })).toHaveText(["cde"])
 })
 
@@ -48,7 +54,11 @@ test("Enter, Backspace and typing at machine speed lose no keys", async ({ page,
   for (const key of ["Enter", "Backspace", "X", "Y", "Z"]) await page.keyboard.press(key)
   await expect(seqno.editor).toHaveText(`${welcome}XYZ`)
   await page.keyboard.press("Escape")
-  await expect(seqno.today.getByRole("treeitem")).toHaveText([`${welcome}XYZ`, second])
+  await expect(seqno.today.getByRole("treeitem")).toHaveText([
+    `${welcome}XYZ`,
+    second,
+    ...restOfToday,
+  ])
 })
 
 test("ArrowDown and ArrowUp keep the caret's character offset, like Logseq", async ({
