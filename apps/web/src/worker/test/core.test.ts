@@ -366,7 +366,7 @@ describe("the core worker on the real graph, vault and index", () => {
               "watching",
             ],
           )
-          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 184)
+          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 207)
           const blocks = (yield* Effect.forEach(opened.pages, (page) =>
             core.GetPage({ pageId: page.id }),
           )).flatMap((tree) => tree.blocks)
@@ -432,7 +432,7 @@ describe("the core worker on the real graph, vault and index", () => {
               ],
               decided,
             ),
-            [16, 10, 5, 5, 4, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1],
+            [16, 13, 5, 5, 4, 5, 3, 3, 2, 2, 2, 2, 1, 1, 1],
           )
         }),
       ),

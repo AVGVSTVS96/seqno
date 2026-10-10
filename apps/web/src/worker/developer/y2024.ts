@@ -27,6 +27,16 @@ export const y2024: ReadonlyArray<StarterFile> = [
     `\t- ${pr("AVGVSTVS96/remark-sectionize", 1)}. the site switched to my published fork on Feb 26`,
   ),
   on(
+    20240217,
+    "- site tasks [[projects/portfolio]]",
+    "\t- DONE publish my remark-sectionize fork to npm",
+    "\t- DONE the navbar extends under the scrollbar: `dvw` and `overflow-x-hidden`",
+    "\t\t- the complete fix is a custom scrollbar, so the scrollbar never interrupts the content",
+    "\t- DONE accent color icon: a swatch inside a rainbow ring",
+    "\t- DONE no more layout shift on the blog and the navbar",
+    '\t- LATER [#A] a table of contents toggle on small screens, an "on this page" button under the navbar',
+  ),
+  on(
     20240302,
     "- Dune Part Two week: reviews, the ending, the Ixian problem, the most evil emperor [[Quinn's Ideas]] [[sci-fi]]",
     `\t- ${yt("What Does Dune's Ending Actually Mean?", "Wzc93-osVpM")}`,
@@ -49,6 +59,12 @@ export const y2024: ReadonlyArray<StarterFile> = [
     `\t- ${yt("Build your own Mechanical Keyboard… the RIGHT Way", "bBon6WwkdJE")}`,
   ),
   on(
+    20240414,
+    "- Cloudflare is deprecating `wrangler pages dev -- <command>`. no more live reload with Pages Functions running [[projects/portfolio]]",
+    "\t- asked how to do it now: [workers-sdk discussion #5617](https://github.com/cloudflare/workers-sdk/discussions/5617)",
+    "- want to try: composing Radix and shadcn components. arrow keys through a sidebar of links #idea [[design]]",
+  ),
+  on(
     20240419,
     "- the rainbow gradient uses LCH colors now #decision #portfolio",
     "\t- the rainbow looks better in LCH",
@@ -65,6 +81,9 @@ export const y2024: ReadonlyArray<StarterFile> = [
     20240421,
     `- ${yt("LIFE BEYOND: Visions of Alien Life", "dww8Hekngmg")}, melodysheep. 108 minutes. liked it [[sci-fi]]`,
     `\t- the Fermi paradox: ${ref(ids.darkForest)}`,
+    "- one DropdownMenu with two slots, the trigger and the items #decision #portfolio",
+    "\t- a foundation for anything that needs a dropdown. the projects menu took a couple of simple steps after that",
+    "\t- built on shadcn's, with its `Button` as the trigger so menus get the button variants",
   ),
   on(
     20240505,
