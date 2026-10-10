@@ -1,10 +1,12 @@
 export {
   Index,
   BlockHit,
+  GraphPage,
   PageHit,
   PageStat,
   ReferencedPage,
   type LiveQuery,
+  type PagesGraph,
   type SearchResult,
 } from "./service.ts"
 export {

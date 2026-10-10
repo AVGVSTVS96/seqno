@@ -54,6 +54,7 @@ export const shortcutGroups: ReadonlyArray<ShortcutGroup> = [
       app("Go to journals", "GoJournals"),
       app("Go home", "GoHome"),
       app("Go to all pages", "GoAllPages"),
+      app("Go to graph view", "GoGraphView"),
       app("Go to keyboard shortcuts", "GoShortcuts"),
       editing(editorBindings.zoomIn),
       editing(editorBindings.zoomOut),

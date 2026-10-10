@@ -6,6 +6,7 @@ import type { BlockId } from "@seqno/domain"
 import { blockAtom } from "@seqno/outliner"
 import { pageNamed } from "../atoms.ts"
 import { AllGraphs } from "./OpenGraphScreen.tsx"
+import { GraphView } from "./graph/GraphView.tsx"
 import { PageByName } from "./PageView.tsx"
 import { AllPages as AllPagesView } from "./pages/AllPages.tsx"
 import { Journals as JournalsView } from "./pages/Journals.tsx"
@@ -58,6 +59,13 @@ export const AllPages = () => (
   <>
     <title>All pages</title>
     <AllPagesView />
+  </>
+)
+
+export const GraphRoute = () => (
+  <>
+    <title>Graph view</title>
+    <GraphView />
   </>
 )
 

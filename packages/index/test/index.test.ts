@@ -250,6 +250,43 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     ),
   )
 
+  it.effect("builds the page graph: every page, names only referenced, and the links between", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        yield* index.apply(
+          [
+            ...graph,
+            upsertPage(pageId(4), "Project/Beds"),
+            upsertBlock(blockId(9), pageId(4), "raised [[Project]] beds #Greenhouse"),
+          ],
+          "v1",
+        )
+        const { pages, links } = yield* index.pagesGraph
+        assert.deepStrictEqual(
+          pages.map((page) => [page.name, page.exists, page.tag, page.day]),
+          [
+            ["notes", true, false, null],
+            ["oct 6th, 2026", true, false, 20261006],
+            ["project", true, true, null],
+            ["project/beds", true, false, null],
+            ["greenhouse", false, true, null],
+            ["other", false, false, null],
+          ],
+        )
+        assert.deepStrictEqual(
+          links.toSorted((left, right) => left.join().localeCompare(right.join())),
+          [
+            ["notes", "other"],
+            ["notes", "project"],
+            ["oct 6th, 2026", "project"],
+            ["project/beds", "greenhouse"],
+            ["project/beds", "project"],
+          ],
+        )
+      }),
+    ),
+  )
+
   it.effect("counts the blocks that reference each block", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {

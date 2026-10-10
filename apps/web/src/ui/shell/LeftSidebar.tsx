@@ -5,6 +5,7 @@ import {
   IconDots,
   IconFile,
   IconFiles,
+  IconHierarchy,
   IconLayoutSidebarRight,
   IconStarOff,
 } from "@tabler/icons-react"
@@ -75,7 +76,7 @@ const NavItem = ({
   label,
   keys,
 }: {
-  readonly to: "/" | "/all-pages"
+  readonly to: "/" | "/all-pages" | "/graph"
   readonly icon: ReactNode
   readonly label: string
   readonly keys?: ReadonlyArray<string>
@@ -211,6 +212,12 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
                   to="/all-pages"
                   icon={<IconFiles className="nav-item-icon" size={16} aria-hidden />}
                   label="Pages"
+                />
+                <NavItem
+                  to="/graph"
+                  icon={<IconHierarchy className="nav-item-icon" size={16} aria-hidden />}
+                  label="Graph view"
+                  keys={keysOf("GoGraphView")}
                 />
               </nav>
             </Group>

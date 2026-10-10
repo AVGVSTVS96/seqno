@@ -67,7 +67,7 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 
 ### UI
 
-- **Missing features:** flashcards, graph view, page graph, plugins, command palette commands and filters, All pages views and filters, linked-reference filters, a toolbar for selected blocks, OPML, HTML and EDN export, the query builder menu, and Settings beyond General and Keymap.
+- **Missing features:** flashcards, plugins, command palette commands and filters, All pages views and filters, linked-reference filters, a toolbar for selected blocks, OPML, HTML and EDN export, the query builder menu, and Settings beyond General and Keymap.
 - `[[` suggests pages only; Logseq 2.x also lists matching blocks.
 - Favorites live in app storage, not `config.edn`, so Logseq doesn't see them and a Logseq graph's favorites aren't imported.
 - The date picker stays in edit mode after Submit and has no keyboard navigation. Resizing an image writes its width only.

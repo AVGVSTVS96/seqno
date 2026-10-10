@@ -10,12 +10,16 @@ export {
 } from "./errors.ts"
 export {
   Ancestors,
+  GraphNode,
+  GraphNodeKind,
   PageClient,
   PageRpcs,
+  PagesGraph,
   PageStat,
   ReferencedPage,
   Reference,
   WatchNameReferences,
+  WatchPagesGraph,
   WatchPageStats,
   WatchReferencedPages,
   WatchReferences,

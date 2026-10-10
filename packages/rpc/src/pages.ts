@@ -25,6 +25,23 @@ export const ReferencedPage = Schema.Struct({
 })
 export type ReferencedPage = typeof ReferencedPage.Type
 
+export const GraphNodeKind = Schema.Literals(["page", "journal", "tag"])
+export type GraphNodeKind = typeof GraphNodeKind.Type
+
+export const GraphNode = Schema.Struct({
+  name: Schema.String,
+  title: Schema.String,
+  kind: GraphNodeKind,
+  created: Schema.NullOr(Schema.Number),
+})
+export type GraphNode = typeof GraphNode.Type
+
+export const PagesGraph = Schema.Struct({
+  nodes: Schema.Array(GraphNode),
+  links: Schema.Array(Schema.Tuple([Schema.String, Schema.String])),
+})
+export type PagesGraph = typeof PagesGraph.Type
+
 export const WatchReferences = Rpc.make("WatchReferences", {
   payload: { pageId: PageId },
   success: Schema.Array(Reference),
@@ -58,6 +75,12 @@ export const WatchReferencedPages = Rpc.make("WatchReferencedPages", {
   stream: true,
 })
 
+export const WatchPagesGraph = Rpc.make("WatchPagesGraph", {
+  success: PagesGraph,
+  error: GraphNotOpen,
+  stream: true,
+})
+
 export const Ancestors = Rpc.make("Ancestors", {
   payload: { blockIds: Schema.Array(BlockId) },
   success: Schema.Array(Block),
@@ -70,6 +93,7 @@ export const PageRpcs = RpcGroup.make(
   WatchUnlinkedReferences,
   WatchPageStats,
   WatchReferencedPages,
+  WatchPagesGraph,
   Ancestors,
 )
 

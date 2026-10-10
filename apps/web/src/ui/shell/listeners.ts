@@ -21,6 +21,8 @@ export const helpMenuId = "seqno-help"
 
 export const helpItem = { _tag: "Help" } as const satisfies SidebarItem
 
+export const pageGraphItem = { _tag: "PageGraph" } as const satisfies SidebarItem
+
 export const closeSidebarItem = (registry: AtomRegistry.AtomRegistry, item: SidebarItem) => {
   const { items } = registry.get(rightSidebar)
   registry.set(rightSidebar, items.length <= 1 ? { _tag: "Clear" } : { _tag: "Close", item })
@@ -48,6 +50,7 @@ const perform = (
   GoJournals: () => void router.navigate({ to: "/" }),
   GoHome: () => void router.navigate({ to: "/" }),
   GoAllPages: () => void router.navigate({ to: "/all-pages" }),
+  GoGraphView: () => void router.navigate({ to: "/graph" }),
   GoShortcuts: () => {
     registry.set(settingsTab, "keymap")
     openDialog(settingsDialogId)

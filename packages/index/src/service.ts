@@ -49,12 +49,29 @@ export const ReferencedPage = Schema.Struct({
 })
 export type ReferencedPage = typeof ReferencedPage.Type
 
+export const GraphPage = Schema.Struct({
+  name: Schema.String,
+  title: Schema.String,
+  day: Schema.NullOr(Schema.Int),
+  exists: Schema.Boolean,
+  tag: Schema.Boolean,
+  created: Schema.NullOr(Schema.Number),
+})
+export type GraphPage = typeof GraphPage.Type
+
+export interface PagesGraph {
+  readonly pages: ReadonlyArray<GraphPage>
+  readonly links: ReadonlyArray<readonly [string, string]>
+}
+
 const REBUILD_BATCH = 2_000
 
 const decodeBlockHit = Schema.decodeUnknownSync(BlockHit)
 const decodePageHit = Schema.decodeUnknownSync(PageHit)
 const decodePageStat = Schema.decodeUnknownSync(PageStat)
 const decodeReferencedPage = Schema.decodeUnknownSync(ReferencedPage)
+const decodeGraphPage = Schema.decodeUnknownSync(GraphPage)
+const decodeName = Schema.decodeUnknownSync(Schema.String)
 
 const blockHits = (rows: ReadonlyArray<Row>) =>
   rows.map(([blockId, pageId, text]) => decodeBlockHit({ blockId, pageId, text }))
@@ -127,6 +144,92 @@ const referencedOf = (db: Statements) =>
     }),
   )
 
+const GRAPH_PAGES = `
+SELECT p.name_lc, p.name, p.day, (SELECT min(created) FROM blocks WHERE page = p.rid)
+FROM pages p ORDER BY p.name_lc`
+
+const CANONICAL = `
+LEFT JOIN page_names n ON n.name = e.target
+LEFT JOIN pages dst ON dst.rid = n.page`
+
+const GRAPH_TAGS = `
+WITH e(target) AS (SELECT target FROM refs WHERE tag = 1 UNION SELECT tag FROM page_tags)
+SELECT DISTINCT coalesce(dst.name_lc, e.target) FROM e ${CANONICAL}`
+
+const GRAPH_LINKS = `
+WITH e(page, target) AS (
+  SELECT b.page, r.target FROM refs r JOIN blocks b ON b.rid = r.block
+  UNION SELECT page, tag FROM page_tags)
+SELECT DISTINCT src.name_lc, coalesce(dst.name_lc, e.target)
+FROM e JOIN pages src ON src.rid = e.page ${CANONICAL}
+WHERE coalesce(dst.name_lc, e.target) != src.name_lc`
+
+const namespaceParent = (name: string) => {
+  const slash = name.lastIndexOf("/")
+  return slash > 0 ? name.slice(0, slash) : null
+}
+
+const graphOf = (db: Statements): PagesGraph => {
+  const tags = new Set(db.all(GRAPH_TAGS).map(([name]) => decodeName(name)))
+  const pages = [
+    ...db.all(GRAPH_PAGES).map(([name, title, day, created]) =>
+      decodeGraphPage({
+        name,
+        title,
+        day,
+        exists: true,
+        tag: tags.has(decodeName(name)),
+        created,
+      }),
+    ),
+    ...referencedOf(db).map((page) =>
+      decodeGraphPage({
+        name: page.name,
+        title: page.title,
+        day: null,
+        exists: false,
+        tag: page.tag || tags.has(page.name),
+        created: page.created,
+      }),
+    ),
+  ]
+  const names = new Set(pages.map((page) => page.name))
+  const references = db
+    .all(GRAPH_LINKS)
+    .map(([source, target]): readonly [string, string] => [decodeName(source), decodeName(target)])
+  const namespaces = pages.flatMap((page): ReadonlyArray<readonly [string, string]> => {
+    const parent = namespaceParent(page.name)
+    return parent !== null && names.has(parent) ? [[page.name, parent]] : []
+  })
+  const seen = new Set<string>()
+  const links = [...references, ...namespaces].filter(([source, target]) => {
+    const key = `${source}\u0000${target}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  return { pages, links }
+}
+
+const samePagesGraph = (left: PagesGraph, right: PagesGraph) =>
+  left.pages.length === right.pages.length &&
+  left.links.length === right.links.length &&
+  left.pages.every((page, at) => {
+    const other = right.pages[at]
+    return (
+      other !== undefined &&
+      page.name === other.name &&
+      page.title === other.title &&
+      page.day === other.day &&
+      page.exists === other.exists &&
+      page.tag === other.tag &&
+      page.created === other.created
+    )
+  }) &&
+  left.links.every(
+    ([source, target], at) => right.links[at]?.[0] === source && right.links[at]?.[1] === target,
+  )
+
 const BLOCK_REF_SOURCES = `SELECT content FROM blocks WHERE instr(content, '((') > 0`
 
 const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
@@ -179,6 +282,7 @@ const sameBlocks = (left: ReadonlyArray<BlockHit>, right: ReadonlyArray<BlockHit
 const NAME_READS: ReadonlyArray<ReadKey> = ["page.name", "page.alias"]
 const UNLINKED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "text", "ref", "move", "exist"]
 const REFERENCED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "ref", "exist", "updated"]
+const GRAPH_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "ref", "move", "exist", "page.tag"]
 const BLOCK_REF_READS: ReadonlyArray<ReadKey> = ["text", "exist"]
 const STATS_READS: ReadonlyArray<ReadKey> = [
   ...NAME_READS,
@@ -309,6 +413,12 @@ const make = Effect.gen(function* () {
     referencedPages,
 
     watchReferencedPages: watching(REFERENCED_READS, referencedPages),
+
+    pagesGraph: sqlite.use(graphOf),
+
+    watchPagesGraph: watching(GRAPH_READS, sqlite.use(graphOf)).pipe(
+      Stream.changesWith(samePagesGraph),
+    ),
 
     blockRefCounts: sqlite.use(blockRefCountsOf),
 

@@ -4,10 +4,11 @@ import {
   IconCommand,
   IconDots,
   IconFile,
+  IconHierarchy,
   IconListDetails,
   IconX,
 } from "@tabler/icons-react"
-import { useNavigate } from "@tanstack/react-router"
+import { useMatchRoute, useNavigate } from "@tanstack/react-router"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useContext, useId, useState, type ReactNode } from "react"
@@ -16,15 +17,18 @@ import { blockAtom } from "@seqno/outliner"
 import {
   allPages,
   dispatch,
+  journals,
   pageNamed,
   pages,
   rightSidebar,
   SidebarItem,
   sidebarItemKey,
 } from "../../atoms.ts"
+import { PageGraph } from "../graph/GraphView.tsx"
+import { today } from "../pages/atoms.ts"
 import { PageByName, PageView } from "../PageView.tsx"
 import { IconButton } from "./IconButton.tsx"
-import { closeSidebarItem, contentsItem, helpItem } from "./listeners.ts"
+import { closeSidebarItem, contentsItem, helpItem, pageGraphItem } from "./listeners.ts"
 import { Menu, MenuItem, MenuSeparator, usePopover } from "./popover.tsx"
 import { Resizer } from "./Resizer.tsx"
 import { ShortcutList } from "./ShortcutList.tsx"
@@ -61,12 +65,29 @@ const HelpTitle = () => (
   </span>
 )
 
+const PageGraphTitle = () => (
+  <span className="sidebar-item-contents">
+    <IconHierarchy size={18} aria-hidden />
+    <span className="sidebar-item-text">Page graph</span>
+  </span>
+)
+
+const CurrentPageGraph = () => {
+  const matchRoute = useMatchRoute()
+  const onPage = matchRoute({ to: "/page/$name" })
+  const day = useAtomValue(today)
+  const todays = useAtomValue(journals).find((page) => page.journalDay === day)
+  const name = onPage === false ? todays?.name : normalizePageName(onPage.name)
+  return name === undefined ? null : <PageGraph name={name} />
+}
+
 const ItemTitle = ({ item }: { readonly item: SidebarItem }) =>
   SidebarItem.match(item, {
     Page: ({ name }) =>
       name === contentsItem.name ? <ContentsTitle /> : <PageTitle name={name} />,
     Block: ({ blockId }) => <BlockTitle blockId={blockId} />,
     Help: () => <HelpTitle />,
+    PageGraph: () => <PageGraphTitle />,
   })
 
 const SidebarBlock = ({ blockId }: { readonly blockId: BlockId }) => {
@@ -122,6 +143,7 @@ const ItemBody = ({ item }: { readonly item: SidebarItem }) =>
         <ShortcutList />
       </div>
     ),
+    PageGraph: () => <CurrentPageGraph />,
   })
 
 interface CardActions {
@@ -280,6 +302,7 @@ const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
                 void navigate({ to: "/page/$name", params: { name: normalizePageName(name) } }),
             Block: () => null,
             Help: () => null,
+            PageGraph: () => null,
           }),
         }
         return (
@@ -349,6 +372,13 @@ export const RightSidebar = () => {
               onClick={() => updateSidebar({ _tag: "Open", item: contentsItem })}
             >
               Contents
+            </button>
+            <button
+              type="button"
+              className="sidebar-tab"
+              onClick={() => updateSidebar({ _tag: "Open", item: pageGraphItem })}
+            >
+              Page graph
             </button>
             <button
               type="button"

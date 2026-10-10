@@ -112,9 +112,10 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 ## Smaller decisions
 
-| Question                         | Answer                                                                   | Why                                                                                   |
-| -------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| Where `iCloud Drive/seqno` lives | The app's own iCloud container, shown as iCloud Drive › seqno            | Always reachable on iOS and simplest to watch. Needs the paid Apple Developer Program |
-| File names                       | Sync files keep ASCII names; page names are NFC-normalized               | Apple's file APIs write NFD names, and JS compares strings byte by byte               |
-| Memory target                    | Whole process, 150 MB, until a real iPhone run sets per-platform numbers | It is what the OS kills, and the only way to compare web with iOS                     |
-| Ids passed to Loro               | Validate every id before calling Loro                                    | `tree.has(undefined)` crashes inside wasm and leaves the doc unusable                 |
+| Question                         | Answer                                                                   | Why                                                                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Where `iCloud Drive/seqno` lives | The app's own iCloud container, shown as iCloud Drive › seqno            | Always reachable on iOS and simplest to watch. Needs the paid Apple Developer Program                                                     |
+| File names                       | Sync files keep ASCII names; page names are NFC-normalized               | Apple's file APIs write NFD names, and JS compares strings byte by byte                                                                   |
+| Memory target                    | Whole process, 150 MB, until a real iPhone run sets per-platform numbers | It is what the OS kills, and the only way to compare web with iOS                                                                         |
+| Ids passed to Loro               | Validate every id before calling Loro                                    | `tree.has(undefined)` crashes inside wasm and leaves the doc unusable                                                                     |
+| Graph view layout                | `d3-force` for the layout, drawn on one canvas                           | Logseq's graph view is a force layout too, so it moves the same way; one canvas draws thousands of pages in a few batched paths per frame |

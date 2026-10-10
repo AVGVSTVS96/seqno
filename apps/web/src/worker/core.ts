@@ -13,7 +13,7 @@ import {
   SubscriptionRef,
 } from "effect"
 import { BlockId, PageId, type Block, type Command, type Page } from "@seqno/domain"
-import { isReadKey, type BlockHit, type Row } from "@seqno/index"
+import { isReadKey, type BlockHit, type GraphPage, type Row } from "@seqno/index"
 import {
   ALIASES_SQL,
   compileQuery,
@@ -30,6 +30,7 @@ import {
   GraphUnavailable,
   PageRpcs,
   QueryInvalid,
+  type GraphNode,
   type GraphOpened,
   type QueryResult,
   type Reference,
@@ -290,6 +291,20 @@ const CoreHandlers = CoreRpcs.toLayer(
   }),
 )
 
+const journalTitled = (title: string) =>
+  Option.isSome(parseJournalDay(title, defaultConfig.journalTitleFormat))
+
+const graphNodeOf = (page: GraphPage): GraphNode => ({
+  name: page.name,
+  title: page.title,
+  kind: page.tag
+    ? "tag"
+    : page.day !== null || (!page.exists && journalTitled(page.title))
+      ? "journal"
+      : "page",
+  created: page.created,
+})
+
 const PageHandlers = PageRpcs.toLayer(
   Effect.gen(function* () {
     const { current, following } = yield* Sessions
@@ -320,6 +335,13 @@ const PageHandlers = PageRpcs.toLayer(
                 ),
               })),
             ),
+            Stream.orDie,
+          ),
+        ),
+      WatchPagesGraph: () =>
+        following((session) =>
+          session.index.watchPagesGraph.pipe(
+            Stream.map(({ pages, links }) => ({ nodes: pages.map(graphNodeOf), links })),
             Stream.orDie,
           ),
         ),
