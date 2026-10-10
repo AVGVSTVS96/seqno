@@ -246,7 +246,7 @@ test.describe("tips in a demo graph", () => {
     await page.getByRole("main").locator(".seqno-journal .seqno-pageref-link").first().click()
     await expect(page).toHaveURL(/\/page\//)
     await expect(tip(page)).toHaveText(
-      "Shift-click a link to open it in the sidebar, next to this page.",
+      "Shift-click any link on this page to open it in the sidebar, next to this one.",
     )
     await page
       .getByRole("main")

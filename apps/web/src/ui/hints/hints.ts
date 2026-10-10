@@ -89,8 +89,8 @@ const hintsFor = (graph: DemoGraph): ReadonlyArray<Hint> => [
     key: "shift-click",
     spots: [
       {
-        selector: `${mainPage} .seqno-page-blocks .seqno-pageref-link`,
-        text: "Shift-click a link to open it in the sidebar, next to this page.",
+        selector: `${mainPage} .seqno-page-title-text`,
+        text: "Shift-click any link on this page to open it in the sidebar, next to this one.",
       },
     ],
   },

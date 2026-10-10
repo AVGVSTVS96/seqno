@@ -83,7 +83,7 @@ export const PageTitle = ({
           }
         }}
       >
-        {page.title}
+        <span className="seqno-page-title-text">{page.title}</span>
       </h1>
     )
   }
