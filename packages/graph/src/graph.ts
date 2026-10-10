@@ -97,6 +97,11 @@ const typedBlock = (command: Command): BlockId | null =>
       ? command.target.blockId
       : null
 
+const typedInOneBlock = (commands: ReadonlyArray<Command>): BlockId | null => {
+  const [first = null, ...rest] = commands.map(typedBlock)
+  return rest.every((block) => block === first) ? first : null
+}
+
 const importAll = (doc: LoroDoc, files: ReadonlyArray<Uint8Array>) =>
   Effect.try({
     try: () => files.forEach((bytes) => doc.import(bytes)),
@@ -122,8 +127,7 @@ const make = (source: GraphSource) =>
       if (typingIn !== null) ws.undo.groupEnd()
       typingIn = null
     }
-    const groupTyping = (command: Command) => {
-      const block = typedBlock(command)
+    const groupTyping = (block: BlockId | null) => {
       if (block === typingIn) return
       endTyping()
       if (block === null) return
@@ -252,7 +256,7 @@ const make = (source: GraphSource) =>
     const dispatch = (command: Command) =>
       serial(
         Effect.suspend(() => {
-          groupTyping(command)
+          groupTyping(typedBlock(command))
           return applyCommand(ws, command)
         }).pipe(
           Effect.catchTag("Unresolved", () =>
@@ -265,18 +269,22 @@ const make = (source: GraphSource) =>
         ),
       )
 
-    const dispatchAll = (commands: ReadonlyArray<Command>) =>
-      serial(
+    const dispatchAll = (commands: ReadonlyArray<Command>) => {
+      const [first, ...rest] = commands
+      if (first === undefined) return Effect.succeed([])
+      if (rest.length === 0) return dispatch(first)
+      return serial(
         Effect.andThen(
           filled.await,
           Effect.suspend(() => {
-            endTyping()
+            groupTyping(typedInOneBlock(commands))
             return Effect.forEach(commands, (command) => applyCommand(ws, command), {
               discard: true,
             })
           }),
         ).pipe(committed),
       )
+    }
 
     const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
 

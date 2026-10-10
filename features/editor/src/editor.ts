@@ -93,7 +93,8 @@ export const mountBlockEditor = (
           for (const transaction of update.transactions) {
             if (transaction.docChanged && transaction.annotation(fromGraph) !== true) {
               fromHistory = false
-              for (const command of fields.commit(transaction)) host.dispatch(command)
+              const commands = fields.commit(transaction)
+              if (commands.length > 0) host.dispatchAll(commands)
               sync.local(transaction.newDoc.toString())
             }
           }

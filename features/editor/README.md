@@ -8,7 +8,7 @@ The UI-side editor for the one block being edited: a CodeMirror 6 view in the bl
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `BlockEditor`                                   | React component: `<BlockEditor block cursor updates host handoff properties? hidden? />`.                                            |
 | `mountBlockEditor`                              | The same without React; returns `{ view, popups, destroy }`.                                                                         |
-| `EditorHost`                                    | What the app provides: `dispatch(command)`, `act(action)`, `searchPages`, `searchBlocks`.                                            |
+| `EditorHost`                                    | What the app provides: `dispatch(command)`, `dispatchAll(commands)` (one commit), `act(action)`, `searchPages`, `searchBlocks`.      |
 | `EditorAction`, `CursorPlacement`, `LinkTarget` | What the editor asks the app to do (focus, select, move, collapse, zoom, open a link), and where the caret lands.                    |
 | `createHandoff`                                 | One per app. Holds keys typed right after Enter until the new block's editor mounts, and carries the caret's column between editors. |
 | `editorBindings`                                | The editing shortcuts with labels, for the app's keymap list.                                                                        |

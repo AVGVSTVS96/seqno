@@ -22,6 +22,7 @@ import { caretFromPoint, hasTextSelection } from "./caret.ts"
 import {
   blockAtom,
   blockRefCountsAtom,
+  dispatchAllAtom,
   dispatchAtom,
   editRequest,
   pageNamedAtom,
@@ -311,6 +312,7 @@ const OutlineView = ({
   const rows = view.rows
   const registry = useContext(RegistryContext)
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
+  const dispatchAll = useAtomSet(dispatchAllAtom)
   const container = useRef<HTMLDivElement>(null)
   const pressed = useRef<BlockId | null>(null)
   const swept = useRef(false)
@@ -734,6 +736,7 @@ const OutlineView = ({
             block={block}
             caret={Math.min(editing.caret, block.text.length)}
             dispatch={dispatch}
+            dispatchAll={dispatchAll}
             onIntent={onIntent(block.id)}
           />
         ) : (

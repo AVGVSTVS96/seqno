@@ -35,7 +35,7 @@ The UI never touches Loro, SQLite or files. It sends commands and subscribes to 
 
 ### One edit, end to end
 
-1. Typing becomes a `Command` (`EditText` with UTF-16 offsets, as CodeMirror reports them), sent with `Dispatch`.
+1. Typing becomes a `Command` (`EditText` with UTF-16 offsets, as CodeMirror reports them), sent with `Dispatch`. A keystroke that needs several commands, like a line turning into a `key:: value` property (`EditText` plus `SetProperty`), goes as one `DispatchAll`, so no watcher ever sees half of it.
 2. The worker applies it to the Loro doc and commits. Loro's change events become `GraphEvent`s (`PageUpserted`, `BlockUpserted`, `BlockMoved`, ...), parents before children.
 3. The index applies those events in one SQLite transaction and wakes only the live queries that read what changed.
 4. Watches on the touched pages re-read them, and the UI re-renders those rows.

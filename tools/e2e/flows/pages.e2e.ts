@@ -172,7 +172,7 @@ test("properties keep the file's order, and new ones go last", async ({ page, se
   await page.keyboard.press("ControlOrMeta+End")
   for (const line of ["zeta:: 1", "alpha:: 2", "mid:: 3", "beta:: 4"]) {
     await page.keyboard.press("Shift+Enter")
-    await page.keyboard.type(line)
+    await page.keyboard.type(line, { delay: 120 })
   }
   await page.keyboard.press("Escape")
   await expect(keys).toHaveText([

@@ -40,7 +40,7 @@ const isBlock = (found: Block | undefined): found is Block => found !== undefine
 
 const blockIdOf = Schema.decodeUnknownOption(BlockId)
 
-export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps) => {
+export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: EditorSlotProps) => {
   const registry = useContext(RegistryContext)
   const router = useRouter()
   const navigateTo = useNavigateTo()
@@ -102,6 +102,7 @@ export const EditorSlot = ({ block, caret, dispatch, onIntent }: EditorSlotProps
   const host: EditorHost = {
     dispatch: (command) =>
       Option.match(intentOf(command), { onSome: onIntent, onNone: () => dispatch(command) }),
+    dispatchAll,
     act: EditorAction.match({
       FocusPrevious: () => onIntent({ _tag: "FocusPrevious" }),
       FocusNext: () => onIntent({ _tag: "FocusNext" }),

@@ -85,6 +85,17 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
   const handlers = CoreRpcs.toLayer(
     Effect.gen(function* () {
       const state = yield* SubscriptionRef.make<PageTree>({ page, blocks })
+      const run = (batch: ReadonlyArray<Command>) =>
+        SubscriptionRef.modify(state, (tree) =>
+          batch.reduce<Applied>(
+            ([events, current], command) => {
+              commands.push(command)
+              const [more, next] = apply(current, command, 1000 + commands.length)
+              return [[...events, ...more], next]
+            },
+            [[], tree],
+          ),
+        )
       return CoreRpcs.of({
         OpenGraph: ({ graph }) => Effect.succeed({ graph, pages: [page] }),
         GetPages: () => Effect.succeed([page]),
@@ -101,12 +112,8 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
         Search: () => Effect.succeed({ pages: [], blocks: [] }),
         WatchBlockRefCounts: () => Stream.empty,
         WatchBlockReferences: () => Stream.empty,
-        Dispatch: ({ command }) => {
-          commands.push(command)
-          return SubscriptionRef.modify(state, (tree) =>
-            apply(tree, command, 1000 + commands.length),
-          )
-        },
+        Dispatch: ({ command }) => run([command]),
+        DispatchAll: ({ commands: batch }) => run(batch),
       })
     }),
   )

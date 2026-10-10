@@ -4,14 +4,14 @@ The block tree view on the UI side: it renders a page's blocks with the same par
 
 ## What's inside
 
-| Export                                                                                   | What it does                                                                                                                     |
-| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `Outliner`                                                                               | `<Outliner pageId zoom onNavigate editor? embedded? addable? resolveAsset? onBlockMenu?>`. Reads `WatchPage`, writes `Dispatch`. |
-| `EditorSlotProps`, `EditorIntent`                                                        | The slot the app fills with a block editor, and the intents it sends back (split, merge, indent, focus, select, move, collapse). |
-| `PlainTextEditor`                                                                        | The textarea editor used when no `editor` is passed.                                                                             |
-| `coreLayer`, `coreRuntime`                                                               | Set `coreLayer` in the atom registry to give the outliner its `CoreClient`.                                                      |
-| `pageTreeAtom`, `blockAtom`, `dispatchAtom`, `historyAtom`, `editRequest`, `pageListKey` | Atoms the app shares with the outliner.                                                                                          |
-| `historyStep`, `clickOnEnter`                                                            | Small helpers: undo/redo key matching, and Enter-to-click on focusable links.                                                    |
+| Export                                                                                   | What it does                                                                                                                                       |
+| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Outliner`                                                                               | `<Outliner pageId zoom onNavigate editor? embedded? addable? resolveAsset? onBlockMenu?>`. Reads `WatchPage`, writes `Dispatch` and `DispatchAll`. |
+| `EditorSlotProps`, `EditorIntent`                                                        | The slot the app fills with a block editor, and the intents it sends back (split, merge, indent, focus, select, move, collapse).                   |
+| `PlainTextEditor`                                                                        | The textarea editor used when no `editor` is passed.                                                                                               |
+| `coreLayer`, `coreRuntime`                                                               | Set `coreLayer` in the atom registry to give the outliner its `CoreClient`.                                                                        |
+| `pageTreeAtom`, `blockAtom`, `dispatchAtom`, `historyAtom`, `editRequest`, `pageListKey` | Atoms the app shares with the outliner.                                                                                                            |
+| `historyStep`, `clickOnEnter`                                                            | Small helpers: undo/redo key matching, and Enter-to-click on focusable links.                                                                      |
 
 - Block content: tasks, priorities, properties, SCHEDULED / DEADLINE, logbook, page and block refs, embeds, live query panels, code blocks, quotes, headings, images, videos.
 - `{{video url}}` (also `{{youtube url}}`, `{{vimeo url}}`): YouTube waits as a thumbnail and becomes a `youtube-nocookie.com` player on click, Vimeo loads lazily, and a direct `.mp4`/`.webm` plays in a `<video>`. `{{youtube-timestamp 1:30}}` seeks the nearest video before it on the same page, or starts it there.

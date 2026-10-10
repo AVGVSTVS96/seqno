@@ -26,6 +26,7 @@ const render = async (text: string) => {
         handoff: createHandoff(),
         host: {
           dispatch: () => undefined,
+          dispatchAll: () => undefined,
           act: () => undefined,
           searchPages: () => Effect.succeed([page("Garden Plan")]),
           searchBlocks: () => Effect.succeed([]),

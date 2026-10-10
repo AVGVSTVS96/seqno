@@ -1,7 +1,7 @@
 import { EditorSelection } from "@codemirror/state"
 import { afterEach, assert, describe, it } from "@effect/vitest"
 import { Effect, PubSub, Stream } from "effect"
-import type { Block } from "@seqno/domain"
+import type { Block, Command } from "@seqno/domain"
 import {
   blockId,
   blockOf,
@@ -533,6 +533,24 @@ describe("headings", () => {
   })
 })
 
+const applied = (block: Block, command: Command): Block =>
+  command._tag === "EditText"
+    ? {
+        ...block,
+        text: block.text.slice(0, command.from) + command.insert + block.text.slice(command.to),
+      }
+    : command._tag === "SetProperty"
+      ? {
+          ...block,
+          props:
+            command.value === null
+              ? Object.fromEntries(
+                  Object.entries(block.props).filter(([key]) => key !== command.key),
+                )
+              : { ...block.props, [command.key]: command.value },
+        }
+      : block
+
 describe("properties", () => {
   const tomato: Block = {
     ...blockOf("Tomato bed\nstaked on the south side"),
@@ -598,6 +616,49 @@ describe("properties", () => {
     })
     assert.isFalse(commands.some((command) => command._tag === "SplitBlock"))
   })
+
+  it.effect("keeps new property lines typed while the graph's echoes lag behind", () =>
+    Effect.gen(function* () {
+      const bed: Block = {
+        ...blockOf("Tomato bed"),
+        props: { variety: "San Marzano", plants: "6" },
+      }
+      const updates = yield* PubSub.unbounded<Block>()
+      const { view, dispatches } = mount(
+        bed.text,
+        { _tag: "End" },
+        { block: bed, updates: Stream.fromPubSub(updates) },
+      )
+      let graph = bed
+      let echoed = 0
+      const echoUpTo = (count: number) =>
+        Effect.gen(function* () {
+          for (const commands of dispatches.slice(echoed, count)) {
+            graph = commands.reduce(applied, graph)
+            echoed++
+            yield* PubSub.publish(updates, graph)
+            yield* Effect.yieldNow
+          }
+        })
+      view.dispatch({ selection: EditorSelection.cursor(text(view).length) })
+      for (const line of ["zeta:: 1", "alpha:: 2"]) {
+        press(view, "Enter")
+        for (const key of line) {
+          typeKeys(view, key)
+          yield* echoUpTo(dispatches.length - 2)
+        }
+      }
+      yield* echoUpTo(dispatches.length)
+      assert.strictEqual(
+        text(view),
+        "Tomato bed\nvariety:: San Marzano\nplants:: 6\nzeta:: 1\nalpha:: 2",
+      )
+      assert.deepStrictEqual(graph, {
+        ...bed,
+        props: { variety: "San Marzano", plants: "6", zeta: "1", alpha: "2" },
+      })
+    }),
+  )
 
   it("splits the block at the matching offset of the text", () => {
     const { view, commands } = mount(tomato.text, { _tag: "End" }, { block: tomato })

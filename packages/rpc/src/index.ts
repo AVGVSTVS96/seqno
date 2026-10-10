@@ -24,6 +24,7 @@ export {
 export {
   CoreRpcs,
   Dispatch,
+  DispatchAll,
   GetBlock,
   GetPage,
   GetPages,

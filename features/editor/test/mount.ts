@@ -41,6 +41,7 @@ const hit: BlockHit = { block: blockOf("ship the editor", otherBlockId), path: [
 
 export interface Session {
   readonly commands: Array<Command>
+  readonly dispatches: Array<ReadonlyArray<Command>>
   readonly actions: Array<EditorAction>
   readonly searches: Array<string>
   readonly handoff: Handoff
@@ -49,6 +50,7 @@ export interface Session {
 
 export const session = (): Session => ({
   commands: [],
+  dispatches: [],
   actions: [],
   searches: [],
   handoff: createHandoff(),
@@ -82,7 +84,14 @@ export const mount = (
     updates,
     handoff: within.handoff,
     host: {
-      dispatch: (command) => within.commands.push(command),
+      dispatch: (command) => {
+        within.commands.push(command)
+        within.dispatches.push([command])
+      },
+      dispatchAll: (commands) => {
+        within.commands.push(...commands)
+        within.dispatches.push(commands)
+      },
       act: (action) => within.actions.push(action),
       searchPages: (query) =>
         Effect.sync(() => {

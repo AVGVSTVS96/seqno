@@ -26,7 +26,7 @@ const propertyEdits = (
     return next === value ? [] : [{ _tag: "SetProperty", target, key, value: next }]
   })
 
-export const referenceEdits = (session: Session, pageId: PageId, title: string) =>
+const referenceEdits = (session: Session, pageId: PageId, title: string) =>
   Effect.gen(function* () {
     const pages = yield* session.graph.pages
     const page = pages.find((candidate) => candidate.id === pageId)
@@ -50,3 +50,14 @@ export const referenceEdits = (session: Session, pageId: PageId, title: string) 
     )
     return [...blockEdits, ...pageEdits]
   })
+
+export const withReferenceEdits = (
+  session: Session,
+  command: Command,
+): Effect.Effect<ReadonlyArray<Command>> =>
+  command._tag === "RenamePage"
+    ? Effect.map(referenceEdits(session, command.pageId, command.title), (edits) => [
+        command,
+        ...edits,
+      ])
+    : Effect.succeed([command])

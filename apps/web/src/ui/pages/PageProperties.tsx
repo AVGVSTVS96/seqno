@@ -5,7 +5,7 @@ import { Fragment, useContext, useState, type ReactNode } from "react"
 import { BlockId, normalizePageName, type Page } from "@seqno/domain"
 import { BlockEditor, createHandoff, type EditorHost } from "@seqno/editor"
 import { analyzeBlock } from "@seqno/syntax"
-import { dispatch, pages } from "../../atoms.ts"
+import { dispatch, dispatchAll, pages } from "../../atoms.ts"
 import { referencedOnly } from "./atoms.ts"
 import { isHiddenPageProp, listValues, visibleProps } from "./model.ts"
 import { PageLink } from "./PageLink.tsx"
@@ -62,11 +62,13 @@ const PropertiesEditor = ({
   readonly onExit: () => void
 }) => {
   const run = useAtomSet(dispatch)
+  const runAll = useAtomSet(dispatchAll)
   const registry = useContext(RegistryContext)
   const host: EditorHost = {
     dispatch: (command) => {
       if (command._tag === "SetProperty") run(command)
     },
+    dispatchAll: (commands) => runAll(commands.filter((command) => command._tag === "SetProperty")),
     act: (action) => {
       if (action._tag === "Exit") onExit()
     },

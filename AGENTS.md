@@ -107,7 +107,7 @@ Every lint message says how to fix the problem. Do not weaken a rule in `.oxlint
 - `Command`: `CreatePage, RenamePage, DeletePage, InsertBlock, InsertBlocks, EditText, SplitBlock, MergeWithPrevious, Indent, Outdent, MoveBlocks, DeleteBlocks, SetCollapsed, SetProperty, Undo, Redo`. `InsertBlocks` inserts a tree of `BlockDraft`s (text, props, children) in one commit.
 - `GraphEvent`: `PageUpserted, PageDeleted, BlockUpserted, BlockMoved, BlockDeleted`.
 
-`@seqno/rpc` exports `CoreRpcs`: `OpenGraph`, `Dispatch`, `GetPages`, `GetPage`, `GetBlock`, `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks), `WatchBlockRefCounts` (stream, blocks referencing each block), `WatchBlockReferences` (stream, the blocks that reference one block). `PageRpcs` adds backlinks, page stats, `Ancestors` and `WatchReferencedPages` (names that exist only as references).
+`@seqno/rpc` exports `CoreRpcs`: `OpenGraph`, `Dispatch`, `DispatchAll` (several commands as one commit), `GetPages`, `GetPage`, `GetBlock`, `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks), `WatchBlockRefCounts` (stream, blocks referencing each block), `WatchBlockReferences` (stream, the blocks that reference one block). `PageRpcs` adds backlinks, page stats, `Ancestors` and `WatchReferencedPages` (names that exist only as references).
 
 If you need something the contract lacks, add it in your package and note it in that package's README.
 

@@ -581,6 +581,30 @@ describe("batches", () => {
       }),
     ),
   )
+
+  it.effect("folds a batch typed in one block into that block's typing step", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const { ids } = yield* seedPage(graph, "Beds", ["Tomato bed"])
+        const bed = nth(ids, 0)
+        for (const step of typed(bed, 10, "\nzeta::")) yield* graph.dispatch(step)
+        yield* graph.dispatchAll([
+          { _tag: "EditText", blockId: bed, from: 10, to: 17, insert: "" },
+          {
+            _tag: "SetProperty",
+            target: { _tag: "BlockTarget", blockId: bed },
+            key: "zeta",
+            value: "",
+          },
+        ])
+        const typedIn = yield* graph.block(bed)
+        assert.deepStrictEqual([typedIn.text, typedIn.props], ["Tomato bed", { zeta: "" }])
+        yield* graph.dispatch({ _tag: "Undo" })
+        const undone = yield* graph.block(bed)
+        assert.deepStrictEqual([undone.text, undone.props], ["Tomato bed", {}])
+      }),
+    ),
+  )
 })
 
 describe("property order", () => {

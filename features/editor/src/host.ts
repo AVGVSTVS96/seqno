@@ -48,6 +48,7 @@ export type PageName = Pick<Page, "name" | "title">
 
 export interface EditorHost {
   readonly dispatch: (command: Command) => void
+  readonly dispatchAll: (commands: ReadonlyArray<Command>) => void
   readonly act: (action: EditorAction) => void
   readonly searchPages: (query: string) => Effect.Effect<ReadonlyArray<PageName>>
   readonly searchBlocks: (query: string) => Effect.Effect<ReadonlyArray<BlockHit>>

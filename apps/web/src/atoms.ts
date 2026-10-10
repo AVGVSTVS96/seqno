@@ -3,7 +3,7 @@ import { Clock, Effect, Equal, Layer, Option, Schema } from "effect"
 import type { KeyValueStore } from "effect/persistence"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
-import { BlockId, normalizePageName, type Command, type Page } from "@seqno/domain"
+import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
 import { editRequest, pageListKey } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
 import { WorkerCore } from "./core.ts"
@@ -112,16 +112,24 @@ export const assetResolver = Atom.make((get) => {
   return (path: string) => assets.get(path.replace(/^(?:\.{1,2}\/|\/)+/, ""))
 })
 
+const invalidatePages = (events: ReadonlyArray<GraphEvent>) =>
+  events.some((event) => event._tag === "PageUpserted" || event._tag === "PageDeleted")
+    ? Reactivity.invalidate(pagesKey)
+    : Effect.void
+
 export const dispatch = appRuntime.fn(
   (command: Command) =>
-    Effect.gen(function* () {
-      const core = yield* CoreClient
-      const events = yield* core.Dispatch({ command })
-      if (events.some((event) => event._tag === "PageUpserted" || event._tag === "PageDeleted")) {
-        yield* Reactivity.invalidate(pagesKey)
-      }
-      return events
-    }),
+    Effect.flatMap(CoreClient, (core) => core.Dispatch({ command })).pipe(
+      Effect.tap(invalidatePages),
+    ),
+  { concurrent: true },
+)
+
+export const dispatchAll = appRuntime.fn(
+  (commands: ReadonlyArray<Command>) =>
+    Effect.flatMap(CoreClient, (core) => core.DispatchAll({ commands })).pipe(
+      Effect.tap(invalidatePages),
+    ),
   { concurrent: true },
 )
 

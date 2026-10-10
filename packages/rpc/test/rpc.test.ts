@@ -87,6 +87,7 @@ const InMemoryCore = CoreRpcs.toLayer(
     return CoreRpcs.of({
       OpenGraph: ({ graph }) => Effect.as(Ref.set(opened, true), { graph, pages: [] }),
       Dispatch: ({ command }) => whenOpen(apply(command)),
+      DispatchAll: () => rejected,
       GetPages: () =>
         whenOpen(
           Effect.map(SubscriptionRef.get(tree), (current) =>

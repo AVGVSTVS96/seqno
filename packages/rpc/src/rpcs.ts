@@ -47,6 +47,12 @@ export const Dispatch = Rpc.make("Dispatch", {
   error: Schema.Union([GraphNotOpen, CommandRejected]),
 })
 
+export const DispatchAll = Rpc.make("DispatchAll", {
+  payload: { commands: Schema.Array(Command) },
+  success: Schema.Array(GraphEvent),
+  error: Schema.Union([GraphNotOpen, CommandRejected]),
+})
+
 export const GetPages = Rpc.make("GetPages", {
   success: Schema.Array(Page),
   error: GraphNotOpen,
@@ -100,6 +106,7 @@ export const WatchBlockReferences = Rpc.make("WatchBlockReferences", {
 export const CoreRpcs = RpcGroup.make(
   OpenGraph,
   Dispatch,
+  DispatchAll,
   GetPages,
   GetPage,
   GetBlock,

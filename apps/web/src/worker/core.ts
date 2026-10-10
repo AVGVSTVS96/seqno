@@ -12,7 +12,7 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect"
-import { BlockId, PageId, type Block, type Page } from "@seqno/domain"
+import { BlockId, PageId, type Block, type Command, type Page } from "@seqno/domain"
 import { isReadKey, type BlockHit, type Row } from "@seqno/index"
 import {
   ALIASES_SQL,
@@ -38,7 +38,7 @@ import { defaultConfig, parseJournalDay } from "@seqno/interop"
 import { journalDayOf } from "./journal.ts"
 import { GraphLocks } from "./lock.ts"
 import { Device, GraphPlaces, type GraphPlace } from "./place.ts"
-import { referenceEdits } from "./rename.ts"
+import { withReferenceEdits } from "./rename.ts"
 import { openSession, type Session, type Touched } from "./session.ts"
 
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
@@ -236,19 +236,17 @@ const SessionsLive = Layer.effect(
 const CoreHandlers = CoreRpcs.toLayer(
   Effect.gen(function* () {
     const { open, current, following, pageChanges } = yield* Sessions
+    const dispatchAll = (commands: ReadonlyArray<Command>) =>
+      Effect.flatMap(current, (session) =>
+        Effect.forEach(commands, (command) => withReferenceEdits(session, command)).pipe(
+          Effect.flatMap((expanded) => session.graph.dispatchAll(expanded.flat())),
+          Effect.tap(session.record),
+        ),
+      )
     return CoreRpcs.of({
       OpenGraph: ({ graph, wait }) => open(graph, wait ?? false),
-      Dispatch: ({ command }) =>
-        Effect.flatMap(current, (session) =>
-          Effect.tap(
-            command._tag === "RenamePage"
-              ? Effect.flatMap(referenceEdits(session, command.pageId, command.title), (edits) =>
-                  session.graph.dispatchAll([command, ...edits]),
-                )
-              : session.graph.dispatch(command),
-            session.record,
-          ),
-        ),
+      Dispatch: ({ command }) => dispatchAll([command]),
+      DispatchAll: ({ commands }) => dispatchAll(commands),
       GetPages: () => Effect.flatMap(current, (session) => session.graph.pages),
       GetPage: ({ pageId }) => Effect.flatMap(current, (session) => session.graph.page(pageId)),
       GetBlock: ({ blockId }) => Effect.flatMap(current, (session) => session.graph.block(blockId)),

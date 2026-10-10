@@ -1,6 +1,12 @@
 import { Effect, Layer, Stream } from "effect"
 import { Atom, Reactivity } from "effect/reactivity"
-import { normalizePageName, type BlockId, type Command, type PageId } from "@seqno/domain"
+import {
+  normalizePageName,
+  type BlockId,
+  type Command,
+  type GraphEvent,
+  type PageId,
+} from "@seqno/domain"
 import { CoreClient } from "@seqno/rpc"
 import { historyFocus, type Editing, type HistoryStep } from "./history.ts"
 
@@ -46,16 +52,25 @@ export const pageNamedAtom = Atom.family((name: string) =>
 
 export const pageListKey: ReadonlyArray<string> = ["pages"]
 
+const invalidatePageList = (events: ReadonlyArray<GraphEvent>) =>
+  events.some((event) => event._tag === "PageUpserted" || event._tag === "PageDeleted")
+    ? Reactivity.invalidate(pageListKey)
+    : Effect.void
+
 const dispatched = (command: Command) =>
   Effect.flatMap(CoreClient, (client) => client.Dispatch({ command })).pipe(
-    Effect.tap((events) =>
-      events.some((event) => event._tag === "PageUpserted" || event._tag === "PageDeleted")
-        ? Reactivity.invalidate(pageListKey)
-        : Effect.void,
-    ),
+    Effect.tap(invalidatePageList),
   )
 
 export const dispatchAtom = coreRuntime.fn(dispatched, { concurrent: true })
+
+export const dispatchAllAtom = coreRuntime.fn(
+  (commands: ReadonlyArray<Command>) =>
+    Effect.flatMap(CoreClient, (client) => client.DispatchAll({ commands })).pipe(
+      Effect.tap(invalidatePageList),
+    ),
+  { concurrent: true },
+)
 
 export const editRequest = Atom.make<Editing | null>(null).pipe(Atom.keepAlive)
 
