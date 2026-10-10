@@ -173,10 +173,7 @@ export const recent = (d: Days): ReadonlyArray<StarterFile> => [
     `  id:: ${ids.cache}`,
     `  SCHEDULED: ${d.stamp(2)}`,
   ),
-  d.journal(
-    -27,
-    "- react-shiki 0.11 out, just dependency bumps [[projects/react-shiki]]",
-  ),
+  d.journal(-27, "- react-shiki 0.11 out, just dependency bumps [[projects/react-shiki]]"),
 
   d.journal(
     -24,
