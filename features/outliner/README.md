@@ -13,7 +13,8 @@ The block tree view on the UI side: it renders a page's blocks with the same par
 | `pageTreeAtom`, `blockAtom`, `dispatchAtom`, `historyAtom`, `editRequest`, `pageListKey` | Atoms the app shares with the outliner.                                                                                          |
 | `historyStep`, `clickOnEnter`                                                            | Small helpers: undo/redo key matching, and Enter-to-click on focusable links.                                                    |
 
-- Block content: tasks, priorities, properties, SCHEDULED / DEADLINE, logbook, page and block refs, embeds, live query panels, code blocks, quotes, headings, images.
+- Block content: tasks, priorities, properties, SCHEDULED / DEADLINE, logbook, page and block refs, embeds, live query panels, code blocks, quotes, headings, images, videos.
+- `{{video url}}` (also `{{youtube url}}`, `{{vimeo url}}`): YouTube waits as a thumbnail and becomes a `youtube-nocookie.com` player on click, Vimeo loads lazily, and a direct `.mp4`/`.webm` plays in a `<video>`. `{{youtube-timestamp 1:30}}` seeks the nearest video before it on the same page, or starts it there.
 - Hovering a ref shows a preview of the page or block.
 - Only rows near the viewport are mounted. Spacers above and below are watched by an `IntersectionObserver`, and row heights are measured with a `ResizeObserver`.
 

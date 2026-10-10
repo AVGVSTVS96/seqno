@@ -5,7 +5,14 @@ import { Match, Schema } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { IconCopy, IconMaximize, IconPhoto, IconTrash } from "@tabler/icons-react"
 import { BlockId, type Block } from "@seqno/domain"
-import { parseInline, plainText, type Inline, type LinkTarget } from "@seqno/syntax"
+import {
+  parseInline,
+  parseTimestamp,
+  parseVideo,
+  plainText,
+  type Inline,
+  type LinkTarget,
+} from "@seqno/syntax"
 import { blockAtom, pageTreeAtom } from "./core.ts"
 import { usePreview } from "./Preview.tsx"
 import {
@@ -17,6 +24,7 @@ import {
   RenderContext,
   toPage,
 } from "./render.ts"
+import { Timestamp, VideoEmbed } from "./Video.tsx"
 
 const isBlockId = Schema.is(BlockId)
 const safeUrl = /^(?:https?|mailto|ftp):/i
@@ -261,6 +269,8 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
   )
 }
 
+const videoMacros = new Set(["video", "youtube", "vimeo"])
+
 const Macro = ({
   name,
   args,
@@ -275,6 +285,10 @@ const Macro = ({
   const Embed = renderer.Embed
   const Query = renderer.Query
   if (renderer.depth < maxDepth && name === "query") return <Query query={args.trim()} />
+  const video = videoMacros.has(name) ? parseVideo(args) : null
+  if (video !== null) return <VideoEmbed video={video} />
+  const seconds = name === "youtube-timestamp" ? parseTimestamp(args) : null
+  if (seconds !== null) return <Timestamp seconds={seconds} />
   if (renderer.depth < maxDepth && target?._tag === "BlockRef" && isBlockId(target.uuid)) {
     return <Embed target={{ _tag: "Block", blockId: target.uuid }} />
   }
