@@ -4,6 +4,7 @@ import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { openGraph, rightSidebar } from "../../atoms.ts"
 import { isDemoGraph } from "../../graph-locations.ts"
+import { embedded } from "../../embed.ts"
 import { homepage, revision } from "../../version.ts"
 import { helpItem, helpMenuId } from "./listeners.ts"
 import { MenuItem, MenuSeparator, onMenuKeyDown, usePopover, useTooltip } from "./popover.tsx"
@@ -66,12 +67,14 @@ export const HelpButton = () => {
             Show tips again
           </MenuItem>
         ) : null}
-        <MenuItem
-          icon={<IconInfoCircle size={20} aria-hidden />}
-          onSelect={() => window.location.assign(homepage)}
-        >
-          About seqno
-        </MenuItem>
+        {embedded ? null : (
+          <MenuItem
+            icon={<IconInfoCircle size={20} aria-hidden />}
+            onSelect={() => window.location.assign(homepage)}
+          >
+            About seqno
+          </MenuItem>
+        )}
         <MenuSeparator />
         <div className="help-menu-footer">
           <span>seqno</span>

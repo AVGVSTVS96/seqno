@@ -10,6 +10,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { Exit } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { openGraph, recentGraphs, rightSidebar, type GraphSource } from "../../atoms.ts"
+import { canPickFolders } from "../../embed.ts"
 import { demoGraphs, graphTitle, isDemoGraph } from "../../graph-locations.ts"
 import { Menu, MenuItem, usePopover } from "./popover.tsx"
 
@@ -79,12 +80,14 @@ export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
           </MenuItem>
         ))}
         <div className="graphs-menu-actions">
-          <MenuItem
-            icon={<IconFolderOpen size={18} aria-hidden />}
-            onSelect={() => switchTo({ _tag: "PickFolder" })}
-          >
-            Open a folder
-          </MenuItem>
+          {canPickFolders ? (
+            <MenuItem
+              icon={<IconFolderOpen size={18} aria-hidden />}
+              onSelect={() => switchTo({ _tag: "PickFolder" })}
+            >
+              Open a folder
+            </MenuItem>
+          ) : null}
           <MenuItem
             icon={<IconApps size={18} aria-hidden />}
             onSelect={() => void navigate({ to: "/graphs" })}

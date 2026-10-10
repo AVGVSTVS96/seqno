@@ -11,6 +11,7 @@ import {
   type DemoGraph,
   type GraphLocation,
 } from "../graph-locations.ts"
+import { canPickFolders } from "../embed.ts"
 import { homepage } from "../version.ts"
 import { useSwitchGraph } from "./shell/GraphSwitcher.tsx"
 import { Menu, MenuItem, usePopover } from "./shell/popover.tsx"
@@ -99,14 +100,16 @@ export const AllGraphs = ({ problem }: { readonly problem: string | null }) => {
       <title>Graphs</title>
       <h1 className="welcome-title">All graphs</h1>
       <div className="welcome-actions">
-        <button
-          type="button"
-          className="button-primary"
-          disabled={opening}
-          onClick={() => open({ _tag: "PickFolder" })}
-        >
-          Open a folder
-        </button>
+        {canPickFolders ? (
+          <button
+            type="button"
+            className="button-primary"
+            disabled={opening}
+            onClick={() => open({ _tag: "PickFolder" })}
+          >
+            Open a folder
+          </button>
+        ) : null}
         {demoGraphs.map((name) => (
           <button
             key={name}
@@ -211,8 +214,6 @@ const DemoChoice = ({
     </li>
   )
 }
-
-const canPickFolders = "showDirectoryPicker" in window
 
 export const GraphChooser = () => {
   const open = useAtomSet(openGraph)

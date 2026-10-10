@@ -2,12 +2,14 @@ import appCss from "./styles.css?inline"
 import { RegistryContext, scheduleTask } from "@effect/atom-react"
 import { RouterProvider } from "@tanstack/react-router"
 import { Layer } from "effect"
-import { AtomRegistry } from "effect/reactivity"
+import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { coreLayer } from "@seqno/outliner"
 import { lastGraph, openGraph, prefersDark, resolvedTheme, startingGraph } from "./atoms.ts"
 import { WorkerCore } from "./core.ts"
+import { embedded, toParent } from "./embed.ts"
+import { demoGraph } from "./graph-locations.ts"
 import { router } from "./router.tsx"
 
 const registry = AtomRegistry.make({
@@ -28,8 +30,16 @@ registry.subscribe(
   { immediate: true },
 )
 
-const starting = startingGraph(registry.get(lastGraph))
+const starting =
+  startingGraph(registry.get(lastGraph)) ??
+  (embedded ? { _tag: "Demo" as const, name: demoGraph } : null)
 if (starting !== null) registry.set(openGraph, starting)
+
+if (embedded) {
+  registry.subscribe(openGraph, (result) => {
+    if (AsyncResult.isSuccess(result)) toParent("ready")
+  })
+}
 
 await Promise.allSettled([
   document.fonts.load('16px "Inter Variable"'),
