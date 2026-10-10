@@ -23,7 +23,12 @@ const demoTitles: Record<DemoGraph, string> = {
   developer: "Developer graph",
 }
 
-const isDemoGraph = Schema.is(DemoGraph)
+export const demoDescriptions: Record<DemoGraph, string> = {
+  demo: "A short tour of how seqno works.",
+  developer: "A developer's real notes, distilled from Bassim's prompt history.",
+}
+
+export const isDemoGraph = Schema.is(DemoGraph)
 
 export const graphTitle = (name: string) => (isDemoGraph(name) ? demoTitles[name] : name)
 

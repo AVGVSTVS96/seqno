@@ -7,7 +7,7 @@ import { BlockId, normalizePageName, type Command, type Page } from "@seqno/doma
 import { editRequest, pageListKey } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
 import { WorkerCore } from "./core.ts"
-import { BrowserGraphLocations, DemoGraph, demoGraph, GraphLocations } from "./graph-locations.ts"
+import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
 
 export type AppServices = CoreClient | GraphLocations
 
@@ -33,6 +33,9 @@ export const settingsLayer = Atom.make<Layer.Layer<KeyValueStore.KeyValueStore>>
 
 const settingsRuntime = Atom.runtime((get) => get(settingsLayer))
 
+export const startingGraph = (last: string | null): GraphSource | null =>
+  last === null ? null : { _tag: "Resume", name: last }
+
 export const lastGraph = Atom.kvs({
   runtime: settingsRuntime,
   key: "seqno.lastGraph",
@@ -46,9 +49,6 @@ export const graphsOpenedAt = Atom.kvs({
   schema: Schema.Record(Schema.String, Schema.Finite),
   defaultValue: (): Readonly<Record<string, number>> => ({}),
 }).pipe(Atom.keepAlive)
-
-export const startingGraph = (last: string | null): GraphSource =>
-  last === null ? { _tag: "Demo", name: demoGraph } : { _tag: "Resume", name: last }
 
 export const recentGraphs = appRuntime.atom(
   Effect.flatMap(Effect.service(GraphLocations), (locations) => locations.recent),

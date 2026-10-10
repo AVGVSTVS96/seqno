@@ -28,7 +28,8 @@ registry.subscribe(
   { immediate: true },
 )
 
-registry.set(openGraph, startingGraph(registry.get(lastGraph)))
+const starting = startingGraph(registry.get(lastGraph))
+if (starting !== null) registry.set(openGraph, starting)
 
 await Promise.allSettled([
   document.fonts.load('16px "Inter Variable"'),

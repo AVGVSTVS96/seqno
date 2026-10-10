@@ -2,13 +2,13 @@ import type { Page } from "@playwright/test"
 import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
-import { expect, test } from "../src/test.ts"
+import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
 const openShowcase = async (page: Page) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
-  await page.goto("/page/showcase")
+  await openDemo(page, "/page/showcase")
   await scrollToText(page, "Live query", 100)
 }
 

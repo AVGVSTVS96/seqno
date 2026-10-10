@@ -1,9 +1,16 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { IconDots } from "@tabler/icons-react"
+import { IconChevronRight, IconCode, IconDots, IconRoute } from "@tabler/icons-react"
 import { AsyncResult } from "effect/reactivity"
-import { useId } from "react"
+import { useId, type ReactNode } from "react"
 import { attemptedGraph, forgetGraph, graphsOpenedAt, openGraph, recentGraphs } from "../atoms.ts"
-import { demoGraph, demoGraphs, graphTitle, type GraphLocation } from "../graph-locations.ts"
+import {
+  demoDescriptions,
+  demoGraph,
+  demoGraphs,
+  graphTitle,
+  type DemoGraph,
+  type GraphLocation,
+} from "../graph-locations.ts"
 import { useSwitchGraph } from "./shell/GraphSwitcher.tsx"
 import { Menu, MenuItem, usePopover } from "./shell/popover.tsx"
 
@@ -163,8 +170,90 @@ export const OpenFailed = ({ problem }: { readonly problem: string }) => {
   )
 }
 
-export const OpenGraphScreen = ({ problem }: { readonly problem: string | null }) => (
-  <div className="welcome">
-    <AllGraphs problem={problem} />
-  </div>
-)
+const demoIcons: Record<DemoGraph, ReactNode> = {
+  demo: <IconRoute size={20} stroke={1.75} aria-hidden />,
+  developer: <IconCode size={20} stroke={1.75} aria-hidden />,
+}
+
+const DemoChoice = ({
+  name,
+  disabled,
+  onChoose,
+}: {
+  readonly name: DemoGraph
+  readonly disabled: boolean
+  readonly onChoose: () => void
+}) => {
+  const title = useId()
+  const description = useId()
+  return (
+    <li>
+      <button
+        type="button"
+        className="chooser-option"
+        aria-labelledby={title}
+        aria-describedby={description}
+        disabled={disabled}
+        onClick={onChoose}
+      >
+        <span className="chooser-icon">{demoIcons[name]}</span>
+        <span className="chooser-text">
+          <span id={title} className="chooser-name">
+            {graphTitle(name)}
+          </span>
+          <span id={description} className="chooser-description">
+            {demoDescriptions[name]}
+          </span>
+        </span>
+        <IconChevronRight className="chooser-arrow" size={16} aria-hidden />
+      </button>
+    </li>
+  )
+}
+
+const canPickFolders = "showDirectoryPicker" in window
+
+export const GraphChooser = () => {
+  const open = useAtomSet(openGraph)
+  const opening = AsyncResult.isWaiting(useAtomValue(openGraph))
+  const heading = useId()
+  return (
+    <div className="welcome">
+      <div className="welcome-main">
+        <title>seqno</title>
+        <h1 id={heading} className="welcome-title">
+          Welcome to seqno
+        </h1>
+        <p className="chooser-lead">
+          Pick a demo graph to look around. It lives in this browser, and the graph menu switches to
+          the other one any time.
+        </p>
+        <ul className="chooser-options" aria-labelledby={heading}>
+          {demoGraphs.map((name) => (
+            <DemoChoice
+              key={name}
+              name={name}
+              disabled={opening}
+              onChoose={() => open({ _tag: "Demo", name })}
+            />
+          ))}
+        </ul>
+        {canPickFolders ? (
+          <p className="chooser-folder">
+            Have Logseq notes?{" "}
+            <button
+              type="button"
+              className="chooser-folder-button"
+              disabled={opening}
+              onClick={() => open({ _tag: "PickFolder" })}
+            >
+              Open a folder
+            </button>{" "}
+            instead. seqno writes its edit log next to your files.
+          </p>
+        ) : null}
+        <RecentGraphs disabled={opening} />
+      </div>
+    </div>
+  )
+}

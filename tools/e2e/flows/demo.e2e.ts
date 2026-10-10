@@ -1,7 +1,7 @@
 import type { Locator } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { journalTitle } from "../src/journal.ts"
-import { expect, test } from "../src/test.ts"
+import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
@@ -16,10 +16,10 @@ const daysAgo = (days: number) => {
 }
 
 test("the graph switcher opens the developer graph, and Contents is its hub", async ({ page }) => {
-  await page.goto("/")
+  await openDemo(page)
   await page.getByRole("button", { name: "Toggle left sidebar" }).click()
   await page.getByRole("button", { name: "Getting started" }).click()
-  await page.getByRole("menuitem", { name: "Developer graph" }).click()
+  await page.getByRole("menuitemradio", { name: "Developer graph" }).click()
   const today = page.getByRole("article", { name: journalTitle(new Date()), exact: true })
   await expect(today.getByRole("treeitem").first()).toHaveText(
     /NOW\s*seqno lazy open, first step of hardening projects\/seqno/,
@@ -36,10 +36,7 @@ test("the graph switcher opens the developer graph, and Contents is its hub", as
 test("a query lists the decisions tagged with a project, but not its own block", async ({
   page,
 }) => {
-  await page.goto("/graphs")
-  await page.getByRole("button", { name: "Open Developer graph" }).click()
-  await expect(page).toHaveURL(/\/$/)
-  await page.goto("/page/projects%2Fseqno")
+  await openDemo(page, "/page/projects%2Fseqno", "Developer graph")
   const decisions = page.getByRole("region", { name: "Live query" }).first()
   await expect(decisions.locator(".seqno-query-group-clause")).toHaveText(
     "(AND[[decision]][[seqno]])",

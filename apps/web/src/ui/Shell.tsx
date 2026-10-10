@@ -4,8 +4,9 @@ import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { attemptedGraph, lastGraph, leftSidebarOpen, openGraph, rightSidebar } from "../atoms.ts"
-import { demoGraph, GraphNotPicked } from "../graph-locations.ts"
-import { OpenFailed, OpenGraphScreen } from "./OpenGraphScreen.tsx"
+import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
+import { Hints } from "./hints/Hints.tsx"
+import { GraphChooser, OpenFailed } from "./OpenGraphScreen.tsx"
 import { BlockMenu } from "./shell/BlockMenu.tsx"
 import { ExportDialog } from "./shell/Export.tsx"
 import { Header } from "./shell/Header.tsx"
@@ -66,6 +67,7 @@ const Layout = ({
       <ExportDialog />
       <Settings />
       <Notices />
+      {isDemoGraph(graph) ? <Hints /> : null}
     </div>
   )
 }
@@ -78,11 +80,7 @@ const Screen = () => {
   const attempted = useAtomValue(attemptedGraph)
   return AsyncResult.match(useAtomValue(openGraph), {
     onInitial: (initial) =>
-      initial.waiting ? (
-        <Layout graph={last ?? demoGraph} ready={false} />
-      ) : (
-        <OpenGraphScreen problem={null} />
-      ),
+      initial.waiting ? <Layout graph={last ?? demoGraph} ready={false} /> : <GraphChooser />,
     onFailure: (failure) =>
       Option.match(failure.previousSuccess, {
         onSome: (previous) =>
@@ -91,9 +89,12 @@ const Screen = () => {
           ) : (
             <Layout graph={attempted ?? previous.value.graph} problem={problemOf(failure.cause)} />
           ),
-        onNone: () => (
-          <Layout graph={attempted ?? last ?? demoGraph} problem={problemOf(failure.cause)} />
-        ),
+        onNone: () =>
+          pickerCancelled(failure.cause) ? (
+            <GraphChooser />
+          ) : (
+            <Layout graph={attempted ?? last ?? demoGraph} problem={problemOf(failure.cause)} />
+          ),
       }),
     onSuccess: (opened) => <Layout graph={opened.value.graph} />,
   })

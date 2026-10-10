@@ -1,14 +1,22 @@
-import { useAtomSet } from "@effect/atom-react"
-import { IconBook, IconCommand, IconHelpSmall } from "@tabler/icons-react"
-import { rightSidebar } from "../../atoms.ts"
+import { useAtomSet, useAtomValue } from "@effect/atom-react"
+import { IconBook, IconBulb, IconCommand, IconHelpSmall } from "@tabler/icons-react"
+import { Option } from "effect"
+import { AsyncResult } from "effect/reactivity"
+import { openGraph, rightSidebar } from "../../atoms.ts"
+import { isDemoGraph } from "../../graph-locations.ts"
 import { revision } from "../../version.ts"
 import { helpItem, helpMenuId } from "./listeners.ts"
 import { MenuItem, MenuSeparator, onMenuKeyDown, usePopover, useTooltip } from "./popover.tsx"
+import { dismissedHints } from "./state.ts"
 
 const logseqDocs = "https://docs.logseq.com"
 
 export const HelpButton = () => {
   const updateSidebar = useAtomSet(rightSidebar)
+  const showTips = useAtomSet(dismissedHints)
+  const inDemo = Option.exists(AsyncResult.value(useAtomValue(openGraph)), (opened) =>
+    isDemoGraph(opened.graph),
+  )
   const menu = usePopover({
     id: helpMenuId,
     placement: { align: "end", gap: 8, inset: 8, side: "top" },
@@ -53,6 +61,11 @@ export const HelpButton = () => {
         >
           Logseq documentation
         </MenuItem>
+        {inDemo ? (
+          <MenuItem icon={<IconBulb size={20} aria-hidden />} onSelect={() => showTips([])}>
+            Show tips again
+          </MenuItem>
+        ) : null}
         <MenuSeparator />
         <div className="help-menu-footer">
           <span>seqno</span>

@@ -21,6 +21,18 @@ export const seqnoPage = async (browser: Browser, options: SeqnoOptions) => {
     ({ theme, leftSidebar }) => {
       localStorage.setItem("seqno.theme", JSON.stringify(theme))
       localStorage.setItem("seqno.leftSidebar", JSON.stringify(leftSidebar))
+      localStorage.setItem(
+        "seqno.dismissedHints",
+        JSON.stringify([
+          "contents",
+          "graph-menu:demo",
+          "graph-menu:developer",
+          "page-link",
+          "shift-click",
+          "references",
+          "search",
+        ]),
+      )
     },
     { theme: options.theme, leftSidebar: options.leftSidebar },
   )
@@ -29,10 +41,12 @@ export const seqnoPage = async (browser: Browser, options: SeqnoOptions) => {
 
 export const openSeqno = async (page: Page, path: string, blocks = true) => {
   await page.goto(path)
-  const openDemo = page.getByRole("button", { name: "Open Getting started" })
+  const chooser = page.getByRole("heading", { name: "Welcome to seqno" })
   const app = page.getByRole("main")
-  await openDemo.or(app).first().waitFor({ timeout: 30_000 })
-  if (await openDemo.isVisible()) await openDemo.click()
+  await chooser.or(app).first().waitFor({ timeout: 30_000 })
+  if (await chooser.isVisible()) {
+    await page.getByRole("button", { name: "Getting started", exact: true }).click()
+  }
   await app.waitFor({ timeout: 30_000 })
   if (blocks) await page.getByRole("treeitem").first().waitFor({ timeout: 30_000 })
 }

@@ -67,6 +67,12 @@ export const rightWidthStep = (percent: number, pixels: number, windowWidth: num
   return Math.round(Math.min(rightMaxRatio, Math.max(minRatio, ratio)) * 1000) / 10
 }
 
+export const dismissedHints = setting(
+  "seqno.dismissedHints",
+  Schema.Array(Schema.String),
+  [] satisfies ReadonlyArray<string>,
+)
+
 export const settingsDialogId = "seqno-settings"
 
 export type SettingsTab = "general" | "keymap"

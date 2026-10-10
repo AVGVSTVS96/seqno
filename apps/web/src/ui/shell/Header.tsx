@@ -111,6 +111,7 @@ const SearchButton = () => {
   return (
     <IconButton
       label="Search"
+      data-hint-anchor="search"
       tooltip={{ label: "Search", keys: ["mod", "k"] }}
       icon={<IconSearch size={20} aria-hidden />}
       onClick={() => setSearchOpen(true)}
@@ -129,6 +130,7 @@ export const Header = () => {
       <div className="head-left">
         <IconButton
           label="Toggle left sidebar"
+          data-hint-anchor="left-sidebar"
           tooltip={{ label: "Toggle left sidebar", keys: keysOf("ToggleLeftSidebar") }}
           icon={<IconMenu2 size={20} aria-hidden />}
           aria-expanded={leftOpen}

@@ -345,6 +345,7 @@ export const RightSidebar = () => {
             <button
               type="button"
               className="sidebar-tab"
+              data-hint-anchor="contents"
               onClick={() => updateSidebar({ _tag: "Open", item: contentsItem })}
             >
               Contents

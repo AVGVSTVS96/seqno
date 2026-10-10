@@ -184,17 +184,21 @@ export const Menu = ({
 export const MenuItem = ({
   icon,
   hint,
+  checked,
   onSelect,
   children,
 }: {
   readonly icon?: ReactNode
   readonly hint?: ReactNode
+  readonly checked?: boolean
   readonly onSelect: () => void
   readonly children: ReactNode
 }) => (
   <button
     type="button"
-    role="menuitem"
+    {...(checked === undefined
+      ? { role: "menuitem" }
+      : { role: "menuitemradio", "aria-checked": checked })}
     tabIndex={-1}
     className="menu-item"
     onPointerMove={(event) => {

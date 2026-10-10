@@ -7,12 +7,26 @@ const updateFiles = async (page: Page) =>
     .toSorted()
     .join("\n")
 
+const hintKeys = [
+  "contents",
+  "graph-menu:demo",
+  "graph-menu:developer",
+  "page-link",
+  "shift-click",
+  "references",
+  "search",
+]
+
+export const openDemo = async (page: Page, path = "/", graph = "Getting started") => {
+  await page.goto(path)
+  await page.getByRole("button", { name: graph, exact: true }).click()
+  await expect(page.getByRole("main")).not.toBeEmpty()
+}
+
 const seqno = (page: Page) => ({
   today: page.getByRole("article", { name: journalTitle(new Date()), exact: true }),
   editor: page.getByRole("treeitem").getByRole("textbox"),
-  openDemoGraph: async () => {
-    await page.goto("/")
-  },
+  openDemoGraph: () => openDemo(page),
   saved: () =>
     expect
       .poll(async () => {
@@ -23,8 +37,16 @@ const seqno = (page: Page) => ({
       .toBe(true),
 })
 
-export const test = base.extend<{ seqno: ReturnType<typeof seqno> }>({
-  page: async ({ page }, use) => {
+export const test = base.extend<{ seqno: ReturnType<typeof seqno>; hints: boolean }>({
+  hints: [false, { option: true }],
+  page: async ({ page, hints }, use) => {
+    if (!hints) {
+      await page.addInitScript((keys) => {
+        if (localStorage.getItem("seqno.dismissedHints") === null) {
+          localStorage.setItem("seqno.dismissedHints", JSON.stringify(keys))
+        }
+      }, hintKeys)
+    }
     const errors: Array<string> = []
     page.on("pageerror", (error) => errors.push(error.message))
     await use(page)

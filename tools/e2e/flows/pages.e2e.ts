@@ -5,13 +5,13 @@ import type { Page } from "@playwright/test"
 import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
-import { expect, test } from "../src/test.ts"
+import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
 const openShowcaseAt = async (page: Page, path: string) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
-  await page.goto(path)
+  await openDemo(page, path)
 }
 
 const palette = (page: Page) => page.getByRole("dialog", { name: "Search" })
@@ -230,7 +230,7 @@ test("the journals list mounts the newest days first and more as it scrolls", as
   )
   await seedOpfs(page, folder, ["graphs", "demo"])
   await rm(folder, { recursive: true })
-  await page.goto("/")
+  await openDemo(page)
   const days = page.getByRole("article")
   await expect(days.nth(1)).toHaveAccessibleName("Jan 12th, 2025")
   expect(await days.count()).toBeLessThan(13)
@@ -301,7 +301,7 @@ test("Add to Favorites lists the page in the sidebar and leaves its file alone",
 }) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
   await page.evaluate(() => localStorage.setItem("seqno.leftSidebar", "true"))
-  await page.goto("/page/reading%20list")
+  await openDemo(page, "/page/reading%20list")
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Add to Favorites" }).click()
   const sidebar = page.getByRole("complementary", { name: "Left sidebar" })

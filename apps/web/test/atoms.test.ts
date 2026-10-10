@@ -178,11 +178,11 @@ describe("app atoms", () => {
     }),
   )
 
-  it.effect("remembers the opened graph, so the next start resumes it instead of the demo", () =>
+  it.effect("remembers the opened graph, so the next start resumes it instead of the chooser", () =>
     Effect.gen(function* () {
       const entries = new Map<string, string>()
       const first = testRegistry(entries)
-      assert.deepStrictEqual(startingGraph(first.get(lastGraph)), { _tag: "Demo", name: "demo" })
+      assert.strictEqual(startingGraph(first.get(lastGraph)), null)
       first.mount(openGraph)
       first.set(openGraph, { _tag: "PickFolder" })
       yield* settle
@@ -190,7 +190,7 @@ describe("app atoms", () => {
       const next = testRegistry(entries)
       assert.deepStrictEqual(startingGraph(next.get(lastGraph)), { _tag: "Resume", name: "notes" })
       next.mount(openGraph)
-      next.set(openGraph, startingGraph(next.get(lastGraph)))
+      next.set(openGraph, { _tag: "Resume", name: "notes" })
       yield* settle
       const opened = next.get(openGraph)
       assert.strictEqual(AsyncResult.isSuccess(opened) ? opened.value.graph : null, "notes")

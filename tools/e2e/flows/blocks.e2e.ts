@@ -2,13 +2,13 @@ import type { Page } from "@playwright/test"
 import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
-import { expect, test } from "../src/test.ts"
+import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
 const openShowcase = async (page: Page, path: string) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
-  await page.goto(path)
+  await openDemo(page, path)
 }
 
 const rowWith = (page: Page, text: string) =>
@@ -48,7 +48,7 @@ test("right-clicking a bullet selects the block and opens its menu", async ({ pa
 
 test("pasting a markdown outline into an empty block makes the blocks", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
-  await page.goto("/")
+  await openDemo(page)
   const today = page.getByRole("main").getByRole("article").first()
   await today.getByRole("treeitem").first().click()
   await page.keyboard.press("End")
