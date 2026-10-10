@@ -205,18 +205,6 @@ test("Shift+Enter in the palette opens the result in the right sidebar", async (
   )
 })
 
-test("a second tab waits for the graph while the first one has it open", async ({ page }) => {
-  await openShowcaseAt(page, "/")
-  await expect(page.getByRole("article").first()).toBeVisible()
-  const second = await page.context().newPage()
-  await second.goto("/")
-  await expect(
-    second.getByRole("heading", { name: "This graph is open in another tab" }),
-  ).toBeVisible()
-  await page.close()
-  await expect(second.getByRole("article").first()).toBeVisible()
-})
-
 test("the journals list mounts the newest days first and more as it scrolls", async ({ page }) => {
   const folder = await mkdtemp(join(tmpdir(), "seqno-journals-"))
   await mkdir(join(folder, "journals"))

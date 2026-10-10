@@ -6,7 +6,14 @@ import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { coreLayer } from "@seqno/outliner"
-import { lastGraph, openGraph, prefersDark, resolvedTheme, startingGraph } from "./atoms.ts"
+import {
+  graphMoves,
+  lastGraph,
+  openGraph,
+  prefersDark,
+  resolvedTheme,
+  startingGraph,
+} from "./atoms.ts"
 import { WorkerCore } from "./core.ts"
 import { embedded, toParent } from "./embed.ts"
 import { demoGraph } from "./graph-locations.ts"
@@ -26,6 +33,14 @@ registry.subscribe(
   resolvedTheme,
   (resolved) => {
     document.documentElement.dataset["theme"] = resolved
+  },
+  { immediate: true },
+)
+
+registry.subscribe(
+  graphMoves,
+  (moves) => {
+    if (AsyncResult.isSuccess(moves)) location.reload()
   },
   { immediate: true },
 )

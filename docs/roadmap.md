@@ -11,7 +11,7 @@ web (done) ──▶ hardening (next) ──┬──▶ iOS + iCloud Drive
 
 The web app runs in Chrome and Edge on the real core: a Loro edit log, a SQLite index, and Logseq import.
 
-- **Graphs.** Open a Logseq folder with the folder picker, or one of two demo graphs kept in the browser: a short tour, and a developer's notes that use most of what seqno renders. The first open imports the markdown; after that, edits save to the edit log every 250 ms and survive a reload. Each graph opens in one tab at a time.
+- **Graphs.** Open a Logseq folder with the folder picker, or one of two demo graphs kept in the browser: a short tour, and a developer's notes that use most of what seqno renders. The first open imports the markdown; after that, edits save to the edit log every 250 ms and survive a reload. A graph can be open in any number of tabs; they share one core worker, so each tab sees what the others type at once.
 - **Pages.** Journals with today on top (more days load as you scroll), pages, aliases, tag pages, the All pages table, Mod+K full-text search, the right sidebar, favorites and recent pages. Renaming a page rewrites every reference to it.
 - **Outlining.** Enter, Tab and Shift+Tab, drag, multi-block selection, collapse, zoom, moving blocks with keys, and undo and redo one command at a time. Pasting a markdown outline makes blocks.
 - **Blocks.** Tasks and priorities, SCHEDULED and DEADLINE with a date picker, properties as `key:: value` lines, headings, code blocks edited in place, images with resizing, embeds, block references with counts, hover previews, and linked and unlinked references.
@@ -51,8 +51,9 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 - **Two pages with one name stop the graph from opening.** Each device creates today's journal on open if it has none yet, so two devices that open the graph on the same day before syncing make two pages with one name. Concurrent creates and renames do the same. The index's unique name rule then fails, and the graph shows its open error on every try.
 - **Two devices can import the same folder twice.** If both open a Logseq folder before either's edit log has synced, each imports it with new ids, and every page ends up doubled.
 - **Import skips files without saying so.** A file whose name matches an existing page, or one that isn't downloaded or can't be read, is left out. The import runs once and its issue list isn't shown.
-- **Saving is invisible.** Closing the tab can drop the last 250 ms of edits, there is no saving indicator, and a failing save (storage full, folder permission revoked) only logs inside the worker.
+- **Saving is invisible.** Closing the last tab on a graph can drop the last 250 ms of edits, there is no saving indicator, and a failing save (storage full, folder permission revoked) only logs inside the worker.
 - **Rejected edits are dropped quietly.** The UI ignores a rejected command, and the editor recognizes its own edits coming back by comparing text, which could skip a real change after an undo (found by reading the code, not reproduced).
+- **Undo is shared between tabs.** Tabs on one graph share one undo history, so Mod+Z in one tab can undo what was typed in another.
 - **Merging a block with Backspace drops its properties**, including an `id::` that `((block refs))` point to.
 - **Undoing a delete re-creates the blocks**, so edits another device made to them in the meantime are lost.
 - **No device list.** The app counts only itself as a member, and there is no "remove this device" setting.

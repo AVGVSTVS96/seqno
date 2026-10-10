@@ -7,6 +7,18 @@ const updateFiles = async (page: Page) =>
     .toSorted()
     .join("\n")
 
+export const saved = (page: Page) =>
+  expect
+    .poll(async () => {
+      const before = await updateFiles(page)
+      await page.waitForTimeout(500)
+      return before !== "" && before === (await updateFiles(page))
+    })
+    .toBe(true)
+
+export const todayOn = (page: Page) =>
+  page.getByRole("article", { name: journalTitle(new Date()), exact: true })
+
 const hintKeys = [
   "contents",
   "graph-menu:demo",
@@ -29,17 +41,10 @@ export const restOfToday = [
 ]
 
 const seqno = (page: Page) => ({
-  today: page.getByRole("article", { name: journalTitle(new Date()), exact: true }),
+  today: todayOn(page),
   editor: page.getByRole("treeitem").getByRole("textbox"),
   openDemoGraph: () => openDemo(page),
-  saved: () =>
-    expect
-      .poll(async () => {
-        const before = await updateFiles(page)
-        await page.waitForTimeout(500)
-        return before !== "" && before === (await updateFiles(page))
-      })
-      .toBe(true),
+  saved: () => saved(page),
 })
 
 export const test = base.extend<{ seqno: ReturnType<typeof seqno>; hints: boolean }>({

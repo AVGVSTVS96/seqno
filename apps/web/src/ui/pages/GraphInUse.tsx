@@ -14,10 +14,10 @@ export const GraphInUse = ({ graph }: { readonly graph: string }) => {
     <main className="seqno-graph-in-use" aria-labelledby={title}>
       <PagesStyle />
       <div className="seqno-graph-in-use-card" role="status">
-        <h1 id={title}>This graph is open in another tab</h1>
+        <h1 id={title}>This graph is open in an older seqno</h1>
         <p>
-          <strong>{graphTitle(graph)}</strong> can be open in one tab at a time, so no edit gets
-          lost. Close it in the other tab and it opens here.
+          Another tab runs an older version of seqno with <strong>{graphTitle(graph)}</strong> open.
+          Reload or close that tab and it opens here.
         </p>
         <button
           type="button"

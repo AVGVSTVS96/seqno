@@ -15,7 +15,7 @@ Why each piece was chosen, with the numbers behind it, is in [decisions.md](deci
 └──────────────┬───────────────────────────────▲──────────────┘
                │ commands, reads               │ results, live streams
                ▼                               │
-     @seqno/rpc: Effect RPC over a Web Worker, every message a Schema
+   @seqno/rpc: Effect RPC over a SharedWorker, every message a Schema
                │                               │
 ┌─ core worker  apps/web/src/worker ───────────┴──────────────┐
 │  Graph    @seqno/graph    Loro doc: movable tree + text     │
@@ -31,7 +31,19 @@ Why each piece was chosen, with the numbers behind it, is in [decisions.md](deci
      journals/  pages/  logseq/config.edn  assets/          (Logseq's own files)
 ```
 
-The UI never touches Loro, SQLite or files. It sends commands and subscribes to streams. Each tab opens one graph and holds a Web Lock on it, so a second tab on the same graph waits instead of writing.
+The UI never touches Loro, SQLite or files. It sends commands and subscribes to streams.
+
+### Tabs
+
+```
+tab ──┐
+tab ──┼──▶ SharedWorker "seqno-core" ──▶ graph "demo": one Loro doc, one index, one peer id
+tab ──┘      holds    seqno/graph/demo            one writer for the graph
+             holds    seqno/graph/demo/handover   a newer build steals it to take over
+             watches  seqno/tab/<id>              each tab holds its own until it closes
+```
+
+Every tab of one seqno build talks to the same core worker, so a graph open in three tabs is still one Loro doc with one writer, and an edit in one tab reaches the others through the same watches as any other change. The worker holds a Web Lock on each open graph, so no second worker writes it at the same time. A new deploy is a new worker script, and so a second worker: when it opens a graph the older worker holds, it steals that graph's handover lock, the older worker saves and lets go, and its tabs reload into the new build. Each tab holds a lock of its own that the worker waits on, so the worker learns the moment a tab closes and closes a graph once no tab has it open.
 
 ### One edit, end to end
 

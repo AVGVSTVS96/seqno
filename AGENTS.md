@@ -53,7 +53,7 @@ A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added t
 
 - The UI side imports only `@seqno/domain`, `@seqno/rpc`, the pure packages (`@seqno/syntax`, `@seqno/query`) and other UI packages. Blocks render with the same parser the core uses, not a second one. It never imports graph, index, vault or interop, and talks to the core only through `@seqno/rpc`.
 - The core side never imports UI packages.
-- The core worker entry lives in `apps/web/src/worker/`. Files there count as core side: they may import core packages and may not import UI code. UI files in `apps/web` may not import from `src/worker/` (start the worker with `new Worker(new URL(...))`, not an import).
+- The core worker entry lives in `apps/web/src/worker/`. Files there count as core side: they may import core packages and may not import UI code. UI files in `apps/web` may not import from `src/worker/` (start the worker with `new SharedWorker(new URL(...))`, not an import).
 - Relative imports never leave their package. Import another package by its `@seqno/*` name and list it in `package.json`.
 
 ## Code rules
@@ -107,7 +107,7 @@ Every lint message says how to fix the problem. Do not weaken a rule in `.oxlint
 - `Command`: `CreatePage, RenamePage, DeletePage, InsertBlock, InsertBlocks, EditText, SplitBlock, MergeWithPrevious, Indent, Outdent, MoveBlocks, DeleteBlocks, SetCollapsed, SetProperty, Undo, Redo`. `InsertBlocks` inserts a tree of `BlockDraft`s (text, props, children) in one commit.
 - `GraphEvent`: `PageUpserted, PageDeleted, BlockUpserted, BlockMoved, BlockDeleted`.
 
-`@seqno/rpc` exports `CoreRpcs`: `OpenGraph`, `Dispatch`, `DispatchAll` (several commands as one commit), `GetPages`, `GetPage`, `GetBlock`, `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks), `WatchBlockRefCounts` (stream, blocks referencing each block), `WatchBlockReferences` (stream, the blocks that reference one block). `PageRpcs` adds backlinks, page stats, `Ancestors` and `WatchReferencedPages` (names that exist only as references).
+`@seqno/rpc` exports `CoreRpcs`: `Attach` (stream, tells a tab its graph moved to a newer build), `OpenGraph`, `Dispatch`, `DispatchAll` (several commands as one commit), `GetPages`, `GetPage`, `GetBlock`, `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks), `WatchBlockRefCounts` (stream, blocks referencing each block), `WatchBlockReferences` (stream, the blocks that reference one block). `PageRpcs` adds backlinks, page stats, `Ancestors` and `WatchReferencedPages` (names that exist only as references).
 
 If you need something the contract lacks, add it in your package and note it in that package's README.
 

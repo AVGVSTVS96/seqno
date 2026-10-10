@@ -6,7 +6,7 @@ import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
 import { editRequest, pageListKey } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
-import { WorkerCore } from "./core.ts"
+import { WorkerCore, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
 
 export type AppServices = CoreClient | GraphLocations
@@ -59,6 +59,8 @@ export const forgetGraph = appRuntime.fn((name: string, get) =>
     Effect.tap(() => Effect.sync(() => get.refresh(recentGraphs))),
   ),
 )
+
+export const graphMoves = appRuntime.atom(attachTab).pipe(Atom.keepAlive)
 
 export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)
 

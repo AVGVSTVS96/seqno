@@ -26,12 +26,14 @@ export {
   WatchUnlinkedReferences,
 } from "./pages.ts"
 export {
+  Attach,
   CoreRpcs,
   Dispatch,
   DispatchAll,
   GetBlock,
   GetPage,
   GetPages,
+  GraphMoved,
   GraphOpened,
   OpenGraph,
   PageTree,
@@ -42,4 +44,5 @@ export {
   WatchBlockReferences,
   WatchPage,
   WatchQuery,
+  tabLock,
 } from "./rpcs.ts"

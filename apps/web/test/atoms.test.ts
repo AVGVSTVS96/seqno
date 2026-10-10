@@ -77,6 +77,7 @@ const FakeCore = CoreRpcs.toLayer(
       new CommandRejected({ reason: "not in the fake core" }),
     )
     return CoreRpcs.of({
+      Attach: () => Stream.empty,
       OpenGraph: ({ graph }) => Effect.succeed({ graph, pages: [inbox, older, today] }),
       Dispatch: ({ command }) =>
         Command.match(command, {

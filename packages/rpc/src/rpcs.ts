@@ -35,6 +35,17 @@ export const SearchHits = Schema.Struct({
 })
 export type SearchHits = typeof SearchHits.Type
 
+export const GraphMoved = Schema.Struct({ graph: Schema.String })
+export type GraphMoved = typeof GraphMoved.Type
+
+export const tabLock = (tab: string) => `seqno/tab/${tab}`
+
+export const Attach = Rpc.make("Attach", {
+  payload: { tab: Schema.NonEmptyString },
+  success: GraphMoved,
+  stream: true,
+})
+
 export const OpenGraph = Rpc.make("OpenGraph", {
   payload: { graph: Schema.NonEmptyString, wait: Schema.optionalKey(Schema.Boolean) },
   success: GraphOpened,
@@ -104,6 +115,7 @@ export const WatchBlockReferences = Rpc.make("WatchBlockReferences", {
 })
 
 export const CoreRpcs = RpcGroup.make(
+  Attach,
   OpenGraph,
   Dispatch,
   DispatchAll,

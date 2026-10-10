@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, Schedule, Schema } from "effect"
+import { Context, Effect, Layer, Option, Schedule, Schema, SubscriptionRef } from "effect"
 import { GraphEvent, PageId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
@@ -10,6 +10,7 @@ import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 export interface Session {
   readonly graph: Graph["Service"]
   readonly index: Index["Service"]
+  readonly touched: SubscriptionRef.SubscriptionRef<Touched>
   readonly record: (events: ReadonlyArray<GraphEvent>) => Effect.Effect<void>
 }
 
@@ -87,12 +88,10 @@ const layStarter = (storage: Storage["Service"], starter: Starter) =>
     yield* storage.write(starterStamp, encoder.encode(String(starter.version)))
   })
 
-export const openSession = (
-  place: GraphPlace,
-  changed: (touched: Touched) => Effect.Effect<void>,
-) =>
+export const openSession = (place: GraphPlace) =>
   Effect.gen(function* () {
     const { device, peer } = yield* Device
+    const touched = yield* SubscriptionRef.make<Touched>(new Set())
     const graph = yield* serviceOf(
       Graph,
       Graph.layer({ peer: PeerId.make(peer), snapshot: Option.none(), updates: [] }),
@@ -123,10 +122,10 @@ export const openSession = (
       events.length === 0
         ? Effect.void
         : Effect.gen(function* () {
-            const touched = new Set([...events.map(ownPage), ...(yield* movedFrom(events))])
+            const pages = new Set([...events.map(ownPage), ...(yield* movedFrom(events))])
             const version = yield* graph.version
             yield* index.apply(events, JSON.stringify([...version].toSorted()))
-            yield* changed(touched)
+            yield* SubscriptionRef.set(touched, pages)
           }).pipe(Effect.orDie)
 
     const replica = vaultReplica({
@@ -152,6 +151,6 @@ export const openSession = (
     )
     yield* Effect.addFinalizer(() => logged(save))
 
-    const session: Session = { graph, index, record }
+    const session: Session = { graph, index, touched, record }
     return session
   })

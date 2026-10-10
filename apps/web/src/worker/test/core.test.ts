@@ -3,23 +3,11 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, describe, it } from "@effect/vitest"
-import {
-  Clock,
-  Crypto,
-  Deferred,
-  Effect,
-  Exit,
-  Fiber,
-  Layer,
-  Option,
-  Queue,
-  Scope,
-  Stream,
-} from "effect"
-import { RpcTest } from "effect/rpc"
+import { Clock, Crypto, Deferred, Effect, Fiber, Layer, Option, Queue, Stream } from "effect"
+import { RpcClient, type RpcGroup, type RpcMessage, RpcServer, RpcTest } from "effect/rpc"
 import { DeviceId } from "@seqno/domain"
 import { layerNode } from "@seqno/index/node"
-import { CoreRpcs, PageRpcs } from "@seqno/rpc"
+import { CoreRpcs, PageRpcs, tabLock } from "@seqno/rpc"
 import { nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
 import { demoGraph } from "../demo.ts"
@@ -40,23 +28,67 @@ const WebCrypto = Layer.succeed(
   }),
 )
 
+const coreLayer = (root: string, starter: Starter | null) =>
+  RealCore.pipe(
+    Layer.provide(
+      Layer.succeed(GraphPlaces, {
+        open: () => Effect.succeed({ storage: nodeStorage(root), sqlite: layerNode(), starter }),
+      }),
+    ),
+    Layer.provide(Layer.succeed(Device, { device: DeviceId.make("laptop"), peer: "42" })),
+    Layer.provide(layerWebLocks),
+    Layer.provide(WebCrypto),
+  )
+
+const AllRpcs = CoreRpcs.merge(PageRpcs)
+
 const coreOn = (root: string, starter: Starter | null = null) =>
   Effect.gen(function* () {
-    const handlers = yield* Layer.build(
-      RealCore.pipe(
-        Layer.provide(
-          Layer.succeed(GraphPlaces, {
-            open: () =>
-              Effect.succeed({ storage: nodeStorage(root), sqlite: layerNode(), starter }),
-          }),
-        ),
-        Layer.provide(Layer.succeed(Device, { device: DeviceId.make("laptop"), peer: "42" })),
-        Layer.provide(layerWebLocks),
-        Layer.provide(WebCrypto),
-      ),
-    )
-    return yield* Effect.provide(RpcTest.makeClient(CoreRpcs.merge(PageRpcs)), handlers)
+    const handlers = yield* Layer.build(coreLayer(root, starter))
+    return yield* Effect.provide(RpcTest.makeClient(AllRpcs), handlers)
   })
+
+const tabsOn = (root: string) =>
+  Effect.gen(function* () {
+    const handlers = yield* Layer.build(coreLayer(root, null))
+    const replies = new Map<
+      number,
+      (message: RpcMessage.FromServer<RpcGroup.Rpcs<typeof AllRpcs>>) => Effect.Effect<void>
+    >()
+    const server = yield* Effect.provide(
+      RpcServer.makeNoSerialization(AllRpcs, {
+        onFromServer: (message) => replies.get(message.clientId)?.(message) ?? Effect.void,
+      }),
+      handlers,
+    )
+    return (id: number) =>
+      Effect.gen(function* () {
+        const made = yield* RpcClient.makeNoSerialization(AllRpcs, {
+          supportsAck: true,
+          onFromClient: ({ message }) => server.write(id, message),
+        })
+        replies.set(id, made.write)
+        return made.client
+      })
+  })
+
+const holdLock = (name: string) =>
+  Effect.gen(function* () {
+    const release = Promise.withResolvers<void>()
+    yield* Effect.addFinalizer(() => Effect.sync(() => release.resolve()))
+    yield* Effect.callback<void>((resume) => {
+      void navigator.locks.request(name, () => {
+        resume(Effect.void)
+        return release.promise
+      })
+    })
+    return Effect.sync(() => release.resolve())
+  })
+
+const heldLocks = Effect.map(
+  Effect.promise(() => navigator.locks.query()),
+  ({ held }) => (held ?? []).flatMap((info) => (info.name === undefined ? [] : [info.name])),
+)
 
 const copyOfFixture = Effect.promise(async () => {
   const root = await mkdtemp(join(tmpdir(), "seqno-core-"))
@@ -725,21 +757,135 @@ describe("the core worker on the real graph, vault and index", () => {
     ),
   )
 
-  it.live("a second core waits for a graph until the first one closes it", () =>
+  it.live("two tabs share one graph: what one types, the other sees at once", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const tab = yield* tabsOn(yield* copyOfFixture)
+        const first = yield* tab(0)
+        const second = yield* tab(1)
+        const opened = yield* first.OpenGraph({ graph: "og-shared" })
+        yield* second.OpenGraph({ graph: "og-shared" })
+        const tasks = named(opened.pages, "tasks").id
+        const block = (yield* first.GetPage({ pageId: tasks })).blocks[2] ?? assert.fail("no block")
+        const watching = yield* Deferred.make<void>()
+        const seen = yield* second.WatchPage({ pageId: tasks }).pipe(
+          Stream.tap(() => Deferred.succeed(watching, undefined)),
+          Stream.map((tree) => tree.blocks[2]?.text),
+          Stream.takeUntil((text) => text === "We recorded a [[voice note]] today."),
+          Stream.runCollect,
+          Effect.forkChild,
+        )
+        yield* Deferred.await(watching)
+        yield* first.Dispatch({
+          command: { _tag: "EditText", blockId: block.id, from: 0, to: 1, insert: "We" },
+        })
+        yield* second.Dispatch({
+          command: {
+            _tag: "EditText",
+            blockId: block.id,
+            from: 28,
+            to: 29,
+            insert: " today.",
+          },
+        })
+        assert.deepStrictEqual(yield* Fiber.join(seen), [
+          "I recorded a [[voice note]].",
+          "We recorded a [[voice note]].",
+          "We recorded a [[voice note]] today.",
+        ])
+        assert.strictEqual(
+          (yield* first.GetBlock({ blockId: block.id })).text,
+          "We recorded a [[voice note]] today.",
+        )
+      }),
+    ),
+  )
+
+  it.live("closing one tab leaves the graph to the other, and the last one saves it", () =>
     Effect.scoped(
       Effect.gen(function* () {
         const root = yield* copyOfFixture
-        const firstScope = yield* Scope.make()
-        const first = yield* Scope.provide(coreOn(root), firstScope)
-        yield* first.OpenGraph({ graph: "og-locked" })
-        const second = yield* coreOn(root)
-        const refused = yield* Effect.flip(second.OpenGraph({ graph: "og-locked" }))
-        assert.strictEqual(refused._tag, "GraphLocked")
-        const waiting = yield* Effect.forkChild(
-          second.OpenGraph({ graph: "og-locked", wait: true }),
+        const tab = yield* tabsOn(root)
+        const first = yield* tab(0)
+        const second = yield* tab(1)
+        const closeFirst = yield* holdLock(tabLock("first"))
+        const closeSecond = yield* holdLock(tabLock("second"))
+        const firstAttached = yield* Effect.forkChild(
+          Stream.runDrain(first.Attach({ tab: "first" })),
         )
+        const secondAttached = yield* Effect.forkChild(
+          Stream.runDrain(second.Attach({ tab: "second" })),
+        )
+        const opened = yield* first.OpenGraph({ graph: "og-closing" })
+        yield* second.OpenGraph({ graph: "og-closing" })
+        const tasks = yield* first.GetPage({ pageId: named(opened.pages, "tasks").id })
+        const block = tasks.blocks[2] ?? assert.fail("tasks has no third block")
+        yield* first.Dispatch({
+          command: { _tag: "EditText", blockId: block.id, from: 0, to: 1, insert: "We" },
+        })
+        yield* closeFirst
+        yield* Fiber.join(firstAttached)
+        yield* second.Dispatch({
+          command: { _tag: "EditText", blockId: block.id, from: 28, to: 29, insert: " today." },
+        })
+        assert.strictEqual(
+          (yield* second.GetBlock({ blockId: block.id })).text,
+          "We recorded a [[voice note]] today.",
+        )
+        assert.include(yield* heldLocks, "seqno/graph/og-closing")
+        yield* closeSecond
+        yield* Fiber.join(secondAttached)
+        yield* Effect.scoped(holdLock("seqno/graph/og-closing"))
+
+        const reopened = yield* coreOn(root)
+        yield* reopened.OpenGraph({ graph: "og-closing" })
+        assert.strictEqual(
+          (yield* reopened.GetBlock({ blockId: block.id })).text,
+          "We recorded a [[voice note]] today.",
+        )
+      }),
+    ),
+  )
+
+  it.live("a core of another version takes the graph over once the first one saved it", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const root = yield* copyOfFixture
+        const older = yield* tabsOn(root)
+        const tab = yield* older(0)
+        yield* holdLock(tabLock("older"))
+        const moves = yield* tab
+          .Attach({ tab: "older" })
+          .pipe(Stream.take(1), Stream.runCollect, Effect.forkChild)
+        const opened = yield* tab.OpenGraph({ graph: "og-moved" })
+        const tasks = yield* tab.GetPage({ pageId: named(opened.pages, "tasks").id })
+        const block = tasks.blocks[2] ?? assert.fail("tasks has no third block")
+        yield* tab.Dispatch({
+          command: { _tag: "EditText", blockId: block.id, from: 0, to: 1, insert: "We" },
+        })
+
+        const newer = yield* coreOn(root)
+        yield* newer.OpenGraph({ graph: "og-moved" })
+        assert.strictEqual(
+          (yield* newer.GetBlock({ blockId: block.id })).text,
+          "We recorded a [[voice note]].",
+        )
+        assert.deepStrictEqual(yield* Fiber.join(moves), [{ graph: "og-moved" }])
+        assert.strictEqual((yield* Effect.flip(tab.GetPages()))._tag, "GraphNotOpen")
+      }),
+    ),
+  )
+
+  it.live("a graph an older seqno holds waits until that tab lets go", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const letGo = yield* holdLock("seqno/graph/og-locked")
+        const core = yield* coreOn(yield* copyOfFixture)
+        const refused = yield* Effect.flip(core.OpenGraph({ graph: "og-locked" }))
+        assert.strictEqual(refused._tag, "GraphLocked")
+        const waiting = yield* Effect.forkChild(core.OpenGraph({ graph: "og-locked", wait: true }))
         assert.isTrue(Option.isNone(yield* Fiber.await(waiting).pipe(Effect.timeoutOption(50))))
-        yield* Scope.close(firstScope, Exit.void)
+        yield* letGo
         assert.strictEqual((yield* Fiber.join(waiting)).graph, "og-locked")
       }),
     ),

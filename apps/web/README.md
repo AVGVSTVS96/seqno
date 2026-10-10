@@ -4,17 +4,17 @@ The Vite web app for Chrome and Edge: React UI on the main thread (UI side), and
 
 ## What's inside
 
-| Path                                   | What it holds                                                                                                |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `src/main.tsx`, `src/router.tsx`       | Entry and routes: `/` (journals), `/page/$name?zoom=`, `/all-pages`, `/graphs`, `/search`.                   |
-| `src/atoms.ts`                         | App state through `@effect/atom-react`: the open graph, page list, favorites, theme, sidebars.               |
-| `src/core.ts`                          | `WorkerCore` and `WorkerPages`, the RPC clients for the core worker.                                         |
-| `src/ui/Shell.tsx`, `src/ui/shell/`    | Header, left and right sidebars, menus, dialogs, settings, export, keyboard shortcuts.                       |
-| `src/ui/PageView.tsx`, `src/ui/pages/` | Page title and properties, linked and unlinked references, journals, the all pages table.                    |
-| `src/ui/search/`                       | The Mod+K search palette.                                                                                    |
-| `src/ui/hints/`                        | Tips that point at real controls in the demo graphs, placed in empty space and shown once you are idle.      |
-| `src/ui/EditorSlot.tsx`                | Mounts `@seqno/editor` inside `@seqno/outliner` rows.                                                        |
-| `src/worker/`                          | `RealCore`: serves `CoreRpcs` and `PageRpcs`, takes one Web Lock per graph, runs one session per open graph. |
+| Path                                   | What it holds                                                                                                                                                                      |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main.tsx`, `src/router.tsx`       | Entry and routes: `/` (journals), `/page/$name?zoom=`, `/all-pages`, `/graphs`, `/search`.                                                                                         |
+| `src/atoms.ts`                         | App state through `@effect/atom-react`: the open graph, page list, favorites, theme, sidebars.                                                                                     |
+| `src/core.ts`                          | `WorkerCore` and `WorkerPages`, the RPC clients for the core worker.                                                                                                               |
+| `src/ui/Shell.tsx`, `src/ui/shell/`    | Header, left and right sidebars, menus, dialogs, settings, export, keyboard shortcuts.                                                                                             |
+| `src/ui/PageView.tsx`, `src/ui/pages/` | Page title and properties, linked and unlinked references, journals, the all pages table.                                                                                          |
+| `src/ui/search/`                       | The Mod+K search palette.                                                                                                                                                          |
+| `src/ui/hints/`                        | Tips that point at real controls in the demo graphs, placed in empty space and shown once you are idle.                                                                            |
+| `src/ui/EditorSlot.tsx`                | Mounts `@seqno/editor` inside `@seqno/outliner` rows.                                                                                                                              |
+| `src/worker/`                          | `RealCore`: serves `CoreRpcs` and `PageRpcs`, a SharedWorker every tab talks to; takes one Web Lock per graph, runs one session per open graph for all the tabs that have it open. |
 
 A session (`src/worker/session.ts`) syncs the vault into an empty graph, imports the folder's Logseq markdown when there is no edit log yet, adds today's journal, then saves every 250 ms and syncs every 5 s. Every event batch also goes into the index.
 
@@ -30,7 +30,7 @@ Each demo graph has a content version, set next to its starter in `src/worker/br
 
 The session stamps the version into the graph's folder (`starter-version`). When the shipped version differs from the stamp, it clears the folder and writes the fresh starter, so returning visitors get new content and lose their demo edits. Bump the number whenever a starter changes. Folders you pick never have a starter, so this never touches your own graphs. A demo folder with markdown but no edit log yet (a seeded fixture) is imported as it is and stamped.
 
-Files under `src/worker/` may import core packages; everything else here may not, and starts the worker with `new Worker(new URL(...))`.
+Files under `src/worker/` may import core packages; everything else here may not, and starts the worker with `new SharedWorker(new URL(...))`.
 
 ## Run it
 
