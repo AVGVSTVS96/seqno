@@ -11,9 +11,21 @@ export const GraphLocation = Schema.TaggedUnion({
 })
 export type GraphLocation = typeof GraphLocation.Type
 
-export const demoGraph = "demo"
+export const DemoGraph = Schema.Literals(["demo", "developer"])
+export type DemoGraph = typeof DemoGraph.Type
 
-export const graphTitle = (name: string) => (name === demoGraph ? "Demo" : name)
+export const demoGraph: DemoGraph = "demo"
+
+export const demoGraphs: ReadonlyArray<DemoGraph> = DemoGraph.literals
+
+const demoTitles: Record<DemoGraph, string> = {
+  demo: "Getting started",
+  developer: "Developer graph",
+}
+
+const isDemoGraph = Schema.is(DemoGraph)
+
+export const graphTitle = (name: string) => (isDemoGraph(name) ? demoTitles[name] : name)
 
 export class GraphNotPicked extends Schema.TaggedError<GraphNotPicked>()("GraphNotPicked", {
   reason: Schema.String,
@@ -24,7 +36,7 @@ export class GraphLocations extends Context.Service<
   {
     readonly recent: Effect.Effect<ReadonlyArray<GraphLocation>>
     readonly pickFolder: Effect.Effect<GraphLocation, GraphNotPicked>
-    readonly demo: Effect.Effect<GraphLocation, GraphNotPicked>
+    readonly demo: (name: DemoGraph) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly reopen: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly resume: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly forget: (name: string) => Effect.Effect<void>
@@ -124,14 +136,15 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
     try: () => window.showDirectoryPicker({ id: "seqno-graph", mode: "readwrite" }),
     catch: notPicked,
   }).pipe(Effect.flatMap((handle) => save({ _tag: "FolderGraph", name: handle.name, handle }))),
-  demo: Effect.tryPromise({
-    try: async () => {
-      const root = await navigator.storage.getDirectory()
-      const folder = await root.getDirectoryHandle("graphs", { create: true })
-      await folder.getDirectoryHandle(demoGraph, { create: true })
-    },
-    catch: notPicked,
-  }).pipe(Effect.flatMap(() => save({ _tag: "OpfsGraph", name: demoGraph }))),
+  demo: (name) =>
+    Effect.tryPromise({
+      try: async () => {
+        const root = await navigator.storage.getDirectory()
+        const folder = await root.getDirectoryHandle("graphs", { create: true })
+        await folder.getDirectoryHandle(name, { create: true })
+      },
+      catch: notPicked,
+    }).pipe(Effect.flatMap(() => save({ _tag: "OpfsGraph", name }))),
   reopen: (name) =>
     Effect.flatMap(stored(name), (location) =>
       permitted(location, (handle) => handle.requestPermission({ mode: "readwrite" })),

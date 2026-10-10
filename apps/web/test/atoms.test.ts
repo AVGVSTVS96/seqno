@@ -126,7 +126,7 @@ const inBrowser = (name: string): GraphLocation => ({ _tag: "OpfsGraph", name })
 const DemoLocations = Layer.succeed(GraphLocations, {
   recent: Effect.succeed([]),
   pickFolder: Effect.succeed(inBrowser("notes")),
-  demo: Effect.succeed(inBrowser("demo")),
+  demo: (name) => Effect.succeed(inBrowser(name)),
   reopen: (name) => Effect.succeed(inBrowser(name)),
   resume: (name) => Effect.succeed(inBrowser(name)),
   forget: () => Effect.void,
@@ -150,7 +150,7 @@ describe("app atoms", () => {
       const registry = testRegistry(entries)
       registry.mount(journals)
       registry.mount(favorites)
-      registry.set(openGraph, { _tag: "Demo" })
+      registry.set(openGraph, { _tag: "Demo", name: "demo" })
       yield* settle
       const opened = registry.get(openGraph)
       assert.deepStrictEqual(AsyncResult.isSuccess(opened) ? opened.value : null, {
@@ -182,7 +182,7 @@ describe("app atoms", () => {
     Effect.gen(function* () {
       const entries = new Map<string, string>()
       const first = testRegistry(entries)
-      assert.deepStrictEqual(startingGraph(first.get(lastGraph)), { _tag: "Demo" })
+      assert.deepStrictEqual(startingGraph(first.get(lastGraph)), { _tag: "Demo", name: "demo" })
       first.mount(openGraph)
       first.set(openGraph, { _tag: "PickFolder" })
       yield* settle

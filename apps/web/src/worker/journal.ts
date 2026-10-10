@@ -9,6 +9,18 @@ export const journalDayOf = (millis: number): JournalDay => {
   return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
 }
 
+export const shiftDay = (day: JournalDay, days: number): JournalDay =>
+  journalDayOf(
+    new Date(
+      Math.floor(day / 10000),
+      (Math.floor(day / 100) % 100) - 1,
+      (day % 100) + days,
+    ).getTime(),
+  )
+
+export const journalFile = (day: JournalDay) =>
+  `journals/${formatJournalDay(day, defaultConfig.journalFileFormat)}.md`
+
 export const todaysJournal = (graph: Graph["Service"]) =>
   Effect.gen(function* () {
     const today = journalDayOf(yield* Clock.currentTimeMillis)

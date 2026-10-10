@@ -1,10 +1,6 @@
 import type { JournalDay } from "@seqno/domain"
+import { journalFile } from "./journal.ts"
 import type { StarterFile } from "./place.ts"
-
-const journalFile = (day: JournalDay) => {
-  const text = String(day)
-  return `journals/${text.slice(0, 4)}_${text.slice(4, 6)}_${text.slice(6)}.md`
-}
 
 export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => [
   {
@@ -45,6 +41,15 @@ export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => [
       "- Loose thoughts go here. This page links back to [[Getting started]].",
       "- LATER Plant tomatoes along the south fence #garden",
       "- Mark what matters: ==like this==",
+    ].join("\n"),
+  },
+  {
+    path: "pages/Contents.md",
+    text: [
+      "- This is Contents, a page you write yourself. It stays in the right sidebar (`t r`), so keep the links you want on hand here.",
+      "- [[Getting started]]",
+      "- [[Ideas]]",
+      "- There's a second demo graph, a developer's notes: open the graph menu at the top of the left sidebar and pick Developer graph.",
     ].join("\n"),
   },
 ]

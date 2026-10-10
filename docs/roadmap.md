@@ -11,7 +11,7 @@ web (done) ──▶ hardening (next) ──┬──▶ iOS + iCloud Drive
 
 The web app runs in Chrome and Edge on the real core: a Loro edit log, a SQLite index, and Logseq import.
 
-- **Graphs.** Open a Logseq folder with the folder picker, or a local demo graph kept in the browser. The first open imports the markdown; after that, edits save to the edit log every 250 ms and survive a reload. Each graph opens in one tab at a time.
+- **Graphs.** Open a Logseq folder with the folder picker, or one of two demo graphs kept in the browser: a short tour, and a developer's notes that use most of what seqno renders. The first open imports the markdown; after that, edits save to the edit log every 250 ms and survive a reload. Each graph opens in one tab at a time.
 - **Pages.** Journals with today on top (more days load as you scroll), pages, aliases, tag pages, the All pages table, Mod+K full-text search, the right sidebar, favorites and recent pages. Renaming a page rewrites every reference to it.
 - **Outlining.** Enter, Tab and Shift+Tab, drag, multi-block selection, collapse, zoom, moving blocks with keys, and undo and redo one command at a time. Pasting a markdown outline makes blocks.
 - **Blocks.** Tasks and priorities, SCHEDULED and DEADLINE with a date picker, properties as `key:: value` lines, headings, code blocks edited in place, images with resizing, embeds, block references with counts, hover previews, and linked and unlinked references.

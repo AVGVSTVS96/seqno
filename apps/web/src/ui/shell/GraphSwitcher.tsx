@@ -10,34 +10,33 @@ import { useNavigate } from "@tanstack/react-router"
 import { Exit } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { openGraph, recentGraphs, rightSidebar, type GraphSource } from "../../atoms.ts"
-import { demoGraph, graphTitle } from "../../graph-locations.ts"
+import { demoGraphs, graphTitle } from "../../graph-locations.ts"
 import { Menu, MenuItem, usePopover } from "./popover.tsx"
 
-export const GraphSwitcher = ({
-  graph,
-  onSwitch,
-}: {
-  readonly graph: string
-  readonly onSwitch: () => void
-}) => {
+export const useSwitchGraph = () => {
+  const open = useAtomSet(openGraph, { mode: "promiseExit" })
+  const updateSidebar = useAtomSet(rightSidebar)
+  const navigate = useNavigate()
+  return (source: GraphSource) =>
+    void open(source).then((exit) => {
+      if (!Exit.isSuccess(exit)) return
+      updateSidebar({ _tag: "Clear" })
+      void navigate({ to: "/" })
+    })
+}
+
+export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
   const refreshRecent = useAtomRefresh(recentGraphs)
   const others = AsyncResult.getOrElse(useAtomValue(recentGraphs), () => []).filter(
     (location) => location.name !== graph,
   )
-  const open = useAtomSet(openGraph, { mode: "promiseExit" })
-  const updateSidebar = useAtomSet(rightSidebar)
+  const switchTo = useSwitchGraph()
   const navigate = useNavigate()
   const menu = usePopover({
     placement: { align: "start", gap: 4, inset: 8 },
     kind: "menu",
     onOpen: refreshRecent,
   })
-  const switchTo = (source: GraphSource) =>
-    void open(source).then((exit) => {
-      if (!Exit.isSuccess(exit)) return
-      updateSidebar({ _tag: "Clear" })
-      onSwitch()
-    })
   return (
     <div className="graph-switcher">
       <button type="button" className="graph-switcher-trigger" {...menu.trigger}>
@@ -68,14 +67,17 @@ export const GraphSwitcher = ({
           >
             Open a folder
           </MenuItem>
-          {graph === demoGraph || others.some((location) => location.name === demoGraph) ? null : (
-            <MenuItem
-              icon={<IconDatabase size={18} aria-hidden />}
-              onSelect={() => switchTo({ _tag: "Demo" })}
-            >
-              Demo graph
-            </MenuItem>
-          )}
+          {demoGraphs
+            .filter((name) => name !== graph && !others.some((location) => location.name === name))
+            .map((name) => (
+              <MenuItem
+                key={name}
+                icon={<IconDatabase size={18} aria-hidden />}
+                onSelect={() => switchTo({ _tag: "Demo", name })}
+              >
+                {graphTitle(name)}
+              </MenuItem>
+            ))}
           <MenuItem
             icon={<IconApps size={18} aria-hidden />}
             onSelect={() => void navigate({ to: "/graphs" })}

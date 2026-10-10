@@ -1,11 +1,17 @@
 import { Clock, Crypto, Effect, Layer, Option, Schema } from "effect"
-import { DeviceId } from "@seqno/domain"
+import { DeviceId, type JournalDay } from "@seqno/domain"
 import { layerWasmMemory } from "@seqno/index/wasm"
 import { directoryStorage } from "@seqno/vault"
 import { demoGraph } from "./demo.ts"
+import { developerGraph } from "./developer.ts"
 import { journalDayOf } from "./journal.ts"
 import { GraphLocation, GraphLocations } from "./locations.ts"
-import { Device, GraphPlaces, Identity } from "./place.ts"
+import { Device, GraphPlaces, Identity, type StarterFile } from "./place.ts"
+
+const starters = new Map<string, (today: JournalDay) => ReadonlyArray<StarterFile>>([
+  ["demo", demoGraph],
+  ["developer", developerGraph],
+])
 
 const opfsFolder = (path: ReadonlyArray<string>) =>
   Effect.promise(() =>
@@ -27,8 +33,9 @@ export const BrowserGraphPlaces = Layer.effect(
               OpfsGraph: ({ name }) =>
                 Effect.all({
                   handle: opfsFolder(["graphs", name]),
-                  starter: Effect.map(Clock.currentTimeMillis, (now) =>
-                    demoGraph(journalDayOf(now)),
+                  starter: Effect.map(
+                    Clock.currentTimeMillis,
+                    (now) => starters.get(name)?.(journalDayOf(now)) ?? [],
                   ),
                 }),
             }),

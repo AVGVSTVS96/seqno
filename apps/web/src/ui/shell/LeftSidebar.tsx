@@ -8,7 +8,7 @@ import {
   IconLayoutSidebarRight,
   IconStarOff,
 } from "@tabler/icons-react"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import type { Page } from "@seqno/domain"
 import { favorites, leftSidebarOpen, rightSidebar, toggleFavorite } from "../../atoms.ts"
@@ -187,7 +187,6 @@ const Recent = ({ graph }: { readonly graph: string }) => {
 export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
   const open = useAtomValue(leftSidebarOpen)
   const [width, setWidth] = useAtom(leftSidebarWidth)
-  const navigate = useNavigate()
   return (
     <aside
       className="left-sidebar"
@@ -199,7 +198,7 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
       <div className="left-sidebar-inner">
         <div className="left-sidebar-wrap">
           <div className="left-sidebar-header">
-            <GraphSwitcher graph={graph} onSwitch={() => void navigate({ to: "/" })} />
+            <GraphSwitcher graph={graph} />
             <Group title="Navigations" group={null}>
               <nav className="sidebar-nav" aria-label="Navigations">
                 <NavItem

@@ -7,7 +7,7 @@ import { BlockId, normalizePageName, type Command, type Page } from "@seqno/doma
 import { editRequest, pageListKey } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
 import { WorkerCore } from "./core.ts"
-import { BrowserGraphLocations, GraphLocations } from "./graph-locations.ts"
+import { BrowserGraphLocations, DemoGraph, demoGraph, GraphLocations } from "./graph-locations.ts"
 
 export type AppServices = CoreClient | GraphLocations
 
@@ -21,7 +21,7 @@ const pagesKey = pageListKey
 
 export const GraphSource = Schema.TaggedUnion({
   PickFolder: {},
-  Demo: {},
+  Demo: { name: DemoGraph },
   Recent: { name: Schema.NonEmptyString },
   Resume: { name: Schema.NonEmptyString },
 })
@@ -48,7 +48,7 @@ export const graphsOpenedAt = Atom.kvs({
 }).pipe(Atom.keepAlive)
 
 export const startingGraph = (last: string | null): GraphSource =>
-  last === null ? { _tag: "Demo" } : { _tag: "Resume", name: last }
+  last === null ? { _tag: "Demo", name: demoGraph } : { _tag: "Resume", name: last }
 
 export const recentGraphs = appRuntime.atom(
   Effect.flatMap(Effect.service(GraphLocations), (locations) => locations.recent),
@@ -70,7 +70,7 @@ export const openGraph = appRuntime
       const locations = yield* GraphLocations
       const location = yield* GraphSource.match(source, {
         PickFolder: () => locations.pickFolder,
-        Demo: () => locations.demo,
+        Demo: ({ name }) => locations.demo(name),
         Recent: ({ name }) => locations.reopen(name),
         Resume: ({ name }) => locations.resume(name),
       })

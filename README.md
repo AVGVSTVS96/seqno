@@ -58,7 +58,7 @@ Early. The web app runs in Chrome and Edge. Hardening comes next, then iOS and d
 
 ## Try it
 
-Open **[seqno-app.vercel.app](https://seqno-app.vercel.app)** in Chrome or Edge. A demo graph opens, and everything you type stays in your browser.
+Open **[seqno-app.vercel.app](https://seqno-app.vercel.app)** in Chrome or Edge. The Getting started tour opens, and everything you type stays in your browser. A second demo graph, a developer's notes, is in the graph menu at the top of the left sidebar.
 
 To run it yourself, with Node 24 and pnpm:
 

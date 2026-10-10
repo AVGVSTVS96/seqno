@@ -29,7 +29,7 @@ export const seqnoPage = async (browser: Browser, options: SeqnoOptions) => {
 
 export const openSeqno = async (page: Page, path: string, blocks = true) => {
   await page.goto(path)
-  const openDemo = page.getByRole("button", { name: "Open the demo graph" })
+  const openDemo = page.getByRole("button", { name: "Open Getting started" })
   const app = page.getByRole("main")
   await openDemo.or(app).first().waitFor({ timeout: 30_000 })
   if (await openDemo.isVisible()) await openDemo.click()

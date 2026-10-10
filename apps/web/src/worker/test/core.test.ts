@@ -3,15 +3,29 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, describe, it } from "@effect/vitest"
-import { Crypto, Deferred, Effect, Exit, Fiber, Layer, Option, Queue, Scope, Stream } from "effect"
+import {
+  Clock,
+  Crypto,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Option,
+  Queue,
+  Scope,
+  Stream,
+} from "effect"
 import { RpcTest } from "effect/rpc"
 import { DeviceId } from "@seqno/domain"
 import { layerNode } from "@seqno/index/node"
 import { CoreRpcs, PageRpcs } from "@seqno/rpc"
 import { nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
+import { developerGraph } from "../developer.ts"
+import { journalDayOf } from "../journal.ts"
 import { layerWebLocks } from "../lock.ts"
-import { Device, GraphPlaces } from "../place.ts"
+import { Device, GraphPlaces, type StarterFile } from "../place.ts"
 
 const fixture = fileURLToPath(
   new URL("../../../../../fixtures/graphs/og-syntax-mix/", import.meta.url),
@@ -25,14 +39,14 @@ const WebCrypto = Layer.succeed(
   }),
 )
 
-const coreOn = (root: string) =>
+const coreOn = (root: string, starter: ReadonlyArray<StarterFile> = []) =>
   Effect.gen(function* () {
     const handlers = yield* Layer.build(
       RealCore.pipe(
         Layer.provide(
           Layer.succeed(GraphPlaces, {
             open: () =>
-              Effect.succeed({ storage: nodeStorage(root), sqlite: layerNode(), starter: [] }),
+              Effect.succeed({ storage: nodeStorage(root), sqlite: layerNode(), starter }),
           }),
         ),
         Layer.provide(Layer.succeed(Device, { device: DeviceId.make("laptop"), peer: "42" })),
@@ -49,10 +63,95 @@ const copyOfFixture = Effect.promise(async () => {
   return root
 })
 
+const emptyFolder = Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-starter-")))
+
 const named = <A extends { readonly title: string }>(items: ReadonlyArray<A>, title: string) =>
   items.find((item) => item.title === title) ?? assert.fail(`no page titled ${title}`)
 
 describe("the core worker on the real graph, vault and index", () => {
+  it.effect(
+    "the developer demo graph imports whole, its block refs resolve and its queries match",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const today = journalDayOf(yield* Clock.currentTimeMillis)
+          const core = yield* coreOn(yield* emptyFolder, developerGraph(today))
+          const opened = yield* core.OpenGraph({ graph: "developer" })
+          assert.deepStrictEqual(
+            opened.pages
+              .filter((page) => page.journalDay === null)
+              .map((page) => page.title)
+              .toSorted(),
+            [
+              "About this graph",
+              "CRDTs",
+              "Contents",
+              "Emil Kowalski",
+              "Martin Kleppmann",
+              "Theo Browne",
+              "Wes Billman",
+              "dark mode",
+              "motion design",
+              "naming",
+              "open source",
+              "people",
+              "projects/brand-it",
+              "projects/commonplace",
+              "projects/hex",
+              "projects/prompt-picker",
+              "projects/react-shiki",
+              "projects/seqno",
+              "projects/seqno/numbers",
+              "prompting",
+              "reading",
+              "review",
+              "snippets",
+            ],
+          )
+          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 18)
+          const blocks = (yield* Effect.forEach(opened.pages, (page) =>
+            core.GetPage({ pageId: page.id }),
+          )).flatMap((tree) => tree.blocks)
+          const ids = new Set(blocks.flatMap((block) => [block.id, block.props["id"] ?? ""]))
+          const refs = blocks.flatMap((block) =>
+            [...block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/g)].map((match) => match[1] ?? ""),
+          )
+          assert.strictEqual(refs.length, 8)
+          assert.deepStrictEqual(
+            refs.filter((ref) => !ids.has(ref)),
+            [],
+          )
+          const texts = (query: string) =>
+            core.WatchQuery({ query }).pipe(
+              Stream.take(1),
+              Stream.runCollect,
+              Effect.map((results) =>
+                results.flatMap((result) =>
+                  result._tag === "BlockRows" ? result.blocks.map((block) => block.text) : [],
+                ),
+              ),
+            )
+          assert.deepStrictEqual((yield* texts("{{query (task NOW DOING)}}")).toSorted(), [
+            "DOING go through every hex instruction file for only/never [[projects/hex]]",
+            "NOW seqno lazy open, first step of hardening [[projects/seqno]]",
+          ])
+          assert.deepStrictEqual(
+            (yield* texts("{{query (and [[decision]] [[seqno]])}}"))
+              .filter((text) => text.includes("#decision"))
+              .map((text) => text.slice(0, text.indexOf(" #decision")))
+              .toSorted(),
+            [
+              "Loro is the source of truth, markdown is the mirror",
+              "SQLite is a cache: `journal_mode=memory`, `synchronous=off`",
+              "desktop = Electron",
+              "one writer per file in the synced folder. delete only after another device confirms the snapshot",
+              "queries: Logseq syntax first, Dataview second",
+            ],
+          )
+        }),
+      ),
+  )
+
   it.effect("imports a Logseq folder on first open and writes its first update file", () =>
     Effect.scoped(
       Effect.gen(function* () {

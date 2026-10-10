@@ -3,7 +3,8 @@ import { IconDots } from "@tabler/icons-react"
 import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
 import { attemptedGraph, forgetGraph, graphsOpenedAt, openGraph, recentGraphs } from "../atoms.ts"
-import { demoGraph, graphTitle, type GraphLocation } from "../graph-locations.ts"
+import { demoGraph, demoGraphs, graphTitle, type GraphLocation } from "../graph-locations.ts"
+import { useSwitchGraph } from "./shell/GraphSwitcher.tsx"
 import { Menu, MenuItem, usePopover } from "./shell/popover.tsx"
 
 const openedOn = (at: number) =>
@@ -18,7 +19,7 @@ const GraphRow = ({
   readonly openedAt: number | undefined
   readonly disabled: boolean
 }) => {
-  const open = useAtomSet(openGraph)
+  const open = useSwitchGraph()
   const forget = useAtomSet(forgetGraph)
   const menu = usePopover({ placement: { align: "end", gap: 4, inset: 8 }, kind: "menu" })
   const title = graphTitle(location.name)
@@ -83,7 +84,7 @@ const RecentGraphs = ({ disabled }: { readonly disabled: boolean }) => {
 }
 
 export const AllGraphs = ({ problem }: { readonly problem: string | null }) => {
-  const open = useAtomSet(openGraph)
+  const open = useSwitchGraph()
   const opening = AsyncResult.isWaiting(useAtomValue(openGraph))
   return (
     <div className="welcome-main">
@@ -98,14 +99,17 @@ export const AllGraphs = ({ problem }: { readonly problem: string | null }) => {
         >
           Open a folder
         </button>
-        <button
-          type="button"
-          className="button-secondary"
-          disabled={opening}
-          onClick={() => open({ _tag: "Demo" })}
-        >
-          Open the demo graph
-        </button>
+        {demoGraphs.map((name) => (
+          <button
+            key={name}
+            type="button"
+            className="button-secondary"
+            disabled={opening}
+            onClick={() => open({ _tag: "Demo", name })}
+          >
+            Open {graphTitle(name)}
+          </button>
+        ))}
       </div>
       {problem === null ? null : (
         <p className="welcome-problem" role="alert">
@@ -119,7 +123,7 @@ export const AllGraphs = ({ problem }: { readonly problem: string | null }) => {
 
 export const OpenFailed = ({ problem }: { readonly problem: string }) => {
   const attempted = useAtomValue(attemptedGraph)
-  const open = useAtomSet(openGraph)
+  const open = useSwitchGraph()
   const opening = AsyncResult.isWaiting(useAtomValue(openGraph))
   return (
     <div className="seqno-all-graphs">
@@ -147,9 +151,9 @@ export const OpenFailed = ({ problem }: { readonly problem: string }) => {
               type="button"
               className="button-secondary"
               disabled={opening}
-              onClick={() => open({ _tag: "Demo" })}
+              onClick={() => open({ _tag: "Demo", name: demoGraph })}
             >
-              Open the demo graph
+              Open {graphTitle(demoGraph)}
             </button>
           )}
         </div>
