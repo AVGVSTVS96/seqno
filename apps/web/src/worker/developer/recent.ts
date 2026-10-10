@@ -167,8 +167,8 @@ export const recent = (d: Days): ReadonlyArray<StarterFile> => [
   ),
   d.journal(
     -25,
-    "- found why a big downstream app dropped our code blocks: every remount re-tokenized on the main thread #bug [[projects/react-shiki]]",
-    "\t- they wrote their own LRU cache. that cache should live in react-shiki",
+    "- every remount re-tokenizes on the main thread, so long chats re-highlight the same blocks over and over #bug [[projects/react-shiki]]",
+    "\t- a cache should live in react-shiki, not in every app that uses it",
     "- TODO [#B] built-in highlight cache for react-shiki, keyed by code + lang + theme",
     `  id:: ${ids.cache}`,
     `  SCHEDULED: ${d.stamp(2)}`,
@@ -176,8 +176,6 @@ export const recent = (d: Days): ReadonlyArray<StarterFile> => [
   d.journal(
     -27,
     "- react-shiki 0.11 out, just dependency bumps [[projects/react-shiki]]",
-    "- downloads look huge but ~70% is one app pinned to 0.9.3. organic is flat around 110k a week",
-    "\t- the number to watch is the organic line, not the total",
   ),
 
   d.journal(
