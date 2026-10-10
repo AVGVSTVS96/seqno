@@ -3,9 +3,9 @@ import { GraphEvent, PageId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
 import { LogseqSyntaxLive, importGraph } from "@seqno/interop"
-import { Storage, Vault, layer as vaultLayer } from "@seqno/vault"
+import { Entry, Storage, Vault, layer as vaultLayer, type StorageFailed } from "@seqno/vault"
 import { todaysJournal } from "./journal.ts"
-import { Device, layerFolder, type GraphPlace } from "./place.ts"
+import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 
 export interface Session {
   readonly graph: Graph["Service"]
@@ -35,6 +35,57 @@ WHERE b.id IN (SELECT value FROM json_each(?))`
 
 const logged = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.asVoid(Effect.catchCause(effect, (cause) => Effect.logError(cause)))
+
+const starterStamp = "starter-version"
+const decodeStamp = Schema.decodeUnknownOption(Schema.FiniteFromString)
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
+
+const stampOf = (storage: Storage["Service"]) =>
+  storage.read(starterStamp).pipe(
+    Effect.map((bytes) => decodeStamp(decoder.decode(bytes))),
+    Effect.catchTag("FileUnavailable", () => Effect.succeedNone),
+  )
+
+const hasEditLog = (storage: Storage["Service"]) =>
+  Effect.map(
+    Effect.all([storage.list("updates"), storage.list("snapshots")]),
+    ([updates, snapshots]) => updates.length + snapshots.length > 0,
+  )
+
+const removeFiles = (
+  storage: Storage["Service"],
+  dir: string,
+): Effect.Effect<void, StorageFailed> =>
+  Effect.flatMap(storage.list(dir), (entries) =>
+    Effect.forEach(
+      entries,
+      (entry) => {
+        const path = dir === "" ? entry.name : `${dir}/${entry.name}`
+        return Entry.$match(entry, {
+          File: () => storage.remove(path),
+          Directory: () => removeFiles(storage, path),
+        })
+      },
+      { discard: true },
+    ),
+  )
+
+const layStarter = (storage: Storage["Service"], starter: Starter) =>
+  Effect.gen(function* () {
+    const stamp = yield* stampOf(storage)
+    if (Option.contains(stamp, starter.version)) return
+    const stale = Option.isSome(stamp) || (yield* hasEditLog(storage))
+    if (stale) yield* removeFiles(storage, "")
+    if (stale || (yield* storage.list("")).length === 0) {
+      yield* Effect.forEach(
+        starter.files,
+        (file) => storage.write(file.path, encoder.encode(file.text)),
+        { discard: true },
+      )
+    }
+    yield* storage.write(starterStamp, encoder.encode(String(starter.version)))
+  })
 
 export const openSession = (
   place: GraphPlace,
@@ -84,12 +135,7 @@ export const openSession = (
     })
     const save = graph.flush((update) => vault.writeUpdate(update.bytes))
 
-    const fresh = (yield* place.storage.list("")).length === 0
-    if (fresh) {
-      yield* Effect.forEach(place.starter, (file) =>
-        place.storage.write(file.path, new TextEncoder().encode(file.text)),
-      )
-    }
+    if (place.starter !== null) yield* layStarter(place.storage, place.starter)
     const opened = yield* vault.sync(replica)
     if (opened.merged.length === 0 && opened.waiting.length === 0) {
       const imported = yield* importGraph.pipe(

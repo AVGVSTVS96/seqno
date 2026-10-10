@@ -6,11 +6,14 @@ import { demoGraph } from "./demo.ts"
 import { developerGraph } from "./developer.ts"
 import { journalDayOf } from "./journal.ts"
 import { GraphLocation, GraphLocations } from "./locations.ts"
-import { Device, GraphPlaces, Identity, type StarterFile } from "./place.ts"
+import { Device, GraphPlaces, Identity, type Starter, type StarterFile } from "./place.ts"
 
-const starters = new Map<string, (today: JournalDay) => ReadonlyArray<StarterFile>>([
-  ["demo", demoGraph],
-  ["developer", developerGraph],
+const starters = new Map<
+  string,
+  { readonly version: number; readonly files: (today: JournalDay) => ReadonlyArray<StarterFile> }
+>([
+  ["demo", { version: 1, files: demoGraph }],
+  ["developer", { version: 1, files: developerGraph }],
 ])
 
 const opfsFolder = (path: ReadonlyArray<string>) =>
@@ -29,14 +32,16 @@ export const BrowserGraphPlaces = Layer.effect(
         Effect.flatMap(locations.resolve(graph), (location) =>
           Effect.map(
             GraphLocation.match(location, {
-              FolderGraph: ({ handle }) => Effect.succeed({ handle, starter: [] }),
+              FolderGraph: ({ handle }) => Effect.succeed({ handle, starter: null }),
               OpfsGraph: ({ name }) =>
                 Effect.all({
                   handle: opfsFolder(["graphs", name]),
-                  starter: Effect.map(
-                    Clock.currentTimeMillis,
-                    (now) => starters.get(name)?.(journalDayOf(now)) ?? [],
-                  ),
+                  starter: Effect.map(Clock.currentTimeMillis, (now): Starter | null => {
+                    const starter = starters.get(name)
+                    return starter === undefined
+                      ? null
+                      : { version: starter.version, files: starter.files(journalDayOf(now)) }
+                  }),
                 }),
             }),
             ({ handle, starter }) => ({

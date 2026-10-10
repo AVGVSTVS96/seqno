@@ -10,10 +10,15 @@ export interface StarterFile {
   readonly text: string
 }
 
+export interface Starter {
+  readonly version: number
+  readonly files: ReadonlyArray<StarterFile>
+}
+
 export interface GraphPlace {
   readonly storage: Storage["Service"]
   readonly sqlite: Layer.Layer<Sqlite, IndexError>
-  readonly starter: ReadonlyArray<StarterFile>
+  readonly starter: Starter | null
 }
 
 export class GraphPlaces extends Context.Service<

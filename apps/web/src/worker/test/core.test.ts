@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readdir } from "node:fs/promises"
+import { cp, mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -25,7 +25,7 @@ import { RealCore } from "../core.ts"
 import { developerGraph } from "../developer.ts"
 import { journalDayOf } from "../journal.ts"
 import { layerWebLocks } from "../lock.ts"
-import { Device, GraphPlaces, type StarterFile } from "../place.ts"
+import { Device, GraphPlaces, type Starter } from "../place.ts"
 
 const fixture = fileURLToPath(
   new URL("../../../../../fixtures/graphs/og-syntax-mix/", import.meta.url),
@@ -39,7 +39,7 @@ const WebCrypto = Layer.succeed(
   }),
 )
 
-const coreOn = (root: string, starter: ReadonlyArray<StarterFile> = []) =>
+const coreOn = (root: string, starter: Starter | null = null) =>
   Effect.gen(function* () {
     const handlers = yield* Layer.build(
       RealCore.pipe(
@@ -65,6 +65,36 @@ const copyOfFixture = Effect.promise(async () => {
 
 const emptyFolder = Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-starter-")))
 
+const tour = (version: number, line: string): Starter => ({
+  version,
+  files: [{ path: "pages/Welcome.md", text: `- ${line}` }],
+})
+
+const welcomeOn = (root: string, starter: Starter | null) =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const core = yield* coreOn(root, starter)
+      const opened = yield* core.OpenGraph({ graph: "demo" })
+      const welcome = opened.pages.find((page) => page.title === "Welcome")
+      if (welcome === undefined) return opened.pages.map((page) => page.title).toSorted()
+      return (yield* core.GetPage({ pageId: welcome.id })).blocks.map((block) => block.text)
+    }),
+  )
+
+const editWelcome = (root: string, starter: Starter) =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const core = yield* coreOn(root, starter)
+      const opened = yield* core.OpenGraph({ graph: "demo" })
+      const welcome = yield* core.GetPage({ pageId: named(opened.pages, "Welcome").id })
+      const first = welcome.blocks[0] ?? assert.fail("Welcome has no block")
+      yield* core.Dispatch({
+        command: { _tag: "EditText", blockId: first.id, from: 0, to: 0, insert: "my " },
+      })
+      yield* core.OpenGraph({ graph: "demo" })
+    }),
+  )
+
 const named = <A extends { readonly title: string }>(items: ReadonlyArray<A>, title: string) =>
   items.find((item) => item.title === title) ?? assert.fail(`no page titled ${title}`)
 
@@ -75,7 +105,10 @@ describe("the core worker on the real graph, vault and index", () => {
       Effect.scoped(
         Effect.gen(function* () {
           const today = journalDayOf(yield* Clock.currentTimeMillis)
-          const core = yield* coreOn(yield* emptyFolder, developerGraph(today))
+          const core = yield* coreOn(yield* emptyFolder, {
+            version: 1,
+            files: developerGraph(today),
+          })
           const opened = yield* core.OpenGraph({ graph: "developer" })
           assert.deepStrictEqual(
             opened.pages
@@ -190,6 +223,45 @@ describe("the core worker on the real graph, vault and index", () => {
         )
       }),
     ),
+  )
+
+  it.effect(
+    "a demo graph keeps a visitor's edits until newer content ships, then starts over",
+    () =>
+      Effect.gen(function* () {
+        const root = yield* emptyFolder
+        yield* editWelcome(root, tour(1, "first tour"))
+        assert.deepStrictEqual(yield* welcomeOn(root, tour(1, "first tour")), ["my first tour"])
+        assert.deepStrictEqual(yield* welcomeOn(root, tour(2, "second tour")), ["second tour"])
+        assert.deepStrictEqual(yield* welcomeOn(root, tour(2, "second tour")), ["second tour"])
+      }),
+  )
+
+  it.effect("a demo graph opened before content versions existed starts over once", () =>
+    Effect.gen(function* () {
+      const root = yield* emptyFolder
+      yield* Effect.promise(async () => {
+        await mkdir(join(root, "pages"))
+        await writeFile(join(root, "pages", "Welcome.md"), "- old tour")
+      })
+      assert.deepStrictEqual(yield* welcomeOn(root, null), ["old tour"])
+      assert.deepStrictEqual(yield* welcomeOn(root, tour(1, "new tour")), ["new tour"])
+    }),
+  )
+
+  it.effect("a folder of markdown with no edit log yet is imported as it is, not replaced", () =>
+    Effect.gen(function* () {
+      const root = yield* emptyFolder
+      yield* Effect.promise(async () => {
+        await mkdir(join(root, "pages"))
+        await writeFile(join(root, "pages", "Garden.md"), "- beds run north to south")
+      })
+      const titles = yield* welcomeOn(root, tour(1, "tour"))
+      assert.deepStrictEqual(
+        titles.filter((title) => !/\d{4}$/.test(title)),
+        ["Garden"],
+      )
+    }),
   )
 
   it.effect("an edit survives closing and reopening the graph", () =>
