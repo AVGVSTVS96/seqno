@@ -113,7 +113,6 @@ export const topics = (d: Days): ReadonlyArray<StarterFile> => [
     `\t- Switzerland's seven presidents: ${dated(20260619)}`,
     `\t- ${yt("How Switzerland Engineered the Perfect Country", "OMbV1rIPhCg")}, Johnny Harris, Jun 2026`,
     `\t- Venice's Doge election: ${dated(20260811)}`,
-    "\t- ![the Doge selection chain](https://pbs.twimg.com/media/HPee_lnawAAdipq.jpg)",
     "- [[history]]",
   ),
   page(

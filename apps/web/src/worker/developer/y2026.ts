@@ -172,7 +172,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
   ),
   on(
     20260704,
-    "- next day: no layer at all. react-shiki's defaults are unlayered `:where()` rules #decision #react-shiki",
+    "- no layer at all: react-shiki's defaults are unlayered `:where()` rules #decision #react-shiki",
     `  id:: ${ids.whereStyles}`,
     "\t- layer priority is fixed by whichever stylesheet declares it first. our CSS is injected by JS, so apps can't control that, and dev and prod bundled it in different orders",
     "\t- when our layer registered first, Tailwind v4's preflight stripped the padding off every code block",

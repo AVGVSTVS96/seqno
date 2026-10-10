@@ -6,7 +6,7 @@ export const y2023: ReadonlyArray<StarterFile> = [
     20220528,
     `- ${yt("The Most Horrifying Science Fiction Series of All", "2ye02qGiKKY")} [[Quinn's Ideas]] [[sci-fi]]`,
     "\t- this is how I found the Three-Body books. read them right after",
-    "\t- basically the reason I want to live to 1,000",
+    "\t- the Three-Body books are basically the reason I want to live to 1,000",
     `\t  id:: ${ids.thousandYears}`,
     `\t- ${video("2ye02qGiKKY")}`,
   ),
