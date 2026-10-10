@@ -9,12 +9,12 @@ import {
 } from "@tabler/icons-react"
 import { Cause } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import type { Block, Page, PageId } from "@seqno/domain"
+import type { Block, BlockId, Page, PageId } from "@seqno/domain"
 import type { QueryResult } from "@seqno/rpc"
 import { plainText } from "@seqno/syntax"
 import { pageTreeAtom, queryAtom } from "./core.ts"
 import { Inlines } from "./Inline.tsx"
-import { clickOnEnter, contentOf, RenderContext, toPage } from "./render.ts"
+import { clickOnEnter, contentOf, HostBlock, RenderContext, toPage } from "./render.ts"
 
 type Sexp = string | ReadonlyArray<Sexp>
 
@@ -232,6 +232,11 @@ export const BlockGroups = ({ blocks }: { readonly blocks: ReadonlyArray<Block> 
   </div>
 )
 
+const withoutHost = (result: QueryResult, host: BlockId | null): QueryResult =>
+  result._tag === "BlockRows" && host !== null
+    ? { _tag: "BlockRows", blocks: result.blocks.filter((block) => block.id !== host) }
+    : result
+
 const countOf = (result: QueryResult) =>
   result._tag === "BlockRows" ? result.blocks.length : result.pages.length
 
@@ -294,7 +299,10 @@ const Outcome = ({
 
 export const QueryView = ({ query }: { readonly query: string }) => {
   const [table, setTable] = useState(false)
-  const watched = useAtomValue(queryAtom(query))
+  const host = use(HostBlock)
+  const watched = AsyncResult.map(useAtomValue(queryAtom(query)), (found) =>
+    withoutHost(found, host),
+  )
   const clauses = queryClauses(query)
   const result = AsyncResult.getOrElse(watched, () => null)
   const count = result === null ? 0 : countOf(result)

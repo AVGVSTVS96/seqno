@@ -38,6 +38,7 @@ import { QueryView } from "./Query.tsx"
 import {
   clickOnEnter,
   contentOf,
+  HostBlock,
   RenderContext,
   type EmbedTarget,
   type Renderer,
@@ -736,14 +737,16 @@ const OutlineView = ({
             onIntent={onIntent(block.id)}
           />
         ) : (
-          <BlockView
-            content={content}
-            props={block.props}
-            onMarker={(marker) => setTask(block, marker)}
-            onCode={(start, end, insert) =>
-              dispatch({ _tag: "EditText", blockId: block.id, from: start, to: end, insert })
-            }
-          />
+          <HostBlock value={block.id}>
+            <BlockView
+              content={content}
+              props={block.props}
+              onMarker={(marker) => setTask(block, marker)}
+              onCode={(start, end, insert) =>
+                dispatch({ _tag: "EditText", blockId: block.id, from: start, to: end, insert })
+              }
+            />
+          </HostBlock>
         )}
       </RowView>
     )
