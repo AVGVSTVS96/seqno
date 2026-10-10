@@ -144,22 +144,6 @@
   margin-right: var(--space-1);
 }
 
-.seqno-ref {
-  color: var(--fg-link);
-  text-decoration: none;
-  cursor: pointer;
-  transition: color var(--duration-slow) ease;
-}
-
-.seqno-ref:hover {
-  color: var(--fg-link-hover);
-}
-
-.seqno-ref-bracket {
-  color: var(--fg-bracket);
-  opacity: var(--opacity-bracket);
-}
-
 .seqno-page-create {
   display: flex;
   align-items: center;

@@ -16,7 +16,14 @@ import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
-import { pastedBlocks, plainText, setMarker, type Inline, type Marker } from "@seqno/syntax"
+import {
+  pastedBlocks,
+  plainText,
+  propertyValue,
+  setMarker,
+  type Inline,
+  type Marker,
+} from "@seqno/syntax"
 import { BlockView } from "./BlockView.tsx"
 import { caretFromPoint, hasTextSelection } from "./caret.ts"
 import {
@@ -30,6 +37,7 @@ import {
 } from "./core.ts"
 import { moveCommand, type DropTarget } from "./drop.ts"
 import { historyFocus, historyStep, type Editing, type HistoryStep } from "./history.ts"
+import { Inlines } from "./Inline.tsx"
 import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { BlockRefs } from "./BlockRefs.tsx"
@@ -284,6 +292,36 @@ const EmbedView = ({
   ) : (
     <PageEmbed name={target.name} bare={bare} />
   )
+
+export const PropertyValue = ({
+  name,
+  value,
+  onNavigate,
+  editor = PlainTextEditor,
+  resolveAsset,
+}: Pick<OutlinerProps, "onNavigate" | "editor" | "resolveAsset"> & {
+  readonly name: string
+  readonly value: string
+}) => {
+  const parent = use(RenderContext)
+  return (
+    <RenderContext
+      value={{
+        ...parent,
+        navigate: onNavigate,
+        Embed: EmbedView,
+        Query: QueryView,
+        editor,
+        resolveAsset: resolveAsset ?? parent.resolveAsset,
+      }}
+    >
+      <style href="@seqno/outliner" precedence="default">
+        {styles}
+      </style>
+      <Inlines nodes={propertyValue(name, value)} />
+    </RenderContext>
+  )
+}
 
 const dropZone = (event: DragEvent<HTMLDivElement>, row: Row): DropTarget => {
   const box = event.currentTarget.getBoundingClientRect()

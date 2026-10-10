@@ -1,56 +1,16 @@
-import { RegistryContext, useAtomSet } from "@effect/atom-react"
+import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Effect, Stream } from "effect"
 import { AtomRegistry } from "effect/reactivity"
-import { Fragment, useContext, useState, type ReactNode } from "react"
+import { useContext, useState } from "react"
 import { BlockId, normalizePageName, type Page } from "@seqno/domain"
 import { BlockEditor, createHandoff, type EditorHost } from "@seqno/editor"
-import { analyzeBlock } from "@seqno/syntax"
-import { dispatch, dispatchAll, pages } from "../../atoms.ts"
+import { PropertyValue } from "@seqno/outliner"
+import { assetResolver, dispatch, dispatchAll, pages } from "../../atoms.ts"
+import { EditorSlot } from "../EditorSlot.tsx"
 import { referencedOnly } from "./atoms.ts"
-import { isHiddenPageProp, listValues, visibleProps } from "./model.ts"
+import { isHiddenPageProp, visibleProps } from "./model.ts"
+import { useNavigateTo } from "./navigation.ts"
 import { PageLink } from "./PageLink.tsx"
-
-const listKeys = new Set(["alias", "tags"])
-
-const refTo = (name: string, children: ReactNode) => (
-  <PageLink page={{ name: normalizePageName(name), title: name }} className="seqno-ref">
-    {children}
-  </PageLink>
-)
-
-const InlineValue = ({ value }: { readonly value: string }) => {
-  const parts: Array<ReactNode> = []
-  let at = 0
-  for (const ref of analyzeBlock(value).refs) {
-    if (ref._tag === "BlockRef") continue
-    parts.push(value.slice(at, ref.span.from))
-    parts.push(
-      ref._tag === "PageRef" ? (
-        <span key={ref.span.from}>
-          <span className="seqno-ref-bracket">[[</span>
-          {refTo(ref.name, ref.name)}
-          <span className="seqno-ref-bracket">]]</span>
-        </span>
-      ) : (
-        <Fragment key={ref.span.from}>{refTo(ref.name, `#${ref.name}`)}</Fragment>
-      ),
-    )
-    at = ref.span.to
-  }
-  parts.push(value.slice(at))
-  return <>{parts}</>
-}
-
-const ListValue = ({ value }: { readonly value: string }) => (
-  <>
-    {listValues(value).map((name, index) => (
-      <Fragment key={name}>
-        {index > 0 ? ", " : null}
-        {refTo(name, name)}
-      </Fragment>
-    ))}
-  </>
-)
 
 const handoff = createHandoff()
 
@@ -109,6 +69,8 @@ const PropertiesEditor = ({
 
 export const PageProperties = ({ page }: { readonly page: Page }) => {
   const [editing, setEditing] = useState(false)
+  const navigateTo = useNavigateTo()
+  const resolveAsset = useAtomValue(assetResolver)
   const props = visibleProps(page.props)
   if (props.length === 0) return null
   return (
@@ -136,11 +98,13 @@ export const PageProperties = ({ page }: { readonly page: Page }) => {
                 />
               </dt>
               <dd>
-                {listKeys.has(key.toLowerCase()) ? (
-                  <ListValue value={value} />
-                ) : (
-                  <InlineValue value={value} />
-                )}
+                <PropertyValue
+                  name={key}
+                  value={value}
+                  onNavigate={navigateTo}
+                  editor={EditorSlot}
+                  resolveAsset={resolveAsset}
+                />
               </dd>
             </div>
           ))}

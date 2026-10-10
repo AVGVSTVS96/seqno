@@ -284,6 +284,41 @@ test("page properties are edited as key:: value lines too", async ({ page }) => 
   )
 })
 
+test("page property values render links and markdown like block properties", async ({ page }) => {
+  const folder = await mkdtemp(join(tmpdir(), "seqno-page-properties-"))
+  await mkdir(join(folder, "pages"))
+  await writeFile(
+    join(folder, "pages", "Raised beds.md"),
+    [
+      "type:: [[project]]",
+      "tags:: [[history]], garden",
+      "guide:: [RHS](https://www.rhs.org.uk) on **raised beds**",
+      "",
+      "- Two beds by the fence",
+      "",
+    ].join("\n"),
+  )
+  await seedOpfs(page, folder, ["graphs", "demo"])
+  await rm(folder, { recursive: true })
+  await openDemo(page, "/page/raised%20beds")
+  const properties = page.getByLabel("Page properties")
+  await expect(properties.getByRole("definition")).toHaveText([
+    "project",
+    "history, garden",
+    "RHS on raised beds",
+  ])
+  await expect(properties.getByRole("link", { name: "RHS" })).toHaveAttribute(
+    "href",
+    "https://www.rhs.org.uk",
+  )
+  await expect(properties.locator("strong")).toHaveText("raised beds")
+  await properties.getByRole("link", { name: "project" }).click()
+  await expect(page).toHaveURL(/\/page\/project$/)
+  await page.goBack()
+  await properties.getByRole("link", { name: "garden" }).click()
+  await expect(page).toHaveURL(/\/page\/garden$/)
+})
+
 test("Add to Favorites lists the page in the sidebar and leaves its file alone", async ({
   page,
 }) => {
