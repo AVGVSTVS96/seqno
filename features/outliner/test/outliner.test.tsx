@@ -68,6 +68,7 @@ test("page refs and tags navigate to their page", async () => {
 
 test("the toggle arrow shows on hover and collapsing hides the children", async () => {
   const { core } = await mount(sample)
+  await row("Last").hover()
   await expect.element(page.getByRole("button", { name: "Collapse" })).not.toBeInTheDocument()
   await row("Plan").hover()
   await page.getByRole("button", { name: "Collapse" }).click()
