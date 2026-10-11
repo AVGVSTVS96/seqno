@@ -41,6 +41,7 @@ export {
   SaveState,
   Search,
   SearchHits,
+  SkippedFile,
   WatchBlockRefCounts,
   WatchBlockReferences,
   WatchPage,

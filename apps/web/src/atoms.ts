@@ -5,7 +5,7 @@ import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
 import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
-import { CoreClient } from "@seqno/rpc"
+import { CoreClient, type SkippedFile } from "@seqno/rpc"
 import { WorkerCore, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
 
@@ -68,6 +68,8 @@ export const saveState = appRuntime
 
 export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)
 
+export const importReport = Atom.make<ReadonlyArray<SkippedFile>>([]).pipe(Atom.keepAlive)
+
 export const attemptedGraph = Atom.make<string | null>(null).pipe(Atom.keepAlive)
 
 export const openGraph = appRuntime
@@ -92,6 +94,7 @@ export const openGraph = appRuntime
         ),
       )
       const now = yield* Clock.currentTimeMillis
+      get.set(importReport, opened.skipped)
       get.set(lastGraph, graph)
       get.set(graphsOpenedAt, { ...get.registry.get(graphsOpenedAt), [graph]: now })
       yield* Reactivity.invalidate(pagesKey)

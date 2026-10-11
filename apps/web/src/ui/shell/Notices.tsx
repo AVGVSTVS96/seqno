@@ -1,4 +1,5 @@
 import { useAtom } from "@effect/atom-react"
+import { importReport } from "../../atoms.ts"
 import { IconAlertCircle, IconX } from "@tabler/icons-react"
 import { Atom, type AtomRegistry } from "effect/reactivity"
 
@@ -26,10 +27,43 @@ export const notify = (registry: AtomRegistry.AtomRegistry, message: string) => 
   )
 }
 
+const files = (count: number) => (count === 1 ? "1 file" : `${count} files`)
+
+const ImportReport = () => {
+  const [skipped, setSkipped] = useAtom(importReport)
+  if (skipped.length === 0) return null
+  return (
+    <div className="notice notice-report" role="alert">
+      <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />
+      <div className="notice-message">
+        <p className="notice-title">
+          The import left out or changed {files(new Set(skipped.map((file) => file.path)).size)}
+        </p>
+        <ul className="notice-list">
+          {skipped.map((file) => (
+            <li key={`${file.path} ${file.reason}`}>
+              <code>{file.path}</code> {file.reason}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <button
+        type="button"
+        className="notice-close"
+        aria-label="Close"
+        onClick={() => setSkipped([])}
+      >
+        <IconX size={18} stroke={2} aria-hidden />
+      </button>
+    </div>
+  )
+}
+
 export const Notices = () => {
   const [shown, setShown] = useAtom(notices)
   return (
     <div className="notices" role="status" aria-live="polite">
+      <ImportReport />
       {shown.map((notice) => (
         <div key={notice.id} className="notice">
           <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />

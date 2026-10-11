@@ -86,7 +86,7 @@ const InMemoryCore = CoreRpcs.toLayer(
       })
     return CoreRpcs.of({
       Attach: () => Stream.empty,
-      OpenGraph: ({ graph }) => Effect.as(Ref.set(opened, true), { graph, pages: [] }),
+      OpenGraph: ({ graph }) => Effect.as(Ref.set(opened, true), { graph, pages: [], skipped: [] }),
       Dispatch: ({ command }) => whenOpen(apply(command)),
       DispatchAll: () => rejected,
       GetPages: () =>
@@ -135,6 +135,7 @@ describe("CoreRpcs over the in-memory transport", () => {
       assert.deepStrictEqual(yield* core.OpenGraph({ graph: "notes" }), {
         graph: "notes",
         pages: [],
+        skipped: [],
       })
       const events = yield* core.Dispatch({ command: { _tag: "CreatePage", title: "Project X" } })
       assert.deepStrictEqual(events, [

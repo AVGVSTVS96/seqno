@@ -262,7 +262,7 @@ const SessionsLive = Layer.effect(
         const found = graphs.get(graph)
         if (found !== undefined) {
           found.users.add(client)
-          return found
+          return { shared: found, first: false }
         }
         const shared: Shared = {
           graph,
@@ -280,7 +280,7 @@ const SessionsLive = Layer.effect(
           ),
           scope,
         )
-        return shared
+        return { shared, first: true }
       })
 
     const leave = (client: number, view: View) =>
@@ -329,14 +329,18 @@ const SessionsLive = Layer.effect(
           const now = yield* SubscriptionRef.get(yield* viewOf(client))
           if (now._tag !== "Open" || now.graph !== graph) {
             yield* leave(client, View.Idle())
-            const shared = yield* guarded(join(client, graph, wait))
+            const { shared, first } = yield* guarded(join(client, graph, wait))
             const session = yield* Deferred.await(shared.opened)
             yield* guarded(
               shared.users.has(client) ? show(client, View.Open({ graph, session })) : Effect.void,
             )
-            return { graph, pages: yield* session.graph.pages }
+            return {
+              graph,
+              pages: yield* session.graph.pages,
+              skipped: first ? session.skipped : [],
+            }
           }
-          return { graph, pages: yield* now.session.graph.pages }
+          return { graph, pages: yield* now.session.graph.pages, skipped: [] }
         }),
       current: (client) =>
         Effect.flatMap(viewOf(client), (view) =>

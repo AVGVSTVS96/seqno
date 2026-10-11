@@ -463,6 +463,7 @@ describe("the core worker on the real graph, vault and index", () => {
             "tasks",
             "two-space indent",
           ])
+          assert.deepStrictEqual(opened.skipped, [])
           const journal = yield* core.GetPage({ pageId: named(opened.pages, "Mar 9th, 2025").id })
           assert.deepStrictEqual(
             journal.blocks.map((block) => block.text),
@@ -503,6 +504,27 @@ describe("the core worker on the real graph, vault and index", () => {
       assert.deepStrictEqual(yield* welcomeOn(root, null), ["old tour"])
       assert.deepStrictEqual(yield* welcomeOn(root, tour(1, "new tour")), ["new tour"])
     }),
+  )
+
+  it.effect("the open that imports a folder lists the files it left out, once", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const root = yield* emptyFolder
+        yield* Effect.promise(async () => {
+          await mkdir(join(root, "pages"))
+          await writeFile(join(root, "pages", "Garden.md"), "- beds")
+          await writeFile(join(root, "pages", "garden.md"), "- same name")
+          await writeFile(join(root, "pages", "notes.org"), "* org")
+        })
+        const first = yield* coreOn(root)
+        const opened = yield* first.OpenGraph({ graph: "og" })
+        assert.deepStrictEqual(opened.skipped, [
+          { path: "pages/garden.md", reason: "has the same page name as an earlier file: garden" },
+          { path: "pages/notes.org", reason: "isn't a Markdown page" },
+        ])
+        assert.deepStrictEqual((yield* first.OpenGraph({ graph: "og" })).skipped, [])
+      }),
+    ),
   )
 
   it.effect("a folder of markdown with no edit log yet is imported as it is, not replaced", () =>

@@ -13,8 +13,8 @@ import {
 import { GraphEvent, PageId } from "@seqno/domain"
 import { Graph, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
-import { LogseqSyntaxLive, importGraph } from "@seqno/interop"
-import { SaveState } from "@seqno/rpc"
+import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
+import { SaveState, type SkippedFile } from "@seqno/rpc"
 import { Entry, Storage, Vault, layer as vaultLayer, type StorageFailed } from "@seqno/vault"
 import { todaysJournal } from "./journal.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
@@ -24,8 +24,23 @@ export interface Session {
   readonly index: Index["Service"]
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
+  readonly skipped: ReadonlyArray<SkippedFile>
   readonly record: (events: ReadonlyArray<GraphEvent>) => Effect.Effect<void>
 }
+
+const skippedFile = ImportIssue.match({
+  NotDownloaded: ({ path }) => ({ path, reason: "isn't downloaded from iCloud yet" }),
+  Unreadable: ({ path, reason }) => ({ path, reason: `couldn't be read: ${reason}` }),
+  Unsupported: ({ path }) => ({ path, reason: "isn't a Markdown page" }),
+  DuplicatePage: ({ path, name }) => ({
+    path,
+    reason: `has the same page name as an earlier file: ${name}`,
+  }),
+  DuplicateBlockId: ({ path, id }) => ({
+    path,
+    reason: `repeats the block id ${id}, so that block got a new one`,
+  }),
+})
 
 const reasonOf = (error: unknown): string =>
   typeof error === "object" && error !== null && "reason" in error
@@ -178,9 +193,15 @@ export const openSession = (place: GraphPlace) =>
 
     if (place.starter !== null) yield* layStarter(place.storage, place.starter)
     const opened = yield* vault.sync(replica)
+    const skipped: Array<SkippedFile> = []
     if (opened.merged.length === 0 && opened.waiting.length === 0) {
       const imported = yield* importGraph.pipe(
         Effect.provide(Layer.merge(layerFolder(place.storage), LogseqSyntaxLive)),
+      )
+      skipped.push(
+        ...imported.issues
+          .map(skippedFile)
+          .toSorted((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
       )
       const seeded = yield* graph.seed(imported.pages)
       if (Option.isSome(seeded.update)) yield* vault.writeUpdate(seeded.update.value.bytes)
@@ -195,6 +216,6 @@ export const openSession = (place: GraphPlace) =>
     )
     yield* Effect.addFinalizer(() => logged(save))
 
-    const session: Session = { graph, index, touched, saving, record }
+    const session: Session = { graph, index, touched, saving, skipped, record }
     return session
   })
