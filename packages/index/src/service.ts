@@ -375,7 +375,10 @@ const make = Effect.gen(function* () {
     fill: <E, R>(pages: Stream.Stream<ReadonlyArray<GraphEvent>, E, R>) =>
       pages.pipe(
         Stream.runForEach((batch) =>
-          writer.withPermits(1)(sqlite.transaction((db) => void applyAll(db, batch))),
+          Effect.andThen(
+            writer.withPermits(1)(sqlite.transaction((db) => void applyAll(db, batch))),
+            Effect.yieldNow,
+          ),
         ),
         Effect.ensuring(reactivity.invalidate([REBUILT])),
       ),

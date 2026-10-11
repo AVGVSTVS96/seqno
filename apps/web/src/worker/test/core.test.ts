@@ -764,6 +764,48 @@ describe("the core worker on the real graph, vault and index", () => {
     ),
   )
 
+  it.effect("blocks moved while a reopened graph fills its index end up in the index", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const root = yield* copyOfFixture
+        yield* Effect.scoped(
+          Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })),
+        )
+        const core = yield* coreOn(root)
+        const opened = yield* core.OpenGraph({ graph: "og" })
+        const [target, ...others] = yield* Effect.forEach(opened.pages, (page) =>
+          core.GetPage({ pageId: page.id }),
+        )
+        const anchor = target?.blocks[0] ?? assert.fail("the first page has no blocks")
+        const moved = others.toReversed().flatMap((tree) => tree.blocks.slice(0, 1))
+        yield* Effect.forEach(
+          moved,
+          (block) =>
+            core.Dispatch({
+              command: {
+                _tag: "MoveBlocks",
+                blockIds: [block.id],
+                parentId: null,
+                after: anchor.id,
+              },
+            }),
+          { discard: true },
+        )
+        const onTarget = yield* core
+          .WatchQuery({ query: `{{query (page "${target?.page.name}")}}` })
+          .pipe(
+            Stream.map((result) =>
+              result._tag === "BlockRows" ? result.blocks.map((block) => block.id) : [],
+            ),
+            Stream.filter((ids) => moved.every((block) => ids.includes(block.id))),
+            Stream.take(1),
+            Stream.runCollect,
+          )
+        assert.strictEqual(onTarget.length, 1)
+      }),
+    ),
+  )
+
   it.effect("linked references follow edits, grouped by page with journals first", () =>
     Effect.scoped(
       Effect.gen(function* () {

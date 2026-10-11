@@ -105,6 +105,7 @@ export class Graph extends Context.Service<
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, ImportFailed>
     readonly restore: (updates: ReadonlyArray<Uint8Array>) => Effect.Effect<void, ImportFailed>
     readonly everything: Stream.Stream<ReadonlyArray<GraphEvent>>
+    readonly pageEvents: (id: PageId) => Effect.Effect<ReadonlyArray<GraphEvent>>
     readonly mergeTarget: (id: BlockId) => Effect.Effect<Option.Option<BlockId>>
     readonly load: (pages: ReadonlyArray<PageTree>) => Effect.Effect<ReadonlyArray<GraphEvent>>
     readonly seed: (pages: ReadonlyArray<PageTree>) => Effect.Effect<Seeded>
@@ -458,9 +459,11 @@ const make = (source: GraphSource) =>
       })
     }
 
+    const eventsOf = (id: PageId) => serial(Effect.sync(() => pageEvents(id)))
+
     const everything = Stream.fromIterableEffect(
       serial(Effect.sync(() => [...registry.pages.keys()])),
-    ).pipe(Stream.mapEffect((id) => serial(Effect.sync(() => pageEvents(id)))))
+    ).pipe(Stream.mapEffect(eventsOf))
 
     const place = (loaded: ReadonlyArray<PageTree>, at: number) => {
       listen()
@@ -543,6 +546,7 @@ const make = (source: GraphSource) =>
       merge,
       restore,
       everything,
+      pageEvents: eventsOf,
       mergeTarget: (id) =>
         serial(
           Effect.andThen(

@@ -8,11 +8,12 @@ import {
   Option,
   Schedule,
   Schema,
+  Stream,
   SubscriptionRef,
 } from "effect"
 import { GraphEvent, PageId } from "@seqno/domain"
 import { Graph, newPeerId, vaultReplica } from "@seqno/graph"
-import { Index } from "@seqno/index"
+import { Index, type IndexError } from "@seqno/index"
 import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { SaveState, type SkippedFile } from "@seqno/rpc"
 import { Entry, Storage, Vault, layer as vaultLayer, type StorageFailed } from "@seqno/vault"
@@ -132,6 +133,7 @@ export const openSession = (place: GraphPlace) =>
     const saving = yield* SubscriptionRef.make<SaveState>(SaveState.cases.Saved.make({}))
     const unsaved = yield* Latch.make(false)
     const edits = { count: 0 }
+    const filling = { running: false, behind: new Set<PageId>() }
     const graph = yield* serviceOf(
       Graph,
       Graph.layer({ peer, snapshot: Option.none(), updates: [] }),
@@ -165,7 +167,15 @@ export const openSession = (place: GraphPlace) =>
         : Effect.gen(function* () {
             const pages = new Set([...events.map(ownPage), ...(yield* movedFrom(events))])
             const version = yield* graph.version
-            yield* index.apply(events, JSON.stringify([...version].toSorted()))
+            yield* index
+              .apply(events, JSON.stringify([...version].toSorted()))
+              .pipe(
+                Effect.catchTag("IndexError", (error) =>
+                  filling.running
+                    ? Effect.sync(() => pages.forEach((page) => filling.behind.add(page)))
+                    : Effect.fail(error),
+                ),
+              )
             yield* SubscriptionRef.set(touched, pages)
             edits.count += 1
             yield* SubscriptionRef.set(saving, SaveState.cases.Unsaved.make({}))
@@ -174,10 +184,40 @@ export const openSession = (place: GraphPlace) =>
 
     const indexed = yield* Latch.make(true)
     const scope = yield* Effect.scope
+    const catchUp: Effect.Effect<void, IndexError> = Effect.flatMap(
+      Effect.sync(() => {
+        const behind = [...filling.behind]
+        filling.behind.clear()
+        if (behind.length === 0) filling.running = false
+        return behind
+      }),
+      (behind) =>
+        behind.length === 0
+          ? Effect.void
+          : Effect.andThen(
+              index.fill(Stream.fromIterable(behind).pipe(Stream.mapEffect(graph.pageEvents))),
+              catchUp,
+            ),
+    )
     const fillIndex = Effect.andThen(
-      indexed.close,
+      Effect.andThen(
+        indexed.close,
+        Effect.sync(() => {
+          filling.running = true
+        }),
+      ),
       Effect.forkIn(
-        index.fill(graph.everything).pipe(logged, Effect.ensuring(indexed.open)),
+        Effect.andThen(index.fill(graph.everything), catchUp).pipe(
+          logged,
+          Effect.ensuring(
+            Effect.andThen(
+              Effect.sync(() => {
+                filling.running = false
+              }),
+              indexed.open,
+            ),
+          ),
+        ),
         scope,
       ),
     )
