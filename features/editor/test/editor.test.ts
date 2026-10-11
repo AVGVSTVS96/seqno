@@ -27,6 +27,17 @@ describe("text edits", () => {
     assert.strictEqual(text(view), "hello!")
   })
 
+  it("puts the graph's text back when the core rejects an edit", async () => {
+    const within = session()
+    within.rejecting = true
+    const { view } = mount("hello", { _tag: "End" }, { within })
+    typeKeys(view, "!")
+    assert.strictEqual(text(view), "hello!")
+    await Promise.resolve()
+    await Promise.resolve()
+    assert.strictEqual(text(view), "hello")
+  })
+
   it("orders a multi-range change so each edit applies to the text the previous one left", () => {
     const { view, commands } = mount("a-b-c", { _tag: "Start" })
     view.dispatch({

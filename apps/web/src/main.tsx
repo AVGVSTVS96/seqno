@@ -5,7 +5,7 @@ import { Layer } from "effect"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
-import { coreLayer } from "@seqno/outliner"
+import { coreLayer, rejectionAtom } from "@seqno/outliner"
 import {
   graphMoves,
   lastGraph,
@@ -19,6 +19,7 @@ import { WorkerCore } from "./core.ts"
 import { embedded, forwardEscape, toParent } from "./embed.ts"
 import { demoGraph } from "./graph-locations.ts"
 import { router } from "./router.tsx"
+import { notify } from "./ui/shell/Notices.tsx"
 
 const registry = AtomRegistry.make({
   scheduleTask,
@@ -45,6 +46,10 @@ registry.subscribe(
   },
   { immediate: true },
 )
+
+registry.subscribe(rejectionAtom, ({ count, reason }) => {
+  if (count > 0) notify(registry, `That change couldn't be applied: ${reason}`)
+})
 
 const saveFailed = { now: false }
 registry.subscribe(

@@ -67,6 +67,7 @@ export const mountBlockEditor = (
     else waiting.push(run)
   }
   let parentId = block.parentId
+  let seen = block
 
   const view = new EditorView({
     parent,
@@ -94,7 +95,11 @@ export const mountBlockEditor = (
             if (transaction.docChanged && transaction.annotation(fromGraph) !== true) {
               fromHistory = false
               const commands = fields.commit(transaction)
-              if (commands.length > 0) host.dispatchAll(commands)
+              if (commands.length > 0) {
+                void host.dispatchAll(commands).then((applied) => {
+                  if (!applied) resync()
+                })
+              }
               sync.local(transaction.newDoc.toString())
             }
           }
@@ -119,6 +124,7 @@ export const mountBlockEditor = (
   handoff.arrive(view)
 
   const receive = (next: Block) => {
+    seen = next
     const current = view.state.doc.toString()
     const shown = fields.draftOf(next)
     if (sync.isNews(shown)) {
@@ -138,6 +144,11 @@ export const mountBlockEditor = (
       parentId = next.parentId
       if (view.state.doc.length === 0) handoff.settle(view)
     }
+  }
+
+  const resync = () => {
+    sync.external()
+    receive(seen)
   }
 
   const listening = Effect.runFork(

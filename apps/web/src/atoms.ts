@@ -4,7 +4,7 @@ import type { KeyValueStore } from "effect/persistence"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
-import { editRequest, pageListKey } from "@seqno/outliner"
+import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
 import { WorkerCore, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
@@ -124,17 +124,19 @@ const invalidatePages = (events: ReadonlyArray<GraphEvent>) =>
     : Effect.void
 
 export const dispatch = appRuntime.fn(
-  (command: Command) =>
+  (command: Command, get) =>
     Effect.flatMap(CoreClient, (core) => core.Dispatch({ command })).pipe(
       Effect.tap(invalidatePages),
+      (effect) => reportRejection(effect, get),
     ),
   { concurrent: true },
 )
 
 export const dispatchAll = appRuntime.fn(
-  (commands: ReadonlyArray<Command>) =>
+  (commands: ReadonlyArray<Command>, get) =>
     Effect.flatMap(CoreClient, (core) => core.DispatchAll({ commands })).pipe(
       Effect.tap(invalidatePages),
+      (effect) => reportRejection(effect, get),
     ),
   { concurrent: true },
 )

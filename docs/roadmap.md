@@ -49,7 +49,7 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 
 - **Two devices can still import different versions of one folder.** Two devices that import the same files now write the same ops, so nothing doubles. If one of them is missing a file (not downloaded yet) or has an older copy of one, their imports differ: pages merge by name, and the blocks of pages both had end up twice.
 - **Import skips files without saying so.** A file whose name matches an existing page, or one that isn't downloaded or can't be read, is left out. The import runs once and its issue list isn't shown.
-- **Rejected edits are dropped quietly.** The UI ignores a rejected command, and the editor recognizes its own edits coming back by comparing text, which could skip a real change after an undo (found by reading the code, not reproduced).
+- **The editor matches its own edits by text.** It recognizes its edits coming back by comparing text, so a change elsewhere that happens to produce text it typed a moment ago could be taken for its own (found by reading the code, not reproduced). A rejected edit now shows a notice and puts the graph's text back in the editor, so a mismatch that leads to a rejection heals itself.
 - **Undo is shared between tabs.** Tabs on one graph share one undo history, so Mod+Z in one tab can undo what was typed in another.
 - **No device list.** The app counts only itself as a member, and there is no "remove this device" setting.
 

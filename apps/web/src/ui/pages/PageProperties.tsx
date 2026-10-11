@@ -1,5 +1,5 @@
 import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
-import { Effect, Stream } from "effect"
+import { Effect, Exit, Stream } from "effect"
 import { AtomRegistry } from "effect/reactivity"
 import { useContext, useState } from "react"
 import { BlockId, normalizePageName, type Page } from "@seqno/domain"
@@ -22,13 +22,14 @@ const PropertiesEditor = ({
   readonly onExit: () => void
 }) => {
   const run = useAtomSet(dispatch)
-  const runAll = useAtomSet(dispatchAll)
+  const runAll = useAtomSet(dispatchAll, { mode: "promiseExit" })
   const registry = useContext(RegistryContext)
   const host: EditorHost = {
     dispatch: (command) => {
       if (command._tag === "SetProperty") run(command)
     },
-    dispatchAll: (commands) => runAll(commands.filter((command) => command._tag === "SetProperty")),
+    dispatchAll: (commands) =>
+      runAll(commands.filter((command) => command._tag === "SetProperty")).then(Exit.isSuccess),
     act: (action) => {
       if (action._tag === "Exit") onExit()
     },

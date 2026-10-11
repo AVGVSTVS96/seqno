@@ -7,7 +7,7 @@ import {
   type GraphEvent,
   type PageId,
 } from "@seqno/domain"
-import { CoreClient } from "@seqno/rpc"
+import { CommandRejected, CoreClient } from "@seqno/rpc"
 import { historyFocus, type Editing, type HistoryStep } from "./history.ts"
 
 export const coreLayer = Atom.make<Layer.Layer<CoreClient>>(
@@ -57,17 +57,35 @@ const invalidatePageList = (events: ReadonlyArray<GraphEvent>) =>
     ? Reactivity.invalidate(pageListKey)
     : Effect.void
 
-const dispatched = (command: Command) =>
+export interface Rejection {
+  readonly count: number
+  readonly reason: string
+}
+
+export const rejectionAtom = Atom.make<Rejection>({ count: 0, reason: "" }).pipe(Atom.keepAlive)
+
+export const reportRejection = <A, E, R>(effect: Effect.Effect<A, E, R>, get: Atom.FnContext) =>
+  Effect.tapError(effect, (error) =>
+    error instanceof CommandRejected
+      ? Effect.sync(() =>
+          get.set(rejectionAtom, { count: get(rejectionAtom).count + 1, reason: error.reason }),
+        )
+      : Effect.void,
+  )
+
+const dispatched = (command: Command, get: Atom.FnContext) =>
   Effect.flatMap(CoreClient, (client) => client.Dispatch({ command })).pipe(
     Effect.tap(invalidatePageList),
+    (effect) => reportRejection(effect, get),
   )
 
 export const dispatchAtom = coreRuntime.fn(dispatched, { concurrent: true })
 
 export const dispatchAllAtom = coreRuntime.fn(
-  (commands: ReadonlyArray<Command>) =>
+  (commands: ReadonlyArray<Command>, get) =>
     Effect.flatMap(CoreClient, (client) => client.DispatchAll({ commands })).pipe(
       Effect.tap(invalidatePageList),
+      (effect) => reportRejection(effect, get),
     ),
   { concurrent: true },
 )
@@ -77,7 +95,7 @@ export const editRequest = Atom.make<Editing | null>(null).pipe(Atom.keepAlive)
 export const historyAtom = coreRuntime
   .fn(
     (step: HistoryStep, get) =>
-      Effect.tap(dispatched({ _tag: step }), (events) =>
+      Effect.tap(dispatched({ _tag: step }, get), (events) =>
         Effect.sync(() => {
           const focus = historyFocus(events, [])
           if (focus !== null) get.set(editRequest, focus)

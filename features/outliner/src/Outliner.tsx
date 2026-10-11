@@ -350,7 +350,8 @@ const OutlineView = ({
   const rows = view.rows
   const registry = useContext(RegistryContext)
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
-  const dispatchAll = useAtomSet(dispatchAllAtom)
+  const runAll = useAtomSet(dispatchAllAtom, { mode: "promiseExit" })
+  const dispatchAll = (commands: ReadonlyArray<Command>) => runAll(commands).then(Exit.isSuccess)
   const container = useRef<HTMLDivElement>(null)
   const pressed = useRef<BlockId | null>(null)
   const swept = useRef(false)

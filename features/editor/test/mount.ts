@@ -46,6 +46,7 @@ export interface Session {
   readonly searches: Array<string>
   readonly handoff: Handoff
   readonly pages: Array<PageName>
+  rejecting: boolean
 }
 
 export const session = (): Session => ({
@@ -55,6 +56,7 @@ export const session = (): Session => ({
   searches: [],
   handoff: createHandoff(),
   pages: [page("Project X"), page("Projects"), page("Garden Plan")],
+  rejecting: false,
 })
 
 const mounted: Array<() => void> = []
@@ -91,6 +93,7 @@ export const mount = (
       dispatchAll: (commands) => {
         within.commands.push(...commands)
         within.dispatches.push(commands)
+        return Promise.resolve(!within.rejecting)
       },
       act: (action) => within.actions.push(action),
       searchPages: (query) =>
