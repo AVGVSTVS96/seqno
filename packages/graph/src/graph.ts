@@ -43,6 +43,16 @@ export const PeerId = Schema.String.check(
 ).pipe(Schema.brand("PeerId"))
 export type PeerId = typeof PeerId.Type
 
+const peerCount = 2n ** 64n - 2n
+
+export const newPeerId = Effect.map(
+  Effect.flatMap(Crypto.Crypto, (crypto) => crypto.randomBytes(8)),
+  (bytes) =>
+    PeerId.make(
+      String((bytes.reduce((acc, byte) => (acc << 8n) | BigInt(byte), 0n) % peerCount) + 1n),
+    ),
+)
+
 export class ImportFailed extends Schema.TaggedError<ImportFailed>()("ImportFailed", {
   reason: Schema.String,
 }) {}

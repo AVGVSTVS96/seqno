@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect } from "effect"
 import { LoroDoc } from "loro-crdt"
-import { makeFakeCloud, type PlaceholderStyle } from "@seqno/vault"
+import { Storage, makeFakeCloud, snapshotName, type PlaceholderStyle } from "@seqno/vault"
 import { makeDevice } from "./device.ts"
 
 const cloudOf = (placeholders: PlaceholderStyle, autoDownload: boolean, deliverChance = 1) =>
@@ -24,18 +24,20 @@ const pair = (
   })
 
 describe("update files", () => {
-  it.effect("names each file by its first op counter and merges it on another device", () =>
-    Effect.gen(function* () {
-      const cloud = cloudOf("dataless", true)
-      const { mac, ipad } = yield* pair(cloud)
-      assert.strictEqual(yield* mac.type("hello"), "updates/mac/0.loro")
-      assert.strictEqual(yield* mac.type(" world"), "updates/mac/5.loro")
-      cloud.settle()
-      const report = yield* ipad.sync
-      assert.deepStrictEqual(report.merged, ["updates/mac/0.loro", "updates/mac/5.loro"])
-      assert.deepStrictEqual(report.waiting, [])
-      assert.strictEqual(ipad.text(), "hello world")
-    }),
+  it.effect(
+    "names each file by its peer and first op counter and merges it on another device",
+    () =>
+      Effect.gen(function* () {
+        const cloud = cloudOf("dataless", true)
+        const { mac, ipad } = yield* pair(cloud)
+        assert.strictEqual(yield* mac.type("hello"), "updates/mac/1-0.loro")
+        assert.strictEqual(yield* mac.type(" world"), "updates/mac/1-5.loro")
+        cloud.settle()
+        const report = yield* ipad.sync
+        assert.deepStrictEqual(report.merged, ["updates/mac/1-0.loro", "updates/mac/1-5.loro"])
+        assert.deepStrictEqual(report.waiting, [])
+        assert.strictEqual(ipad.text(), "hello world")
+      }),
   )
 
   it.effect("rejects bytes that are not this device's own Loro update", () =>
@@ -74,7 +76,7 @@ describe("update files", () => {
       const error = yield* Effect.flip(reinstall.type("lost"))
       assert.strictEqual(error._tag, "UpdateRejected")
       cloud.settle()
-      assert.deepStrictEqual(cloud.files(), ["updates/mac/0.loro"])
+      assert.deepStrictEqual(cloud.files(), ["updates/mac/1-0.loro"])
     }),
   )
 })
@@ -88,12 +90,12 @@ describe("files that are not downloaded yet", () => {
         yield* mac.type("hello")
         cloud.settle()
         const before = yield* ipad.sync
-        assert.deepStrictEqual(before.waiting, ["updates/mac/0.loro"])
+        assert.deepStrictEqual(before.waiting, ["updates/mac/1-0.loro"])
         assert.deepStrictEqual(before.merged, [])
         assert.strictEqual(ipad.text(), "")
         cloud.settle()
         const after = yield* ipad.sync
-        assert.deepStrictEqual(after.merged, ["updates/mac/0.loro"])
+        assert.deepStrictEqual(after.merged, ["updates/mac/1-0.loro"])
         assert.strictEqual(ipad.text(), "hello")
       }),
     )
@@ -108,7 +110,7 @@ describe("files that are not downloaded yet", () => {
       cloud.put("updates/mac/40.loro", whole.slice(0, whole.length - 3))
       cloud.settle()
       const report = yield* ipad.sync
-      assert.deepStrictEqual(report.merged, ["updates/mac/0.loro"])
+      assert.deepStrictEqual(report.merged, ["updates/mac/1-0.loro"])
       assert.deepStrictEqual(report.waiting, ["updates/mac/40.loro"])
       assert.strictEqual(ipad.text(), "hello")
     }),
@@ -197,8 +199,8 @@ describe("compaction", () => {
         "seen/ipad.json",
         "seen/mac.json",
         snapshot,
-        "updates/mac/0.loro",
-        "updates/mac/1.loro",
+        "updates/mac/1-0.loro",
+        "updates/mac/1-1.loro",
       ])
       const unconfirmed = yield* mac.sync
       assert.deepStrictEqual(unconfirmed.deleted, [])
@@ -206,7 +208,7 @@ describe("compaction", () => {
       yield* ipad.sync
       cloud.settle()
       const collected = yield* mac.sync
-      assert.deepStrictEqual(collected.deleted, ["updates/mac/0.loro", "updates/mac/1.loro"])
+      assert.deepStrictEqual(collected.deleted, ["updates/mac/1-0.loro", "updates/mac/1-1.loro"])
       cloud.settle()
       assert.deepStrictEqual(cloud.files(), ["seen/ipad.json", "seen/mac.json", snapshot])
 
@@ -219,6 +221,38 @@ describe("compaction", () => {
       const opened = yield* phone.sync
       assert.deepStrictEqual(opened.merged, [snapshot])
       assert.strictEqual(phone.text(), "ab")
+    }),
+  )
+
+  it.effect("a snapshot written under a former peer id stays this device's own", () =>
+    Effect.gen(function* () {
+      const cloud = cloudOf("dataless", true)
+      const before = new LoroDoc()
+      before.setPeerId("1")
+      before.getText("body").insert(0, "old")
+      before.commit()
+      const bytes = before.export({ mode: "snapshot" })
+      const name = yield* Effect.promise(() => snapshotName("1", bytes))
+      cloud.put(`snapshots/${name}`, bytes)
+      const mac = yield* makeDevice({
+        id: "mac",
+        peer: "7",
+        formerPeers: ["1"],
+        members: ["mac", "ipad"],
+        storage: cloud.layer("mac"),
+      })
+      yield* mac.sync
+      cloud.settle()
+      const seen = yield* Effect.provide(
+        Effect.flatMap(Effect.service(Storage), (storage) => storage.read("seen/mac.json")),
+        cloud.layer("ipad"),
+      )
+      assert.deepStrictEqual(JSON.parse(new TextDecoder().decode(seen)), {
+        vv: { "1": 3 },
+        verified: [],
+        snapshots: [[name, { "1": 3 }]],
+      })
+      assert.strictEqual(mac.text(), "old")
     }),
   )
 
@@ -240,7 +274,7 @@ describe("compaction", () => {
       cloud.settle()
       assert.deepStrictEqual(
         cloud.files().filter((path) => path.startsWith("updates/")),
-        ["updates/mac/0.loro", "updates/mac/1.loro"],
+        ["updates/mac/1-0.loro", "updates/mac/1-1.loro"],
       )
     }),
   )

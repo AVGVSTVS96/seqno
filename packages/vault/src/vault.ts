@@ -37,7 +37,8 @@ export class UpdateRejected extends Schema.TaggedError<UpdateRejected>()("Update
 
 export interface VaultConfig {
   readonly device: DeviceId
-  readonly peer: `${number}`
+  readonly peer: string
+  readonly formerPeers?: ReadonlyArray<string>
   readonly members: ReadonlyArray<DeviceId>
   readonly compactAfterFiles: number
   readonly compactEvery: Duration.Input
@@ -152,10 +153,11 @@ const make = (config: VaultConfig) =>
         return blob
       })
 
+    const owners = [me, ...(config.formerPeers ?? [])]
     const isMine = (bytes: Uint8Array, name: string) =>
       Effect.map(
-        Effect.promise(() => snapshotName(config.peer, bytes)),
-        (expected) => expected === originalName(name),
+        Effect.promise(() => Promise.all(owners.map((owner) => snapshotName(owner, bytes)))),
+        (expected) => expected.includes(originalName(name)),
       )
 
     const confirmed = (name: string) =>
@@ -176,7 +178,7 @@ const make = (config: VaultConfig) =>
               reason: `an update file holds only peer ${config.peer}'s own ops, found peers [${authors.join(", ")}]`,
             })
           }
-          const path = updatePath(me, start[config.peer] ?? 0)
+          const path = updatePath(me, config.peer, start[config.peer] ?? 0)
           const existing = yield* filesIn(myUpdates, myUpdates)
           if (existing.some((file) => file.key === path)) {
             return yield* new UpdateRejected({ reason: `${path} already exists` })
@@ -323,7 +325,7 @@ const make = (config: VaultConfig) =>
             if (uncovered >= config.compactAfterFiles) {
               const bytes = yield* replica.snapshot
               const meta = Option.filter(inspectBlob(bytes), (blob) => blob.kind === "snapshot")
-              const name = yield* Effect.promise(() => snapshotName(config.peer, bytes))
+              const name = yield* Effect.promise(() => snapshotName(me, bytes))
               if (Option.isSome(meta) && !present.has(name)) {
                 yield* storage.write(snapshotPath(name), bytes)
                 mine.add(name)

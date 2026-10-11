@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Option, Schedule, Schema, SubscriptionRef } from "effect"
 import { GraphEvent, PageId } from "@seqno/domain"
-import { Graph, PeerId, vaultReplica } from "@seqno/graph"
+import { Graph, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
 import { LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { Entry, Storage, Vault, layer as vaultLayer, type StorageFailed } from "@seqno/vault"
@@ -90,11 +90,12 @@ const layStarter = (storage: Storage["Service"], starter: Starter) =>
 
 export const openSession = (place: GraphPlace) =>
   Effect.gen(function* () {
-    const { device, peer } = yield* Device
+    const { device, formerPeers } = yield* Device
+    const peer = yield* newPeerId
     const touched = yield* SubscriptionRef.make<Touched>(new Set())
     const graph = yield* serviceOf(
       Graph,
-      Graph.layer({ peer: PeerId.make(peer), snapshot: Option.none(), updates: [] }),
+      Graph.layer({ peer, snapshot: Option.none(), updates: [] }),
     )
     const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(place.sqlite)))
     const storage = Layer.succeed(Storage, place.storage)
@@ -103,6 +104,7 @@ export const openSession = (place: GraphPlace) =>
       vaultLayer({
         device,
         peer,
+        formerPeers,
         members: [device],
         compactAfterFiles: 100,
         compactEvery: "1 hour",

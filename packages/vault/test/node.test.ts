@@ -57,7 +57,7 @@ describe("two devices sharing a folder on disk", () => {
       yield* ipad.type("!")
       yield* ipad.sync
       assert.strictEqual(ipad.text().length, 8)
-      assert.deepStrictEqual(yield* namesIn(root, "updates/mac"), ["0.loro", "4.loro"])
+      assert.deepStrictEqual(yield* namesIn(root, "updates/mac"), ["1-0.loro", "1-4.loro"])
 
       const compacted = yield* mac.sync
       assert.strictEqual(mac.text(), ipad.text())
@@ -66,7 +66,7 @@ describe("two devices sharing a folder on disk", () => {
 
       yield* ipad.sync
       const collected = yield* mac.sync
-      assert.deepStrictEqual(collected.deleted, ["updates/mac/0.loro", "updates/mac/4.loro"])
+      assert.deepStrictEqual(collected.deleted, ["updates/mac/1-0.loro", "updates/mac/1-4.loro"])
       assert.deepStrictEqual(yield* namesIn(root, "updates/mac"), [])
       assert.deepStrictEqual(yield* namesIn(root, "seen"), ["ipad.json", "mac.json"])
 

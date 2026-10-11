@@ -87,7 +87,7 @@ describe("graph and vault together", () => {
         yield* mac.flush
         cloud.settle()
         const first = yield* ipad.sync
-        assert.deepStrictEqual(first.merged, ["updates/mac/0.loro"])
+        assert.deepStrictEqual(first.merged, ["updates/mac/1-0.loro"])
         assert.deepStrictEqual(
           (yield* ipad.graph.pages).map((p) => p.title),
           ["Inbox"],

@@ -71,7 +71,7 @@ layer(ChromeLive, { timeout: 60_000 })("OPFS and directory handles in headless C
       assert.deepStrictEqual(yield* chrome.run("threeDevices"), {
         ipadText: "hello opfs",
         snapshotsWritten: 1,
-        deleted: ["updates/mac/0.loro", "updates/mac/6.loro"],
+        deleted: ["updates/mac/1-0.loro", "updates/mac/1-6.loro"],
         phoneText: "hello opfs",
       })
     }),

@@ -69,7 +69,7 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 ## Sync: one writer per file, delete only after a confirmed snapshot
 
-**Decision.** Each device writes only `updates/<deviceId>/`, its own `seen/<deviceId>.json`, and the snapshots it makes, and it deletes only those. An update file is deleted once every member device has merged it and a snapshot confirmed by another device covers it. Device and peer ids are never reused. A device that never comes back blocks deletion until someone removes it by hand; a timeout may later prompt, never act silently.
+**Decision.** Each device writes only `updates/<deviceId>/`, its own `seen/<deviceId>.json`, and the snapshots it makes, and it deletes only those. An update file is deleted once every member device has merged it and a snapshot confirmed by another device covers it. Device and peer ids are never reused: every open of a graph writes with a new peer id (see below). A device that never comes back blocks deletion until someone removes it by hand; a timeout may later prompt, never act silently.
 
 **Why.** A device can't tell whether its upload reached the server. Another device downloading and checksumming the snapshot is the only proof. Without that step, 7 of 16 test runs briefly lost ops on the server.
 
@@ -79,7 +79,7 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 - Removing any one of 5 safeguards makes the checks fail.
 - After 10k ops, compaction leaves 49 files on average, against 2,346 without it. Files pile up to about 1,190 while a device is offline, then drop within hours of its return.
 - Snapshots are the compaction format. On the 50k graph a snapshot is 12.6 MB and imports in 8 ms; the same history as one update file is 7.8 MB and takes 1.1 s (one probe). Compaction runs at 100 or more uncovered files, at most once an hour. Cloud storage peaks at 25.3 MB while compacting, then settles at 12.7 MB.
-- Not covered yet: the full 1,000 runs of 10k ops, corrupt update files, a device restored from backup reusing its peer id, and iCloud losing a file.
+- Not covered yet: the full 1,000 runs of 10k ops, corrupt update files, and iCloud losing a file. A device restored from backup can no longer reuse a peer id, since no open does.
 
 ## Queries: Logseq-style first, Dataview-style second
 
@@ -109,6 +109,16 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 - Reading a file iCloud has evicted blocks for about 0.85 s while it downloads, so seqno checks a file's download status before reading it wherever the platform reports one.
 - An atomic 32 MB overwrite never showed a partial file; a non-atomic one showed 31 partial sizes. Every vault write is atomic.
 - Not measured yet: Chrome reading an evicted iCloud file.
+
+## A new peer id every time a graph opens
+
+**Decision.** Each open of a graph mints a random 64-bit Loro peer id for that session. Update files are named `updates/<deviceId>/<peer>-<n>.loro`. Snapshots are named by the device id, so a device still knows its own snapshots after its peer id changes; snapshots from before this change, named by the profile's old fixed peer id, count as its own too.
+
+**Why.** Loro identifies every op by peer id and counter. A device that kept one peer id and opened a graph with some of its own update files missing (not downloaded from iCloud yet, evicted, or restored from a backup) started counting again from where its copy ended, so its new ops took ids its earlier ops already had. Loro treats a second op with a known id as a copy and drops it, so the devices disagreed for good, without an error. Loro's docs give the same rule: reuse a peer id only when the doc is known to hold every op that peer wrote. A fresh peer per open meets it without having to prove anything about the folder. It also makes the old file name `<n>.loro` unsafe, since two peers both start at counter 0.
+
+**Cost.** Each open that edits adds one entry to the version vector, which the index and `seen` files store. That is a few bytes per editing session. Opening a graph without editing adds nothing.
+
+**Numbers.** None on speed. `apps/web/src/worker/test/core.test.ts` moves one of the device's own update files away, edits again, puts it back and reopens: both edits survive. With the old fixed peer id the same test loses the first edit.
 
 ## Every tab shares one core worker
 

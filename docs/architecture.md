@@ -27,7 +27,7 @@ Why each piece was chosen, with the numbers behind it, is in [decisions.md](deci
                                │ atomic writes, listings
                                ▼
    graph folder (OPFS, or a folder picked with File System Access)
-     updates/<deviceId>/<n>.loro   snapshots/<hash>.loro   seen/<deviceId>.json
+     updates/<deviceId>/<peer>-<n>.loro   snapshots/<hash>.loro   seen/<deviceId>.json
      journals/  pages/  logseq/config.edn  assets/          (Logseq's own files)
 ```
 
@@ -37,7 +37,7 @@ The UI never touches Loro, SQLite or files. It sends commands and subscribes to 
 
 ```
 tab ──┐
-tab ──┼──▶ SharedWorker "seqno-core" ──▶ graph "demo": one Loro doc, one index, one peer id
+tab ──┼──▶ SharedWorker "seqno-core" ──▶ graph "demo": one Loro doc, one index, one peer id per open
 tab ──┘      holds    seqno/graph/demo            one writer for the graph
              holds    seqno/graph/demo/handover   a newer build steals it to take over
              watches  seqno/tab/<id>              each tab holds its own until it closes
@@ -75,17 +75,17 @@ tree "blocks"
 
 ## Edit log and sync
 
-| File                          | Written by                | Holds                                                                           |
-| ----------------------------- | ------------------------- | ------------------------------------------------------------------------------- |
-| `updates/<deviceId>/<n>.loro` | that device only          | its own new ops. `n` is the first op counter in the file, so names never repeat |
-| `snapshots/<hash>.loro`       | the device that compacted | the whole doc. `hash` is sha256 of the writer's peer id and the bytes           |
-| `seen/<deviceId>.json`        | that device only          | what it has merged, and which snapshots it downloaded and checksummed           |
+| File                                 | Written by                | Holds                                                                                                            |
+| ------------------------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `updates/<deviceId>/<peer>-<n>.loro` | that device only          | its own new ops. `peer` is the session's peer id and `n` the first op counter in the file, so names never repeat |
+| `snapshots/<hash>.loro`              | the device that compacted | the whole doc. `hash` is sha256 of the writer's device id and the bytes                                          |
+| `seen/<deviceId>.json`               | that device only          | what it has merged, and which snapshots it downloaded and checksummed                                            |
 
 Each sync pass: list the folder, merge new files, check snapshots, read other devices' `seen`, write its own, maybe compact, maybe delete.
 
 - **Compaction** writes a snapshot once 100 or more update files aren't covered by one, at most once an hour.
 - **Deletion.** A device deletes only files it wrote. An update file goes once every member device has merged it and a _confirmed_ snapshot covers it. Confirmed means a different device downloaded it, checked its checksum and said so in its `seen` file. That is the only proof the snapshot reached the server.
-- **Why one writer per file.** A synced folder has no locks. When two devices write the same file, the folder keeps one version or makes a conflict copy. With one writer per file there is nothing to fight over, and a conflict copy iCloud still makes now and then is just a copy of Loro ops, which merges harmlessly because importing an op twice changes nothing. File names are op counters, so a name is never reused either.
+- **Why one writer per file.** A synced folder has no locks. When two devices write the same file, the folder keeps one version or makes a conflict copy. With one writer per file there is nothing to fight over, and a conflict copy iCloud still makes now and then is just a copy of Loro ops, which merges harmlessly because importing an op twice changes nothing. File names are a peer id and an op counter, so a name is never reused either.
 - **iCloud Drive is only the transport.** seqno reads and writes files; the OS uploads and downloads them. So the vault handles what iCloud does: files that are listed but not downloaded yet or evicted again (placeholders), conflict copies, and file names stored in NFD. A file counts only after it reads and decodes with a valid checksum, never because it is listed. Sync file names are plain ASCII, and every write is atomic.
 - **Where the folder lives.** On the web: OPFS, the browser's private file storage, for local-only graphs (the demo graphs), or a folder picked with the File System Access API in Chrome or Edge. Desktop (planned) uses plain file access. iOS (planned) uses the app's own iCloud container, shown as iCloud Drive › seqno.
 

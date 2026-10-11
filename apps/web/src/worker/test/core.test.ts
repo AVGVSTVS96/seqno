@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises"
+import { cp, mkdir, mkdtemp, readdir, rename, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -35,7 +35,7 @@ const coreLayer = (root: string, starter: Starter | null) =>
         open: () => Effect.succeed({ storage: nodeStorage(root), sqlite: layerNode(), starter }),
       }),
     ),
-    Layer.provide(Layer.succeed(Device, { device: DeviceId.make("laptop"), peer: "42" })),
+    Layer.provide(Layer.succeed(Device, { device: DeviceId.make("laptop"), formerPeers: [] })),
     Layer.provide(layerWebLocks),
     Layer.provide(WebCrypto),
   )
@@ -439,9 +439,10 @@ describe("the core worker on the real graph, vault and index", () => {
             "time-tracked task\n:LOGBOOK:\nCLOCK: [2025-03-09 Sun 10:00:00]--[2025-03-09 Sun 10:30:00] =>  00:30:00\n:END:",
           ],
         )
+        const written = yield* Effect.promise(() => readdir(join(root, "updates", "laptop")))
         assert.deepStrictEqual(
-          yield* Effect.promise(() => readdir(join(root, "updates", "laptop"))),
-          ["0.loro"],
+          written.map((name) => name.replace(/^\d+-/, "<peer>-")),
+          ["<peer>-0.loro"],
         )
       }),
     ),
@@ -512,6 +513,55 @@ describe("the core worker on the real graph, vault and index", () => {
         )
       }),
     ),
+  )
+
+  it.effect(
+    "edits made while one of this device's own update files is missing merge with it once it is back",
+    () =>
+      Effect.gen(function* () {
+        const root = yield* copyOfFixture
+        const typeAt = (at: (text: string) => number, insert: string) =>
+          Effect.scoped(
+            Effect.gen(function* () {
+              const core = yield* coreOn(root)
+              const opened = yield* core.OpenGraph({ graph: "og" })
+              const tasks = yield* core.GetPage({ pageId: named(opened.pages, "tasks").id })
+              const third = tasks.blocks[2] ?? assert.fail("tasks has no third block")
+              const offset = at(third.text)
+              yield* core.Dispatch({
+                command: { _tag: "EditText", blockId: third.id, from: offset, to: offset, insert },
+              })
+              yield* core.OpenGraph({ graph: "og" })
+              return third.id
+            }),
+          )
+        const own = join(root, "updates", "laptop")
+        const away = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-away-")))
+        yield* Effect.scoped(
+          Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })),
+        )
+        const filesBefore = new Set(yield* Effect.promise(() => readdir(own)))
+        yield* typeAt(() => 0, "A ")
+        const firstEdit = (yield* Effect.promise(() => readdir(own))).filter(
+          (name) => !filesBefore.has(name),
+        )
+        yield* Effect.promise(() =>
+          Promise.all(firstEdit.map((name) => rename(join(own, name), join(away, name)))),
+        )
+        const blockId = yield* typeAt((text) => text.length, " B")
+        yield* Effect.promise(() =>
+          Promise.all(firstEdit.map((name) => rename(join(away, name), join(own, name)))),
+        )
+        const text = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const core = yield* coreOn(root)
+            yield* core.OpenGraph({ graph: "og" })
+            return (yield* core.GetBlock({ blockId })).text
+          }),
+        )
+        assert.deepStrictEqual(firstEdit.length, 1)
+        assert.strictEqual(text, "A I recorded a [[voice note]]. B")
+      }),
   )
 
   it.effect("search and live queries read the index", () =>

@@ -28,12 +28,12 @@ export class GraphPlaces extends Context.Service<
 
 export const Identity = Schema.Struct({
   device: DeviceId,
-  peer: Schema.TemplateLiteral([Schema.Number]),
+  peer: Schema.optionalKey(Schema.String),
 })
 
 export class Device extends Context.Service<
   Device,
-  { readonly device: DeviceId; readonly peer: `${number}` }
+  { readonly device: DeviceId; readonly formerPeers: ReadonlyArray<string> }
 >()("@seqno/web/worker/Device") {}
 
 const vaultFolders = new Set(["updates", "snapshots", "seen"])

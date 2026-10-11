@@ -5,8 +5,8 @@ export const updatesDir = "updates"
 export const snapshotsDir = "snapshots"
 export const seenDir = "seen"
 
-export const updatePath = (device: DeviceId, start: number): string =>
-  `${updatesDir}/${device}/${start}.loro`
+export const updatePath = (device: DeviceId, peer: string, start: number): string =>
+  `${updatesDir}/${device}/${peer}-${start}.loro`
 
 export const snapshotPath = (name: string): string => `${snapshotsDir}/${name}`
 
@@ -28,7 +28,7 @@ const conflictSuffix = / \d+(\.[a-z]+)$/
 
 export const originalName = (name: string): string => name.replace(conflictSuffix, "$1")
 
-export const isUpdateName = (name: string): boolean => /^\d+\.loro$/.test(originalName(name))
+export const isUpdateName = (name: string): boolean => /^(\d+-)?\d+\.loro$/.test(originalName(name))
 
 export const isSnapshotName = (name: string): boolean =>
   /^[0-9a-f]{32}\.loro$/.test(originalName(name))
@@ -46,8 +46,8 @@ export const isSeenConflictOf = (device: DeviceId, name: string): boolean =>
 const hex = (bytes: ArrayBuffer): string =>
   Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("")
 
-export const snapshotName = async (peer: string, bytes: Uint8Array): Promise<string> => {
-  const prefix = new TextEncoder().encode(`${peer}:`)
+export const snapshotName = async (owner: string, bytes: Uint8Array): Promise<string> => {
+  const prefix = new TextEncoder().encode(`${owner}:`)
   const input = new Uint8Array(prefix.length + bytes.length)
   input.set(prefix)
   input.set(bytes, prefix.length)

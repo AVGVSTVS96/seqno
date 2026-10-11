@@ -4,12 +4,12 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 
 ## What's inside
 
-| Export                                  | What it does                                                                                                                              |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `Graph`                                 | Effect service: `pages`, `page`, `block`, `dispatch`, `dispatchAll`, `merge`, `load`, `events`, `flush`, `snapshot`, `version`, `loaded`. |
-| `Graph.layer(source)`                   | Opens from a snapshot and update files and reads the page list, then records block ids one page per tick; `loaded` completes after.       |
-| `vaultReplica(graph)`                   | Adapts a `Graph` to `@seqno/vault`'s `Replica`, so the vault can sync it.                                                                 |
-| `PeerId`, `LocalUpdate`, `ImportFailed` | The Loro peer id a device writes with, a run of local ops ready to save, and bytes Loro refused.                                          |
+| Export                                               | What it does                                                                                                                              |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `Graph`                                              | Effect service: `pages`, `page`, `block`, `dispatch`, `dispatchAll`, `merge`, `load`, `events`, `flush`, `snapshot`, `version`, `loaded`. |
+| `Graph.layer(source)`                                | Opens from a snapshot and update files and reads the page list, then records block ids one page per tick; `loaded` completes after.       |
+| `vaultReplica(graph)`                                | Adapts a `Graph` to `@seqno/vault`'s `Replica`, so the vault can sync it.                                                                 |
+| `PeerId`, `newPeerId`, `LocalUpdate`, `ImportFailed` | The Loro peer id a session writes with and a fresh random one, a run of local ops ready to save, and bytes Loro refused.                  |
 
 - Events come only from Loro's change feed, so local edits, undo, redo, loads and merged remote ops all produce the same `GraphEvent`s.
 - `flush(write)` exports this peer's ops since the last save and moves its mark only if `write` succeeds.

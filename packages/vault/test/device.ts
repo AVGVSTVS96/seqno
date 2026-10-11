@@ -8,6 +8,7 @@ export const deviceId = Schema.decodeUnknownSync(DeviceId)
 export interface DeviceOptions {
   readonly id: string
   readonly peer: `${number}`
+  readonly formerPeers?: ReadonlyArray<string>
   readonly members: ReadonlyArray<string>
   readonly storage: Layer.Layer<Storage>
   readonly compactAfterFiles?: number
@@ -22,6 +23,7 @@ export const makeDevice = (options: DeviceOptions) =>
       layer({
         device: deviceId(options.id),
         peer: options.peer,
+        formerPeers: options.formerPeers ?? [],
         members: options.members.map((member) => deviceId(member)),
         compactAfterFiles: options.compactAfterFiles ?? 1_000_000,
         compactEvery: 0,

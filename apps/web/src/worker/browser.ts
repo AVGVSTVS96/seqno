@@ -79,20 +79,25 @@ const writeIdentity = (root: FileSystemDirectoryHandle, text: string) =>
 
 const mintIdentity = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto
-  const bytes = yield* crypto.randomBytes(12)
+  const bytes = yield* crypto.randomBytes(6)
   const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
-  const peer: `${number}` = `${Number.parseInt(hex.slice(0, 13), 16) + 1}`
-  return Identity.make({ device: DeviceId.make(`web-${hex.slice(13)}`), peer })
+  return Identity.make({ device: DeviceId.make(`web-${hex}`) })
 })
+
+const deviceOf = (identity: typeof Identity.Type) =>
+  Device.of({
+    device: identity.device,
+    formerPeers: Option.toArray(Option.fromUndefinedOr(identity.peer)),
+  })
 
 export const BrowserDevice = Layer.effect(
   Device,
   Effect.gen(function* () {
     const root = yield* opfsFolder([])
     const stored = yield* readIdentity(root)
-    if (Option.isSome(stored)) return Device.of(stored.value)
+    if (Option.isSome(stored)) return deviceOf(stored.value)
     const minted = yield* mintIdentity
     yield* writeIdentity(root, Schema.encodeSync(IdentityJson)(minted))
-    return Device.of(minted)
+    return deviceOf(minted)
   }),
 )
