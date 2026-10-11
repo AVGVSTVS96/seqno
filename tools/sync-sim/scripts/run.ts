@@ -43,6 +43,7 @@ const Options = Schema.Struct({
   workers: Schema.FiniteFromString,
   out: Schema.optionalKey(Schema.String),
   "timeout-s": Schema.FiniteFromString,
+  "heap-mb": Schema.FiniteFromString,
 })
 
 const runParent = async () => {
@@ -61,6 +62,7 @@ const runParent = async () => {
       workers: { type: "string", default: "4" },
       out: { type: "string" },
       "timeout-s": { type: "string", default: "900" },
+      "heap-mb": { type: "string", default: "1024" },
     },
   })
   const options = Schema.decodeUnknownSync(Options)(values)
@@ -101,7 +103,7 @@ const runParent = async () => {
       const child = fork(fileURLToPath(import.meta.url), [], {
         env: { ...process.env, SYNC_SIM_JOB: JSON.stringify(Schema.encodeSync(SeedJob)(job)) },
         stdio: ["ignore", "ignore", "inherit", "ipc"],
-        execArgv: ["--max-old-space-size=1024"],
+        execArgv: [`--max-old-space-size=${options["heap-mb"]}`],
       })
       let reported = false
       const crash = (message: string) => {
