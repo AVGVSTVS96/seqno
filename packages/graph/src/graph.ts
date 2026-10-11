@@ -16,6 +16,7 @@ import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/d
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
 import { applyCommand, mergeTargetOf, type Unresolved, type Workspace } from "./commands.ts"
 import { collectChanges, emptyPending, translate } from "./events.ts"
+import { loader } from "./loader.ts"
 import { emptyRegistry } from "./registry.ts"
 import { repairAll, repairPages } from "./repair.ts"
 import {
@@ -142,18 +143,22 @@ const typedInOneBlock = (commands: ReadonlyArray<Command>): BlockId | null => {
   return rest.every((block) => block === first) ? first : null
 }
 
-const importAll = (doc: LoroDoc, files: ReadonlyArray<Uint8Array>) =>
-  Effect.try({
-    try: () => files.forEach((bytes) => doc.import(bytes)),
-    catch: (cause) => new ImportFailed({ reason: String(cause) }),
-  })
+const importer = (doc: LoroDoc) => {
+  const load = loader(doc)
+  return (files: ReadonlyArray<Uint8Array>) =>
+    Effect.try({
+      try: () => load(files),
+      catch: (cause) => new ImportFailed({ reason: String(cause) }),
+    })
+}
 
 const make = (source: GraphSource) =>
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto
     const doc = new LoroDoc()
     doc.setPeerId(BigInt(source.peer))
-    yield* importAll(doc, [...Option.toArray(source.snapshot), ...source.updates])
+    const importAll = importer(doc)
+    yield* importAll([...Option.toArray(source.snapshot), ...source.updates])
     const tree = doc.getTree(TREE)
     const registry = emptyRegistry()
     const registerPages = () => {
@@ -396,7 +401,7 @@ const make = (source: GraphSource) =>
         const before = ownCounter()
         const caughtUp = before === flushed
         histories.forEach(endTyping)
-        return importAll(doc, updates).pipe(
+        return importAll(updates).pipe(
           Effect.tap(() =>
             Effect.sync(() => {
               if (caughtUp) flushed = ownCounter()
@@ -416,7 +421,7 @@ const make = (source: GraphSource) =>
           if (unsubscribe !== undefined || doc.oplogVersion().length() > 0) {
             return Effect.asVoid(mergeNow(updates))
           }
-          return importAll(doc, updates).pipe(
+          return importAll(updates).pipe(
             Effect.ensuring(Effect.sync(listen)),
             Effect.andThen(
               Effect.sync(() => {
