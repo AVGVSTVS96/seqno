@@ -38,7 +38,7 @@ import {
 import { moveCommand, type DropTarget } from "./drop.ts"
 import { historyFocus, historyStep, type Editing, type HistoryStep } from "./history.ts"
 import { Inlines } from "./Inline.tsx"
-import { estimateHeight, offsets, segments, viewportOf, windowOf, type Viewport } from "./layout.ts"
+import { layOut, offsetsOf, segments, viewportOf, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { BlockRefs } from "./BlockRefs.tsx"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
@@ -56,7 +56,7 @@ import { RowView, type RowActions } from "./Row.tsx"
 import { highlights, selectedRange, type Selection } from "./selection.ts"
 import { EditorIntent, type EditorSlotProps } from "./slot.ts"
 import { nextMarker } from "./tasks.ts"
-import { outline, topLevel, type Outline, type Row } from "./tree.ts"
+import { topLevel, type Outline, type Row } from "./tree.ts"
 import styles from "./outliner.css?inline"
 
 export interface OutlinerProps {
@@ -99,8 +99,6 @@ const noCounts: Readonly<Record<string, number>> = {}
 
 const overscan = 800
 const edgeMargin = "400px 0px"
-const orderListKey = "logseq.order-list-type"
-const numbered = /^[ \t]*logseq\.order-list-type::[ \t]*number[ \t]*$/m
 
 const createdBlock = (events: ReadonlyArray<GraphEvent>, except: BlockId) =>
   events.flatMap((event) =>
@@ -110,16 +108,6 @@ const createdBlock = (events: ReadonlyArray<GraphEvent>, except: BlockId) =>
 const nonEmpty = <A,>(items: ReadonlyArray<A>): readonly [A, ...Array<A>] | null => {
   const [first, ...rest] = items
   return first === undefined ? null : [first, ...rest]
-}
-
-const ordinalsOf = (rows: ReadonlyArray<Row>): ReadonlyArray<number | null> => {
-  const streaks = new Map<BlockId | null, number>()
-  return rows.map((row) => {
-    const listed = row.block.props[orderListKey] === "number" || numbered.test(row.block.text)
-    const streak = listed ? (streaks.get(row.block.parentId) ?? 0) + 1 : 0
-    streaks.set(row.block.parentId, streak)
-    return streak === 0 ? null : streak
-  })
 }
 
 const labelOf = (nodes: ReadonlyArray<Inline>): string =>
@@ -378,12 +366,11 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         { rootMargin: edgeMargin, scrollMargin: edgeMargin },
       ),
   )
-  const view = outline(tree, zoom, embedded)
+  const laid = layOut(tree, zoom, embedded)
+  const { view } = laid
   const rows = view.rows
   const requested =
-    request !== null && !embedded && rows.some((row) => row.block.id === request.blockId)
-      ? request
-      : null
+    request !== null && !embedded && laid.positions.has(request.blockId) ? request : null
   const editing = requested ?? localEditing
   const setEditing = (next: Editing | null) => {
     setLocalEditing(next)
@@ -426,14 +413,12 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     else void run(command)
   }
 
-  const indexOf = (blockId: BlockId) => rows.findIndex((row) => row.block.id === blockId)
+  const indexOf = (blockId: BlockId) => laid.positions.get(blockId) ?? -1
   const range = selectedRange(rows, selection)
   const selected = range === null ? [] : rows.slice(range[0], range[1]).map((row) => row.block.id)
   const selectedSet = new Set(selected)
   const highlighted = highlights(rows, range)
-  const ordinals = ordinalsOf(rows)
-  const estimates = rows.map((row) => estimateHeight(row.block))
-  const tops = offsets(rows, estimates, heights)
+  const tops = offsetsOf(laid, heights)
   const [from, to] = windowOf(tops, viewport, overscan)
   const editingIndex = editing === null ? -1 : indexOf(editing.blockId)
   const shown = [
@@ -466,7 +451,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const latest = (): Outline =>
     Option.match(AsyncResult.value(registry.get(pageTreeAtom(pageId))), {
       onNone: () => view,
-      onSome: (current) => outline(current, zoom, embedded),
+      onSome: (current) => layOut(current, zoom, embedded).view,
     })
 
   const setTask = (block: Block, marker: Marker | null) => {
@@ -740,7 +725,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         key={block.id}
         row={row}
         content={content}
-        ordinal={ordinals[index] ?? null}
+        ordinal={laid.ordinals[index] ?? null}
         firstChild={index > 0 && rows[index - 1]?.block.id === block.parentId}
         nextPath={rows[index + 1]?.path ?? []}
         selected={selectedSet.has(block.id)}
