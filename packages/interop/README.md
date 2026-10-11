@@ -15,6 +15,7 @@ The core side's bridge to Logseq: it imports a Logseq file-based graph folder as
 | `fileBodyFromTitle`, `titleFromFileBody`                      | Logseq's file name rules (`___` for `/`, percent-encoded reserved characters) as a strict inverse pair.                                           |
 | `formatJournalDay`, `parseJournalDay`                         | Journal file names and titles in every date format Logseq's settings offer.                                                                       |
 
+- Ids are a function of the folder: every id that isn't kept from an `id::` comes from a generator seeded with a hash of `config.edn` and every imported file, so the same files always give the same ids.
 - Block `id::` values that are UUIDv7 become the `BlockId`; any other id stays in `props.id`, and the mirror writes it back.
 - Importing a canonical Logseq graph and rendering the mirror gives back the same bytes.
 
@@ -27,5 +28,5 @@ pnpm test --project @seqno/interop
 ## Known gaps
 
 - Org-mode files, whiteboards and `assets/` are not imported; `.org` files are reported as `Unsupported`.
-- Import is one-time: running it again mints new ids for pages and for blocks without a UUIDv7 `id::`.
+- Import is one-time. Running it again on changed files gives a whole new set of ids.
 - The mirror writes two pages on the same journal day to the same file, and doesn't shorten names over 255 bytes.

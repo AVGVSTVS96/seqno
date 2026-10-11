@@ -94,6 +94,8 @@ Each sync pass: list the folder, merge new files, check snapshots, read other de
 
 Opening a folder that has no edit log yet imports its Logseq markdown (`journals/` and `pages/`, read with the name and date formats in `logseq/config.edn`) as one load that undo can't take back. From then on the edit log is the source of truth.
 
+The import is a pure function of the files. Ids come from a generator seeded with a hash of every file read, the ops are written under a peer id hashed from the resulting pages, and their times come from the pages too. So two devices that open the same folder before either has synced write byte-identical update files, and Loro keeps one copy.
+
 `@seqno/interop` also has the mirror writer: one designated device writes the graph back as Logseq markdown, touching only changed files. A canonical Logseq graph round-trips to the same bytes. The app doesn't run it yet.
 
 ## Index

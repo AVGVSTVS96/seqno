@@ -61,7 +61,6 @@ const attach = (spec: VaultSpec, fs: CloudFs, replica: Replica) =>
       }),
       layer({
         device: spec.deviceId,
-        peer: `${Number(replica.peer)}`,
         members: spec.members,
         compactAfterFiles: spec.compaction ? spec.compactAfterFiles : Number.POSITIVE_INFINITY,
         compactEvery: Duration.millis(spec.compactMinIntervalMs),

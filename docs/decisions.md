@@ -128,6 +128,16 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 **Numbers.** None on speed: the name check runs only when a commit touched a page itself (created, renamed, merged in), not on typing. Tests: `packages/graph/test/sync.test.ts` (two devices, and a block added to the merged-away page before its device heard of the merge) and `apps/web/src/worker/test/core.test.ts` (a folder where a second device made today's journal opens with one journal holding both; before the fix it failed with `UNIQUE constraint failed: pages.name_lc`).
 
+## The import is a pure function of the folder
+
+**Decision.** Importing a Logseq folder gives the same Loro ops on every device that reads the same files. Ids that aren't kept from an `id::` come from a seeded generator (xoshiro128\*\*, seeded with SHA-256 of `config.edn` and every imported path and file). The pages are then written on an empty doc under a peer id taken from SHA-256 of the pages themselves, with block times set to noon UTC of the latest journal day (0 when there are no journals) instead of the clock. The device saves those ops as their own update file, `updates/<deviceId>/<importPeer>-0.loro`, and switches back to its session peer.
+
+**Why.** Two devices that opened one Logseq folder before either's edit log had synced each imported it with fresh random ids, so every page and block existed twice. A rule like "only one device imports" needs a lock, and a synced folder has none. Making both imports identical needs nothing: Loro names every op by peer and counter, and drops a second copy of a known op on merge. The peer is hashed from the output, not the input, so two different imports never share op ids: if the files, the parser or the loader differ in any way, the pages differ and so does the peer. The times can't come from the clock, since two devices never import at the same millisecond; the latest journal day is roughly when the graph was last written to.
+
+**Cost.** An import's update file isn't one session's ops, so the vault's rule changed from "this session's peer only" to "one peer per file, named after it". Import now reads every file before parsing, so the folder's text is in memory at once, as the parsed pages already were.
+
+**Numbers.** None on speed. `apps/web/src/worker/test/core.test.ts` imports one folder as two devices, then shows the second device's files to the first: pages and blocks match a single import exactly. With random ids the same test finds every block twice.
+
 ## Every tab shares one core worker
 
 **Decision.** The core worker is a SharedWorker. Every tab of one seqno build talks to it, so a graph open in several tabs is one Loro doc, one index and one peer id, and edits from any tab go through one writer. A Web Lock per graph keeps a second worker (a tab still on an older build) from writing it at the same time. A newer build takes a graph over by stealing its handover lock: the older worker saves, releases the graph and tells its tabs to reload. Each tab holds a lock of its own, and the worker waits on it to learn when the tab closes.

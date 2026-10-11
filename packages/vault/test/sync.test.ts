@@ -40,18 +40,18 @@ describe("update files", () => {
       }),
   )
 
-  it.effect("rejects bytes that are not this device's own Loro update", () =>
+  it.effect("rejects bytes that hold more than one peer's ops, or no Loro update at all", () =>
     Effect.gen(function* () {
       const { mac } = yield* pair(cloudOf("dataless", true))
-      const stranger = new LoroDoc()
-      stranger.setPeerId("9")
-      stranger.getText("body").insert(0, "x")
-      stranger.commit()
-      const foreign = yield* Effect.flip(mac.vault.writeUpdate(stranger.export({ mode: "update" })))
-      assert.strictEqual(
-        foreign.reason,
-        "an update file holds only peer 1's own ops, found peers [9]",
-      )
+      const mixed = new LoroDoc()
+      mixed.setPeerId("9")
+      mixed.getText("body").insert(0, "x")
+      mixed.commit()
+      mixed.setPeerId("8")
+      mixed.getText("body").insert(0, "y")
+      mixed.commit()
+      const foreign = yield* Effect.flip(mac.vault.writeUpdate(mixed.export({ mode: "update" })))
+      assert.strictEqual(foreign.reason, "an update file holds one peer's ops, found peers [8, 9]")
       const garbage = yield* Effect.flip(mac.vault.writeUpdate(new Uint8Array([1, 2, 3])))
       assert.strictEqual(garbage.reason, "bytes are not a Loro update")
     }),

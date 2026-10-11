@@ -37,7 +37,6 @@ export class UpdateRejected extends Schema.TaggedError<UpdateRejected>()("Update
 
 export interface VaultConfig {
   readonly device: DeviceId
-  readonly peer: string
   readonly formerPeers?: ReadonlyArray<string>
   readonly members: ReadonlyArray<DeviceId>
   readonly compactAfterFiles: number
@@ -173,12 +172,13 @@ const make = (config: VaultConfig) =>
           }
           const { start, end } = meta.value.span
           const authors = Object.keys(end).filter((peer) => (end[peer] ?? 0) > (start[peer] ?? 0))
-          if (authors.length !== 1 || authors[0] !== config.peer) {
+          const [author] = authors
+          if (author === undefined || authors.length > 1) {
             return yield* new UpdateRejected({
-              reason: `an update file holds only peer ${config.peer}'s own ops, found peers [${authors.join(", ")}]`,
+              reason: `an update file holds one peer's ops, found peers [${authors.join(", ")}]`,
             })
           }
-          const path = updatePath(me, config.peer, start[config.peer] ?? 0)
+          const path = updatePath(me, author, start[author] ?? 0)
           const existing = yield* filesIn(myUpdates, myUpdates)
           if (existing.some((file) => file.key === path)) {
             return yield* new UpdateRejected({ reason: `${path} already exists` })

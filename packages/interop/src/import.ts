@@ -1,18 +1,11 @@
-import { Crypto, Effect, Option, PlatformError, Result, Schema } from "effect"
-import {
-  BlockId,
-  newBlockId,
-  newPageId,
-  normalizePageName,
-  type Block,
-  type JournalDay,
-  type PageId,
-} from "@seqno/domain"
+import { Effect, Option, Result, Schema } from "effect"
+import { BlockId, normalizePageName, type Block, type JournalDay, type PageId } from "@seqno/domain"
 import { PageTree } from "@seqno/rpc"
 import { LogseqConfig, defaultConfig, parseConfig } from "./config.ts"
 import { formatJournalDay, parseJournalDay } from "./dates.ts"
 import { titleFromFileBody } from "./filenames.ts"
 import { GraphFolder } from "./folder.ts"
+import { contentSeed, seededIds } from "./ids.ts"
 import { LogseqSyntax, type OutlineBlock } from "./outline.ts"
 
 export const ImportIssue = Schema.TaggedUnion({
@@ -81,52 +74,15 @@ export const importGraph = Effect.gen(function* () {
   const folder = yield* GraphFolder
   const syntax = yield* LogseqSyntax
   const files = yield* folder.list
-  const config = files.includes(configPath)
-    ? parseConfig(yield* folder.read(configPath))
-    : defaultConfig
+  const configText = files.includes(configPath) ? yield* folder.read(configPath) : null
+  const config = configText === null ? defaultConfig : parseConfig(configText)
   const issues: Array<ImportIssue> = []
   const pages: Array<PageTree> = []
   const pageNames = new Set<string>()
   const keptIds = new Set<string>()
   const sourceIds = new Set<string>()
 
-  const blockIdFor = (block: OutlineBlock, path: string) =>
-    Effect.gen(function* () {
-      const written = block.props["id"]
-      if (written !== undefined && sourceIds.has(written.toLowerCase())) {
-        issues.push(ImportIssue.cases.DuplicateBlockId.make({ path, id: written }))
-      }
-      if (written !== undefined) sourceIds.add(written.toLowerCase())
-      const kept = Option.filter(decodeBlockId(written), (id) => !keptIds.has(id))
-      const id = Option.isSome(kept) ? kept.value : yield* newBlockId
-      keptIds.add(id)
-      return id
-    })
-
-  const flatten = (
-    blocks: ReadonlyArray<OutlineBlock>,
-    pageId: PageId,
-    parentId: BlockId | null,
-    path: string,
-  ): Effect.Effect<ReadonlyArray<Block>, PlatformError.PlatformError, Crypto.Crypto> =>
-    Effect.map(
-      Effect.forEach(blocks, (block) =>
-        Effect.gen(function* () {
-          const id = yield* blockIdFor(block, path)
-          const own: Block = {
-            id,
-            pageId,
-            parentId,
-            text: block.text,
-            collapsed: block.collapsed,
-            props: block.props,
-          }
-          return [own, ...(yield* flatten(block.children, pageId, id, path))]
-        }),
-      ),
-      (nested) => nested.flat(),
-    )
-
+  const sources: Array<readonly [Source, string]> = []
   for (const path of files) {
     const classified = classify(path, config)
     if (Option.isNone(classified)) continue
@@ -140,7 +96,49 @@ export const importGraph = Effect.gen(function* () {
       issues.push(ImportIssue.cases.Unreadable.make({ path, reason: read.failure.reason }))
       continue
     }
-    const outline = syntax.parse(read.success)
+    sources.push([source, read.success])
+  }
+  const ids = seededIds(
+    yield* contentSeed([
+      configText ?? "",
+      ...sources.flatMap(([source, text]) => [source.path, text]),
+    ]),
+  )
+
+  const blockIdFor = (block: OutlineBlock, path: string) => {
+    const written = block.props["id"]
+    if (written !== undefined && sourceIds.has(written.toLowerCase())) {
+      issues.push(ImportIssue.cases.DuplicateBlockId.make({ path, id: written }))
+    }
+    if (written !== undefined) sourceIds.add(written.toLowerCase())
+    const kept = Option.filter(decodeBlockId(written), (id) => !keptIds.has(id))
+    const id = Option.isSome(kept) ? kept.value : ids.block()
+    keptIds.add(id)
+    return id
+  }
+
+  const flatten = (
+    blocks: ReadonlyArray<OutlineBlock>,
+    pageId: PageId,
+    parentId: BlockId | null,
+    path: string,
+  ): ReadonlyArray<Block> =>
+    blocks.flatMap((block) => {
+      const id = blockIdFor(block, path)
+      const own: Block = {
+        id,
+        pageId,
+        parentId,
+        text: block.text,
+        collapsed: block.collapsed,
+        props: block.props,
+      }
+      return [own, ...flatten(block.children, pageId, id, path)]
+    })
+
+  for (const [source, text] of sources) {
+    const path = source.path
+    const outline = syntax.parse(text)
     const journalDay = journalDayOf(source, config)
     const fileTitle = Option.match(journalDay, {
       onNone: () => titleFromFileBody(source.body, config.fileNameFormat),
@@ -157,8 +155,8 @@ export const importGraph = Effect.gen(function* () {
       continue
     }
     pageNames.add(name)
-    const pageId = yield* newPageId
-    const blocks = yield* flatten(outline.blocks, pageId, null, path)
+    const pageId = ids.page()
+    const blocks = flatten(outline.blocks, pageId, null, path)
     pages.push({
       page: {
         id: pageId,

@@ -103,7 +103,6 @@ export const openSession = (place: GraphPlace) =>
       Vault,
       vaultLayer({
         device,
-        peer,
         formerPeers,
         members: [device],
         compactAfterFiles: 100,
@@ -142,7 +141,9 @@ export const openSession = (place: GraphPlace) =>
       const imported = yield* importGraph.pipe(
         Effect.provide(Layer.merge(layerFolder(place.storage), LogseqSyntaxLive)),
       )
-      yield* record(yield* graph.load(imported.pages))
+      const seeded = yield* graph.seed(imported.pages)
+      if (Option.isSome(seeded.update)) yield* vault.writeUpdate(seeded.update.value.bytes)
+      yield* record(seeded.events)
     }
     yield* record(yield* graph.load(yield* todaysJournal(graph)))
     yield* save

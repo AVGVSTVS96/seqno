@@ -22,7 +22,6 @@ export const makeDevice = (options: DeviceOptions) =>
       Vault,
       layer({
         device: deviceId(options.id),
-        peer: options.peer,
         formerPeers: options.formerPeers ?? [],
         members: options.members.map((member) => deviceId(member)),
         compactAfterFiles: options.compactAfterFiles ?? 1_000_000,

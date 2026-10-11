@@ -38,7 +38,6 @@ const device = (cloud: FakeCloud, id: string, peer: `${number}`) =>
       }),
       layer({
         device: deviceId(id),
-        peer,
         members: members.map((member) => deviceId(member)),
         compactAfterFiles: 1_000_000,
         compactEvery: 0,

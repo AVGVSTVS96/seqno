@@ -46,13 +46,27 @@ export type PeerId = typeof PeerId.Type
 
 const peerCount = 2n ** 64n - 2n
 
+const peerOf = (bytes: Uint8Array) =>
+  PeerId.make(
+    String(
+      (bytes.slice(0, 8).reduce((acc, byte) => (acc << 8n) | BigInt(byte), 0n) % peerCount) + 1n,
+    ),
+  )
+
 export const newPeerId = Effect.map(
   Effect.flatMap(Crypto.Crypto, (crypto) => crypto.randomBytes(8)),
-  (bytes) =>
-    PeerId.make(
-      String((bytes.reduce((acc, byte) => (acc << 8n) | BigInt(byte), 0n) % peerCount) + 1n),
-    ),
+  peerOf,
 )
+
+const SEED_FORMAT = "seqno-seed-1"
+
+const seedTime = (pages: ReadonlyArray<PageTree>) => {
+  const day = Math.max(0, ...pages.map(({ page }) => page.journalDay ?? 0))
+  return Math.max(
+    0,
+    Date.UTC(Math.floor(day / 10000), (Math.floor(day / 100) % 100) - 1, day % 100, 12),
+  )
+}
 
 export class ImportFailed extends Schema.TaggedError<ImportFailed>()("ImportFailed", {
   reason: Schema.String,
@@ -71,6 +85,11 @@ export interface LocalUpdate {
   readonly bytes: Uint8Array
 }
 
+export interface Seeded {
+  readonly events: ReadonlyArray<GraphEvent>
+  readonly update: Option.Option<LocalUpdate>
+}
+
 export class Graph extends Context.Service<
   Graph,
   {
@@ -87,6 +106,7 @@ export class Graph extends Context.Service<
       updates: ReadonlyArray<Uint8Array>,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, ImportFailed>
     readonly load: (pages: ReadonlyArray<PageTree>) => Effect.Effect<ReadonlyArray<GraphEvent>>
+    readonly seed: (pages: ReadonlyArray<PageTree>) => Effect.Effect<Seeded>
     readonly events: Stream.Stream<GraphEvent>
     readonly flush: <E, R>(
       write: (update: LocalUpdate) => Effect.Effect<void, E, R>,
@@ -330,19 +350,53 @@ const make = (source: GraphSource) =>
         }),
       )
 
+    const place = (loaded: ReadonlyArray<PageTree>, at: number) => {
+      loaded.forEach((one) => loadPage(tree, one, at))
+      doc.commit({ origin: LOADED })
+    }
+
+    const settled = Effect.andThen(repair, drain)
+
     const load = (loaded: ReadonlyArray<PageTree>) =>
       serial(
-        Clock.currentTimeMillis.pipe(
-          Effect.flatMap((now) =>
-            Effect.sync(() => {
-              loaded.forEach((one) => loadPage(tree, one, now))
-              doc.commit({ origin: LOADED })
-            }),
+        Effect.flatMap(Clock.currentTimeMillis, (now) =>
+          Effect.andThen(
+            Effect.sync(() => place(loaded, now)),
+            settled,
           ),
-          Effect.andThen(repair),
-          Effect.andThen(drain),
         ),
       )
+
+    const seed = (seeded: ReadonlyArray<PageTree>) =>
+      Effect.gen(function* () {
+        const digest = yield* Effect.promise(() =>
+          globalThis.crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(JSON.stringify([SEED_FORMAT, seeded])),
+          ),
+        )
+        const writer = peerOf(new Uint8Array(digest))
+        const now = yield* Clock.currentTimeMillis
+        return yield* serial(
+          Effect.gen(function* () {
+            if (doc.oplogVersion().length() > 0) {
+              place(seeded, now)
+              return { events: yield* settled, update: Option.none() }
+            }
+            const update = yield* Effect.sync((): LocalUpdate => {
+              doc.setPeerId(BigInt(writer))
+              try {
+                place(seeded, seedTime(seeded))
+                const end = doc.oplogVersion().get(doc.peerIdStr) ?? 0
+                return { peer: writer, start: 0, end, bytes: doc.export({ mode: "update" }) }
+              } finally {
+                doc.setPeerId(BigInt(source.peer))
+              }
+            })
+            return { events: yield* settled, update: Option.some(update) }
+          }),
+        )
+      })
 
     const flush = <E, R>(write: (update: LocalUpdate) => Effect.Effect<void, E, R>) =>
       flushing.withPermits(1)(
@@ -374,6 +428,7 @@ const make = (source: GraphSource) =>
       dispatchAll,
       merge,
       load,
+      seed,
       events: Stream.fromPubSub(pubsub),
       flush,
       snapshot: serial(Effect.sync(() => doc.export({ mode: "snapshot" }))),

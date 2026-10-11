@@ -40,23 +40,23 @@ const WebCrypto = Layer.succeed(
   }),
 )
 
-const coreLayer = (root: string, starter: Starter | null) =>
+const coreLayer = (root: string, starter: Starter | null, device = "laptop") =>
   RealCore.pipe(
     Layer.provide(
       Layer.succeed(GraphPlaces, {
         open: () => Effect.succeed({ storage: nodeStorage(root), sqlite: layerNode(), starter }),
       }),
     ),
-    Layer.provide(Layer.succeed(Device, { device: DeviceId.make("laptop"), formerPeers: [] })),
+    Layer.provide(Layer.succeed(Device, { device: DeviceId.make(device), formerPeers: [] })),
     Layer.provide(layerWebLocks),
     Layer.provide(WebCrypto),
   )
 
 const AllRpcs = CoreRpcs.merge(PageRpcs)
 
-const coreOn = (root: string, starter: Starter | null = null) =>
+const coreOn = (root: string, starter: Starter | null = null, device = "laptop") =>
   Effect.gen(function* () {
-    const handlers = yield* Layer.build(coreLayer(root, starter))
+    const handlers = yield* Layer.build(coreLayer(root, starter, device))
     return yield* Effect.provide(RpcTest.makeClient(AllRpcs), handlers)
   })
 
@@ -142,6 +142,19 @@ const editWelcome = (root: string, starter: Starter) =>
 
 const named = <A extends { readonly title: string }>(items: ReadonlyArray<A>, title: string) =>
   items.find((item) => item.title === title) ?? assert.fail(`no page titled ${title}`)
+
+const pagesOn = (root: string, device: string) =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const core = yield* coreOn(root, null, device)
+      const opened = yield* core.OpenGraph({ graph: "og" })
+      const tasks = yield* core.GetPage({ pageId: named(opened.pages, "tasks").id })
+      return {
+        titles: opened.pages.map((page) => page.title).toSorted(),
+        tasks: tasks.blocks.map((block) => block.text),
+      }
+    }),
+  )
 
 describe("the core worker on the real graph, vault and index", () => {
   it.effect(
@@ -419,45 +432,47 @@ describe("the core worker on the real graph, vault and index", () => {
       ),
   )
 
-  it.effect("imports a Logseq folder on first open and writes its first update file", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const root = yield* copyOfFixture
-        const core = yield* coreOn(root)
-        const opened = yield* core.OpenGraph({ graph: "og" })
-        const titles = opened.pages
-          .filter((page) => page.journalDay === null || page.journalDay === 20250309)
-          .map((page) => page.title)
-          .toSorted()
-        assert.deepStrictEqual(titles, [
-          "Café NFD",
-          "Mar 9th, 2025",
-          "Title Property Wins",
-          "crlf line endings",
-          "headings",
-          "no trailing newline",
-          "project/Alpha",
-          "project/Beta",
-          "queries",
-          "tasks",
-          "two-space indent",
-        ])
-        const journal = yield* core.GetPage({ pageId: named(opened.pages, "Mar 9th, 2025").id })
-        assert.deepStrictEqual(
-          journal.blocks.map((block) => block.text),
-          [
-            "journal links to [[project/Alpha]] and [[Alpha Project]]",
-            "journal uses a namespaced tag #project/Alpha",
-            "time-tracked task\n:LOGBOOK:\nCLOCK: [2025-03-09 Sun 10:00:00]--[2025-03-09 Sun 10:30:00] =>  00:30:00\n:END:",
-          ],
-        )
-        const written = yield* Effect.promise(() => readdir(join(root, "updates", "laptop")))
-        assert.deepStrictEqual(
-          written.map((name) => name.replace(/^\d+-/, "<peer>-")),
-          ["<peer>-0.loro"],
-        )
-      }),
-    ),
+  it.effect(
+    "imports a Logseq folder on first open and writes the import and the new journal as two files",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const root = yield* copyOfFixture
+          const core = yield* coreOn(root)
+          const opened = yield* core.OpenGraph({ graph: "og" })
+          const titles = opened.pages
+            .filter((page) => page.journalDay === null || page.journalDay === 20250309)
+            .map((page) => page.title)
+            .toSorted()
+          assert.deepStrictEqual(titles, [
+            "Café NFD",
+            "Mar 9th, 2025",
+            "Title Property Wins",
+            "crlf line endings",
+            "headings",
+            "no trailing newline",
+            "project/Alpha",
+            "project/Beta",
+            "queries",
+            "tasks",
+            "two-space indent",
+          ])
+          const journal = yield* core.GetPage({ pageId: named(opened.pages, "Mar 9th, 2025").id })
+          assert.deepStrictEqual(
+            journal.blocks.map((block) => block.text),
+            [
+              "journal links to [[project/Alpha]] and [[Alpha Project]]",
+              "journal uses a namespaced tag #project/Alpha",
+              "time-tracked task\n:LOGBOOK:\nCLOCK: [2025-03-09 Sun 10:00:00]--[2025-03-09 Sun 10:30:00] =>  00:30:00\n:END:",
+            ],
+          )
+          const written = yield* Effect.promise(() => readdir(join(root, "updates", "laptop")))
+          assert.deepStrictEqual(
+            written.map((name) => name.replace(/^\d+-/, "<peer>-")),
+            ["<peer>-0.loro", "<peer>-0.loro"],
+          )
+        }),
+      ),
   )
 
   it.effect(
@@ -629,6 +644,23 @@ describe("the core worker on the real graph, vault and index", () => {
         assert.strictEqual(journals.length, 1)
         assert.deepStrictEqual(journals[0]?.toSorted(), ["", "from the phone"])
       }),
+  )
+
+  it.effect("two devices that import one folder before syncing end up with one copy of it", () =>
+    Effect.gen(function* () {
+      const laptopRoot = yield* copyOfFixture
+      const phoneRoot = yield* copyOfFixture
+      const alone = yield* pagesOn(laptopRoot, "laptop")
+      yield* pagesOn(phoneRoot, "phone")
+      yield* Effect.promise(() =>
+        cp(join(phoneRoot, "updates", "phone"), join(laptopRoot, "updates", "phone"), {
+          recursive: true,
+        }),
+      )
+      const together = yield* pagesOn(laptopRoot, "laptop")
+      assert.deepStrictEqual(together, alone)
+      assert.strictEqual(new Set(together.titles).size, together.titles.length)
+    }),
   )
 
   it.effect("search and live queries read the index", () =>

@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Schema } from "effect"
+import { Effect, Option, Schema } from "effect"
 import { BlockId, PageId } from "@seqno/domain"
 import { openGraph } from "./support.ts"
 
@@ -35,6 +35,39 @@ describe("load", () => {
         assert.deepStrictEqual(yield* graph.block(child), imported.blocks[1])
       }),
     ),
+  )
+
+  it.effect(
+    "seeding the same pages on two devices writes the same ops, so merging adds nothing",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const left = yield* openGraph("1")
+          const right = yield* openGraph("2")
+          const fromLeft = yield* left.seed([imported])
+          const fromRight = yield* right.seed([imported])
+          if (Option.isNone(fromLeft.update) || Option.isNone(fromRight.update)) {
+            return assert.fail("an empty graph seeds under its own writer")
+          }
+          assert.deepStrictEqual(fromLeft.update.value.bytes, fromRight.update.value.bytes)
+          assert.notStrictEqual(fromLeft.update.value.peer, "1")
+          assert.deepStrictEqual(yield* left.merge([fromRight.update.value.bytes]), [])
+          assert.deepStrictEqual(yield* left.page(pageId), imported)
+          assert.deepStrictEqual(yield* left.flush(() => Effect.void), Option.none())
+          yield* left.dispatch({
+            _tag: "EditText",
+            blockId: child,
+            from: 0,
+            to: 0,
+            insert: "go ",
+          })
+          const own = yield* left.flush(() => Effect.void)
+          assert.deepStrictEqual(
+            Option.map(own, (update) => update.peer),
+            Option.some("1"),
+          )
+        }),
+      ),
   )
 
   it.effect("cannot be undone", () =>
