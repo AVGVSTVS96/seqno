@@ -34,7 +34,13 @@ const open = (spec: ReplicaSpec) =>
       ),
       Graph,
     )
-    const synced = vaultReplica(graph)
+    const synced = vaultReplica({
+      ...graph,
+      merge: (blobs) =>
+        Effect.flatMap(graph.version, (version) =>
+          version.size === 0 ? Effect.as(graph.restore(blobs), []) : graph.merge(blobs),
+        ),
+    })
     const pages = Effect.map(graph.pages, (all) => all.toSorted((a, b) => (a.id < b.id ? -1 : 1)))
     const trees = Effect.flatMap(pages, (all) =>
       Effect.forEach(all, (page) => Effect.orDie(graph.page(page.id))),
