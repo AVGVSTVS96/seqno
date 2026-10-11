@@ -22,6 +22,16 @@ export const TREE = "blocks"
 
 export const MERGED_INTO = "mergedInto"
 
+const TRASH = "trash"
+
+export const isTrash = (node: LoroTreeNode): boolean => node.data.get(TRASH) === true
+
+export const makeTrash = (tree: LoroTree): LoroTreeNode => {
+  const node = tree.createNode()
+  node.data.set(TRASH, true)
+  return node
+}
+
 const EpochMillis = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
 const PropKeys = Schema.Array(Schema.String)

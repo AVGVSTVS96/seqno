@@ -4,6 +4,7 @@ import type { GraphEvent, PageId } from "@seqno/domain"
 import { forget, type Registry } from "./registry.ts"
 import {
   blockIdOf,
+  isTrash,
   isTreeId,
   livePageIdOf,
   pageIdOf,
@@ -34,11 +35,11 @@ export const translate = (
     Match.discriminatorsExhaustive("action")({
       create: (item) => mark(item.target, { upserted: true }),
       move: (item) => {
-        formerParent.set(item.target, item.oldParent)
+        if (!formerParent.has(item.target)) formerParent.set(item.target, item.oldParent)
         mark(item.target, { moved: true })
       },
       delete: (item) => {
-        formerParent.set(item.target, item.oldParent)
+        if (!formerParent.has(item.target)) formerParent.set(item.target, item.oldParent)
         deleted.push(item.target)
       },
     }),
@@ -58,6 +59,18 @@ export const translate = (
     const parent = parentOf(id)
     return parent === undefined ? id : rootOf(parent)
   }
+  const rootBefore = (id: TreeID): TreeID => {
+    const parent = formerParent.has(id) ? formerParent.get(id) : parentOf(id)
+    return parent === undefined ? id : rootBefore(parent)
+  }
+  const isTrashNode = (id: TreeID) => {
+    const node = tree.getNodeByID(id)
+    return node !== undefined && isTrash(node)
+  }
+  const inTrash = (id: TreeID) => isTrashNode(rootOf(id))
+  const pageBefore = (id: TreeID): Option.Option<PageId> =>
+    Option.flatMap(Option.fromUndefinedOr(tree.getNodeByID(rootBefore(id))), pageIdOf)
+  const wasInTrash = (id: TreeID | undefined) => id !== undefined && isTrashNode(rootBefore(id))
   const pageOf = (id: TreeID): Option.Option<PageId> =>
     Option.flatMap(Option.fromUndefinedOr(tree.getNodeByID(rootOf(id))), pageIdOf)
   const placementUnder = (parent: TreeID): Option.Option<Placement> =>
@@ -77,14 +90,44 @@ export const translate = (
         return blockId
       }),
     )
-  const deleteSubtree = (node: LoroTreeNode, at: Placement) =>
+  const deleteSubtree = (node: LoroTreeNode, at: Placement, kept = false) =>
     walkBlocks(node, at, (child, childAt) =>
       Option.map(blockIdOf(child), (blockId) => {
-        forget(registry.blocks, blockId, child.id)
+        if (!kept) forget(registry.blocks, blockId, child.id)
         events.push({ _tag: "BlockDeleted", blockId, pageId: childAt.pageId })
         return blockId
       }),
     )
+  const upsertSubtree = (node: LoroTreeNode, at: Placement) =>
+    walkBlocks(node, at, (child, childAt) =>
+      Option.map(readBlock(child, childAt), ({ block, createdAt, updatedAt }) => {
+        registry.blocks.set(block.id, child.id)
+        events.push({ _tag: "BlockUpserted", block, createdAt, updatedAt })
+        return block.id
+      }),
+    )
+  const trashed = (node: LoroTreeNode, change: Change) => {
+    if (!change.moved || !formerParent.has(node.id)) return
+    const from = formerParent.get(node.id)
+    if (from === undefined) {
+      Option.map(
+        Option.filter(pageIdOf(node), (pageId) => registry.pages.get(pageId) === node.id),
+        (pageId) => {
+          deleteSubtree(node, { pageId, parentId: null }, true)
+          forget(registry.pages, pageId, node.id)
+          registry.loaded.delete(pageId)
+          events.push({ _tag: "PageDeleted", pageId })
+        },
+      )
+      return
+    }
+    Option.map(placementUnder(from), (at) =>
+      Option.map(blockIdOf(node), (blockId) => {
+        events.push({ _tag: "BlockDeleted", blockId, pageId: at.pageId })
+        deleteSubtree(node, { pageId: at.pageId, parentId: blockId }, true)
+      }),
+    )
+  }
 
   const retired: Array<LoroTreeNode> = []
   const sent = new Set<TreeID>()
@@ -97,22 +140,30 @@ export const translate = (
     if (parent !== undefined) send(parent.id)
     const change = changed.get(id)
     if (change === undefined) return
+    const restored = change.moved && wasInTrash(formerParent.get(id))
     if (parent === undefined) {
       Option.match(readPage(node), {
         onNone: () => retired.push(node),
         onSome: (page) => {
           registry.pages.set(page.id, id)
           events.push({ _tag: "PageUpserted", page })
+          if (restored) upsertSubtree(node, { pageId: page.id, parentId: null })
         },
       })
       return
     }
+    if (inTrash(id)) return trashed(node, change)
     Option.map(placementUnder(parent.id), (at) => {
       Option.map(readBlock(node, at), ({ block, createdAt, updatedAt }) => {
         registry.blocks.set(block.id, id)
+        if (restored) {
+          events.push({ _tag: "BlockUpserted", block, createdAt, updatedAt })
+          upsertSubtree(node, { pageId: at.pageId, parentId: block.id })
+          return
+        }
         if (change.upserted) events.push({ _tag: "BlockUpserted", block, createdAt, updatedAt })
         if (change.moved) events.push({ _tag: "BlockMoved", blockId: block.id, ...at })
-        const formerPage = Option.flatMap(Option.fromUndefinedOr(formerParent.get(id)), pageOf)
+        const formerPage = Option.flatMap(Option.fromUndefinedOr(formerParent.get(id)), pageBefore)
         if (change.moved && !Option.contains(formerPage, at.pageId)) {
           moveSubtree(node, { pageId: at.pageId, parentId: block.id })
         }

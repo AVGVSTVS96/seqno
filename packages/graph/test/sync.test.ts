@@ -167,6 +167,62 @@ describe("two pages with one name", () => {
   )
 })
 
+describe("undoing a delete", () => {
+  it.effect("brings back the same blocks, with what another device typed into them meanwhile", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const left = yield* openGraph("1")
+        const { pageId, ids } = yield* seedPage(left, "Undo delete", ["a", "b", "  b1", "c"])
+        const right = yield* openGraph("2", { snapshot: yield* left.snapshot })
+        const [b, b1] = [nth(ids, 1), nth(ids, 2)]
+        yield* flushed(left)
+
+        const deleted = yield* left.dispatch({ _tag: "DeleteBlocks", blockIds: [b] })
+        assert.deepStrictEqual(
+          deleted.map((event) => (event._tag === "BlockDeleted" ? event.blockId : event._tag)),
+          [b, b1],
+        )
+        assert.deepStrictEqual(outline(yield* left.page(pageId)), ["a", "c"])
+        yield* right.dispatch({ _tag: "EditText", blockId: b1, from: 2, to: 2, insert: " typed" })
+        yield* left.merge(yield* flushed(right))
+        assert.deepStrictEqual(outline(yield* left.page(pageId)), ["a", "c"])
+
+        const restored = yield* left.dispatch({ _tag: "Undo" })
+        assert.deepStrictEqual(
+          restored.map((event) => (event._tag === "BlockUpserted" ? event.block.text : event._tag)),
+          ["b", "b1 typed"],
+        )
+        yield* right.merge(yield* flushed(left))
+        const expected = ["a", "b", "  b1 typed", "c"]
+        assert.deepStrictEqual(outline(yield* left.page(pageId)), expected)
+        assert.deepStrictEqual(outline(yield* right.page(pageId)), expected)
+        assert.strictEqual((yield* left.block(b1)).text, "b1 typed")
+      }),
+    ),
+  )
+
+  it.effect("brings back a deleted page and its blocks", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const graph = yield* openGraph("1")
+        const { pageId } = yield* seedPage(graph, "Gone", ["a", "  a1"])
+        const deleted = yield* graph.dispatch({ _tag: "DeletePage", pageId })
+        assert.deepStrictEqual(
+          deleted.map((event) => event._tag),
+          ["BlockDeleted", "BlockDeleted", "PageDeleted"],
+        )
+        assert.deepStrictEqual((yield* graph.pages).length, 0)
+        const restored = yield* graph.dispatch({ _tag: "Undo" })
+        assert.deepStrictEqual(
+          restored.map((event) => event._tag),
+          ["PageUpserted", "BlockUpserted", "BlockUpserted"],
+        )
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a", "  a1"])
+      }),
+    ),
+  )
+})
+
 describe("persistence", () => {
   it.effect(
     "flushes only new local ops, keeps them on a failed write, and reopens from the files",

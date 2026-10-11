@@ -5,12 +5,14 @@ export interface Registry {
   readonly pages: Map<PageId, TreeID>
   readonly blocks: Map<BlockId, TreeID>
   readonly loaded: Set<PageId>
+  trash: TreeID | undefined
 }
 
 export const emptyRegistry = (): Registry => ({
   pages: new Map(),
   blocks: new Map(),
   loaded: new Set(),
+  trash: undefined,
 })
 
 export const forget = <K>(index: Map<K, TreeID>, key: K, node: TreeID): void => {

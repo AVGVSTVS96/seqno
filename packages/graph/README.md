@@ -17,6 +17,7 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 - `seed(pages)` does the same on an empty graph, but writes the ops under a peer id hashed from the pages and with times taken from them (noon UTC of the latest journal day), and returns those ops as their own update. Two devices seeding the same pages write identical ops, so merging one into the other adds nothing.
 - Two live pages with one name merge into the one with the smaller id right after the commit or merge that made them; the other stays as a hidden root marked `mergedInto`, and blocks that land there later move over too.
 - `MergeWithPrevious` appends the block's text to the previous visible block, moves its children there, and fills that block's missing properties from it. `mergeTarget(id)` names that block, so the core can point `((refs))` to the merged block at the one it merged into in the same commit.
+- Deleting blocks or a page (and the block a merge empties) moves them under a hidden trash root instead of deleting them in Loro, so undo moves the same nodes back, with whatever other devices typed into them meanwhile. Reads and events treat the trash as deleted.
 - Undo follows Logseq: typing and property edits in one block form one step, every other command is its own step, and remote ops are never undone.
 - Layout: one Loro tree with pages as roots and blocks below them. Text is a `LoroText`; props are a `LoroMap` plus a key list that keeps their order.
 
@@ -29,4 +30,3 @@ pnpm test --project @seqno/graph
 ## Known gaps
 
 - There is no `eventsSince(version)`, so a stale index has to rebuild from every page.
-- Undoing a delete re-creates the blocks with the same ids, but edits another device made to them in the meantime are lost.

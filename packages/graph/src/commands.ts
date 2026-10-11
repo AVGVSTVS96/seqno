@@ -16,6 +16,8 @@ import {
   childrenOf,
   blockIdOf,
   isCollapsed,
+  isTrash,
+  makeTrash,
   readPage,
   readProps,
   setProp,
@@ -41,6 +43,13 @@ const live = (tree: LoroTree, id: TreeID | undefined): Option.Option<LoroTreeNod
     ? Option.none()
     : Option.fromUndefinedOr(tree.getNodeByID(id))
 
+const ancestors = (node: LoroTreeNode): ReadonlyArray<LoroTreeNode> => {
+  const parent = node.parent()
+  return parent === undefined ? [] : [parent, ...ancestors(parent)]
+}
+
+const rootOf = (node: LoroTreeNode): LoroTreeNode => ancestors(node).at(-1) ?? node
+
 const blockNode = (
   ws: Workspace,
   id: BlockId,
@@ -48,24 +57,32 @@ const blockNode = (
   const known = ws.registry.blocks.get(id)
   return known === undefined
     ? Effect.fail(new Unresolved({ id }))
-    : Option.match(live(ws.tree, known), {
-        onNone: () => reject(`block ${id} was deleted`),
-        onSome: (node) => Effect.succeed(node),
-      })
+    : Option.match(
+        Option.filter(live(ws.tree, known), (node) => !isTrash(rootOf(node))),
+        {
+          onNone: () => reject(`block ${id} was deleted`),
+          onSome: (node) => Effect.succeed(node),
+        },
+      )
 }
+
+const trashOf = (ws: Workspace): LoroTreeNode => {
+  const known = Option.getOrUndefined(live(ws.tree, ws.registry.trash))
+  if (known !== undefined) return known
+  const found =
+    ws.tree.roots().find((root) => !ws.tree.isNodeDeleted(root.id) && isTrash(root)) ??
+    makeTrash(ws.tree)
+  ws.registry.trash = found.id
+  return found
+}
+
+const discard = (ws: Workspace, node: LoroTreeNode) => ws.tree.move(node.id, trashOf(ws).id, 0)
 
 const pageNode = (ws: Workspace, id: PageId): Effect.Effect<LoroTreeNode, CommandRejected> =>
   Option.match(live(ws.tree, ws.registry.pages.get(id)), {
     onNone: () => reject(`page ${id} does not exist`),
     onSome: (node) => Effect.succeed(node),
   })
-
-const ancestors = (node: LoroTreeNode): ReadonlyArray<LoroTreeNode> => {
-  const parent = node.parent()
-  return parent === undefined ? [] : [parent, ...ancestors(parent)]
-}
-
-const rootOf = (node: LoroTreeNode): LoroTreeNode => ancestors(node).at(-1) ?? node
 
 const isWithin = (node: LoroTreeNode, ancestor: LoroTreeNode): boolean =>
   node.id === ancestor.id || ancestors(node).some((up) => up.id === ancestor.id)
@@ -180,7 +197,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         yield* checkTitle(ws, title, page.id)
         page.data.set("title", title)
       }),
-    DeletePage: ({ pageId }) => Effect.map(pageNode(ws, pageId), (page) => ws.tree.delete(page.id)),
+    DeletePage: ({ pageId }) => Effect.map(pageNode(ws, pageId), (page) => discard(ws, page)),
     InsertBlock: ({ pageId, parentId, after, text }) =>
       Effect.gen(function* () {
         const page = yield* pageNode(ws, pageId)
@@ -246,7 +263,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
           if (target.id === parent?.id) child.moveBefore(node)
           else ws.tree.move(child.id, target.id, childrenOf(target).length)
         }
-        ws.tree.delete(node.id)
+        discard(ws, node)
         touch(target, yield* Clock.currentTimeMillis)
       }),
     Indent: ({ blockIds }) =>
@@ -305,9 +322,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         }, anchor)
       }),
     DeleteBlocks: ({ blockIds }) =>
-      Effect.map(selection(ws, blockIds), (roots) =>
-        roots.forEach((node) => ws.tree.delete(node.id)),
-      ),
+      Effect.map(selection(ws, blockIds), (roots) => roots.forEach((node) => discard(ws, node))),
     SetCollapsed: ({ blockId, collapsed }) =>
       Effect.map(blockNode(ws, blockId), (node) => node.data.set("collapsed", collapsed)),
     SetProperty: ({ target, key, value }) =>

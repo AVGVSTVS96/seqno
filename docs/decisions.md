@@ -138,6 +138,16 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 **Numbers.** None on speed. `apps/web/src/worker/test/core.test.ts` imports one folder as two devices, then shows the second device's files to the first: pages and blocks match a single import exactly. With random ids the same test finds every block twice.
 
+## Deleting moves to a hidden trash
+
+**Decision.** `DeleteBlocks`, `DeletePage` and the emptied block of a `MergeWithPrevious` move their nodes under a root marked `trash` instead of calling Loro's delete. Everything under it reads as deleted: events report `BlockDeleted` and `PageDeleted` when nodes go in, and `BlockUpserted` and `PageUpserted` when undo moves them out.
+
+**Why.** Loro's undo of a tree delete creates a new node with the old data, and Loro refuses to move a deleted node, so the original can't come back. Text another device typed into the deleted block before it heard of the delete stays on the old node and is lost on undo. A move is undone by moving back, so the original node, with every concurrent edit, returns.
+
+**Cost.** Deleted blocks stay in the doc, as Loro already keeps deleted nodes' state to merge concurrent edits. Nothing empties the trash yet.
+
+**Numbers.** None. `packages/graph/test/sync.test.ts` deletes a block on one device while another types into it, undoes the delete, and both devices end with the typed text; with Loro's delete the undo brings back the block without it.
+
 ## Every tab shares one core worker
 
 **Decision.** The core worker is a SharedWorker. Every tab of one seqno build talks to it, so a graph open in several tabs is one Loro doc, one index and one peer id, and edits from any tab go through one writer. A Web Lock per graph keeps a second worker (a tab still on an older build) from writing it at the same time. A newer build takes a graph over by stealing its handover lock: the older worker saves, releases the graph and tells its tabs to reload. Each tab holds a lock of its own, and the worker waits on it to learn when the tab closes.
