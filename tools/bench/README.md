@@ -27,14 +27,14 @@ It writes ten years of daily journals (3,653 journals and 3,001 other pages, 150
 
 | Number                                           | Budget  |
 | ------------------------------------------------ | ------- |
-| Open: click to the first journal on screen       | 10 s    |
+| Open: click to the first journal on screen       | 5 s     |
 | Journals: frame time p95, then 600 frames deeper | 33.4 ms |
 | Long page: frame time p95                        | 33.4 ms |
 | Journals: DOM nodes after scrolling              | 15,000  |
-| Rows on screen after a jump to the middle        | 3 s     |
+| Rows on screen after a jump to the middle        | 1.5 s   |
 | Frames over 50 ms, page heap, Chrome memory      | -       |
 
-At 60 Hz a frame is 16.7 ms, so a p95 of 33.4 ms allows one dropped frame in twenty. Chrome memory is the proportional set size of every Chrome process (Linux only).
+On a CI runner it opens in about 2 s, scrolls both at a 16.7 ms p95, and keeps about 2,700 DOM nodes. At 60 Hz a frame is 16.7 ms, so a p95 of 33.4 ms allows one dropped frame in twenty. Chrome memory is the proportional set size of every Chrome process (Linux only).
 
 `SEQNO_BENCH_YEARS` and `SEQNO_BENCH_LONG_PAGE` change the graph's size. `node src/write-years.ts <folder> <years> <long page blocks>` writes the same graph as a folder to open by hand.
 

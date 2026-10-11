@@ -8,7 +8,7 @@ import { writeYears } from "./write-years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
-const budgets = { openMs: 10_000, frameP95Ms: 33.4, domNodes: 15_000, jumpMs: 3_000 }
+const budgets = { openMs: 5_000, frameP95Ms: 33.4, domNodes: 15_000, jumpMs: 1_500 }
 const frames = 600
 const pxPerFrame = 60
 
