@@ -32,7 +32,7 @@ The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.
 | `@seqno/sync-sim` | `tools/sync-sim`    | tool     | Multi-device fake-iCloud simulator for the sync protocol (stand-in graph; real vault optional). |
 | `@seqno/e2e`      | `tools/e2e`         | tool     | Playwright flows, the feature map and the design harness.                                       |
 | `@seqno/lint`     | `tools/lint`        | tool     | The `seqno` oxlint plugin that enforces the rules below.                                        |
-| `@seqno/bench`    | `tools/bench`       | tool     | The 50k-block benchmark CI runs: open and keystroke against their budgets.                      |
+| `@seqno/bench`    | `tools/bench`       | tool     | Benchmarks CI runs: 50k-block open and keystroke, and years of journals scrolled in Chrome.     |
 | `@seqno/fixtures` | `fixtures/`         | tool     | Real Logseq graphs, 50k-block generator, edge-case graphs.                                      |
 
 A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added to `repoMap` in `tools/lint/src/boundaries.ts` and to this table, or lint fails.

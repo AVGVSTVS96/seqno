@@ -1,33 +1,14 @@
-import { Context, Crypto, Effect, Layer, Option } from "effect"
+import { Effect, Layer } from "effect"
 import type { Command } from "@seqno/domain"
 import { generateGraph, toLogseqFiles } from "@seqno/fixtures"
-import { Graph, PeerId } from "@seqno/graph"
 import { Index } from "@seqno/index"
 import { layerNode } from "@seqno/index/node"
 import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
+import { emptyGraph, serviceOf } from "./graph.ts"
 
 const budgets = { openMs: 1000, keystrokeP95Ms: 16 }
 const OPENS = 3
 const KEYSTROKES = 300
-
-const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used by the graph"),
-  }),
-)
-
-const serviceOf = <I, S, E>(tag: Context.Key<I, S>, layer: Layer.Layer<I, E>) =>
-  Effect.map(Layer.build(layer), (context) => Context.get(context, tag))
-
-const emptyGraph = (peer: string) =>
-  serviceOf(
-    Graph,
-    Graph.layer({ peer: PeerId.make(peer), snapshot: Option.none(), updates: [] }).pipe(
-      Layer.provide(WebCrypto),
-    ),
-  )
 
 const timed = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {

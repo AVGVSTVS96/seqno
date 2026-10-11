@@ -36,6 +36,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @seqno/bench bench
+      - run: pnpm --filter @seqno/bench scroll
 
   e2e:
     runs-on: ubuntu-24.04

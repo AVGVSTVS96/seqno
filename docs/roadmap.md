@@ -12,7 +12,7 @@ web (done) ──▶ hardening (next) ──┬──▶ iOS + iCloud Drive
 The web app runs in Chrome and Edge on the real core: a Loro edit log, a SQLite index, and Logseq import.
 
 - **Graphs.** Open a Logseq folder with the folder picker, or one of two demo graphs kept in the browser: a short tour, and a developer's notes that use most of what seqno renders. The first open imports the markdown; after that, edits save to the edit log as they land and survive a reload, and the header says when a save fails. A graph can be open in any number of tabs; they share one core worker, so each tab sees what the others type at once.
-- **Pages.** Journals with today on top (more days load as you scroll), pages, aliases, tag pages, the All pages table, Mod+K full-text search, the right sidebar, favorites and recent pages. Renaming a page rewrites every reference to it.
+- **Pages.** Journals with today on top, every day back to the first, of which only the days near the screen are mounted, pages, aliases, tag pages, the All pages table, Mod+K full-text search, the right sidebar, favorites and recent pages. Renaming a page rewrites every reference to it.
 - **Outlining.** Enter, Tab and Shift+Tab, drag, multi-block selection, collapse, zoom, moving blocks with keys, and undo and redo one command at a time. Pasting a markdown outline makes blocks.
 - **Blocks.** Tasks and priorities, SCHEDULED and DEADLINE with a date picker, properties as `key:: value` lines, headings, code blocks edited in place, images with resizing, embeds, block references with counts, hover previews, and linked and unlinked references.
 - **Queries.** Live `{{query}}` blocks drawn like Logseq's. They take Logseq syntax, or Dataview-style text.
@@ -29,7 +29,7 @@ Make the web app safe for real, large graphs before adding platforms:
 3. Keep the edit log small on a single device, and show save state in the UI. (Done for graphs kept in the browser, and the header shows save state; a lone device on a synced folder still can't delete, see below.)
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
 5. Run the sync simulator on the real graph with every command and device restarts. (Done: 50 runs of 600 ops and 20 runs of 10k ops all converged.)
-6. Check in a 50k-block benchmark that fails when open or typing goes over budget, and test sync on two real Macs. (The benchmark is in: `tools/bench` runs in CI. The two-Mac test needs two Macs signed into iCloud.)
+6. Check in a 50k-block benchmark that fails when open or typing goes over budget, and test sync on two real Macs. (The benchmark is in: `tools/bench` runs in CI, in Node for open and typing and in Chrome for ten years of journals and a 20k-block page, opened and scrolled. The two-Mac test needs two Macs signed into iCloud.)
 
 ## iOS and iCloud Drive
 
@@ -55,6 +55,10 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 ### Scale
 
 - **The index isn't kept on disk.** Every open fills the in-memory index again in the background, about 8 s of worker time at 50k blocks, and search and backlinks are partial until it ends. `opfs-sahpool` needs OPFS sync access handles, which only dedicated workers get, and the core is a SharedWorker. The way left is saving the in-memory database to OPFS with an async writable and catching up from its stamp, which needs a point to save at (there's no reliable "last tab closed" moment) and a way to turn the Loro diff since the stamp into events.
+- **Opening grows with the graph.** In headless Chrome on `cloud`, the first journal shows 4.1 s after opening ten years of journals (150k blocks, a 52 MB snapshot) and 8.8 s after 30 years (390k blocks, 156 MB). About half is fixed by Loro: checking the snapshot's checksum, importing it, and decoding the whole block tree the first time anything reads it, because every page and block lives in one tree. The rest is reading every page root for the page list (once per version now, it was three times).
+- **The index fill takes more than 45 s at ten years** (it was still writing pages when a profile started 45 s after the open), and runs again on every open. Scrolling stays smooth meanwhile, but each page read waits behind one page of the fill, so after dragging the scrollbar far the days' blocks take up to 1.5 s to show at ten years and 2.4 s at 30.
+- **Opening a 30k-block page takes about 2.8 s**: the core reads every block of the page, and the tab lays all of them out once. Scrolling it afterwards stays at 16.7 ms frames.
+- **The 60-year graph wasn't measured.** The benchmark's generator holds the whole graph and its markdown in memory and ran out of its 5 GB heap at 60 years; writing years in slices would get past it.
 - **Big imports are very slow.** Import loads every page in one Loro commit. At 50k blocks that took about 3 minutes, and reopening the result about 2 more (at 10k blocks, under a second each). Committing one page at a time measured about 15 s in total.
 - **Update files pile up on a lone device in a synced folder.** Each edit is saved as soon as the last write finishes, so typing can write a file per keystroke. Graphs kept in the browser compact at 100 files and delete what the snapshot covers. In a picked folder, deleting needs another device to confirm the snapshot reached the server, so a device that is alone there never deletes its update files or its hourly snapshots, and every open reads all of them.
 - **Live queries re-run on any matching key.** The row-level check that cut re-runs from about 4 to 1 per keystroke exists in `@seqno/query` but isn't wired in.
