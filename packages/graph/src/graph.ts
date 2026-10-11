@@ -98,10 +98,13 @@ export class Graph extends Context.Service<
     readonly block: (id: BlockId) => Effect.Effect<Block, BlockNotFound>
     readonly dispatch: (
       command: Command,
+      client?: string,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, CommandRejected>
     readonly dispatchAll: (
       commands: ReadonlyArray<Command>,
+      client?: string,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, CommandRejected>
+    readonly release: (client: string) => Effect.Effect<void>
     readonly merge: (
       updates: ReadonlyArray<Uint8Array>,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, ImportFailed>
@@ -122,6 +125,14 @@ export class Graph extends Context.Service<
 
 const LOADED = "seqno:load"
 const REPAIRED = "seqno:repair"
+const UNDONE = "undo"
+
+const clientOrigin = (client: string) => `seqno:client:${client};`
+
+interface History {
+  readonly undo: UndoManager
+  typingIn: BlockId | null
+}
 
 const typedBlock = (command: Command): BlockId | null =>
   command._tag === "EditText"
@@ -152,27 +163,55 @@ const make = (source: GraphSource) =>
     for (const root of tree.roots()) {
       Option.map(livePageIdOf(root), (id) => registry.pages.set(id, root.id))
     }
-    const freshUndo = () =>
-      new UndoManager(doc, { mergeInterval: 0, excludeOriginPrefixes: [LOADED, REPAIRED] })
-    let ws: Workspace = { tree, registry, undo: freshUndo() }
-    let typingIn: BlockId | null = null
-    const endTyping = () => {
-      if (typingIn !== null) ws.undo.groupEnd()
-      typingIn = null
+    const histories = new Map<string, History>()
+    const historyOf = (client: string): History => {
+      const found = histories.get(client)
+      if (found !== undefined) return found
+      const undo = new UndoManager(doc, {
+        mergeInterval: 0,
+        excludeOriginPrefixes: [
+          LOADED,
+          REPAIRED,
+          UNDONE,
+          ...[...histories.keys()].map(clientOrigin),
+        ],
+      })
+      for (const other of histories.values())
+        other.undo.addExcludeOriginPrefix(clientOrigin(client))
+      const history: History = { undo, typingIn: null }
+      histories.set(client, history)
+      return history
     }
-    const groupTyping = (block: BlockId | null) => {
-      if (block === typingIn) return
-      endTyping()
+    const workspaceOf = (client: string): Workspace => ({
+      tree,
+      registry,
+      undo: historyOf(client).undo,
+    })
+    const endTyping = (history: History) => {
+      if (history.typingIn !== null) history.undo.groupEnd()
+      history.typingIn = null
+    }
+    const groupTyping = (client: string, block: BlockId | null) => {
+      const history = historyOf(client)
+      if (block === history.typingIn) return
+      endTyping(history)
       if (block === null) return
-      ws.undo.groupStart()
-      typingIn = block
+      history.undo.groupStart()
+      history.typingIn = block
+    }
+    const forgetHistories = () => {
+      for (const history of histories.values()) {
+        endTyping(history)
+        history.undo.free()
+      }
+      histories.clear()
     }
     const batches: Array<LoroEventBatch> = []
     const unsubscribe = doc.subscribe((batch) => void batches.push(batch))
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         unsubscribe()
-        ws.undo.free()
+        forgetHistories()
         doc.free()
       }),
     )
@@ -280,69 +319,77 @@ const make = (source: GraphSource) =>
         ),
       )
 
-    const committed = (applied: Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto>) =>
-      applied.pipe(
-        Effect.catchTag("Unresolved", ({ id }) =>
-          Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
-        ),
-        Effect.provideService(Crypto.Crypto, crypto),
-        Effect.andThen(Effect.sync(() => doc.commit())),
-        Effect.andThen(repair),
-        Effect.andThen(drain),
-      )
+    const committed =
+      (client: string) =>
+      (applied: Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto>) =>
+        applied.pipe(
+          Effect.catchTag("Unresolved", ({ id }) =>
+            Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
+          ),
+          Effect.provideService(Crypto.Crypto, crypto),
+          Effect.andThen(Effect.sync(() => doc.commit({ origin: clientOrigin(client) }))),
+          Effect.andThen(repair),
+          Effect.andThen(drain),
+        )
 
-    const dispatch = (command: Command) =>
+    const dispatch = (command: Command, client = "") =>
       serial(
         Effect.suspend(() => {
-          groupTyping(typedBlock(command))
-          return applyCommand(ws, command)
+          groupTyping(client, typedBlock(command))
+          return applyCommand(workspaceOf(client), command)
         }).pipe(
           Effect.catchTag("Unresolved", () =>
             Effect.andThen(
               filled.await,
-              Effect.suspend(() => applyCommand(ws, command)),
+              Effect.suspend(() => applyCommand(workspaceOf(client), command)),
             ),
           ),
-          committed,
+          committed(client),
         ),
       )
 
-    const dispatchAll = (commands: ReadonlyArray<Command>) => {
+    const dispatchAll = (commands: ReadonlyArray<Command>, client = "") => {
       const [first, ...rest] = commands
       if (first === undefined) return Effect.succeed([])
-      if (rest.length === 0) return dispatch(first)
+      if (rest.length === 0) return dispatch(first, client)
       return serial(
         Effect.andThen(
           filled.await,
           Effect.suspend(() => {
-            groupTyping(typedInOneBlock(commands))
+            groupTyping(client, typedInOneBlock(commands))
+            const ws = workspaceOf(client)
             return Effect.forEach(commands, (command) => applyCommand(ws, command), {
               discard: true,
             })
           }),
-        ).pipe(committed),
+        ).pipe(committed(client)),
       )
     }
 
-    const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
+    const release = (client: string) =>
+      serial(
+        Effect.sync(() => {
+          const history = histories.get(client)
+          if (history === undefined) return
+          endTyping(history)
+          history.undo.free()
+          histories.delete(client)
+        }),
+      )
 
-    const restartUndo = () => {
-      endTyping()
-      ws.undo.free()
-      ws = { ...ws, undo: freshUndo() }
-    }
+    const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
 
     const merge = (updates: ReadonlyArray<Uint8Array>) =>
       serial(
         Effect.suspend(() => {
           const before = ownCounter()
           const caughtUp = before === flushed
-          endTyping()
+          histories.forEach(endTyping)
           return importAll(doc, updates).pipe(
             Effect.tap(() =>
               Effect.sync(() => {
                 if (caughtUp) flushed = ownCounter()
-                if (ownCounter() !== before) restartUndo()
+                if (ownCounter() !== before) forgetHistories()
               }),
             ),
             Effect.andThen(repair),
@@ -427,12 +474,13 @@ const make = (source: GraphSource) =>
       block,
       dispatch,
       dispatchAll,
+      release,
       merge,
       mergeTarget: (id) =>
         serial(
           Effect.andThen(
             filled.await,
-            Effect.suspend(() => mergeTargetOf(ws, id)),
+            Effect.suspend(() => mergeTargetOf({ tree, registry }, id)),
           ).pipe(Effect.orElseSucceed(() => Option.none())),
         ),
       load,

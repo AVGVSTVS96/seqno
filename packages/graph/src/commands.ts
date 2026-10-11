@@ -36,6 +36,8 @@ export interface Workspace {
   readonly undo: UndoManager
 }
 
+type Places = Omit<Workspace, "undo">
+
 const reject = (reason: string) => Effect.fail(new CommandRejected({ reason }))
 
 const live = (tree: LoroTree, id: TreeID | undefined): Option.Option<LoroTreeNode> =>
@@ -51,7 +53,7 @@ const ancestors = (node: LoroTreeNode): ReadonlyArray<LoroTreeNode> => {
 const rootOf = (node: LoroTreeNode): LoroTreeNode => ancestors(node).at(-1) ?? node
 
 const blockNode = (
-  ws: Workspace,
+  ws: Places,
   id: BlockId,
 ): Effect.Effect<LoroTreeNode, CommandRejected | Unresolved> => {
   const known = ws.registry.blocks.get(id)
@@ -175,7 +177,7 @@ const mergeTarget = (node: LoroTreeNode): LoroTreeNode | undefined => {
   return target === undefined || isPage(target) ? undefined : target
 }
 
-export const mergeTargetOf = (ws: Workspace, id: BlockId) =>
+export const mergeTargetOf = (ws: Places, id: BlockId) =>
   Effect.map(blockNode(ws, id), (node) =>
     Option.flatMap(Option.fromUndefinedOr(mergeTarget(node)), blockIdOf),
   )

@@ -1081,6 +1081,36 @@ describe("the core worker on the real graph, vault and index", () => {
     ),
   )
 
+  it.live("each tab undoes only its own edits", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const tab = yield* tabsOn(yield* copyOfFixture)
+        const first = yield* tab(0)
+        const second = yield* tab(1)
+        const opened = yield* first.OpenGraph({ graph: "og-undo" })
+        yield* second.OpenGraph({ graph: "og-undo" })
+        const tasks = named(opened.pages, "tasks").id
+        const block = (yield* first.GetPage({ pageId: tasks })).blocks[2] ?? assert.fail("no block")
+        const type = (core: typeof first, from: number, insert: string) =>
+          core.Dispatch({
+            command: { _tag: "EditText", blockId: block.id, from, to: from, insert },
+          })
+        const current = Effect.map(first.GetBlock({ blockId: block.id }), (found) => found.text)
+        yield* type(first, 0, "A ")
+        yield* type(second, 2, "B ")
+        assert.strictEqual(yield* current, "A B I recorded a [[voice note]].")
+        yield* first.Dispatch({ command: { _tag: "Undo" } })
+        assert.strictEqual(yield* current, "B I recorded a [[voice note]].")
+        yield* first.Dispatch({ command: { _tag: "Undo" } })
+        assert.strictEqual(yield* current, "B I recorded a [[voice note]].")
+        yield* first.Dispatch({ command: { _tag: "Redo" } })
+        assert.strictEqual(yield* current, "A B I recorded a [[voice note]].")
+        yield* second.Dispatch({ command: { _tag: "Undo" } })
+        assert.strictEqual(yield* current, "A I recorded a [[voice note]].")
+      }),
+    ),
+  )
+
   it.live("closing one tab leaves the graph to the other, and the last one saves it", () =>
     Effect.scoped(
       Effect.gen(function* () {

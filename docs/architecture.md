@@ -73,7 +73,7 @@ tree "blocks"
 - **Deleting** a block or a page moves it under a hidden root marked `trash`, which reads and events treat as gone. Loro can't move a deleted node back, and its undo of a delete makes a new node, so a real delete would drop what another device typed into the block meanwhile.
 - **Ids** are UUIDv7 (`BlockId`, `PageId`). A page's `name` is its title, NFC-normalized, trimmed and lowercased. Older Logseq `id::` values that aren't UUIDv7 are kept in `props.id`.
 - **Commands** (`@seqno/domain`): `CreatePage`, `RenamePage`, `DeletePage`, `InsertBlock(s)`, `EditText`, `SplitBlock`, `MergeWithPrevious`, `Indent`, `Outdent`, `MoveBlocks`, `DeleteBlocks`, `SetCollapsed`, `SetProperty`, `Undo`, `Redo`.
-- **Undo** uses Loro's `UndoManager`. Typing in one block is one step, every other command is its own step, and edits from other devices are never undone.
+- **Undo** uses Loro's `UndoManager`, one per tab. Each tab's commits carry its own origin and every other tab's history excludes it, so Mod+Z in one tab never takes back what another typed. Typing in one block is one step, every other command is its own step, and edits from other devices are never undone.
 
 ## Edit log and sync
 

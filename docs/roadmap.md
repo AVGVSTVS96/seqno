@@ -25,7 +25,7 @@ Not done yet: sync between two real devices through iCloud Drive. The sync engin
 Make the web app safe for real, large graphs before adding platforms:
 
 1. Open lazily: load from the newest snapshot, show the visible page first, and keep the index on disk so it catches up instead of rebuilding.
-2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, two devices importing the same folder write the same ops, merging a block with Backspace keeps its properties and its references, undoing a delete brings back the same blocks with what other devices typed into them, saving follows each edit and shows when it fails, and the import lists the files it left out.
+2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, two devices importing the same folder write the same ops, merging a block with Backspace keeps its properties and its references, undoing a delete brings back the same blocks with what other devices typed into them, saving follows each edit and shows when it fails, the import lists the files it left out, and each tab undoes only its own edits.
 3. Keep the edit log small on a single device, and show save state in the UI. (Done for graphs kept in the browser, and the header shows save state; a lone device on a synced folder still can't delete, see below.)
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
 5. Run the sync simulator on the real graph with every command and device restarts, then the full 1,000 runs of 10k ops.
@@ -50,7 +50,6 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 - **Two devices can still import different versions of one folder.** Two devices that import the same files now write the same ops, so nothing doubles. If one of them is missing a file (not downloaded yet) or has an older copy of one, their imports differ: pages merge by name, and the blocks of pages both had end up twice.
 - **Import leaves files out.** A file whose name matches an earlier page, or one that isn't downloaded or can't be read, is left out. The tab that ran the import now lists them in a notice until it is closed, but nothing retries them later, and the list isn't kept anywhere.
 - **The editor matches its own edits by text.** It recognizes its edits coming back by comparing text, so a change elsewhere that happens to produce text it typed a moment ago could be taken for its own (found by reading the code, not reproduced). A rejected edit now shows a notice and puts the graph's text back in the editor, so a mismatch that leads to a rejection heals itself.
-- **Undo is shared between tabs.** Tabs on one graph share one undo history, so Mod+Z in one tab can undo what was typed in another.
 - **No device list.** The app counts only itself as a member, and there is no "remove this device" setting.
 
 ### Scale

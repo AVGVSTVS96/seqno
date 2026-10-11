@@ -283,19 +283,32 @@ const SessionsLive = Layer.effect(
         return { shared, first: true }
       })
 
+    const release = (shared: Shared, client: number) =>
+      Effect.exit(
+        Effect.flatMap(Deferred.await(shared.opened), (session) =>
+          session.graph.release(String(client)),
+        ),
+      )
+
     const leave = (client: number, view: View) =>
       Effect.flatMap(
         guarded(
           Effect.gen(function* () {
             yield* show(client, view)
-            const left = [...graphs.values()].filter(
-              (shared) => shared.users.delete(client) && shared.users.size === 0,
+            const was = [...graphs.values()].filter((shared) => shared.users.delete(client))
+            yield* Effect.forEach(
+              was.filter((shared) => shared.users.size === 0),
+              forget,
             )
-            yield* Effect.forEach(left, forget)
-            return left
+            return was
           }),
         ),
-        (left) => Effect.forEach(left, close, { discard: true }),
+        (was) =>
+          Effect.forEach(
+            was,
+            (shared) => (shared.users.size === 0 ? close(shared) : release(shared, client)),
+            { discard: true },
+          ),
       )
 
     yield* Effect.addFinalizer(() => Effect.forEach([...graphs.values()], close, { discard: true }))
@@ -370,7 +383,7 @@ const CoreHandlers = CoreRpcs.toLayer(
     const dispatchAll = (client: number, commands: ReadonlyArray<Command>) =>
       Effect.flatMap(current(client), (session) =>
         Effect.forEach(commands, (command) => withReferenceEdits(session, command)).pipe(
-          Effect.flatMap((expanded) => session.graph.dispatchAll(expanded.flat())),
+          Effect.flatMap((expanded) => session.graph.dispatchAll(expanded.flat(), String(client))),
           Effect.tap(session.record),
         ),
       )

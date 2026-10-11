@@ -18,7 +18,7 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 - Two live pages with one name merge into the one with the smaller id right after the commit or merge that made them; the other stays as a hidden root marked `mergedInto`, and blocks that land there later move over too.
 - `MergeWithPrevious` appends the block's text to the previous visible block, moves its children there, and fills that block's missing properties from it. `mergeTarget(id)` names that block, so the core can point `((refs))` to the merged block at the one it merged into in the same commit.
 - Deleting blocks or a page (and the block a merge empties) moves them under a hidden trash root instead of deleting them in Loro, so undo moves the same nodes back, with whatever other devices typed into them meanwhile. Reads and events treat the trash as deleted.
-- Undo follows Logseq: typing and property edits in one block form one step, every other command is its own step, and remote ops are never undone.
+- Undo follows Logseq: typing and property edits in one block form one step, every other command is its own step, and remote ops are never undone. `dispatch` and `dispatchAll` take an optional client id: each client gets its own undo history, which never takes back another client's edits, and `release(client)` drops it.
 - Layout: one Loro tree with pages as roots and blocks below them. Text is a `LoroText`; props are a `LoroMap` plus a key list that keeps their order.
 
 ## Tests
