@@ -22,6 +22,7 @@ const violationKeys: ReadonlyArray<keyof Violations> = [
   "lostOps",
   "bootstrap",
   "noConvergence",
+  "duplicates",
 ]
 
 export const summarize = (
@@ -104,6 +105,11 @@ export const summarize = (
       ),
       rejected: sum(results.map((r) => r.ops.rejected)),
       cyclePairs: sum(results.map((r) => r.ops.cyclePairs)),
+      byKind: results.reduce<Record<string, number>>((acc, r) => {
+        for (const [kind, n] of Object.entries(r.ops)) acc[kind] = (acc[kind] ?? 0) + n
+        return acc
+      }, {}),
+      restarts: sum(results.map((r) => r.restarts)),
     },
     cpu: {
       meanSeedMs: mean(results.map((r) => r.cpuMs)),

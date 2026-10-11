@@ -327,6 +327,20 @@ const open = (spec: ReplicaSpec) =>
       }
     }
 
+    let flushed = 0
+    const flushTo = <E>(write: (bytes: Uint8Array) => Effect.Effect<unknown, E>) =>
+      Effect.suspend(() => {
+        const version = doc.oplogVersion()
+        const end = version.get(doc.peerIdStr) ?? 0
+        if (end <= flushed) return Effect.void
+        const from = version.toJSON()
+        from.set(doc.peerIdStr, flushed)
+        const bytes = doc.export({ mode: "update", from: VersionVector.parseJSON(from) })
+        return Effect.map(write(bytes), () => {
+          flushed = end
+        })
+      })
+
     const replica: Replica = {
       peer,
       dispatch: (command) => committed(apply(command)),
@@ -352,6 +366,7 @@ const open = (spec: ReplicaSpec) =>
       version: Effect.sync(() => vvOf(doc.oplogVersion())),
       exportUpdates: (from) =>
         Effect.sync(() => doc.export({ mode: "update", from: versionOf(from) })),
+      flushTo,
       exportSnapshot: Effect.sync(() => doc.export({ mode: "snapshot" })),
       importBlobs: (blobs) => Effect.sync(() => importBlobs(blobs)),
       canonical: Effect.sync(() => {
@@ -359,8 +374,17 @@ const open = (spec: ReplicaSpec) =>
         return JSON.stringify(json, sortKeys)
       }),
       liveNodes: Effect.sync(() => tree.nodes().filter((node) => !node.isDeleted()).length),
+      shape: Effect.sync(() => {
+        const alive = tree.nodes().filter((node) => !node.isDeleted())
+        return {
+          names: alive
+            .filter((node) => node.parent() === undefined)
+            .map((node) => pageOf(node).name),
+          blocks: alive.filter((node) => node.parent() !== undefined).map(idOf),
+        }
+      }),
     }
     return replica
   })
 
-export const LoroGraphs = Layer.succeed(Graphs, Graphs.of({ open, blobSpan }))
+export const LoroGraphs = Layer.succeed(Graphs, Graphs.of({ open, blobSpan, full: false }))

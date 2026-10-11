@@ -1,6 +1,7 @@
 import { Effect, Layer, Schema } from "effect"
 import { LoroGraphs } from "./loro-graph.ts"
 import { bugs, loroVaults, type Bug } from "./loro-vault.ts"
+import { RealGraphs } from "./real-graph.ts"
 import { realVaults } from "./real-vault.ts"
 import { runSeed, type SeedResult, type SimConfig } from "./sim.ts"
 
@@ -20,6 +21,7 @@ export const SeedJob = Schema.Struct({
   compaction: Schema.Boolean,
   bug: Schema.NullOr(Schema.Literals(bugs)),
   vault: Schema.Literals(["stand-in", "real"]),
+  graph: Schema.Literals(["stand-in", "real"]),
 })
 export type SeedJob = typeof SeedJob.Type
 
@@ -30,6 +32,8 @@ export const simLayer = (bug: Bug | null) =>
 
 export const realVaultLayer = Layer.mergeAll(LoroGraphs, realVaults)
 
+export const realLayer = Layer.mergeAll(RealGraphs, realVaults)
+
 export const runJob = (job: SeedJob): Effect.Effect<SeedResult> => {
   const cfg: SimConfig = {
     seed: job.seed,
@@ -37,8 +41,11 @@ export const runJob = (job: SeedJob): Effect.Effect<SeedResult> => {
     devices: job.devices,
     hours: job.hours,
     compaction: job.compaction,
+    restarts: job.vault === "real",
   }
   return runSeed(cfg).pipe(
-    Effect.provide(job.vault === "real" ? realVaultLayer : simLayer(job.bug)),
+    Effect.provide(
+      job.graph === "real" ? realLayer : job.vault === "real" ? realVaultLayer : simLayer(job.bug),
+    ),
   )
 }

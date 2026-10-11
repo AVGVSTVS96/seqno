@@ -21,10 +21,19 @@ export interface Replica {
   readonly fate: (id: string) => Effect.Effect<Fate>
   readonly version: Effect.Effect<VV>
   readonly exportUpdates: (from: VV) => Effect.Effect<Uint8Array>
+  readonly flushTo: <E>(
+    write: (bytes: Uint8Array) => Effect.Effect<unknown, E>,
+  ) => Effect.Effect<void, E>
   readonly exportSnapshot: Effect.Effect<Uint8Array>
   readonly importBlobs: (blobs: ReadonlyArray<Uint8Array>) => Effect.Effect<ReadonlyArray<boolean>>
   readonly canonical: Effect.Effect<string>
   readonly liveNodes: Effect.Effect<number>
+  readonly shape: Effect.Effect<Shape>
+}
+
+export interface Shape {
+  readonly names: ReadonlyArray<string>
+  readonly blocks: ReadonlyArray<string>
 }
 
 export interface ReplicaSpec {
@@ -37,6 +46,7 @@ export class Graphs extends Context.Service<
   {
     readonly open: (spec: ReplicaSpec) => Effect.Effect<Replica, never, Scope.Scope | Crypto.Crypto>
     readonly blobSpan: (bytes: Uint8Array, checksum: boolean) => Option.Option<Span>
+    readonly full: boolean
   }
 >()("@seqno/sync-sim/Graphs") {}
 

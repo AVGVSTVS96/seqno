@@ -1,5 +1,5 @@
 import { Effect, Match, Option } from "effect"
-import type { BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
+import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
 import type { Replica } from "./ports.ts"
 import type { Rng } from "./rng.ts"
 
@@ -12,6 +12,13 @@ export type OpKind =
   | "renamePage"
   | "createPage"
   | "deletePage"
+  | "splitBlock"
+  | "mergeBlock"
+  | "indent"
+  | "outdent"
+  | "undo"
+  | "redo"
+  | "sharedPage"
 
 export type Counts = Record<OpKind | "cyclePairs" | "rejected", number>
 
@@ -36,6 +43,25 @@ const MIX: ReadonlyArray<readonly [OpKind | "cyclePair", number]> = [
   ["cyclePair", 0.055],
 ]
 
+const FULL_MIX: ReadonlyArray<readonly [OpKind | "cyclePair", number]> = [
+  ["insertText", 0.26],
+  ["deleteText", 0.06],
+  ["createBlock", 0.15],
+  ["deleteBlock", 0.04],
+  ["moveBlock", 0.13],
+  ["renamePage", 0.03],
+  ["createPage", 0.02],
+  ["deletePage", 0.005],
+  ["cyclePair", 0.04],
+  ["splitBlock", 0.06],
+  ["mergeBlock", 0.04],
+  ["indent", 0.04],
+  ["outdent", 0.03],
+  ["undo", 0.03],
+  ["redo", 0.015],
+  ["sharedPage", 0.02],
+]
+
 export const createIntent = (): Intent => ({
   blocks: [],
   pages: [],
@@ -51,6 +77,13 @@ export const createIntent = (): Intent => ({
     renamePage: 0,
     createPage: 0,
     deletePage: 0,
+    splitBlock: 0,
+    mergeBlock: 0,
+    indent: 0,
+    outdent: 0,
+    undo: 0,
+    redo: 0,
+    sharedPage: 0,
     cyclePairs: 0,
     rejected: 0,
   },
@@ -73,16 +106,18 @@ type Parent = { readonly pageId: PageId; readonly parentId: BlockId | null }
 export class Workload {
   private seq = 0
   private readonly rng: Rng
+  private readonly mix: ReadonlyArray<readonly [OpKind | "cyclePair", number]>
   readonly intent: Intent
 
-  constructor(rng: Rng, intent: Intent) {
+  constructor(rng: Rng, intent: Intent, full: boolean) {
     this.rng = rng
     this.intent = intent
+    this.mix = full ? FULL_MIX : MIX
   }
 
   pickKind(): OpKind | "cyclePair" {
     let r = this.rng.next()
-    for (const [kind, p] of MIX) {
+    for (const [kind, p] of this.mix) {
       if (r < p) {
         return kind
       }
@@ -241,9 +276,73 @@ export class Workload {
     })
   }
 
+  private onBlock(
+    replica: Replica,
+    command: (block: Block) => Option.Option<Command>,
+  ): Effect.Effect<boolean> {
+    return Effect.gen({ self: this }, function* () {
+      const picked = yield* this.pickBlock(replica)
+      const block = yield* Option.match(picked, {
+        onNone: () => Effect.succeed(Option.none<Block>()),
+        onSome: replica.block,
+      })
+      const sent = Option.flatMap(block, command)
+      if (Option.isNone(sent)) return false
+      const events = yield* this.send(replica, sent.value)
+      this.adopt(events)
+      return Option.isSome(events)
+    })
+  }
+
+  private adopt(events: Option.Option<ReadonlyArray<GraphEvent>>) {
+    const known = new Set<string>(this.intent.blocks)
+    for (const event of Option.getOrElse(events, () => [])) {
+      if (event._tag === "BlockUpserted" && !known.has(event.block.id)) {
+        known.add(event.block.id)
+        this.intent.blocks.push(event.block.id)
+      }
+      if (event._tag === "PageUpserted" && !this.intent.pages.includes(event.page.id)) {
+        this.intent.pages.push(event.page.id)
+      }
+    }
+  }
+
+  private whole(replica: Replica, command: Command): Effect.Effect<boolean> {
+    return Effect.map(this.send(replica, command), (events) => {
+      this.adopt(events)
+      return Option.isSome(events)
+    })
+  }
+
   private run(replica: Replica, device: number, kind: OpKind): Effect.Effect<boolean> {
     const { intent, rng } = this
     return Match.value(kind).pipe(
+      Match.when("splitBlock", () =>
+        this.onBlock(replica, (block) => {
+          const ends = unitEnds(block.text)
+          return Option.some({
+            _tag: "SplitBlock",
+            blockId: block.id,
+            at: ends[rng.int(0, ends.length - 1)] ?? 0,
+          })
+        }),
+      ),
+      Match.when("mergeBlock", () =>
+        this.onBlock(replica, (block) =>
+          Option.some({ _tag: "MergeWithPrevious", blockId: block.id }),
+        ),
+      ),
+      Match.when("indent", () =>
+        this.onBlock(replica, (block) => Option.some({ _tag: "Indent", blockIds: [block.id] })),
+      ),
+      Match.when("outdent", () =>
+        this.onBlock(replica, (block) => Option.some({ _tag: "Outdent", blockIds: [block.id] })),
+      ),
+      Match.when("undo", () => this.whole(replica, { _tag: "Undo" })),
+      Match.when("redo", () => this.whole(replica, { _tag: "Redo" })),
+      Match.when("sharedPage", () =>
+        this.whole(replica, { _tag: "CreatePage", title: `shared ${rng.int(0, 4)}` }),
+      ),
       Match.when("insertText", () =>
         Effect.flatMap(this.pickBlock(replica), (block) =>
           Option.isNone(block)

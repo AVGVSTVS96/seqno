@@ -30,6 +30,7 @@ const job = {
   compaction: true,
   bug: null,
   vault: "stand-in",
+  graph: "stand-in",
 } as const
 
 describe("fake iCloud", () => {
@@ -83,6 +84,7 @@ describe("simulated seeds", () => {
           lostOps: 0,
           bootstrap: 0,
           noConvergence: 0,
+          duplicates: 0,
         })
         assert.isTrue(result.ok)
         assert.isAbove(result.quiescenceToConvergeMs, 0)
@@ -117,12 +119,34 @@ describe("simulated seeds", () => {
           lostOps: 0,
           bootstrap: 0,
           noConvergence: 0,
+          duplicates: 0,
         })
         assert.isTrue(result.ok)
         assert.strictEqual(result.snapshotsWritten, 1)
-        assert.deepStrictEqual([result.files.peakCount, result.files.finalCount], [113, 53])
+        assert.deepStrictEqual([result.files.peakCount, result.files.finalCount], [127, 77])
       }),
     60_000,
+  )
+
+  it.effect(
+    "the real graph and vault converge with every command and devices that restart",
+    () =>
+      Effect.gen(function* () {
+        const result = yield* runJob({
+          ...job,
+          seed: 5,
+          ops: 600,
+          hours: 24,
+          vault: "real",
+          graph: "real",
+        })
+        assert.deepStrictEqual(result.problems, [])
+        assert.isAbove(result.restarts, 0)
+        assert.isAbove(result.ops.splitBlock + result.ops.mergeBlock, 0)
+        assert.isAbove(result.ops.undo + result.ops.redo, 0)
+        assert.isAbove(result.ops.indent + result.ops.outdent, 0)
+      }),
+    120_000,
   )
 
   it.effect(

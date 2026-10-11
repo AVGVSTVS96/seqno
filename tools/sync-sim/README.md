@@ -4,14 +4,15 @@ A tool: a seeded simulator where several devices edit one graph through a hostil
 
 ## What's inside
 
-| Path                                     | What it holds                                                                                                                                                                                        |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/cloud.ts`                           | `FakeICloud`: per-device folder views, late and out-of-order delivery, placeholders, eviction, failed downloads, conflict copies, offline devices, skewed clocks.                                    |
-| `src/ports.ts`                           | The swap points: `Graphs` opens a `Replica`, `Vaults` attaches a vault to a replica and the cloud.                                                                                                   |
-| `src/loro-graph.ts`, `src/loro-vault.ts` | Stand-in graph and vault on Loro. The vault has switchable `bugs` for mutant runs.                                                                                                                   |
-| `src/real-vault.ts`                      | A `Vaults` layer over the real `@seqno/vault` (`--vault real`).                                                                                                                                      |
-| `src/sim.ts`, `src/workload.ts`          | `runSeed(config)`: a workload of domain `Command`s, then checks for lost ops, divergence, unsound acks, two writers on one file, placeholder reads, and a fresh device bootstrapping from the cloud. |
-| `scripts/run.ts`, `scripts/mutants.ts`   | Run a suite (`ci`, `1k`, `10k`) with one process per seed, or check that every mutant gets caught.                                                                                                   |
+| Path                                     | What it holds                                                                                                                                                                                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/cloud.ts`                           | `FakeICloud`: per-device folder views, late and out-of-order delivery, placeholders, eviction, failed downloads, conflict copies, offline devices, skewed clocks.                                                                       |
+| `src/ports.ts`                           | The swap points: `Graphs` opens a `Replica`, `Vaults` attaches a vault to a replica and the cloud.                                                                                                                                      |
+| `src/loro-graph.ts`, `src/loro-vault.ts` | Stand-in graph and vault on Loro. The vault has switchable `bugs` for mutant runs.                                                                                                                                                      |
+| `src/real-vault.ts`                      | A `Vaults` layer over the real `@seqno/vault` (`--vault real`). Like the app, it saves after every sync pass, and devices restart: each one closes its graph now and then and reopens from its local files with a new peer id.          |
+| `src/real-graph.ts`                      | A `Graphs` layer over the real `@seqno/graph` (`--graph real`, which implies the real vault). The workload then also sends `SplitBlock`, `MergeWithPrevious`, `Indent`, `Outdent`, `Undo`, `Redo` and creates pages under shared names. |
+| `src/sim.ts`, `src/workload.ts`          | `runSeed(config)`: a workload of domain `Command`s, then checks for lost ops, divergence, unsound acks, two writers on one file, placeholder reads, and a fresh device bootstrapping from the cloud.                                    |
+| `scripts/run.ts`, `scripts/mutants.ts`   | Run a suite (`ci`, `1k`, `10k`) with one process per seed, or check that every mutant gets caught.                                                                                                                                      |
 
 Time and randomness come only from Effect's `Clock` and `Crypto`, so the same seed replays the same run.
 
@@ -21,10 +22,11 @@ Time and randomness come only from Effect's `Clock` and `Crypto`, so the same se
 pnpm test --project @seqno/sync-sim
 ```
 
-Longer runs: `pnpm --filter @seqno/sync-sim sim --suite ci --vault real` and `pnpm --filter @seqno/sync-sim mutants`.
+Longer runs: `pnpm --filter @seqno/sync-sim sim --suite ci --graph real` (or `--vault real` for the stand-in graph on the real vault) and `pnpm --filter @seqno/sync-sim mutants`.
 
 ## Known gaps
 
-- The sim still runs its stand-in graph: the checks need reads the real `@seqno/graph` doesn't expose, such as `fate(id)` and a canonical dump.
-- The stand-in graph rejects `SplitBlock`, `MergeWithPrevious`, `Indent`, `Outdent`, `Undo` and `Redo`, so the workload never uses them.
+- With the real graph, the per-token intent check is off: merges, splits and undo move and remove text in ways the token bookkeeping can't follow. Those runs are checked by op coverage (every op any session made reaches the oracle and every device), identical final pages and outlines on every device and on a fresh device that reads only the cloud, no two live pages with one name, and no block id twice.
+- `ackUnsound` compares deletions with the most each device has ever merged, across its restarts: a restarted device starts empty and catches up from the cloud, so its in-memory version can drop below what its `seen` file already promised.
+- Restarts are clean (the device saves first); a crash that loses unsaved ops isn't simulated.
 - Mutants run against the stand-in vault only; the real vault has no bug switches.

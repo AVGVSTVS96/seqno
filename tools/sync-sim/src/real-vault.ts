@@ -9,7 +9,6 @@ import {
 } from "@seqno/vault"
 import type { CloudFs } from "./cloud.ts"
 import { Vaults, type Replica, type VaultSpec, type VaultSync } from "./ports.ts"
-import type { VV } from "./vv.ts"
 
 const entryOf = (fs: CloudFs, dir: string, name: string) =>
   Effect.gen(function* () {
@@ -67,22 +66,16 @@ const attach = (spec: VaultSpec, fs: CloudFs, replica: Replica) =>
       }).pipe(Layer.provide(Layer.succeed(Storage, cloudStorage(fs)))),
     )
     const stats = { importedFiles: 0, importedBytes: 0, placeholdersSeen: 0 }
-    let flushed: VV = {}
+    const flush = replica.flushTo((bytes) => Effect.orDie(vault.writeUpdate(bytes)))
 
-    const flush = Effect.gen(function* () {
-      const now = yield* replica.version
-      const from = flushed[replica.peer] ?? 0
-      if ((now[replica.peer] ?? 0) <= from) return
-      const bytes = yield* replica.exportUpdates({ ...now, [replica.peer]: from })
-      yield* Effect.orDie(vault.writeUpdate(bytes))
-      flushed = now
-    })
-
-    const pass = Effect.map(Effect.orDie(vault.sync(vaultReplica(replica))), (report) => {
-      stats.importedFiles += report.merged.length
-      stats.placeholdersSeen += report.waiting.length
-      return { wakeInMs: report.waiting.length > 0 || report.behind ? RETRY_MS : null }
-    })
+    const pass = Effect.map(
+      Effect.tap(Effect.orDie(vault.sync(vaultReplica(replica))), () => flush),
+      (report) => {
+        stats.importedFiles += report.merged.length
+        stats.placeholdersSeen += report.waiting.length
+        return { wakeInMs: report.waiting.length > 0 || report.behind ? RETRY_MS : null }
+      },
+    )
 
     return { flush, pass, stats: Effect.sync(() => ({ ...stats })) } satisfies VaultSync
   })
