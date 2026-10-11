@@ -12,7 +12,7 @@ Test data for the other packages, not app code: a seeded 50k-block graph generat
 | `graphs/<case>/`            | Committed Logseq graphs: one per case in Logseq's [og_import_graph_cases.md](https://github.com/logseq/logseq/blob/master/docs/og_import_graph_cases.md), plus `og-syntax-mix` (parsing fidelity) and `showcase` (design harness content). |
 | `src/cli.ts`                | `node src/cli.ts generate`, `stats`, `edge-case <name>` and `download`.                                                                                                                                                                    |
 
-- `generateGraph()` (seed 20261006) makes 1,500 pages, 365 journals and 50,000 blocks with digest `5405c909c0dd19e2`. `toLogseqFiles` writes any generated graph as a Logseq folder.
+- `generateGraph()` (seed 20261006) makes 1,500 pages, 365 journals and 50,000 blocks with digest `5405c909c0dd19e2`. Journals run day by day from `firstJournalDay` (2025-01-01 by default). `toLogseqFiles` writes any generated graph as a Logseq folder.
 - `ogGeneratedGraph(seed)` ports Logseq's own random graph generator and matches upstream byte for byte for seeds 1309, 42 and 8675309.
 - `large-flat-file`, `og-generated-42` and `og-generated-8675309` are generated on demand rather than committed.
 - `download` fetches logseq/docs at a pinned commit into `downloads/` (gitignored) and checks that its license is still MIT.

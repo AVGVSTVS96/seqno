@@ -76,7 +76,7 @@ describe("toLogseqFiles", () => {
   it("writes pages, journals, nesting, multi-line text and id:: for referenced blocks", () => {
     const target = "00000000-0000-4000-8000-000000000002"
     const small: GeneratedGraph = {
-      options: { seed: 1, blocks: 4, pages: 1, journals: 1 },
+      options: { seed: 1, blocks: 4, pages: 1, journals: 1, firstJournalDay: 20250102 },
       pages: [
         { id: "p1", name: "project/Alpha", journalDay: null },
         { id: "p2", name: "Jan 2nd, 2025", journalDay: 20250102 },

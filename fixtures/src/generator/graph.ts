@@ -6,9 +6,10 @@ export interface GeneratorOptions {
   readonly blocks: number
   readonly pages: number
   readonly journals: number
+  readonly firstJournalDay: number
 }
 
-export const defaultGeneratorOptions: GeneratorOptions = { seed: 20261006, blocks: 50_000, pages: 1_500, journals: 365 }
+export const defaultGeneratorOptions: GeneratorOptions = { seed: 20261006, blocks: 50_000, pages: 1_500, journals: 365, firstJournalDay: 20250101 }
 
 export interface GeneratedPage {
   readonly id: string
@@ -36,11 +37,11 @@ const titleCase = (s: string) => s.replace(/(^|\s)\S/g, (c) => c.toUpperCase())
 
 const normal = (rng: Rng) => Math.sqrt(-2 * Math.log(1 - rng.next())) * Math.cos(2 * Math.PI * rng.next())
 
-const journalPages = (rng: Rng, count: number): GeneratedPage[] => {
+const journalPages = (rng: Rng, count: number, firstDay: number): GeneratedPage[] => {
   const ordinal = (d: number) =>
     d % 10 === 1 && d !== 11 ? "st" : d % 10 === 2 && d !== 12 ? "nd" : d % 10 === 3 && d !== 13 ? "rd" : "th"
   return Array.from({ length: count }, (_, i) => {
-    const date = new Date(Date.UTC(2025, 0, 1 + i))
+    const date = new Date(Date.UTC(Math.floor(firstDay / 10_000), (Math.floor(firstDay / 100) % 100) - 1, (firstDay % 100) + i))
     const [y, m, d] = [date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()]
     return {
       id: rng.uuid(),
@@ -189,7 +190,7 @@ export const generateGraph = (options: Partial<GeneratorOptions> = {}): Generate
   const opts = { ...defaultGeneratorOptions, ...options }
   if (opts.blocks < opts.pages + opts.journals) throw new Error("need at least one block per page")
   const rng = createRng(opts.seed)
-  const pages = [...namedPages(rng, opts.pages), ...journalPages(rng, opts.journals)]
+  const pages = [...namedPages(rng, opts.pages), ...journalPages(rng, opts.journals, opts.firstJournalDay)]
   const counts = blockCounts(rng, pages, opts.blocks)
   const blockIds: string[] = []
   const ctx: ContentContext = {
