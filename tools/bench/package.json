@@ -1,0 +1,21 @@
+{
+  "name": "@seqno/bench",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "bench": "node --max-old-space-size=6144 src/run.ts"
+  },
+  "dependencies": {
+    "@seqno/domain": "workspace:*",
+    "@seqno/fixtures": "workspace:*",
+    "@seqno/graph": "workspace:*",
+    "@seqno/index": "workspace:*",
+    "@seqno/interop": "workspace:*",
+    "effect": "4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "7.0.2"
+  }
+}

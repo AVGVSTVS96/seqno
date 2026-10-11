@@ -175,7 +175,7 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 **Cost.** For the first seconds after opening a large graph, search, backlinks and queries can show partial results; they refresh when the fill ends. The index is still in memory, so every open fills it again (see Hardening, step 1).
 
-**Numbers.** In Node on `cloud` (a Fly.io Sprite), opening the 50k graph from its snapshot to the first page took 13.5 s before (5.1 s of Loro diff, 3.2 s of events, 0.4 s of page repair, 3.9 s of index writes) and 0.93 s after, most of it Loro reading the tree for the page list. The background fill takes about 8 s there. Keystroke p95 stays under 1 ms for the graph plus the index write.
+**Numbers.** In Node on `cloud` (a Fly.io Sprite), opening the 50k graph from its snapshot to the first page took 13.5 s before (5.1 s of Loro diff, 3.2 s of events, 0.4 s of page repair, 3.9 s of index writes) and 0.93 s after, most of it Loro reading the tree for the page list. The background fill takes about 8 s there. Keystroke p95 stays under 1 ms for the graph plus the index write. `tools/bench` measures both on every CI run, against budgets of 1 s and 16 ms.
 
 ## Smaller decisions
 

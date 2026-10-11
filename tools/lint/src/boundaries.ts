@@ -23,6 +23,8 @@ export const repoMap: ReadonlyMap<string, Unit> = new Map([
   ["tools/sync-sim", { name: "@seqno/sync-sim", side: "tool" }],
   ["tools/e2e", { name: "@seqno/e2e", side: "tool" }],
   ["tools/lint", { name: "@seqno/lint", side: "tool" }],
+  ["tools/bench", { name: "@seqno/bench", side: "tool" }],
+  ["fixtures", { name: "@seqno/fixtures", side: "tool" }],
 ])
 
 const workerUnit: Unit = { name: "@seqno/web core worker (apps/web/src/worker)", side: "worker" }

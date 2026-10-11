@@ -29,7 +29,7 @@ Make the web app safe for real, large graphs before adding platforms:
 3. Keep the edit log small on a single device, and show save state in the UI. (Done for graphs kept in the browser, and the header shows save state; a lone device on a synced folder still can't delete, see below.)
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
 5. Run the sync simulator on the real graph with every command and device restarts, then the full 1,000 runs of 10k ops.
-6. Check in a 50k-block benchmark that fails when open or typing goes over budget, and test sync on two real Macs.
+6. Check in a 50k-block benchmark that fails when open or typing goes over budget, and test sync on two real Macs. (The benchmark is in: `tools/bench` runs in CI. The two-Mac test needs two Macs signed into iCloud.)
 
 ## iOS and iCloud Drive
 
@@ -74,4 +74,4 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 - The sync simulator drives a stand-in graph. It never restarts a device and never runs split, merge, indent, outdent, undo or redo.
 - Browser flows fail on page errors but not on errors inside the core worker.
 - Lint doesn't stop UI code from importing core-only libraries such as `loro-crdt` directly, and nothing enforces the exact Loro version for new packages.
-- `fixtures/` sits outside lint, formatting and the repo map, so package tests can't use the 50k-block generator.
+- `fixtures/` sits outside lint and formatting. It is in the repo map as a tool, so only other tools (like `tools/bench`) can use the 50k-block generator.
