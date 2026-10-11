@@ -19,37 +19,78 @@ interface Change {
   readonly moved: boolean
 }
 
-export const translate = (
-  tree: LoroTree,
-  batches: ReadonlyArray<LoroEventBatch>,
-  registry: Registry,
-): ReadonlyArray<GraphEvent> => {
-  const formerParent = new Map<TreeID, TreeID | undefined>()
-  const changed = new Map<TreeID, Change>()
-  const deleted: Array<TreeID> = []
-  const mark = (id: TreeID, change: Partial<Change>) => {
-    const before = changed.get(id) ?? { upserted: false, moved: false }
-    changed.set(id, { ...before, ...change })
-  }
-  const record = Match.type<TreeDiffItem>().pipe(
+export interface Pending {
+  readonly formerParent: Map<TreeID, TreeID | undefined>
+  readonly changed: Map<TreeID, Change>
+  readonly deleted: Set<TreeID>
+  readonly data: Set<TreeID>
+  readonly atRoot: Set<TreeID>
+  readonly under: Set<TreeID>
+}
+
+export const emptyPending = (): Pending => ({
+  formerParent: new Map(),
+  changed: new Map(),
+  deleted: new Set(),
+  data: new Set(),
+  atRoot: new Set(),
+  under: new Set(),
+})
+
+const mark = (pending: Pending, id: TreeID, change: Partial<Change>) => {
+  const before = pending.changed.get(id) ?? { upserted: false, moved: false }
+  pending.changed.set(id, { ...before, ...change })
+}
+
+const placed = (pending: Pending, target: TreeID, parent: TreeID | undefined) => {
+  if (parent === undefined) pending.atRoot.add(target)
+  else pending.under.add(parent)
+}
+
+const leave = (pending: Pending, target: TreeID, oldParent: TreeID | undefined) => {
+  if (!pending.formerParent.has(target)) pending.formerParent.set(target, oldParent)
+}
+
+const record = (pending: Pending) =>
+  Match.type<TreeDiffItem>().pipe(
     Match.discriminatorsExhaustive("action")({
-      create: (item) => mark(item.target, { upserted: true }),
+      create: (item) => {
+        mark(pending, item.target, { upserted: true })
+        placed(pending, item.target, item.parent)
+      },
       move: (item) => {
-        if (!formerParent.has(item.target)) formerParent.set(item.target, item.oldParent)
-        mark(item.target, { moved: true })
+        leave(pending, item.target, item.oldParent)
+        mark(pending, item.target, { moved: true })
+        placed(pending, item.target, item.parent)
       },
       delete: (item) => {
-        if (!formerParent.has(item.target)) formerParent.set(item.target, item.oldParent)
-        deleted.push(item.target)
+        leave(pending, item.target, item.oldParent)
+        pending.deleted.add(item.target)
       },
     }),
   )
-  for (const batch of batches) {
-    for (const event of batch.events) {
-      if (event.diff.type === "tree") event.diff.diff.forEach(record)
-      else if (isTreeId(event.path[1])) mark(event.path[1], { upserted: true })
+
+export const collectChanges = (batch: LoroEventBatch, pending: Pending): void => {
+  const onTree = record(pending)
+  for (const event of batch.events) {
+    if (event.diff.type === "tree") {
+      event.diff.diff.forEach(onTree)
+      continue
+    }
+    const id = event.path[1]
+    if (isTreeId(id)) {
+      mark(pending, id, { upserted: true })
+      pending.data.add(id)
     }
   }
+}
+
+export const translate = (
+  tree: LoroTree,
+  pending: Pending,
+  registry: Registry,
+): ReadonlyArray<GraphEvent> => {
+  const { formerParent, changed, deleted } = pending
 
   const parentOf = (id: TreeID): TreeID | undefined =>
     tree.isNodeDeleted(id) && formerParent.has(id)
@@ -177,7 +218,7 @@ export const translate = (
   }
   changed.forEach((_, id) => send(id))
 
-  for (const id of new Set(deleted)) {
+  for (const id of deleted) {
     const node = tree.getNodeByID(id)
     const parent = formerParent.get(id)
     if (node === undefined || !tree.isNodeDeleted(id)) continue

@@ -11,17 +11,11 @@ import {
   Semaphore,
   Stream,
 } from "effect"
-import {
-  LoroDoc,
-  UndoManager,
-  VersionVector,
-  type LoroEventBatch,
-  type LoroTreeNode,
-} from "loro-crdt"
+import { LoroDoc, UndoManager, VersionVector, type LoroTreeNode } from "loro-crdt"
 import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
 import { applyCommand, mergeTargetOf, type Unresolved, type Workspace } from "./commands.ts"
-import { translate } from "./events.ts"
+import { collectChanges, emptyPending, translate } from "./events.ts"
 import { emptyRegistry } from "./registry.ts"
 import { repairAll, repairPages } from "./repair.ts"
 import {
@@ -211,10 +205,10 @@ const make = (source: GraphSource) =>
       }
       histories.clear()
     }
-    const batches: Array<LoroEventBatch> = []
+    let pending = emptyPending()
     let unsubscribe: (() => void) | undefined
     const listen = () => {
-      unsubscribe ??= doc.subscribe((batch) => void batches.push(batch))
+      unsubscribe ??= doc.subscribe((batch) => collectChanges(batch, pending))
     }
     if (doc.oplogVersion().length() > 0) listen()
     yield* Effect.addFinalizer(() =>
@@ -234,11 +228,13 @@ const make = (source: GraphSource) =>
     let flushed = doc.oplogVersion().get(peer) ?? 0
 
     const repair = Effect.sync(() => {
-      if (repairPages(tree, batches)) doc.commit({ origin: REPAIRED })
+      if (repairPages(tree, pending)) doc.commit({ origin: REPAIRED })
     })
 
     const drain = Effect.suspend(() => {
-      const events = translate(tree, batches.splice(0), registry)
+      const taken = pending
+      pending = emptyPending()
+      const events = translate(tree, taken, registry)
       return Effect.as(PubSub.publishAll(pubsub, events), events)
     })
 
@@ -426,7 +422,7 @@ const make = (source: GraphSource) =>
               Effect.sync(() => {
                 flushed = ownCounter()
                 if (repairAll(tree)) doc.commit({ origin: REPAIRED })
-                batches.splice(0)
+                pending = emptyPending()
                 registerPages()
               }),
             ),

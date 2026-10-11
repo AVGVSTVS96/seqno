@@ -1,15 +1,8 @@
 import { Option } from "effect"
-import type { LoroEventBatch, LoroTree, LoroTreeNode, TreeID } from "loro-crdt"
+import type { LoroTree, LoroTreeNode, TreeID } from "loro-crdt"
 import type { Page, PageId } from "@seqno/domain"
-import {
-  MERGED_INTO,
-  childrenOf,
-  isTreeId,
-  mergedInto,
-  pageIdOf,
-  readPage,
-  setProp,
-} from "./tree.ts"
+import type { Pending } from "./events.ts"
+import { MERGED_INTO, childrenOf, mergedInto, pageIdOf, readPage, setProp } from "./tree.ts"
 
 interface Touched {
   readonly pages: Set<TreeID>
@@ -23,7 +16,7 @@ const liveNode = (tree: LoroTree, id: TreeID | undefined): Option.Option<LoroTre
 
 type Kind = "page" | "merged" | "block"
 
-const touchedBy = (tree: LoroTree, batches: ReadonlyArray<LoroEventBatch>): Touched => {
+const touchedBy = (tree: LoroTree, pending: Pending): Touched => {
   const touched: Touched = { pages: new Set(), filled: new Set() }
   const kinds = new Map<TreeID, Kind>()
   const kindOf = (id: TreeID): Kind => {
@@ -39,19 +32,12 @@ const touchedBy = (tree: LoroTree, batches: ReadonlyArray<LoroEventBatch>): Touc
     kinds.set(id, kind)
     return kind
   }
-  for (const batch of batches) {
-    for (const event of batch.events) {
-      if (event.diff.type !== "tree") {
-        const id = event.path[1]
-        if (isTreeId(id) && kindOf(id) !== "block") touched.pages.add(id)
-        continue
-      }
-      for (const item of event.diff.diff) {
-        if (item.action === "delete") continue
-        if (item.parent === undefined) touched.pages.add(item.target)
-        else if (kindOf(item.parent) === "merged") touched.filled.add(item.parent)
-      }
-    }
+  for (const id of pending.data) {
+    if (kindOf(id) !== "block") touched.pages.add(id)
+  }
+  for (const id of pending.atRoot) touched.pages.add(id)
+  for (const id of pending.under) {
+    if (kindOf(id) === "merged") touched.filled.add(id)
   }
   return touched
 }
@@ -137,7 +123,7 @@ const repairTouched = (tree: LoroTree, touched: Touched): boolean => {
   return repaired
 }
 
-export const repairPages = (tree: LoroTree, batches: ReadonlyArray<LoroEventBatch>): boolean =>
-  repairTouched(tree, touchedBy(tree, batches))
+export const repairPages = (tree: LoroTree, pending: Pending): boolean =>
+  repairTouched(tree, touchedBy(tree, pending))
 
 export const repairAll = (tree: LoroTree): boolean => repairTouched(tree, everyRoot(tree))
