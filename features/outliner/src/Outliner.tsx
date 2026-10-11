@@ -594,7 +594,7 @@ const OutlineView = ({
       const target = head === -1 ? (down ? 0 : rows.length - 1) : head + (down ? 1 : -1)
       const row = rows[Math.max(0, Math.min(rows.length - 1, target))]
       if (row !== undefined) select(row.block.id)
-    } else if (key === "Escape") setSelection(null)
+    } else if (key === "Escape" && selection !== null) setSelection(null)
     else if (key === "Enter" && mod && chosen !== null) {
       for (const id of chosen) {
         const block = rows[indexOf(id)]?.block

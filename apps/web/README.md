@@ -20,7 +20,7 @@ A session (`src/worker/session.ts`) syncs the vault into an empty graph, imports
 
 The two demo graphs live in OPFS as `demo` (Getting started, `src/worker/demo.ts`) and `developer` (Developer graph, `src/worker/developer.ts`). A first visit shows a chooser between them before anything opens; later visits reopen the last graph.
 
-The homepage embeds the app in an iframe with `?embed` (`src/embed.ts`). Embedded, it skips the chooser and opens Getting started, leaves out folder picking and About seqno (a cross-site frame can't show a folder picker), and posts `{ type: "seqno:ready" }` to the parent each time a graph opens. Its storage is partitioned under the homepage, so the embedded demo is a copy separate from the one at seqno-app.vercel.app.
+The homepage embeds the app in an iframe with `?embed` (`src/embed.ts`). Embedded, it skips the chooser and opens Getting started, leaves out folder picking and About seqno (a cross-site frame can't show a folder picker), and posts `{ type: "seqno:ready" }` to the parent each time a graph opens, and `{ type: "seqno:escape" }` for each Escape the app doesn't use itself (handlers that use one call `preventDefault`, and open dialogs and popovers close on their own), so the homepage can close full screen. Its storage is partitioned under the homepage, so the embedded demo is a copy separate from the one at seqno-app.vercel.app.
 
 Each demo graph has a content version, set next to its starter in `src/worker/browser.ts`:
 

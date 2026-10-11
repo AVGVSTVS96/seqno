@@ -155,8 +155,10 @@ const MenuView = ({
         if (event.newState === "closed") onClose()
       }}
       onKeyDown={(event) => {
-        if (event.key === "Escape") event.currentTarget.hidePopover()
-        else onMenuKeyDown(event)
+        if (event.key === "Escape") {
+          event.preventDefault()
+          event.currentTarget.hidePopover()
+        } else onMenuKeyDown(event)
       }}
     >
       <div className="block-menu-colors">

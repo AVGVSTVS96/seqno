@@ -54,7 +54,10 @@ const Filter = ({
         autoFocus
         onChange={(event) => onText(event.currentTarget.value)}
         onKeyDown={(event) => {
-          if (event.key === "Escape") onText(null)
+          if (event.key === "Escape") {
+            event.preventDefault()
+            onText(null)
+          }
         }}
       />
       <button

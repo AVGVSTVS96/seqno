@@ -15,7 +15,7 @@ import {
   startingGraph,
 } from "./atoms.ts"
 import { WorkerCore } from "./core.ts"
-import { embedded, toParent } from "./embed.ts"
+import { embedded, forwardEscape, toParent } from "./embed.ts"
 import { demoGraph } from "./graph-locations.ts"
 import { router } from "./router.tsx"
 
@@ -51,6 +51,7 @@ const starting =
 if (starting !== null) registry.set(openGraph, starting)
 
 if (embedded) {
+  addEventListener("keydown", forwardEscape)
   registry.subscribe(openGraph, (result) => {
     if (AsyncResult.isSuccess(result)) toParent("ready")
   })

@@ -77,3 +77,34 @@ test("Back returns to the same scroll position in the journals", async ({ page }
   await expect(main.getByRole("article").nth(2)).toBeVisible()
   await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(450)
 })
+
+test("embedded, the app hands the page around it only the Escapes it doesn't use", async ({
+  page,
+  baseURL,
+}) => {
+  const parent = new URL("/embedding-page", baseURL).href
+  await page.route(parent, (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: `<script>heard = []; addEventListener("message", (event) => heard.push(event.data.type))</script>
+        <iframe src="/?embed" style="width: 1200px; height: 800px"></iframe>`,
+    }),
+  )
+  await page.goto(parent)
+  const heard = () => page.evaluate(() => Reflect.get(window, "heard"))
+  await expect.poll(heard).toEqual(["seqno:ready"])
+  const app = page.frameLocator("iframe")
+  await app.getByRole("treeitem").getByText("Open Getting started").click()
+  await expect(app.getByRole("treeitem").getByRole("textbox")).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(app.getByRole("treeitem").getByRole("textbox")).toHaveCount(0)
+  await expect(app.getByRole("treeitem", { selected: true })).toHaveCount(1)
+  await page.keyboard.press("Escape")
+  await expect(app.getByRole("treeitem", { selected: true })).toHaveCount(0)
+  await page.keyboard.press("Control+k")
+  await expect(app.getByRole("dialog", { name: "Search" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(app.getByRole("dialog", { name: "Search" })).toBeHidden()
+  await page.keyboard.press("Escape")
+  await expect.poll(heard).toEqual(["seqno:ready", "seqno:escape"])
+})

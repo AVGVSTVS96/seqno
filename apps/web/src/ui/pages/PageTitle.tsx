@@ -108,6 +108,7 @@ export const PageTitle = ({
               event.currentTarget.blur()
             }
             if (event.key === "Escape") {
+              event.preventDefault()
               event.currentTarget.value = page.title
               event.currentTarget.blur()
             }
