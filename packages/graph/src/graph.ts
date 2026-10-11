@@ -23,11 +23,12 @@ import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@se
 import { applyCommand, type Unresolved, type Workspace } from "./commands.ts"
 import { translate } from "./events.ts"
 import { emptyRegistry } from "./registry.ts"
+import { repairPages } from "./repair.ts"
 import {
   TREE,
   blockIdOf,
   loadPage,
-  pageIdOf,
+  livePageIdOf,
   placementOf,
   readBlock,
   readPage,
@@ -99,6 +100,7 @@ export class Graph extends Context.Service<
 }
 
 const LOADED = "seqno:load"
+const REPAIRED = "seqno:repair"
 
 const typedBlock = (command: Command): BlockId | null =>
   command._tag === "EditText"
@@ -127,10 +129,10 @@ const make = (source: GraphSource) =>
     const tree = doc.getTree(TREE)
     const registry = emptyRegistry()
     for (const root of tree.roots()) {
-      Option.map(pageIdOf(root), (id) => registry.pages.set(id, root.id))
+      Option.map(livePageIdOf(root), (id) => registry.pages.set(id, root.id))
     }
     const freshUndo = () =>
-      new UndoManager(doc, { mergeInterval: 0, excludeOriginPrefixes: [LOADED] })
+      new UndoManager(doc, { mergeInterval: 0, excludeOriginPrefixes: [LOADED, REPAIRED] })
     let ws: Workspace = { tree, registry, undo: freshUndo() }
     let typingIn: BlockId | null = null
     const endTyping = () => {
@@ -161,6 +163,10 @@ const make = (source: GraphSource) =>
     const serial = lock.withPermits(1)
     const peer = doc.peerIdStr
     let flushed = doc.oplogVersion().get(peer) ?? 0
+
+    const repair = Effect.sync(() => {
+      if (repairPages(tree, batches)) doc.commit({ origin: REPAIRED })
+    })
 
     const drain = Effect.suspend(() => {
       const events = translate(tree, batches.splice(0), registry)
@@ -260,6 +266,7 @@ const make = (source: GraphSource) =>
         ),
         Effect.provideService(Crypto.Crypto, crypto),
         Effect.andThen(Effect.sync(() => doc.commit())),
+        Effect.andThen(repair),
         Effect.andThen(drain),
       )
 
@@ -317,6 +324,7 @@ const make = (source: GraphSource) =>
                 if (ownCounter() !== before) restartUndo()
               }),
             ),
+            Effect.andThen(repair),
             Effect.andThen(drain),
           )
         }),
@@ -331,6 +339,7 @@ const make = (source: GraphSource) =>
               doc.commit({ origin: LOADED })
             }),
           ),
+          Effect.andThen(repair),
           Effect.andThen(drain),
         ),
       )

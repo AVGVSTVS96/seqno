@@ -14,6 +14,7 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 - Events come only from Loro's change feed, so local edits, undo, redo, loads and merged remote ops all produce the same `GraphEvent`s.
 - `flush(write)` exports this peer's ops since the last save and moves its mark only if `write` succeeds.
 - `load(pages)` adds imported pages with their given ids, journal days and props, outside the undo history.
+- Two live pages with one name merge into the one with the smaller id right after the commit or merge that made them; the other stays as a hidden root marked `mergedInto`, and blocks that land there later move over too.
 - Undo follows Logseq: typing and property edits in one block form one step, every other command is its own step, and remote ops are never undone.
 - Layout: one Loro tree with pages as roots and blocks below them. Text is a `LoroText`; props are a `LoroMap` plus a key list that keeps their order.
 
@@ -26,5 +27,4 @@ pnpm test --project @seqno/graph
 ## Known gaps
 
 - There is no `eventsSince(version)`, so a stale index has to rebuild from every page.
-- Two devices creating the same page name at once get two pages; nothing merges them.
 - Undoing a delete re-creates the blocks with the same ids, but edits another device made to them in the meantime are lost.

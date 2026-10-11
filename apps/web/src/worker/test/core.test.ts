@@ -3,16 +3,28 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, describe, it } from "@effect/vitest"
-import { Clock, Crypto, Deferred, Effect, Fiber, Layer, Option, Queue, Stream } from "effect"
+import {
+  Clock,
+  Context,
+  Crypto,
+  Deferred,
+  Effect,
+  Fiber,
+  Layer,
+  Option,
+  Queue,
+  Stream,
+} from "effect"
 import { RpcClient, type RpcGroup, type RpcMessage, RpcServer, RpcTest } from "effect/rpc"
 import { DeviceId } from "@seqno/domain"
+import { Graph, PeerId } from "@seqno/graph"
 import { layerNode } from "@seqno/index/node"
 import { CoreRpcs, PageRpcs, tabLock } from "@seqno/rpc"
 import { nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
 import { demoGraph } from "../demo.ts"
 import { developerGraph } from "../developer.ts"
-import { journalDayOf } from "../journal.ts"
+import { journalDayOf, todaysJournal } from "../journal.ts"
 import { layerWebLocks } from "../lock.ts"
 import { Device, GraphPlaces, type Starter } from "../place.ts"
 
@@ -561,6 +573,61 @@ describe("the core worker on the real graph, vault and index", () => {
         )
         assert.deepStrictEqual(firstEdit.length, 1)
         assert.strictEqual(text, "A I recorded a [[voice note]]. B")
+      }),
+  )
+
+  it.effect(
+    "a graph where two devices each made today's journal opens with one journal holding both",
+    () =>
+      Effect.gen(function* () {
+        const root = yield* copyOfFixture
+        yield* Effect.scoped(
+          Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })),
+        )
+        const phone = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const graph = yield* Effect.map(
+              Layer.build(
+                Graph.layer({ peer: PeerId.make("7"), snapshot: Option.none(), updates: [] }).pipe(
+                  Layer.provide(WebCrypto),
+                ),
+              ),
+              (context) => Context.get(context, Graph),
+            )
+            const [journal] = yield* Effect.provide(todaysJournal(graph), WebCrypto)
+            if (journal === undefined) return assert.fail("an empty graph has no journal yet")
+            yield* graph.load([journal])
+            const block = journal.blocks[0] ?? assert.fail("a new journal has a block")
+            yield* graph.dispatch({
+              _tag: "EditText",
+              blockId: block.id,
+              from: 0,
+              to: 0,
+              insert: "from the phone",
+            })
+            return yield* graph.flush(() => Effect.void)
+          }),
+        )
+        if (Option.isNone(phone)) return assert.fail("the phone wrote nothing")
+        yield* Effect.promise(async () => {
+          await mkdir(join(root, "updates", "phone"), { recursive: true })
+          await writeFile(join(root, "updates", "phone", "7-0.loro"), phone.value.bytes)
+        })
+        const today = journalDayOf(yield* Clock.currentTimeMillis)
+        const journals = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const core = yield* coreOn(root)
+            const opened = yield* core.OpenGraph({ graph: "og" })
+            const todays = opened.pages.filter((page) => page.journalDay === today)
+            return yield* Effect.forEach(todays, (page) =>
+              Effect.map(core.GetPage({ pageId: page.id }), (tree) =>
+                tree.blocks.map((block) => block.text),
+              ),
+            )
+          }),
+        )
+        assert.strictEqual(journals.length, 1)
+        assert.deepStrictEqual(journals[0]?.toSorted(), ["", "from the phone"])
       }),
   )
 

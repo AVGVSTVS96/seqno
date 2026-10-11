@@ -120,6 +120,14 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 **Numbers.** None on speed. `apps/web/src/worker/test/core.test.ts` moves one of the device's own update files away, edits again, puts it back and reopens: both edits survive. With the old fixed peer id the same test loses the first edit.
 
+## Two pages with one name merge into the older one
+
+**Decision.** When a commit or a merge leaves two live pages with one name, the graph merges them right away, before any event goes out: the page with the smaller id (UUIDv7, so the older one) keeps its blocks, the other's top-level blocks move to its end in order, and the other's page properties fill keys the survivor doesn't have. The merged-away page isn't deleted. It stays as an empty root marked `mergedInto: <survivor id>`, which every read skips, and any block that later lands under it moves to the survivor too. The repair commits with its own origin, so undo never takes it back.
+
+**Why.** Each device creates today's journal on open, so two devices opening one graph on the same day before syncing made two pages with one name, and the index's unique name rule then stopped the graph from opening at all. Any device has to be able to fix it on its own, and two devices fixing it at once must agree: picking the survivor by id gives every device the same answer, and moving the same blocks to the same page twice converges in Loro's tree. Deleting the merged-away page would lose data: a device that hadn't heard of the merge yet (offline all day, say) keeps adding blocks to it, and Loro deletes whatever is created under a deleted node. Keeping it as a hidden root lets those blocks arrive and move over. The index no longer requires unique names either, so a bug here shows two pages instead of a graph that won't open.
+
+**Numbers.** None on speed: the name check runs only when a commit touched a page itself (created, renamed, merged in), not on typing. Tests: `packages/graph/test/sync.test.ts` (two devices, and a block added to the merged-away page before its device heard of the merge) and `apps/web/src/worker/test/core.test.ts` (a folder where a second device made today's journal opens with one journal holding both; before the fix it failed with `UNIQUE constraint failed: pages.name_lc`).
+
 ## Every tab shares one core worker
 
 **Decision.** The core worker is a SharedWorker. Every tab of one seqno build talks to it, so a graph open in several tabs is one Loro doc, one index and one peer id, and edits from any tab go through one writer. A Web Lock per graph keeps a second worker (a tab still on an older build) from writing it at the same time. A newer build takes a graph over by stealing its handover lock: the older worker saves, releases the graph and tells its tabs to reload. Each tab holds a lock of its own, and the worker waits on it to learn when the tab closes.

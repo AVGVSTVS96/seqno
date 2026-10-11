@@ -69,6 +69,7 @@ tree "blocks"
 - **Each block's text is its own `LoroText`.** Two devices typing in one block merge character by character.
 - **Moves are tree moves.** A block moved on two devices ends up in one place, and two concurrent moves that would form a cycle can't.
 - **Properties** (`key:: value`) live in a `props` map, with a `propKeys` list that keeps the order they were written in. Refs, tags, block refs, tasks and dates stay in the text and are parsed by `@seqno/syntax`.
+- **Two pages with one name** (two devices made today's journal before syncing, or created or renamed pages at once) merge into the one with the smaller id: the other's blocks move to its end, its properties fill keys the survivor lacks, and its root stays behind marked `mergedInto`, hidden from every read. A block another device adds to it later moves over the same way. The repair runs right after each commit or merge, before events go out, so the index never sees both.
 - **Ids** are UUIDv7 (`BlockId`, `PageId`). A page's `name` is its title, NFC-normalized, trimmed and lowercased. Older Logseq `id::` values that aren't UUIDv7 are kept in `props.id`.
 - **Commands** (`@seqno/domain`): `CreatePage`, `RenamePage`, `DeletePage`, `InsertBlock(s)`, `EditText`, `SplitBlock`, `MergeWithPrevious`, `Indent`, `Outdent`, `MoveBlocks`, `DeleteBlocks`, `SetCollapsed`, `SetProperty`, `Undo`, `Redo`.
 - **Undo** uses Loro's `UndoManager`. Typing in one block is one step, every other command is its own step, and edits from other devices are never undone.

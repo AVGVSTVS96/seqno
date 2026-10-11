@@ -1,6 +1,7 @@
 export const SCHEMA = `
-CREATE TABLE pages (rid INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, name TEXT NOT NULL, name_lc TEXT NOT NULL UNIQUE, day INTEGER);
+CREATE TABLE pages (rid INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, name TEXT NOT NULL, name_lc TEXT NOT NULL, day INTEGER);
 CREATE INDEX pages_day ON pages(day);
+CREATE INDEX pages_name ON pages(name_lc);
 
 CREATE TABLE page_names (name TEXT NOT NULL, page INTEGER NOT NULL, alias INTEGER NOT NULL, PRIMARY KEY (name, page)) WITHOUT ROWID;
 CREATE INDEX page_names_page ON page_names(page);

@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option } from "effect"
+import { GraphEvent } from "@seqno/domain"
 import type { LocalUpdate } from "@seqno/graph"
 import { createdBlock, nth, openGraph, outline, seedPage } from "./support.ts"
 
@@ -86,6 +87,83 @@ describe("concurrent edits", () => {
         })
       }),
     ),
+  )
+})
+
+const sameNamePages = Effect.gen(function* () {
+  const left = yield* openGraph("1")
+  const right = yield* openGraph("2")
+  const fromLeft = yield* seedPage(left, "Groceries", ["milk"])
+  const fromRight = yield* seedPage(right, "groceries", ["eggs"])
+  const [winner, loser] = [fromLeft, fromRight].toSorted((a, b) => (a.pageId < b.pageId ? -1 : 1))
+  if (winner === undefined || loser === undefined) return assert.fail("two pages were seeded")
+  const [first, second] = winner === fromLeft ? ["milk", "eggs"] : ["eggs", "milk"]
+  const [winnerGraph, loserGraph] = winner === fromLeft ? [left, right] : [right, left]
+  return { left, right, winner, loser, first, second, winnerGraph, loserGraph }
+})
+
+const titles = (graph: Effect.Success<ReturnType<typeof openGraph>>) =>
+  Effect.map(graph.pages, (pages) => pages.map((page) => `${page.title} ${page.id}`))
+
+describe("two pages with one name", () => {
+  it.effect("merge into the older page on every device, blocks of both in order", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const { left, right, winner, loser, first, second } = yield* sameNamePages
+        const fromLeft = yield* flushed(left)
+        const fromRight = yield* flushed(right)
+        const leftEvents = yield* left.merge(fromRight)
+        yield* right.merge(fromLeft)
+        yield* left.merge(yield* flushed(right))
+        yield* right.merge(yield* flushed(left))
+
+        const expected = [first, second]
+        assert.deepStrictEqual(outline(yield* left.page(winner.pageId)), expected)
+        assert.deepStrictEqual(outline(yield* right.page(winner.pageId)), expected)
+        assert.deepStrictEqual(yield* titles(left), yield* titles(right))
+        assert.strictEqual((yield* left.pages).length, 1)
+        assert.strictEqual((yield* Effect.flip(left.page(loser.pageId)))._tag, "PageNotFound")
+        assert.deepStrictEqual(
+          leftEvents.flatMap((event) =>
+            GraphEvent.match(event, {
+              PageUpserted: ({ page }) => (page.id === loser.pageId ? [event._tag] : []),
+              PageDeleted: () => [],
+              BlockUpserted: ({ block }) => (block.pageId === loser.pageId ? [event._tag] : []),
+              BlockMoved: ({ pageId }) => (pageId === loser.pageId ? [event._tag] : []),
+              BlockDeleted: () => [],
+            }),
+          ),
+          [],
+        )
+      }),
+    ),
+  )
+
+  it.effect(
+    "a block added to the merged-away page before its device heard of the merge moves too",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const { winner, loser, first, second, winnerGraph, loserGraph } = yield* sameNamePages
+          yield* winnerGraph.merge(yield* flushed(loserGraph))
+          yield* loserGraph.dispatch({
+            _tag: "InsertBlock",
+            pageId: loser.pageId,
+            parentId: null,
+            after: nth(loser.ids, 0),
+            text: "bread",
+          })
+          yield* winnerGraph.merge(yield* flushed(loserGraph))
+          yield* loserGraph.merge(yield* flushed(winnerGraph))
+          yield* winnerGraph.merge(yield* flushed(loserGraph))
+
+          const expected = [first, second, "bread"]
+          assert.deepStrictEqual(outline(yield* winnerGraph.page(winner.pageId)), expected)
+          assert.deepStrictEqual(outline(yield* loserGraph.page(winner.pageId)), expected)
+          assert.deepStrictEqual(yield* titles(winnerGraph), yield* titles(loserGraph))
+          assert.strictEqual((yield* loserGraph.pages).length, 1)
+        }),
+      ),
   )
 })
 

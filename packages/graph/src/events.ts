@@ -5,6 +5,7 @@ import { forget, type Registry } from "./registry.ts"
 import {
   blockIdOf,
   isTreeId,
+  livePageIdOf,
   pageIdOf,
   readBlock,
   readPage,
@@ -62,7 +63,7 @@ export const translate = (
   const placementUnder = (parent: TreeID): Option.Option<Placement> =>
     Option.flatMap(Option.fromUndefinedOr(tree.getNodeByID(parent)), (node) =>
       parentOf(parent) === undefined
-        ? Option.map(pageIdOf(node), (pageId): Placement => ({ pageId, parentId: null }))
+        ? Option.map(livePageIdOf(node), (pageId): Placement => ({ pageId, parentId: null }))
         : Option.flatMap(blockIdOf(node), (parentId) =>
             Option.map(pageOf(parent), (pageId): Placement => ({ pageId, parentId })),
           ),
@@ -85,6 +86,7 @@ export const translate = (
       }),
     )
 
+  const retired: Array<LoroTreeNode> = []
   const sent = new Set<TreeID>()
   const send = (id: TreeID): void => {
     if (sent.has(id)) return
@@ -96,9 +98,12 @@ export const translate = (
     const change = changed.get(id)
     if (change === undefined) return
     if (parent === undefined) {
-      Option.map(readPage(node), (page) => {
-        registry.pages.set(page.id, id)
-        events.push({ _tag: "PageUpserted", page })
+      Option.match(readPage(node), {
+        onNone: () => retired.push(node),
+        onSome: (page) => {
+          registry.pages.set(page.id, id)
+          events.push({ _tag: "PageUpserted", page })
+        },
       })
       return
     }
@@ -135,6 +140,17 @@ export const translate = (
         events.push({ _tag: "BlockDeleted", blockId, pageId: at.pageId })
         deleteSubtree(node, { pageId: at.pageId, parentId: blockId })
       }),
+    )
+  }
+  for (const node of retired) {
+    Option.map(
+      Option.filter(pageIdOf(node), (pageId) => registry.pages.get(pageId) === node.id),
+      (pageId) => {
+        deleteSubtree(node, { pageId, parentId: null })
+        forget(registry.pages, pageId, node.id)
+        registry.loaded.delete(pageId)
+        events.push({ _tag: "PageDeleted", pageId })
+      },
     )
   }
   return events

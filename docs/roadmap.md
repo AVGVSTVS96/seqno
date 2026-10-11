@@ -25,7 +25,7 @@ Not done yet: sync between two real devices through iCloud Drive. The sync engin
 Make the web app safe for real, large graphs before adding platforms:
 
 1. Open lazily: load from the newest snapshot, show the visible page first, and keep the index on disk so it catches up instead of rebuilding.
-2. Close the data-safety gaps below, starting with duplicate page names. (Peer ids: done, each open now writes with a new one.)
+2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, and two pages with one name merge into one.
 3. Keep the edit log small on a single device, and show save state in the UI.
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
 5. Run the sync simulator on the real graph with every command and device restarts, then the full 1,000 runs of 10k ops.
@@ -47,7 +47,6 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 
 ### Data safety
 
-- **Two pages with one name stop the graph from opening.** Each device creates today's journal on open if it has none yet, so two devices that open the graph on the same day before syncing make two pages with one name. Concurrent creates and renames do the same. The index's unique name rule then fails, and the graph shows its open error on every try.
 - **Two devices can import the same folder twice.** If both open a Logseq folder before either's edit log has synced, each imports it with new ids, and every page ends up doubled.
 - **Import skips files without saying so.** A file whose name matches an existing page, or one that isn't downloaded or can't be read, is left out. The import runs once and its issue list isn't shown.
 - **Saving is invisible.** Closing the last tab on a graph can drop the last 250 ms of edits, there is no saving indicator, and a failing save (storage full, folder permission revoked) only logs inside the worker.

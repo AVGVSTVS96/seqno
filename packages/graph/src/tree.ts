@@ -20,6 +20,8 @@ import type { PageTree } from "@seqno/rpc"
 
 export const TREE = "blocks"
 
+export const MERGED_INTO = "mergedInto"
+
 const EpochMillis = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
 const PropKeys = Schema.Array(Schema.String)
@@ -30,6 +32,7 @@ const PageData = Schema.Struct({
   journalDay: Schema.optionalKey(JournalDay),
   props: Schema.optionalKey(Props),
   propKeys: Schema.optionalKey(PropKeys),
+  mergedInto: Schema.optionalKey(PageId),
 })
 
 const BlockData = Schema.Struct({
@@ -69,6 +72,12 @@ export const blockIdOf = (node: LoroTreeNode): Option.Option<BlockId> =>
 export const pageIdOf = (node: LoroTreeNode): Option.Option<PageId> =>
   decodePageId(node.data.get("uuid"))
 
+export const mergedInto = (node: LoroTreeNode): Option.Option<PageId> =>
+  decodePageId(node.data.get(MERGED_INTO))
+
+export const livePageIdOf = (node: LoroTreeNode): Option.Option<PageId> =>
+  Option.isSome(mergedInto(node)) ? Option.none() : pageIdOf(node)
+
 const inOrder = (props: Props = {}, keys: ReadonlyArray<string> = []): Props => {
   const listed = [...new Set(keys)].filter((key) => key in props)
   const rest = Object.keys(props).filter((key) => !listed.includes(key))
@@ -76,18 +85,21 @@ const inOrder = (props: Props = {}, keys: ReadonlyArray<string> = []): Props => 
 }
 
 export const readPage = (node: LoroTreeNode): Option.Option<Page> =>
-  Option.flatMap(decodePageData(node.data.toJSON()), (data) => {
-    const name = normalizePageName(data.title)
-    return name === ""
-      ? Option.none()
-      : Option.some({
-          id: data.uuid,
-          name,
-          title: data.title,
-          journalDay: data.journalDay ?? null,
-          props: inOrder(data.props, data.propKeys),
-        })
-  })
+  Option.flatMap(
+    Option.filter(decodePageData(node.data.toJSON()), (data) => data.mergedInto === undefined),
+    (data) => {
+      const name = normalizePageName(data.title)
+      return name === ""
+        ? Option.none()
+        : Option.some({
+            id: data.uuid,
+            name,
+            title: data.title,
+            journalDay: data.journalDay ?? null,
+            props: inOrder(data.props, data.propKeys),
+          })
+    },
+  )
 
 export const readBlock = (node: LoroTreeNode, at: Placement): Option.Option<BlockState> =>
   Option.map(decodeBlockData(node.data.toJSON()), (data) => ({
@@ -182,7 +194,7 @@ export const placementOf = (node: LoroTreeNode): Option.Option<Placement> => {
   const grandparent = parent?.parent()
   if (parent === undefined) return Option.none()
   if (grandparent === undefined) {
-    return Option.map(pageIdOf(parent), (pageId) => ({ pageId, parentId: null }))
+    return Option.map(livePageIdOf(parent), (pageId) => ({ pageId, parentId: null }))
   }
   return Option.flatMap(placementOf(parent), (above) =>
     Option.map(blockIdOf(parent), (parentId) => ({ pageId: above.pageId, parentId })),
