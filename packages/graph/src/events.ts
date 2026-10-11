@@ -55,9 +55,14 @@ export const translate = (
     tree.isNodeDeleted(id) && formerParent.has(id)
       ? formerParent.get(id)
       : tree.getNodeByID(id)?.parent()?.id
+  const roots = new Map<TreeID, TreeID>()
   const rootOf = (id: TreeID): TreeID => {
+    const known = roots.get(id)
+    if (known !== undefined) return known
     const parent = parentOf(id)
-    return parent === undefined ? id : rootOf(parent)
+    const root = parent === undefined ? id : rootOf(parent)
+    roots.set(id, root)
+    return root
   }
   const rootBefore = (id: TreeID): TreeID => {
     const parent = formerParent.has(id) ? formerParent.get(id) : parentOf(id)
