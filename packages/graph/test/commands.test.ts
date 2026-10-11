@@ -254,6 +254,31 @@ describe("blocks", () => {
     ),
   )
 
+  it.effect("merging keeps the merged block's properties the target doesn't have", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const { ids } = yield* seedPage(graph, "Merge props", ["a", "b"])
+        const [a, b] = [nth(ids, 0), nth(ids, 1)]
+        const set = (blockId: BlockId, key: string, value: string) =>
+          graph.dispatch({
+            _tag: "SetProperty",
+            target: { _tag: "BlockTarget", blockId },
+            key,
+            value,
+          })
+        yield* set(a, "owner", "a")
+        yield* set(b, "owner", "b")
+        yield* set(b, "id", "6512a3f0-1111-4222-8333-444455556666")
+        yield* graph.dispatch({ _tag: "MergeWithPrevious", blockId: b })
+        const merged = yield* graph.block(a)
+        assert.deepStrictEqual(
+          [merged.text, merged.props],
+          ["ab", { owner: "a", id: "6512a3f0-1111-4222-8333-444455556666" }],
+        )
+      }),
+    ),
+  )
+
   it.effect("merges into the previous visible block and keeps the children in place", () =>
     withGraph((graph) =>
       Effect.gen(function* () {

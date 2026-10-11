@@ -25,7 +25,7 @@ Not done yet: sync between two real devices through iCloud Drive. The sync engin
 Make the web app safe for real, large graphs before adding platforms:
 
 1. Open lazily: load from the newest snapshot, show the visible page first, and keep the index on disk so it catches up instead of rebuilding.
-2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, and two devices importing the same folder write the same ops.
+2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, two devices importing the same folder write the same ops, and merging a block with Backspace keeps its properties and its references.
 3. Keep the edit log small on a single device, and show save state in the UI.
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
 5. Run the sync simulator on the real graph with every command and device restarts, then the full 1,000 runs of 10k ops.
@@ -52,7 +52,6 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 - **Saving is invisible.** Closing the last tab on a graph can drop the last 250 ms of edits, there is no saving indicator, and a failing save (storage full, folder permission revoked) only logs inside the worker.
 - **Rejected edits are dropped quietly.** The UI ignores a rejected command, and the editor recognizes its own edits coming back by comparing text, which could skip a real change after an undo (found by reading the code, not reproduced).
 - **Undo is shared between tabs.** Tabs on one graph share one undo history, so Mod+Z in one tab can undo what was typed in another.
-- **Merging a block with Backspace drops its properties**, including an `id::` that `((block refs))` point to.
 - **Undoing a delete re-creates the blocks**, so edits another device made to them in the meantime are lost.
 - **No device list.** The app counts only itself as a member, and there is no "remove this device" setting.
 

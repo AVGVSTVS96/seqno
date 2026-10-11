@@ -20,7 +20,7 @@ import {
 } from "loro-crdt"
 import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
-import { applyCommand, type Unresolved, type Workspace } from "./commands.ts"
+import { applyCommand, mergeTargetOf, type Unresolved, type Workspace } from "./commands.ts"
 import { translate } from "./events.ts"
 import { emptyRegistry } from "./registry.ts"
 import { repairPages } from "./repair.ts"
@@ -105,6 +105,7 @@ export class Graph extends Context.Service<
     readonly merge: (
       updates: ReadonlyArray<Uint8Array>,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, ImportFailed>
+    readonly mergeTarget: (id: BlockId) => Effect.Effect<Option.Option<BlockId>>
     readonly load: (pages: ReadonlyArray<PageTree>) => Effect.Effect<ReadonlyArray<GraphEvent>>
     readonly seed: (pages: ReadonlyArray<PageTree>) => Effect.Effect<Seeded>
     readonly events: Stream.Stream<GraphEvent>
@@ -427,6 +428,13 @@ const make = (source: GraphSource) =>
       dispatch,
       dispatchAll,
       merge,
+      mergeTarget: (id) =>
+        serial(
+          Effect.andThen(
+            filled.await,
+            Effect.suspend(() => mergeTargetOf(ws, id)),
+          ).pipe(Effect.orElseSucceed(() => Option.none())),
+        ),
       load,
       seed,
       events: Stream.fromPubSub(pubsub),

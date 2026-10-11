@@ -51,6 +51,55 @@ const referenceEdits = (session: Session, pageId: PageId, title: string) =>
     return [...blockEdits, ...pageEdits]
   })
 
+const BLOCKS_CITING = `
+SELECT b.id FROM blocks b WHERE instr(lower(b.content), ?1) > 0
+UNION SELECT b.id FROM props p JOIN blocks b ON b.rid = p.block WHERE instr(lower(p.value), ?1) > 0`
+
+const spansOf = (text: string, needle: string) =>
+  [...text.matchAll(new RegExp(needle.replace(/[()]/g, "\\$&"), "gi"))].map((match) => match.index)
+
+const reRef = (text: string, from: string, to: string) =>
+  spansOf(text, from).reduce(
+    (out, at) => `${out.slice(0, at)}${to}${out.slice(at + to.length)}`,
+    text,
+  )
+
+const blockRefEdits = (session: Session, blockId: BlockId) =>
+  Effect.gen(function* () {
+    const target = yield* session.graph.mergeTarget(blockId)
+    if (Option.isNone(target)) return []
+    const from = `((${blockId.toLowerCase()}))`
+    const to = `((${target.value}))`
+    const rows = yield* Effect.orDie(session.index.query(BLOCKS_CITING, [from]))
+    const blocks = yield* Effect.forEach(
+      rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))),
+      (citing) => Effect.option(session.graph.block(citing)),
+    )
+    const pages = yield* session.graph.pages
+    const propertyRefs = (owner: PropertyTarget, props: Props): ReadonlyArray<Command> =>
+      Object.entries(props).flatMap(([key, value]): ReadonlyArray<Command> =>
+        spansOf(value, from).length === 0
+          ? []
+          : [{ _tag: "SetProperty", target: owner, key, value: reRef(value, from, to) }],
+      )
+    return [
+      ...blocks
+        .flatMap(Option.toArray)
+        .filter((block) => block.id !== blockId)
+        .flatMap((block) => [
+          ...spansOf(block.text, from).map((at): Command => ({
+            _tag: "EditText",
+            blockId: block.id,
+            from: at,
+            to: at + from.length,
+            insert: to,
+          })),
+          ...propertyRefs({ _tag: "BlockTarget", blockId: block.id }, block.props),
+        ]),
+      ...pages.flatMap((page) => propertyRefs({ _tag: "PageTarget", pageId: page.id }, page.props)),
+    ]
+  })
+
 export const withReferenceEdits = (
   session: Session,
   command: Command,
@@ -60,4 +109,6 @@ export const withReferenceEdits = (
         command,
         ...edits,
       ])
-    : Effect.succeed([command])
+    : command._tag === "MergeWithPrevious"
+      ? Effect.map(blockRefEdits(session, command.blockId), (edits) => [command, ...edits])
+      : Effect.succeed([command])

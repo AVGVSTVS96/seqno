@@ -130,6 +130,23 @@ const propKeysOf = (node: LoroTreeNode): LoroList => {
   return keys instanceof LoroList ? keys : node.data.ensureMergeableList("propKeys")
 }
 
+export const readProps = (node: LoroTreeNode): Props => {
+  const props = node.data.get("props")
+  const keys = node.data.get("propKeys")
+  return props instanceof LoroMap
+    ? inOrder(
+        Object.fromEntries(
+          Object.entries(props.toJSON()).flatMap(([key, value]) =>
+            typeof value === "string" ? [[key, value]] : [],
+          ),
+        ),
+        keys instanceof LoroList
+          ? keys.toArray().flatMap((key) => (typeof key === "string" ? [key] : []))
+          : [],
+      )
+    : {}
+}
+
 export const setProp = (node: LoroTreeNode, key: string, value: string | null): void => {
   const props = propsOf(node)
   const keys = propKeysOf(node)

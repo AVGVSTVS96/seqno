@@ -856,6 +856,59 @@ describe("the core worker on the real graph, vault and index", () => {
     ),
   )
 
+  it.effect("merging a referenced block points its references at the block it merged into", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const core = yield* coreOn(yield* copyOfFixture)
+        yield* core.OpenGraph({ graph: "og" })
+        const pageId =
+          (yield* core.Dispatch({ command: { _tag: "CreatePage", title: "Merges" } })).flatMap(
+            (event) => (event._tag === "PageUpserted" ? [event.page.id] : []),
+          )[0] ?? assert.fail("no page")
+        const insert = (text: string) =>
+          Effect.map(
+            core.Dispatch({ command: { _tag: "InsertBlock", pageId, parentId: null, text } }),
+            (events) =>
+              events.flatMap((event) =>
+                event._tag === "BlockUpserted" ? [event.block.id] : [],
+              )[0] ?? assert.fail(`no block ${text}`),
+          )
+        const citing = yield* insert("cite")
+        const second = yield* insert("second")
+        const first = yield* insert("first")
+        yield* core.Dispatch({
+          command: {
+            _tag: "EditText",
+            blockId: citing,
+            from: 4,
+            to: 4,
+            insert: ` ((${second})) twice ((${second.toUpperCase()}))`,
+          },
+        })
+        yield* core.Dispatch({
+          command: {
+            _tag: "SetProperty",
+            target: { _tag: "BlockTarget", blockId: citing },
+            key: "source",
+            value: `((${second}))`,
+          },
+        })
+        yield* core.Dispatch({ command: { _tag: "MergeWithPrevious", blockId: second } })
+        const cited = yield* core.GetBlock({ blockId: citing })
+        assert.deepStrictEqual(
+          [cited.text, cited.props["source"], (yield* core.GetBlock({ blockId: first })).text],
+          [`cite ((${first})) twice ((${first}))`, `((${first}))`, "firstsecond"],
+        )
+        yield* core.Dispatch({ command: { _tag: "Undo" } })
+        const restored = yield* core.GetBlock({ blockId: citing })
+        assert.deepStrictEqual(
+          [restored.text, restored.props["source"]],
+          [`cite ((${second})) twice ((${second.toUpperCase()}))`, `((${second}))`],
+        )
+      }),
+    ),
+  )
+
   it.effect("renaming a page rewrites the references to it in one undo step", () =>
     Effect.scoped(
       Effect.gen(function* () {

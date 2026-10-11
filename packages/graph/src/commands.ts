@@ -14,8 +14,10 @@ import { CommandRejected } from "@seqno/rpc"
 import type { Registry } from "./registry.ts"
 import {
   childrenOf,
+  blockIdOf,
   isCollapsed,
   readPage,
+  readProps,
   setProp,
   textOf,
   touch,
@@ -149,6 +151,18 @@ const lastVisible = (node: LoroTreeNode): LoroTreeNode => {
   return last === undefined || isCollapsed(node) ? node : lastVisible(last)
 }
 
+const mergeTarget = (node: LoroTreeNode): LoroTreeNode | undefined => {
+  const parent = node.parent()
+  const previous = childrenOf(parent ?? node)[(node.index() ?? 0) - 1]
+  const target = previous === undefined ? parent : lastVisible(previous)
+  return target === undefined || isPage(target) ? undefined : target
+}
+
+export const mergeTargetOf = (ws: Workspace, id: BlockId) =>
+  Effect.map(blockNode(ws, id), (node) =>
+    Option.flatMap(Option.fromUndefinedOr(mergeTarget(node)), blockIdOf),
+  )
+
 const targetNode = (ws: Workspace, target: PropertyTarget) =>
   target._tag === "BlockTarget" ? blockNode(ws, target.blockId) : pageNode(ws, target.pageId)
 
@@ -218,13 +232,16 @@ export const applyCommand = (ws: Workspace, command: Command) =>
       Effect.gen(function* () {
         const node = yield* blockNode(ws, blockId)
         const parent = node.parent()
-        const previous = childrenOf(parent ?? node)[(node.index() ?? 0) - 1]
-        const target = previous === undefined ? parent : lastVisible(previous)
-        if (target === undefined || isPage(target)) {
+        const target = mergeTarget(node)
+        if (target === undefined) {
           return yield* reject("the first block of a page has nothing to merge into")
         }
         const into = textOf(target)
         into.insert(into.length, textOf(node).toString())
+        const kept = readProps(target)
+        Object.entries(readProps(node))
+          .filter(([key]) => !(key in kept))
+          .forEach(([key, value]) => setProp(target, key, value))
         for (const child of childrenOf(node)) {
           if (target.id === parent?.id) child.moveBefore(node)
           else ws.tree.move(child.id, target.id, childrenOf(target).length)

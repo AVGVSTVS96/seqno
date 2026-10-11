@@ -16,6 +16,7 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 - `load(pages)` adds imported pages with their given ids, journal days and props, outside the undo history.
 - `seed(pages)` does the same on an empty graph, but writes the ops under a peer id hashed from the pages and with times taken from them (noon UTC of the latest journal day), and returns those ops as their own update. Two devices seeding the same pages write identical ops, so merging one into the other adds nothing.
 - Two live pages with one name merge into the one with the smaller id right after the commit or merge that made them; the other stays as a hidden root marked `mergedInto`, and blocks that land there later move over too.
+- `MergeWithPrevious` appends the block's text to the previous visible block, moves its children there, and fills that block's missing properties from it. `mergeTarget(id)` names that block, so the core can point `((refs))` to the merged block at the one it merged into in the same commit.
 - Undo follows Logseq: typing and property edits in one block form one step, every other command is its own step, and remote ops are never undone.
 - Layout: one Loro tree with pages as roots and blocks below them. Text is a `LoroText`; props are a `LoroMap` plus a key list that keeps their order.
 
