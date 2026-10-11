@@ -9,6 +9,7 @@ export interface DeviceOptions {
   readonly id: string
   readonly peer: `${number}`
   readonly formerPeers?: ReadonlyArray<string>
+  readonly synced?: boolean
   readonly members: ReadonlyArray<string>
   readonly storage: Layer.Layer<Storage>
   readonly compactAfterFiles?: number
@@ -23,6 +24,7 @@ export const makeDevice = (options: DeviceOptions) =>
       layer({
         device: deviceId(options.id),
         formerPeers: options.formerPeers ?? [],
+        synced: options.synced ?? true,
         members: options.members.map((member) => deviceId(member)),
         compactAfterFiles: options.compactAfterFiles ?? 1_000_000,
         compactEvery: 0,

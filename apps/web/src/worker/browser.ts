@@ -32,10 +32,11 @@ export const BrowserGraphPlaces = Layer.effect(
         Effect.flatMap(locations.resolve(graph), (location) =>
           Effect.map(
             GraphLocation.match(location, {
-              FolderGraph: ({ handle }) => Effect.succeed({ handle, starter: null }),
+              FolderGraph: ({ handle }) => Effect.succeed({ handle, synced: true, starter: null }),
               OpfsGraph: ({ name }) =>
                 Effect.all({
                   handle: opfsFolder(["graphs", name]),
+                  synced: Effect.succeed(false),
                   starter: Effect.map(Clock.currentTimeMillis, (now): Starter | null => {
                     const starter = starters.get(name)
                     return starter === undefined
@@ -44,8 +45,9 @@ export const BrowserGraphPlaces = Layer.effect(
                   }),
                 }),
             }),
-            ({ handle, starter }) => ({
+            ({ handle, synced, starter }) => ({
               storage: directoryStorage(handle),
+              synced,
               sqlite: layerWasmMemory,
               starter,
             }),

@@ -79,6 +79,7 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 - Removing any one of 5 safeguards makes the checks fail.
 - After 10k ops, compaction leaves 49 files on average, against 2,346 without it. Files pile up to about 1,190 while a device is offline, then drop within hours of its return.
 - Snapshots are the compaction format. On the 50k graph a snapshot is 12.6 MB and imports in 8 ms; the same history as one update file is 7.8 MB and takes 1.1 s (one probe). Compaction runs at 100 or more uncovered files, at most once an hour. Cloud storage peaks at 25.3 MB while compacting, then settles at 12.7 MB.
+- A graph kept in the browser never syncs, so there is no server for a snapshot to reach: its vault is `synced: false`, a snapshot it wrote counts as confirmed, and it compacts at 100 files with no hourly wait. `tools/e2e/flows/editlog.e2e.ts` types 120 keys into a demo graph (one file each) and sees the folder drop to under 10 update files and one snapshot.
 - Not covered yet: the full 1,000 runs of 10k ops, corrupt update files, and iCloud losing a file. A device restored from backup can no longer reuse a peer id, since no open does.
 
 ## Queries: Logseq-style first, Dataview-style second

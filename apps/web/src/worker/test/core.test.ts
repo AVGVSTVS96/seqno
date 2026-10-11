@@ -50,7 +50,7 @@ const coreLayer = (
   RealCore.pipe(
     Layer.provide(
       Layer.succeed(GraphPlaces, {
-        open: () => Effect.succeed({ storage, sqlite: layerNode(), starter }),
+        open: () => Effect.succeed({ storage, synced: true, sqlite: layerNode(), starter }),
       }),
     ),
     Layer.provide(Layer.succeed(Device, { device: DeviceId.make(device), formerPeers: [] })),

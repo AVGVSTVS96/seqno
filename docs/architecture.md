@@ -85,7 +85,7 @@ tree "blocks"
 
 Each sync pass: list the folder, merge new files, check snapshots, read other devices' `seen`, write its own, maybe compact, maybe delete.
 
-- **Compaction** writes a snapshot once 100 or more update files aren't covered by one, at most once an hour.
+- **Compaction** writes a snapshot once 100 or more update files aren't covered by one, at most once an hour in a picked folder. A graph kept in the browser (OPFS) has no server, so its own snapshot counts as confirmed the moment it is written: it compacts at every 100 files and deletes what the snapshot covers on the next pass.
 - **Deletion.** A device deletes only files it wrote. An update file goes once every member device has merged it and a _confirmed_ snapshot covers it. Confirmed means a different device downloaded it, checked its checksum and said so in its `seen` file. That is the only proof the snapshot reached the server.
 - **Why one writer per file.** A synced folder has no locks. When two devices write the same file, the folder keeps one version or makes a conflict copy. With one writer per file there is nothing to fight over, and a conflict copy iCloud still makes now and then is just a copy of Loro ops, which merges harmlessly because importing an op twice changes nothing. File names are a peer id and an op counter, so a name is never reused either.
 - **iCloud Drive is only the transport.** seqno reads and writes files; the OS uploads and downloads them. So the vault handles what iCloud does: files that are listed but not downloaded yet or evicted again (placeholders), conflict copies, and file names stored in NFD. A file counts only after it reads and decodes with a valid checksum, never because it is listed. Sync file names are plain ASCII, and every write is atomic.

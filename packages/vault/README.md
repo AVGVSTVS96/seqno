@@ -15,6 +15,7 @@ The core side's edit-log files in a synced folder: each device's Loro update fil
 | `updatePath`, `snapshotPath`, `seenPath`                | The layout: `updates/<device>/<peer>-<n>.loro`, `snapshots/<hash>.loro`, `seen/<device>.json`.                                                                 |
 
 - An update file holds one peer's ops and is named after that peer, in the writing device's own folder. That is the session's peer, or the content-hashed peer an import was written with.
+- `synced: false` (a folder no other device sees, like OPFS) makes a snapshot this device wrote count as confirmed at once, so a lone device can compact and delete.
 - A device deletes only its own files. An update file goes once every member's `seen` covers it and another device has confirmed a covering snapshot.
 - A file that isn't downloaded is never read as empty: it has to pass Loro's checksum, or it waits for the next pass.
 

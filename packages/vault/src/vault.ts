@@ -38,6 +38,7 @@ export class UpdateRejected extends Schema.TaggedError<UpdateRejected>()("Update
 export interface VaultConfig {
   readonly device: DeviceId
   readonly formerPeers?: ReadonlyArray<string>
+  readonly synced?: boolean
   readonly members: ReadonlyArray<DeviceId>
   readonly compactAfterFiles: number
   readonly compactEvery: Duration.Input
@@ -159,7 +160,9 @@ const make = (config: VaultConfig) =>
         (expected) => expected.includes(originalName(name)),
       )
 
+    const local = config.synced === false
     const confirmed = (name: string) =>
+      (local && checked.has(name)) ||
       (!mine.has(originalName(name)) && verified.has(name)) ||
       [...acks].some(([device, ack]) => device !== me && ack.verified.has(name))
 

@@ -256,6 +256,57 @@ describe("compaction", () => {
     }),
   )
 
+  for (const synced of [false, true]) {
+    it.effect(
+      synced
+        ? "a lone device in a synced folder keeps its update files, since no one can confirm its snapshot"
+        : "a lone device in a local-only folder compacts and deletes its own update files",
+      () =>
+        Effect.gen(function* () {
+          const cloud = cloudOf("dataless", true)
+          const mac = yield* makeDevice({
+            id: "mac",
+            peer: "1",
+            synced,
+            members: ["mac"],
+            storage: cloud.layer("mac"),
+            compactAfterFiles: 2,
+          })
+          yield* mac.type("a")
+          yield* mac.type("b")
+          const compacted = yield* mac.sync
+          const collected = yield* mac.sync
+          cloud.settle()
+          const snapshot = compacted.written[0] ?? ""
+          assert.deepStrictEqual(
+            [collected.deleted, cloud.files()],
+            synced
+              ? [
+                  [],
+                  [
+                    snapshot,
+                    "seen/mac.json",
+                    "updates/mac/1-0.loro",
+                    "updates/mac/1-1.loro",
+                  ].toSorted(),
+                ]
+              : [
+                  ["updates/mac/1-0.loro", "updates/mac/1-1.loro"],
+                  ["seen/mac.json", snapshot].toSorted(),
+                ],
+          )
+          const phone = yield* makeDevice({
+            id: "phone",
+            peer: "3",
+            members: ["mac", "phone"],
+            storage: cloud.layer("phone"),
+          })
+          yield* phone.sync
+          assert.strictEqual(phone.text(), "ab")
+        }),
+    )
+  }
+
   it.effect("a member that has not merged yet blocks every deletion", () =>
     Effect.gen(function* () {
       const cloud = cloudOf("dataless", true)

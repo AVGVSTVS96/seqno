@@ -26,7 +26,7 @@ Make the web app safe for real, large graphs before adding platforms:
 
 1. Open lazily: load from the newest snapshot, show the visible page first, and keep the index on disk so it catches up instead of rebuilding.
 2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, two devices importing the same folder write the same ops, merging a block with Backspace keeps its properties and its references, undoing a delete brings back the same blocks with what other devices typed into them, and saving follows each edit and shows when it fails.
-3. Keep the edit log small on a single device, and show save state in the UI.
+3. Keep the edit log small on a single device, and show save state in the UI. (Done for graphs kept in the browser, and the header shows save state; a lone device on a synced folder still can't delete, see below.)
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
 5. Run the sync simulator on the real graph with every command and device restarts, then the full 1,000 runs of 10k ops.
 6. Check in a 50k-block benchmark that fails when open or typing goes over budget, and test sync on two real Macs.
@@ -57,7 +57,7 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 
 - **Open isn't lazy yet.** Every open merges the whole edit log into an empty document and fills an in-memory index from every event. At 50k blocks the index fill alone takes several seconds.
 - **Big imports are very slow.** Import loads every page in one Loro commit. At 50k blocks that took about 3 minutes, and reopening the result about 2 more (at 10k blocks, under a second each). Committing one page at a time measured about 15 s in total.
-- **Update files pile up on one device.** Each edit is saved as soon as the last write finishes, so typing can write a file per keystroke. Deleting needs another device to confirm a snapshot, so a lone device never deletes its update files or its hourly snapshots, and every open reads all of them.
+- **Update files pile up on a lone device in a synced folder.** Each edit is saved as soon as the last write finishes, so typing can write a file per keystroke. Graphs kept in the browser compact at 100 files and delete what the snapshot covers. In a picked folder, deleting needs another device to confirm the snapshot reached the server, so a device that is alone there never deletes its update files or its hourly snapshots, and every open reads all of them.
 - **Live queries re-run on any matching key.** The row-level check that cut re-runs from about 4 to 1 per keystroke exists in `@seqno/query` but isn't wired in.
 - **A page re-reads in full** on every change to it. Fine for normal pages, likely slow for one with tens of thousands of blocks (not measured).
 

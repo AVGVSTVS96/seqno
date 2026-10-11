@@ -17,6 +17,7 @@ export interface Starter {
 
 export interface GraphPlace {
   readonly storage: Storage["Service"]
+  readonly synced: boolean
   readonly sqlite: Layer.Layer<Sqlite, IndexError>
   readonly starter: Starter | null
 }

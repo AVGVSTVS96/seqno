@@ -127,9 +127,10 @@ export const openSession = (place: GraphPlace) =>
       vaultLayer({
         device,
         formerPeers,
+        synced: place.synced,
         members: [device],
         compactAfterFiles: 100,
-        compactEvery: "1 hour",
+        compactEvery: place.synced ? "1 hour" : 0,
       }).pipe(Layer.provide(storage)),
     )
 
