@@ -18,10 +18,11 @@ import { applyCommand, mergeTargetOf, type Unresolved, type Workspace } from "./
 import { collectChanges, emptyPending, translate } from "./events.ts"
 import { loader } from "./loader.ts"
 import { emptyRegistry } from "./registry.ts"
-import { repairAll, repairPages } from "./repair.ts"
+import { repairAll, repairPages, type LivePages } from "./repair.ts"
 import {
   TREE,
   blockIdOf,
+  livePages,
   loadPage,
   livePageIdOf,
   placementOf,
@@ -233,8 +234,15 @@ const make = (source: GraphSource) =>
     const peer = doc.peerIdStr
     let flushed = doc.oplogVersion().get(peer) ?? 0
 
+    let cached: { readonly at: string; readonly pages: ReturnType<LivePages> } | undefined
+    const listed: LivePages = () => {
+      const at = JSON.stringify(doc.frontiers())
+      if (cached?.at !== at) cached = { at, pages: livePages(tree) }
+      return cached.pages
+    }
+
     const repair = Effect.sync(() => {
-      if (repairPages(tree, pending)) doc.commit({ origin: REPAIRED })
+      if (repairPages(tree, pending, listed)) doc.commit({ origin: REPAIRED })
     })
 
     const drain = Effect.suspend(() => {
@@ -275,13 +283,7 @@ const make = (source: GraphSource) =>
     ).pipe(Effect.andThen(filled.open), Effect.forkIn(scope))
     yield* fill
 
-    const pages = serial(
-      Effect.sync(() =>
-        tree
-          .roots()
-          .flatMap((root) => (tree.isNodeDeleted(root.id) ? [] : Option.toArray(readPage(root)))),
-      ),
-    )
+    const pages = serial(Effect.sync(() => listed().map(([, page]) => page)))
 
     const page = (id: PageId) =>
       serial(
@@ -427,7 +429,7 @@ const make = (source: GraphSource) =>
             Effect.andThen(
               Effect.sync(() => {
                 flushed = ownCounter()
-                if (repairAll(tree)) doc.commit({ origin: REPAIRED })
+                if (repairAll(tree, listed)) doc.commit({ origin: REPAIRED })
                 pending = emptyPending()
                 registerPages()
               }),

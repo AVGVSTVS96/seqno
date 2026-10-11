@@ -111,6 +111,15 @@ export const readPage = (node: LoroTreeNode): Option.Option<Page> =>
     },
   )
 
+export const livePages = (tree: LoroTree): Array<readonly [LoroTreeNode, Page]> =>
+  tree
+    .roots()
+    .flatMap((root) =>
+      tree.isNodeDeleted(root.id)
+        ? []
+        : Option.toArray(Option.map(readPage(root), (page) => [root, page] as const)),
+    )
+
 export const readBlock = (node: LoroTreeNode, at: Placement): Option.Option<BlockState> =>
   Option.map(decodeBlockData(node.data.toJSON()), (data) => ({
     block: {

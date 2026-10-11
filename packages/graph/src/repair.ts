@@ -42,13 +42,12 @@ const touchedBy = (tree: LoroTree, pending: Pending): Touched => {
   return touched
 }
 
-const pagesByName = (tree: LoroTree) => {
+export type LivePages = () => ReadonlyArray<readonly [LoroTreeNode, Page]>
+
+const pagesByName = (pages: LivePages) => {
   const byName = new Map<string, Array<readonly [LoroTreeNode, Page]>>()
-  for (const root of tree.roots()) {
-    if (tree.isNodeDeleted(root.id)) continue
-    Option.map(readPage(root), (page) => {
-      byName.set(page.name, [...(byName.get(page.name) ?? []), [root, page]])
-    })
+  for (const entry of pages()) {
+    byName.set(entry[1].name, [...(byName.get(entry[1].name) ?? []), entry])
   }
   return byName
 }
@@ -97,10 +96,10 @@ const everyRoot = (tree: LoroTree): Touched => {
   return touched
 }
 
-const repairTouched = (tree: LoroTree, touched: Touched): boolean => {
+const repairTouched = (tree: LoroTree, touched: Touched, pages: LivePages): boolean => {
   let repaired = false
   if (touched.pages.size > 0) {
-    for (const group of pagesByName(tree).values()) {
+    for (const group of pagesByName(pages).values()) {
       if (group.length < 2 || !group.some(([node]) => touched.pages.has(node.id))) continue
       const [winner, ...losers] = group.toSorted(([, a], [, b]) => (a.id < b.id ? -1 : 1))
       if (winner === undefined) continue
@@ -123,7 +122,8 @@ const repairTouched = (tree: LoroTree, touched: Touched): boolean => {
   return repaired
 }
 
-export const repairPages = (tree: LoroTree, pending: Pending): boolean =>
-  repairTouched(tree, touchedBy(tree, pending))
+export const repairPages = (tree: LoroTree, pending: Pending, pages: LivePages): boolean =>
+  repairTouched(tree, touchedBy(tree, pending), pages)
 
-export const repairAll = (tree: LoroTree): boolean => repairTouched(tree, everyRoot(tree))
+export const repairAll = (tree: LoroTree, pages: LivePages): boolean =>
+  repairTouched(tree, everyRoot(tree), pages)
