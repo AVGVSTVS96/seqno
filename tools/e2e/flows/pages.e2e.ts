@@ -205,28 +205,33 @@ test("Shift+Enter in the palette opens the result in the right sidebar", async (
   )
 })
 
-test("the journals list mounts the newest days first and more as it scrolls", async ({ page }) => {
+test("the journals list mounts only the days near the screen, from the newest to the oldest", async ({
+  page,
+}) => {
   const folder = await mkdtemp(join(tmpdir(), "seqno-journals-"))
   await mkdir(join(folder, "journals"))
   await Promise.all(
-    Array.from({ length: 12 }, (_, day) =>
-      writeFile(
-        join(folder, "journals", `2025_01_${String(day + 1).padStart(2, "0")}.md`),
-        `- day ${day + 1}\n`,
-      ),
-    ),
+    Array.from({ length: 60 }, (_, day) => {
+      const date = new Date(Date.UTC(2025, 0, day + 1))
+      const name = date.toISOString().slice(0, 10).replaceAll("-", "_")
+      return writeFile(join(folder, "journals", `${name}.md`), `- day ${day + 1}\n`)
+    }),
   )
   await seedOpfs(page, folder, ["graphs", "demo"])
   await rm(folder, { recursive: true })
   await openDemo(page)
   const days = page.getByRole("article")
-  await expect(days.nth(1)).toHaveAccessibleName("Jan 12th, 2025")
-  expect(await days.count()).toBeLessThan(13)
+  await expect(days.nth(1)).toHaveAccessibleName("Mar 1st, 2025")
+  expect(await days.count()).toBeLessThan(20)
+  const oldest = page.getByRole("article", { name: "Jan 1st, 2025", exact: true })
   await expect(async () => {
     await page.mouse.move(700, 500)
     await page.mouse.wheel(0, 4000)
-    await expect(days).toHaveCount(13, { timeout: 500 })
+    await expect(oldest).toBeInViewport({ timeout: 500 })
   }).toPass()
+  await expect(oldest.getByRole("treeitem")).toHaveText(["day 1"])
+  await expect(page.getByRole("article", { name: "Mar 1st, 2025", exact: true })).toHaveCount(0)
+  expect(await days.count()).toBeLessThan(20)
 })
 
 test("the header menu exports the page as markdown and opens Settings", async ({ page }) => {
