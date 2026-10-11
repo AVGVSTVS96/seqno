@@ -148,6 +148,16 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 **Numbers.** None. `packages/graph/test/sync.test.ts` deletes a block on one device while another types into it, undoes the delete, and both devices end with the typed text; with Loro's delete the undo brings back the block without it.
 
+## Save each edit as it lands
+
+**Decision.** The core saves when an edit lands instead of every 250 ms: the edit opens a latch, a saver waits on it, closes it and writes everything new as one update file. Edits that arrive during a write open the latch again and go out in the next write. The saver publishes its state (`Saved`, `Unsaved`, `Failed` with the storage error's reason) to every tab.
+
+**Why.** The timer meant an edit waited up to 250 ms before anything tried to write it. When the last tab closes, Chrome ends the SharedWorker, and that wait was often longer than the worker had left. Saving on the edit itself leaves only the write. Failures used to be logged inside the worker, where nobody sees them.
+
+**Cost.** More, smaller update files while typing, often one per keystroke, which makes compacting on one device (Hardening, step 3) more pressing.
+
+**Numbers.** `tools/e2e/flows/tabs.e2e.ts` types and closes the only tab at once, then opens a new one: 20 of 20 runs kept the edit. With the 250 ms timer, at least 8 of 10 lost it.
+
 ## Every tab shares one core worker
 
 **Decision.** The core worker is a SharedWorker. Every tab of one seqno build talks to it, so a graph open in several tabs is one Loro doc, one index and one peer id, and edits from any tab go through one writer. A Web Lock per graph keeps a second worker (a tab still on an older build) from writing it at the same time. A newer build takes a graph over by stealing its handover lock: the older worker saves, releases the graph and tells its tabs to reload. Each tab holds a lock of its own, and the worker waits on it to learn when the tab closes.

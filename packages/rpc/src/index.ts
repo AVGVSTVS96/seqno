@@ -38,11 +38,13 @@ export {
   OpenGraph,
   PageTree,
   QueryResult,
+  SaveState,
   Search,
   SearchHits,
   WatchBlockRefCounts,
   WatchBlockReferences,
   WatchPage,
   WatchQuery,
+  WatchSaveState,
   tabLock,
 } from "./rpcs.ts"

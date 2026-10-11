@@ -19,7 +19,8 @@ import { RpcClient, type RpcGroup, type RpcMessage, RpcServer, RpcTest } from "e
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId } from "@seqno/graph"
 import { layerNode } from "@seqno/index/node"
-import { CoreRpcs, PageRpcs, tabLock } from "@seqno/rpc"
+import { CoreRpcs, PageRpcs, tabLock, type SaveState } from "@seqno/rpc"
+import { StorageFailed, type Storage } from "@seqno/vault"
 import { nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
 import { demoGraph } from "../demo.ts"
@@ -40,11 +41,16 @@ const WebCrypto = Layer.succeed(
   }),
 )
 
-const coreLayer = (root: string, starter: Starter | null, device = "laptop") =>
+const coreLayer = (
+  root: string,
+  starter: Starter | null,
+  device = "laptop",
+  storage: Storage["Service"] = nodeStorage(root),
+) =>
   RealCore.pipe(
     Layer.provide(
       Layer.succeed(GraphPlaces, {
-        open: () => Effect.succeed({ storage: nodeStorage(root), sqlite: layerNode(), starter }),
+        open: () => Effect.succeed({ storage, sqlite: layerNode(), starter }),
       }),
     ),
     Layer.provide(Layer.succeed(Device, { device: DeviceId.make(device), formerPeers: [] })),
@@ -661,6 +667,56 @@ describe("the core worker on the real graph, vault and index", () => {
       assert.deepStrictEqual(together, alone)
       assert.strictEqual(new Set(together.titles).size, together.titles.length)
     }),
+  )
+
+  it.effect("save state follows each edit to disk, and a failing write shows its reason", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const root = yield* copyOfFixture
+        const disk = nodeStorage(root)
+        const full = { now: false }
+        const storage: Storage["Service"] = {
+          ...disk,
+          write: (path, bytes) =>
+            full.now
+              ? Effect.fail(new StorageFailed({ path, reason: "the disk is full" }))
+              : disk.write(path, bytes),
+        }
+        const handlers = yield* Layer.build(coreLayer(root, null, "laptop", storage))
+        const core = yield* Effect.provide(RpcTest.makeClient(AllRpcs), handlers)
+        const opened = yield* core.OpenGraph({ graph: "og" })
+        const tasks = yield* core.GetPage({ pageId: named(opened.pages, "tasks").id })
+        const third = tasks.blocks[2] ?? assert.fail("tasks has no third block")
+        const reach = (tag: SaveState["_tag"]) =>
+          core.WatchSaveState().pipe(
+            Stream.filter((state) => state._tag === tag),
+            Stream.runHead,
+            Effect.map(Option.getOrThrow),
+          )
+        const type = (insert: string) =>
+          core.Dispatch({
+            command: { _tag: "EditText", blockId: third.id, from: 0, to: 0, insert },
+          })
+
+        full.now = true
+        yield* type("lost? ")
+        assert.deepStrictEqual(yield* reach("Failed"), {
+          _tag: "Failed",
+          reason: "the disk is full",
+        })
+        full.now = false
+        yield* type("kept ")
+        assert.deepStrictEqual(yield* reach("Saved"), { _tag: "Saved" })
+        const reopened = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const again = yield* coreOn(root)
+            yield* again.OpenGraph({ graph: "og" })
+            return (yield* again.GetBlock({ blockId: third.id })).text
+          }),
+        )
+        assert.strictEqual(reopened, "kept lost? I recorded a [[voice note]].")
+      }),
+    ),
   )
 
   it.effect("search and live queries read the index", () =>

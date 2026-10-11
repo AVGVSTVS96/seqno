@@ -11,7 +11,7 @@ web (done) ──▶ hardening (next) ──┬──▶ iOS + iCloud Drive
 
 The web app runs in Chrome and Edge on the real core: a Loro edit log, a SQLite index, and Logseq import.
 
-- **Graphs.** Open a Logseq folder with the folder picker, or one of two demo graphs kept in the browser: a short tour, and a developer's notes that use most of what seqno renders. The first open imports the markdown; after that, edits save to the edit log every 250 ms and survive a reload. A graph can be open in any number of tabs; they share one core worker, so each tab sees what the others type at once.
+- **Graphs.** Open a Logseq folder with the folder picker, or one of two demo graphs kept in the browser: a short tour, and a developer's notes that use most of what seqno renders. The first open imports the markdown; after that, edits save to the edit log as they land and survive a reload, and the header says when a save fails. A graph can be open in any number of tabs; they share one core worker, so each tab sees what the others type at once.
 - **Pages.** Journals with today on top (more days load as you scroll), pages, aliases, tag pages, the All pages table, Mod+K full-text search, the right sidebar, favorites and recent pages. Renaming a page rewrites every reference to it.
 - **Outlining.** Enter, Tab and Shift+Tab, drag, multi-block selection, collapse, zoom, moving blocks with keys, and undo and redo one command at a time. Pasting a markdown outline makes blocks.
 - **Blocks.** Tasks and priorities, SCHEDULED and DEADLINE with a date picker, properties as `key:: value` lines, headings, code blocks edited in place, images with resizing, embeds, block references with counts, hover previews, and linked and unlinked references.
@@ -25,7 +25,7 @@ Not done yet: sync between two real devices through iCloud Drive. The sync engin
 Make the web app safe for real, large graphs before adding platforms:
 
 1. Open lazily: load from the newest snapshot, show the visible page first, and keep the index on disk so it catches up instead of rebuilding.
-2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, two devices importing the same folder write the same ops, merging a block with Backspace keeps its properties and its references, and undoing a delete brings back the same blocks with what other devices typed into them.
+2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, two devices importing the same folder write the same ops, merging a block with Backspace keeps its properties and its references, undoing a delete brings back the same blocks with what other devices typed into them, and saving follows each edit and shows when it fails.
 3. Keep the edit log small on a single device, and show save state in the UI.
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
 5. Run the sync simulator on the real graph with every command and device restarts, then the full 1,000 runs of 10k ops.
@@ -49,7 +49,6 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 
 - **Two devices can still import different versions of one folder.** Two devices that import the same files now write the same ops, so nothing doubles. If one of them is missing a file (not downloaded yet) or has an older copy of one, their imports differ: pages merge by name, and the blocks of pages both had end up twice.
 - **Import skips files without saying so.** A file whose name matches an existing page, or one that isn't downloaded or can't be read, is left out. The import runs once and its issue list isn't shown.
-- **Saving is invisible.** Closing the last tab on a graph can drop the last 250 ms of edits, there is no saving indicator, and a failing save (storage full, folder permission revoked) only logs inside the worker.
 - **Rejected edits are dropped quietly.** The UI ignores a rejected command, and the editor recognizes its own edits coming back by comparing text, which could skip a real change after an undo (found by reading the code, not reproduced).
 - **Undo is shared between tabs.** Tabs on one graph share one undo history, so Mod+Z in one tab can undo what was typed in another.
 - **No device list.** The app counts only itself as a member, and there is no "remove this device" setting.
@@ -58,7 +57,7 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 
 - **Open isn't lazy yet.** Every open merges the whole edit log into an empty document and fills an in-memory index from every event. At 50k blocks the index fill alone takes several seconds.
 - **Big imports are very slow.** Import loads every page in one Loro commit. At 50k blocks that took about 3 minutes, and reopening the result about 2 more (at 10k blocks, under a second each). Committing one page at a time measured about 15 s in total.
-- **Update files pile up on one device.** A file can be written every 250 ms while typing. Deleting needs another device to confirm a snapshot, so a lone device never deletes its update files or its hourly snapshots, and every open reads all of them.
+- **Update files pile up on one device.** Each edit is saved as soon as the last write finishes, so typing can write a file per keystroke. Deleting needs another device to confirm a snapshot, so a lone device never deletes its update files or its hourly snapshots, and every open reads all of them.
 - **Live queries re-run on any matching key.** The row-level check that cut re-runs from about 4 to 1 per keystroke exists in `@seqno/query` but isn't wired in.
 - **A page re-reads in full** on every change to it. Fine for normal pages, likely slow for one with tens of thousands of blocks (not measured).
 

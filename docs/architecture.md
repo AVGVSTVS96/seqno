@@ -51,7 +51,7 @@ Every tab of one seqno build talks to the same core worker, so a graph open in t
 2. The worker applies it to the Loro doc and commits. Loro's change events become `GraphEvent`s (`PageUpserted`, `BlockUpserted`, `BlockMoved`, ...), parents before children.
 3. The index applies those events in one SQLite transaction and wakes only the live queries that read what changed.
 4. Watches on the touched pages re-read them, and the UI re-renders those rows.
-5. Every 250 ms the graph exports its new ops, and the vault writes them as one update file.
+5. The edit wakes the saver: it exports the graph's new ops and the vault writes them as one update file. Edits that land while a write is in flight go out together in the next one. The saver's state (saved, unsaved, failed with a reason) streams to the header.
 6. Every 5 s the vault lists the folder and merges other devices' files. Merged ops go through steps 2 to 4 too, so local and remote edits share one path.
 
 ## Data model

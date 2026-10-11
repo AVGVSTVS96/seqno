@@ -35,6 +35,13 @@ export const SearchHits = Schema.Struct({
 })
 export type SearchHits = typeof SearchHits.Type
 
+export const SaveState = Schema.TaggedUnion({
+  Saved: {},
+  Unsaved: {},
+  Failed: { reason: Schema.String },
+})
+export type SaveState = typeof SaveState.Type
+
 export const GraphMoved = Schema.Struct({ graph: Schema.String })
 export type GraphMoved = typeof GraphMoved.Type
 
@@ -114,6 +121,12 @@ export const WatchBlockReferences = Rpc.make("WatchBlockReferences", {
   stream: true,
 })
 
+export const WatchSaveState = Rpc.make("WatchSaveState", {
+  success: SaveState,
+  error: GraphNotOpen,
+  stream: true,
+})
+
 export const CoreRpcs = RpcGroup.make(
   Attach,
   OpenGraph,
@@ -127,4 +140,5 @@ export const CoreRpcs = RpcGroup.make(
   Search,
   WatchBlockRefCounts,
   WatchBlockReferences,
+  WatchSaveState,
 )

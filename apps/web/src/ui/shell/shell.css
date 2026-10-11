@@ -63,6 +63,34 @@
   padding-inline-end: var(--space-1-5);
 }
 
+.save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 13px;
+}
+
+.save-state.is-unsaved {
+  width: 6px;
+  height: 6px;
+  margin-inline: var(--space-2);
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+  animation: save-state-in 150ms ease-out 400ms both;
+}
+
+.save-state.is-failed {
+  margin-inline-end: var(--space-2);
+  color: var(--fg-danger);
+}
+
+@keyframes save-state-in {
+  from {
+    opacity: 0;
+  }
+}
+
 .icon-button {
   display: flex;
   flex: none;

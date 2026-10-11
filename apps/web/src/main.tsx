@@ -12,6 +12,7 @@ import {
   openGraph,
   prefersDark,
   resolvedTheme,
+  saveState,
   startingGraph,
 } from "./atoms.ts"
 import { WorkerCore } from "./core.ts"
@@ -44,6 +45,18 @@ registry.subscribe(
   },
   { immediate: true },
 )
+
+const saveFailed = { now: false }
+registry.subscribe(
+  saveState,
+  (state) => {
+    saveFailed.now = AsyncResult.isSuccess(state) && state.value._tag === "Failed"
+  },
+  { immediate: true },
+)
+addEventListener("beforeunload", (event) => {
+  if (saveFailed.now) event.preventDefault()
+})
 
 const starting =
   startingGraph(registry.get(lastGraph)) ??

@@ -1,5 +1,6 @@
 import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
+  IconAlertTriangle,
   IconColorSwatch,
   IconDots,
   IconHome,
@@ -13,6 +14,7 @@ import { Effect, Option } from "effect"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { useContext } from "react"
 import type { Page } from "@seqno/domain"
+import { SaveState } from "@seqno/rpc"
 import { pageTreeAtom } from "@seqno/outliner"
 import {
   favorites,
@@ -20,6 +22,7 @@ import {
   leftSidebarOpen,
   pageNamed,
   rightSidebar,
+  saveState,
   searchOpen,
   toggleFavorite,
 } from "../../atoms.ts"
@@ -27,7 +30,15 @@ import { Appearance } from "./Appearance.tsx"
 import { DeletePage } from "./DeletePage.tsx"
 import { exported, pageMarkdown } from "./Export.tsx"
 import { IconButton } from "./IconButton.tsx"
-import { Menu, MenuItem, MenuSeparator, openDialog, showPopover, usePopover } from "./popover.tsx"
+import {
+  Menu,
+  MenuItem,
+  MenuSeparator,
+  openDialog,
+  showPopover,
+  usePopover,
+  useTooltip,
+} from "./popover.tsx"
 import { keysOf } from "./shortcuts.ts"
 import { settingsDialogId, settingsTab } from "./state.ts"
 
@@ -106,6 +117,42 @@ const MoreMenu = () => {
   )
 }
 
+const NotSaved = ({ reason }: { readonly reason: string }) => {
+  const hint = useTooltip({ label: `Not saved: ${reason}` })
+  return (
+    <>
+      <span
+        className="save-state is-failed"
+        data-save-state="failed"
+        role="alert"
+        tabIndex={0}
+        {...hint.props}
+      >
+        <IconAlertTriangle size={16} stroke={2} aria-hidden />
+        Not saved
+      </span>
+      {hint.tooltip}
+    </>
+  )
+}
+
+const SaveStatus = () =>
+  SaveState.match(
+    AsyncResult.getOrElse(useAtomValue(saveState), (): SaveState => SaveState.cases.Saved.make({})),
+    {
+      Saved: () => <span className="save-state" data-save-state="saved" />,
+      Unsaved: () => (
+        <span
+          className="save-state is-unsaved"
+          data-save-state="unsaved"
+          role="status"
+          aria-label="Saving"
+        />
+      ),
+      Failed: ({ reason }) => <NotSaved reason={reason} />,
+    },
+  )
+
 const SearchButton = () => {
   const setSearchOpen = useAtomSet(searchOpen)
   return (
@@ -139,6 +186,7 @@ export const Header = () => {
         <SearchButton />
       </div>
       <div className="head-right">
+        <SaveStatus />
         {home ? null : (
           <IconButton
             label="Home"

@@ -113,6 +113,7 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
         Search: () => Effect.succeed({ pages: [], blocks: [] }),
         WatchBlockRefCounts: () => Stream.empty,
         WatchBlockReferences: () => Stream.empty,
+        WatchSaveState: () => Stream.empty,
         Dispatch: ({ command }) => run([command]),
         DispatchAll: ({ commands: batch }) => run(batch),
       })

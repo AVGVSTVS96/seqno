@@ -115,6 +115,7 @@ const FakeCore = CoreRpcs.toLayer(
       Search: () => Effect.succeed({ pages: [], blocks: [] }),
       WatchBlockRefCounts: () => Stream.empty,
       WatchBlockReferences: () => Stream.empty,
+      WatchSaveState: () => Stream.empty,
     })
   }),
 )

@@ -389,6 +389,8 @@ const CoreHandlers = CoreRpcs.toLayer(
         ),
       WatchQuery: ({ query }, { client }) =>
         following(client.id, (session) => Stream.unwrap(watchQuery(session, query))),
+      WatchSaveState: (_, { client }) =>
+        following(client.id, (session) => SubscriptionRef.changes(session.saving)),
       WatchBlockRefCounts: (_, { client }) =>
         following(client.id, (session) => Stream.orDie(session.index.watchBlockRefCounts)),
       WatchBlockReferences: ({ uuid }, { client }) =>

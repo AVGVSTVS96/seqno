@@ -1,8 +1,20 @@
-import { Context, Effect, Layer, Option, Schedule, Schema, SubscriptionRef } from "effect"
+import {
+  Cause,
+  Context,
+  Effect,
+  Exit,
+  Latch,
+  Layer,
+  Option,
+  Schedule,
+  Schema,
+  SubscriptionRef,
+} from "effect"
 import { GraphEvent, PageId } from "@seqno/domain"
 import { Graph, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
 import { LogseqSyntaxLive, importGraph } from "@seqno/interop"
+import { SaveState } from "@seqno/rpc"
 import { Entry, Storage, Vault, layer as vaultLayer, type StorageFailed } from "@seqno/vault"
 import { todaysJournal } from "./journal.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
@@ -11,8 +23,16 @@ export interface Session {
   readonly graph: Graph["Service"]
   readonly index: Index["Service"]
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
+  readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
   readonly record: (events: ReadonlyArray<GraphEvent>) => Effect.Effect<void>
 }
+
+const reasonOf = (error: unknown): string =>
+  typeof error === "object" && error !== null && "reason" in error
+    ? String(error.reason)
+    : error instanceof Error
+      ? error.message
+      : String(error)
 
 const serviceOf = <I, S, E, R>(tag: Context.Key<I, S>, layer: Layer.Layer<I, E, R>) =>
   Effect.map(Layer.build(layer), (context) => Context.get(context, tag))
@@ -93,6 +113,9 @@ export const openSession = (place: GraphPlace) =>
     const { device, formerPeers } = yield* Device
     const peer = yield* newPeerId
     const touched = yield* SubscriptionRef.make<Touched>(new Set())
+    const saving = yield* SubscriptionRef.make<SaveState>(SaveState.cases.Saved.make({}))
+    const unsaved = yield* Latch.make(false)
+    const edits = { count: 0 }
     const graph = yield* serviceOf(
       Graph,
       Graph.layer({ peer, snapshot: Option.none(), updates: [] }),
@@ -127,6 +150,9 @@ export const openSession = (place: GraphPlace) =>
             const version = yield* graph.version
             yield* index.apply(events, JSON.stringify([...version].toSorted()))
             yield* SubscriptionRef.set(touched, pages)
+            edits.count += 1
+            yield* SubscriptionRef.set(saving, SaveState.cases.Unsaved.make({}))
+            yield* unsaved.open
           }).pipe(Effect.orDie)
 
     const replica = vaultReplica({
@@ -134,6 +160,20 @@ export const openSession = (place: GraphPlace) =>
       merge: (blobs) => Effect.tap(graph.merge(blobs), record),
     })
     const save = graph.flush((update) => vault.writeUpdate(update.bytes))
+    const saveNow = Effect.gen(function* () {
+      yield* unsaved.close
+      const at = edits.count
+      const exit = yield* Effect.exit(save)
+      if (Exit.isFailure(exit)) {
+        yield* Effect.logError(exit.cause)
+        yield* SubscriptionRef.set(
+          saving,
+          SaveState.cases.Failed.make({ reason: reasonOf(Cause.squash(exit.cause)) }),
+        )
+      } else if (edits.count === at) {
+        yield* SubscriptionRef.set(saving, SaveState.cases.Saved.make({}))
+      }
+    })
 
     if (place.starter !== null) yield* layStarter(place.storage, place.starter)
     const opened = yield* vault.sync(replica)
@@ -148,12 +188,12 @@ export const openSession = (place: GraphPlace) =>
     yield* record(yield* graph.load(yield* todaysJournal(graph)))
     yield* save
 
-    yield* Effect.forkScoped(Effect.repeat(logged(save), Schedule.spaced("250 millis")))
+    yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
     yield* Effect.forkScoped(
       Effect.repeat(logged(vault.sync(replica)), Schedule.spaced("5 seconds")),
     )
     yield* Effect.addFinalizer(() => logged(save))
 
-    const session: Session = { graph, index, touched, record }
+    const session: Session = { graph, index, touched, saving, record }
     return session
   })

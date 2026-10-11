@@ -103,3 +103,26 @@ test("reloading a tab right after typing loses nothing while another tab has the
   )
   expect(errors).toEqual([])
 })
+
+test("closing the only tab right after typing keeps the edit", async ({ page, seqno }) => {
+  await editEnd(page, welcome)
+  await page.keyboard.type(", typed right before the last tab closed")
+  await expect(seqno.editor).toHaveText(`${welcome}, typed right before the last tab closed`)
+  const context = page.context()
+  await page.close()
+  const next = await context.newPage()
+  await next.goto("/")
+  await expect(todayOn(next).getByRole("treeitem").first()).toHaveText(
+    `${welcome}, typed right before the last tab closed`,
+  )
+})
+
+test("the header shows a save in progress only while it lasts", async ({ page, seqno }) => {
+  await expect(page.locator("[data-save-state]")).toHaveAttribute("data-save-state", "saved")
+  await editEnd(page, welcome)
+  await page.keyboard.type(", saved")
+  await expect(seqno.editor).toHaveText(`${welcome}, saved`)
+  await expect(page.locator("[data-save-state]")).toHaveAttribute("data-save-state", "saved")
+  await page.reload()
+  await expect(seqno.today.getByRole("treeitem").first()).toHaveText(`${welcome}, saved`)
+})

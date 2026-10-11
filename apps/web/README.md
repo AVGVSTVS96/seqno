@@ -16,7 +16,7 @@ The Vite web app for Chrome and Edge: React UI on the main thread (UI side), and
 | `src/ui/EditorSlot.tsx`                | Mounts `@seqno/editor` inside `@seqno/outliner` rows.                                                                                                                              |
 | `src/worker/`                          | `RealCore`: serves `CoreRpcs` and `PageRpcs`, a SharedWorker every tab talks to; takes one Web Lock per graph, runs one session per open graph for all the tabs that have it open. |
 
-A session (`src/worker/session.ts`) syncs the vault into an empty graph, imports the folder's Logseq markdown when there is no edit log yet, adds today's journal, then saves every 250 ms and syncs every 5 s. Every event batch also goes into the index.
+A session (`src/worker/session.ts`) syncs the vault into an empty graph, imports the folder's Logseq markdown when there is no edit log yet, adds today's journal, then saves as soon as an edit lands (one write at a time; edits made during a write go in the next) and syncs every 5 s. `WatchSaveState` streams saved, unsaved or failed with the reason; the header shows a dot while a save takes longer than 400 ms and "Not saved" when one fails, and closing a tab after a failed save asks first. Every event batch also goes into the index.
 
 The two demo graphs live in OPFS as `demo` (Getting started, `src/worker/demo.ts`) and `developer` (Developer graph, `src/worker/developer.ts`). A first visit shows a chooser between them before anything opens; later visits reopen the last graph.
 
@@ -43,4 +43,3 @@ pnpm test --project @seqno/web
 
 - Opening isn't lazy: every open merges the whole edit log into an empty graph and refills an in-memory index.
 - The markdown mirror isn't wired in: editing a picked Logseq folder writes its edit log, but its `.md` files don't change.
-- Edits from the last 250 ms before the tab closes can be lost; nothing saves on page hide.

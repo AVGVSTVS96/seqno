@@ -1,5 +1,5 @@
 import { BrowserKeyValueStore } from "@effect/platform-browser"
-import { Clock, Effect, Equal, Layer, Option, Schema } from "effect"
+import { Clock, Effect, Equal, Layer, Option, Schema, Stream } from "effect"
 import type { KeyValueStore } from "effect/persistence"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
@@ -61,6 +61,10 @@ export const forgetGraph = appRuntime.fn((name: string, get) =>
 )
 
 export const graphMoves = appRuntime.atom(attachTab).pipe(Atom.keepAlive)
+
+export const saveState = appRuntime
+  .atom(Stream.unwrap(Effect.map(Effect.service(CoreClient), (core) => core.WatchSaveState())))
+  .pipe(Atom.keepAlive)
 
 export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)
 
