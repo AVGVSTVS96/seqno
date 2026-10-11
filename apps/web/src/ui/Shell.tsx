@@ -28,8 +28,8 @@ const content = (ready: boolean, problem: string | null) =>
 
 const Layout = ({
   graph,
-  ready = true,
-  problem = null,
+  ready,
+  problem,
 }: {
   readonly graph: string
   readonly ready?: boolean
@@ -57,7 +57,7 @@ const Layout = ({
         <div className="main-container">
           <LeftSidebar graph={graph} />
           <main className="main-content-container">
-            <div className="main-content">{content(ready, problem)}</div>
+            <div className="main-content">{content(ready ?? true, problem ?? null)}</div>
           </main>
         </div>
       </div>

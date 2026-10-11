@@ -38,7 +38,7 @@ import {
 import { moveCommand, type DropTarget } from "./drop.ts"
 import { historyFocus, historyStep, type Editing, type HistoryStep } from "./history.ts"
 import { Inlines } from "./Inline.tsx"
-import { offsets, segments, windowOf, type Viewport } from "./layout.ts"
+import { estimateHeight, offsets, segments, viewportOf, windowOf, type Viewport } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { BlockRefs } from "./BlockRefs.tsx"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
@@ -110,14 +110,6 @@ const createdBlock = (events: ReadonlyArray<GraphEvent>, except: BlockId) =>
 const nonEmpty = <A,>(items: ReadonlyArray<A>): readonly [A, ...Array<A>] | null => {
   const [first, ...rest] = items
   return first === undefined ? null : [first, ...rest]
-}
-
-const viewportOf = (element: HTMLElement | null, current: Viewport): Viewport => {
-  if (element === null) return current
-  const box = element.getBoundingClientRect()
-  const top = Math.round(-box.top)
-  const bottom = Math.round(window.innerHeight - box.top)
-  return top === current.top && bottom === current.bottom ? current : { top, bottom }
 }
 
 const ordinalsOf = (rows: ReadonlyArray<Row>): ReadonlyArray<number | null> => {
@@ -280,24 +272,18 @@ const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boole
   })
 }
 
-const EmbedView = ({
-  target,
-  bare = false,
-}: {
-  readonly target: EmbedTarget
-  readonly bare?: boolean
-}) =>
+const EmbedView = ({ target, bare }: { readonly target: EmbedTarget; readonly bare?: boolean }) =>
   target._tag === "Block" ? (
-    <BlockEmbed blockId={target.blockId} bare={bare} />
+    <BlockEmbed blockId={target.blockId} bare={bare ?? false} />
   ) : (
-    <PageEmbed name={target.name} bare={bare} />
+    <PageEmbed name={target.name} bare={bare ?? false} />
   )
 
 export const PropertyValue = ({
   name,
   value,
   onNavigate,
-  editor = PlainTextEditor,
+  editor,
   resolveAsset,
 }: Pick<OutlinerProps, "onNavigate" | "editor" | "resolveAsset"> & {
   readonly name: string
@@ -311,7 +297,7 @@ export const PropertyValue = ({
         navigate: onNavigate,
         Embed: EmbedView,
         Query: QueryView,
-        editor,
+        editor: editor ?? PlainTextEditor,
         resolveAsset: resolveAsset ?? parent.resolveAsset,
       }}
     >
@@ -333,21 +319,13 @@ const dropZone = (event: DragEvent<HTMLDivElement>, row: Row): DropTarget => {
   return { blockId: row.block.id, zone: !lower ? "before" : nested ? "child" : "after" }
 }
 
-const OutlineView = ({
-  tree,
-  pageId,
-  zoom,
-  onNavigate,
-  editor: Editor = PlainTextEditor,
-  embedded = false,
-  addable = false,
-  resolveAsset,
-  onBlockMenu,
-}: OutlinerProps & { readonly tree: PageTree }) => {
+const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
+  const { tree, pageId, zoom, onNavigate, resolveAsset, onBlockMenu } = props
+  const Editor = props.editor ?? PlainTextEditor
+  const embedded = props.embedded ?? false
+  const addable = props.addable ?? false
   const parent = use(RenderContext)
   const counts = AsyncResult.getOrElse(useAtomValue(blockRefCountsAtom), () => noCounts)
-  const view = outline(tree, zoom, embedded)
-  const rows = view.rows
   const registry = useContext(RegistryContext)
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
   const runAll = useAtomSet(dispatchAllAtom, { mode: "promiseExit" })
@@ -357,15 +335,6 @@ const OutlineView = ({
   const swept = useRef(false)
   const [localEditing, setLocalEditing] = useState<Editing | null>(null)
   const [request, setRequest] = useAtom(editRequest)
-  const requested =
-    request !== null && !embedded && rows.some((row) => row.block.id === request.blockId)
-      ? request
-      : null
-  const editing = requested ?? localEditing
-  const setEditing = (next: Editing | null) => {
-    setLocalEditing(next)
-    if (request !== null) setRequest(null)
-  }
   const [selection, setSelection] = useState<Selection | null>(null)
   const [dragged, setDragged] = useState<ReadonlyArray<BlockId>>([])
   const [drop, setDrop] = useState<DropTarget | null>(null)
@@ -402,10 +371,24 @@ const OutlineView = ({
   const [edgeObserver] = useState(
     () =>
       new IntersectionObserver(
-        () => setViewport((current) => viewportOf(container.current, current)),
+        (entries) => {
+          const element = entries[0]?.target.parentElement ?? null
+          setViewport((current) => viewportOf(element, current))
+        },
         { rootMargin: edgeMargin, scrollMargin: edgeMargin },
       ),
   )
+  const view = outline(tree, zoom, embedded)
+  const rows = view.rows
+  const requested =
+    request !== null && !embedded && rows.some((row) => row.block.id === request.blockId)
+      ? request
+      : null
+  const editing = requested ?? localEditing
+  const setEditing = (next: Editing | null) => {
+    setLocalEditing(next)
+    if (request !== null) setRequest(null)
+  }
 
   const measure = (element: HTMLDivElement | null) => {
     if (element === null) return
@@ -449,7 +432,8 @@ const OutlineView = ({
   const selectedSet = new Set(selected)
   const highlighted = highlights(rows, range)
   const ordinals = ordinalsOf(rows)
-  const tops = offsets(rows, heights)
+  const estimates = rows.map((row) => estimateHeight(row.block))
+  const tops = offsets(rows, estimates, heights)
   const [from, to] = windowOf(tops, viewport, overscan)
   const editingIndex = editing === null ? -1 : indexOf(editing.blockId)
   const shown = [

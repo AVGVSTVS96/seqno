@@ -24,7 +24,7 @@ export const PagesStyle = () => (
 export const PageView = ({
   page,
   zoom,
-  inJournals = false,
+  inJournals,
 }: {
   readonly page: Page
   readonly zoom: BlockId | null
@@ -39,7 +39,7 @@ export const PageView = ({
     <div className="seqno-page" data-zoomed={zoomed}>
       <PagesStyle />
       <article {...(zoomed ? { "aria-label": page.title } : { "aria-labelledby": heading })}>
-        {zoomed ? null : <PageTitle page={page} id={heading} link={inJournals} />}
+        {zoomed ? null : <PageTitle page={page} id={heading} link={inJournals ?? false} />}
         <div className="seqno-page-blocks">
           {zoomed ? null : <PageProperties page={page} />}
           <Outliner

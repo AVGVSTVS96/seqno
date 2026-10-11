@@ -137,7 +137,7 @@ const Slider = ({
   min,
   max,
   step,
-  disabled = false,
+  disabled,
   onChange,
 }: {
   readonly label: string
@@ -148,7 +148,7 @@ const Slider = ({
   readonly disabled?: boolean
   readonly onChange: (value: number) => void
 }) => (
-  <label className="graph-control" data-disabled={disabled}>
+  <label className="graph-control" data-disabled={disabled ?? false}>
     <span className="graph-control-head">
       <span>{label}</span>
       <strong>{value}</strong>

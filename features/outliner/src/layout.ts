@@ -11,6 +11,14 @@ export type Segment =
   | { readonly _tag: "Rows"; readonly from: number; readonly to: number }
   | { readonly _tag: "Gap"; readonly from: number; readonly to: number; readonly height: number }
 
+export const viewportOf = (element: HTMLElement | null, current: Viewport): Viewport => {
+  if (element === null) return current
+  const box = element.getBoundingClientRect()
+  const top = Math.round(-box.top)
+  const bottom = Math.round(window.innerHeight - box.top)
+  return top === current.top && bottom === current.bottom ? current : { top, bottom }
+}
+
 const lineChars = 110
 const lineHeight = 24
 const rowPadding = 4
@@ -30,14 +38,15 @@ export const estimateHeight = (block: Block) => {
 
 export const offsets = (
   rows: ReadonlyArray<Row>,
+  estimates: ReadonlyArray<number>,
   heights: ReadonlyMap<string, number>,
 ): ReadonlyArray<number> => {
   const tops = [0]
   let total = 0
-  for (const row of rows) {
-    total += heights.get(row.block.id) ?? estimateHeight(row.block)
+  rows.forEach((row, index) => {
+    total += heights.get(row.block.id) ?? estimates[index] ?? 0
     tops.push(total)
-  }
+  })
   return tops
 }
 

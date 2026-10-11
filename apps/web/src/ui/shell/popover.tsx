@@ -281,7 +281,7 @@ export const Dialog = ({
   id,
   label,
   className,
-  focusSelf = false,
+  focusSelf,
   children,
 }: {
   readonly id: string

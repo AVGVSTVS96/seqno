@@ -140,7 +140,7 @@ const Section = ({
   label,
   count,
   initiallyOpen,
-  mentions = [],
+  mentions,
   children,
 }: {
   readonly label: string
@@ -153,7 +153,11 @@ const Section = ({
   const title = useId()
   const toggle = () => setOpen(!open)
   return (
-    <section className="seqno-references" aria-labelledby={title} ref={markMentions(mentions)}>
+    <section
+      className="seqno-references"
+      aria-labelledby={title}
+      ref={markMentions(mentions ?? [])}
+    >
       <div className="seqno-references-head" data-open={open}>
         <Fold open={open} onToggle={toggle} />
         <h2 className="seqno-references-title">
