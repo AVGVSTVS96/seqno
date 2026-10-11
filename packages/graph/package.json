@@ -12,7 +12,7 @@
     "@seqno/domain": "workspace:*",
     "@seqno/rpc": "workspace:*",
     "effect": "4.0.1",
-    "loro-crdt": "1.16.2"
+    "loro-crdt": "1.16.4"
   },
   "devDependencies": {
     "@effect/vitest": "4.0.1",

@@ -78,8 +78,8 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
       loro-crdt:
-        specifier: 1.16.2
-        version: 1.16.2
+        specifier: 1.16.4
+        version: 1.16.4
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -320,8 +320,8 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
       loro-crdt:
-        specifier: 1.16.2
-        version: 1.16.2
+        specifier: 1.16.4
+        version: 1.16.4
     devDependencies:
       '@effect/vitest':
         specifier: 4.0.1
@@ -455,8 +455,8 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
       loro-crdt:
-        specifier: 1.16.2
-        version: 1.16.2
+        specifier: 1.16.4
+        version: 1.16.4
     devDependencies:
       '@effect/vitest':
         specifier: 4.0.1
@@ -553,8 +553,8 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
       loro-crdt:
-        specifier: 1.16.2
-        version: 1.16.2
+        specifier: 1.16.4
+        version: 1.16.4
     devDependencies:
       '@effect/vitest':
         specifier: 4.0.1
@@ -1677,8 +1677,8 @@ packages:
     resolution: {integrity: sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==}
     engines: {node: '>= 12.0.0'}
 
-  loro-crdt@1.16.2:
-    resolution: {integrity: sha512-Jbfy/P6ggYWa3joyz/P+Vqtg66+pUdF+a6PrC69bTnNQIaElJd/Tx5xBPZBa9rgMjoU3YW67v9CSMLqRi8TeQA==}
+  loro-crdt@1.16.4:
+    resolution: {integrity: sha512-UPufMpHSEMLRVjWfCjhVbOD8nkCDwxdfVk4Uer6xTEFAcNn+X+oGYWGgIIYuAgofc8UiI0ERZUIMnP7ib/kh6w==}
 
   lru-cache@11.5.3:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
@@ -2956,7 +2956,7 @@ snapshots:
       lightningcss-win32-arm64-msvc: 1.33.0
       lightningcss-win32-x64-msvc: 1.33.0
 
-  loro-crdt@1.16.2: {}
+  loro-crdt@1.16.4: {}
 
   lru-cache@11.5.3: {}
 
