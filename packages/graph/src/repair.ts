@@ -101,8 +101,17 @@ const targetOf = (tree: LoroTree, id: PageId): Option.Option<LoroTreeNode> => {
   return follow(id)
 }
 
-export const repairPages = (tree: LoroTree, batches: ReadonlyArray<LoroEventBatch>): boolean => {
-  const touched = touchedBy(tree, batches)
+const everyRoot = (tree: LoroTree): Touched => {
+  const touched: Touched = { pages: new Set(), filled: new Set() }
+  for (const root of tree.roots()) {
+    if (tree.isNodeDeleted(root.id)) continue
+    if (Option.isSome(mergedInto(root))) touched.filled.add(root.id)
+    else touched.pages.add(root.id)
+  }
+  return touched
+}
+
+const repairTouched = (tree: LoroTree, touched: Touched): boolean => {
   let repaired = false
   if (touched.pages.size > 0) {
     for (const group of pagesByName(tree).values()) {
@@ -127,3 +136,8 @@ export const repairPages = (tree: LoroTree, batches: ReadonlyArray<LoroEventBatc
   }
   return repaired
 }
+
+export const repairPages = (tree: LoroTree, batches: ReadonlyArray<LoroEventBatch>): boolean =>
+  repairTouched(tree, touchedBy(tree, batches))
+
+export const repairAll = (tree: LoroTree): boolean => repairTouched(tree, everyRoot(tree))

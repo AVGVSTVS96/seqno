@@ -13,6 +13,7 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 
 - Events come only from Loro's change feed, so local edits, undo, redo, loads and merged remote ops all produce the same `GraphEvent`s.
 - `flush(write)` exports this peer's ops since the last save and moves its mark only if `write` succeeds.
+- `restore(updates)` imports into an empty graph without events (merging same-named pages), and `everything` streams the whole state as events, one batch per page, to fill an index from. On a graph that already holds ops, `restore` merges.
 - `load(pages)` adds imported pages with their given ids, journal days and props, outside the undo history.
 - `seed(pages)` does the same on an empty graph, but writes the ops under a peer id hashed from the pages and with times taken from them (noon UTC of the latest journal day), and returns those ops as their own update. Two devices seeding the same pages write identical ops, so merging one into the other adds nothing.
 - Two live pages with one name merge into the one with the smaller id right after the commit or merge that made them; the other stays as a hidden root marked `mergedInto`, and blocks that land there later move over too.

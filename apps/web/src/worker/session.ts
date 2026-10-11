@@ -26,6 +26,7 @@ export interface Session {
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
   readonly skipped: ReadonlyArray<SkippedFile>
   readonly record: (events: ReadonlyArray<GraphEvent>) => Effect.Effect<void>
+  readonly indexed: Effect.Effect<void>
 }
 
 const skippedFile = ImportIssue.match({
@@ -171,9 +172,32 @@ export const openSession = (place: GraphPlace) =>
             yield* unsaved.open
           }).pipe(Effect.orDie)
 
+    const indexed = yield* Latch.make(true)
+    const scope = yield* Effect.scope
+    const fillIndex = Effect.andThen(
+      indexed.close,
+      Effect.forkIn(
+        index.fill(graph.everything).pipe(logged, Effect.ensuring(indexed.open)),
+        scope,
+      ),
+    )
     const replica = vaultReplica({
       ...graph,
-      merge: (blobs) => Effect.tap(graph.merge(blobs), record),
+      merge: (blobs) =>
+        Effect.flatMap(graph.version, (version) =>
+          version.size === 0
+            ? graph
+                .restore(blobs)
+                .pipe(
+                  Effect.ensuring(
+                    Effect.flatMap(graph.version, (now) =>
+                      now.size > 0 ? fillIndex : Effect.void,
+                    ),
+                  ),
+                  Effect.as([]),
+                )
+            : Effect.tap(graph.merge(blobs), record),
+        ),
     })
     const save = graph.flush((update) => vault.writeUpdate(update.bytes))
     const saveNow = Effect.gen(function* () {
@@ -216,6 +240,14 @@ export const openSession = (place: GraphPlace) =>
     )
     yield* Effect.addFinalizer(() => logged(save))
 
-    const session: Session = { graph, index, touched, saving, skipped, record }
+    const session: Session = {
+      graph,
+      index,
+      touched,
+      saving,
+      skipped,
+      record,
+      indexed: indexed.await,
+    }
     return session
   })

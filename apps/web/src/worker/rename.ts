@@ -32,6 +32,7 @@ const referenceEdits = (session: Session, pageId: PageId, title: string) =>
     const page = pages.find((candidate) => candidate.id === pageId)
     if (page === undefined) return []
     const renamed = (name: string) => normalizePageName(name) === page.name
+    yield* session.indexed
     const rows = yield* Effect.orDie(session.index.query(REFERRING_BLOCKS, [page.name]))
     const blocks = yield* Effect.forEach(
       rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))),
@@ -70,6 +71,7 @@ const blockRefEdits = (session: Session, blockId: BlockId) =>
     if (Option.isNone(target)) return []
     const from = `((${blockId.toLowerCase()}))`
     const to = `((${target.value}))`
+    yield* session.indexed
     const rows = yield* Effect.orDie(session.index.query(BLOCKS_CITING, [from]))
     const blocks = yield* Effect.forEach(
       rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))),

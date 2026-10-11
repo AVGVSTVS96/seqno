@@ -538,6 +538,27 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
       }).pipe(Effect.scoped),
     ),
   )
+
+  it.live("fill adds pages batch by batch and refreshes live queries once, at the end", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
+        assert.deepStrictEqual(yield* Queue.take(results), [[0, null]])
+        yield* index.fill(
+          Stream.fromIterable([
+            [
+              upsertPage(journal, "Oct 6th, 2026", {}, 20261006),
+              upsertBlock(blockId(20), journal, "TODO x"),
+            ],
+            [upsertPage(notes, "notes"), upsertBlock(blockId(21), notes, "TODO y")],
+          ]),
+        )
+        assert.deepStrictEqual(yield* Queue.take(results), [[2, null]])
+        assert.deepStrictEqual(yield* Queue.size(results), 0)
+        assert.deepStrictEqual(yield* index.stamp, Option.none())
+      }).pipe(Effect.scoped),
+    ),
+  )
 })
 
 describe("node:sqlite file", () => {

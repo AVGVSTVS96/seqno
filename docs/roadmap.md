@@ -24,7 +24,7 @@ Not done yet: sync between two real devices through iCloud Drive. The sync engin
 
 Make the web app safe for real, large graphs before adding platforms:
 
-1. Open lazily: load from the newest snapshot, show the visible page first, and keep the index on disk so it catches up instead of rebuilding.
+1. Open lazily: load from the newest snapshot, show the visible page first, and keep the index on disk so it catches up instead of rebuilding. (The first two are done: an open restores without events and fills the index in the background. The index is still in memory.)
 2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, two devices importing the same folder write the same ops, merging a block with Backspace keeps its properties and its references, undoing a delete brings back the same blocks with what other devices typed into them, saving follows each edit and shows when it fails, the import lists the files it left out, and each tab undoes only its own edits.
 3. Keep the edit log small on a single device, and show save state in the UI. (Done for graphs kept in the browser, and the header shows save state; a lone device on a synced folder still can't delete, see below.)
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
@@ -54,7 +54,7 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 
 ### Scale
 
-- **Open isn't lazy yet.** Every open merges the whole edit log into an empty document and fills an in-memory index from every event. At 50k blocks the index fill alone takes several seconds.
+- **The index isn't kept on disk.** Every open fills the in-memory index again in the background, about 8 s of worker time at 50k blocks, and search and backlinks are partial until it ends. `opfs-sahpool` needs OPFS sync access handles, which only dedicated workers get, and the core is a SharedWorker. The way left is saving the in-memory database to OPFS with an async writable and catching up from its stamp, which needs a point to save at (there's no reliable "last tab closed" moment) and a way to turn the Loro diff since the stamp into events.
 - **Big imports are very slow.** Import loads every page in one Loro commit. At 50k blocks that took about 3 minutes, and reopening the result about 2 more (at 10k blocks, under a second each). Committing one page at a time measured about 15 s in total.
 - **Update files pile up on a lone device in a synced folder.** Each edit is saved as soon as the last write finishes, so typing can write a file per keystroke. Graphs kept in the browser compact at 100 files and delete what the snapshot covers. In a picked folder, deleting needs another device to confirm the snapshot reached the server, so a device that is alone there never deletes its update files or its hourly snapshots, and every open reads all of them.
 - **Live queries re-run on any matching key.** The row-level check that cut re-runs from about 4 to 1 per keystroke exists in `@seqno/query` but isn't wired in.

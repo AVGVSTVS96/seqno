@@ -23,7 +23,7 @@ import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@se
 import { applyCommand, mergeTargetOf, type Unresolved, type Workspace } from "./commands.ts"
 import { translate } from "./events.ts"
 import { emptyRegistry } from "./registry.ts"
-import { repairPages } from "./repair.ts"
+import { repairAll, repairPages } from "./repair.ts"
 import {
   TREE,
   blockIdOf,
@@ -108,6 +108,8 @@ export class Graph extends Context.Service<
     readonly merge: (
       updates: ReadonlyArray<Uint8Array>,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, ImportFailed>
+    readonly restore: (updates: ReadonlyArray<Uint8Array>) => Effect.Effect<void, ImportFailed>
+    readonly everything: Stream.Stream<ReadonlyArray<GraphEvent>>
     readonly mergeTarget: (id: BlockId) => Effect.Effect<Option.Option<BlockId>>
     readonly load: (pages: ReadonlyArray<PageTree>) => Effect.Effect<ReadonlyArray<GraphEvent>>
     readonly seed: (pages: ReadonlyArray<PageTree>) => Effect.Effect<Seeded>
@@ -160,9 +162,12 @@ const make = (source: GraphSource) =>
     yield* importAll(doc, [...Option.toArray(source.snapshot), ...source.updates])
     const tree = doc.getTree(TREE)
     const registry = emptyRegistry()
-    for (const root of tree.roots()) {
-      Option.map(livePageIdOf(root), (id) => registry.pages.set(id, root.id))
+    const registerPages = () => {
+      for (const root of tree.roots()) {
+        Option.map(livePageIdOf(root), (id) => registry.pages.set(id, root.id))
+      }
     }
+    registerPages()
     const histories = new Map<string, History>()
     const historyOf = (client: string): History => {
       const found = histories.get(client)
@@ -207,10 +212,14 @@ const make = (source: GraphSource) =>
       histories.clear()
     }
     const batches: Array<LoroEventBatch> = []
-    const unsubscribe = doc.subscribe((batch) => void batches.push(batch))
+    let unsubscribe: (() => void) | undefined
+    const listen = () => {
+      unsubscribe ??= doc.subscribe((batch) => void batches.push(batch))
+    }
+    if (doc.oplogVersion().length() > 0) listen()
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
-        unsubscribe()
+        unsubscribe?.()
         forgetHistories()
         doc.free()
       }),
@@ -251,14 +260,18 @@ const make = (source: GraphSource) =>
       registry.loaded.add(id)
     }
 
-    yield* Effect.forEach(
-      [...registry.pages.keys()],
-      (id) =>
-        Effect.sync(() => {
-          if (!registry.loaded.has(id)) indexPage(id, blockIdOf)
-        }).pipe(Effect.andThen(Effect.yieldNow)),
-      { discard: true },
-    ).pipe(Effect.andThen(filled.open), Effect.forkScoped)
+    const scope = yield* Effect.scope
+    const fill = Effect.suspend(() =>
+      Effect.forEach(
+        [...registry.pages.keys()],
+        (id) =>
+          Effect.sync(() => {
+            if (!registry.loaded.has(id)) indexPage(id, blockIdOf)
+          }).pipe(Effect.andThen(Effect.yieldNow)),
+        { discard: true },
+      ),
+    ).pipe(Effect.andThen(filled.open), Effect.forkIn(scope))
+    yield* fill
 
     const pages = serial(
       Effect.sync(() =>
@@ -335,6 +348,7 @@ const make = (source: GraphSource) =>
     const dispatch = (command: Command, client = "") =>
       serial(
         Effect.suspend(() => {
+          listen()
           groupTyping(client, typedBlock(command))
           return applyCommand(workspaceOf(client), command)
         }).pipe(
@@ -356,6 +370,7 @@ const make = (source: GraphSource) =>
         Effect.andThen(
           filled.await,
           Effect.suspend(() => {
+            listen()
             groupTyping(client, typedInOneBlock(commands))
             const ws = workspaceOf(client)
             return Effect.forEach(commands, (command) => applyCommand(ws, command), {
@@ -379,26 +394,75 @@ const make = (source: GraphSource) =>
 
     const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
 
-    const merge = (updates: ReadonlyArray<Uint8Array>) =>
+    const mergeNow = (updates: ReadonlyArray<Uint8Array>) =>
+      Effect.suspend(() => {
+        listen()
+        const before = ownCounter()
+        const caughtUp = before === flushed
+        histories.forEach(endTyping)
+        return importAll(doc, updates).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              if (caughtUp) flushed = ownCounter()
+              if (ownCounter() !== before) forgetHistories()
+            }),
+          ),
+          Effect.andThen(repair),
+          Effect.andThen(drain),
+        )
+      })
+
+    const merge = (updates: ReadonlyArray<Uint8Array>) => serial(mergeNow(updates))
+
+    const restore = (updates: ReadonlyArray<Uint8Array>) =>
       serial(
         Effect.suspend(() => {
-          const before = ownCounter()
-          const caughtUp = before === flushed
-          histories.forEach(endTyping)
+          if (unsubscribe !== undefined || doc.oplogVersion().length() > 0) {
+            return Effect.asVoid(mergeNow(updates))
+          }
           return importAll(doc, updates).pipe(
-            Effect.tap(() =>
+            Effect.ensuring(Effect.sync(listen)),
+            Effect.andThen(
               Effect.sync(() => {
-                if (caughtUp) flushed = ownCounter()
-                if (ownCounter() !== before) forgetHistories()
+                flushed = ownCounter()
+                if (repairAll(tree)) doc.commit({ origin: REPAIRED })
+                batches.splice(0)
+                registerPages()
               }),
             ),
-            Effect.andThen(repair),
-            Effect.andThen(drain),
+            Effect.andThen(filled.close),
+            Effect.andThen(fill),
           )
         }),
       )
 
+    const pageEvents = (id: PageId): ReadonlyArray<GraphEvent> => {
+      const node = Option.flatMap(Option.fromUndefinedOr(registry.pages.get(id)), (nodeId) =>
+        tree.isNodeDeleted(nodeId)
+          ? Option.none()
+          : Option.fromUndefinedOr(tree.getNodeByID(nodeId)),
+      )
+      return Option.match(Option.flatMap(node, readPage), {
+        onNone: () => [],
+        onSome: (found) => {
+          const events: Array<GraphEvent> = [{ _tag: "PageUpserted", page: found }]
+          indexPage(id, (child, at) =>
+            Option.map(readBlock(child, at), (read) => {
+              events.push({ _tag: "BlockUpserted", ...read })
+              return read.block.id
+            }),
+          )
+          return events
+        },
+      })
+    }
+
+    const everything = Stream.fromIterableEffect(
+      serial(Effect.sync(() => [...registry.pages.keys()])),
+    ).pipe(Stream.mapEffect((id) => serial(Effect.sync(() => pageEvents(id)))))
+
     const place = (loaded: ReadonlyArray<PageTree>, at: number) => {
+      listen()
       loaded.forEach((one) => loadPage(tree, one, at))
       doc.commit({ origin: LOADED })
     }
@@ -476,6 +540,8 @@ const make = (source: GraphSource) =>
       dispatchAll,
       release,
       merge,
+      restore,
+      everything,
       mergeTarget: (id) =>
         serial(
           Effect.andThen(

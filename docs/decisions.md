@@ -167,6 +167,16 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 **Numbers.** None on speed: every tab already talked to a worker, and now it is the same one. The four flows in `tools/e2e/flows/tabs.e2e.ts` (two tabs typing, closing one, reloading one) passed 60 of 60 runs, 15 each, against a production build in headless Chrome.
 
+## Open restores quietly and fills the index behind it
+
+**Decision.** The first files merged into an empty graph go in through `restore`, which imports them with no Loro subscriber attached, so Loro computes no diff and no events come out. The graph merges any pages that ended up with one name, lists the pages, and the first page can be read at once. The index is then filled in the background from the graph's current state (`everything`, one batch per page), each batch in its own index write, with one refresh of every live query at the end. Edits made meanwhile are indexed as usual between batches. Renames and Backspace merges, which read the index to find references, wait until the fill is done.
+
+**Why.** Merging into a doc that has a subscriber makes Loro build a diff of the whole history, and the graph then turned it into events: most of the open went there, before the user saw anything. Loro keeps computing diffs once a subscriber has been attached, even after it is removed, so the graph attaches its subscriber only when the doc is first written. A batch reads its page's state at the moment it is written, and edits are indexed under the same write lock, so whichever comes second wins, and the index ends up matching the graph either way.
+
+**Cost.** For the first seconds after opening a large graph, search, backlinks and queries can show partial results; they refresh when the fill ends. The index is still in memory, so every open fills it again (see Hardening, step 1).
+
+**Numbers.** In Node on `cloud` (a Fly.io Sprite), opening the 50k graph from its snapshot to the first page took 13.5 s before (5.1 s of Loro diff, 3.2 s of events, 0.4 s of page repair, 3.9 s of index writes) and 0.93 s after, most of it Loro reading the tree for the page list. The background fill takes about 8 s there. Keystroke p95 stays under 1 ms for the graph plus the index write.
+
 ## Smaller decisions
 
 | Question                         | Answer                                                                   | Why                                                                                                                                       |

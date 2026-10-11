@@ -372,6 +372,14 @@ const make = Effect.gen(function* () {
         yield* sqlite.transaction((db) => writeStamp(db, stamp))
       }).pipe(Effect.ensuring(reactivity.invalidate([REBUILT])), writer.withPermits(1)),
 
+    fill: <E, R>(pages: Stream.Stream<ReadonlyArray<GraphEvent>, E, R>) =>
+      pages.pipe(
+        Stream.runForEach((batch) =>
+          writer.withPermits(1)(sqlite.transaction((db) => void applyAll(db, batch))),
+        ),
+        Effect.ensuring(reactivity.invalidate([REBUILT])),
+      ),
+
     query,
 
     watch: (live: LiveQuery): Stream.Stream<ReadonlyArray<Row>, IndexError> =>
