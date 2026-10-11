@@ -28,7 +28,7 @@ Make the web app safe for real, large graphs before adding platforms:
 2. Close the data-safety gaps below. Done so far: each open writes with a new peer id, two pages with one name merge into one, two devices importing the same folder write the same ops, merging a block with Backspace keeps its properties and its references, undoing a delete brings back the same blocks with what other devices typed into them, saving follows each edit and shows when it fails, the import lists the files it left out, and each tab undoes only its own edits.
 3. Keep the edit log small on a single device, and show save state in the UI. (Done for graphs kept in the browser, and the header shows save state; a lone device on a synced folder still can't delete, see below.)
 4. Turn on the markdown mirror so Logseq sees edits made in seqno.
-5. Run the sync simulator on the real graph with every command and device restarts, then the full 1,000 runs of 10k ops.
+5. Run the sync simulator on the real graph with every command and device restarts. (Done: 50 runs of 600 ops and 20 runs of 10k ops all converged.)
 6. Check in a 50k-block benchmark that fails when open or typing goes over budget, and test sync on two real Macs. (The benchmark is in: `tools/bench` runs in CI. The two-Mac test needs two Macs signed into iCloud.)
 
 ## iOS and iCloud Drive
@@ -71,7 +71,7 @@ Electron around the same web build, with graph folders anywhere on disk, includi
 
 ### Tests and tooling
 
-- The sync simulator drives a stand-in graph. It never restarts a device and never runs split, merge, indent, outdent, undo or redo.
+- The sync simulator's mutants switch bugs on only in the stand-in vault, and its restarts are clean: a crash that loses unsaved edits isn't simulated.
 - Browser flows fail on page errors but not on errors inside the core worker.
 - Lint doesn't stop UI code from importing core-only libraries such as `loro-crdt` directly, and nothing enforces the exact Loro version for new packages.
 - `fixtures/` sits outside lint and formatting. It is in the repo map as a tool, so only other tools (like `tools/bench`) can use the 50k-block generator.

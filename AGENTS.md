@@ -2,7 +2,7 @@
 
 A TypeScript rebuild of Logseq: a local-first outliner. Web first (Chrome and Edge), then iOS (Expo) and desktop (Electron).
 
-The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.2). SQLite is a rebuildable index. How it fits together is in `docs/architecture.md`; why each piece was chosen is in `docs/decisions.md`.
+The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.4). SQLite is a rebuildable index. How it fits together is in `docs/architecture.md`; why each piece was chosen is in `docs/decisions.md`.
 
 ## Commands
 
@@ -71,7 +71,7 @@ A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added t
   - Relative imports end in `.ts` / `.tsx`.
   - A package's public API is `src/index.ts`, exposed through `"exports": { ".": "./src/index.ts" }`. No build step for workspace packages.
   - Tests live in `<package>/test/*.test.ts` and use `@effect/vitest` (`it.effect`) for Effect code.
-  - Dependencies use exact versions. `effect` is `4.0.1`, `loro-crdt` is `1.16.2`.
+  - Dependencies use exact versions. `effect` is `4.0.1`, `loro-crdt` is `1.16.4`.
 - Effect v4 differs from v3: `Context.Service` instead of `Context.Tag`, `Result` instead of `Either`, Schema v4 names. Check the installed types and https://github.com/Effect-TS/effect/blob/main/MIGRATION.md.
 
 ## What enforces each rule
