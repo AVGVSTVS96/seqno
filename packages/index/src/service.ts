@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Option, Schema, Semaphore, Stream } from "effect"
 import { Reactivity } from "effect/reactivity"
-import { BlockId, GraphEvent, PageId, normalizePageName } from "@seqno/domain"
+import { BlockId, GraphEvent, PageId, normalizePageName, type Page } from "@seqno/domain"
 import { titleIn } from "./facets.ts"
 import { indexer } from "./indexer.ts"
 import { REBUILT, toInvalidation, type Changes, type ReadKey } from "./keys.ts"
@@ -375,6 +375,15 @@ const make = Effect.gen(function* () {
 
   const referencedPages = sqlite.use(referencedOf)
 
+  const named = <E, R>(pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
+    writer.withPermits(1)(
+      Effect.flatMap(pages, (read) =>
+        sqlite.transaction(
+          (db) => void applyAll(db, read.map((page): GraphEvent => ({ _tag: "PageUpserted", page }))),
+        ),
+      ),
+    )
+
   return {
     stamp: sqlite.use(readStamp).pipe(Effect.map(Option.fromNullOr)),
 
@@ -395,20 +404,27 @@ const make = Effect.gen(function* () {
         )
       }).pipe(Effect.ensuring(reactivity.invalidate([REBUILT])), writer.withPermits(1)),
 
-    fill: <E, R>(pages: Stream.Stream<ReadonlyArray<GraphEvent>, E, R>) =>
-      pages.pipe(
-        Stream.runForEach((batch) =>
+    fill: <E, R, E2, R2>(
+      pages: Effect.Effect<ReadonlyArray<Page>, E2, R2>,
+      contents: Stream.Stream<ReadonlyArray<GraphEvent>, E, R>,
+    ) =>
+      Effect.andThen(
+        named(pages),
+        Stream.runForEach(contents, (batch) =>
           Effect.andThen(
             writer.withPermits(1)(sqlite.transaction((db) => void applyAll(db, batch))),
             Effect.yieldNow,
           ),
         ),
-        Effect.ensuring(reactivity.invalidate([REBUILT])),
-      ),
+      ).pipe(Effect.ensuring(reactivity.invalidate([REBUILT]))),
 
-    refresh: <E, R>(pages: Stream.Stream<readonly [PageId, ReadonlyArray<GraphEvent>], E, R>) =>
-      pages.pipe(
-        Stream.runForEach(([pageId, events]) =>
+    refresh: <E, R, E2, R2>(
+      pages: Effect.Effect<ReadonlyArray<Page>, E2, R2>,
+      contents: Stream.Stream<readonly [PageId, ReadonlyArray<GraphEvent>], E, R>,
+    ) =>
+      Effect.andThen(
+        named(pages),
+        Stream.runForEach(contents, ([pageId, events]) =>
           Effect.andThen(
             writer.withPermits(1)(
               sqlite.transaction((db) => void applyAll(db, refreshed(db, pageId, events))),
@@ -416,8 +432,7 @@ const make = Effect.gen(function* () {
             Effect.yieldNow,
           ),
         ),
-        Effect.ensuring(reactivity.invalidate([REBUILT])),
-      ),
+      ).pipe(Effect.ensuring(reactivity.invalidate([REBUILT]))),
 
     reset: sqlite
       .transaction(recreate)

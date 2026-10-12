@@ -116,6 +116,7 @@ const reopenIndex = (
     const changed = yield* graph.changedSince(since)
     if (Option.isNone(changed)) return yield* Effect.die("the saved stamp is not in the graph")
     yield* index.refresh(
+      Effect.map(graph.pages, (pages) => pages.filter((page) => changed.value.pages.has(page.id))),
       Stream.fromIterable(changed.value.pages).pipe(
         Stream.mapEffect((page) =>
           Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
@@ -139,7 +140,7 @@ const main = Effect.gen(function* () {
     vaultOpens.push(ms)
   }
   const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(layerNode())))
-  const [, fillMs] = yield* timed(index.fill(graph.everything))
+  const [, fillMs] = yield* timed(index.fill(graph.pages, graph.everything))
   const stamp = yield* graph.version
   const image = yield* index.image(JSON.stringify(Object.fromEntries(stamp)))
   const block = first.blocks[0]

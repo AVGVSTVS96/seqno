@@ -46,6 +46,9 @@ const upsertBlock = (
   updatedAt: options.updatedAt ?? 1_000,
 })
 
+const pagesOf = (...events: ReadonlyArray<GraphEvent>) =>
+  Effect.succeed(events.flatMap((event) => (event._tag === "PageUpserted" ? [event.page] : [])))
+
 const project = pageId(1)
 const journal = pageId(2)
 const notes = pageId(3)
@@ -518,6 +521,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
         const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
         assert.deepStrictEqual(yield* Queue.take(results), [[0]])
         yield* index.fill(
+          Effect.succeed([]),
           Stream.fromIterable([
             [
               upsertPage(journal, "Oct 6th, 2026", {}, 20261006),
@@ -529,6 +533,33 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
         assert.deepStrictEqual(yield* Queue.take(results), [[2]])
         assert.deepStrictEqual(yield* Queue.size(results), 0)
       }).pipe(Effect.scoped),
+    ),
+  )
+
+  it.effect("fill and refresh name every page first, so no page shows as only referenced", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        const seen: Array<ReadonlyArray<string>> = []
+        const look = Effect.map(index.referencedPages, (pages) =>
+          seen.push(pages.map((page) => page.name)),
+        )
+        yield* index.fill(
+          pagesOf(upsertPage(notes, "Notes"), upsertPage(project, "Project")),
+          Stream.fromIterable([
+            [upsertPage(notes, "Notes"), upsertBlock(blockId(1), notes, "see [[Project]] and [[Later]]")],
+            [upsertPage(project, "Project"), upsertBlock(blockId(2), project, "plan")],
+          ]).pipe(Stream.tap(() => look)),
+        )
+        yield* index.refresh(
+          pagesOf(upsertPage(notes, "Notes"), upsertPage(journal, "Later")),
+          Stream.fromIterable([
+            [notes, [upsertPage(notes, "Notes"), upsertBlock(blockId(1), notes, "see [[Later]]")]],
+            [journal, [upsertPage(journal, "Later")]],
+          ] as const).pipe(Stream.tap(() => look)),
+        )
+        yield* look
+        assert.deepStrictEqual(seen, [[], ["later"], [], [], []])
+      }),
     ),
   )
 
@@ -583,6 +614,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
         const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
         assert.deepStrictEqual(yield* Queue.take(results), [[0]])
         yield* index.refresh(
+          Effect.succeed([]),
           Stream.fromIterable([
             [
               notes,

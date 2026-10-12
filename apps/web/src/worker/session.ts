@@ -253,6 +253,9 @@ export const openSession = (place: GraphPlace) =>
       Option.isSome(costs.saveMs) &&
       sinceSave.pages.size * costs.pageMs.value > costs.saveMs.value
 
+    const pagesIn = (ids: ReadonlySet<PageId>) =>
+      Effect.map(graph.pages, (pages) => pages.filter((page) => ids.has(page.id)))
+
     const indexed = yield* Latch.make(true)
     const scope = yield* Effect.scope
     const catchUp: Effect.Effect<void, IndexError> = Effect.flatMap(
@@ -266,7 +269,10 @@ export const openSession = (place: GraphPlace) =>
         behind.length === 0
           ? Effect.void
           : Effect.andThen(
-              index.fill(Stream.fromIterable(behind).pipe(Stream.mapEffect(graph.pageEvents))),
+              index.fill(
+                pagesIn(new Set(behind)),
+                Stream.fromIterable(behind).pipe(Stream.mapEffect(graph.pageEvents)),
+              ),
               Effect.andThen(
                 Effect.sync(() => behind.forEach((page) => sinceSave.pages.add(page))),
                 catchUp,
@@ -283,6 +289,7 @@ export const openSession = (place: GraphPlace) =>
           ...(yield* pagesOfBlocks([...changed.value.blocks])),
         ])
         yield* index.refresh(
+          pagesIn(pages),
           Stream.fromIterable(pages).pipe(
             Stream.mapEffect((page) =>
               Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
@@ -310,7 +317,7 @@ export const openSession = (place: GraphPlace) =>
     })
 
     const refill = Effect.gen(function* () {
-      const [, ms] = yield* timed(index.fill(graph.everything))
+      const [, ms] = yield* timed(index.fill(graph.pages, graph.everything))
       const pages = (yield* graph.pages).length
       if (pages > 0) costs.pageMs = Option.some(ms / pages)
       sinceSave.refilled = true
