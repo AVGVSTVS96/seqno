@@ -62,7 +62,7 @@ const absorb = (tree: LoroTree, winner: readonly [LoroTreeNode, Page], loser: Lo
   Option.map(readPage(loser), ({ props }) =>
     Object.entries(props)
       .filter(([key]) => !(key in page.props))
-      .forEach(([key, value]) => setProp(node, key, value)),
+      .forEach(([key, value]) => setProp(node.data, key, value)),
   )
   loser.data.set(MERGED_INTO, page.id)
 }

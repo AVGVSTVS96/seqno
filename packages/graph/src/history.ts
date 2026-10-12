@@ -1,10 +1,20 @@
 import { Match } from "effect"
-import type { ContainerID, LoroEventBatch, LoroText, LoroTreeNode, TreeID, Value } from "loro-crdt"
+import type {
+  ContainerID,
+  LoroDoc,
+  LoroEventBatch,
+  LoroMap,
+  LoroText,
+  LoroTreeNode,
+  TreeID,
+  Value,
+} from "loro-crdt"
 import type { BlockId } from "@seqno/domain"
 import { compose, invert, span, splice, transform, type TextDelta } from "./delta.ts"
 import { childrenOf, isTrash, propKeysIn, readProps, setProp, textOf } from "./tree.ts"
 
 export interface Place {
+  readonly doc: LoroDoc
   readonly root: (index?: number) => LoroTreeNode
   readonly trash: () => LoroTreeNode
 }
@@ -32,7 +42,7 @@ interface TextUndo {
 interface ValueUndo {
   readonly _tag: "Value"
   readonly place: Place
-  readonly node: LoroTreeNode
+  readonly map: LoroMap
   readonly key: string
   readonly value: Value
   expect: Value
@@ -41,7 +51,7 @@ interface ValueUndo {
 interface PropUndo {
   readonly _tag: "Prop"
   readonly place: Place
-  readonly node: LoroTreeNode
+  readonly map: LoroMap
   readonly key: string
   readonly value: string | null
   readonly after: string | null | undefined
@@ -64,9 +74,9 @@ interface DropUndo {
 
 type Undo = TextUndo | ValueUndo | PropUndo | MoveUndo | DropUndo
 
-type Keyed<A> = Map<Place, Map<string, A>>
+type Keyed<A> = Map<LoroDoc, Map<string, A>>
 
-type Listed = Map<Place, Map<TreeID, Array<LoroTreeNode>>>
+type Listed = Map<LoroDoc, Map<TreeID, Array<LoroTreeNode>>>
 
 interface Step {
   readonly undos: Array<Undo>
@@ -84,25 +94,25 @@ const emptyStep = (): Step => ({
   commits: 0,
 })
 
-const lookup = <A>(keyed: Keyed<A>, place: Place, key: string): A | undefined =>
-  keyed.get(place)?.get(key)
+const lookup = <A>(keyed: Keyed<A>, doc: LoroDoc, key: string): A | undefined =>
+  keyed.get(doc)?.get(key)
 
-const store = <A>(keyed: Keyed<A>, place: Place, key: string, value: A): void => {
-  const inPlace = keyed.get(place)
-  if (inPlace === undefined) keyed.set(place, new Map([[key, value]]))
-  else inPlace.set(key, value)
+const store = <A>(keyed: Keyed<A>, doc: LoroDoc, key: string, value: A): void => {
+  const inDoc = keyed.get(doc)
+  if (inDoc === undefined) keyed.set(doc, new Map([[key, value]]))
+  else inDoc.set(key, value)
 }
 
 const keyOf = (undo: TextUndo | ValueUndo | PropUndo): string =>
   undo._tag === "Text"
     ? undo.text.id
-    : `${undo.node.id}${undo._tag === "Value" ? ":" : "#"}${undo.key}`
+    : `${undo.map.id}${undo._tag === "Value" ? ":" : "#"}${undo.key}`
 
 const add = (step: Step, undo: Undo): void => {
   if (undo._tag === "Move" || undo._tag === "Drop") return void step.undos.push(undo)
-  const known = lookup(step.latest, undo.place, keyOf(undo))
+  const known = lookup(step.latest, undo.place.doc, keyOf(undo))
   if (known === undefined) {
-    store(step.latest, undo.place, keyOf(undo), undo)
+    store(step.latest, undo.place.doc, keyOf(undo), undo)
     step.undos.push(undo)
   } else if (known._tag === "Text" && undo._tag === "Text") {
     known.delta = compose(undo.delta, known.delta)
@@ -111,8 +121,8 @@ const add = (step: Step, undo: Undo): void => {
 
 const absorb = (top: Step, step: Step): void => {
   step.undos.forEach((undo) => add(top, undo))
-  for (const [place, ids] of step.created) {
-    for (const id of ids.keys()) store(top.created, place, id, true)
+  for (const [doc, ids] of step.created) {
+    for (const id of ids.keys()) store(top.created, doc, id, true)
   }
 }
 
@@ -126,14 +136,9 @@ export interface Recorder {
   readonly moveAfter: (node: LoroTreeNode, anchor: LoroTreeNode) => void
   readonly moveBefore: (node: LoroTreeNode, anchor: LoroTreeNode) => void
   readonly trash: (node: LoroTreeNode) => void
-  readonly edit: (node: LoroTreeNode, from: number, remove: number, insert: string) => void
-  readonly set: (node: LoroTreeNode, key: string, value: Value) => void
-  readonly prop: (
-    node: LoroTreeNode,
-    key: string,
-    value: string | null,
-    after?: string | null,
-  ) => void
+  readonly edit: (data: LoroMap, from: number, remove: number, insert: string) => void
+  readonly set: (map: LoroMap, key: string, value: Value) => void
+  readonly prop: (data: LoroMap, key: string, value: string | null, after?: string | null) => void
 }
 
 const scalar = (value: unknown): Value =>
@@ -150,8 +155,8 @@ const inTrash = (node: LoroTreeNode): boolean => {
   return parent !== undefined && isTrash(parent)
 }
 
-const propAfter = (node: LoroTreeNode, key: string): string | null | undefined => {
-  const keys = propKeysIn(node)
+const propAfter = (data: LoroMap, key: string): string | null | undefined => {
+  const keys = propKeysIn(data)
   const at = keys.indexOf(key)
   return at === -1 ? undefined : (keys[at - 1] ?? null)
 }
@@ -174,8 +179,8 @@ interface Restorer extends Recorder {
 }
 
 const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
-  const listed = lists.get(place) ?? new Map<TreeID, Array<LoroTreeNode>>()
-  lists.set(place, listed)
+  const listed = lists.get(place.doc) ?? new Map<TreeID, Array<LoroTreeNode>>()
+  lists.set(place.doc, listed)
   const siblingsOf = (parent: LoroTreeNode) => {
     const known = listed.get(parent.id)
     if (known !== undefined) return known
@@ -183,7 +188,8 @@ const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
     listed.set(parent.id, children)
     return children
   }
-  const isNew = (node: LoroTreeNode) => lookup(step.created, place, node.id) !== undefined
+  const isNew = (node: LoroTreeNode) => lookup(step.created, place.doc, node.id) !== undefined
+  const isNewMap = (map: LoroMap) => lookup(step.created, place.doc, map.id) !== undefined
   const moved = (node: LoroTreeNode, move: () => void) => {
     const parent = node.parent()
     const index = node.index() ?? 0
@@ -208,7 +214,8 @@ const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
       const node = parent === undefined ? place.root(index) : parent.createNode(index)
       if (parent !== undefined) listed.get(parent.id)?.splice(node.index() ?? 0, 0, node)
       if (parent === undefined || !isNew(parent)) add(step, { _tag: "Drop", place, node })
-      store(step.created, place, node.id, true)
+      store(step.created, place.doc, node.id, true)
+      store(step.created, place.doc, node.data.id, true)
       return node
     },
     move: (node, parent, index) =>
@@ -225,27 +232,27 @@ const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
       const others = siblingsOf(parent).length - (sameNode(node.parent(), parent) ? 1 : 0)
       moved(node, () => node.move(parent, after === undefined ? 0 : Math.min(index, others)))
     },
-    edit: (node, from, remove, insert) => {
+    edit: (data, from, remove, insert) => {
       const delta = splice(from, remove, insert)
       if (delta.length === 0) return
-      if (isNew(node)) textOf(node).splice(from, remove, insert)
-      else editText(place, step, textOf(node), delta)
+      if (isNewMap(data)) textOf(data).splice(from, remove, insert)
+      else editText(place, step, textOf(data), delta)
     },
-    set: (node, key, value) => {
-      const old = scalar(node.data.get(key))
+    set: (map, key, value) => {
+      const old = scalar(map.get(key))
       if (old === value) return
-      if (!isNew(node)) add(step, { _tag: "Value", place, node, key, value: old, expect: value })
-      if (value === undefined) node.data.delete(key)
-      else node.data.set(key, value)
+      if (!isNewMap(map)) add(step, { _tag: "Value", place, map, key, value: old, expect: value })
+      if (value === undefined) map.delete(key)
+      else map.set(key, value)
     },
-    prop: (node, key, value, after) => {
-      const old = readProps(node)[key] ?? null
+    prop: (data, key, value, after) => {
+      const old = readProps(data)[key] ?? null
       if (old === value) return
-      if (!isNew(node)) {
-        const before = propAfter(node, key)
-        add(step, { _tag: "Prop", place, node, key, value: old, after: before, expect: value })
+      if (!isNewMap(data)) {
+        const before = propAfter(data, key)
+        add(step, { _tag: "Prop", place, map: data, key, value: old, after: before, expect: value })
       }
-      setProp(node, key, value, after)
+      setProp(data, key, value, after)
     },
   }
 }
@@ -257,12 +264,12 @@ const revertOne = (undo: Undo, record: Restorer, into: Step): void =>
         editText(place, into, text, delta)
       }
     },
-    Value: ({ node, key, value, expect }) => {
-      if (!node.isDeleted() && node.data.get(key) === expect) record.set(node, key, value)
+    Value: ({ map, key, value, expect }) => {
+      if (!map.isDeleted() && scalar(map.get(key)) === expect) record.set(map, key, value)
     },
-    Prop: ({ node, key, value, after, expect }) => {
-      if (!node.isDeleted() && (readProps(node)[key] ?? null) === expect) {
-        record.prop(node, key, value, after)
+    Prop: ({ map, key, value, after, expect }) => {
+      if (!map.isDeleted() && (readProps(map)[key] ?? null) === expect) {
+        record.prop(map, key, value, after)
       }
     },
     Move: ({ node, to, from }) => {
@@ -345,25 +352,25 @@ const mapThrough = (undo: TextUndo, delta: TextDelta, commit: Commit | undefined
 
 export const histories = () => {
   const clients = new Map<string, Stacks>()
-  const watched = new Map<Place, Map<ContainerID, Set<TextUndo>>>()
+  const watched = new Map<LoroDoc, Map<ContainerID, Set<TextUndo>>>()
   let muted = false
   let committing: Commit | undefined
 
   const attach = (step: Step) => {
     for (const undo of textsOf(step)) {
-      const inPlace = watched.get(undo.place) ?? new Map<ContainerID, Set<TextUndo>>()
-      watched.set(undo.place, inPlace)
-      const undos = inPlace.get(undo.text.id) ?? new Set<TextUndo>()
-      inPlace.set(undo.text.id, undos)
+      const inDoc = watched.get(undo.place.doc) ?? new Map<ContainerID, Set<TextUndo>>()
+      watched.set(undo.place.doc, inDoc)
+      const undos = inDoc.get(undo.text.id) ?? new Set<TextUndo>()
+      inDoc.set(undo.text.id, undos)
       undos.add(undo)
     }
   }
   const detach = (step: Step) => {
     for (const undo of textsOf(step)) {
-      const inPlace = watched.get(undo.place)
-      const undos = inPlace?.get(undo.text.id)
+      const inDoc = watched.get(undo.place.doc)
+      const undos = inDoc?.get(undo.text.id)
       undos?.delete(undo)
-      if (undos?.size === 0) inPlace?.delete(undo.text.id)
+      if (undos?.size === 0) inDoc?.delete(undo.text.id)
     }
   }
   const push = (stack: Array<Step>, step: Step) => {
@@ -380,12 +387,12 @@ export const histories = () => {
     return made
   }
 
-  const observe = (place: Place, batch: LoroEventBatch): void => {
-    const inPlace = watched.get(place)
-    if (muted || inPlace === undefined || inPlace.size === 0) return
+  const observe = (doc: LoroDoc, batch: LoroEventBatch): void => {
+    const inDoc = watched.get(doc)
+    if (muted || inDoc === undefined || inDoc.size === 0) return
     for (const event of batch.events) {
       if (event.diff.type !== "text") continue
-      for (const undo of inPlace.get(event.target) ?? []) {
+      for (const undo of inDoc.get(event.target) ?? []) {
         mapThrough(undo, event.diff.diff, committing)
       }
     }

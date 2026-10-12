@@ -134,30 +134,30 @@ export const readBlock = (node: LoroTreeNode, at: Placement): Option.Option<Bloc
     updatedAt: data.updated ?? data.created ?? 0,
   }))
 
-export const textOf = (node: LoroTreeNode): LoroText => {
-  const text = node.data.get("text")
-  return text instanceof LoroText ? text : node.data.ensureMergeableText("text")
+export const textOf = (data: LoroMap): LoroText => {
+  const text = data.get("text")
+  return text instanceof LoroText ? text : data.ensureMergeableText("text")
 }
 
-const propsOf = (node: LoroTreeNode): LoroMap => {
-  const props = node.data.get("props")
-  return props instanceof LoroMap ? props : node.data.ensureMergeableMap("props")
+const propsOf = (data: LoroMap): LoroMap => {
+  const props = data.get("props")
+  return props instanceof LoroMap ? props : data.ensureMergeableMap("props")
 }
 
-const propKeysOf = (node: LoroTreeNode): LoroList => {
-  const keys = node.data.get("propKeys")
-  return keys instanceof LoroList ? keys : node.data.ensureMergeableList("propKeys")
+const propKeysOf = (data: LoroMap): LoroList => {
+  const keys = data.get("propKeys")
+  return keys instanceof LoroList ? keys : data.ensureMergeableList("propKeys")
 }
 
-export const propKeysIn = (node: LoroTreeNode): ReadonlyArray<string> => {
-  const keys = node.data.get("propKeys")
+export const propKeysIn = (data: LoroMap): ReadonlyArray<string> => {
+  const keys = data.get("propKeys")
   return keys instanceof LoroList
     ? keys.toArray().flatMap((key) => (typeof key === "string" ? [key] : []))
     : []
 }
 
-export const readProps = (node: LoroTreeNode): Props => {
-  const props = node.data.get("props")
+export const readProps = (data: LoroMap): Props => {
+  const props = data.get("props")
   return props instanceof LoroMap
     ? inOrder(
         Object.fromEntries(
@@ -165,19 +165,19 @@ export const readProps = (node: LoroTreeNode): Props => {
             typeof value === "string" ? [[key, value]] : [],
           ),
         ),
-        propKeysIn(node),
+        propKeysIn(data),
       )
     : {}
 }
 
 export const setProp = (
-  node: LoroTreeNode,
+  data: LoroMap,
   key: string,
   value: string | null,
   after?: string | null,
 ): void => {
-  const props = propsOf(node)
-  const keys = propKeysOf(node)
+  const props = propsOf(data)
+  const keys = propKeysOf(data)
   const listed = keys.toArray()
   if (value === null) {
     props.delete(key)
@@ -216,20 +216,20 @@ export const writeBlock = (node: LoroTreeNode, id: BlockId, text: string, now: n
   node.data.set("updated", now)
 }
 
-export const writeProps = (node: LoroTreeNode, props: Props): void =>
-  Object.entries(props).forEach(([key, value]) => setProp(node, key, value))
+export const writeProps = (data: LoroMap, props: Props): void =>
+  Object.entries(props).forEach(([key, value]) => setProp(data, key, value))
 
 export const loadPage = (tree: LoroTree, { page, blocks }: PageTree, now: number): void => {
   const root = tree.createNode()
   writePage(root, page.id, page.title)
   if (page.journalDay !== null) root.data.set("journalDay", page.journalDay)
-  writeProps(root, page.props)
+  writeProps(root.data, page.props)
   const nodes = new Map<BlockId, LoroTreeNode>()
   for (const block of blocks) {
     const node = (block.parentId === null ? root : (nodes.get(block.parentId) ?? root)).createNode()
     writeBlock(node, block.id, block.text, now)
     if (block.collapsed) node.data.set("collapsed", true)
-    writeProps(node, block.props)
+    writeProps(node.data, block.props)
     nodes.set(block.id, node)
   }
 }

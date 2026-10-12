@@ -81,7 +81,7 @@ export const trashOf = (ws: Places): LoroTreeNode => {
 }
 
 const touch = (ws: Workspace, node: LoroTreeNode) =>
-  Effect.map(Clock.currentTimeMillis, (now) => ws.record.set(node, "updated", now))
+  Effect.map(Clock.currentTimeMillis, (now) => ws.record.set(node.data, "updated", now))
 
 const pageNode = (ws: Workspace, id: PageId): Effect.Effect<LoroTreeNode, CommandRejected> =>
   Option.match(live(ws.tree, ws.registry.pages.get(id)), {
@@ -152,7 +152,7 @@ const createTree = (
     const now = yield* Clock.currentTimeMillis
     const node = ws.record.create(parent, index)
     writeBlock(node, id, draft.text, now)
-    writeProps(node, draft.props)
+    writeProps(node.data, draft.props)
     yield* Effect.forEach(draft.children, (child, at) => createTree(ws, node, at, child), {
       discard: true,
     })
@@ -199,7 +199,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
       Effect.gen(function* () {
         const page = yield* pageNode(ws, pageId)
         yield* checkTitle(ws, title, page.id)
-        ws.record.set(page, "title", title)
+        ws.record.set(page.data, "title", title)
       }),
     DeletePage: ({ pageId }) => Effect.map(pageNode(ws, pageId), (page) => ws.record.trash(page)),
     InsertBlock: ({ pageId, parentId, after, text }) =>
@@ -226,16 +226,16 @@ export const applyCommand = (ws: Workspace, command: Command) =>
     EditText: ({ blockId, from, to, insert }) =>
       Effect.gen(function* () {
         const node = yield* blockNode(ws, blockId)
-        if (from > to || to > textOf(node).length) {
+        if (from > to || to > textOf(node.data).length) {
           return yield* reject(`range ${from}-${to} is outside the block text`)
         }
-        ws.record.edit(node, from, to - from, insert)
+        ws.record.edit(node.data, from, to - from, insert)
         yield* touch(ws, node)
       }),
     SplitBlock: ({ blockId, at }) =>
       Effect.gen(function* () {
         const node = yield* blockNode(ws, blockId)
-        const text = textOf(node)
+        const text = textOf(node.data)
         const parent = node.parent()
         const index = node.index() ?? 0
         if (at > text.length || parent === undefined) {
@@ -243,7 +243,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         }
         if (at === 0 && text.length > 0) return yield* createBlock(ws, parent, index, "")
         const tail = text.slice(at, text.length)
-        ws.record.edit(node, at, text.length - at, "")
+        ws.record.edit(node.data, at, text.length - at, "")
         yield* touch(ws, node)
         const nests = childrenOf(node).length > 0 && !isCollapsed(node)
         yield* nests ? createBlock(ws, node, 0, tail) : createBlock(ws, parent, index + 1, tail)
@@ -256,11 +256,11 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         if (target === undefined) {
           return yield* reject("the first block of a page has nothing to merge into")
         }
-        ws.record.edit(target, textOf(target).length, 0, textOf(node).toString())
-        const kept = readProps(target)
-        Object.entries(readProps(node))
+        ws.record.edit(target.data, textOf(target.data).length, 0, textOf(node.data).toString())
+        const kept = readProps(target.data)
+        Object.entries(readProps(node.data))
           .filter(([key]) => !(key in kept))
-          .forEach(([key, value]) => ws.record.prop(target, key, value))
+          .forEach(([key, value]) => ws.record.prop(target.data, key, value))
         for (const child of childrenOf(node)) {
           if (target.id === parent?.id) ws.record.moveBefore(child, node)
           else ws.record.move(child, target, ws.record.children(target).length)
@@ -326,11 +326,13 @@ export const applyCommand = (ws: Workspace, command: Command) =>
     DeleteBlocks: ({ blockIds }) =>
       Effect.map(selection(ws, blockIds), (roots) => roots.forEach(ws.record.trash)),
     SetCollapsed: ({ blockId, collapsed }) =>
-      Effect.map(blockNode(ws, blockId), (node) => ws.record.set(node, "collapsed", collapsed)),
+      Effect.map(blockNode(ws, blockId), (node) =>
+        ws.record.set(node.data, "collapsed", collapsed),
+      ),
     SetProperty: ({ target, key, value }) =>
       Effect.gen(function* () {
         const node = yield* targetNode(ws, target)
-        ws.record.prop(node, key, value)
+        ws.record.prop(node.data, key, value)
         if (!isPage(node)) yield* touch(ws, node)
       }),
     Undo: () => Effect.sync(ws.undo),

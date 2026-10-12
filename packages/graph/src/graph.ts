@@ -174,6 +174,7 @@ const make = (source: GraphSource) =>
     }
     registerPages()
     const treePlace: Place = {
+      doc,
       root: (index) => tree.createNode(undefined, index),
       trash: () => trashOf({ tree, registry }),
     }
@@ -183,7 +184,7 @@ const make = (source: GraphSource) =>
     const listen = () => {
       unsubscribe ??= doc.subscribe((batch) => {
         collectChanges(batch, pending)
-        history.observe(treePlace, batch)
+        history.observe(doc, batch)
       })
     }
     if (doc.oplogVersion().length() > 0) listen()
