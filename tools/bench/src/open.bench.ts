@@ -8,7 +8,7 @@ import { writeYears } from "./write-years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
-const budgets = { openMs: 5_000, reopenMs: 5_000, reopenSearchMs: 6_000 }
+const budgets = { openMs: 5_000, reopenMs: 5_000, reopenSearchMs: 5_000 }
 const lastPage = "Long page"
 
 const firstJournal = (page: Page) =>

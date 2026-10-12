@@ -16,11 +16,11 @@ import { undoAfterRemote } from "./undo.ts"
 
 const budgets = {
   openMs: 1000,
-  vaultOpenMs: 1500,
+  vaultOpenMs: 1000,
   keystrokeP95Ms: 16,
   undoMs: 16,
   bulkMs: 2000,
-  reopenIndexMs: 250,
+  reopenIndexMs: 100,
 }
 const OPENS = 3
 const KEYSTROKES = 300
