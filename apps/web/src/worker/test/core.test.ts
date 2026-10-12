@@ -96,9 +96,9 @@ const coreOn = (root: string, starter: Starter | null = null, device = "laptop")
     return yield* Effect.provide(RpcTest.makeClient(AllRpcs), handlers)
   })
 
-const tabsOn = (root: string) =>
+const tabsOn = (root: string, storage: Storage["Service"] = nodeStorage(root)) =>
   Effect.gen(function* () {
-    const handlers = yield* Layer.build(coreLayer(root, null))
+    const handlers = yield* Layer.build(coreLayer(root, null, "laptop", storage))
     const replies = new Map<
       number,
       (message: RpcMessage.FromServer<RpcGroup.Rpcs<typeof AllRpcs>>) => Effect.Effect<void>
@@ -1294,6 +1294,51 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         )
       }),
     ),
+  )
+
+  it.live(
+    "a reloaded tab reopens its graph in the same worker once the closing session saved it",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const root = yield* copyOfFixture
+          const disk = nodeStorage(root)
+          const held = { writes: false }
+          const written = yield* Deferred.make<void>()
+          const storage: Storage["Service"] = {
+            ...disk,
+            write: (path, bytes) =>
+              held.writes
+                ? Effect.andThen(Deferred.await(written), disk.write(path, bytes))
+                : disk.write(path, bytes),
+          }
+          const tab = yield* tabsOn(root, storage)
+          const closing = yield* tab(0)
+          const reopening = yield* tab(1)
+          const close = yield* holdLock(tabLock("closing"))
+          const attached = yield* Effect.forkChild(
+            Stream.runDrain(closing.Attach({ tab: "closing" })),
+          )
+          const opened = yield* closing.OpenGraph({ graph: "og-reopened" })
+          const tasks = yield* closing.GetPage({ pageId: named(opened.pages, "tasks").id })
+          const block = tasks.blocks[2] ?? assert.fail("tasks has no third block")
+          held.writes = true
+          yield* closing.Dispatch({
+            command: { _tag: "EditText", blockId: block.id, from: 0, to: 1, insert: "We" },
+          })
+          yield* close
+          yield* Fiber.join(attached)
+          const reopened = yield* Effect.forkChild(reopening.OpenGraph({ graph: "og-reopened" }))
+          assert.isTrue(Option.isNone(yield* Fiber.await(reopened).pipe(Effect.timeoutOption(50))))
+          held.writes = false
+          yield* Deferred.succeed(written, undefined)
+          assert.strictEqual((yield* Fiber.join(reopened)).graph, "og-reopened")
+          assert.strictEqual(
+            (yield* reopening.GetBlock({ blockId: block.id })).text,
+            "We recorded a [[voice note]].",
+          )
+        }),
+      ),
   )
 
   it.live("a core of another version takes the graph over once the first one saved it", () =>

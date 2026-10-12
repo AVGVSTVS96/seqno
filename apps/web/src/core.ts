@@ -4,12 +4,20 @@ import { RpcClient } from "effect/rpc"
 import type { WorkerError } from "effect/workers/WorkerError"
 import { CoreClient, CoreRpcs, PageClient, PageRpcs, tabLock } from "@seqno/rpc"
 
+declare global {
+  // TypeScript's DOM types don't have this option yet: https://github.com/whatwg/html/pull/11600
+  interface WorkerOptions {
+    readonly extendedLifetime?: boolean
+  }
+}
+
 const callsSharingTheWorker = Number.MAX_SAFE_INTEGER
 
 const spawnCoreWorker = () =>
   new SharedWorker(new URL("./worker/main.ts", import.meta.url), {
     type: "module",
     name: "seqno-core",
+    extendedLifetime: true,
   })
 
 const WorkerProtocol = RpcClient.layerProtocolWorker({

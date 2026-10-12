@@ -47,16 +47,17 @@ On a CI runner it opens in about 2 s, scrolls both at a 16.7 ms p95, and keeps a
 
 ## Opening and reopening years of journals, in Chrome
 
-`open.bench.ts`, in the same `scroll` run, writes the same ten years of journals with the `seen` file of the device that wrote the snapshot, opens the folder, waits until search finds the last page the index fill writes, and until the index is saved. Then it reloads the tab, which reopens the graph from the saved index.
+`open.bench.ts`, in the same `scroll` run, writes the same ten years of journals with the `seen` file of the device that wrote the snapshot, opens the folder and waits until the index fill ends and its save starts writing (OPFS shows `indexes/<graph>.sqlite.crswap` while it writes). Then it reloads the tab at once. The worker is a `SharedWorker` with `extendedLifetime`, so it outlives the tab long enough to finish that save, and the reloaded tab reopens the graph from it instead of filling again.
 
-| Number                                | Budget |
-| ------------------------------------- | ------ |
-| Open: first journal on screen         | 5 s    |
-| Reopen: first journal on screen       | 5 s    |
-| Reopen: search finds the last page    | 5 s    |
-| Fill time, save time, index file size | -      |
+| Number                                          | Budget |
+| ----------------------------------------------- | ------ |
+| Open: first journal on screen                   | 5 s    |
+| Reopen: first journal on screen                 | 5 s    |
+| Reopen: the index file the closed tab saved     | > 0 MB |
+| Reopen: search finds the long page's last block | 5 s    |
+| Fill time                                       | -      |
 
-On a CI runner the first open shows a journal in about 1.9 s and fills the index in 55 s; the reopen shows a journal in 2.0 s and search finds the last page in 2.4 s. In Node, the vault open takes about 0.4 s and loading the image and catching up 7 ms, against 6 s for the fill.
+On cloud (headless Chrome 154) the first open shows a journal in about 3 s and fills the index in 72 to 82 s; a reload while the save writes finds the 67 MB file on disk and shows a journal in 3.4 s. Without `extendedLifetime` the reload ended the worker mid-write, left no file, and the reopen filled from scratch. In Node, the vault open takes about 0.4 s and loading the image and catching up 7 ms, against 6 s for the fill.
 
 `SEQNO_BENCH_FOLDER` opens a folder already written with `write-years.ts` instead of writing one.
 

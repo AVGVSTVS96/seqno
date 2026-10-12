@@ -32,6 +32,8 @@ export const importFiles = (
   return importGraph.pipe(Effect.provide(Layer.merge(folder, LogseqSyntaxLive)))
 }
 
+export const lastBlock = "The long page ends with a quillwort."
+
 export const longPageFiles = (blocks: number) => {
   const generated = generateGraph({
     seed: 7,
@@ -44,7 +46,9 @@ export const longPageFiles = (blocks: number) => {
     options: generated.options,
     pages: [page],
     blocks: generated.blocks.map((block) => ({ ...block, pageId: page.id })),
-  }).slice(1)
+  })
+    .slice(1)
+    .map((file) => ({ ...file, content: `${file.content.trimEnd()}\n- ${lastBlock}\n` }))
 }
 
 export const loadYears = (graph: Graph["Service"], { years, until, longPage }: Years) =>

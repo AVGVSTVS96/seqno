@@ -5,21 +5,21 @@ import { expect, test, type Page } from "@playwright/test"
 import { Effect } from "effect"
 import { pickFolder } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
+import { lastBlock } from "./years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
 const budgets = { openMs: 5_000, reopenMs: 5_000, reopenSearchMs: 5_000 }
-const lastPage = "Long page"
 
 const firstJournal = (page: Page) =>
   page.locator(".seqno-journal [role=treeitem]").first().waitFor()
 
-const searchFinds = async (page: Page, title: string) => {
+const searchFindsLastBlock = async (page: Page) => {
   await page.getByRole("button", { name: "Search", exact: true }).click()
   const box = page.getByRole("searchbox", { name: "Search" })
-  const option = page.getByRole("option", { name: title, exact: true }).first()
+  const option = page.getByRole("option").filter({ hasText: lastBlock }).first()
   for (;;) {
-    await box.fill(title)
+    await box.fill(lastBlock)
     const found = await option.waitFor({ timeout: 250 }).then(
       () => true,
       () => false,
@@ -43,9 +43,28 @@ const savedIndexBytes = (page: Page) =>
     return 0
   })
 
+const indexSave = (page: Page) =>
+  page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    const indexes = await root.getDirectoryHandle("indexes").catch(() => undefined)
+    if (indexes === undefined) return "none"
+    for await (const handle of indexes.values()) {
+      if (handle.name.endsWith(".sqlite.crswap")) return "writing"
+      if (handle.kind === "file" && (await handle.getFile()).size > 0) return "written"
+    }
+    return "none"
+  })
+
+const saveStarted = async (page: Page) => {
+  for (;;) {
+    const state = await indexSave(page)
+    if (state !== "none") return state
+  }
+}
+
 const since = (started: number) => performance.now() - started
 
-test(`${years} years of journals open from their snapshot, and reopen from the saved index`, async ({
+test(`${years} years of journals open from their snapshot, and a reload while the index saves reopens from that save`, async ({
   page,
 }) => {
   const given = process.env["SEQNO_BENCH_FOLDER"]
@@ -60,27 +79,28 @@ test(`${years} years of journals open from their snapshot, and reopen from the s
     await page.getByRole("button", { name: "Open a folder" }).first().click()
     await firstJournal(page)
     const openMs = since(opening)
-    await searchFinds(page, lastPage)
-    const filledMs = since(opening)
-    await expect.poll(() => savedIndexBytes(page), { timeout: 120_000 }).toBeGreaterThan(0)
-    const savedMs = since(opening)
-    const indexMb = (await savedIndexBytes(page)) / 1e6
+    const reloadedWhile = await saveStarted(page)
+    const savingMs = since(opening)
 
     const reopening = performance.now()
     await page.reload()
     await firstJournal(page)
     const reopenMs = since(reopening)
-    await searchFinds(page, lastPage)
+    const indexMb = (await savedIndexBytes(page)) / 1e6
+    await searchFindsLastBlock(page)
     const reopenSearchMs = since(reopening)
 
     const rows = [
       { what: "open: first journal on screen", value: openMs, budget: budgets.openMs },
-      { what: "open: search finds the last page filled", value: filledMs, budget: null },
-      { what: "open: index saved", value: savedMs, budget: null },
-      { what: "index file MB", value: indexMb, budget: null },
-      { what: "reopen: first journal on screen", value: reopenMs, budget: budgets.reopenMs },
       {
-        what: "reopen: search finds the last page",
+        what: `open: filled, index save ${reloadedWhile} at reload`,
+        value: savingMs,
+        budget: null,
+      },
+      { what: "reopen: first journal on screen", value: reopenMs, budget: budgets.reopenMs },
+      { what: "reopen: index file MB the closed tab saved", value: indexMb, budget: null },
+      {
+        what: "reopen: search finds the last block",
         value: reopenSearchMs,
         budget: budgets.reopenSearchMs,
       },
@@ -89,6 +109,7 @@ test(`${years} years of journals open from their snapshot, and reopen from the s
     expect(
       rows.filter((row) => row.budget !== null && row.value > row.budget).map((row) => row.what),
     ).toEqual([])
+    expect(indexMb).toBeGreaterThan(0)
   } finally {
     if (given === undefined) await rm(folder, { recursive: true })
   }
