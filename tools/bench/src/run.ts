@@ -5,10 +5,12 @@ import { Index } from "@seqno/index"
 import { layerNode } from "@seqno/index/node"
 import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { emptyGraph, serviceOf } from "./graph.ts"
+import { undoAfterRemote } from "./undo.ts"
 
-const budgets = { openMs: 1000, keystrokeP95Ms: 16 }
+const budgets = { openMs: 1000, keystrokeP95Ms: 16, undoMs: 16 }
 const OPENS = 3
 const KEYSTROKES = 300
+const REMOTE_EDITS = 1000
 
 const timed = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
@@ -71,12 +73,18 @@ const main = Effect.gen(function* () {
     )
     keystrokes.push(ms)
   }
+  const undos = yield* Effect.scoped(undoAfterRemote(snapshot, REMOTE_EDITS))
   const rows = [
     { what: "open: page list and first page (median)", ms: median(opens), budget: budgets.openMs },
     {
       what: "keystroke: edit and index write (p95)",
       ms: p95(keystrokes),
       budget: budgets.keystrokeP95Ms,
+    },
+    {
+      what: `undo after ${REMOTE_EDITS} edits from another device (slowest)`,
+      ms: Math.max(...undos),
+      budget: budgets.undoMs,
     },
     { what: "import and seed", ms: seedMs, budget: null },
     { what: "index fill behind the open", ms: fillMs, budget: null },

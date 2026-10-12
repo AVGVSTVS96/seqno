@@ -11,11 +11,12 @@ import {
   Semaphore,
   Stream,
 } from "effect"
-import { LoroDoc, UndoManager, VersionVector, type LoroTreeNode } from "loro-crdt"
+import { LoroDoc, VersionVector, type LoroTreeNode } from "loro-crdt"
 import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
-import { applyCommand, mergeTargetOf, type Unresolved, type Workspace } from "./commands.ts"
+import { applyCommand, mergeTargetOf, trashOf, type Unresolved } from "./commands.ts"
 import { collectChanges, emptyPending, translate } from "./events.ts"
+import { histories, type Place } from "./history.ts"
 import { loader } from "./loader.ts"
 import { emptyRegistry } from "./registry.ts"
 import { repairAll, repairPages, type LivePages } from "./repair.ts"
@@ -124,14 +125,8 @@ export class Graph extends Context.Service<
 
 const LOADED = "seqno:load"
 const REPAIRED = "seqno:repair"
-const UNDONE = "undo"
 
 const clientOrigin = (client: string) => `seqno:client:${client};`
-
-interface History {
-  readonly undo: UndoManager
-  typingIn: BlockId | null
-}
 
 const typedBlock = (command: Command): BlockId | null =>
   command._tag === "EditText"
@@ -169,59 +164,23 @@ const make = (source: GraphSource) =>
       }
     }
     registerPages()
-    const histories = new Map<string, History>()
-    const historyOf = (client: string): History => {
-      const found = histories.get(client)
-      if (found !== undefined) return found
-      const undo = new UndoManager(doc, {
-        mergeInterval: 0,
-        excludeOriginPrefixes: [
-          LOADED,
-          REPAIRED,
-          UNDONE,
-          ...[...histories.keys()].map(clientOrigin),
-        ],
-      })
-      for (const other of histories.values())
-        other.undo.addExcludeOriginPrefix(clientOrigin(client))
-      const history: History = { undo, typingIn: null }
-      histories.set(client, history)
-      return history
+    const treePlace: Place = {
+      root: (index) => tree.createNode(undefined, index),
+      trash: () => trashOf({ tree, registry }),
     }
-    const workspaceOf = (client: string): Workspace => ({
-      tree,
-      registry,
-      undo: historyOf(client).undo,
-    })
-    const endTyping = (history: History) => {
-      if (history.typingIn !== null) history.undo.groupEnd()
-      history.typingIn = null
-    }
-    const groupTyping = (client: string, block: BlockId | null) => {
-      const history = historyOf(client)
-      if (block === history.typingIn) return
-      endTyping(history)
-      if (block === null) return
-      history.undo.groupStart()
-      history.typingIn = block
-    }
-    const forgetHistories = () => {
-      for (const history of histories.values()) {
-        endTyping(history)
-        history.undo.free()
-      }
-      histories.clear()
-    }
+    const history = histories()
     let pending = emptyPending()
     let unsubscribe: (() => void) | undefined
     const listen = () => {
-      unsubscribe ??= doc.subscribe((batch) => collectChanges(batch, pending))
+      unsubscribe ??= doc.subscribe((batch) => {
+        collectChanges(batch, pending)
+        history.observe(treePlace, batch)
+      })
     }
     if (doc.oplogVersion().length() > 0) listen()
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         unsubscribe?.()
-        forgetHistories()
         doc.free()
       }),
     )
@@ -336,33 +295,40 @@ const make = (source: GraphSource) =>
         ),
       )
 
-    const committed =
-      (client: string) =>
-      (applied: Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto>) =>
-        applied.pipe(
-          Effect.catchTag("Unresolved", ({ id }) =>
-            Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
-          ),
-          Effect.provideService(Crypto.Crypto, crypto),
-          Effect.andThen(Effect.sync(() => doc.commit({ origin: clientOrigin(client) }))),
-          Effect.andThen(repair),
-          Effect.andThen(drain),
+    const transact = (
+      client: string,
+      commands: ReadonlyArray<Command>,
+      typing: BlockId | null,
+    ): Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto> =>
+      Effect.suspend(() => {
+        listen()
+        const tx = history.begin(client, typing, () => doc.commit({ origin: clientOrigin(client) }))
+        const ws = { tree, registry, record: tx.record(treePlace), undo: tx.undo, redo: tx.redo }
+        return Effect.forEach(commands, (command) => applyCommand(ws, command), {
+          discard: true,
+        }).pipe(
+          Effect.onError(() => Effect.sync(tx.abort)),
+          Effect.andThen(Effect.sync(tx.close)),
         )
+      })
+
+    const committed = (applied: Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto>) =>
+      applied.pipe(
+        Effect.catchTag("Unresolved", ({ id }) =>
+          Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
+        ),
+        Effect.provideService(Crypto.Crypto, crypto),
+        Effect.andThen(repair),
+        Effect.andThen(drain),
+      )
 
     const dispatch = (command: Command, client = "") =>
       serial(
-        Effect.suspend(() => {
-          listen()
-          groupTyping(client, typedBlock(command))
-          return applyCommand(workspaceOf(client), command)
-        }).pipe(
+        transact(client, [command], typedBlock(command)).pipe(
           Effect.catchTag("Unresolved", () =>
-            Effect.andThen(
-              filled.await,
-              Effect.suspend(() => applyCommand(workspaceOf(client), command)),
-            ),
+            Effect.andThen(filled.await, transact(client, [command], typedBlock(command))),
           ),
-          committed(client),
+          committed,
         ),
       )
 
@@ -371,44 +337,24 @@ const make = (source: GraphSource) =>
       if (first === undefined) return Effect.succeed([])
       if (rest.length === 0) return dispatch(first, client)
       return serial(
-        Effect.andThen(
-          filled.await,
-          Effect.suspend(() => {
-            listen()
-            groupTyping(client, typedInOneBlock(commands))
-            const ws = workspaceOf(client)
-            return Effect.forEach(commands, (command) => applyCommand(ws, command), {
-              discard: true,
-            })
-          }),
-        ).pipe(committed(client)),
+        Effect.andThen(filled.await, transact(client, commands, typedInOneBlock(commands))).pipe(
+          committed,
+        ),
       )
     }
 
-    const release = (client: string) =>
-      serial(
-        Effect.sync(() => {
-          const history = histories.get(client)
-          if (history === undefined) return
-          endTyping(history)
-          history.undo.free()
-          histories.delete(client)
-        }),
-      )
+    const release = (client: string) => serial(Effect.sync(() => history.release(client)))
 
     const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
 
     const mergeNow = (updates: ReadonlyArray<Uint8Array>) =>
       Effect.suspend(() => {
         listen()
-        const before = ownCounter()
-        const caughtUp = before === flushed
-        histories.forEach(endTyping)
+        const caughtUp = ownCounter() === flushed
         return importAll(updates).pipe(
           Effect.tap(() =>
             Effect.sync(() => {
               if (caughtUp) flushed = ownCounter()
-              if (ownCounter() !== before) forgetHistories()
             }),
           ),
           Effect.andThen(repair),

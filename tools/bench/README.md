@@ -10,12 +10,13 @@ pnpm --filter @seqno/bench bench
 
 It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and takes a snapshot. Then:
 
-| Number                                  | Budget | How                                                                         |
-| --------------------------------------- | ------ | --------------------------------------------------------------------------- |
-| Open: page list and first page (median) | 1 s    | `restore` the snapshot into an empty graph, list the pages, read a journal. |
-| Keystroke: edit and index write (p95)   | 16 ms  | 300 `EditText` commands, each followed by its index write.                  |
-| Import and seed                         | -      | Reported only.                                                              |
-| Index fill behind the open              | -      | Reported only.                                                              |
+| Number                                  | Budget | How                                                                                             |
+| --------------------------------------- | ------ | ----------------------------------------------------------------------------------------------- |
+| Open: page list and first page (median) | 1 s    | `restore` the snapshot into an empty graph, list the pages, read a journal.                     |
+| Keystroke: edit and index write (p95)   | 16 ms  | 300 `EditText` commands, each followed by its index write.                                      |
+| Undo after 1k edits from another device | 16 ms  | Type into 5 blocks (10 steps), merge 1,000 edits from a second graph, undo all 10; the slowest. |
+| Import and seed                         | -      | Reported only.                                                                                  |
+| Index fill behind the open              | -      | Reported only.                                                                                  |
 
 ## Years of journals, in Chrome
 

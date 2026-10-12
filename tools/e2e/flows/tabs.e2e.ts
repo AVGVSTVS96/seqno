@@ -45,6 +45,24 @@ test("a second tab opens the same graph, and each tab sees what the other types"
   expect(errors).toEqual([])
 })
 
+test("Ctrl+Z in one tab takes back only what that tab typed into a block both edited", async ({
+  page,
+  seqno,
+}) => {
+  const { other, errors } = await anotherTab(page)
+  await editEnd(page, welcome)
+  await page.keyboard.type(", first")
+  await expect(todayOn(other).getByRole("treeitem").first()).toHaveText(`${welcome}, first`)
+  await editEnd(other, welcome)
+  await other.keyboard.type(", second")
+  await expect(seqno.today.getByRole("treeitem").first()).toHaveText(`${welcome}, first, second`)
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(todayOn(other).getByRole("treeitem").first()).toHaveText(`${welcome}, second`)
+  await page.keyboard.press("ControlOrMeta+Shift+z")
+  await expect(todayOn(other).getByRole("treeitem").first()).toHaveText(`${welcome}, first, second`)
+  expect(errors).toEqual([])
+})
+
 test("two tabs typing at the same time keep every key", async ({ page, seqno }) => {
   const { other, errors } = await anotherTab(page)
   await editEnd(page, welcome)

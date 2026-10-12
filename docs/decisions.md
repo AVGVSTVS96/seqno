@@ -143,13 +143,42 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 ## Deleting moves to a hidden trash
 
-**Decision.** `DeleteBlocks`, `DeletePage` and the emptied block of a `MergeWithPrevious` move their nodes under a root marked `trash` instead of calling Loro's delete. Everything under it reads as deleted: events report `BlockDeleted` and `PageDeleted` when nodes go in, and `BlockUpserted` and `PageUpserted` when undo moves them out.
+**Decision.** `DeleteBlocks`, `DeletePage` and the emptied block of a `MergeWithPrevious` move their nodes under a root marked `trash` instead of calling Loro's delete. Undoing an insert or a new page moves it there too, and redo moves it back. Everything under it reads as deleted: events report `BlockDeleted` and `PageDeleted` when nodes go in, and `BlockUpserted` and `PageUpserted` when undo moves them out.
 
-**Why.** Loro's undo of a tree delete creates a new node with the old data, and Loro refuses to move a deleted node, so the original can't come back. Text another device typed into the deleted block before it heard of the delete stays on the old node and is lost on undo. A move is undone by moving back, so the original node, with every concurrent edit, returns.
+**Why.** Loro refuses to move a deleted node, so a deleted original can't come back; Loro's own undo of a tree delete created a new node with the old data. Text another device typed into the deleted block before it heard of the delete stays on the old node and is lost on undo. A move is undone by moving back, so the original node, with every concurrent edit, returns.
 
 **Cost.** Deleted blocks stay in the doc, as Loro already keeps deleted nodes' state to merge concurrent edits. Nothing empties the trash yet.
 
 **Numbers.** None. `packages/graph/test/sync.test.ts` deletes a block on one device while another types into it, undoes the delete, and both devices end with the typed text; with Loro's delete the undo brings back the block without it.
+
+## Undo is seqno's own, not Loro's UndoManager
+
+**Decision.** `@seqno/graph` keeps its own undo. Each command records its inverse as it applies, through a recorder that every mutation goes through: a text edit records a delta that takes it back, a new block or page records "move it to the trash", a move (a delete is a move into the trash) records the old parent and the sibling the node came after, and a property or field write records the old value. Each tab has its own undo and redo stacks of up to 100 steps. Undo applies the top step's inverses in reverse through the same recorder, which records the redo. Nothing reads Loro's history: undo works on the current state only.
+
+**Why.** Loro 1.16.4's `UndoManager` works out each step by checking out the version before it and back. Checking out an older version rebuilds every text changed since by replaying the whole history from empty ([loro.rs](https://github.com/loro-dev/loro/blob/loro-crdt%401.16.4/crates/loro-internal/src/loro.rs#L1291-L1319), [diff_calc.rs](https://github.com/loro-dev/loro/blob/loro-crdt%401.16.4/crates/loro-internal/src/diff_calc.rs#L1804-L1823), [replay](https://github.com/loro-dev/loro/blob/loro-crdt%401.16.4/crates/loro-internal/src/diff_calc.rs#L559-L599)), so one undo costs (blocks changed since the step) × (size of the history), and every block another device edits makes the next undo slower. Loro text cursors can't anchor the inverses either: finding where a deleted character was goes through the same replay ([`query_pos_internal`](https://github.com/loro-dev/loro/blob/loro-crdt%401.16.4/crates/loro-internal/src/loro.rs#L2711-L2790)).
+
+How text stays right without cursors: a text inverse is a delta in the block's current positions, and every Loro event on that block (another tab, another device, this tab's own later steps) rebases it, the way operational transforms rebase a pending change. Text someone else typed inside a range the step would delete splits that delete around it, so undo never removes their characters. Typing in one block keeps composing into one step, even across merges. Rebasing through a step and then through its undo is not a round trip where deleted text collapses to one position (delete a word, later delete the letter after it, undo both: the word would come back after the letter). So each pending text inverse also remembers what it was before each of this tab's later steps, and undoing a step puts that back exactly; redoing it puts back the other side.
+
+What carried over and what changed. Per-tab history, one step per command or per typing run in one block, deletes that bring back the same nodes, and edits from other devices never undone, all as before. New: a step leaves alone any property or block that another tab or device changed after it (Loro's undo put its own value back over theirs); undoing an insert moves the block to the trash instead of deleting it, so redo brings back the same block; and a rejected `DispatchAll` is rolled back instead of left half applied for the next commit to carry.
+
+**Limits.** One tab's own history undoes and redoes exactly. When another tab or device edited the same block between a step and its undo, positions come from rebasing alone, as with Loro's own undo: text put back next to someone else's insert at the same spot can land on the other side of it, and a character typed, then deleted in a later step, can survive both undos.
+
+**Cost.** Each change to a block rebases only the inverses pending on that block. Steps hold Loro handles to their nodes and texts plus the doc and tree they came from, and the rebasing is keyed by doc and text, so a later split into one Loro doc per page adds more of them without changing the history.
+
+**Numbers.** Node on `cloud` (a Fly.io Sprite): type into 5 blocks (10 steps), merge edits another device made to 0 to 1,000 blocks (including those 5), then undo all 10 steps. Ranges are over the 10 undos.
+
+| Undo one step                   | Loro's `UndoManager` | seqno's own   |
+| ------------------------------- | -------------------- | ------------- |
+| 50k graph, no other device      | 73 to 727 ms         | 0.4 to 2.8 ms |
+| after 10 edits from another one | 0.59 to 0.66 s       | 0.3 to 1.9 ms |
+| after 100                       | 6.1 to 6.4 s         | 0.3 to 2.3 ms |
+| after 1,000                     | 61.8 to 63.0 s       | 0.3 to 2.6 ms |
+| 10 years of journals, no other  | 0.23 to 3.1 s        | 0.4 to 3.3 ms |
+| after 10                        | 2.2 to 2.5 s         | 0.3 to 6.7 ms |
+| after 100                       | 21.5 to 22.5 s       | 0.4 to 3.1 ms |
+| after 1,000                     | 187 s (one probe)    | 0.3 to 2.8 ms |
+
+On the 10-year graph a cursor resolves in 0.06 ms while its character exists and in 188 ms to 2.4 s once it was deleted. `tools/bench` checks "undo after 1k edits from another device" against 16 ms on every CI run (2.4 ms on `cloud`). The sync simulator's real-graph suite, whose workload undoes and redoes, passed 50 of 50 seeds (600 ops each) with no violations. `packages/graph/test/undo.test.ts` runs 30 random sessions on one device that must undo to the exact starting text and redo to the exact edited text, and 30 with a second device typing into the same block that must keep every character it typed.
 
 ## Save each edit as it lands
 
@@ -165,7 +194,7 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 **Decision.** The core worker is a SharedWorker. Every tab of one seqno build talks to it, so a graph open in several tabs is one Loro doc, one index and one peer id, and edits from any tab go through one writer. A Web Lock per graph keeps a second worker (a tab still on an older build) from writing it at the same time. A newer build takes a graph over by stealing its handover lock: the older worker saves, releases the graph and tells its tabs to reload. Each tab holds a lock of its own, and the worker waits on it to learn when the tab closes.
 
-**Why.** A Loro peer id must never have two writers, and the vault writes one update stream per device. Before this, each tab ran its own worker with the profile's one peer id, so a graph could only be open in one tab and a second tab sat on a "this graph is open in another tab" screen. The alternatives cost more: a peer id per tab would mint new peers on every open and multiply the edit log's members, and N copies of the doc and index in memory; electing one tab's dedicated worker as leader means moving in-flight calls and every live watch to a new leader when that tab closes. A SharedWorker outlives any one tab, so closing or reloading a tab loses nothing while another tab has the graph. It works because the vault writes with File System Access writables and the index is in-memory SQLite: OPFS sync access handles, which only dedicated workers get, aren't used. Keeping the index on disk (Hardening, step 1) has to work within that. Each tab still gets its own undo history: its commits carry a per-tab origin, which every other tab's `UndoManager` excludes, and undo's own commits (origin `undo`) are excluded by all of them.
+**Why.** A Loro peer id must never have two writers, and the vault writes one update stream per device. Before this, each tab ran its own worker with the profile's one peer id, so a graph could only be open in one tab and a second tab sat on a "this graph is open in another tab" screen. The alternatives cost more: a peer id per tab would mint new peers on every open and multiply the edit log's members, and N copies of the doc and index in memory; electing one tab's dedicated worker as leader means moving in-flight calls and every live watch to a new leader when that tab closes. A SharedWorker outlives any one tab, so closing or reloading a tab loses nothing while another tab has the graph. It works because the vault writes with File System Access writables and the index is in-memory SQLite: OPFS sync access handles, which only dedicated workers get, aren't used. Keeping the index on disk (Hardening, step 1) has to work within that. Each tab still gets its own undo history: the graph keeps undo and redo stacks per tab (see "Undo is seqno's own").
 
 **Numbers.** None on speed: every tab already talked to a worker, and now it is the same one. The four flows in `tools/e2e/flows/tabs.e2e.ts` (two tabs typing, closing one, reloading one) passed 60 of 60 runs, 15 each, against a production build in headless Chrome.
 

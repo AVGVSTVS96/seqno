@@ -149,9 +149,15 @@ const propKeysOf = (node: LoroTreeNode): LoroList => {
   return keys instanceof LoroList ? keys : node.data.ensureMergeableList("propKeys")
 }
 
+export const propKeysIn = (node: LoroTreeNode): ReadonlyArray<string> => {
+  const keys = node.data.get("propKeys")
+  return keys instanceof LoroList
+    ? keys.toArray().flatMap((key) => (typeof key === "string" ? [key] : []))
+    : []
+}
+
 export const readProps = (node: LoroTreeNode): Props => {
   const props = node.data.get("props")
-  const keys = node.data.get("propKeys")
   return props instanceof LoroMap
     ? inOrder(
         Object.fromEntries(
@@ -159,14 +165,17 @@ export const readProps = (node: LoroTreeNode): Props => {
             typeof value === "string" ? [[key, value]] : [],
           ),
         ),
-        keys instanceof LoroList
-          ? keys.toArray().flatMap((key) => (typeof key === "string" ? [key] : []))
-          : [],
+        propKeysIn(node),
       )
     : {}
 }
 
-export const setProp = (node: LoroTreeNode, key: string, value: string | null): void => {
+export const setProp = (
+  node: LoroTreeNode,
+  key: string,
+  value: string | null,
+  after?: string | null,
+): void => {
   const props = propsOf(node)
   const keys = propKeysOf(node)
   const listed = keys.toArray()
@@ -179,7 +188,11 @@ export const setProp = (node: LoroTreeNode, key: string, value: string | null): 
     return
   }
   props.set(key, value)
-  if (!listed.includes(key)) keys.push(key)
+  if (listed.includes(key)) return
+  if (after === null) keys.insert(0, key)
+  else if (after !== undefined && listed.includes(after))
+    keys.insert(listed.indexOf(after) + 1, key)
+  else keys.push(key)
 }
 
 export const textValue = (node: LoroTreeNode): string => {
@@ -219,10 +232,6 @@ export const loadPage = (tree: LoroTree, { page, blocks }: PageTree, now: number
     writeProps(node, block.props)
     nodes.set(block.id, node)
   }
-}
-
-export const touch = (node: LoroTreeNode, now: number): void => {
-  node.data.set("updated", now)
 }
 
 export const placementOf = (node: LoroTreeNode): Option.Option<Placement> => {
