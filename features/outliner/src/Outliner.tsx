@@ -359,9 +359,13 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const [edgeObserver] = useState(
     () =>
       new IntersectionObserver(
-        (entries) => {
-          const element = entries[0]?.target.parentElement ?? null
-          setViewport((current) => viewportOf(element, current))
+        (entries, observer) => {
+          setViewport((current) => viewportOf(container.current, current))
+          for (const { target, isIntersecting } of entries) {
+            if (!isIntersecting || !target.isConnected) continue
+            observer.unobserve(target)
+            observer.observe(target)
+          }
         },
         { rootMargin: edgeMargin, scrollMargin: edgeMargin },
       ),

@@ -171,3 +171,40 @@ test("hovering an image shows its actions, and the corner resizes it for good", 
   await row.getByRole("button", { name: "Delete image" }).click()
   await expect(page.getByRole("main").locator(".seqno-image-frame")).toHaveCount(0)
 })
+
+test("a long page fills the view when a scroll lands just as the rows catch up", async ({
+  page,
+}) => {
+  await openShowcase(page, "/page/showcase")
+  const outline = page.getByRole("main").getByRole("tree").first()
+  const gapsInView = () =>
+    outline.evaluate(
+      (tree) =>
+        [...tree.querySelectorAll(":scope > .seqno-gap")].filter((gap) => {
+          const box = gap.getBoundingClientRect()
+          return box.bottom > 0 && box.top < window.innerHeight
+        }).length,
+    )
+  await expect.poll(gapsInView).toBe(0)
+  await outline.evaluate(
+    (tree) =>
+      new Promise<void>((resolve) => {
+        const main = tree.closest("main")
+        const lastGap = () =>
+          [...tree.querySelectorAll(":scope > .seqno-gap")].at(-1)?.getBoundingClientRect()
+        const below = () => (lastGap()?.top ?? 0) + (main?.scrollTop ?? 0)
+        const reached = below()
+        const caughtUp = new MutationObserver(() => {
+          const gap = lastGap()
+          if (gap === undefined || below() <= reached) return
+          caughtUp.disconnect()
+          main?.scrollBy(0, gap.top - window.innerHeight - 200)
+          resolve()
+        })
+        caughtUp.observe(tree, { childList: true, subtree: true })
+        main?.scrollBy(0, 700)
+      }),
+  )
+  await outline.evaluate((tree) => tree.closest("main")?.scrollBy(0, 400))
+  await expect.poll(gapsInView).toBe(0)
+})
