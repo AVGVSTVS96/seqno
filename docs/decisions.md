@@ -235,7 +235,7 @@ On the 10-year graph a cursor resolves in 0.06 ms while its character exists and
 | Outdent 5,000 children of one block | over 380 s (stopped) | 1.1 s          |
 | Index write for the 5,000 deletes   | -                    | 0.35 s         |
 
-Pasting 5,000 blocks (1.2 to 1.7 s) never took this path. Its time is Loro writing and committing the new blocks plus the events for them, about 0.25 ms a block. `tools/bench` checks delete, its undo, and move against 1 s, and indent against 2 s, on every CI run. The sync simulator's real-graph suite passed 50 of 50 seeds (600 ops each) with no violations.
+Pasting 5,000 blocks (1.2 to 1.7 s) never took this path. Its time is Loro writing and committing the new blocks plus the events for them, about 0.25 ms a block. `tools/bench` checks all four of its numbers (delete, its undo, move, indent) against 2 s on every CI run; a CI runner measured 0.55, 0.23, 0.27 and 0.67 s. The sync simulator's real-graph suite passed 50 of 50 seeds of 600 ops and 6 of 6 seeds of 10k ops with no violations.
 
 ## Smaller decisions
 

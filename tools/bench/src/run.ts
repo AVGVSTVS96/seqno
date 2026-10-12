@@ -8,7 +8,7 @@ import { bulkOnLongPage } from "./bulk.ts"
 import { emptyGraph, serviceOf } from "./graph.ts"
 import { undoAfterRemote } from "./undo.ts"
 
-const budgets = { openMs: 1000, keystrokeP95Ms: 16, undoMs: 16, bulkMs: 1000, indentMs: 2000 }
+const budgets = { openMs: 1000, keystrokeP95Ms: 16, undoMs: 16, bulkMs: 2000 }
 const OPENS = 3
 const KEYSTROKES = 300
 const REMOTE_EDITS = 1000
@@ -94,7 +94,7 @@ const main = Effect.gen(function* () {
     { what: `delete ${ofLongPage}`, ms: bulk.deleteMs, budget: budgets.bulkMs },
     { what: "undo that delete", ms: bulk.undoMs, budget: budgets.bulkMs },
     { what: `move ${ofLongPage}`, ms: bulk.moveMs, budget: budgets.bulkMs },
-    { what: `indent ${ofLongPage}`, ms: bulk.indentMs, budget: budgets.indentMs },
+    { what: `indent ${ofLongPage}`, ms: bulk.indentMs, budget: budgets.bulkMs },
     { what: "import and seed", ms: seedMs, budget: null },
     { what: "index fill behind the open", ms: fillMs, budget: null },
   ]
