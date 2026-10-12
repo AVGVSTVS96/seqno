@@ -86,7 +86,7 @@ const dropOrphans = (listed: Effect.Effect<ReadonlyArray<string>, Error>) =>
     const files = yield* Effect.tryPromise(() => namesIn(folder))
     const kept = new Set((yield* listed).map(indexName))
     yield* Effect.forEach(
-      files.filter((file) => !kept.has(file)),
+      files.filter((file) => file.endsWith(".sqlite") && !kept.has(file)),
       (file) => Effect.ignore(Effect.tryPromise(() => folder.removeEntry(file))),
       { discard: true },
     )
