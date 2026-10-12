@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Option } from "effect"
 import { decodeImportBlobMeta } from "loro-crdt"
 import type { PageId } from "@seqno/domain"
-import { Graph, PeerId, vaultReplica } from "@seqno/graph"
+import { Graph, PeerId, graphV2Layer, vaultReplica } from "@seqno/graph"
 import { Graphs, type Replica, type ReplicaSpec } from "./ports.ts"
 import type { Span, VV } from "./vv.ts"
 
@@ -20,12 +20,12 @@ const blobSpan = (bytes: Uint8Array, checksum: boolean): Option.Option<Span> => 
   }
 }
 
-const open = (spec: ReplicaSpec) =>
+const opener = (layerOf: typeof Graph.layer) => (spec: ReplicaSpec) =>
   Effect.gen(function* () {
     const graph = Context.get(
       yield* Effect.orDie(
         Layer.build(
-          Graph.layer({
+          layerOf({
             peer: PeerId.make(String(spec.peer)),
             snapshot: Option.none(),
             updates: [],
@@ -78,4 +78,12 @@ const open = (spec: ReplicaSpec) =>
     return replica
   })
 
-export const RealGraphs = Layer.succeed(Graphs, Graphs.of({ open, blobSpan, full: true }))
+export const RealGraphs = Layer.succeed(
+  Graphs,
+  Graphs.of({ open: opener(Graph.layer), blobSpan, full: true }),
+)
+
+export const PagesGraphs = Layer.succeed(
+  Graphs,
+  Graphs.of({ open: opener(graphV2Layer), blobSpan, full: true }),
+)

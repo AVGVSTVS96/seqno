@@ -101,7 +101,9 @@ export const summarize = (
     },
     ops: {
       perSeedMean: mean(
-        results.map((r) => sum(Object.values(r.ops)) - r.ops.rejected - r.ops.cyclePairs),
+        results.map(
+          (r) => sum(Object.values(r.ops)) - r.ops.rejected - r.ops.cyclePairs - r.ops.crossPage,
+        ),
       ),
       rejected: sum(results.map((r) => r.ops.rejected)),
       cyclePairs: sum(results.map((r) => r.ops.cyclePairs)),

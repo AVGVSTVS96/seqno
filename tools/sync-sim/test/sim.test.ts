@@ -150,6 +150,28 @@ describe("simulated seeds", () => {
   )
 
   it.effect(
+    "the tree-per-page graph converges with moves between pages, cycles, merges, undo and restarts",
+    () =>
+      Effect.gen(function* () {
+        const result = yield* runJob({
+          ...job,
+          seed: 5,
+          ops: 600,
+          hours: 24,
+          vault: "real",
+          graph: "pages",
+        })
+        assert.deepStrictEqual(result.problems, [])
+        assert.isAbove(result.restarts, 0)
+        assert.isAbove(result.ops.crossPage, 0)
+        assert.isAbove(result.ops.cyclePairs, 0)
+        assert.isAbove(result.ops.sharedPage, 0)
+        assert.isAbove(result.ops.undo + result.ops.redo, 0)
+      }),
+    120_000,
+  )
+
+  it.effect(
     "a vault that treats placeholders as empty files is caught",
     () =>
       Effect.gen(function* () {

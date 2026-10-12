@@ -39,7 +39,7 @@ const Options = Schema.Struct({
   compaction: Schema.Literals(["on", "off"]),
   bug: Schema.optionalKey(Schema.Literals(bugs)),
   vault: Schema.Literals(["stand-in", "real"]),
-  graph: Schema.Literals(["stand-in", "real"]),
+  graph: Schema.Literals(["stand-in", "real", "pages"]),
   workers: Schema.FiniteFromString,
   out: Schema.optionalKey(Schema.String),
   "timeout-s": Schema.FiniteFromString,
@@ -74,7 +74,7 @@ const runParent = async () => {
     devices: options.devices,
     compaction: options.compaction === "on",
     bug: options.bug ?? null,
-    vault: options.graph === "real" ? "real" : options.vault,
+    vault: options.graph === "stand-in" ? options.vault : "real",
     graph: options.graph,
   }
   const workers = Math.min(4, options.workers, count)

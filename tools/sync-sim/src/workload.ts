@@ -20,7 +20,7 @@ export type OpKind =
   | "redo"
   | "sharedPage"
 
-export type Counts = Record<OpKind | "cyclePairs" | "rejected", number>
+export type Counts = Record<OpKind | "cyclePairs" | "crossPage" | "rejected", number>
 
 export interface Intent {
   readonly blocks: BlockId[]
@@ -85,6 +85,7 @@ export const createIntent = (): Intent => ({
     redo: 0,
     sharedPage: 0,
     cyclePairs: 0,
+    crossPage: 0,
     rejected: 0,
   },
 })
@@ -420,12 +421,19 @@ export class Workload {
           if (parent.value.parentId === null && after === undefined) {
             return false
           }
+          const from = yield* replica.block(block.value)
           const sent = yield* this.send(replica, {
             _tag: "MoveBlocks",
             blockIds: [block.value],
             parentId: parent.value.parentId,
             ...(after === undefined ? {} : { after }),
           })
+          if (
+            Option.isSome(sent) &&
+            !Option.exists(from, (b) => b.pageId === parent.value.pageId)
+          ) {
+            intent.counts.crossPage++
+          }
           return Option.isSome(sent)
         }),
       ),
