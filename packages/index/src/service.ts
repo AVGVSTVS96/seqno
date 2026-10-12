@@ -379,7 +379,11 @@ const make = Effect.gen(function* () {
     writer.withPermits(1)(
       Effect.flatMap(pages, (read) =>
         sqlite.transaction(
-          (db) => void applyAll(db, read.map((page): GraphEvent => ({ _tag: "PageUpserted", page }))),
+          (db) =>
+            void applyAll(
+              db,
+              read.map((page): GraphEvent => ({ _tag: "PageUpserted", page })),
+            ),
         ),
       ),
     )

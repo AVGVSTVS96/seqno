@@ -546,7 +546,10 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
         yield* index.fill(
           pagesOf(upsertPage(notes, "Notes"), upsertPage(project, "Project")),
           Stream.fromIterable([
-            [upsertPage(notes, "Notes"), upsertBlock(blockId(1), notes, "see [[Project]] and [[Later]]")],
+            [
+              upsertPage(notes, "Notes"),
+              upsertBlock(blockId(1), notes, "see [[Project]] and [[Later]]"),
+            ],
             [upsertPage(project, "Project"), upsertBlock(blockId(2), project, "plan")],
           ]).pipe(Stream.tap(() => look)),
         )
