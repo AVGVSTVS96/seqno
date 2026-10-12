@@ -66,6 +66,8 @@ type Undo = TextUndo | ValueUndo | PropUndo | MoveUndo | DropUndo
 
 type Keyed<A> = Map<Place, Map<string, A>>
 
+type Listed = Map<Place, Map<TreeID, Array<LoroTreeNode>>>
+
 interface Step {
   readonly undos: Array<Undo>
   readonly latest: Keyed<TextUndo | ValueUndo | PropUndo>
@@ -118,6 +120,7 @@ const textsOf = (step: Step): ReadonlyArray<TextUndo> =>
   step.undos.flatMap((undo) => (undo._tag === "Text" ? [undo] : []))
 
 export interface Recorder {
+  readonly children: (parent: LoroTreeNode) => ReadonlyArray<LoroTreeNode>
   readonly create: (parent: LoroTreeNode | undefined, index?: number) => LoroTreeNode
   readonly move: (node: LoroTreeNode, parent: LoroTreeNode | undefined, index?: number) => void
   readonly moveAfter: (node: LoroTreeNode, anchor: LoroTreeNode) => void
@@ -170,8 +173,9 @@ interface Restorer extends Recorder {
   readonly restore: (node: LoroTreeNode, to: Spot) => void
 }
 
-const recorder = (place: Place, step: Step): Restorer => {
-  const listed = new Map<TreeID, Array<LoroTreeNode>>()
+const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
+  const listed = lists.get(place) ?? new Map<TreeID, Array<LoroTreeNode>>()
+  lists.set(place, listed)
   const siblingsOf = (parent: LoroTreeNode) => {
     const known = listed.get(parent.id)
     if (known !== undefined) return known
@@ -199,6 +203,7 @@ const recorder = (place: Place, step: Step): Restorer => {
     )
   }
   return {
+    children: siblingsOf,
     create: (parent, index) => {
       const node = parent === undefined ? place.root(index) : parent.createNode(index)
       if (parent !== undefined) listed.get(parent.id)?.splice(node.index() ?? 0, 0, node)
@@ -268,13 +273,13 @@ const revertOne = (undo: Undo, record: Restorer, into: Step): void =>
     },
   })
 
-const revert = (step: Step): Step => {
+const revert = (step: Step, lists: Listed): Step => {
   const into = emptyStep()
   const recorders = new Map<Place, Restorer>()
   const recorderOf = (place: Place) => {
     const known = recorders.get(place)
     if (known !== undefined) return known
-    const made = recorder(place, into)
+    const made = recorder(place, into, lists)
     recorders.set(place, made)
     return made
   }
@@ -389,6 +394,7 @@ export const histories = () => {
   const begin = (client: string, typing: BlockId | null, commit: () => void): Transaction => {
     const stacks = stacksOf(client)
     const draft = emptyStep()
+    const lists: Listed = new Map()
     const reverted: Array<Reverted> = []
     const top = stacks.undo.at(-1)
     const grouped =
@@ -400,10 +406,10 @@ export const histories = () => {
       const popped = from.pop()
       if (popped === undefined) return
       detach(popped)
-      reverted.push({ from, step: popped, to, inverse: revert(popped) })
+      reverted.push({ from, step: popped, to, inverse: revert(popped, lists) })
     }
     return {
-      record: (place) => recorder(place, draft),
+      record: (place) => recorder(place, draft, lists),
       undo: () => step(stacks.undo, stacks.redo),
       redo: () => step(stacks.redo, stacks.undo),
       close: () => {
@@ -426,8 +432,8 @@ export const histories = () => {
         for (const { to, inverse } of reverted) if (inverse.undos.length > 0) push(to, inverse)
       },
       abort: () => {
-        revert(draft)
-        reverted.toReversed().forEach(({ inverse }) => revert(inverse))
+        revert(draft, lists)
+        reverted.toReversed().forEach(({ inverse }) => revert(inverse, lists))
         muted = true
         commit()
         muted = false

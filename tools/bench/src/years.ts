@@ -16,7 +16,9 @@ const filesPerLoad = 1_000
 const dayOf = (date: Date) =>
   date.getFullYear() * 10_000 + (date.getMonth() + 1) * 100 + date.getDate()
 
-const importFiles = (files: ReadonlyArray<{ readonly path: string; readonly content: string }>) => {
+export const importFiles = (
+  files: ReadonlyArray<{ readonly path: string; readonly content: string }>,
+) => {
   const byPath = new Map(files.map((file) => [file.path, file.content]))
   const folder = Layer.succeed(
     GraphFolder,
@@ -30,7 +32,7 @@ const importFiles = (files: ReadonlyArray<{ readonly path: string; readonly cont
   return importGraph.pipe(Effect.provide(Layer.merge(folder, LogseqSyntaxLive)))
 }
 
-const longPageFiles = (blocks: number) => {
+export const longPageFiles = (blocks: number) => {
   const generated = generateGraph({
     seed: 7,
     blocks,

@@ -216,6 +216,27 @@ On the 10-year graph a cursor resolves in 0.06 ms while its character exists and
 
 **Numbers.** Ten years of journals in headless Chrome, scrolling 60 px a frame: frame p95 rose to 50 ms with 13 frames over 50 ms after about 100 days, and the DOM held 45k nodes. Windowed, p95 stays at 16.8 ms with none over 50 ms through 30 years, with 4 to 6 days mounted. `tools/bench` checks it in CI.
 
+## Bulk commands touch each tree node a fixed number of times
+
+**Decision.** A command on many blocks (delete, move, indent, outdent) keys its selection by node id once and works out each block's position once before sorting. Siblings come from one list per parent that the recorder fills on first use and keeps current as it moves nodes. Every recorder in a transaction shares those lists, since an `Undo` inside a `dispatchAll` moves nodes too.
+
+**Why.** In loro-crdt 1.16.4's JS binding, every read of a tree node's `id` formats the id in Rust and decodes it into a new JS string ([`id`](https://github.com/loro-dev/loro/blob/loro-crdt%401.16.4/crates/loro-wasm/src/lib.rs#L4818-L4822), [`TreeID` to `JsValue`](https://github.com/loro-dev/loro/blob/loro-crdt%401.16.4/crates/loro-common/src/lib.rs#L1234-L1238)), about 1.3 µs each. `children()` builds a new JS object for every child on each call ([`children`](https://github.com/loro-dev/loro/blob/loro-crdt%401.16.4/crates/loro-wasm/src/lib.rs#L4986-L4997)), and wasm-bindgen registers each one with a `FinalizationRegistry` so its wasm memory is freed later. The selection dropped duplicates with a `findIndex` over the whole selection, so deleting 5,000 blocks read `id` 12.5M times: 16.4 s of the 17.6 s, by CPU profile. Moving went through the same selection. Indent asked Loro for the parent's children once per block, and outdent did the same for the parent and for the block taking the siblings. Indenting 300 of the page's 6,800 top-level blocks made about 2M of those objects, and 80% of its 10.4 s went to the garbage collector clearing them. Loro's own side was never the problem: its children are a B-tree, and finding a node's index is O(log n).
+
+**Numbers.** Node on `cloud` (a Fly.io Sprite), the 20k-block page that the Chrome benchmark scrolls, each command dispatched on a freshly opened graph. Ranges are over runs.
+
+| Command                             | Before               | After          |
+| ----------------------------------- | -------------------- | -------------- |
+| Delete 5,000 blocks                 | 17.4 to 17.6 s       | 0.31 to 0.48 s |
+| Undo that delete                    | 0.31 s               | 0.33 s         |
+| Move 5,000 blocks to the top        | 17.0 s               | 0.32 to 0.51 s |
+| Indent 1,000 top-level blocks       | 114 s                | 0.17 s         |
+| Indent 5,000 top-level blocks       | over 150 s (stopped) | 0.74 to 1.0 s  |
+| Outdent 1,000 children of one block | 1.1 s                | 0.39 s         |
+| Outdent 5,000 children of one block | over 380 s (stopped) | 1.1 s          |
+| Index write for the 5,000 deletes   | -                    | 0.35 s         |
+
+Pasting 5,000 blocks (1.2 to 1.7 s) never took this path. Its time is Loro writing and committing the new blocks plus the events for them, about 0.25 ms a block. `tools/bench` checks delete, its undo, and move against 1 s, and indent against 2 s, on every CI run. The sync simulator's real-graph suite passed 50 of 50 seeds (600 ops each) with no violations.
+
 ## Smaller decisions
 
 | Question                                     | Answer                                                                                                  | Why                                                                                                                                                                                                    |

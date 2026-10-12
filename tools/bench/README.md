@@ -8,13 +8,17 @@ A tool: the benchmarks that CI runs on every push. Each fails when a budgeted nu
 pnpm --filter @seqno/bench bench
 ```
 
-It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and takes a snapshot. Then:
+It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and takes a snapshot. The bulk commands run on their own graph, the 20k-block page the Chrome benchmark scrolls, opened fresh for each. Then:
 
 | Number                                  | Budget | How                                                                                             |
 | --------------------------------------- | ------ | ----------------------------------------------------------------------------------------------- |
 | Open: page list and first page (median) | 1 s    | `restore` the snapshot into an empty graph, list the pages, read a journal.                     |
 | Keystroke: edit and index write (p95)   | 16 ms  | 300 `EditText` commands, each followed by its index write.                                      |
 | Undo after 1k edits from another device | 16 ms  | Type into 5 blocks (10 steps), merge 1,000 edits from a second graph, undo all 10; the slowest. |
+| Delete 5,000 of a 20k-block page        | 1 s    | Select 5,000 blocks in page order from a quarter of the way down and delete them.               |
+| Undo that delete                        | 1 s    | Undo it.                                                                                        |
+| Move 5,000 of a 20k-block page          | 1 s    | Move the same selection to the top of the page.                                                 |
+| Indent 5,000 of a 20k-block page        | 2 s    | Indent 5,000 top-level blocks, from the second one down.                                        |
 | Import and seed                         | -      | Reported only.                                                                                  |
 | Index fill behind the open              | -      | Reported only.                                                                                  |
 

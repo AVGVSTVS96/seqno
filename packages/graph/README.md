@@ -33,4 +33,3 @@ pnpm test --project @seqno/graph
 
 - There is no `eventsSince(version)`, so a stale index has to rebuild from every page.
 - Undo is exact for one client's own history. When another client or device edited the same block between a step and its undo, text positions come from rebasing alone: text put back next to someone else's insert at the same spot can land on the other side of it, and a character this client typed, deleted and got back by undoing the delete can survive undoing the typing. Loro's own undo has the same limits.
-- Deleting thousands of blocks from one page at once is slow (5,000 of a 20k-block page take about 16 s); that cost is in the command, not in undo.

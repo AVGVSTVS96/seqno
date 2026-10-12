@@ -471,6 +471,22 @@ describe("undo and redo", () => {
     ),
   )
 
+  it.effect("indents next to a block that an undo in the same batch brought back", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const { pageId, ids } = yield* seedPage(graph, "Batch", ["a", "b", "c", "d"])
+        const [b, c, d] = [nth(ids, 1), nth(ids, 2), nth(ids, 3)]
+        yield* graph.dispatch({ _tag: "DeleteBlocks", blockIds: [b] })
+        yield* graph.dispatchAll([
+          { _tag: "Indent", blockIds: [d] },
+          { _tag: "Undo" },
+          { _tag: "Indent", blockIds: [c] },
+        ])
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a", "b", "  c", "    d"])
+      }),
+    ),
+  )
+
   it.effect("brings a deleted subtree back under its old ids", () =>
     withGraph((graph) =>
       Effect.gen(function* () {

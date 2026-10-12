@@ -95,8 +95,7 @@ const isWithin = (node: LoroTreeNode, ancestor: LoroTreeNode): boolean =>
 const position = (node: LoroTreeNode): ReadonlyArray<number> =>
   [node, ...ancestors(node)].map((at) => at.index() ?? 0).toReversed()
 
-const byPosition = (a: LoroTreeNode, b: LoroTreeNode): number => {
-  const [left, right] = [position(a), position(b)]
+const byPosition = (left: ReadonlyArray<number>, right: ReadonlyArray<number>): number => {
   const differs = left.findIndex((index, depth) => index !== right[depth])
   return differs === -1 ? left.length - right.length : (left[differs] ?? 0) - (right[differs] ?? 0)
 }
@@ -105,13 +104,12 @@ const selection = (ws: Workspace, ids: ReadonlyArray<BlockId>) =>
   Effect.map(
     Effect.forEach(ids, (id) => blockNode(ws, id)),
     (nodes) => {
-      const chosen = new Set(nodes.map((node) => node.id))
-      const roots = nodes.filter(
-        (node, at) =>
-          nodes.findIndex((other) => other.id === node.id) === at &&
-          !ancestors(node).some((up) => chosen.has(up.id)),
-      )
-      return roots.toSorted(byPosition)
+      const chosen = new Map(nodes.map((node) => [node.id, node]))
+      return [...chosen.values()]
+        .filter((node) => !ancestors(node).some((up) => chosen.has(up.id)))
+        .map((node) => ({ node, at: position(node) }))
+        .toSorted((a, b) => byPosition(a.at, b.at))
+        .map(({ node }) => node)
     },
   )
 
@@ -265,7 +263,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
           .forEach(([key, value]) => ws.record.prop(target, key, value))
         for (const child of childrenOf(node)) {
           if (target.id === parent?.id) ws.record.moveBefore(child, node)
-          else ws.record.move(child, target, childrenOf(target).length)
+          else ws.record.move(child, target, ws.record.children(target).length)
         }
         ws.record.trash(node)
         yield* touch(ws, target)
@@ -277,9 +275,9 @@ export const applyCommand = (ws: Workspace, command: Command) =>
           return yield* reject("a block without a previous sibling cannot be indented")
         }
         for (const node of roots) {
-          const previous = childrenOf(node.parent() ?? node)[(node.index() ?? 0) - 1]
+          const previous = ws.record.children(node.parent() ?? node)[(node.index() ?? 0) - 1]
           if (previous !== undefined) {
-            ws.record.move(node, previous, childrenOf(previous).length)
+            ws.record.move(node, previous, ws.record.children(previous).length)
           }
         }
       }),
@@ -292,8 +290,8 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         for (const node of roots.toReversed()) {
           const parent = node.parent()
           if (parent === undefined) continue
-          for (const sibling of childrenOf(parent).slice((node.index() ?? 0) + 1)) {
-            ws.record.move(sibling, node, childrenOf(node).length)
+          for (const sibling of ws.record.children(parent).slice((node.index() ?? 0) + 1)) {
+            ws.record.move(sibling, node, ws.record.children(node).length)
           }
           ws.record.moveAfter(node, parent)
         }

@@ -4,13 +4,16 @@ import { generateGraph, toLogseqFiles } from "@seqno/fixtures"
 import { Index } from "@seqno/index"
 import { layerNode } from "@seqno/index/node"
 import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
+import { bulkOnLongPage } from "./bulk.ts"
 import { emptyGraph, serviceOf } from "./graph.ts"
 import { undoAfterRemote } from "./undo.ts"
 
-const budgets = { openMs: 1000, keystrokeP95Ms: 16, undoMs: 16 }
+const budgets = { openMs: 1000, keystrokeP95Ms: 16, undoMs: 16, bulkMs: 1000, indentMs: 2000 }
 const OPENS = 3
 const KEYSTROKES = 300
 const REMOTE_EDITS = 1000
+const LONG_PAGE = 20_000
+const SELECTED = 5_000
 
 const timed = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
@@ -74,6 +77,8 @@ const main = Effect.gen(function* () {
     keystrokes.push(ms)
   }
   const undos = yield* Effect.scoped(undoAfterRemote(snapshot, REMOTE_EDITS))
+  const bulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED)
+  const ofLongPage = `${SELECTED.toLocaleString("en")} of a ${LONG_PAGE / 1000}k-block page`
   const rows = [
     { what: "open: page list and first page (median)", ms: median(opens), budget: budgets.openMs },
     {
@@ -86,6 +91,10 @@ const main = Effect.gen(function* () {
       ms: Math.max(...undos),
       budget: budgets.undoMs,
     },
+    { what: `delete ${ofLongPage}`, ms: bulk.deleteMs, budget: budgets.bulkMs },
+    { what: "undo that delete", ms: bulk.undoMs, budget: budgets.bulkMs },
+    { what: `move ${ofLongPage}`, ms: bulk.moveMs, budget: budgets.bulkMs },
+    { what: `indent ${ofLongPage}`, ms: bulk.indentMs, budget: budgets.indentMs },
     { what: "import and seed", ms: seedMs, budget: null },
     { what: "index fill behind the open", ms: fillMs, budget: null },
   ]
