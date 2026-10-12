@@ -31,8 +31,13 @@ const opfsFolder = (path: ReadonlyArray<string>) =>
     ),
   )
 
-const indexFile = (graph: string): IndexFile => {
-  const name = `${encodeURIComponent(graph)}.sqlite`
+const indexName = (graph: string) => `${encodeURIComponent(graph)}.sqlite`
+
+const indexFile = (
+  graph: string,
+  listed: Effect.Effect<ReadonlyArray<string>, Error>,
+): IndexFile => {
+  const name = indexName(graph)
   const attempt = <A>(run: () => Promise<A>) =>
     Effect.tryPromise({
       try: run,
@@ -50,23 +55,50 @@ const indexFile = (graph: string): IndexFile => {
       Effect.option,
     ),
     write: (image) =>
-      Effect.flatMap(handle(true), (file) =>
-        attempt(async () => {
-          const writable = await file.createWritable()
-          await writable.write(image).catch(async (cause: unknown) => {
-            await writable.abort()
-            throw cause
-          })
-          await writable.close()
-        }),
+      Effect.flatMap(
+        Effect.orElseSucceed(listed, () => [graph]),
+        (names) =>
+          names.includes(graph)
+            ? Effect.flatMap(handle(true), (file) =>
+                attempt(async () => {
+                  const writable = await file.createWritable()
+                  await writable.write(image).catch(async (cause: unknown) => {
+                    await writable.abort()
+                    throw cause
+                  })
+                  await writable.close()
+                }),
+              )
+            : Effect.void,
       ),
   }
 }
 
+const namesIn = async (folder: FileSystemDirectoryHandle) => {
+  const names: Array<string> = []
+  for await (const name of folder.keys()) names.push(name)
+  return names
+}
+
+const dropOrphans = (listed: Effect.Effect<ReadonlyArray<string>, Error>) =>
+  Effect.gen(function* () {
+    const folder = yield* opfsFolder(["indexes"])
+    const files = yield* Effect.tryPromise(() => namesIn(folder))
+    const kept = new Set((yield* listed).map(indexName))
+    yield* Effect.forEach(
+      files.filter((file) => !kept.has(file)),
+      (file) => Effect.ignore(Effect.tryPromise(() => folder.removeEntry(file))),
+      { discard: true },
+    )
+  }).pipe(Effect.ignore)
+
 export const BrowserGraphPlaces = Layer.effect(
   GraphPlaces,
-  Effect.map(Effect.service(GraphLocations), (locations) =>
-    GraphPlaces.of({
+  Effect.gen(function* () {
+    const locations = yield* GraphLocations
+    const orphansDropped = dropOrphans(locations.listed)
+    yield* Effect.forkScoped(orphansDropped)
+    return GraphPlaces.of({
       open: (graph) =>
         Effect.flatMap(locations.resolve(graph), (location) =>
           Effect.map(
@@ -88,13 +120,14 @@ export const BrowserGraphPlaces = Layer.effect(
               storage: directoryStorage(handle),
               synced,
               sqlite: layerWasmMemory,
-              indexFile: indexFile(graph),
+              indexFile: indexFile(graph, locations.listed),
               starter,
             }),
           ),
         ),
-    }),
-  ),
+      forget: (graph) => Effect.andThen(Effect.ignore(locations.forget(graph)), orphansDropped),
+    })
+  }),
 )
 
 const identityFile = "device.json"

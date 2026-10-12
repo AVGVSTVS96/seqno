@@ -63,6 +63,10 @@ export const OpenGraph = Rpc.make("OpenGraph", {
   error: Schema.Union([GraphUnavailable, GraphLocked]),
 })
 
+export const ForgetGraph = Rpc.make("ForgetGraph", {
+  payload: { graph: Schema.NonEmptyString },
+})
+
 export const Dispatch = Rpc.make("Dispatch", {
   payload: { command: Command },
   success: Schema.Array(GraphEvent),
@@ -134,6 +138,7 @@ export const WatchSaveState = Rpc.make("WatchSaveState", {
 export const CoreRpcs = RpcGroup.make(
   Attach,
   OpenGraph,
+  ForgetGraph,
   Dispatch,
   DispatchAll,
   GetPages,

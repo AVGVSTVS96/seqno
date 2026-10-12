@@ -41,6 +41,48 @@ test("all graphs is a page in the shell, reached from the graph switcher", async
   await expect(page.getByRole("banner")).toBeVisible()
 })
 
+const indexFiles = (page: Page) =>
+  page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    const folder = await root.getDirectoryHandle("indexes", { create: true })
+    const names: Array<string> = []
+    for await (const name of folder.keys()) names.push(name)
+    return names.toSorted()
+  })
+
+test("removing a graph from the list deletes its search index and any index no listed graph owns", async ({
+  page,
+}) => {
+  await openDemo(page)
+  await page.reload()
+  await expect.poll(() => indexFiles(page)).toEqual(["demo.sqlite"])
+  await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    const folder = await root.getDirectoryHandle("indexes")
+    await Promise.all(
+      ["kept.sqlite", "gone.sqlite"].map(async (name) => {
+        const writable = await (await folder.getFileHandle(name, { create: true })).createWritable()
+        await writable.write("index")
+        await writable.close()
+      }),
+    )
+    const opening = indexedDB.open("seqno", 1)
+    await new Promise((resolve) => opening.addEventListener("success", resolve))
+    const adding = opening.result
+      .transaction("graphs", "readwrite")
+      .objectStore("graphs")
+      .put({ _tag: "OpfsGraph", name: "kept" })
+    await new Promise((resolve) => adding.addEventListener("success", resolve))
+  })
+  await page.goto("/graphs")
+  await page.getByRole("button", { name: "Actions for Getting started" }).click()
+  await page.getByRole("menuitem", { name: "Remove from the list" }).click()
+  await expect(
+    page.getByRole("main").getByRole("button", { name: "Getting started", exact: true }),
+  ).toHaveCount(0)
+  await expect.poll(() => indexFiles(page)).toEqual(["kept.sqlite"])
+})
+
 test("Ctrl+Z after a reload undoes only the last edit", async ({ page, seqno }) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
   await openDemo(page, "/all-pages")

@@ -87,6 +87,7 @@ const InMemoryCore = CoreRpcs.toLayer(
     return CoreRpcs.of({
       Attach: () => Stream.empty,
       OpenGraph: ({ graph }) => Effect.as(Ref.set(opened, true), { graph, pages: [], skipped: [] }),
+      ForgetGraph: () => Effect.void,
       Dispatch: ({ command }) => whenOpen(apply(command)),
       DispatchAll: () => rejected,
       GetPages: () =>

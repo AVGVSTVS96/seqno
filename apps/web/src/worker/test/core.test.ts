@@ -80,6 +80,7 @@ const coreLayer = (
             indexFile: indexFileOf(`${device}:${root}`),
             starter,
           }),
+        forget: () => Effect.sync(() => void savedIndexes.delete(`${device}:${root}`)),
       }),
     ),
     Layer.provide(Layer.succeed(Device, { device: DeviceId.make(device), formerPeers: [] })),

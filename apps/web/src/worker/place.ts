@@ -30,7 +30,10 @@ export interface GraphPlace {
 
 export class GraphPlaces extends Context.Service<
   GraphPlaces,
-  { readonly open: (graph: string) => Effect.Effect<GraphPlace, GraphUnavailable> }
+  {
+    readonly open: (graph: string) => Effect.Effect<GraphPlace, GraphUnavailable>
+    readonly forget: (graph: string) => Effect.Effect<void>
+  }
 >()("@seqno/web/worker/GraphPlaces") {}
 
 export const Identity = Schema.Struct({

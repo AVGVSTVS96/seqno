@@ -55,7 +55,7 @@ export const recentGraphs = appRuntime.atom(
 )
 
 export const forgetGraph = appRuntime.fn((name: string, get) =>
-  Effect.flatMap(Effect.service(GraphLocations), (locations) => locations.forget(name)).pipe(
+  Effect.flatMap(Effect.service(CoreClient), (core) => core.ForgetGraph({ graph: name })).pipe(
     Effect.tap(() => Effect.sync(() => get.refresh(recentGraphs))),
   ),
 )

@@ -14,7 +14,11 @@ export type GraphLocation = typeof GraphLocation.Type
 
 export class GraphLocations extends Context.Service<
   GraphLocations,
-  { readonly resolve: (graph: string) => Effect.Effect<GraphLocation, GraphUnavailable> }
+  {
+    readonly resolve: (graph: string) => Effect.Effect<GraphLocation, GraphUnavailable>
+    readonly listed: Effect.Effect<ReadonlyArray<string>, Error>
+    readonly forget: (graph: string) => Effect.Effect<void, Error>
+  }
 >()("@seqno/web/worker/GraphLocations") {}
 
 const request = <A>(make: () => IDBRequest<A>) =>
@@ -56,14 +60,23 @@ const reachable = (location: GraphLocation) =>
       }),
   })
 
+const graphs = (mode: IDBTransactionMode) =>
+  Effect.map(openDatabase, (database) => database.transaction("graphs", mode).objectStore("graphs"))
+
 export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
   resolve: (graph) =>
-    openDatabase.pipe(
-      Effect.flatMap((database) =>
-        request(() => database.transaction("graphs").objectStore("graphs").get(graph)),
-      ),
+    graphs("readonly").pipe(
+      Effect.flatMap((store) => request(() => store.get(graph))),
       Effect.flatMap(Schema.decodeUnknownEffect(GraphLocation)),
       Effect.flatMap(reachable),
       Effect.mapError((error) => new GraphUnavailable({ graph, reason: error.message })),
+    ),
+  listed: graphs("readonly").pipe(
+    Effect.flatMap((store) => request(() => store.getAllKeys())),
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Schema.String))),
+  ),
+  forget: (graph) =>
+    Effect.asVoid(
+      Effect.flatMap(graphs("readwrite"), (store) => request(() => store.delete(graph))),
     ),
 })

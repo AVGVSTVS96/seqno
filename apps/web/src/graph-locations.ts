@@ -44,7 +44,6 @@ export class GraphLocations extends Context.Service<
     readonly demo: (name: DemoGraph) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly reopen: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly resume: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
-    readonly forget: (name: string) => Effect.Effect<void>
     readonly assets: (name: string) => Effect.Effect<ReadonlyMap<string, string>>
   }
 >()("@seqno/web/GraphLocations") {}
@@ -157,10 +156,6 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
   resume: (name) =>
     Effect.flatMap(stored(name), (location) =>
       permitted(location, (handle) => handle.queryPermission({ mode: "readwrite" })),
-    ),
-  forget: (name) =>
-    Effect.flatMap(graphs("readwrite"), (store) => request(() => store.delete(name))).pipe(
-      Effect.ignore,
     ),
   assets: (name) =>
     stored(name).pipe(

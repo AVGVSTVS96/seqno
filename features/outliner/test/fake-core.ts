@@ -99,6 +99,7 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
       return CoreRpcs.of({
         Attach: () => Stream.empty,
         OpenGraph: ({ graph }) => Effect.succeed({ graph, pages: [page], skipped: [] }),
+        ForgetGraph: () => Effect.void,
         GetPages: () => Effect.succeed([page]),
         GetPage: () => SubscriptionRef.get(state),
         GetBlock: ({ blockId }) =>

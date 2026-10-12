@@ -80,6 +80,7 @@ const FakeCore = CoreRpcs.toLayer(
       Attach: () => Stream.empty,
       OpenGraph: ({ graph }) =>
         Effect.succeed({ graph, pages: [inbox, older, today], skipped: [] }),
+      ForgetGraph: () => Effect.void,
       Dispatch: ({ command }) =>
         Command.match(command, {
           EditText: ({ blockId, from, to, insert }) =>
@@ -133,7 +134,6 @@ const DemoLocations = Layer.succeed(GraphLocations, {
   demo: (name) => Effect.succeed(inBrowser(name)),
   reopen: (name) => Effect.succeed(inBrowser(name)),
   resume: (name) => Effect.succeed(inBrowser(name)),
-  forget: () => Effect.void,
   assets: () => Effect.succeed(new Map()),
 })
 

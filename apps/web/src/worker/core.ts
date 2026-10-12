@@ -389,6 +389,7 @@ const pageChanges = (session: Session, pageId: PageId) =>
 const CoreHandlers = CoreRpcs.toLayer(
   Effect.gen(function* () {
     const { attach, open, current, following } = yield* Sessions
+    const places = yield* GraphPlaces
     const dispatchAll = (client: number, commands: ReadonlyArray<Command>) =>
       Effect.flatMap(current(client), (session) =>
         Effect.forEach(commands, (command) => withReferenceEdits(session, command)).pipe(
@@ -400,6 +401,7 @@ const CoreHandlers = CoreRpcs.toLayer(
     return CoreRpcs.of({
       Attach: ({ tab }, { client }) => attach(client.id, tab),
       OpenGraph: ({ graph, wait }, { client }) => open(client.id, graph, wait ?? false),
+      ForgetGraph: ({ graph }) => places.forget(graph),
       Dispatch: ({ command }, { client }) => dispatchAll(client.id, [command]),
       DispatchAll: ({ commands }, { client }) => dispatchAll(client.id, commands),
       GetPages: (_, { client }) =>
