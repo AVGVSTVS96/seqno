@@ -88,7 +88,7 @@ export const mergedInto = (node: LoroTreeNode): Option.Option<PageId> =>
 export const livePageIdOf = (node: LoroTreeNode): Option.Option<PageId> =>
   Option.isSome(mergedInto(node)) ? Option.none() : pageIdOf(node)
 
-const inOrder = (props: Props = {}, keys: ReadonlyArray<string> = []): Props => {
+export const inOrder = (props: Props = {}, keys: ReadonlyArray<string> = []): Props => {
   const listed = [...new Set(keys)].filter((key) => key in props)
   const rest = Object.keys(props).filter((key) => !listed.includes(key))
   return Object.fromEntries([...listed, ...rest].map((key) => [key, props[key] ?? ""]))
@@ -121,7 +121,10 @@ export const livePages = (tree: LoroTree): Array<readonly [LoroTreeNode, Page]> 
     )
 
 export const readBlock = (node: LoroTreeNode, at: Placement): Option.Option<BlockState> =>
-  Option.map(decodeBlockData(node.data.toJSON()), (data) => ({
+  blockFromData(node.data.toJSON(), at)
+
+export const blockFromData = (json: unknown, at: Placement): Option.Option<BlockState> =>
+  Option.map(decodeBlockData(json), (data) => ({
     block: {
       id: data.uuid,
       pageId: at.pageId,

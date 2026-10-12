@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option } from "effect"
-import { createdPage, nth, openGraph, seedPage } from "./support.ts"
+import { createdPage, format, nth, openGraph, seedPage } from "./support.ts"
 
 describe("changes since a version", () => {
   it.effect(
@@ -33,7 +33,13 @@ describe("changes since a version", () => {
           const changed = Option.getOrThrow(yield* graph.changedSince(since))
           assert.deepStrictEqual(
             [...changed.pages].toSorted(),
-            [edited.pageId, to.pageId, gone.pageId, created].toSorted(),
+            [
+              edited.pageId,
+              to.pageId,
+              gone.pageId,
+              created,
+              ...(format === "v2" ? [from.pageId] : []),
+            ].toSorted(),
           )
           assert.deepStrictEqual(
             [nth(edited.ids, 0), nth(from.ids, 0)].map((block) => changed.blocks.has(block)),

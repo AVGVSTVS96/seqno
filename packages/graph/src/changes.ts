@@ -10,7 +10,7 @@ export interface Changed {
 
 const isPeer = (peer: string): peer is PeerID => /^\d+$/.test(peer)
 
-const loroVersion = (version: ReadonlyMap<string, number>) =>
+export const loroVersion = (version: ReadonlyMap<string, number>) =>
   VersionVector.parseJSON(
     new Map(
       [...version].flatMap(([peer, counter]) => (isPeer(peer) ? [[peer, counter] as const] : [])),

@@ -1,7 +1,7 @@
 import { Context, Crypto, Effect, Layer, Option } from "effect"
 import type { BlockId, GraphEvent, PageId } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
-import { Graph, PeerId } from "@seqno/graph"
+import { Graph, PeerId, graphV2Layer, type GraphSource } from "@seqno/graph"
 
 const WebCrypto = Layer.succeed(
   Crypto.Crypto,
@@ -11,12 +11,32 @@ const WebCrypto = Layer.succeed(
   }),
 )
 
+export const format = process.env["SEQNO_GRAPH"] === "v2" ? "v2" : "v1"
+
+const layerOf = (source: GraphSource) =>
+  format === "v2" ? graphV2Layer(source) : Graph.layer(source)
+
+export const openGraphAs = (
+  as: "v1" | "v2",
+  peer: string,
+  files: { readonly snapshot?: Uint8Array; readonly updates?: ReadonlyArray<Uint8Array> } = {},
+) => {
+  const source = {
+    peer: PeerId.make(peer),
+    snapshot: Option.fromUndefinedOr(files.snapshot),
+    updates: files.updates ?? [],
+  }
+  return Layer.build(
+    (as === "v2" ? graphV2Layer(source) : Graph.layer(source)).pipe(Layer.provide(WebCrypto)),
+  ).pipe(Effect.map((context) => Context.get(context, Graph)))
+}
+
 export const openGraph = (
   peer: string,
   files: { readonly snapshot?: Uint8Array; readonly updates?: ReadonlyArray<Uint8Array> } = {},
 ) =>
   Layer.build(
-    Graph.layer({
+    layerOf({
       peer: PeerId.make(peer),
       snapshot: Option.fromUndefinedOr(files.snapshot),
       updates: files.updates ?? [],

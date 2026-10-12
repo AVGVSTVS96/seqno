@@ -15,6 +15,7 @@ import { childrenOf, isTrash, propKeysIn, readProps, setProp, textOf } from "./t
 
 export interface Place {
   readonly doc: LoroDoc
+  readonly roots: () => ReadonlyArray<LoroTreeNode>
   readonly root: (index?: number) => LoroTreeNode
   readonly trash: () => LoroTreeNode
 }
@@ -76,7 +77,7 @@ type Undo = TextUndo | ValueUndo | PropUndo | MoveUndo | DropUndo
 
 type Keyed<A> = Map<LoroDoc, Map<string, A>>
 
-type Listed = Map<LoroDoc, Map<TreeID, Array<LoroTreeNode>>>
+type Listed = Map<LoroDoc, Map<TreeID | Place, Array<LoroTreeNode>>>
 
 interface Step {
   readonly undos: Array<Undo>
@@ -150,6 +151,11 @@ const scalar = (value: unknown): Value =>
 
 const sameNode = (a: LoroTreeNode | undefined, b: LoroTreeNode | undefined) => a?.id === b?.id
 
+const isWithin = (target: LoroTreeNode | undefined, node: LoroTreeNode): boolean => {
+  for (let at = target; at !== undefined; at = at.parent()) if (at.id === node.id) return true
+  return false
+}
+
 const inTrash = (node: LoroTreeNode): boolean => {
   const parent = node.parent()
   return parent !== undefined && isTrash(parent)
@@ -179,27 +185,28 @@ interface Restorer extends Recorder {
 }
 
 const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
-  const listed = lists.get(place.doc) ?? new Map<TreeID, Array<LoroTreeNode>>()
+  const listed = lists.get(place.doc) ?? new Map<TreeID | Place, Array<LoroTreeNode>>()
   lists.set(place.doc, listed)
-  const siblingsOf = (parent: LoroTreeNode) => {
-    const known = listed.get(parent.id)
+  const listOf = (parent: LoroTreeNode | undefined) => {
+    const key = parent?.id ?? place
+    const known = listed.get(key)
     if (known !== undefined) return known
-    const children = [...childrenOf(parent)]
-    listed.set(parent.id, children)
+    const children = [...(parent === undefined ? place.roots() : childrenOf(parent))]
+    listed.set(key, children)
     return children
   }
+  const cached = (parent: LoroTreeNode | undefined) => listed.get(parent?.id ?? place)
   const isNew = (node: LoroTreeNode) => lookup(step.created, place.doc, node.id) !== undefined
   const isNewMap = (map: LoroMap) => lookup(step.created, place.doc, map.id) !== undefined
   const moved = (node: LoroTreeNode, move: () => void) => {
     const parent = node.parent()
     const index = node.index() ?? 0
     const fromTrash = parent !== undefined && isTrash(parent)
-    const after =
-      parent === undefined || fromTrash || index === 0 ? undefined : siblingsOf(parent)[index - 1]
+    const after = fromTrash || index === 0 ? undefined : listOf(parent)[index - 1]
     move()
     const now = node.parent()
-    if (parent !== undefined) listed.get(parent.id)?.splice(index, 1)
-    if (now !== undefined) listed.get(now.id)?.splice(node.index() ?? 0, 0, node)
+    cached(parent)?.splice(index, 1)
+    cached(now)?.splice(node.index() ?? 0, 0, node)
     if (isNew(node)) return
     add(
       step,
@@ -209,27 +216,25 @@ const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
     )
   }
   return {
-    children: siblingsOf,
+    children: listOf,
     create: (parent, index) => {
       const node = parent === undefined ? place.root(index) : parent.createNode(index)
-      if (parent !== undefined) listed.get(parent.id)?.splice(node.index() ?? 0, 0, node)
+      cached(parent)?.splice(node.index() ?? 0, 0, node)
       if (parent === undefined || !isNew(parent)) add(step, { _tag: "Drop", place, node })
       store(step.created, place.doc, node.id, true)
       store(step.created, place.doc, node.data.id, true)
       return node
     },
-    move: (node, parent, index) =>
-      moved(node, () => (parent === undefined ? node.move() : node.move(parent, index))),
+    move: (node, parent, index) => moved(node, () => node.move(parent, index)),
     moveAfter: (node, anchor) => moved(node, () => node.moveAfter(anchor)),
     moveBefore: (node, anchor) => moved(node, () => node.moveBefore(anchor)),
     trash: (node) => moved(node, () => node.move(place.trash(), 0)),
     restore: (node, { parent, after, index }) => {
-      if (parent === undefined) return moved(node, () => node.move())
-      if (parent.isDeleted()) return
+      if (parent?.isDeleted() === true || isWithin(parent, node)) return
       if (after !== undefined && !after.isDeleted() && sameNode(after.parent(), parent)) {
         return moved(node, () => node.moveAfter(after))
       }
-      const others = siblingsOf(parent).length - (sameNode(node.parent(), parent) ? 1 : 0)
+      const others = listOf(parent).length - (sameNode(node.parent(), parent) ? 1 : 0)
       moved(node, () => node.move(parent, after === undefined ? 0 : Math.min(index, others)))
     },
     edit: (data, from, remove, insert) => {

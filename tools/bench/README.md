@@ -10,19 +10,21 @@ pnpm --filter @seqno/bench bench
 
 It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and takes a snapshot. The bulk commands run on their own graph, the 20k-block page the Chrome benchmark scrolls, opened fresh for each. Then:
 
-| Number                                            | Budget | How                                                                                                                             |
-| ------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| Open: page list and first page (median)           | 1 s    | `restore` the snapshot into an empty graph, list the pages, read a journal.                                                     |
-| Open through the vault (median)                   | 1 s    | A folder holding the snapshot and its writer's `seen` file: `vault.sync` into an empty graph, then the page list and a journal. |
-| Keystroke: edit and index write (p95)             | 16 ms  | 300 `EditText` commands, each followed by its index write.                                                                      |
-| Undo after 1k edits from another device           | 16 ms  | Type into 5 blocks (10 steps), merge 1,000 edits from a second graph, undo all 10; the slowest.                                 |
-| Delete 5,000 of a 20k-block page                  | 2 s    | Select 5,000 blocks in page order from a quarter of the way down and delete them.                                               |
-| Undo that delete                                  | 2 s    | Undo it.                                                                                                                        |
-| Move 5,000 of a 20k-block page                    | 2 s    | Move the same selection to the top of the page.                                                                                 |
-| Indent 5,000 of a 20k-block page                  | 2 s    | Indent 5,000 top-level blocks, from the second one down.                                                                        |
-| Import and seed                                   | -      | Reported only.                                                                                                                  |
-| Index fill behind the open                        | -      | Reported only.                                                                                                                  |
-| Index: load the saved image and catch up (median) | 100 ms | The image saved after the fill, loaded into a new index, caught up on the pages the 300 keystrokes changed.                     |
+| Number                                            | Budget | How                                                                                                                                                                                              |
+| ------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Open: page list and first page (median)           | 1 s    | `restore` the snapshot into an empty graph, list the pages, read a journal.                                                                                                                      |
+| Open through the vault (median)                   | 1 s    | A folder holding the snapshot and its writer's `seen` file: `vault.sync` into an empty graph, then the page list and a journal.                                                                  |
+| Keystroke: edit and index write (p95)             | 16 ms  | 300 `EditText` commands, each followed by its index write.                                                                                                                                       |
+| Undo after 1k edits from another device           | 16 ms  | Type into 5 blocks (10 steps), merge 1,000 edits from a second graph, undo all 10; the slowest.                                                                                                  |
+| Delete 5,000 of a 20k-block page                  | 2 s    | Select 5,000 blocks in page order from a quarter of the way down and delete them.                                                                                                                |
+| Undo that delete                                  | 2 s    | Undo it.                                                                                                                                                                                         |
+| Move 5,000 of a 20k-block page                    | 2 s    | Move the same selection to the top of the page.                                                                                                                                                  |
+| Indent 5,000 of a 20k-block page                  | 2 s    | Indent 5,000 top-level blocks, from the second one down.                                                                                                                                         |
+| Import and seed                                   | -      | Reported only.                                                                                                                                                                                   |
+| Index fill behind the open                        | -      | Reported only.                                                                                                                                                                                   |
+| Index: load the saved image and catch up (median) | 100 ms | The image saved after the fill, loaded into a new index, caught up on the pages the 300 keystrokes changed.                                                                                      |
+| Ten years, a tree per page: open (median)         | 300 ms | Ten years of journals and a 20k-block page written in the tree-per-page layout, then opened three times in a fresh `node` process: `restore` the snapshot, list the pages, read today's journal. |
+| Ten years, a tree per page: write them            | -      | Reported only.                                                                                                                                                                                   |
 
 ## Years of journals, in Chrome
 

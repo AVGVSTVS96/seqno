@@ -1,5 +1,5 @@
 import { Context, Crypto, Effect, Layer, Option } from "effect"
-import { Graph, PeerId } from "@seqno/graph"
+import { Graph, PeerId, graphV2Layer } from "@seqno/graph"
 
 const WebCrypto = Layer.succeed(
   Crypto.Crypto,
@@ -16,6 +16,14 @@ export const emptyGraph = (peer: string) =>
   serviceOf(
     Graph,
     Graph.layer({ peer: PeerId.make(peer), snapshot: Option.none(), updates: [] }).pipe(
+      Layer.provide(WebCrypto),
+    ),
+  )
+
+export const emptyPagesGraph = (peer: string) =>
+  serviceOf(
+    Graph,
+    graphV2Layer({ peer: PeerId.make(peer), snapshot: Option.none(), updates: [] }).pipe(
       Layer.provide(WebCrypto),
     ),
   )

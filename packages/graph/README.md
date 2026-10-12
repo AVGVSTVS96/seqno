@@ -10,6 +10,9 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 | `Graph.layer(source)`                                | Opens from a snapshot and update files and reads the page list, then records block ids one page per tick; `loaded` completes after.                               |
 | `vaultReplica(graph)`                                | Adapts a `Graph` to `@seqno/vault`'s `Replica`, so the vault can sync it.                                                                                         |
 | `PeerId`, `newPeerId`, `LocalUpdate`, `ImportFailed` | The Loro peer id a session writes with and a fresh random one, a run of local ops ready to save, and bytes Loro refused.                                          |
+| `graphV2Layer(source)`                               | The same `Graph` service on the second layout, one Loro tree per page (below). The app doesn't use it yet.                                                        |
+| `convertOneTree(files)`                              | Converts a graph saved in the one-tree layout to a snapshot of the tree-per-page layout, the same bytes on every device for the same files.                       |
+| `journalPageId(day)`                                 | The page id of a day's journal in the tree-per-page layout: `0000YYYY-MMDD-7000-8000-000000000000`, so every device's "today" is one page and one tree.           |
 
 - Events come only from Loro's change feed, so local edits, undo, redo, loads and merged remote ops all produce the same `GraphEvent`s.
 - `flush(write)` exports this peer's ops since the last save and moves its mark only if `write` succeeds.
@@ -24,6 +27,19 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 - Undo is the graph's own (`history.ts`), not Loro's `UndoManager`: every command records its inverse as it runs (a text delta, "move to the trash", the old place of a moved node, the old value of a property or field), and undo applies it through the same recorder, which records the redo. It never checks out an old version, so it costs the same however long the history is. Text inverses are rebased on every change to their block (`delta.ts`), so undo never removes another client's or device's characters; a step whose property or block someone else changed after it leaves that part alone. A rejected `dispatchAll` is rolled back.
 - Layout: one Loro tree with pages as roots and blocks below them. Text is a `LoroText`; props are a `LoroMap` plus a key list that keeps their order.
 
+## The tree-per-page layout (`graphV2Layer`)
+
+Built alongside the one-tree layout; the app still writes the one-tree layout. Everything the `Graph` service promises holds on both, and the test suite runs on both (`@seqno/graph` and `@seqno/graph v2`).
+
+- **Directory.** Flat maps keyed by page id: `titles` (a page exists while it has a title), `days`, `trashed` and `mergedInto`. Page properties live in `pageData`, one mergeable map per page that has any. Listing the pages reads only these maps, never a tree.
+- **Blocks.** Each page has its own tree, `blocks:<pageId>`, with its top-level blocks as roots and one hidden trash root. A block's content (text, props, times) is the data map of its home node.
+- **Moves between pages are pointer moves.** The block's home node, with its whole subtree, stays where it is; the target page gets a pointer node, and the block's `at` key names it. `at` is the one place that says where a block shows: a node shows only if it is its block's placement, so two devices moving one block to two pages resolve like Loro's own concurrent moves, by the last writer of `at`, with no repair. Text typed meanwhile and children added meanwhile live on the home node and show at the new place. Moving a block back to its home page moves the home node and drops the pointer.
+- **Repair** looks only at what changed: same-name pages among the pages a change touched, and, once any block has moved between pages, cycles among the nodes a change touched (two devices moving two blocks under each other across pages). A cycle is cut at the block with the smallest id, which goes back to the top of its home page. On a restore it checks only the blocks listed in `moved`.
+- **Same-name pages merge through the directory**: `mergedInto[loser] = winner` and the winner's page shows the loser's tree after its own. Nothing moves, so blocks a device adds to the merged-away page later show up too.
+- **Journals** written with `journalPageId(day)` land in one tree on every device; the converter gives each day's journal that id.
+- **Undo** uses the same recorder per page tree; a move between pages records the new pointer, the old placement going to the trash and the old `at`, so undo puts the block back with what other devices typed into it.
+- **Events** compare each touched block's place with the last place this session reported, so a page restored from the trash, merged into another or moved under a pointer reports exactly the blocks that changed.
+
 ## Tests
 
 ```sh
@@ -34,3 +50,5 @@ pnpm test --project @seqno/graph
 
 - On the one-tree layout, Loro reports a move only as a change to the whole tree, so `changedSince` reads the ops of every change that moved a node to find which ones.
 - Undo is exact for one client's own history. When another client or device edited the same block between a step and its undo, text positions come from rebasing alone: text put back next to someone else's insert at the same spot can land on the other side of it, and a character this client typed, deleted and got back by undoing the delete can survive undoing the typing. Loro's own undo has the same limits.
+- Tree-per-page layout: a page that shows blocks moved in from a long page reads that page's tree when first opened. Bulk commands on it scan sibling lists linearly, so they aren't tuned for 20k-block pages yet.
+- Tree-per-page layout: moving a block between pages wins over a delete, indent or move of the same block made meanwhile on another device. Loro's own tree would pick the later of the two.

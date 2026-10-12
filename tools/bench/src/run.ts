@@ -12,6 +12,7 @@ import { bulkOnLongPage } from "./bulk.ts"
 import { Vault, layer as vaultLayer, seenPath, snapshotName, snapshotPath } from "@seqno/vault"
 import { layerNode as folderStorage, nodeStorage } from "@seqno/vault/node"
 import { emptyGraph, serviceOf } from "./graph.ts"
+import { opensInFreshProcess, writeYearsAsPages } from "./pages.ts"
 import { undoAfterRemote } from "./undo.ts"
 
 const budgets = {
@@ -21,12 +22,14 @@ const budgets = {
   undoMs: 16,
   bulkMs: 2000,
   reopenIndexMs: 100,
+  pagesOpenMs: 300,
 }
 const OPENS = 3
 const KEYSTROKES = 300
 const REMOTE_EDITS = 1000
 const LONG_PAGE = 20_000
 const SELECTED = 5_000
+const YEARS = 10
 
 const timed = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
@@ -160,6 +163,8 @@ const main = Effect.gen(function* () {
   }
   const undos = yield* Effect.scoped(undoAfterRemote(snapshot, REMOTE_EDITS))
   const bulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED)
+  const [years, yearsMs] = yield* timed(writeYearsAsPages(YEARS, LONG_PAGE))
+  const pagesOpens = yield* Effect.orDie(opensInFreshProcess(years.snapshot))
   const ofLongPage = `${SELECTED.toLocaleString("en")} of a ${LONG_PAGE / 1000}k-block page`
   const rows = [
     { what: "open: page list and first page (median)", ms: median(opens), budget: budgets.openMs },
@@ -189,6 +194,12 @@ const main = Effect.gen(function* () {
       ms: median(reopens),
       budget: budgets.reopenIndexMs,
     },
+    {
+      what: `${YEARS} years, a tree per page: snapshot to page list and today's journal, fresh process (median)`,
+      ms: median(pagesOpens),
+      budget: budgets.pagesOpenMs,
+    },
+    { what: `${YEARS} years, a tree per page: write them`, ms: yearsMs, budget: null },
   ]
   console.table(rows.map((row) => ({ ...row, ms: Math.round(row.ms * 100) / 100 })))
   const over = rows.filter((row) => row.budget !== null && row.ms > row.budget)

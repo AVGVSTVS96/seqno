@@ -44,7 +44,7 @@ export type PeerId = typeof PeerId.Type
 
 const peerCount = 2n ** 64n - 2n
 
-const peerOf = (bytes: Uint8Array) =>
+export const peerOf = (bytes: Uint8Array) =>
   PeerId.make(
     String(
       (bytes.slice(0, 8).reduce((acc, byte) => (acc << 8n) | BigInt(byte), 0n) % peerCount) + 1n,
@@ -56,9 +56,9 @@ export const newPeerId = Effect.map(
   peerOf,
 )
 
-const SEED_FORMAT = "seqno-seed-1"
+export const SEED_FORMAT = "seqno-seed-1"
 
-const seedTime = (pages: ReadonlyArray<PageTree>) => {
+export const seedTime = (pages: ReadonlyArray<PageTree>) => {
   const day = Math.max(0, ...pages.map(({ page }) => page.journalDay ?? 0))
   return Math.max(
     0,
@@ -129,24 +129,24 @@ export class Graph extends Context.Service<
   static readonly layer = (source: GraphSource) => Layer.effect(Graph, make(source))
 }
 
-const LOADED = "seqno:load"
-const REPAIRED = "seqno:repair"
+export const LOADED = "seqno:load"
+export const REPAIRED = "seqno:repair"
 
-const clientOrigin = (client: string) => `seqno:client:${client};`
+export const clientOrigin = (client: string) => `seqno:client:${client};`
 
-const typedBlock = (command: Command): BlockId | null =>
+export const typedBlock = (command: Command): BlockId | null =>
   command._tag === "EditText"
     ? command.blockId
     : command._tag === "SetProperty" && command.target._tag === "BlockTarget"
       ? command.target.blockId
       : null
 
-const typedInOneBlock = (commands: ReadonlyArray<Command>): BlockId | null => {
+export const typedInOneBlock = (commands: ReadonlyArray<Command>): BlockId | null => {
   const [first = null, ...rest] = commands.map(typedBlock)
   return rest.every((block) => block === first) ? first : null
 }
 
-const importer = (doc: LoroDoc) => {
+export const importer = (doc: LoroDoc) => {
   const load = loader(doc)
   return (files: ReadonlyArray<Uint8Array>) =>
     Effect.try({
@@ -175,6 +175,7 @@ const make = (source: GraphSource) =>
     registerPages()
     const treePlace: Place = {
       doc,
+      roots: () => tree.roots(),
       root: (index) => tree.createNode(undefined, index),
       trash: () => trashOf({ tree, registry }),
     }

@@ -294,10 +294,11 @@ describe("lazy open", () => {
         )
         const snapshot = yield* origin.snapshot
         const graph = yield* openGraph("2", { snapshot })
-        assert.deepStrictEqual(
-          (yield* graph.pages).map((page) => page.title),
-          ["Alpha", "Beta", "Gamma"],
-        )
+        assert.deepStrictEqual((yield* graph.pages).map((page) => page.title).toSorted(), [
+          "Alpha",
+          "Beta",
+          "Gamma",
+        ])
         const gamma = nth(pages, 2)
         const child = nth(gamma.ids, 1)
         assert.deepStrictEqual(yield* graph.block(child), {
