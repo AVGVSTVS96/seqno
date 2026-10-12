@@ -9,11 +9,9 @@ test.skip(!appAvailable, "waits on apps/web")
 
 const beds = "Beds run north to south so neither row shades the other."
 
-const pageCount = async (page: Page) => {
+const showsPages = async (page: Page, count: string) => {
   await page.goto("/all-pages")
-  const count = page.locator(".seqno-view-count")
-  await expect(count).not.toHaveText("0")
-  return count.textContent()
+  await expect(page.locator(".seqno-view-count")).toHaveText(count)
 }
 
 test("the app opens the last graph on every load and a reload keeps the route", async ({
@@ -46,7 +44,7 @@ test("all graphs is a page in the shell, reached from the graph switcher", async
 test("Ctrl+Z after a reload undoes only the last edit", async ({ page, seqno }) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
   await openDemo(page, "/all-pages")
-  const pages = await pageCount(page)
+  await showsPages(page, "14")
   await page.goto("/page/garden%20plan")
   await page.reload()
   await page.getByRole("treeitem").filter({ hasText: beds }).first().getByText(beds).click()
@@ -59,7 +57,7 @@ test("Ctrl+Z after a reload undoes only the last edit", async ({ page, seqno }) 
   await expect(page.getByRole("main").getByRole("heading", { name: "Garden Plan" })).toBeVisible()
   await seqno.saved()
   await page.reload()
-  expect(await pageCount(page)).toBe(pages)
+  await showsPages(page, "14")
 })
 
 test("Back returns to the same scroll position in the journals", async ({ page }) => {

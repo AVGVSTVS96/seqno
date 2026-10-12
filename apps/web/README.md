@@ -18,6 +18,8 @@ The Vite web app for Chrome and Edge: React UI on the main thread (UI side), and
 
 A session (`src/worker/session.ts`) syncs the vault into an empty graph, imports the folder's Logseq markdown when there is no edit log yet (the `OpenGraph` that imported returns the files it left out or changed in `skipped`, and the app lists them in a notice), adds today's journal, then saves as soon as an edit lands (one write at a time; edits made during a write go in the next) and syncs every 5 s. `WatchSaveState` streams saved, unsaved or failed with the reason; the header shows a dot while a save takes longer than 400 ms and "Not saved" when one fails, and closing a tab after a failed save asks first. Every event batch also goes into the index.
 
+The index is in-memory SQLite, saved as one file per graph in OPFS (`indexes/<graph>.sqlite`, for picked folders too) with the Loro version it reflects. Opening loads that file and re-indexes only the pages changed since, or fills from the graph when there is no file or its version isn't in the edit log. It is saved after a fill or catch-up, when index writes go quiet and re-indexing what changed since the last save would take longer than a save, and when a tab closes (each tab lets go of its Web Lock on `pagehide`, so the worker hears at once).
+
 The two demo graphs live in OPFS as `demo` (Getting started, `src/worker/demo.ts`) and `developer` (Developer graph, `src/worker/developer.ts`). A first visit shows a chooser between them before anything opens; later visits reopen the last graph.
 
 The homepage embeds the app in an iframe with `?embed` (`src/embed.ts`). Embedded, it skips the chooser and opens Getting started, leaves out folder picking and About seqno (a cross-site frame can't show a folder picker), and posts `{ type: "seqno:ready" }` to the parent each time a graph opens, and `{ type: "seqno:escape" }` for each Escape the app doesn't use itself (handlers that use one call `preventDefault`, and open dialogs and popovers close on their own), so the homepage can close full screen. Its storage is partitioned under the homepage, so the embedded demo is a copy separate from the one at seqno-app.vercel.app.
@@ -41,5 +43,6 @@ pnpm test --project @seqno/web
 
 ## Known gaps
 
-- Opening isn't lazy: every open merges the whole edit log into an empty graph and refills an in-memory index.
+- Opening still merges the whole edit log into an empty graph, and reads every page root for the page list.
+- Forgetting a picked folder leaves its index file in OPFS.
 - The markdown mirror isn't wired in: editing a picked Logseq folder writes its edit log, but its `.md` files don't change.

@@ -316,6 +316,29 @@ const ftsQuery = (text: string): string | null => {
   return terms.length === 0 ? null : `${terms.join(" ")}*`
 }
 
+const PAGE_BLOCKS = `SELECT b.id FROM blocks b JOIN pages p ON p.rid = b.page WHERE p.id = ?`
+
+const decodeBlockId = Schema.decodeUnknownOption(BlockId)
+
+const refreshed = (
+  db: Statements,
+  pageId: PageId,
+  events: ReadonlyArray<GraphEvent>,
+): ReadonlyArray<GraphEvent> => {
+  if (events.length === 0) return [{ _tag: "PageDeleted", pageId }]
+  const kept = new Set(
+    events.flatMap((event) => (event._tag === "BlockUpserted" ? [event.block.id] : [])),
+  )
+  const stale = db
+    .all(PAGE_BLOCKS, [pageId])
+    .flatMap(([id]) => Option.toArray(decodeBlockId(id)))
+    .filter((id) => !kept.has(id))
+  return [
+    ...stale.map((blockId): GraphEvent => ({ _tag: "BlockDeleted", blockId, pageId })),
+    ...events,
+  ]
+}
+
 const applyAll = (db: Statements, events: Iterable<GraphEvent>): Changes => {
   const changes: Changes = new Map()
   const index = indexer(db, changes)
@@ -327,6 +350,11 @@ const make = Effect.gen(function* () {
   const sqlite = yield* Sqlite
   const reactivity = yield* Reactivity.make
   const writer = yield* Semaphore.make(1)
+
+  const opened = sqlite.use((db) => {
+    db.exec(RELAXED)
+    return schemaVersion(db) === SCHEMA_VERSION ? readStamp(db) : null
+  })
 
   yield* sqlite.use((db) => db.exec(RELAXED))
   yield* sqlite.transaction((db) => {
@@ -350,26 +378,21 @@ const make = Effect.gen(function* () {
   return {
     stamp: sqlite.use(readStamp).pipe(Effect.map(Option.fromNullOr)),
 
-    apply: (events: ReadonlyArray<GraphEvent>, stamp: string) =>
+    apply: (events: ReadonlyArray<GraphEvent>) =>
       sqlite
-        .transaction((db) => {
-          const changes = applyAll(db, events)
-          writeStamp(db, stamp)
-          return changes
-        })
+        .transaction((db) => applyAll(db, events))
         .pipe(
           Effect.flatMap((changes) => reactivity.invalidate(toInvalidation(changes))),
           writer.withPermits(1),
         ),
 
-    rebuild: <E, R>(events: Stream.Stream<GraphEvent, E, R>, stamp: string) =>
+    rebuild: <E, R>(events: Stream.Stream<GraphEvent, E, R>) =>
       Effect.gen(function* () {
         yield* sqlite.transaction(recreate)
         yield* events.pipe(
           Stream.grouped(REBUILD_BATCH),
           Stream.runForEach((batch) => sqlite.transaction((db) => applyAll(db, batch))),
         )
-        yield* sqlite.transaction((db) => writeStamp(db, stamp))
       }).pipe(Effect.ensuring(reactivity.invalidate([REBUILT])), writer.withPermits(1)),
 
     fill: <E, R>(pages: Stream.Stream<ReadonlyArray<GraphEvent>, E, R>) =>
@@ -382,6 +405,40 @@ const make = Effect.gen(function* () {
         ),
         Effect.ensuring(reactivity.invalidate([REBUILT])),
       ),
+
+    refresh: <E, R>(pages: Stream.Stream<readonly [PageId, ReadonlyArray<GraphEvent>], E, R>) =>
+      pages.pipe(
+        Stream.runForEach(([pageId, events]) =>
+          Effect.andThen(
+            writer.withPermits(1)(
+              sqlite.transaction((db) => void applyAll(db, refreshed(db, pageId, events))),
+            ),
+            Effect.yieldNow,
+          ),
+        ),
+        Effect.ensuring(reactivity.invalidate([REBUILT])),
+      ),
+
+    reset: sqlite
+      .transaction(recreate)
+      .pipe(writer.withPermits(1), Effect.ensuring(reactivity.invalidate([REBUILT]))),
+
+    image: (stamp: string) =>
+      writer.withPermits(1)(
+        Effect.andThen(
+          sqlite.transaction((db) => writeStamp(db, stamp)),
+          sqlite.serialize,
+        ),
+      ),
+
+    load: (image: Uint8Array) =>
+      Effect.gen(function* () {
+        const stamp = yield* Effect.andThen(sqlite.deserialize(image), opened).pipe(
+          Effect.orElseSucceed(() => null),
+        )
+        if (stamp === null) yield* sqlite.transaction(recreate)
+        return Option.fromNullOr(stamp)
+      }).pipe(writer.withPermits(1), Effect.ensuring(reactivity.invalidate([REBUILT]))),
 
     query,
 

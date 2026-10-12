@@ -1,14 +1,27 @@
-import { Effect, Layer } from "effect"
-import type { Command } from "@seqno/domain"
+import { mkdtemp, rm } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { Effect, Layer, Option, Stream } from "effect"
+import { DeviceId, type Command } from "@seqno/domain"
 import { generateGraph, toLogseqFiles } from "@seqno/fixtures"
+import { vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
 import { layerNode } from "@seqno/index/node"
 import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { bulkOnLongPage } from "./bulk.ts"
+import { Vault, layer as vaultLayer, seenPath, snapshotName, snapshotPath } from "@seqno/vault"
+import { layerNode as folderStorage, nodeStorage } from "@seqno/vault/node"
 import { emptyGraph, serviceOf } from "./graph.ts"
 import { undoAfterRemote } from "./undo.ts"
 
-const budgets = { openMs: 1000, keystrokeP95Ms: 16, undoMs: 16, bulkMs: 2000 }
+const budgets = {
+  openMs: 1000,
+  vaultOpenMs: 1500,
+  keystrokeP95Ms: 16,
+  undoMs: 16,
+  bulkMs: 2000,
+  reopenIndexMs: 250,
+}
 const OPENS = 3
 const KEYSTROKES = 300
 const REMOTE_EDITS = 1000
@@ -56,6 +69,61 @@ const open = (snapshot: Uint8Array, peer: string) =>
     return { graph, first }
   })
 
+const device = DeviceId.make("bench")
+
+const folderOf = (snapshot: Uint8Array, version: ReadonlyMap<string, number>) =>
+  Effect.acquireRelease(
+    Effect.gen(function* () {
+      const root = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-bench-vault-")))
+      const storage = nodeStorage(root)
+      const name = yield* Effect.promise(() => snapshotName(device, snapshot))
+      yield* storage.write(snapshotPath(name), snapshot)
+      const seen = {
+        vv: Object.fromEntries(version),
+        verified: [],
+        snapshots: [[name, Object.fromEntries(version)]],
+      }
+      yield* storage.write(seenPath(device), new TextEncoder().encode(JSON.stringify(seen)))
+      return root
+    }),
+    (root) => Effect.promise(() => rm(root, { recursive: true })),
+  )
+
+const openThroughVault = (root: string, peer: string) =>
+  Effect.gen(function* () {
+    const graph = yield* emptyGraph(peer)
+    const vault = yield* serviceOf(
+      Vault,
+      vaultLayer({ device, members: [device], compactAfterFiles: 100, compactEvery: 0 }).pipe(
+        Layer.provide(folderStorage(root)),
+      ),
+    )
+    yield* vault.sync(vaultReplica(graph))
+    const pages = yield* graph.pages
+    const journal = pages.find((page) => page.journalDay !== null) ?? pages[0]
+    if (journal === undefined) return yield* Effect.die("the generated graph has no pages")
+    return yield* graph.page(journal.id)
+  })
+
+const reopenIndex = (
+  graph: Effect.Success<ReturnType<typeof emptyGraph>>,
+  image: Uint8Array,
+  since: ReadonlyMap<string, number>,
+) =>
+  Effect.gen(function* () {
+    const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(layerNode())))
+    yield* index.load(image)
+    const changed = yield* graph.changedSince(since)
+    if (Option.isNone(changed)) return yield* Effect.die("the saved stamp is not in the graph")
+    yield* index.refresh(
+      Stream.fromIterable(changed.value.pages).pipe(
+        Stream.mapEffect((page) =>
+          Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
+        ),
+      ),
+    )
+  })
+
 const main = Effect.gen(function* () {
   const [snapshot, seedMs] = yield* timed(snapshotOfGenerated)
   const opens: Array<number> = []
@@ -64,23 +132,41 @@ const main = Effect.gen(function* () {
     opens.push(ms)
   }
   const { graph, first } = yield* open(snapshot, "20")
+  const folder = yield* folderOf(snapshot, yield* graph.version)
+  const vaultOpens: Array<number> = []
+  for (let run = 0; run < OPENS; run++) {
+    const [, ms] = yield* timed(Effect.scoped(openThroughVault(folder, String(30 + run))))
+    vaultOpens.push(ms)
+  }
   const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(layerNode())))
   const [, fillMs] = yield* timed(index.fill(graph.everything))
+  const stamp = yield* graph.version
+  const image = yield* index.image(JSON.stringify(Object.fromEntries(stamp)))
   const block = first.blocks[0]
   if (block === undefined) return yield* Effect.die("the first journal has no blocks")
   const keystrokes: Array<number> = []
   for (let at = 0; at < KEYSTROKES; at++) {
     const command: Command = { _tag: "EditText", blockId: block.id, from: at, to: at, insert: "x" }
     const [, ms] = yield* timed(
-      Effect.flatMap(graph.dispatch(command), (events) => index.apply(events, String(at))),
+      Effect.flatMap(graph.dispatch(command), (events) => index.apply(events)),
     )
     keystrokes.push(ms)
+  }
+  const reopens: Array<number> = []
+  for (let run = 0; run < OPENS; run++) {
+    const [, ms] = yield* timed(Effect.scoped(reopenIndex(graph, image, stamp)))
+    reopens.push(ms)
   }
   const undos = yield* Effect.scoped(undoAfterRemote(snapshot, REMOTE_EDITS))
   const bulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED)
   const ofLongPage = `${SELECTED.toLocaleString("en")} of a ${LONG_PAGE / 1000}k-block page`
   const rows = [
     { what: "open: page list and first page (median)", ms: median(opens), budget: budgets.openMs },
+    {
+      what: "open through the vault: newest snapshot to first page (median)",
+      ms: median(vaultOpens),
+      budget: budgets.vaultOpenMs,
+    },
     {
       what: "keystroke: edit and index write (p95)",
       ms: p95(keystrokes),
@@ -97,6 +183,11 @@ const main = Effect.gen(function* () {
     { what: `indent ${ofLongPage}`, ms: bulk.indentMs, budget: budgets.bulkMs },
     { what: "import and seed", ms: seedMs, budget: null },
     { what: "index fill behind the open", ms: fillMs, budget: null },
+    {
+      what: "index: load the saved image and catch up after typing (median)",
+      ms: median(reopens),
+      budget: budgets.reopenIndexMs,
+    },
   ]
   console.table(rows.map((row) => ({ ...row, ms: Math.round(row.ms * 100) / 100 })))
   const over = rows.filter((row) => row.budget !== null && row.ms > row.budget)

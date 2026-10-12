@@ -2,7 +2,26 @@ import init, { type Database, type PreparedStatement } from "@sqlite.org/sqlite-
 import { Effect, Layer } from "effect"
 import { IndexError, Sqlite, makeSqlite, toIndexError, type Driver } from "./sqlite.ts"
 
-const driverOf = (db: Database): Driver => {
+const sqlite3 = Effect.tryPromise({ try: () => init(), catch: toIndexError })
+
+type Module = Effect.Success<typeof sqlite3>
+
+const deserializer =
+  ({ capi, wasm }: Module) =>
+  (target: Database, image: Uint8Array) =>
+    target.checkRc(
+      capi.sqlite3_deserialize(
+        target,
+        "main",
+        wasm.allocFromTypedArray(image),
+        image.byteLength,
+        image.byteLength,
+        capi.SQLITE_DESERIALIZE_FREEONCLOSE | capi.SQLITE_DESERIALIZE_RESIZEABLE,
+      ),
+    )
+
+const driverOf = (module: Module, db: Database): Driver => {
+  const into = deserializer(module)
   const cache = new Map<string, PreparedStatement>()
   const prepare = (sql: string) => {
     const cached = cache.get(sql)
@@ -29,23 +48,35 @@ const driverOf = (db: Database): Driver => {
       }
       return rows
     },
+    serialize: () => module.capi.sqlite3_js_db_export(db),
+    deserialize: (image) => {
+      const scratch = new module.oo1.DB(":memory:")
+      try {
+        into(scratch, image)
+        scratch.exec("SELECT count(*) FROM sqlite_schema")
+      } finally {
+        scratch.close()
+      }
+      cache.forEach((statement) => statement.finalize())
+      cache.clear()
+      into(db, image)
+    },
   }
 }
 
-const sqlite3 = Effect.tryPromise({ try: () => init(), catch: toIndexError })
-
-const layerOf = (open: Effect.Effect<Database, IndexError>) =>
+const layerOf = (open: (module: Module) => Effect.Effect<Database, IndexError>) =>
   Layer.effect(
     Sqlite,
-    Effect.acquireRelease(open, (db) => Effect.sync(() => db.close())).pipe(
-      Effect.map((db) => makeSqlite(driverOf(db))),
+    Effect.flatMap(sqlite3, (module) =>
+      Effect.acquireRelease(open(module), (db) => Effect.sync(() => db.close())).pipe(
+        Effect.map((db) => makeSqlite(driverOf(module, db))),
+      ),
     ),
   )
 
 export const layerWasm = (options: { readonly directory: string; readonly file: string }) =>
-  layerOf(
+  layerOf((module) =>
     Effect.gen(function* () {
-      const module = yield* sqlite3
       const pool = yield* Effect.tryPromise({
         try: () => module.installOpfsSAHPoolVfs({ directory: options.directory }),
         catch: toIndexError,
@@ -57,8 +88,6 @@ export const layerWasm = (options: { readonly directory: string; readonly file: 
     }),
   )
 
-export const layerWasmMemory = layerOf(
-  Effect.flatMap(sqlite3, (module) =>
-    Effect.try({ try: () => new module.oo1.DB(":memory:"), catch: toIndexError }),
-  ),
+export const layerWasmMemory = layerOf((module) =>
+  Effect.try({ try: () => new module.oo1.DB(":memory:"), catch: toIndexError }),
 )

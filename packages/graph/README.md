@@ -4,16 +4,17 @@ The Loro CRDT graph that is the source of truth for pages and blocks: on the cor
 
 ## What's inside
 
-| Export                                               | What it does                                                                                                                                      |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Graph`                                              | Effect service: `pages`, `page`, `block`, `dispatch`, `dispatchAll`, `merge`, `load`, `seed`, `events`, `flush`, `snapshot`, `version`, `loaded`. |
-| `Graph.layer(source)`                                | Opens from a snapshot and update files and reads the page list, then records block ids one page per tick; `loaded` completes after.               |
-| `vaultReplica(graph)`                                | Adapts a `Graph` to `@seqno/vault`'s `Replica`, so the vault can sync it.                                                                         |
-| `PeerId`, `newPeerId`, `LocalUpdate`, `ImportFailed` | The Loro peer id a session writes with and a fresh random one, a run of local ops ready to save, and bytes Loro refused.                          |
+| Export                                               | What it does                                                                                                                                                      |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Graph`                                              | Effect service: `pages`, `page`, `block`, `dispatch`, `dispatchAll`, `merge`, `load`, `seed`, `events`, `flush`, `snapshot`, `version`, `changedSince`, `loaded`. |
+| `Graph.layer(source)`                                | Opens from a snapshot and update files and reads the page list, then records block ids one page per tick; `loaded` completes after.                               |
+| `vaultReplica(graph)`                                | Adapts a `Graph` to `@seqno/vault`'s `Replica`, so the vault can sync it.                                                                                         |
+| `PeerId`, `newPeerId`, `LocalUpdate`, `ImportFailed` | The Loro peer id a session writes with and a fresh random one, a run of local ops ready to save, and bytes Loro refused.                                          |
 
 - Events come only from Loro's change feed, so local edits, undo, redo, loads and merged remote ops all produce the same `GraphEvent`s.
 - `flush(write)` exports this peer's ops since the last save and moves its mark only if `write` succeeds.
-- `restore(updates)` imports into an empty graph without events (merging same-named pages), and `everything` streams the whole state as events, one batch per page, to fill an index from. On a graph that already holds ops, `restore` merges.
+- `restore(updates)` imports into an empty graph without events (merging same-named pages) and returns the version the import reached, before that merge; `everything` streams the whole state as events, one batch per page, to fill an index from. On a graph that already holds ops, `restore` merges. A restore that imports nothing leaves the graph as it was.
+- `changedSince(version)` names the pages touched since `version` (by Loro's `findIdSpansBetween` and `getChangedContainersIn`, plus the targets of tree moves) and the blocks among them, whose earlier pages only an index knows. It is `None` when the graph doesn't hold `version`.
 - `load(pages)` adds imported pages with their given ids, journal days and props, outside the undo history.
 - `seed(pages)` does the same on an empty graph, but writes the ops under a peer id hashed from the pages and with times taken from them (noon UTC of the latest journal day), and returns those ops as their own update. Two devices seeding the same pages write identical ops, so merging one into the other adds nothing.
 - Two live pages with one name merge into the one with the smaller id right after the commit or merge that made them; the other stays as a hidden root marked `mergedInto`, and blocks that land there later move over too.
@@ -31,5 +32,5 @@ pnpm test --project @seqno/graph
 
 ## Known gaps
 
-- There is no `eventsSince(version)`, so a stale index has to rebuild from every page.
+- On the one-tree layout, Loro reports a move only as a change to the whole tree, so `changedSince` reads the ops of every change that moved a node to find which ones.
 - Undo is exact for one client's own history. When another client or device edited the same block between a step and its undo, text positions come from rebasing alone: text put back next to someone else's insert at the same spot can land on the other side of it, and a character this client typed, deleted and got back by undoing the delete can survive undoing the typing. Loro's own undo has the same limits.

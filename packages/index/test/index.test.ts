@@ -65,7 +65,7 @@ const graph: ReadonlyArray<GraphEvent> = [
 ]
 
 const todos: LiveQuery = {
-  sql: "SELECT count(*), (SELECT value FROM meta WHERE key = 'stamp') FROM tasks WHERE status = 'todo'",
+  sql: "SELECT count(*) FROM tasks WHERE status = 'todo'",
   params: [],
   reads: ["task.status"],
 }
@@ -88,16 +88,13 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("indexes tasks, refs, props and the tree so plain SQL can read them", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(
-          [
-            upsertPage(notes, "Notes"),
-            upsertBlock(blockId(1), notes, "TODO [#A] ship #release\nSCHEDULED: <2026-10-07 Wed>", {
-              props: { owner: "[[Ana]]", Estimate: "3" },
-            }),
-            upsertBlock(blockId(2), notes, "notes on `#not-a-tag`", { parentId: blockId(1) }),
-          ],
-          "v1",
-        )
+        yield* index.apply([
+          upsertPage(notes, "Notes"),
+          upsertBlock(blockId(1), notes, "TODO [#A] ship #release\nSCHEDULED: <2026-10-07 Wed>", {
+            props: { owner: "[[Ana]]", Estimate: "3" },
+          }),
+          upsertBlock(blockId(2), notes, "notes on `#not-a-tag`", { parentId: blockId(1) }),
+        ])
         assert.deepStrictEqual(
           yield* index.query(
             "SELECT b.id, t.status, t.priority, t.scheduled, t.deadline FROM tasks t JOIN blocks b ON b.rid = t.block",
@@ -126,7 +123,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("finds backlinks by name, alias, tag and tag property, newest journal first", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(graph, "v1")
+        yield* index.apply(graph)
         assert.deepStrictEqual(yield* index.backlinks(project), [
           { blockId: blockId(2), pageId: journal, text: "worked on [[Project]]" },
           { blockId: blockId(3), pageId: journal, text: "child mentions [[project]]" },
@@ -141,16 +138,13 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("keeps backlinks current through edits, subtree deletes and renames", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(graph, "v1")
-        yield* index.apply(
-          [
-            upsertBlock(blockId(5), notes, "see [[Notes]] instead"),
-            { _tag: "BlockDeleted", blockId: blockId(2), pageId: journal },
-            upsertPage(project, "Launch"),
-            upsertBlock(blockId(9), notes, "ready for [[launch]]"),
-          ],
-          "v2",
-        )
+        yield* index.apply(graph)
+        yield* index.apply([
+          upsertBlock(blockId(5), notes, "see [[Notes]] instead"),
+          { _tag: "BlockDeleted", blockId: blockId(2), pageId: journal },
+          upsertPage(project, "Launch"),
+          upsertBlock(blockId(9), notes, "ready for [[launch]]"),
+        ])
         assert.deepStrictEqual(yield* index.backlinks(project), [
           { blockId: blockId(9), pageId: notes, text: "ready for [[launch]]" },
         ])
@@ -164,16 +158,13 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("finds unlinked mentions of a page's name and aliases, skipping linked ones", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(
-          [
-            ...graph,
-            upsertBlock(blockId(9), notes, "the project plan needs a review"),
-            upsertBlock(blockId(10), journal, "PROJ budget, and [[Project]] linked too"),
-            upsertBlock(blockId(11), project, "this project page mentions itself"),
-            upsertBlock(blockId(12), notes, "projection is a different word"),
-          ],
-          "v1",
-        )
+        yield* index.apply([
+          ...graph,
+          upsertBlock(blockId(9), notes, "the project plan needs a review"),
+          upsertBlock(blockId(10), journal, "PROJ budget, and [[Project]] linked too"),
+          upsertBlock(blockId(11), project, "this project page mentions itself"),
+          upsertBlock(blockId(12), notes, "projection is a different word"),
+        ])
         assert.deepStrictEqual(yield* index.unlinkedReferences(project), [
           { blockId: blockId(9), pageId: notes, text: "the project plan needs a review" },
         ])
@@ -185,10 +176,10 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("counts backlinks and reads first and last edit times per page", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(
-          [...graph, upsertBlock(blockId(9), notes, "edited later", { updatedAt: 5_000 })],
-          "v1",
-        )
+        yield* index.apply([
+          ...graph,
+          upsertBlock(blockId(9), notes, "edited later", { updatedAt: 5_000 }),
+        ])
         const stats = yield* index.pageStats
         assert.deepStrictEqual(
           stats.toSorted((left, right) => left.pageId.localeCompare(right.pageId)),
@@ -205,16 +196,13 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("lists names that are referenced but have no page, titled as written", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(
-          [
-            ...graph,
-            upsertBlock(blockId(9), journal, "sowed tomatoes #Greenhouse", { updatedAt: 3_000 }),
-            upsertBlock(blockId(10), notes, "see [[Seed Inventory]] and #greenhouse."),
-            upsertBlock(blockId(11), notes, "```css\na {\n  color: #3a7d44;\n}\n```"),
-            upsertBlock(blockId(12), notes, "#+BEGIN_QUERY\n{}\n#+END_QUERY"),
-          ],
-          "v1",
-        )
+        yield* index.apply([
+          ...graph,
+          upsertBlock(blockId(9), journal, "sowed tomatoes #Greenhouse", { updatedAt: 3_000 }),
+          upsertBlock(blockId(10), notes, "see [[Seed Inventory]] and #greenhouse."),
+          upsertBlock(blockId(11), notes, "```css\na {\n  color: #3a7d44;\n}\n```"),
+          upsertBlock(blockId(12), notes, "#+BEGIN_QUERY\n{}\n#+END_QUERY"),
+        ])
         assert.deepStrictEqual(yield* index.referencedPages, [
           {
             name: "greenhouse",
@@ -241,7 +229,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
             updated: 1_000,
           },
         ])
-        yield* index.apply([upsertPage(pageId(4), "Greenhouse")], "v2")
+        yield* index.apply([upsertPage(pageId(4), "Greenhouse")])
         assert.deepStrictEqual(
           (yield* index.referencedPages).map((page) => page.name),
           ["other", "seed inventory"],
@@ -253,14 +241,11 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("builds the page graph: every page, names only referenced, and the links between", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(
-          [
-            ...graph,
-            upsertPage(pageId(4), "Project/Beds"),
-            upsertBlock(blockId(9), pageId(4), "raised [[Project]] beds #Greenhouse"),
-          ],
-          "v1",
-        )
+        yield* index.apply([
+          ...graph,
+          upsertPage(pageId(4), "Project/Beds"),
+          upsertBlock(blockId(9), pageId(4), "raised [[Project]] beds #Greenhouse"),
+        ])
         const { pages, links } = yield* index.pagesGraph
         assert.deepStrictEqual(
           pages.map((page) => [page.name, page.exists, page.tag, page.day]),
@@ -291,15 +276,12 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         const target = "0192a5c4-7e10-7a3b-9c4d-5e6f70819203"
-        yield* index.apply(
-          [
-            ...graph,
-            upsertBlock(blockId(9), notes, `see ((${target})) and ((${target.toUpperCase()}))`),
-            upsertBlock(blockId(10), notes, `{{embed ((${target}))}}`),
-            upsertBlock(blockId(11), notes, "no refs ((here))"),
-          ],
-          "v1",
-        )
+        yield* index.apply([
+          ...graph,
+          upsertBlock(blockId(9), notes, `see ((${target})) and ((${target.toUpperCase()}))`),
+          upsertBlock(blockId(10), notes, `{{embed ((${target}))}}`),
+          upsertBlock(blockId(11), notes, "no refs ((here))"),
+        ])
         assert.deepStrictEqual(yield* index.blockRefCounts, { [target]: 2 })
       }),
     ),
@@ -309,14 +291,14 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         const target = blockId(1).toUpperCase()
-        yield* index.apply(graph, "v1")
+        yield* index.apply(graph)
         const updates = yield* Stream.toQueue(index.watchBlockReferences(target), {
           capacity: "unbounded",
         })
         assert.deepStrictEqual(yield* Queue.take(updates), [])
-        yield* index.apply([upsertBlock(blockId(9), journal, `see ((${blockId(1)}))`)], "v2")
+        yield* index.apply([upsertBlock(blockId(9), journal, `see ((${blockId(1)}))`)])
         assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9)])
-        yield* index.apply([upsertBlock(blockId(10), notes, `{{embed ((${target}))}}`)], "v3")
+        yield* index.apply([upsertBlock(blockId(10), notes, `{{embed ((${target}))}}`)])
         assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9), blockId(10)])
       }).pipe(Effect.scoped),
     ),
@@ -325,19 +307,19 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.live("live backlinks wake for the page's own refs and aliases, not for other edits", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(graph, "v1")
+        yield* index.apply(graph)
         const updates = yield* Stream.toQueue(index.watchBacklinks(notes), {
           capacity: "unbounded",
         })
         assert.deepStrictEqual(yield* Queue.take(updates), [])
-        yield* index.apply([upsertBlock(blockId(9), journal, "plain words about notes")], "v2")
-        yield* index.apply([upsertBlock(blockId(10), journal, "see [[Project]] again")], "v3")
+        yield* index.apply([upsertBlock(blockId(9), journal, "plain words about notes")])
+        yield* index.apply([upsertBlock(blockId(10), journal, "see [[Project]] again")])
         yield* Effect.sleep("20 millis")
         assert.strictEqual(yield* Queue.size(updates), 0)
-        yield* index.apply([upsertBlock(blockId(9), journal, "about [[Notes]]")], "v4")
+        yield* index.apply([upsertBlock(blockId(9), journal, "about [[Notes]]")])
         assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9)])
-        yield* index.apply([upsertPage(notes, "Notes", { alias: "jottings" })], "v5")
-        yield* index.apply([upsertBlock(blockId(11), project, "#jottings")], "v6")
+        yield* index.apply([upsertPage(notes, "Notes", { alias: "jottings" })])
+        yield* index.apply([upsertBlock(blockId(11), project, "#jottings")])
         assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9), blockId(11)])
       }).pipe(Effect.scoped),
     ),
@@ -346,12 +328,12 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.live("live backlinks reach a name that has no page yet", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(graph, "v1")
+        yield* index.apply(graph)
         const updates = yield* Stream.toQueue(index.watchBacklinksToName("Visual Check"), {
           capacity: "unbounded",
         })
         assert.deepStrictEqual(yield* Queue.take(updates), [])
-        yield* index.apply([upsertBlock(blockId(9), notes, "needs a #[[visual check]]")], "v2")
+        yield* index.apply([upsertBlock(blockId(9), notes, "needs a #[[visual check]]")])
         assert.deepStrictEqual(yield* Queue.take(updates), [
           { blockId: blockId(9), pageId: notes, text: "needs a #[[visual check]]" },
         ])
@@ -362,7 +344,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.live("live unlinked references and page stats follow text edits", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(graph, "v1")
+        yield* index.apply(graph)
         const unlinked = yield* Stream.toQueue(index.watchUnlinkedReferences(notes), {
           capacity: "unbounded",
         })
@@ -371,14 +353,13 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
           all.find((stat) => stat.pageId === notes)?.updated
         assert.deepStrictEqual(yield* Queue.take(unlinked), [])
         assert.strictEqual(updatedNotes(yield* Queue.take(stats)), 1_000)
-        yield* index.apply(
-          [upsertBlock(blockId(7), notes, "Deploy on Friday", { updatedAt: 7_000 })],
-          "v2",
-        )
+        yield* index.apply([
+          upsertBlock(blockId(7), notes, "Deploy on Friday", { updatedAt: 7_000 }),
+        ])
         assert.strictEqual(updatedNotes(yield* Queue.take(stats)), 7_000)
         yield* Effect.sleep("20 millis")
         assert.strictEqual(yield* Queue.size(unlinked), 0)
-        yield* index.apply([upsertBlock(blockId(9), journal, "check the notes later")], "v3")
+        yield* index.apply([upsertBlock(blockId(9), journal, "check the notes later")])
         assert.deepStrictEqual(yield* Queue.take(unlinked), [
           { blockId: blockId(9), pageId: journal, text: "check the notes later" },
         ])
@@ -389,7 +370,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("searches blocks by word prefix and pages by name or alias", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(graph, "v1")
+        yield* index.apply(graph)
         const found = yield* index.search("deploy")
         assert.deepStrictEqual(found.pages, [])
         assert.deepStrictEqual(found.blocks.map((hit) => hit.text).toSorted(), [
@@ -414,11 +395,10 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("moves a whole subtree when its root moves to another page", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(graph, "v1")
-        yield* index.apply(
-          [{ _tag: "BlockMoved", blockId: blockId(7), pageId: project, parentId: blockId(1) }],
-          "v2",
-        )
+        yield* index.apply(graph)
+        yield* index.apply([
+          { _tag: "BlockMoved", blockId: blockId(7), pageId: project, parentId: blockId(1) },
+        ])
         assert.deepStrictEqual(
           yield* index.query(
             "SELECT b.id, p.name_lc, parent.id FROM blocks b JOIN pages p ON p.rid = b.page JOIN blocks parent ON parent.rid = b.parent WHERE b.content LIKE '%deploy%' ORDER BY b.rid",
@@ -435,8 +415,8 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("deleting a page removes its blocks from every table", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(graph, "v1")
-        yield* index.apply([{ _tag: "PageDeleted", pageId: notes }], "v2")
+        yield* index.apply(graph)
+        yield* index.apply([{ _tag: "PageDeleted", pageId: notes }])
         assert.deepStrictEqual(
           yield* index.query(
             "SELECT (SELECT count(*) FROM blocks), (SELECT count(*) FROM refs), (SELECT count(*) FROM props), (SELECT count(*) FROM pages), (SELECT count(*) FROM fts WHERE fts MATCH 'deploy')",
@@ -450,18 +430,17 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.effect("rejects a batch whose blocks arrive before their page, and keeps the old state", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply([upsertPage(notes, "Notes")], "v1")
+        yield* index.apply([upsertPage(notes, "Notes")])
         const error = yield* index
-          .apply(
-            [upsertBlock(blockId(1), notes, "fine"), upsertBlock(blockId(2), journal, "orphan")],
-            "v2",
-          )
+          .apply([
+            upsertBlock(blockId(1), notes, "fine"),
+            upsertBlock(blockId(2), journal, "orphan"),
+          ])
           .pipe(Effect.flip)
         assert.strictEqual(
           error.message,
           `page ${journal} is not indexed: send its PageUpserted before its blocks`,
         )
-        assert.deepStrictEqual(yield* index.stamp, Option.some("v1"))
         assert.deepStrictEqual(yield* index.query("SELECT count(*) FROM blocks"), [[0]])
       }),
     ),
@@ -480,17 +459,14 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.live("re-runs a live query only when a key it reads changes", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply(
-          [upsertPage(notes, "Notes"), upsertBlock(blockId(1), notes, "TODO a")],
-          "v1",
-        )
+        yield* index.apply([upsertPage(notes, "Notes"), upsertBlock(blockId(1), notes, "TODO a")])
         const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
-        assert.deepStrictEqual(yield* Queue.take(results), [[1, "v1"]])
-        yield* index.apply([upsertBlock(blockId(2), notes, "plain text")], "v2")
-        yield* index.apply([upsertBlock(blockId(1), notes, "TODO a, edited")], "v3")
+        assert.deepStrictEqual(yield* Queue.take(results), [[1]])
+        yield* index.apply([upsertBlock(blockId(2), notes, "plain text")])
+        yield* index.apply([upsertBlock(blockId(1), notes, "TODO a, edited")])
         yield* Effect.sleep("20 millis")
-        yield* index.apply([upsertBlock(blockId(2), notes, "TODO plain text")], "v4")
-        assert.deepStrictEqual(yield* Queue.take(results), [[2, "v4"]])
+        yield* index.apply([upsertBlock(blockId(2), notes, "TODO plain text")])
+        assert.deepStrictEqual(yield* Queue.take(results), [[2]])
       }).pipe(Effect.scoped),
     ),
   )
@@ -498,42 +474,39 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   it.live("wakes a keyed live query only for its own value", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        yield* index.apply([upsertPage(notes, "Notes")], "v1")
+        yield* index.apply([upsertPage(notes, "Notes")])
         const release = yield* Stream.toQueue(
           index.watch({
-            sql: "SELECT count(*), (SELECT value FROM meta WHERE key = 'stamp') FROM refs WHERE target = 'release' AND tag = 1",
+            sql: "SELECT count(*) FROM refs WHERE target = 'release' AND tag = 1",
             params: [],
             reads: ["tag:release"],
           }),
           { capacity: "unbounded" },
         )
-        assert.deepStrictEqual(yield* Queue.take(release), [[0, "v1"]])
-        yield* index.apply([upsertBlock(blockId(1), notes, "#other")], "v2")
+        assert.deepStrictEqual(yield* Queue.take(release), [[0]])
+        yield* index.apply([upsertBlock(blockId(1), notes, "#other")])
         yield* Effect.sleep("20 millis")
-        yield* index.apply([upsertBlock(blockId(1), notes, "#other #release")], "v3")
-        assert.deepStrictEqual(yield* Queue.take(release), [[1, "v3"]])
+        yield* index.apply([upsertBlock(blockId(1), notes, "#other #release")])
+        assert.deepStrictEqual(yield* Queue.take(release), [[1]])
       }).pipe(Effect.scoped),
     ),
   )
 
-  it.live("rebuild replaces everything, stamps the result and refreshes live queries", () =>
+  it.live("rebuild replaces everything and refreshes live queries", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        assert.deepStrictEqual(yield* index.stamp, Option.none())
-        yield* index.apply(graph, "v1")
-        yield* index.apply([upsertBlock(blockId(9), notes, "TODO old")], "v2")
+        yield* index.apply(graph)
+        yield* index.apply([upsertBlock(blockId(9), notes, "TODO old")])
         const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
-        assert.deepStrictEqual(yield* Queue.take(results), [[1, "v2"]])
+        assert.deepStrictEqual(yield* Queue.take(results), [[1]])
         yield* index.rebuild(
           Stream.fromIterable([
             upsertPage(journal, "Oct 6th, 2026", {}, 20261006),
             upsertBlock(blockId(20), journal, "TODO x"),
             upsertBlock(blockId(21), journal, "TODO y", { parentId: blockId(20) }),
           ]),
-          "v9",
         )
-        assert.deepStrictEqual(yield* Queue.take(results), [[2, "v9"]])
-        assert.deepStrictEqual(yield* index.stamp, Option.some("v9"))
+        assert.deepStrictEqual(yield* Queue.take(results), [[2]])
         assert.deepStrictEqual(yield* index.query("SELECT name_lc FROM pages"), [["oct 6th, 2026"]])
       }).pipe(Effect.scoped),
     ),
@@ -543,7 +516,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
-        assert.deepStrictEqual(yield* Queue.take(results), [[0, null]])
+        assert.deepStrictEqual(yield* Queue.take(results), [[0]])
         yield* index.fill(
           Stream.fromIterable([
             [
@@ -553,22 +526,99 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
             [upsertPage(notes, "notes"), upsertBlock(blockId(21), notes, "TODO y")],
           ]),
         )
-        assert.deepStrictEqual(yield* Queue.take(results), [[2, null]])
+        assert.deepStrictEqual(yield* Queue.take(results), [[2]])
         assert.deepStrictEqual(yield* Queue.size(results), 0)
-        assert.deepStrictEqual(yield* index.stamp, Option.none())
+      }).pipe(Effect.scoped),
+    ),
+  )
+
+  it.effect("an image carries its rows and stamp into another index", () =>
+    Effect.gen(function* () {
+      const image = yield* usingIndex(sqlite())((index) =>
+        Effect.andThen(index.apply(graph), index.image("v7")),
+      )
+      const loaded = yield* usingIndex(sqlite())((index) =>
+        Effect.all([
+          index.load(image),
+          index.search("friday"),
+          index.query("SELECT count(*) FROM blocks"),
+          index.stamp,
+        ]),
+      )
+      assert.deepStrictEqual(loaded, [
+        Option.some("v7"),
+        {
+          pages: [],
+          blocks: [{ blockId: blockId(7), pageId: notes, text: "Deploy the app on Friday" }],
+        },
+        [[8]],
+        Option.some("v7"),
+      ])
+    }),
+  )
+
+  it.effect("an image it can't use leaves an empty index that still takes writes", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        const other = new DatabaseSync(":memory:")
+        other.exec("CREATE TABLE pages (x); PRAGMA user_version = 999")
+        const loads = [
+          yield* index.load(new TextEncoder().encode("not a database")),
+          yield* index.load(other.serialize()),
+        ]
+        other.close()
+        yield* index.apply([upsertPage(notes, "Notes")])
+        assert.deepStrictEqual(
+          [loads, yield* index.query("SELECT count(*) FROM pages")],
+          [[Option.none(), Option.none()], [[1]]],
+        )
+      }),
+    ),
+  )
+
+  it.live("refresh rewrites whole pages: blocks gone from a page go, and a page gone goes", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        yield* index.apply(graph)
+        const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
+        assert.deepStrictEqual(yield* Queue.take(results), [[0]])
+        yield* index.refresh(
+          Stream.fromIterable([
+            [
+              notes,
+              [
+                upsertPage(notes, "Notes"),
+                upsertBlock(blockId(7), notes, "TODO deploy on Monday"),
+                upsertBlock(blockId(4), notes, "moved here", { parentId: blockId(7) }),
+              ],
+            ],
+            [project, []],
+          ] as const),
+        )
+        assert.deepStrictEqual(yield* Queue.take(results), [[1]])
+        assert.deepStrictEqual(
+          yield* index.query(
+            "SELECT p.name_lc, b.content FROM blocks b JOIN pages p ON p.rid = b.page ORDER BY b.id",
+          ),
+          [
+            ["oct 6th, 2026", "worked on [[Project]]"],
+            ["oct 6th, 2026", "child mentions [[project]]"],
+            ["notes", "moved here"],
+            ["notes", "TODO deploy on Monday"],
+          ],
+        )
       }).pipe(Effect.scoped),
     ),
   )
 })
 
 describe("node:sqlite file", () => {
-  it.effect("keeps its stamp across reopen, and starts empty when the schema version differs", () =>
+  it.effect("keeps its rows across reopen, and starts empty when the schema version differs", () =>
     Effect.gen(function* () {
       const dir = mkdtempSync(join(tmpdir(), "seqno-index-"))
       const path = join(dir, "index.sqlite3")
       const reopened = () => usingIndex(layerNode(path))
-      yield* reopened()((index) => index.apply(graph, "v1"))
-      assert.deepStrictEqual(yield* reopened()((index) => index.stamp), Option.some("v1"))
+      yield* reopened()((index) => index.apply(graph))
       assert.deepStrictEqual(
         yield* reopened()((index) => index.query("SELECT count(*) FROM blocks")),
         [[8]],
@@ -576,7 +626,6 @@ describe("node:sqlite file", () => {
       const raw = new DatabaseSync(path)
       raw.exec("PRAGMA user_version = 999")
       raw.close()
-      assert.deepStrictEqual(yield* reopened()((index) => index.stamp), Option.none())
       assert.deepStrictEqual(
         yield* reopened()((index) => index.query("SELECT count(*) FROM blocks")),
         [[0]],

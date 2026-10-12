@@ -290,6 +290,9 @@ const SessionsLive = Layer.effect(
         ),
       )
 
+    const saveIndexOf = (shared: Shared) =>
+      Effect.exit(Effect.flatMap(Deferred.await(shared.opened), (session) => session.closing))
+
     const leave = (client: number, view: View) =>
       Effect.flatMap(
         guarded(
@@ -306,7 +309,13 @@ const SessionsLive = Layer.effect(
         (was) =>
           Effect.forEach(
             was,
-            (shared) => (shared.users.size === 0 ? close(shared) : release(shared, client)),
+            (shared) =>
+              shared.users.size === 0
+                ? close(shared)
+                : Effect.andThen(
+                    release(shared, client),
+                    view._tag === "Gone" ? saveIndexOf(shared) : Effect.void,
+                  ),
             { discard: true },
           ),
       )
@@ -383,8 +392,9 @@ const CoreHandlers = CoreRpcs.toLayer(
     const dispatchAll = (client: number, commands: ReadonlyArray<Command>) =>
       Effect.flatMap(current(client), (session) =>
         Effect.forEach(commands, (command) => withReferenceEdits(session, command)).pipe(
-          Effect.flatMap((expanded) => session.graph.dispatchAll(expanded.flat(), String(client))),
-          Effect.tap(session.record),
+          Effect.flatMap((expanded) =>
+            session.record(session.graph.dispatchAll(expanded.flat(), String(client))),
+          ),
         ),
       )
     return CoreRpcs.of({

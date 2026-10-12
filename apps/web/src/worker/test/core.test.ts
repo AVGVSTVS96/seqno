@@ -1,6 +1,7 @@
 import { cp, mkdir, mkdtemp, readdir, rename, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { DatabaseSync } from "node:sqlite"
 import { fileURLToPath } from "node:url"
 import { assert, describe, it } from "@effect/vitest"
 import {
@@ -13,6 +14,7 @@ import {
   Layer,
   Option,
   Queue,
+  Schedule,
   Stream,
 } from "effect"
 import { RpcClient, type RpcGroup, type RpcMessage, RpcServer, RpcTest } from "effect/rpc"
@@ -27,7 +29,7 @@ import { demoGraph } from "../demo.ts"
 import { developerGraph } from "../developer.ts"
 import { journalDayOf, todaysJournal } from "../journal.ts"
 import { layerWebLocks } from "../lock.ts"
-import { Device, GraphPlaces, type Starter } from "../place.ts"
+import { Device, GraphPlaces, type IndexFile, type Starter } from "../place.ts"
 
 const fixture = fileURLToPath(
   new URL("../../../../../fixtures/graphs/og-syntax-mix/", import.meta.url),
@@ -41,6 +43,26 @@ const WebCrypto = Layer.succeed(
   }),
 )
 
+const savedIndexes = new Map<string, Uint8Array>()
+
+const indexFileOf = (key: string): IndexFile => ({
+  read: Effect.sync(() => Option.fromUndefinedOr(savedIndexes.get(key))),
+  write: (image) => Effect.sync(() => void savedIndexes.set(key, image)),
+})
+
+const editSavedIndex = (key: string, sql: string) =>
+  Effect.sync(() => {
+    const db = new DatabaseSync(":memory:")
+    db.deserialize(savedIndexes.get(key) ?? assert.fail(`no index saved for ${key}`))
+    db.exec(sql)
+    savedIndexes.set(key, db.serialize())
+    db.close()
+  })
+
+const POISON_VOICE_NOTE = `
+DELETE FROM fts WHERE rowid = (SELECT rid FROM blocks WHERE content = 'I recorded a [[voice note]].');
+INSERT INTO fts (rowid, content) SELECT rid, 'poison' FROM blocks WHERE content = 'I recorded a [[voice note]].';`
+
 const coreLayer = (
   root: string,
   starter: Starter | null,
@@ -50,7 +72,14 @@ const coreLayer = (
   RealCore.pipe(
     Layer.provide(
       Layer.succeed(GraphPlaces, {
-        open: () => Effect.succeed({ storage, synced: true, sqlite: layerNode(), starter }),
+        open: () =>
+          Effect.succeed({
+            storage,
+            synced: true,
+            sqlite: layerNode(),
+            indexFile: indexFileOf(`${device}:${root}`),
+            starter,
+          }),
       }),
     ),
     Layer.provide(Layer.succeed(Device, { device: DeviceId.make(device), formerPeers: [] })),
@@ -739,6 +768,73 @@ describe("the core worker on the real graph, vault and index", () => {
         assert.strictEqual(reopened, "kept lost? I recorded a [[voice note]].")
       }),
     ),
+  )
+
+  it.live(
+    "a reopened graph reads its saved index and re-indexes only the pages changed since",
+    () =>
+      Effect.gen(function* () {
+        const root = yield* copyOfFixture
+        const laptop = `laptop:${root}`
+        yield* Effect.scoped(
+          Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })),
+        )
+        yield* editSavedIndex(laptop, POISON_VOICE_NOTE)
+        yield* Effect.scoped(
+          Effect.gen(function* () {
+            const phone = yield* coreOn(root, null, "phone")
+            const opened = yield* phone.OpenGraph({ graph: "og" })
+            const headings = yield* phone.GetPage({ pageId: named(opened.pages, "headings").id })
+            const first = headings.blocks[0] ?? assert.fail("headings has no blocks")
+            yield* phone.Dispatch({
+              command: { _tag: "EditText", blockId: first.id, from: 0, to: 0, insert: "zephyr " },
+            })
+          }),
+        )
+        const found = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const core = yield* coreOn(root)
+            yield* core.OpenGraph({ graph: "og" })
+            const edited = yield* core.Search({ text: "zephyr" }).pipe(
+              Effect.repeat({
+                until: (hits) => hits.blocks.length > 0,
+                schedule: Schedule.spaced("10 millis"),
+              }),
+            )
+            const kept = yield* core.Search({ text: "poison" })
+            return [edited, kept].map((hits) => hits.blocks.map((block) => block.text.slice(0, 7)))
+          }),
+        )
+        assert.deepStrictEqual(found, [["zephyr "], ["I recor"]])
+      }),
+  )
+
+  it.live("a saved index from another edit log is dropped and filled again", () =>
+    Effect.gen(function* () {
+      const root = yield* copyOfFixture
+      const laptop = `laptop:${root}`
+      yield* Effect.scoped(Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })))
+      yield* editSavedIndex(
+        laptop,
+        `${POISON_VOICE_NOTE}
+UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`,
+      )
+      const found = yield* Effect.scoped(
+        Effect.gen(function* () {
+          const core = yield* coreOn(root)
+          yield* core.OpenGraph({ graph: "og" })
+          const refilled = yield* core.Search({ text: "voice" }).pipe(
+            Effect.repeat({
+              until: (hits) => hits.blocks.length > 0,
+              schedule: Schedule.spaced("10 millis"),
+            }),
+          )
+          const poisoned = yield* core.Search({ text: "poison" })
+          return [refilled, poisoned].map((hits) => hits.blocks.map((block) => block.text))
+        }),
+      )
+      assert.deepStrictEqual(found, [["I recorded a [[voice note]]."], []])
+    }),
   )
 
   it.effect("search and live queries read the index", () =>

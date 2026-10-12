@@ -10,17 +10,19 @@ pnpm --filter @seqno/bench bench
 
 It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and takes a snapshot. The bulk commands run on their own graph, the 20k-block page the Chrome benchmark scrolls, opened fresh for each. Then:
 
-| Number                                  | Budget | How                                                                                             |
-| --------------------------------------- | ------ | ----------------------------------------------------------------------------------------------- |
-| Open: page list and first page (median) | 1 s    | `restore` the snapshot into an empty graph, list the pages, read a journal.                     |
-| Keystroke: edit and index write (p95)   | 16 ms  | 300 `EditText` commands, each followed by its index write.                                      |
-| Undo after 1k edits from another device | 16 ms  | Type into 5 blocks (10 steps), merge 1,000 edits from a second graph, undo all 10; the slowest. |
-| Delete 5,000 of a 20k-block page        | 2 s    | Select 5,000 blocks in page order from a quarter of the way down and delete them.               |
-| Undo that delete                        | 2 s    | Undo it.                                                                                        |
-| Move 5,000 of a 20k-block page          | 2 s    | Move the same selection to the top of the page.                                                 |
-| Indent 5,000 of a 20k-block page        | 2 s    | Indent 5,000 top-level blocks, from the second one down.                                        |
-| Import and seed                         | -      | Reported only.                                                                                  |
-| Index fill behind the open              | -      | Reported only.                                                                                  |
+| Number                                            | Budget | How                                                                                                                             |
+| ------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Open: page list and first page (median)           | 1 s    | `restore` the snapshot into an empty graph, list the pages, read a journal.                                                     |
+| Open through the vault (median)                   | 1.5 s  | A folder holding the snapshot and its writer's `seen` file: `vault.sync` into an empty graph, then the page list and a journal. |
+| Keystroke: edit and index write (p95)             | 16 ms  | 300 `EditText` commands, each followed by its index write.                                                                      |
+| Undo after 1k edits from another device           | 16 ms  | Type into 5 blocks (10 steps), merge 1,000 edits from a second graph, undo all 10; the slowest.                                 |
+| Delete 5,000 of a 20k-block page                  | 2 s    | Select 5,000 blocks in page order from a quarter of the way down and delete them.                                               |
+| Undo that delete                                  | 2 s    | Undo it.                                                                                                                        |
+| Move 5,000 of a 20k-block page                    | 2 s    | Move the same selection to the top of the page.                                                                                 |
+| Indent 5,000 of a 20k-block page                  | 2 s    | Indent 5,000 top-level blocks, from the second one down.                                                                        |
+| Import and seed                                   | -      | Reported only.                                                                                                                  |
+| Index fill behind the open                        | -      | Reported only.                                                                                                                  |
+| Index: load the saved image and catch up (median) | 250 ms | The image saved after the fill, loaded into a new index, caught up on the pages the 300 keystrokes changed.                     |
 
 ## Years of journals, in Chrome
 
@@ -28,7 +30,7 @@ It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and 
 pnpm --filter @seqno/bench scroll
 ```
 
-It writes ten years of daily journals (3,653 journals and 3,001 other pages, 150k blocks, one of them a page of 20k blocks) as one snapshot, builds and previews `apps/web`, puts the snapshot behind the folder picker in headless Chrome, and opens it the way a person does. Scrolling moves the main view 60 px every frame for 600 frames, the way a fast trackpad flick does, and times the gap between frames.
+It writes ten years of daily journals (3,653 journals and 3,001 other pages, 150k blocks, one of them a page of 20k blocks) as one snapshot with its writer's `seen` file, builds and previews `apps/web`, puts the snapshot behind the folder picker in headless Chrome, and opens it the way a person does. Scrolling moves the main view 60 px every frame for 600 frames, the way a fast trackpad flick does, and times the gap between frames.
 
 | Number                                           | Budget  |
 | ------------------------------------------------ | ------- |
@@ -40,6 +42,19 @@ It writes ten years of daily journals (3,653 journals and 3,001 other pages, 150
 | Frames over 50 ms, page heap, Chrome memory      | -       |
 
 On a CI runner it opens in about 2 s, scrolls both at a 16.7 ms p95, and keeps about 2,700 DOM nodes. At 60 Hz a frame is 16.7 ms, so a p95 of 33.4 ms allows one dropped frame in twenty. Chrome memory is the proportional set size of every Chrome process (Linux only).
+
+## Opening and reopening years of journals, in Chrome
+
+`open.bench.ts`, in the same `scroll` run, writes the same ten years of journals with the `seen` file of the device that wrote the snapshot, opens the folder, waits until search finds the last page the index fill writes, and until the index is saved. Then it reloads the tab, which reopens the graph from the saved index.
+
+| Number                                | Budget |
+| ------------------------------------- | ------ |
+| Open: first journal on screen         | 5 s    |
+| Reopen: first journal on screen       | 5 s    |
+| Reopen: search finds the last page    | 6 s    |
+| Fill time, save time, index file size | -      |
+
+`SEQNO_BENCH_FOLDER` opens a folder already written with `write-years.ts` instead of writing one.
 
 `SEQNO_BENCH_YEARS` and `SEQNO_BENCH_LONG_PAGE` change the graph's size. `node src/write-years.ts <folder> <years> <long page blocks>` writes the same graph as a folder to open by hand.
 

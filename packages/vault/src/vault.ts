@@ -97,7 +97,7 @@ const make = (config: VaultConfig) =>
     const checked = new Set<string>()
     const verified = new Set<string>()
     const mine = new Set<string>()
-    const state = { lastSeen: "", lastSnapshotAt: Option.none<number>() }
+    const state = { lastSeen: "", lastSnapshotAt: Option.none<number>(), merged: false }
 
     const filesIn = (dir: string, keyDir: string) =>
       Effect.map(storage.list(dir), (entries) =>
@@ -198,29 +198,95 @@ const make = (config: VaultConfig) =>
         Effect.gen(function* () {
           const snapshots = yield* listSnapshots
           const updates = yield* listUpdates
+          const seenFiles = yield* filesIn(seenDir, seenDir)
           const merged: Array<string> = []
           const waiting: Array<string> = []
           const written: Array<string> = []
           const deleted: Array<string> = []
-          const inHand = new Map<string, readonly [Listed, Fetched]>()
+          const inHand = new Map<string, readonly [Listed, Uint8Array]>()
+          const listedBy = new Map<string, DeviceId>()
+
+          for (const file of seenFiles) {
+            const device = deviceOfSeen(file.name)
+            if (Option.isNone(device)) continue
+            const seen = Option.flatMap(yield* readBytes(file), (bytes) =>
+              decodeSeen(decoder.decode(bytes)),
+            )
+            if (Option.isNone(seen)) continue
+            const canonical = originalName(file.name) === file.name
+            for (const [name, vv] of seen.value.snapshots) {
+              snapshotVersions.set(name, join(snapshotVersions.get(name) ?? {}, vv))
+              if (!canonical) continue
+              listedBy.set(name, device.value)
+              if (device.value === me) mine.add(originalName(name))
+            }
+            if (device.value === me) continue
+            const ack = acks.get(device.value) ?? { vv: {}, verified: new Set<string>() }
+            ack.vv = join(ack.vv, seen.value.vv)
+            seen.value.verified.forEach((name) => ack.verified.add(name))
+            acks.set(device.value, ack)
+          }
+
+          const settle = (file: Listed, bytes: Uint8Array, vv: Version) =>
+            Effect.gen(function* () {
+              snapshotVersions.set(file.name, vv)
+              checked.add(file.name)
+              const owner = listedBy.get(file.name)
+              const own = owner === undefined ? yield* isMine(bytes, file.name) : owner === me
+              if (own) mine.add(originalName(file.name))
+              else verified.add(file.name)
+            })
+
+          const direct = !state.merged && isEmpty(yield* replica.version)
+          const tried = new Set<string>()
+          if (direct) {
+            const ops = (file: Listed) =>
+              Object.values(snapshotVersions.get(file.name) ?? {}).reduce((a, b) => a + b, 0)
+            const unchecked = snapshots.filter((file) => !checked.has(file.name))
+            const newestFirst = [
+              ...unchecked
+                .filter((file) => listedBy.has(file.name))
+                .toSorted((a, b) => ops(b) - ops(a)),
+              ...unchecked.filter((file) => !listedBy.has(file.name)),
+            ]
+            for (const file of newestFirst) {
+              tried.add(file.name)
+              const bytes = yield* readBytes(file)
+              if (Option.isNone(bytes)) {
+                waiting.push(file.key)
+                continue
+              }
+              const restored = yield* replica.restore(bytes.value)
+              if (Option.isNone(restored)) {
+                yield* storage.download(file.path)
+                waiting.push(file.key)
+                continue
+              }
+              yield* settle(file, bytes.value, restored.value)
+              consumed.add(file.key)
+              merged.push(file.key)
+              break
+            }
+          }
 
           for (const file of snapshots) {
-            if (checked.has(file.name)) continue
+            if (checked.has(file.name) || tried.has(file.name)) continue
+            if (direct && listedBy.has(file.name)) continue
             const blob = yield* fetchBlob(file, "snapshot")
             if (Option.isNone(blob)) {
               waiting.push(file.key)
               continue
             }
-            snapshotVersions.set(file.name, blob.value.span.end)
-            checked.add(file.name)
-            if (yield* isMine(blob.value.bytes, file.name)) mine.add(originalName(file.name))
-            else verified.add(file.name)
-            inHand.set(file.name, [file, blob.value])
+            yield* settle(file, blob.value.bytes, blob.value.span.end)
+            inHand.set(file.name, [file, blob.value.bytes])
           }
 
-          const mergeAll = (batch: ReadonlyArray<readonly [Listed, Fetched]>) =>
+          const mergeAll = (batch: ReadonlyArray<readonly [Listed, Uint8Array]>) =>
             Effect.map(
-              replica.merge(batch.map(([, blob]) => blob.bytes)),
+              Effect.suspend(() => {
+                state.merged = true
+                return replica.merge(batch.map(([, bytes]) => bytes))
+              }),
               (results) =>
                 batch.filter(([file], index) => {
                   if (results[index] !== true) {
@@ -234,9 +300,15 @@ const make = (config: VaultConfig) =>
             )
 
           if (isEmpty(yield* replica.version)) {
-            const newest = [...inHand.values()].reduce<Option.Option<readonly [Listed, Fetched]>>(
+            const newest = [...inHand.values()].reduce<
+              Option.Option<readonly [Listed, Uint8Array]>
+            >(
               (best, entry) =>
-                Option.isSome(best) && covers(best.value[1].span.end, entry[1].span.end)
+                Option.isSome(best) &&
+                covers(
+                  snapshotVersions.get(best.value[0].name) ?? {},
+                  snapshotVersions.get(entry[0].name) ?? {},
+                )
                   ? best
                   : Option.some(entry),
               Option.none(),
@@ -245,7 +317,7 @@ const make = (config: VaultConfig) =>
           }
 
           const have = yield* replica.version
-          const batch: Array<readonly [Listed, Fetched]> = []
+          const batch: Array<readonly [Listed, Uint8Array]> = []
           let updatesWaiting = 0
           for (const file of updates) {
             if (consumed.has(file.key)) continue
@@ -257,7 +329,7 @@ const make = (config: VaultConfig) =>
             }
             spans.set(file.key, blob.value.span)
             if (covers(have, blob.value.span.end)) consumed.add(file.key)
-            else batch.push([file, blob.value])
+            else batch.push([file, blob.value.bytes])
           }
           updatesWaiting += yield* mergeAll(batch)
 
@@ -275,26 +347,13 @@ const make = (config: VaultConfig) =>
             for (const [file, vv] of live()) {
               if (covers(yield* replica.version, vv)) continue
               const held = inHand.get(file.name)
-              const blob =
-                held === undefined ? yield* fetchBlob(file, "snapshot") : Option.some(held[1])
-              if (Option.isSome(blob)) yield* mergeAll([[file, blob.value]])
-            }
-          }
-
-          const seenFiles = yield* filesIn(seenDir, seenDir)
-          for (const file of seenFiles) {
-            const device = deviceOfSeen(file.name)
-            if (Option.isNone(device) || device.value === me) continue
-            const seen = Option.flatMap(yield* readBytes(file), (bytes) =>
-              decodeSeen(decoder.decode(bytes)),
-            )
-            if (Option.isNone(seen)) continue
-            const ack = acks.get(device.value) ?? { vv: {}, verified: new Set<string>() }
-            ack.vv = join(ack.vv, seen.value.vv)
-            seen.value.verified.forEach((name) => ack.verified.add(name))
-            acks.set(device.value, ack)
-            for (const [name, vv] of seen.value.snapshots) {
-              snapshotVersions.set(name, join(snapshotVersions.get(name) ?? {}, vv))
+              const bytes = held === undefined ? yield* readBytes(file) : Option.some(held[1])
+              if (Option.isNone(bytes)) continue
+              if ((yield* mergeAll([[file, bytes.value]])) > 0) {
+                yield* storage.download(file.path)
+              } else if (!checked.has(file.name)) {
+                yield* settle(file, bytes.value, vv)
+              }
             }
           }
 

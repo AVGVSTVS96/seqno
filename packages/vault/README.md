@@ -7,7 +7,7 @@ The core side's edit-log files in a synced folder: each device's Loro update fil
 | Export                                                  | What it does                                                                                                                                                   |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Vault`, `layer(config)`                                | `writeUpdate(bytes)` saves one update file named by its peer and op counter. `sync(replica)` lists, downloads, merges, acks, compacts and deletes in one pass. |
-| `Replica`, `loroReplica(doc)`                           | The port a graph implements (`version`, `merge`, `snapshot`). `@seqno/graph`'s `vaultReplica` is the real one.                                                 |
+| `Replica`, `loroReplica(doc)`                           | The port a graph implements (`version`, `merge`, `restore`, `snapshot`). `@seqno/graph`'s `vaultReplica` is the real one.                                      |
 | `Storage`                                               | The file adapter port: `list`, `read`, `write` (atomic), `remove`, `download`.                                                                                 |
 | `layerOpfs`, `layerDirectoryHandle`, `directoryStorage` | Browser adapters for OPFS and for a folder picked with the File System Access API.                                                                             |
 | `@seqno/vault/node`                                     | `nodeStorage` and `layerNode` on `node:fs`: temp file, `datasync`, rename.                                                                                     |
@@ -18,6 +18,8 @@ The core side's edit-log files in a synced folder: each device's Loro update fil
 - `synced: false` (a folder no other device sees, like OPFS) makes a snapshot this device wrote count as confirmed at once, so a lone device can compact and delete.
 - A device deletes only its own files. An update file goes once every member's `seen` covers it and another device has confirmed a covering snapshot.
 - A file that isn't downloaded is never read as empty: it has to pass Loro's checksum, or it waits for the next pass.
+- Opening an empty graph imports the newest snapshot straight away (`restore`), picked by the versions the `seen` files list, and takes its version from the graph right after: Loro checks the checksum on import, so decoding it first (`decodeImportBlobMeta`) only repeated that and loaded every history block to count changes. Snapshots that newest one covers are checked on the next pass. A snapshot no `seen` file lists yet is tried after the listed ones. Once anything has been merged into the still-empty graph (updates waiting on a snapshot that wasn't downloaded), importing a snapshot also applies them, so the vault decodes snapshots first again, as before.
+- Who wrote a snapshot comes from the `seen` file that lists it (only a device's own file, never a conflict copy), or from its name's hash when no `seen` file lists it.
 
 ## Tests
 

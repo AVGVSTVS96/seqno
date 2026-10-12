@@ -14,6 +14,8 @@ export interface Driver {
   readonly exec: (sql: string) => void
   readonly run: (sql: string, params: ReadonlyArray<SqlValue>) => void
   readonly all: (sql: string, params: ReadonlyArray<SqlValue>) => ReadonlyArray<unknown>
+  readonly serialize: () => Uint8Array<ArrayBuffer>
+  readonly deserialize: (image: Uint8Array) => void
 }
 
 export interface Statements {
@@ -27,6 +29,8 @@ export class Sqlite extends Context.Service<
   {
     readonly use: <A>(body: (db: Statements) => A) => Effect.Effect<A, IndexError>
     readonly transaction: <A>(body: (db: Statements) => A) => Effect.Effect<A, IndexError>
+    readonly serialize: Effect.Effect<Uint8Array<ArrayBuffer>, IndexError>
+    readonly deserialize: (image: Uint8Array) => Effect.Effect<void, IndexError>
   }
 >()("@seqno/index/Sqlite") {}
 
@@ -64,5 +68,7 @@ export const makeSqlite = (driver: Driver) => {
           throw cause
         }
       }),
+    serialize: attempt(driver.serialize),
+    deserialize: (image) => attempt(() => driver.deserialize(image)),
   })
 }

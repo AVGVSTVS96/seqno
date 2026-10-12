@@ -1,12 +1,19 @@
 import { Clock, Crypto, Effect, Layer, Option, Schema } from "effect"
 import { DeviceId, type JournalDay } from "@seqno/domain"
 import { layerWasmMemory } from "@seqno/index/wasm"
-import { directoryStorage } from "@seqno/vault"
+import { StorageFailed, directoryStorage } from "@seqno/vault"
 import { demoGraph } from "./demo.ts"
 import { developerGraph } from "./developer.ts"
 import { journalDayOf } from "./journal.ts"
 import { GraphLocation, GraphLocations } from "./locations.ts"
-import { Device, GraphPlaces, Identity, type Starter, type StarterFile } from "./place.ts"
+import {
+  Device,
+  GraphPlaces,
+  Identity,
+  type IndexFile,
+  type Starter,
+  type StarterFile,
+} from "./place.ts"
 
 const starters = new Map<
   string,
@@ -23,6 +30,38 @@ const opfsFolder = (path: ReadonlyArray<string>) =>
       navigator.storage.getDirectory(),
     ),
   )
+
+const indexFile = (graph: string): IndexFile => {
+  const name = `${encodeURIComponent(graph)}.sqlite`
+  const attempt = <A>(run: () => Promise<A>) =>
+    Effect.tryPromise({
+      try: run,
+      catch: (cause) => new StorageFailed({ path: `indexes/${name}`, reason: String(cause) }),
+    })
+  const handle = (create: boolean) =>
+    Effect.flatMap(opfsFolder(["indexes"]), (folder) =>
+      attempt(() => folder.getFileHandle(name, { create })),
+    )
+  return {
+    read: handle(false).pipe(
+      Effect.flatMap((file) =>
+        attempt(async () => new Uint8Array(await (await file.getFile()).arrayBuffer())),
+      ),
+      Effect.option,
+    ),
+    write: (image) =>
+      Effect.flatMap(handle(true), (file) =>
+        attempt(async () => {
+          const writable = await file.createWritable()
+          await writable.write(image).catch(async (cause: unknown) => {
+            await writable.abort()
+            throw cause
+          })
+          await writable.close()
+        }),
+      ),
+  }
+}
 
 export const BrowserGraphPlaces = Layer.effect(
   GraphPlaces,
@@ -49,6 +88,7 @@ export const BrowserGraphPlaces = Layer.effect(
               storage: directoryStorage(handle),
               synced,
               sqlite: layerWasmMemory,
+              indexFile: indexFile(graph),
               starter,
             }),
           ),

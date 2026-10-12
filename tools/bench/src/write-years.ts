@@ -1,9 +1,18 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { Effect } from "effect"
-import { snapshotName, snapshotPath } from "@seqno/vault"
+import { DeviceId } from "@seqno/domain"
+import { seenPath, snapshotName, snapshotPath } from "@seqno/vault"
 import { emptyGraph } from "./graph.ts"
 import { loadYears } from "./years.ts"
+
+const writer = DeviceId.make("bench")
+
+const write = (path: string, bytes: Uint8Array) =>
+  Effect.promise(async () => {
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, bytes)
+  })
 
 export const writeYears = (out: string, years: number, longPage: number) =>
   Effect.gen(function* () {
@@ -11,12 +20,15 @@ export const writeYears = (out: string, years: number, longPage: number) =>
     const graph = yield* emptyGraph("1")
     const shape = yield* loadYears(graph, { years, until: new Date(), longPage })
     const snapshot = yield* graph.snapshot
-    const path = join(
-      out,
-      snapshotPath(yield* Effect.promise(() => snapshotName("bench", snapshot))),
+    const version = Object.fromEntries(yield* graph.version)
+    const name = yield* Effect.promise(() => snapshotName(writer, snapshot))
+    yield* write(join(out, snapshotPath(name)), snapshot)
+    yield* write(
+      join(out, seenPath(writer)),
+      new TextEncoder().encode(
+        JSON.stringify({ vv: version, verified: [], snapshots: [[name, version]] }),
+      ),
     )
-    yield* Effect.promise(() => mkdir(dirname(path), { recursive: true }))
-    yield* Effect.promise(() => writeFile(path, snapshot))
     return { ...shape, bytes: snapshot.length, ms: Math.round(performance.now() - started) }
   })
 

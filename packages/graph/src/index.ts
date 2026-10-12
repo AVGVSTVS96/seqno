@@ -8,3 +8,4 @@ export {
   type Seeded,
 } from "./graph.ts"
 export { vaultReplica } from "./replica.ts"
+export type { Changed } from "./changes.ts"

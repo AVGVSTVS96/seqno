@@ -1,8 +1,8 @@
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Schema, type Option } from "effect"
 import { DeviceId } from "@seqno/domain"
 import type { IndexError, Sqlite } from "@seqno/index"
 import { FolderError, GraphFolder } from "@seqno/interop"
-import { Entry, type Storage } from "@seqno/vault"
+import { Entry, type Storage, type StorageFailed } from "@seqno/vault"
 import type { GraphUnavailable } from "@seqno/rpc"
 
 export interface StarterFile {
@@ -15,10 +15,16 @@ export interface Starter {
   readonly files: ReadonlyArray<StarterFile>
 }
 
+export interface IndexFile {
+  readonly read: Effect.Effect<Option.Option<Uint8Array>>
+  readonly write: (image: Uint8Array<ArrayBuffer>) => Effect.Effect<void, StorageFailed>
+}
+
 export interface GraphPlace {
   readonly storage: Storage["Service"]
   readonly synced: boolean
   readonly sqlite: Layer.Layer<Sqlite, IndexError>
+  readonly indexFile: IndexFile
   readonly starter: Starter | null
 }
 

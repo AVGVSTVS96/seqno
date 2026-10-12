@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { LoroDoc } from "loro-crdt"
 import { Storage, makeFakeCloud, snapshotName, type PlaceholderStyle } from "@seqno/vault"
 import { makeDevice } from "./device.ts"
@@ -222,6 +222,78 @@ describe("compaction", () => {
       assert.deepStrictEqual(opened.merged, [snapshot])
       assert.strictEqual(phone.text(), "ab")
     }),
+  )
+
+  it.effect(
+    "a new device opens from the newest snapshot the seen files list, and checks the older one after",
+    () =>
+      Effect.gen(function* () {
+        const cloud = cloudOf("dataless", true)
+        const doc = new LoroDoc()
+        doc.setPeerId("1")
+        doc.getText("body").insert(0, "old")
+        doc.commit()
+        const older = doc.export({ mode: "snapshot" })
+        doc.getText("body").insert(3, " new")
+        doc.commit()
+        const newer = doc.export({ mode: "snapshot" })
+        const [olderName, newerName] = yield* Effect.promise(() =>
+          Promise.all([snapshotName("mac", older), snapshotName("mac", newer)]),
+        )
+        cloud.put(`snapshots/${olderName}`, older)
+        cloud.put(`snapshots/${newerName}`, newer)
+        cloud.put(
+          "seen/mac.json",
+          new TextEncoder().encode(
+            JSON.stringify({
+              vv: { "1": 7 },
+              verified: [],
+              snapshots: [
+                [olderName, { "1": 3 }],
+                [newerName, { "1": 7 }],
+              ],
+            }),
+          ),
+        )
+        cloud.settle()
+        const reads: Array<string> = []
+        const recording = Layer.effect(
+          Storage,
+          Effect.map(Effect.service(Storage), (storage) =>
+            Storage.of({
+              ...storage,
+              read: (path) =>
+                Effect.andThen(
+                  Effect.sync(() => reads.push(path)),
+                  storage.read(path),
+                ),
+            }),
+          ),
+        ).pipe(Layer.provide(cloud.layer("phone")))
+        const phone = yield* makeDevice({
+          id: "phone",
+          peer: "3",
+          members: ["mac", "phone"],
+          storage: recording,
+        })
+        const opened = yield* phone.sync
+        const openReads = reads.filter((path) => path.startsWith("snapshots/"))
+        yield* phone.sync
+        cloud.settle()
+        const seen = yield* Effect.provide(
+          Effect.flatMap(Effect.service(Storage), (storage) => storage.read("seen/phone.json")),
+          cloud.layer("mac"),
+        )
+        assert.deepStrictEqual(
+          [opened.merged, openReads, phone.text(), JSON.parse(new TextDecoder().decode(seen))],
+          [
+            [`snapshots/${newerName}`],
+            [`snapshots/${newerName}`],
+            "old new",
+            { vv: { "1": 7 }, verified: [olderName, newerName].toSorted(), snapshots: [] },
+          ],
+        )
+      }),
   )
 
   it.effect("a snapshot written under a former peer id stays this device's own", () =>

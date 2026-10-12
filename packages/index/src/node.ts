@@ -16,6 +16,18 @@ const driverOf = (db: DatabaseSync): Driver => {
     exec: (sql) => db.exec(sql),
     run: (sql, params) => void prepare(sql).run(...params),
     all: (sql, params) => prepare(sql).all(...params),
+    serialize: () => db.serialize(),
+    deserialize: (image) => {
+      const scratch = new DatabaseSync(":memory:")
+      try {
+        scratch.deserialize(image)
+        scratch.exec("SELECT count(*) FROM sqlite_schema")
+      } finally {
+        scratch.close()
+      }
+      cache.clear()
+      db.deserialize(image)
+    },
   }
 }
 

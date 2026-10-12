@@ -65,6 +65,7 @@ const open = (spec: ReplicaSpec) =>
       flushTo: (write) => Effect.asVoid(graph.flush((update) => write(update.bytes))),
       exportSnapshot: graph.snapshot,
       importBlobs: synced.merge,
+      restoreSnapshot: synced.restore,
       canonical: Effect.map(trees, (all) => JSON.stringify(all)),
       liveNodes: Effect.map(trees, (all) =>
         all.reduce((sum, tree) => sum + 1 + tree.blocks.length, 0),

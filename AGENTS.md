@@ -16,24 +16,24 @@ The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.
 
 ## Repo map
 
-| Package           | Folder              | Side     | Job                                                                                             |
-| ----------------- | ------------------- | -------- | ----------------------------------------------------------------------------------------------- |
-| `@seqno/domain`   | `packages/domain`   | domain   | Schemas, branded ids, Command and GraphEvent unions. Pure.                                      |
-| `@seqno/rpc`      | `packages/rpc`      | contract | UI <-> core-worker contract (Effect RPC).                                                       |
-| `@seqno/syntax`   | `packages/syntax`   | pure     | Logseq markdown <-> block tree, exact round-trip. Pure.                                         |
-| `@seqno/query`    | `packages/query`    | pure     | Query text (Logseq-style and Dataview-style) -> AST -> SQL. Pure.                               |
-| `@seqno/graph`    | `packages/graph`    | core     | Loro graph: lazy open, commands, undo/redo, GraphEvents.                                        |
-| `@seqno/index`    | `packages/index`    | core     | SQLite schema, indexer from GraphEvents, backlinks, FTS, live queries.                          |
-| `@seqno/vault`    | `packages/vault`    | core     | Edit-log files: File System Access, OPFS and node-fs adapters, compaction.                      |
-| `@seqno/interop`  | `packages/interop`  | core     | Logseq OG graph import, markdown mirror writer.                                                 |
-| `@seqno/web`      | `apps/web`          | ui       | Vite app: shell, routing. `apps/web/src/worker/**` is the core worker (worker side).            |
-| `@seqno/outliner` | `features/outliner` | ui       | Virtualized block tree view, keyboard navigation, collapse, zoom, drag.                         |
-| `@seqno/editor`   | `features/editor`   | ui       | Focused-block CodeMirror editor, `[[ (( #` autocomplete, the `/` menu.                          |
-| `@seqno/sync-sim` | `tools/sync-sim`    | tool     | Multi-device fake-iCloud simulator for the sync protocol (stand-in graph; real vault optional). |
-| `@seqno/e2e`      | `tools/e2e`         | tool     | Playwright flows, the feature map and the design harness.                                       |
-| `@seqno/lint`     | `tools/lint`        | tool     | The `seqno` oxlint plugin that enforces the rules below.                                        |
-| `@seqno/bench`    | `tools/bench`       | tool     | Benchmarks CI runs: 50k-block open, keystroke, undo, bulk edits, years of journals in Chrome.   |
-| `@seqno/fixtures` | `fixtures/`         | tool     | Real Logseq graphs, 50k-block generator, edge-case graphs.                                      |
+| Package           | Folder              | Side     | Job                                                                                                                             |
+| ----------------- | ------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `@seqno/domain`   | `packages/domain`   | domain   | Schemas, branded ids, Command and GraphEvent unions. Pure.                                                                      |
+| `@seqno/rpc`      | `packages/rpc`      | contract | UI <-> core-worker contract (Effect RPC).                                                                                       |
+| `@seqno/syntax`   | `packages/syntax`   | pure     | Logseq markdown <-> block tree, exact round-trip. Pure.                                                                         |
+| `@seqno/query`    | `packages/query`    | pure     | Query text (Logseq-style and Dataview-style) -> AST -> SQL. Pure.                                                               |
+| `@seqno/graph`    | `packages/graph`    | core     | Loro graph: lazy open, commands, undo/redo, GraphEvents.                                                                        |
+| `@seqno/index`    | `packages/index`    | core     | SQLite schema, indexer from GraphEvents, backlinks, FTS, live queries.                                                          |
+| `@seqno/vault`    | `packages/vault`    | core     | Edit-log files: File System Access, OPFS and node-fs adapters, compaction.                                                      |
+| `@seqno/interop`  | `packages/interop`  | core     | Logseq OG graph import, markdown mirror writer.                                                                                 |
+| `@seqno/web`      | `apps/web`          | ui       | Vite app: shell, routing. `apps/web/src/worker/**` is the core worker (worker side).                                            |
+| `@seqno/outliner` | `features/outliner` | ui       | Virtualized block tree view, keyboard navigation, collapse, zoom, drag.                                                         |
+| `@seqno/editor`   | `features/editor`   | ui       | Focused-block CodeMirror editor, `[[ (( #` autocomplete, the `/` menu.                                                          |
+| `@seqno/sync-sim` | `tools/sync-sim`    | tool     | Multi-device fake-iCloud simulator for the sync protocol (stand-in graph; real vault optional).                                 |
+| `@seqno/e2e`      | `tools/e2e`         | tool     | Playwright flows, the feature map and the design harness.                                                                       |
+| `@seqno/lint`     | `tools/lint`        | tool     | The `seqno` oxlint plugin that enforces the rules below.                                                                        |
+| `@seqno/bench`    | `tools/bench`       | tool     | Benchmarks CI runs: 50k-block open, keystroke, undo, bulk edits, index reopen; years of journals opened and reopened in Chrome. |
+| `@seqno/fixtures` | `fixtures/`         | tool     | Real Logseq graphs, 50k-block generator, edge-case graphs.                                                                      |
 
 A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added to `repoMap` in `tools/lint/src/boundaries.ts` and to this table, or lint fails.
 

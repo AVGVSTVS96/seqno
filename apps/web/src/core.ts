@@ -31,7 +31,11 @@ const holdForThisTab = (name: string) =>
   Effect.callback<void>((resume) => {
     void navigator.locks.request(name, () => {
       resume(Effect.void)
-      return new Promise<never>(() => {})
+      return new Promise<void>((release) =>
+        addEventListener("pagehide", (event) => {
+          if (!event.persisted) release()
+        }),
+      )
     })
   })
 

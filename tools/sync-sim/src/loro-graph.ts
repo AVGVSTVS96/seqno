@@ -369,6 +369,10 @@ const open = (spec: ReplicaSpec) =>
       flushTo,
       exportSnapshot: Effect.sync(() => doc.export({ mode: "snapshot" })),
       importBlobs: (blobs) => Effect.sync(() => importBlobs(blobs)),
+      restoreSnapshot: (bytes) =>
+        Effect.sync(() =>
+          importBlobs([bytes])[0] === true ? Option.some(vvOf(doc.oplogVersion())) : Option.none(),
+        ),
       canonical: Effect.sync(() => {
         const json: unknown = doc.toJSON()
         return JSON.stringify(json, sortKeys)

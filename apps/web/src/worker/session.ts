@@ -1,5 +1,6 @@
 import {
   Cause,
+  Clock,
   Context,
   Effect,
   Exit,
@@ -8,6 +9,7 @@ import {
   Option,
   Schedule,
   Schema,
+  Semaphore,
   Stream,
   SubscriptionRef,
 } from "effect"
@@ -26,8 +28,11 @@ export interface Session {
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
   readonly skipped: ReadonlyArray<SkippedFile>
-  readonly record: (events: ReadonlyArray<GraphEvent>) => Effect.Effect<void>
+  readonly record: <E, R>(
+    change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>,
+  ) => Effect.Effect<ReadonlyArray<GraphEvent>, E, R>
   readonly indexed: Effect.Effect<void>
+  readonly closing: Effect.Effect<void>
 }
 
 const skippedFile = ImportIssue.match({
@@ -73,6 +78,19 @@ WHERE b.id IN (SELECT value FROM json_each(?))`
 
 const logged = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.asVoid(Effect.catchCause(effect, (cause) => Effect.logError(cause)))
+
+const IndexStamp = Schema.fromJsonString(
+  Schema.Struct({ version: Schema.Record(Schema.String, Schema.Int), pageMs: Schema.Number }),
+)
+const decodeIndexStamp = Schema.decodeUnknownOption(IndexStamp)
+const encodeIndexStamp = Schema.encodeSync(IndexStamp)
+
+const timed = <A, E>(effect: Effect.Effect<A, E>) =>
+  Effect.gen(function* () {
+    const started = yield* Clock.currentTimeMillis
+    const value = yield* effect
+    return [value, (yield* Clock.currentTimeMillis) - started] as const
+  })
 
 const starterStamp = "starter-version"
 const decodeStamp = Schema.decodeUnknownOption(Schema.FiniteFromString)
@@ -152,23 +170,29 @@ export const openSession = (place: GraphPlace) =>
       }).pipe(Layer.provide(storage)),
     )
 
-    const movedFrom = (events: ReadonlyArray<GraphEvent>) => {
-      const moved = events.flatMap((event) => (event._tag === "BlockMoved" ? [event.blockId] : []))
-      return moved.length === 0
+    const pagesOfBlocks = (blocks: ReadonlyArray<string>) =>
+      blocks.length === 0
         ? Effect.succeed([])
-        : Effect.map(index.query(PAGES_OF_BLOCKS, [JSON.stringify(moved)]), (rows) =>
+        : Effect.map(index.query(PAGES_OF_BLOCKS, [JSON.stringify(blocks)]), (rows) =>
             rows.flatMap(([id]) => Option.toArray(decodePageId(id))),
           )
-    }
 
-    const record = (events: ReadonlyArray<GraphEvent>) =>
+    const movedFrom = (events: ReadonlyArray<GraphEvent>) =>
+      pagesOfBlocks(events.flatMap((event) => (event._tag === "BlockMoved" ? [event.blockId] : [])))
+
+    const indexing = yield* Semaphore.make(1)
+    const quiet = yield* Latch.make(false)
+    const recording = { pending: 0 }
+    const sinceSave = { pages: new Set<PageId>(), refilled: false }
+    const costs = { pageMs: Option.none<number>(), saveMs: Option.none<number>() }
+
+    const indexEvents = (events: ReadonlyArray<GraphEvent>) =>
       events.length === 0
         ? Effect.void
         : Effect.gen(function* () {
             const pages = new Set([...events.map(ownPage), ...(yield* movedFrom(events))])
-            const version = yield* graph.version
             yield* index
-              .apply(events, JSON.stringify([...version].toSorted()))
+              .apply(events)
               .pipe(
                 Effect.catchTag("IndexError", (error) =>
                   filling.running
@@ -176,11 +200,58 @@ export const openSession = (place: GraphPlace) =>
                     : Effect.fail(error),
                 ),
               )
+            pages.forEach((page) => sinceSave.pages.add(page))
             yield* SubscriptionRef.set(touched, pages)
             edits.count += 1
             yield* SubscriptionRef.set(saving, SaveState.cases.Unsaved.make({}))
             yield* unsaved.open
           }).pipe(Effect.orDie)
+
+    const record = <E, R>(change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>) =>
+      Effect.suspend(() => {
+        recording.pending += 1
+        return indexing.withPermits(1)(Effect.tap(change, indexEvents))
+      }).pipe(
+        Effect.ensuring(
+          Effect.suspend(() => {
+            recording.pending -= 1
+            return recording.pending === 0 ? quiet.open : Effect.void
+          }),
+        ),
+      )
+
+    const saveIndex = Effect.gen(function* () {
+      const [saved, ms] = yield* timed(
+        Effect.gen(function* () {
+          const image = yield* indexing.withPermits(1)(
+            Effect.gen(function* () {
+              if (filling.running || (!sinceSave.refilled && sinceSave.pages.size === 0)) {
+                return Option.none<Uint8Array<ArrayBuffer>>()
+              }
+              const version = yield* graph.version
+              const pageMs = Option.getOrElse(costs.pageMs, () => 0)
+              const bytes = yield* index.image(
+                encodeIndexStamp({ version: Object.fromEntries(version), pageMs }),
+              )
+              sinceSave.pages.clear()
+              sinceSave.refilled = false
+              return Option.some(bytes)
+            }),
+          )
+          if (Option.isSome(image)) yield* place.indexFile.write(image.value)
+          return image
+        }),
+      )
+      if (Option.isSome(saved)) costs.saveMs = Option.some(ms)
+    }).pipe(logged)
+
+    const savingIndex = yield* Semaphore.make(1)
+    const saveIndexNow = savingIndex.withPermits(1)(saveIndex)
+
+    const worthSaving = () =>
+      Option.isSome(costs.pageMs) &&
+      Option.isSome(costs.saveMs) &&
+      sinceSave.pages.size * costs.pageMs.value > costs.saveMs.value
 
     const indexed = yield* Latch.make(true)
     const scope = yield* Effect.scope
@@ -196,10 +267,56 @@ export const openSession = (place: GraphPlace) =>
           ? Effect.void
           : Effect.andThen(
               index.fill(Stream.fromIterable(behind).pipe(Stream.mapEffect(graph.pageEvents))),
-              catchUp,
+              Effect.andThen(
+                Effect.sync(() => behind.forEach((page) => sinceSave.pages.add(page))),
+                catchUp,
+              ),
             ),
     )
-    const fillIndex = Effect.andThen(
+
+    const caughtUp = (version: Readonly<Record<string, number>>) =>
+      Effect.gen(function* () {
+        const changed = yield* graph.changedSince(new Map(Object.entries(version)))
+        if (Option.isNone(changed)) return false
+        const pages = new Set([
+          ...changed.value.pages,
+          ...(yield* pagesOfBlocks([...changed.value.blocks])),
+        ])
+        yield* index.refresh(
+          Stream.fromIterable(pages).pipe(
+            Stream.mapEffect((page) =>
+              Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
+            ),
+          ),
+        )
+        pages.forEach((page) => sinceSave.pages.add(page))
+        return true
+      })
+
+    const loaded = Effect.gen(function* () {
+      const [stamp, ms] = yield* timed(
+        Effect.flatMap(place.indexFile.read, (image) =>
+          Option.isNone(image)
+            ? Effect.succeedNone
+            : Effect.map(index.load(image.value), Option.flatMap(decodeIndexStamp)),
+        ),
+      )
+      if (Option.isNone(stamp)) return false
+      costs.saveMs = Option.some(ms)
+      costs.pageMs = Option.some(stamp.value.pageMs)
+      if (yield* caughtUp(stamp.value.version)) return true
+      yield* index.reset
+      return false
+    })
+
+    const refill = Effect.gen(function* () {
+      const [, ms] = yield* timed(index.fill(graph.everything))
+      const pages = (yield* graph.pages).length
+      if (pages > 0) costs.pageMs = Option.some(ms / pages)
+      sinceSave.refilled = true
+    })
+
+    const openIndex = Effect.andThen(
       Effect.andThen(
         indexed.close,
         Effect.sync(() => {
@@ -207,7 +324,10 @@ export const openSession = (place: GraphPlace) =>
         }),
       ),
       Effect.forkIn(
-        Effect.andThen(index.fill(graph.everything), catchUp).pipe(
+        Effect.andThen(
+          Effect.flatMap(loaded, (caught) => (caught ? Effect.void : refill)),
+          catchUp,
+        ).pipe(
           logged,
           Effect.ensuring(
             Effect.andThen(
@@ -217,26 +337,25 @@ export const openSession = (place: GraphPlace) =>
               indexed.open,
             ),
           ),
+          Effect.andThen(saveIndexNow),
         ),
         scope,
       ),
     )
+    const restore = (blobs: ReadonlyArray<Uint8Array>) =>
+      graph
+        .restore(blobs)
+        .pipe(
+          Effect.ensuring(
+            Effect.flatMap(graph.version, (now) => (now.size > 0 ? openIndex : Effect.void)),
+          ),
+        )
     const replica = vaultReplica({
       ...graph,
+      restore,
       merge: (blobs) =>
         Effect.flatMap(graph.version, (version) =>
-          version.size === 0
-            ? graph
-                .restore(blobs)
-                .pipe(
-                  Effect.ensuring(
-                    Effect.flatMap(graph.version, (now) =>
-                      now.size > 0 ? fillIndex : Effect.void,
-                    ),
-                  ),
-                  Effect.as([]),
-                )
-            : Effect.tap(graph.merge(blobs), record),
+          version.size === 0 ? Effect.as(restore(blobs), []) : record(graph.merge(blobs)),
         ),
     })
     const save = graph.flush((update) => vault.writeUpdate(update.bytes))
@@ -269,16 +388,25 @@ export const openSession = (place: GraphPlace) =>
       )
       const seeded = yield* graph.seed(imported.pages)
       if (Option.isSome(seeded.update)) yield* vault.writeUpdate(seeded.update.value.bytes)
-      yield* record(seeded.events)
+      yield* record(Effect.succeed(seeded.events))
     }
-    yield* record(yield* graph.load(yield* todaysJournal(graph)))
+    yield* record(Effect.flatMap(todaysJournal(graph), graph.load))
     yield* save
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
     yield* Effect.forkScoped(
       Effect.repeat(logged(vault.sync(replica)), Schedule.spaced("5 seconds")),
     )
-    yield* Effect.addFinalizer(() => logged(save))
+    yield* Effect.forkScoped(
+      Effect.forever(
+        Effect.gen(function* () {
+          yield* quiet.await
+          yield* quiet.close
+          if (worthSaving()) yield* saveIndexNow
+        }),
+      ),
+    )
+    yield* Effect.addFinalizer(() => Effect.andThen(logged(save), saveIndexNow))
 
     const session: Session = {
       graph,
@@ -288,6 +416,7 @@ export const openSession = (place: GraphPlace) =>
       skipped,
       record,
       indexed: indexed.await,
+      closing: saveIndexNow,
     }
     return session
   })

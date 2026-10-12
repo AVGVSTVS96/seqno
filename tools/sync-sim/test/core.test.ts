@@ -117,7 +117,7 @@ describe("graph and vault together", () => {
         const index = yield* openIndex
         const dispatch = (command: Command) =>
           Effect.orDie(graph.dispatch(command)).pipe(
-            Effect.tap((events) => Effect.orDie(index.apply(events, "v1"))),
+            Effect.tap((events) => Effect.orDie(index.apply(events))),
           )
 
         const project = pageOf(yield* dispatch({ _tag: "CreatePage", title: "Project" }))
@@ -138,7 +138,6 @@ describe("graph and vault together", () => {
           pages: [],
           blocks: [{ blockId: block.block.id, pageId: notes, text: "plan the [[Project]] launch" }],
         })
-        assert.deepStrictEqual(yield* Effect.orDie(index.stamp), Option.some("v1"))
       }),
     ),
   )

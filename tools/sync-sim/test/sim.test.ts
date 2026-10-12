@@ -123,7 +123,7 @@ describe("simulated seeds", () => {
         })
         assert.isTrue(result.ok)
         assert.strictEqual(result.snapshotsWritten, 1)
-        assert.deepStrictEqual([result.files.peakCount, result.files.finalCount], [127, 77])
+        assert.deepStrictEqual([result.files.peakCount, result.files.finalCount], [127, 75])
       }),
     60_000,
   )

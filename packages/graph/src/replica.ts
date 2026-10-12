@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import type { Graph } from "./graph.ts"
 
 const mergeEach = (graph: Graph["Service"], blobs: ReadonlyArray<Uint8Array>) =>
@@ -15,6 +15,11 @@ export const vaultReplica = (graph: Graph["Service"]) => ({
     graph.merge(blobs).pipe(
       Effect.as(blobs.map(() => true)),
       Effect.catch(() => mergeEach(graph, blobs)),
+    ),
+  restore: (snapshot: Uint8Array) =>
+    graph.restore([snapshot]).pipe(
+      Effect.map((version) => Option.some(Object.fromEntries(version))),
+      Effect.orElseSucceed(() => Option.none()),
     ),
   snapshot: graph.snapshot,
 })

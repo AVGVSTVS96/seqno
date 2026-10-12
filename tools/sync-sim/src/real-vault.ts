@@ -47,6 +47,7 @@ const cloudStorage = (fs: CloudFs) =>
 const vaultReplica = (replica: Replica): VaultReplica => ({
   version: replica.version,
   merge: replica.importBlobs,
+  restore: replica.restoreSnapshot,
   snapshot: replica.exportSnapshot,
 })
 

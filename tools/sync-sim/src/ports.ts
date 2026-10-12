@@ -26,6 +26,7 @@ export interface Replica {
   ) => Effect.Effect<void, E>
   readonly exportSnapshot: Effect.Effect<Uint8Array>
   readonly importBlobs: (blobs: ReadonlyArray<Uint8Array>) => Effect.Effect<ReadonlyArray<boolean>>
+  readonly restoreSnapshot: (bytes: Uint8Array) => Effect.Effect<Option.Option<VV>>
   readonly canonical: Effect.Effect<string>
   readonly liveNodes: Effect.Effect<number>
   readonly shape: Effect.Effect<Shape>

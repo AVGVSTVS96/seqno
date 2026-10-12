@@ -14,6 +14,7 @@ import {
 import { LoroDoc, VersionVector, type LoroTreeNode } from "loro-crdt"
 import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
+import { changedSince, type Changed } from "./changes.ts"
 import { applyCommand, mergeTargetOf, trashOf, type Unresolved } from "./commands.ts"
 import { collectChanges, emptyPending, translate } from "./events.ts"
 import { histories, type Place } from "./history.ts"
@@ -105,7 +106,9 @@ export class Graph extends Context.Service<
     readonly merge: (
       updates: ReadonlyArray<Uint8Array>,
     ) => Effect.Effect<ReadonlyArray<GraphEvent>, ImportFailed>
-    readonly restore: (updates: ReadonlyArray<Uint8Array>) => Effect.Effect<void, ImportFailed>
+    readonly restore: (
+      updates: ReadonlyArray<Uint8Array>,
+    ) => Effect.Effect<ReadonlyMap<string, number>, ImportFailed>
     readonly everything: Stream.Stream<ReadonlyArray<GraphEvent>>
     readonly pageEvents: (id: PageId) => Effect.Effect<ReadonlyArray<GraphEvent>>
     readonly mergeTarget: (id: BlockId) => Effect.Effect<Option.Option<BlockId>>
@@ -117,6 +120,9 @@ export class Graph extends Context.Service<
     ) => Effect.Effect<Option.Option<LocalUpdate>, E, R>
     readonly snapshot: Effect.Effect<Uint8Array>
     readonly version: Effect.Effect<ReadonlyMap<string, number>>
+    readonly changedSince: (
+      version: ReadonlyMap<string, number>,
+    ) => Effect.Effect<Option.Option<Changed>>
     readonly loaded: Effect.Effect<void>
   }
 >()("@seqno/graph/Graph") {
@@ -144,7 +150,10 @@ const importer = (doc: LoroDoc) => {
   const load = loader(doc)
   return (files: ReadonlyArray<Uint8Array>) =>
     Effect.try({
-      try: () => load(files),
+      try: () => {
+        load(files)
+        return new Map(doc.oplogVersion().toJSON())
+      },
       catch: (cause) => new ImportFailed({ reason: String(cause) }),
     })
 }
@@ -347,7 +356,7 @@ const make = (source: GraphSource) =>
 
     const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
 
-    const mergeNow = (updates: ReadonlyArray<Uint8Array>) =>
+    const importing = (updates: ReadonlyArray<Uint8Array>) =>
       Effect.suspend(() => {
         listen()
         const caughtUp = ownCounter() === flushed
@@ -357,31 +366,40 @@ const make = (source: GraphSource) =>
               if (caughtUp) flushed = ownCounter()
             }),
           ),
-          Effect.andThen(repair),
-          Effect.andThen(drain),
+          Effect.tap(() => repair),
         )
       })
 
+    const mergeNow = (updates: ReadonlyArray<Uint8Array>) =>
+      Effect.andThen(importing(updates), drain)
+
     const merge = (updates: ReadonlyArray<Uint8Array>) => serial(mergeNow(updates))
+
+    const versionNow = () => new Map(doc.oplogVersion().toJSON())
 
     const restore = (updates: ReadonlyArray<Uint8Array>) =>
       serial(
         Effect.suspend(() => {
           if (unsubscribe !== undefined || doc.oplogVersion().length() > 0) {
-            return Effect.asVoid(mergeNow(updates))
+            return Effect.tap(importing(updates), () => drain)
           }
           return importAll(updates).pipe(
-            Effect.ensuring(Effect.sync(listen)),
-            Effect.andThen(
+            Effect.ensuring(
+              Effect.sync(() => {
+                if (doc.oplogVersion().length() > 0) listen()
+              }),
+            ),
+            Effect.andThen((reached) =>
               Effect.sync(() => {
                 flushed = ownCounter()
                 if (repairAll(tree, listed)) doc.commit({ origin: REPAIRED })
                 pending = emptyPending()
                 registerPages()
+                return reached
               }),
             ),
-            Effect.andThen(filled.close),
-            Effect.andThen(fill),
+            Effect.tap(filled.close),
+            Effect.tap(fill),
           )
         }),
       )
@@ -507,7 +525,8 @@ const make = (source: GraphSource) =>
       events: Stream.fromPubSub(pubsub),
       flush,
       snapshot: serial(Effect.sync(() => doc.export({ mode: "snapshot" }))),
-      version: serial(Effect.sync(() => new Map(doc.oplogVersion().toJSON()))),
+      version: serial(Effect.sync(versionNow)),
+      changedSince: (version) => serial(Effect.sync(() => changedSince(doc, tree, version))),
       loaded: filled.await,
     })
   })
