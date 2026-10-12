@@ -360,9 +360,11 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     () =>
       new IntersectionObserver(
         (entries, observer) => {
-          setViewport((current) => viewportOf(container.current, current))
-          for (const { target, isIntersecting } of entries) {
-            if (!isIntersecting || !target.isConnected) continue
+          const edges = entries.filter(({ target }) => target.isConnected)
+          const element = edges[0]?.target.parentElement ?? null
+          setViewport((current) => viewportOf(element, current))
+          for (const { target, isIntersecting } of edges) {
+            if (!isIntersecting) continue
             observer.unobserve(target)
             observer.observe(target)
           }
