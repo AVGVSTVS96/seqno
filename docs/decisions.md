@@ -178,7 +178,7 @@ What carried over and what changed. Per-tab history, one step per command or per
 | after 100                       | 21.5 to 22.5 s       | 0.4 to 3.1 ms |
 | after 1,000                     | 187 s (one probe)    | 0.3 to 2.8 ms |
 
-On the 10-year graph a cursor resolves in 0.06 ms while its character exists and in 188 ms to 2.4 s once it was deleted. `tools/bench` checks "undo after 1k edits from another device" against 16 ms on every CI run (2.4 ms on `cloud`). The sync simulator's real-graph suite, whose workload undoes and redoes, passed 50 of 50 seeds (600 ops each) with no violations. `packages/graph/test/undo.test.ts` runs 30 random sessions on one device that must undo to the exact starting text and redo to the exact edited text, and 30 with a second device typing into the same block that must keep every character it typed.
+On the 10-year graph a cursor resolves in 0.06 ms while its character exists and in 188 ms to 2.4 s once it was deleted. `tools/bench` checks "undo after 1k edits from another device" against 16 ms on every CI run (2.4 ms on `cloud`). The sync simulator's real-graph runs, whose workload undoes and redoes, passed 50 of 50 seeds of 600 ops and 6 of 6 seeds of 10k ops (seeds 1 to 6, at most 937 MB) with no violations. `packages/graph/test/undo.test.ts` runs 30 random sessions on one device that must undo to the exact starting text and redo to the exact edited text, and 30 with a second device typing into the same block that must keep every character it typed.
 
 ## Save each edit as it lands
 
