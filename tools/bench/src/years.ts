@@ -32,7 +32,9 @@ export const importFiles = (
   return importGraph.pipe(Effect.provide(Layer.merge(folder, LogseqSyntaxLive)))
 }
 
-export const lastBlock = "The long page ends with a quillwort."
+export const lastReference = "quillwort"
+
+const lastBlock = `The long page ends with a [[${lastReference}]].`
 
 export const longPageFiles = (blocks: number) => {
   const generated = generateGraph({

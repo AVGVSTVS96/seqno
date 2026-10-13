@@ -47,16 +47,16 @@ On a CI runner it opens in about 2 s, scrolls both at a 16.7 ms p95, and keeps a
 
 ## Opening and reopening years of journals, in Chrome
 
-`open.bench.ts`, in the same `scroll` run, writes the same ten years of journals with the `seen` file of the device that wrote the snapshot (the long page loads last, so the fill writes it last), opens the folder and waits until search finds the long page's last block, which ends the fill. Then it reloads the tab while the index save after the fill writes. The worker is a `SharedWorker` with `extendedLifetime`, so it outlives the tab long enough to finish that save, and the reloaded tab reopens the graph from it instead of filling again. Last, it opens the same years again under another folder name, reloads once half the final index is on disk, and times the rest of that fill, which must take less than a whole fill.
+`open.bench.ts`, in the same `scroll` run, writes the same ten years of journals with the `seen` file of the device that wrote the snapshot (the long page loads last, so the fill writes it last), opens the folder and waits until All pages lists `quillwort`, a name only the long page's last block links to, which ends the fill. All pages reads that from the index alone; search would also wait for the graph to register the block, which a reopen from the saved index hasn't done yet. Then it reloads the tab while the index save after the fill writes. The worker is a `SharedWorker` with `extendedLifetime`, so it outlives the tab long enough to finish that save, and the reloaded tab reopens the graph from it instead of filling again. Last, it opens the same years again under another folder name, reloads once half the final index is on disk, and times the rest of that fill, which must take less than a whole fill.
 
-| Number                                          | Budget                 |
-| ----------------------------------------------- | ---------------------- |
-| Open: first journal on screen                   | 5 s                    |
-| Reopen: first journal on screen                 | 5 s                    |
-| Reopen: the index file the closed tab saved     | > 0 MB                 |
-| Reopen: search finds the long page's last block | 5 s                    |
-| Second fill: the rest, after a mid-fill reload  | less than a whole fill |
-| Fill time                                       | -                      |
+| Number                                           | Budget                 |
+| ------------------------------------------------ | ---------------------- |
+| Open: first journal on screen                    | 5 s                    |
+| Reopen: first journal on screen                  | 5 s                    |
+| Reopen: the index file the closed tab saved      | > 0 MB                 |
+| Reopen: the index has the long page's last block | 5 s                    |
+| Second fill: the rest, after a mid-fill reload   | less than a whole fill |
+| Fill time                                        | -                      |
 
 On cloud (headless Chrome 154) the first open shows a journal in about 3 s and fills the index in 72 to 82 s; a reload while the save writes finds the 67 MB file on disk and shows a journal in 3.4 s. Without `extendedLifetime` the reload ended the worker mid-write, left no file, and the reopen filled from scratch. In Node, the vault open takes about 0.4 s and loading the image and catching up 7 ms, against 6 s for the fill.
 
