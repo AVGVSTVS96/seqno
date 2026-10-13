@@ -247,7 +247,7 @@ export const openSession = (place: GraphPlace) =>
     }).pipe(logged)
 
     const savingIndex = yield* Semaphore.make(1)
-    const saveIndexNow = savingIndex.withPermits(1)(saveIndex)
+    const saveIndexNow = savingIndex.withPermits(1)(Effect.uninterruptible(saveIndex))
 
     const worthSaving = () =>
       Option.isSome(costs.pageMs) &&
