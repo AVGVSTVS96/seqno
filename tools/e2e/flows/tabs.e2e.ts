@@ -144,3 +144,35 @@ test("the header shows a save in progress only while it lasts", async ({ page, s
   await page.reload()
   await expect(seqno.today.getByRole("treeitem").first()).toHaveText(`${welcome}, saved`)
 })
+
+for (const heldMs of [300, 600, 900, 1500]) {
+  test(`a graph another seqno holds for ${heldMs} ms opens with its journal once that tab lets go`, async ({
+    page,
+  }) => {
+    await page.goto("/favicon.svg")
+    await page.evaluate(
+      () =>
+        new Promise<void>((held) => {
+          void navigator.locks.request(
+            "seqno/graph/demo",
+            () =>
+              new Promise<void>((letGo) => {
+                Reflect.set(globalThis, "letGo", letGo)
+                held()
+              }),
+          )
+        }),
+    )
+    const other = await page.context().newPage()
+    await other.goto("/")
+    await expect(
+      other.getByRole("heading", { name: "This graph is open in an older seqno" }),
+    ).toBeVisible()
+    await other.waitForTimeout(heldMs)
+    await page.evaluate(() => {
+      const letGo: unknown = Reflect.get(globalThis, "letGo")
+      if (typeof letGo === "function") letGo()
+    })
+    await expect(todayOn(other).getByRole("treeitem").first()).toHaveText(welcome)
+  })
+}

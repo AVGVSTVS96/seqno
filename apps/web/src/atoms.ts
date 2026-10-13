@@ -99,7 +99,6 @@ export const openGraph = appRuntime
       get.set(importReport, opened.skipped)
       if (get.registry.get(remembersGraph)) get.set(lastGraph, graph)
       get.set(graphsOpenedAt, { ...get.registry.get(graphsOpenedAt), [graph]: now })
-      yield* Reactivity.invalidate(pagesKey)
       return opened
     }),
   )
@@ -166,7 +165,12 @@ export const createPage = appRuntime.fn((title: string, get) =>
 )
 
 export const pages = appRuntime
-  .atom(Effect.flatMap(Effect.service(CoreClient), (core) => core.GetPages()))
+  .atom((get) =>
+    Effect.andThen(
+      get.result(openGraph, { suspendOnWaiting: true }),
+      Effect.flatMap(Effect.service(CoreClient), (core) => core.GetPages()),
+    ),
+  )
   .pipe(appRuntime.factory.withReactivity(pagesKey))
 
 const pageList = (select: (all: ReadonlyArray<Page>) => ReadonlyArray<Page>) =>
