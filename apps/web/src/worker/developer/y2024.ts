@@ -10,6 +10,7 @@ export const y2024: ReadonlyArray<StarterFile> = [
     `\t- ${pr("AVGVSTVS96/astroSite", 9)}`,
     `- ${yt("Rethinking React", "KuhfT6-I3QU")} [[Theo Browne]]`,
   ),
+  on(20240119, "- idea: a GPT-powered companion, like a Tamagotchi #idea"),
   on(
     20240124,
     `- ${yt("Don't Contribute to Open Source", "5nY_cy8zcO4")} [[Theo Browne]] [[open source]]`,
@@ -25,6 +26,12 @@ export const y2024: ReadonlyArray<StarterFile> = [
     "- forked remark-sectionize and gave it TypeScript types and type tests #decision #portfolio",
     "\t- the site had a hand-written `declare module` for it. now the types ship with the plugin",
     `\t- ${pr("AVGVSTVS96/remark-sectionize", 1)}. the site switched to my published fork on Feb 26`,
+    "\t- this was me learning TypeScript [[learning to code]]",
+  ),
+  on(
+    20240203,
+    "- delete every local branch except master [[snippets]]",
+    '\t- `git branch | grep -v "master" | xargs git branch -d`',
   ),
   on(
     20240217,
@@ -37,6 +44,15 @@ export const y2024: ReadonlyArray<StarterFile> = [
     '\t- LATER [#A] a table of contents toggle on small screens, an "on this page" button under the navbar',
   ),
   on(
+    20240221,
+    "- Astro components can take every normal HTML attribute: type the props as `HTMLAttributes<'a'>`, then spread the rest [[learning to code]] [[projects/portfolio]]",
+    "\t- ```ts",
+    "\t  import type { HTMLAttributes } from 'astro/types'",
+    "\t  type Props = HTMLAttributes<'a'>",
+    "\t  const { href, ...attrs } = Astro.props",
+    "\t  ```",
+  ),
+  on(
     20240302,
     "- Dune Part Two week: reviews, the ending, the Ixian problem, the most evil emperor [[Quinn's Ideas]] [[sci-fi]]",
     `\t- ${yt("What Does Dune's Ending Actually Mean?", "Wzc93-osVpM")}`,
@@ -47,6 +63,7 @@ export const y2024: ReadonlyArray<StarterFile> = [
     "- killed the theme flash: the theme is set in the base layout before first paint #decision #portfolio",
     "\t- pages flashed the wrong theme while loading (FOUC)",
     "\t- one script applies the saved theme immediately, the toggle script only toggles",
+    "\t- what finally clicked: inline scripts in the head. I'd been struggling to learn the exact order things load on the web, to avoid the flash of unstyled content and FOUT [[dark mode]]",
     `\t- ${pr("AVGVSTVS96/astroSite", 100)}`,
   ),
   on(20240331, "- command menu for the site, ⌘K [[projects/portfolio]]"),
@@ -169,12 +186,20 @@ export const y2024: ReadonlyArray<StarterFile> = [
   ),
   on(
     20240902,
+    `- ${yt("Unexpected Lessons I've Learned After 15 Years Of Coding", "3h7Lc85RDLo")} [[Theo Browne]]`,
+    "\t- one of the three Theo videos that set me directly on the right track",
+    `\t- ${thumb("Unexpected Lessons I've Learned After 15 Years Of Coding", "3h7Lc85RDLo")}`,
     `- ${yt("How To Lube Your Mechanical Keyboard Switches", "_BG-8QrA-6c")} [[keyboards]]`,
   ),
   on(
     20240915,
     "- first NixOS config, started from Dustin Lyons' template [[projects/dotfiles]]",
     `\t- ${pr("dustinlyons/nixos-config", 114)}`,
+  ),
+  on(
+    20240924,
+    "- [nixos-wsl-starter](https://github.com/AVGVSTVS96/nixos-wsl-starter): NixOS on WSL, so I can develop on Windows [[projects/dotfiles]]",
+    "\t- the setup I used on my work machine, learning software development in my free time while I worked as an IT/AV technician [[learning to code]]",
   ),
   on(
     20240922,

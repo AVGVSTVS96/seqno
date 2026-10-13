@@ -165,6 +165,10 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "- T3 Code. found react-shiki early. [site](https://t3.gg)",
     "- his videos, most days since January 2024. a big part of why I'm the engineer I am",
     `\t- ${d.date(-24)}`,
+    "- it was a combination of all of his videos at the time. it was such a massive point for me, and set me directly on the right track",
+    `\t- three of them were huge. I can't even express how much I learned from them: Rethinking React (${dated(20240108)}), Don't Contribute to Open Source (${dated(20240124)}), Unexpected Lessons I've Learned After 15 Years Of Coding (${dated(20240902)})`,
+    "- I think I would die happy if my work gave even one person the amount of value Theo's work has given me",
+    `- he found react-shiki, and reached out: ${dated(20250222)}`,
   ),
   person(
     "Wes Billman",

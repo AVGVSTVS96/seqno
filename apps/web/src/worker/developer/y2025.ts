@@ -29,6 +29,7 @@ export const y2025: ReadonlyArray<StarterFile> = [
     "\t- react-markdown 9 removed the `inline` prop. the plugin adds it back",
     "\t- it checks for a `pre` parent in the AST. more accurate than guessing from line endings, which `isInlineCode` does",
     `\t- ${pr("AVGVSTVS96/react-shiki", 12)}`,
+    "- [fpskeytrainer](https://github.com/AVGVSTVS96/fpskeytrainer): a random key trainer. I'd started playing FPS games for a bit, and wanted my thumbs used to the keys again on my new keyboard [[keyboards]]",
   ),
   on(
     20250222,
@@ -36,6 +37,11 @@ export const y2025: ReadonlyArray<StarterFile> = [
     `\t- my reply: "👀 Happy to help!" ${post("1893112863591473475", "433 likes")}`,
     `\t- standing on the shoulders of giants. none of it works without [[Anthony Fu]]'s Shiki ${post("1893115167287767167")}`,
     `\t- explained \`rehypeInlineCodeProperty\` in the replies ${post("1893141230118195576")}`,
+    "- Theo reached out",
+    "\t- I'd just gotten home from work, an early day. I was watching his videos on the train, and then I saw a notification from him",
+    "\t- I thought it was just a video notification, or a phishing scam. for a second it couldn't be real, until I clicked in and saw it was legit",
+    "\t- I was stunned. holy shit. there's no way I'm this good",
+    "\t- he said this is exactly what he'd been looking for, and that I'm way too good of an engineer to not have a proper engineer's tech job",
   ),
   on(
     20250223,
@@ -78,6 +84,12 @@ export const y2025: ReadonlyArray<StarterFile> = [
     `- react-shiki: 387 stars, 3k+ weekly downloads ${post("1911124354621899069")} [[projects/react-shiki]]`,
   ),
   on(
+    20250418,
+    "- last day in my old Logseq graph: wiring react-shiki into assistant-ui's markdown, next to react-syntax-highlighter [[projects/react-shiki]] [[notes apps]]",
+    "\t- the differences: bundle size options, customization, memoization",
+    "\t- pre and code can be swapped for your own components by passing them to `toJsxRuntime`",
+  ),
+  on(
     20250428,
     `- I'd rather use a TUI than a GUI. lazygit is done before a git app finishes opening ${post("1916892194763321349")} [[terminal]]`,
   ),
@@ -90,14 +102,29 @@ export const y2025: ReadonlyArray<StarterFile> = [
     `- line numbers the next day ${pr("AVGVSTVS96/react-shiki", 61)}`,
   ),
   on(
+    20250606,
+    "- forked [tokyo-night-tmux](https://github.com/AVGVSTVS96/tokyo-night-tmux). first change: an option to show all issues, or only the ones assigned to me [[terminal]]",
+  ),
+  on(
     20250626,
     `- keep running into Radix issues. AriaKit looks like the future ${post("1938178711762964534")} [[design]]`,
+    "\t- I was noticing subtle bugs with Radix, and started noticing other people notice the same",
+  ),
+  on(
+    20250704,
+    `- started learning how to code January 2023, now a founding engineer at assistant-ui ${post("1941020212494848258")} [[learning to code]]`,
+    "\t- I was the first founding engineer Simon hired. he flew out to New York to interview me, and hired me within a week, after a single interview and a meeting over dinner and drinks",
+    "\t- it all fell into place. my career started",
   ),
   on(
     20250711,
     "- one nvim socket per tmux pane, so an agent can drive the editor beside it #idea [[terminal]]",
     '\t- ```sh\n\t  nvim --listen /tmp/nvim-$(tmux display-message -p "#S-#I-#P")\n\t  ```',
     `\t- ${post("1943572882250174666")}`,
+  ),
+  on(
+    20250713,
+    `- how I got here: built react-shiki because I wanted a more modern syntax highlighter for React. it started to take off. I put effort into making it good, people noticed, and it ended up with a job offer. moral of the story: just build cool stuff ${post("1944471492693237811")} [[projects/react-shiki]]`,
   ),
   on(
     20250721,
@@ -127,6 +154,10 @@ export const y2025: ReadonlyArray<StarterFile> = [
     `- SF: if you come with nothing to show, you'll build it. never got "cool crowd" vibes, everyone loves talking about code ${post("1970742130168733992")} [[SF]]`,
   ),
   on(
+    20250926,
+    `- you don't need to have built something to join in. being interested in what others build is a great start ${post("1971674733063426263")} [[SF]]`,
+  ),
+  on(
     20250928,
     `- Electron doesn't deserve the hate. build once, ship everywhere ${post("1972107730858266707")}`,
   ),
@@ -145,6 +176,8 @@ export const y2025: ReadonlyArray<StarterFile> = [
   on(
     20251005,
     "- [lakhs](https://lakhs.app): a USD/INR converter for those of us who are confused by lakhs and crores",
+    `- react-shiki's custom regex engines are out ${post("1974828701079757115")} [[projects/react-shiki]]`,
+    "\t- ![react-shiki custom engines](https://pbs.twimg.com/media/G2f-cudboAAO1Tw.jpg)",
   ),
   on(
     20251006,
@@ -153,6 +186,7 @@ export const y2025: ReadonlyArray<StarterFile> = [
   on(
     20251012,
     "- differential: a terminal diff viewer. config, delta compatibility, git metadata, an interactive mode, five phases in two days [[terminal]]",
+    `\t- ${pr("AVGVSTVS96/differential", 2)} · ${pr("AVGVSTVS96/differential", 6)}`,
   ),
   on(
     20251014,
@@ -162,7 +196,6 @@ export const y2025: ReadonlyArray<StarterFile> = [
   ),
   on(
     20251015,
-    `- Factory's Droid is the first agent that's made me feel I can build anything I want. ~10 side projects going at once ${post("1978605789611999387", "162 likes")}`,
     `- missing piece: resume an interactive session by id. I run many sessions across tmux windows, several on the same repo ${post("1978898196194824265")}`,
   ),
   on(
@@ -205,6 +238,11 @@ export const y2025: ReadonlyArray<StarterFile> = [
     `- Raycast extension that triggers Obsidian QuickAdd macros ${pr("raycast/extensions", 23250)}`,
   ),
   on(
+    20251201,
+    `- even Iceland can't keep me away from code ${post("1995480154131276222")}`,
+    "\t- ![laptop on the dash, Iceland](https://pbs.twimg.com/media/G7FekYDWYAAIOrY.jpg)",
+  ),
+  on(
     20251202,
     `- iTerm2 isn't the pick anymore. Ghostty, WezTerm, Kitty, and Ghostty first ${post("1995647302472794428")} [[terminal]]`,
   ),
@@ -228,7 +266,9 @@ export const y2025: ReadonlyArray<StarterFile> = [
   on(
     20251224,
     "- [[projects/openleaf]]: minimal, end-to-end encrypted markdown notes",
+    "- built it while traveling in Japan. in free time, waiting in line, on buses, I'd just prompt Claude. by the time I was back from the trip I had a complete encrypted app",
     "- open source, credited, after a closed app I liked #decision #openleaf",
+    "\t- someone posted this app and kept it closed source. what's the point of closed source nowadays, if anybody could just make something like this themselves?",
     `\t- if you're not trying to make money with it, it should be open source. asked its maker if they'd mind an open clone with attribution ${post("2004843273480012164")}`,
     "- AES-256-GCM with Web Crypto, a BIP39 mnemonic opens the vault #decision #openleaf",
     "\t- notes are encrypted before they're stored",

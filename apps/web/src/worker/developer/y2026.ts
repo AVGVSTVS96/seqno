@@ -23,7 +23,11 @@ export const y2026: ReadonlyArray<StarterFile> = [
     `  id:: ${ids.offNix}`,
     `\t- on Nix every config change wants a rebuild-switch, unless every file goes through \`mkOutOfStoreSymlink\` ${post("2106293987304952283")}`,
     `\t- with Stow they're normal dots, edited in place ${post("2081793329554207005")}`,
-    "\t- started stow-tui today, a little Rust TUI for managing them",
+  ),
+  on(
+    20260121,
+    "- started ai-tmux: save and restore agent sessions by their tmux context [[terminal]]",
+    "\t- session loss is a big issue for me. I often jump between projects, and some sessions I keep open for several weeks before I come back to them",
   ),
   on(
     20260209,
@@ -52,6 +56,10 @@ export const y2026: ReadonlyArray<StarterFile> = [
   ),
   on(20260305, `- watched ${yt("Work.", "hvk_XylEmLo")} again [[Historia Civilis]]`),
   on(
+    20260308,
+    "- path-inventory: spec first, then an inventory of where Claude, Codex and OpenCode keep their sessions [[terminal]]",
+  ),
+  on(
     20260314,
     "- seven Historia Civilis episodes in one day: Caesar in Gaul, again [[Historia Civilis]] [[Rome]]",
     `\t- ${yt("Vercingetorix", "lMFiED6sAi8")}`,
@@ -71,6 +79,10 @@ export const y2026: ReadonlyArray<StarterFile> = [
     "- Tribunate binge: Sulla, the first triumvirate, the year of the six emperors, the Praetorian Guard [[Rome]]",
     `\t- ${yt("Sulla, Rome's Bloodiest Dictator", "RClu7ADAcb4")}`,
     `\t- ${yt("The Year of the Six Emperors", "pNImOXD1hLU")}`,
+    "- xBook: every X bookmark I have, in my own database #decision [[projects/commonplace]]",
+    "\t- the X API is incredibly expensive, so I wanted to make sure I have a database of all my X bookmarks",
+    "\t- bookmarks felt like they went missing sometimes, so it's always a good idea to save all of it",
+    "\t- there's so much incredibly valuable stuff on X. I had to save it all",
     "- small form factor PC rabbit hole: NCASE M2, Fractal Terra, 5090s in tiny cases",
     `\t- ${yt("The holy grail of PC cases - NCASE M2.", "MsoEEb8_0OY")}`,
   ),
@@ -107,6 +119,14 @@ export const y2026: ReadonlyArray<StarterFile> = [
     `\t- ${video("y894m7joEBc")}`,
   ),
   on(
+    20260517,
+    "- my tokyo-night-tmux fork: fixed several important bugs that were significantly slowing tmux down with this theme [[terminal]]",
+    "\t- git status is cached off tmux's redraw path",
+    "\t- widgets that are turned off get skipped before they ever start a status job",
+    "\t- the hostname widget resolves once, when the theme loads",
+    "\t- tmux's own formatting instead of a custom number helper",
+  ),
+  on(
     20260518,
     "- persistence-scope.nvim, first release #decision #persistence-scope",
     "\t- sessions are scoped to what I'm working in: the tmux session by default, anything else through a provider",
@@ -114,12 +134,23 @@ export const y2026: ReadonlyArray<StarterFile> = [
     `\t- ${pr("AVGVSTVS96/persistence-scope.nvim", 1)}`,
   ),
   on(
+    20260521,
+    `- switched from Claude Code to [pi](https://github.com/earendil-works/pi) ${post("2057286077636022486")} #decision [[prompting]]`,
+    "\t- I love pi. software that's able to modify itself, and built to be as minimal as possible",
+    "- prompt coding agents as minimally as possible. don't over-constrain them, don't fill up their context #rule [[prompting]]",
+    "\t- every additional line of context, every line in an AGENTS.md, every extra line of system prompt generally lessens the agent's performance, unless it's careful and thoughtful",
+  ),
+  on(
     20260522,
     "- [pi-patcher](https://github.com/AVGVSTVS96/pi-patcher): write a PATCH.md once and my pi patches heal themselves after updates [[projects/PATCH.md]]",
+    "- forked [pi-treebase](https://github.com/AVGVSTVS96/pi-treebase): interactive-rebase style tree navigation and compaction for pi",
   ),
   on(
     20260525,
     `- react-shiki/core rebuilt its highlighter factory every render and froze on mount #bug [[projects/react-shiki]] ${pr("AVGVSTVS96/react-shiki", 163)}`,
+    `- ${yt("Bungie made the only game that understands 2026", "ujzPsOCBW7w")}, Raven Wing Plays`,
+    "\t- a cool video, and a cool game. I love how it's a unique concept for a game",
+    `\t- ${thumb("Bungie made the only game that understands 2026", "ujzPsOCBW7w")}`,
   ),
   on(
     20260605,
@@ -136,6 +167,12 @@ export const y2026: ReadonlyArray<StarterFile> = [
     `- tried herdr yesterday. polished, fast [[terminal]] ${post("2066535497066012716")}`,
   ),
   on(
+    20260616,
+    "- ohfable: a menu bar light for my Mac. green the moment a request to Fable succeeds again, red until then",
+    "\t- the US government banned Fable, and I wanted to know as soon as it was back",
+    "\t- the first model whose judgment I felt I could trust. its communication style was the blocker, so it wasn't quite the click that Opus 5.5 is for me now",
+  ),
+  on(
     20260619,
     `- ${yt("Why Seven Presidents is Better than One", "6TQs2npDqUk")}, Spectacles. love it [[systems of power]]`,
     "\t- the video's case: Switzerland has seven presidents, and it works",
@@ -144,6 +181,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
   on(
     20260622,
     "- [herdr-drovr](https://github.com/AVGVSTVS96/herdr-drovr): move herdr panes and tabs around easily [[terminal]]",
+    "- pierre-local: Pierre's demo site for their diffs and trees library, made local. a CLI so agents can show me any changes I'd want to see",
   ),
   on(
     20260624,
@@ -166,6 +204,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
   on(
     20260703,
     `- I can trust the model's judgment now. no babysitting, it meets my bar. vim-herdr-navigator went out in ~30 minutes and ~5 prompts ${post("2072918328709087628")}`,
+    `\t- GPT-4 in 2023 was empowering, but a slow burn (${dated(20230429)}). this is completely different. suddenly I'm getting complete products that are genuine starting points, even for my bar for quality`,
     "- react-shiki's CSS layer is `@layer react-shiki` now, not `@layer base` #decision #react-shiki",
     "\t- Tailwind v3's PostCSS plugin reserves `@layer base`. any Tailwind v3 app importing our CSS failed to compile",
     `\t- ${pr("AVGVSTVS96/react-shiki", 169)}`,
@@ -225,6 +264,9 @@ export const y2026: ReadonlyArray<StarterFile> = [
     `- posted the systems of power thing on X ${post("2078257803190563147")} [[systems of power]]`,
     "\t- people argue about which system is the right one. every system is flawed. human self-governance is a hard, society-sized problem",
     `\t  id:: ${ids.everySystem}`,
+    "\t- [Systems of Power](https://systemsofpower.vercel.app): 16 systems, scored on decisiveness, long-term capacity, capture resistance and error correction",
+    "\t- its thesis: judge a system by how fast it reverses its worst decisions",
+    "\t- ![Systems of Power](https://pbs.twimg.com/amplify_video_thumb/2078256750151839744/img/dmoGGwEkVp1bSt0b.jpg)",
     `\t- goes with the Spectacles video on Switzerland's seven presidents, ${dated(20260619)}`,
     `- my dream: sleep and wake up in 100 or 1,000 years. I desperately want to see what humanity's future looks like ${post("2078242354847494402")} ${ref(ids.thousandYears)}`,
     "- react-shiki's CSS ships inside the JS and installs itself, scoped to what you use #decision #react-shiki",
@@ -240,6 +282,10 @@ export const y2026: ReadonlyArray<StarterFile> = [
   on(
     20260724,
     "- new Work Louder Codex Micro 2. teaching it to drive herdr over HID [[keyboards]] [[terminal]]",
+  ),
+  on(
+    20260729,
+    "- slop: scores my agent transcripts for readability. walls of text, jargon, one thing called three names [[prompting]]",
   ),
   on(
     20260808,
@@ -305,5 +351,8 @@ export const y2026: ReadonlyArray<StarterFile> = [
     20260911,
     `- Bambu Lab X2D. didn't want to like it, closed ecosystem, but unboxing to first print just works ${post("2098353180765794367")} [[making things]]`,
     "\t- ![a mechanical under-desk charging mount, mid-print](https://pbs.twimg.com/media/HR7ZGP4boAAwEQI.jpg)",
+    "\t- I used to 3D print a couple of years ago, when it was more of a hobby just to get a printer running. now I love that Bambu offers printers as tools",
+    "\t- Bambu Studio is the part I'm tempted to fix. I'm stopping myself: too many software projects already",
+    `- ${yt("I don't get democracy", "O7LvhSQ5Te4")}, Johnny Harris [[systems of power]]`,
   ),
 ]

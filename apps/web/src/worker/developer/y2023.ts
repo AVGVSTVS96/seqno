@@ -14,6 +14,9 @@ export const y2023: ReadonlyArray<StarterFile> = [
     20230109,
     "- day one of CS50. first commits in the course codespace [[learning to code]]",
     "- 250 commits there by the end of the month",
+    "- how it clicked: ChatGPT showed me I can open an HTML file in my browser, and suddenly I'm able to make websites",
+    "\t- I'd tried code several times before and never picked it up. I always started by learning a programming language, and never knew where to start",
+    "\t- then a comment on Reddit: someone chose web development for the instant feedback. that and ChatGPT, and it all came together",
   ),
   on(
     20230130,
@@ -21,6 +24,12 @@ export const y2023: ReadonlyArray<StarterFile> = [
     "\t- three weeks into CS50",
   ),
   on(20230131, "- first pull request ever, on GitHub's desktop tutorial repo [[learning to code]]"),
+  on(
+    20230219,
+    `- ${yt("History Summarized: The Republic of Venice", "7cHK4xzAhzE")}, Overly Sarcastic Productions [[history]]`,
+    "\t- this is where my Venice interest starts",
+    `\t- ${thumb("History Summarized: The Republic of Venice", "7cHK4xzAhzE")}`,
+  ),
   on(
     20230220,
     `- ${yt("Why I use Vim in 2022", "D4YTJ2W5q4Y")} and the vimtutor speedrun [[ThePrimeagen]] [[terminal]]`,
@@ -41,6 +50,7 @@ export const y2023: ReadonlyArray<StarterFile> = [
     "\t- Tutor mode: a system prompt that makes it teach instead of just answer",
     "\t- Hint mode: no solutions, no full explanations. it answers in a way that makes you use what you already know. the academic honesty problem of AI, solved",
     "\t- Reference mode: plain chat over the docs it scanned",
+    "\t- that was me trying to optimize my learning. nothing came of it. the ideas just started to flow as I learned what LLMs are capable of",
     "- note app rabbit hole, week three. Obsidian or Logseq? [[notes apps]]",
     `  id:: ${ids.logseqHole}`,
     `\t- ${yt("Logseq vs Obsidian", "TW_UpX5Gk3E")}, ${yt("How to use queries and indentation in Logseq", "qQ8DzumRZkM")}`,
@@ -53,6 +63,7 @@ export const y2023: ReadonlyArray<StarterFile> = [
     "\t- organizing notes by time is novel, and closer to how the brain works",
     "\t- tags gather blocks into pages, and linking is intuitive. I'm going to give it a shot",
     "- GPT-4 is a great interlocutor when you tell it to use the Socratic method. a way to explore my own beliefs [[prompting]] [[philosophy]]",
+    "\t- me exploring LLMs, and how to use them as intellectual debate partners",
     "\t- ```",
     "\t  For the entirety of this conversation I want you to use the socratic method with me to explore <topic>. Ensure answers to your questions have not been previously mentioned, this ensures the discussion moves forward.",
     "\t  ```",
@@ -62,6 +73,7 @@ export const y2023: ReadonlyArray<StarterFile> = [
     "- my site, v2: Flask and Tailwind, written by hand #decision #portfolio",
     "\t- v1 was Streamlit, all Python",
     "\t- I've started learning HTML, CSS and JavaScript, so this one gets written from scratch",
+    "\t- I wanted to learn real HTML and CSS. and I didn't know yet that I could just host an HTML file without a backend. I hadn't gotten to how the frontend and backend connect in CS50",
     `- I want to build something but everything is moving so fast. said so on X ${post("1639040642180415488")}`,
     `- ${yt("Astro IS SO GOOD", "Sqp5VSqbQOY")} [[ThePrimeagen]]`,
   ),
@@ -179,12 +191,6 @@ export const y2023: ReadonlyArray<StarterFile> = [
     `\t- ${pr("AVGVSTVS96/fastgpt", 1)}`,
   ),
   on(
-    20230520,
-    "- changing the system message mid-chat drops the old one and appends the new one at the end #decision #fastgpt",
-    "\t- a new sub-session: the model can still reference the whole conversation, and the old system message stops steering it",
-    "\t- [FastGPT@aefffb4](https://github.com/AVGVSTVS96/FastGPT/commit/aefffb4bdf7518c638cf1a685f7bb7b7cd7126a6)",
-  ),
-  on(
     20230523,
     "- tried porting the app to Solid with GPT-4, all in one go. it runs, but streaming and the layout didn't come along [[projects/fastgpt]]",
     "- big ports go one feature at a time, from scratch #rule",
@@ -202,6 +208,9 @@ export const y2023: ReadonlyArray<StarterFile> = [
   on(
     20230530,
     "- reactGPT: same app, React frontend. Prism highlighting in a `CodeHighlight` component [[projects/fastgpt]]",
+    "- React for the frontend #decision #fastgpt",
+    "\t- React had the most information out about it on the web. everybody knew it, and it was clearly winning",
+    "\t- newer tech is cooler, but it's always best to start off with what's popular",
     "- autoscroll stops when you scroll up, comes back when you return to the bottom #decision #fastgpt",
     "\t- you can read an old answer while a new one streams in",
     `\t- a \`useAutoScroll\` hook. ${pr("AVGVSTVS96/reactgpt", 6)}`,
@@ -212,9 +221,27 @@ export const y2023: ReadonlyArray<StarterFile> = [
     `\t- ${yt("Caesar Crosses the Rubicon", "SYxN134gb-8")}`,
   ),
   on(
+    20230602,
+    "- my zsh prompt shows the git branch now [[terminal]]",
+    "\t- ```zsh",
+    "\t  parse_git_branch() {",
+    "\t    git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \\(.*\\)/(\\1)/'",
+    "\t  }",
+    "\t  setopt PROMPT_SUBST",
+    "\t  PROMPT='%F{cyan}MacBook-Pro%f:%F{green}%1~%f %F{yellow}$(parse_git_branch)%f$ '",
+    "\t  ```",
+  ),
+  on(
     20230609,
     "- idea: visionOS keeps going until it's an OS on the phone streaming to contact lenses. sensors in earbuds #idea",
     `\t- ${post("1667266779985346563")}`,
+    "- a site footer with the year and my links. each icon is a `Social` component that takes the platform as a prop [[projects/portfolio]] [[learning to code]]",
+    "\t- one icon per platform, named after it. color changes happen in CSS",
+    "- sudo with Touch ID instead of a password: `auth sufficient pam_tid.so` [[snippets]]",
+  ),
+  on(
+    20230615,
+    "- motte and bailey: someone makes a controversial point (the bailey), and when it gets challenged, swaps in a modest, easy-to-defend one (the motte), conflating the two [[philosophy]]",
   ),
   on(
     20230603,
@@ -230,6 +257,8 @@ export const y2023: ReadonlyArray<StarterFile> = [
     "- started learning Astro and I love it #decision #portfolio",
     "\t- components like a frontend framework, but no JS required. plain HTML components",
     "\t- intuitive, and great docs",
+    "\t- Astro taught me the component way of thinking. I went from basically understanding the HTML file to understanding components, and then I jumped over to React pretty easily [[learning to code]]",
+    "\t- Next.js made sense after that too, from a routing perspective",
     "- markdown pages lose their styles under Tailwind. `@tailwindcss/typography` and a `prose` wrapper bring them back",
   ),
   on(
@@ -256,6 +285,10 @@ export const y2023: ReadonlyArray<StarterFile> = [
     `- ${yt("Foundation: Are We Predictable?", "xWWnUzV2NmU")}, Oliver Lugg, an hour on psychohistory [[sci-fi]]`,
     "\t- are people predictable? yes, for sure. a huge topic of contention",
     `\t- ${thumb("Foundation: Are We Predictable?", "xWWnUzV2NmU")}`,
+  ),
+  on(
+    20230804,
+    "- idea: an OLED desk clock with a customizable display that can show photos too. design inspired by Fujifilm and Leica cameras #idea [[design]]",
   ),
   on(
     20230822,
@@ -293,6 +326,7 @@ export const y2023: ReadonlyArray<StarterFile> = [
     "- blog posts get Tailwind typography, from the Astro Ink template [[projects/portfolio]]",
     "\t- edit from future. wow i knew nothing of this",
   ),
+  on(20231216, "- DONE blog index page [[projects/portfolio]]"),
   on(
     20231218,
     "- moved the Flask site into Astro as a page of its own [[projects/portfolio]]",

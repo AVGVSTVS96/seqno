@@ -406,7 +406,7 @@ describe("the core worker on the real graph, vault and index", () => {
               "watching",
             ],
           )
-          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 207)
+          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 227)
           const blocks = (yield* Effect.forEach(opened.pages, (page) =>
             core.GetPage({ pageId: page.id }),
           )).flatMap((tree) => tree.blocks)

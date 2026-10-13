@@ -15,6 +15,9 @@ export const recent = (d: Days): ReadonlyArray<StarterFile> => [
     `\t- fully hackable, and still approachable for people who never open a terminal ${post("2108352926406283526")}`,
     `\t- as modular and flexible as I can make each piece ${post("2108353442746159410")}`,
     `- why do the labs keep "uh" and "um" in voice transcripts sent to the model? #question ${post("2108708396627320908")}`,
+    `- Guillermo Rauch: "Few things more enjoyable in work and life than discovering new talent. Seeing greatness in people, sometimes even before they fully see it themselves." [post](https://x.com/rauchg/status/2108399406009798764)`,
+    "\t- awesome. I'm confident in my abilities now, and I understand what they saw in me. grateful they saw it before I saw it in myself [[Theo Browne]]",
+    "\t- I can't wait until I have that impact on someone else",
   ),
   d.journal(
     -1,
@@ -26,6 +29,8 @@ export const recent = (d: Days): ReadonlyArray<StarterFile> => [
     "\t- ![Logseq and seqno, side by side](https://pbs.twimg.com/media/HUGvTZ2awAAe3J6.jpg)",
     `\t- where it started, in 2023: ${ref(ids.logseqHole)}`,
     `- 34 projects started in 60 hours ${post("2108161052395622654")}`,
+    `- you can tell right away when someone put real effort and care into a product. it reminds me of Japan: cleaners crouched down over corners nobody would think to look at, let alone notice ${post("2108065104185184736")} [[design]]`,
+    `- somebody needs to build a new phone OS. might end up being me ${post("2108182894388867478")} #idea`,
     `- my whole history in one place for my agents: every post, prompt, review comment and commit. they mirror my judgment closer than anything else [[projects/commonplace]] ${post("2108244948554526784")}`,
     "- hex stays ~1,000 lines #decision #hex",
     `\t- elegant simplicity without a single sacrifice. a hackable community test bed ${post("2108251903490666920")}`,
@@ -150,6 +155,7 @@ export const recent = (d: Days): ReadonlyArray<StarterFile> => [
     '\t- after: "you will often hand off work to keep your own context small"',
     "\t- same rule, but now it says when",
     `- become a data hoarder ${post("2101907981483090252")} [[projects/commonplace]]`,
+    "- started fleet, my homelab's repo. it tells agents about my home lab, my systems and my plans [[terminal]]",
   ),
   d.journal(
     -20,
