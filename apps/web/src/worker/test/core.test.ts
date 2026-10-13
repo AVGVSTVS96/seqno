@@ -28,7 +28,7 @@ import { RealCore } from "../core.ts"
 import { demoGraph } from "../demo.ts"
 import { developerGraph } from "../developer.ts"
 import { journalDayOf, todaysJournal } from "../journal.ts"
-import { layerWebLocks } from "../lock.ts"
+import { GraphLocks, layerWebLocks } from "../lock.ts"
 import { Device, GraphPlaces, type IndexFile, type Starter } from "../place.ts"
 
 const fixture = fileURLToPath(
@@ -78,6 +78,7 @@ const coreLayer = (
   starter: Starter | null,
   device = "laptop",
   storage: Storage["Service"] = nodeStorage(root),
+  locks: Layer.Layer<GraphLocks> = layerWebLocks,
 ) =>
   RealCore.pipe(
     Layer.provide(
@@ -94,7 +95,7 @@ const coreLayer = (
       }),
     ),
     Layer.provide(Layer.succeed(Device, { device: DeviceId.make(device), formerPeers: [] })),
-    Layer.provide(layerWebLocks),
+    Layer.provide(locks),
     Layer.provide(WebCrypto),
   )
 
@@ -106,9 +107,13 @@ const coreOn = (root: string, starter: Starter | null = null, device = "laptop")
     return yield* Effect.provide(RpcTest.makeClient(AllRpcs), handlers)
   })
 
-const tabsOn = (root: string, storage: Storage["Service"] = nodeStorage(root)) =>
+const tabsOn = (
+  root: string,
+  storage: Storage["Service"] = nodeStorage(root),
+  locks: Layer.Layer<GraphLocks> = layerWebLocks,
+) =>
   Effect.gen(function* () {
-    const handlers = yield* Layer.build(coreLayer(root, null, "laptop", storage))
+    const handlers = yield* Layer.build(coreLayer(root, null, "laptop", storage, locks))
     const replies = new Map<
       number,
       (message: RpcMessage.FromServer<RpcGroup.Rpcs<typeof AllRpcs>>) => Effect.Effect<void>
@@ -1366,6 +1371,65 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
           held.writes = false
           yield* Deferred.succeed(written, undefined)
           assert.strictEqual((yield* Fiber.join(reopened)).graph, "og-reopened")
+          assert.strictEqual(
+            (yield* reopening.GetBlock({ blockId: block.id })).text,
+            "We recorded a [[voice note]].",
+          )
+        }),
+      ),
+  )
+
+  it.live(
+    "a reloaded tab waits for the session its worker is still closing, even when the graph looks held by an older seqno",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const root = yield* copyOfFixture
+          const disk = nodeStorage(root)
+          const held = { writes: false }
+          const written = yield* Deferred.make<void>()
+          const storage: Storage["Service"] = {
+            ...disk,
+            write: (path, bytes) =>
+              held.writes
+                ? Effect.andThen(Deferred.await(written), disk.write(path, bytes))
+                : disk.write(path, bytes),
+          }
+          const handoverTooLate = Layer.effect(
+            GraphLocks,
+            Effect.map(Effect.service(GraphLocks), (locks) =>
+              GraphLocks.of({
+                ...locks,
+                hold: (graph, wait) =>
+                  Effect.flatMap(heldLocks, (names) =>
+                    !wait && names.includes(`seqno/graph/${graph}`)
+                      ? Effect.succeedNone
+                      : locks.hold(graph, wait),
+                  ),
+              }),
+            ),
+          ).pipe(Layer.provide(layerWebLocks))
+          const tab = yield* tabsOn(root, storage, handoverTooLate)
+          const closing = yield* tab(0)
+          const reopening = yield* tab(1)
+          const close = yield* holdLock(tabLock("closing-late"))
+          const attached = yield* Effect.forkChild(
+            Stream.runDrain(closing.Attach({ tab: "closing-late" })),
+          )
+          const opened = yield* closing.OpenGraph({ graph: "og-late" })
+          const tasks = yield* closing.GetPage({ pageId: named(opened.pages, "tasks").id })
+          const block = tasks.blocks[2] ?? assert.fail("tasks has no third block")
+          held.writes = true
+          yield* closing.Dispatch({
+            command: { _tag: "EditText", blockId: block.id, from: 0, to: 1, insert: "We" },
+          })
+          yield* close
+          yield* Fiber.join(attached)
+          const reopened = yield* Effect.forkChild(reopening.OpenGraph({ graph: "og-late" }))
+          assert.isTrue(Option.isNone(yield* Fiber.await(reopened).pipe(Effect.timeoutOption(50))))
+          held.writes = false
+          yield* Deferred.succeed(written, undefined)
+          assert.strictEqual((yield* Fiber.join(reopened)).graph, "og-late")
           assert.strictEqual(
             (yield* reopening.GetBlock({ blockId: block.id })).text,
             "We recorded a [[voice note]].",

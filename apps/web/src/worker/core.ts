@@ -189,6 +189,7 @@ const SessionsLive = Layer.effect(
     const mutex = yield* Semaphore.make(1)
     const guarded = mutex.withPermits(1)
     const graphs = new Map<string, Shared>()
+    const closing = new Set<Shared>()
     const views = new Map<number, SubscriptionRef.SubscriptionRef<View>>()
 
     const viewIn = (client: number) =>
@@ -204,37 +205,50 @@ const SessionsLive = Layer.effect(
     const show = (client: number, view: View) =>
       Effect.flatMap(viewIn(client), (ref) => SubscriptionRef.set(ref, view))
 
+    const letGo = (shared: Shared) =>
+      Scope.close(shared.scope, Exit.void).pipe(
+        Effect.ensuring(Effect.sync(() => closing.delete(shared))),
+      )
+
     const close = (shared: Shared) =>
       Effect.exit(Deferred.await(shared.opened)).pipe(
-        Effect.andThen(Scope.close(shared.scope, Exit.void)),
+        Effect.andThen(letGo(shared)),
         Effect.uninterruptible,
       )
 
     const forget = (shared: Shared) =>
       Effect.sync(() => {
         if (graphs.get(shared.graph) === shared) graphs.delete(shared.graph)
+        closing.add(shared)
       })
 
+    const closingHere = (graph: string) => [...closing].some((shared) => shared.graph === graph)
+
     const moveOut = (shared: Shared) =>
-      Effect.andThen(
+      Effect.flatMap(
         guarded(
           Effect.gen(function* () {
+            if (graphs.get(shared.graph) !== shared) return false
             yield* forget(shared)
             const users = [...shared.users]
             shared.users.clear()
             yield* Effect.forEach(users, (client) =>
               show(client, View.Moved({ graph: shared.graph })),
             )
+            return true
           }),
         ),
-        close(shared),
+        (moved) => (moved ? close(shared) : Effect.void),
       )
 
     const start = (shared: Shared, wait: boolean) =>
       Effect.gen(function* () {
         const { graph } = shared
         const place = yield* places.open(graph)
-        const held = yield* Scope.provide(locks.hold(graph, wait), shared.scope)
+        const held = yield* Scope.provide(
+          locks.hold(graph, wait || closingHere(graph)),
+          shared.scope,
+        )
         if (Option.isNone(held)) return yield* new GraphLocked({ graph })
         const session = yield* openSession(place).pipe(
           Scope.provide(shared.scope),
@@ -265,9 +279,7 @@ const SessionsLive = Layer.effect(
         graphs.set(graph, shared)
         yield* Effect.forkIn(
           start(shared, wait).pipe(
-            Effect.onError(() =>
-              Effect.andThen(guarded(forget(shared)), Scope.close(shared.scope, Exit.void)),
-            ),
+            Effect.onError(() => Effect.andThen(guarded(forget(shared)), letGo(shared))),
             Effect.onExit((exit) => Deferred.done(shared.opened, exit)),
           ),
           scope,
