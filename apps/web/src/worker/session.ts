@@ -13,7 +13,7 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect"
-import { GraphEvent, PageId } from "@seqno/domain"
+import { GraphEvent, PageId, type Block, type BlockId } from "@seqno/domain"
 import { Graph, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index, type IndexError } from "@seqno/index"
 import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
@@ -25,6 +25,7 @@ import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 export interface Session {
   readonly graph: Graph["Service"]
   readonly index: Index["Service"]
+  readonly blocks: (ids: ReadonlyArray<BlockId>) => Effect.Effect<ReadonlyArray<Block>>
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
   readonly skipped: ReadonlyArray<SkippedFile>
@@ -74,6 +75,10 @@ const ownPage = (event: GraphEvent): PageId =>
 
 const PAGES_OF_BLOCKS = `
 SELECT DISTINCT p.id FROM blocks b JOIN pages p ON p.rid = b.page
+WHERE b.id IN (SELECT value FROM json_each(?))`
+
+const BLOCK_PAGES = `
+SELECT b.id, p.id FROM blocks b JOIN pages p ON p.rid = b.page
 WHERE b.id IN (SELECT value FROM json_each(?))`
 
 const logged = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -176,6 +181,25 @@ export const openSession = (place: GraphPlace) =>
         : Effect.map(index.query(PAGES_OF_BLOCKS, [JSON.stringify(blocks)]), (rows) =>
             rows.flatMap(([id]) => Option.toArray(decodePageId(id))),
           )
+
+    const blocks = (ids: ReadonlyArray<BlockId>) =>
+      Effect.gen(function* () {
+        const rows =
+          ids.length === 0
+            ? []
+            : yield* index
+                .query(BLOCK_PAGES, [JSON.stringify(ids)])
+                .pipe(Effect.orElseSucceed(() => []))
+        const pageOf = new Map(
+          rows.flatMap(([block, page]) =>
+            Option.toArray(Option.map(decodePageId(page), (id) => [block, id] as const)),
+          ),
+        )
+        const found = yield* Effect.forEach(ids, (id) =>
+          Effect.option(graph.block(id, pageOf.get(id))),
+        )
+        return found.flatMap(Option.toArray)
+      })
 
     const movedFrom = (events: ReadonlyArray<GraphEvent>) =>
       pagesOfBlocks(events.flatMap((event) => (event._tag === "BlockMoved" ? [event.blockId] : [])))
@@ -444,6 +468,7 @@ export const openSession = (place: GraphPlace) =>
     const session: Session = {
       graph,
       index,
+      blocks,
       touched,
       saving,
       skipped,

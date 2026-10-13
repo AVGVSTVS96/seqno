@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option, Stream } from "effect"
-import type { GraphEvent } from "@seqno/domain"
-import { openGraph, outline, seedPage } from "./support.ts"
+import { Effect, Exit, Option, Stream } from "effect"
+import type { GraphEvent, PageId } from "@seqno/domain"
+import { nth, openGraph, outline, seedPage } from "./support.ts"
 
 const upserted = (events: ReadonlyArray<GraphEvent>) =>
   events
@@ -15,6 +15,29 @@ const upserted = (events: ReadonlyArray<GraphEvent>) =>
     .toSorted()
 
 describe("restoring an edit log into an empty graph", () => {
+  it.effect("finds a block by its page before walking every page, and by a stale page after", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const origin = yield* openGraph("1")
+        const others = yield* Effect.forEach(
+          Array.from({ length: 50 }, (_, at) => `Page ${at}`),
+          (title) => Effect.map(seedPage(origin, title, ["note"]), ({ pageId }) => pageId),
+        )
+        const { pageId, ids } = yield* seedPage(origin, "Deep", ["outer", "  inner"])
+        const elsewhere = nth(others, 0)
+        const snapshot = yield* origin.snapshot
+        const reopened = Effect.tap(openGraph("2"), (graph) => graph.restore([snapshot]))
+        const now = (graph: Effect.Success<typeof reopened>, page: PageId) =>
+          Exit.map(Effect.runSyncExit(graph.block(nth(ids, 1), page)), (block) => block.text)
+
+        assert.deepStrictEqual(now(yield* reopened, pageId), Exit.succeed("inner"))
+        const stale = yield* reopened
+        assert.strictEqual(Exit.isSuccess(now(stale, elsewhere)), false)
+        assert.strictEqual((yield* stale.block(nth(ids, 1), elsewhere)).text, "inner")
+      }),
+    ),
+  )
+
   it.effect("reads back the same pages and blocks a merge would report", () =>
     Effect.scoped(
       Effect.gen(function* () {

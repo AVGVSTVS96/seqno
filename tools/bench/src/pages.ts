@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Schema } from "effect"
+import { BlockId, PageId } from "@seqno/domain"
 import { emptyPagesGraph } from "./graph.ts"
 import { loadYears } from "./years.ts"
 
@@ -14,11 +15,17 @@ export const writeYearsAsPages = (years: number, longPage: number) =>
     Effect.gen(function* () {
       const graph = yield* emptyPagesGraph("60")
       const shape = yield* loadYears(graph, { years, until, longPage })
-      return { shape, snapshot: yield* graph.snapshot }
+      const long = (yield* graph.pages).find((page) => page.name === "long page")
+      const last = long === undefined ? undefined : (yield* graph.page(long.id)).blocks.at(-1)
+      if (last === undefined) return yield* Effect.die("the years have no long page")
+      return { shape, snapshot: yield* graph.snapshot, last }
     }),
   )
 
-const openOnce = (snapshot: Uint8Array, peer: string) =>
+const Last = Schema.Struct({ blockId: BlockId, pageId: PageId })
+type Last = typeof Last.Type
+
+const openOnce = (snapshot: Uint8Array, last: Last, peer: string) =>
   Effect.scoped(
     Effect.gen(function* () {
       const started = performance.now()
@@ -32,34 +39,43 @@ const openOnce = (snapshot: Uint8Array, peer: string) =>
       if (today === undefined) return yield* Effect.die("the years have no pages")
       const { blocks } = yield* graph.page(today.id)
       if (blocks.length === 0) return yield* Effect.die("today's journal has no blocks")
-      return performance.now() - started
+      const opened = performance.now()
+      yield* graph.block(last.blockId, last.pageId)
+      return { openMs: opened - started, blockMs: performance.now() - opened }
     }),
   )
 
-const Opens = Schema.fromJsonString(Schema.Array(Schema.Finite))
+const Opens = Schema.fromJsonString(
+  Schema.Array(Schema.Struct({ openMs: Schema.Finite, blockMs: Schema.Finite })),
+)
 
-export const opensInFreshProcess = (snapshot: Uint8Array) =>
+export const opensInFreshProcess = (snapshot: Uint8Array, last: Last) =>
   Effect.acquireUseRelease(
     Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-bench-pages-"))),
     (folder) =>
       Effect.gen(function* () {
         const file = join(folder, "pages.loro")
         yield* Effect.promise(() => writeFile(file, snapshot))
-        const output = execFileSync(process.execPath, [import.meta.filename, file], {
-          encoding: "utf8",
-        })
+        const output = execFileSync(
+          process.execPath,
+          [import.meta.filename, file, last.blockId, last.pageId],
+          { encoding: "utf8" },
+        )
         return yield* Schema.decodeUnknownEffect(Opens)(output.trim().split("\n").at(-1) ?? "")
       }),
     (folder) => Effect.promise(() => rm(folder, { recursive: true })),
   )
 
 if (import.meta.main) {
-  const [file = ""] = process.argv.slice(2)
+  const [file = "", blockId, pageId] = process.argv.slice(2)
   Effect.runPromise(
     Effect.gen(function* () {
       const snapshot = yield* Effect.promise(() => readFile(file))
-      const opens: Array<number> = []
-      for (let run = 0; run < OPENS; run++) opens.push(yield* openOnce(snapshot, String(70 + run)))
+      const last = yield* Schema.decodeUnknownEffect(Last)({ blockId, pageId })
+      const opens: Array<(typeof Opens.Type)[number]> = []
+      for (let run = 0; run < OPENS; run++) {
+        opens.push(yield* openOnce(snapshot, last, String(70 + run)))
+      }
       console.log(JSON.stringify(opens))
     }),
   ).catch((error: unknown) => {

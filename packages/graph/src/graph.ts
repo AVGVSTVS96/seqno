@@ -93,7 +93,7 @@ export class Graph extends Context.Service<
   {
     readonly pages: Effect.Effect<ReadonlyArray<Page>>
     readonly page: (id: PageId) => Effect.Effect<PageTree, PageNotFound>
-    readonly block: (id: BlockId) => Effect.Effect<Block, BlockNotFound>
+    readonly block: (id: BlockId, page?: PageId) => Effect.Effect<Block, BlockNotFound>
     readonly dispatch: (
       command: Command,
       client?: string,
@@ -240,14 +240,15 @@ const make = (source: GraphSource) =>
       registry.loaded.add(id)
     }
 
+    const register = (id: PageId) => {
+      if (registry.pages.has(id) && !registry.loaded.has(id)) indexPage(id, blockIdOf)
+    }
+
     const scope = yield* Effect.scope
     const fill = Effect.suspend(() =>
       Effect.forEach(
         [...registry.pages.keys()],
-        (id) =>
-          Effect.sync(() => {
-            if (!registry.loaded.has(id)) indexPage(id, blockIdOf)
-          }).pipe(Effect.andThen(Effect.yieldNow)),
+        (id) => Effect.sync(() => register(id)).pipe(Effect.andThen(Effect.yieldNow)),
         { discard: true },
       ),
     ).pipe(Effect.andThen(filled.open), Effect.forkIn(scope))
@@ -295,14 +296,17 @@ const make = (source: GraphSource) =>
         })
       })
 
-    const block = (id: BlockId) =>
+    const block = (id: BlockId, on?: PageId) =>
       serial(
-        findBlock(id).pipe(
-          Effect.catchTag("BlockNotFound", (missing) =>
-            registry.blocks.has(id)
-              ? Effect.fail(missing)
-              : Effect.andThen(filled.await, findBlock(id)),
-          ),
+        Effect.suspend(() => {
+          if (on !== undefined && !registry.blocks.has(id)) register(on)
+          return findBlock(id)
+        }),
+      ).pipe(
+        Effect.catchTag("BlockNotFound", (missing) =>
+          registry.blocks.has(id)
+            ? Effect.fail(missing)
+            : Effect.andThen(filled.await, serial(findBlock(id))),
         ),
       )
 

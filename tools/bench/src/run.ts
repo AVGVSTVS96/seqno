@@ -174,7 +174,9 @@ const main = Effect.gen(function* () {
   const bulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED)
   const pagesBulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED, emptyPagesGraph)
   const [years, yearsMs] = yield* timed(writeYearsAsPages(YEARS, LONG_PAGE))
-  const pagesOpens = yield* Effect.orDie(opensInFreshProcess(years.snapshot))
+  const pagesOpens = yield* Effect.orDie(
+    opensInFreshProcess(years.snapshot, { blockId: years.last.id, pageId: years.last.pageId }),
+  )
   const ofLongPage = `${SELECTED.toLocaleString("en")} of a ${LONG_PAGE / 1000}k-block page`
   const bulkRows = (layout: string, times: typeof bulk) => [
     { what: `delete ${ofLongPage}${layout}`, ms: times.deleteMs, budget: budgets.bulkMs },
@@ -210,8 +212,13 @@ const main = Effect.gen(function* () {
     },
     {
       what: `${YEARS} years, a tree per page: snapshot to page list and today's journal, fresh process (median)`,
-      ms: median(pagesOpens),
+      ms: median(pagesOpens.map(({ openMs }) => openMs)),
       budget: budgets.pagesOpenMs,
+    },
+    {
+      what: `${YEARS} years, a tree per page: then the long page's last block, by id and page (median)`,
+      ms: median(pagesOpens.map(({ blockMs }) => blockMs)),
+      budget: null,
     },
     { what: `${YEARS} years, a tree per page: write them`, ms: yearsMs, budget: null },
   ]

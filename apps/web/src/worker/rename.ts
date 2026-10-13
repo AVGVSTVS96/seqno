@@ -34,11 +34,8 @@ const referenceEdits = (session: Session, pageId: PageId, title: string) =>
     const renamed = (name: string) => normalizePageName(name) === page.name
     yield* session.indexed
     const rows = yield* Effect.orDie(session.index.query(REFERRING_BLOCKS, [page.name]))
-    const blocks = yield* Effect.forEach(
-      rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))),
-      (blockId) => Effect.option(session.graph.block(blockId)),
-    )
-    const blockEdits = blocks.flatMap(Option.toArray).flatMap((block) => [
+    const blocks = yield* session.blocks(rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))))
+    const blockEdits = blocks.flatMap((block) => [
       ...renameRefs(block.text, renamed, title).map((edit): Command => ({
         _tag: "EditText",
         blockId: block.id,
@@ -73,10 +70,7 @@ const blockRefEdits = (session: Session, blockId: BlockId) =>
     const to = `((${target.value}))`
     yield* session.indexed
     const rows = yield* Effect.orDie(session.index.query(BLOCKS_CITING, [from]))
-    const blocks = yield* Effect.forEach(
-      rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))),
-      (citing) => Effect.option(session.graph.block(citing)),
-    )
+    const blocks = yield* session.blocks(rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))))
     const pages = yield* session.graph.pages
     const propertyRefs = (owner: PropertyTarget, props: Props): ReadonlyArray<Command> =>
       Object.entries(props).flatMap(([key, value]): ReadonlyArray<Command> =>
@@ -86,7 +80,6 @@ const blockRefEdits = (session: Session, blockId: BlockId) =>
       )
     return [
       ...blocks
-        .flatMap(Option.toArray)
         .filter((block) => block.id !== blockId)
         .flatMap((block) => [
           ...spansOf(block.text, from).map((at): Command => ({

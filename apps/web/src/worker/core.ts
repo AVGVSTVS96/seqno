@@ -27,6 +27,7 @@ import {
   type Query,
 } from "@seqno/query"
 import {
+  BlockNotFound,
   CoreRpcs,
   GraphLocked,
   GraphNotOpen,
@@ -57,12 +58,6 @@ const parseQuery = (text: string) =>
     Result.mapError(parseDataviewQuery(text), () => logseq),
   )
 
-const blocksOf = (session: Session, ids: ReadonlyArray<BlockId>) =>
-  Effect.map(
-    Effect.forEach(ids, (id) => Effect.option(session.graph.block(id))),
-    (found): ReadonlyArray<Block> => found.flatMap(Option.toArray),
-  )
-
 const pagesOf = (session: Session, ids: ReadonlyArray<PageId>) =>
   Effect.map(session.graph.pages, (pages): ReadonlyArray<Page> => {
     const byId = new Map(pages.map((page) => [page.id, page]))
@@ -86,10 +81,7 @@ const resultOf = (session: Session, query: Query, rows: ReadonlyArray<Row>) =>
   query.find === "blocks"
     ? idsOfRows(session, "blocks", rows).pipe(
         Effect.flatMap((ids) =>
-          blocksOf(
-            session,
-            ids.flatMap((id) => Option.toArray(decodeBlockId(id))),
-          ),
+          session.blocks(ids.flatMap((id) => Option.toArray(decodeBlockId(id)))),
         ),
         Effect.map((blocks): QueryResult => ({ _tag: "BlockRows", blocks })),
       )
@@ -138,14 +130,14 @@ const watchQuery = (session: Session, text: string) =>
 const ancestorsOf = (session: Session, ids: ReadonlyArray<BlockId>) =>
   Effect.gen(function* () {
     const found = new Map<BlockId, Block>()
-    let level = yield* blocksOf(session, ids)
+    let level = yield* session.blocks(ids)
     while (level.length > 0) {
       const parents = new Set(
         level.flatMap((block) =>
           block.parentId === null || found.has(block.parentId) ? [] : [block.parentId],
         ),
       )
-      level = yield* blocksOf(session, [...parents])
+      level = yield* session.blocks([...parents])
       for (const block of level) found.set(block.id, block)
     }
     return [...found.values()]
@@ -409,7 +401,13 @@ const CoreHandlers = CoreRpcs.toLayer(
       GetPage: ({ pageId }, { client }) =>
         Effect.flatMap(current(client.id), (session) => session.graph.page(pageId)),
       GetBlock: ({ blockId }, { client }) =>
-        Effect.flatMap(current(client.id), (session) => session.graph.block(blockId)),
+        Effect.flatMap(current(client.id), (session) =>
+          Effect.flatMap(session.blocks([blockId]), ([found]) =>
+            found === undefined
+              ? Effect.fail(new BlockNotFound({ blockId }))
+              : Effect.succeed(found),
+          ),
+        ),
       WatchPage: ({ pageId }, { client }) =>
         following(client.id, (session) =>
           pageChanges(session, pageId).pipe(
@@ -426,12 +424,7 @@ const CoreHandlers = CoreRpcs.toLayer(
         following(client.id, (session) =>
           session.index.watchBlockReferences(uuid).pipe(
             Stream.orDie,
-            Stream.mapEffect((hits) =>
-              blocksOf(
-                session,
-                hits.map((hit) => hit.blockId),
-              ),
-            ),
+            Stream.mapEffect((hits) => session.blocks(hits.map((hit) => hit.blockId))),
           ),
         ),
       Search: ({ text }, { client }) =>
@@ -443,10 +436,7 @@ const CoreHandlers = CoreRpcs.toLayer(
               session,
               hits.pages.map((hit) => hit.pageId),
             ),
-            blocks: yield* blocksOf(
-              session,
-              hits.blocks.map((hit) => hit.blockId),
-            ),
+            blocks: yield* session.blocks(hits.blocks.map((hit) => hit.blockId)),
           }
         }),
     })

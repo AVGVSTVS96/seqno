@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test"
 import { Effect } from "effect"
 import { pickFolder } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
-import { lastReference } from "./years.ts"
+import { lastReference, lastWords } from "./years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
@@ -56,6 +56,23 @@ const savedAtLeast = async (page: Page, graph: string, bytes: number) => {
 
 const since = (started: number) => performance.now() - started
 
+const searchShowsLastBlock = async (page: Page) => {
+  await page.keyboard.press("Escape")
+  await page.getByRole("button", { name: "Search", exact: true }).click()
+  const searching = performance.now()
+  await page
+    .getByRole("searchbox", { name: "Search", exact: true })
+    .fill(`${lastWords} ${lastReference}`)
+  await page
+    .locator("[role=option][data-kind=Block]")
+    .filter({ hasText: lastWords })
+    .first()
+    .waitFor({ timeout: 300_000 })
+  const ms = since(searching)
+  await page.keyboard.press("Escape")
+  return ms
+}
+
 test(`${years} years of journals open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
   page,
 }) => {
@@ -83,6 +100,7 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     const indexBytes = (await indexFile(page, "graph")).bytes
     await indexedLastBlock(page)
     const reopenIndexedMs = since(reopening)
+    const reopenSearchMs = await searchShowsLastBlock(page)
 
     await pickFolder(page, folder, "resumed")
     await page.goto("/graphs")
@@ -115,6 +133,11 @@ test(`${years} years of journals open from their snapshot, reopen from the index
         what: "reopen: the index has the long page's last block",
         value: reopenIndexedMs,
         budget: budgets.reopenIndexedMs,
+      },
+      {
+        what: "reopen: then search shows the long page's last block",
+        value: reopenSearchMs,
+        budget: null,
       },
       { what: "second fill: reloaded once half the index was saved", value: cutAtMs, budget: null },
       {

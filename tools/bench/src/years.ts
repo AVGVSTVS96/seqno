@@ -34,7 +34,9 @@ export const importFiles = (
 
 export const lastReference = "quillwort"
 
-const lastBlock = `The long page ends with a [[${lastReference}]].`
+export const lastWords = "The long page ends with a"
+
+const lastBlock = `${lastWords} [[${lastReference}]].`
 
 export const longPageFiles = (blocks: number) => {
   const generated = generateGraph({
