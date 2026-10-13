@@ -31,6 +31,14 @@ const Server = RpcServer.layer(CoreRpcs.merge(PageRpcs)).pipe(
   Layer.provide(Protocol),
 )
 
+const nested = (left: number, started: number) =>
+  left === 0
+    ? console.log(
+        `seqno-t ${Date.now()} 20 nested timeouts ${Math.round(performance.now() - started)}ms`,
+      )
+    : setTimeout(() => nested(left - 1, started), 0)
+nested(20, performance.now())
+
 let tick = performance.now()
 setInterval(() => {
   const now = performance.now()

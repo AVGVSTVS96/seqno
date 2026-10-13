@@ -12,6 +12,6 @@ export default defineConfig({
   resolve: { alias: [{ find: /^loro-crdt$/, replacement: "loro-crdt/web" }] },
   optimizeDeps: { exclude: ["@sqlite.org/sqlite-wasm", "loro-crdt"] },
   worker: { format: "es" },
-  build: { target: "esnext" },
+  build: { target: "esnext", minify: false },
   define: { "import.meta.env.VITE_SEQNO_REVISION": JSON.stringify(revision) },
 })

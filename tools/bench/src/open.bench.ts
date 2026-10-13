@@ -67,7 +67,10 @@ const workerMarks = async (page: Page) => {
     if (found !== null) heard.push(found[0])
     else if (text.includes("exceptionThrown")) heard.push(text.slice(0, 400))
   })
+  const attached = new Set<string>()
   const attach = async (targetId: string) => {
+    if (attached.has(targetId)) return
+    attached.add(targetId)
     const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: false })
     await cdp.send("Target.sendMessageToTarget", {
       sessionId,
@@ -86,6 +89,51 @@ const workerMarks = async (page: Page) => {
     await attach(target.targetId)
   }
   return heard
+}
+
+interface ProfileNode {
+  readonly id: number
+  readonly callFrame: {
+    readonly functionName: string
+    readonly url: string
+    readonly lineNumber: number
+  }
+  readonly hitCount?: number
+  readonly children?: ReadonlyArray<number>
+}
+
+const top = (map: Map<string, number>) =>
+  [...map]
+    .toSorted((a, b) => b[1] - a[1])
+    .slice(0, 45)
+    .map(([name, value]) => `${Math.round(value)}ms ${name}`)
+    .join("\n")
+
+const summarize = (nodes: ReadonlyArray<ProfileNode>, ms: number) => {
+  const hits = nodes.reduce((sum, node) => sum + (node.hitCount ?? 0), 0)
+  const perHit = ms / Math.max(1, hits)
+  const byId = new Map(nodes.map((node) => [node.id, node]))
+  const label = (node: ProfileNode) =>
+    `${node.callFrame.functionName || "(anon)"} ${node.callFrame.url.split("/").pop()}:${node.callFrame.lineNumber}`
+  const self = new Map<string, number>()
+  const total = new Map<string, number>()
+  const totalOf = (node: ProfileNode, above: ReadonlySet<string>): number => {
+    const own = (node.hitCount ?? 0) * perHit
+    const name = label(node)
+    self.set(name, (self.get(name) ?? 0) + own)
+    const inner = new Set(above).add(name)
+    const sum =
+      own +
+      (node.children ?? []).reduce((acc, id) => {
+        const child = byId.get(id)
+        return child === undefined ? acc : acc + totalOf(child, inner)
+      }, 0)
+    if (!above.has(name)) total.set(name, (total.get(name) ?? 0) + sum)
+    return sum
+  }
+  const root = nodes[0]
+  if (root !== undefined) totalOf(root, new Set())
+  return `self:\n${top(self)}\ntotal:\n${top(total)}`
 }
 
 const longTasks = (page: Page) =>
@@ -153,6 +201,10 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     const reopenMs = since(reopening)
     const indexBytes = (await indexFile(page, "graph")).bytes
     tabMark("index file read")
+    const profiler = await page.context().newCDPSession(page)
+    await profiler.send("Profiler.enable")
+    await profiler.send("Profiler.start")
+    const profiling = performance.now()
     await page.keyboard.press("Escape")
     await page.keyboard.press("g")
     await page.keyboard.press("a")
@@ -166,17 +218,13 @@ test(`${years} years of journals open from their snapshot, reopen from the index
       .first()
       .waitFor({ timeout: 300_000 })
     tabMark("quillwort listed")
+    const { profile } = await profiler.send("Profiler.stop")
+    console.log(summarize(profile.nodes, since(profiling)))
     const reopenIndexedMs = since(reopening)
     const reopenSearchMs = await searchShowsLastBlock(page)
     tabMark("search shown")
-    const timeline = [...heard, ...tab, ...(await longTasks(page))]
-      .map((line) => {
-        const [, at = "0", ...rest] = line.split(" ")
-        return [Number(at), rest.join(" ")] as const
-      })
-      .toSorted((a, b) => a[0] - b[0])
-    const zero = timeline.find(([, what]) => what === "tab goto")?.[0] ?? 0
-    console.log(timeline.map(([at, what]) => `${at - zero} ${what}`).join("\n"))
+    const ended = Date.now()
+    const pageTasks = await longTasks(page)
 
     await pickFolder(page, folder, "resumed")
     await page.goto("/graphs")
@@ -191,6 +239,21 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     await indexedLastBlock(page)
     const restMs = since(resumed)
 
+    const timeline = [...heard, ...tab, ...pageTasks]
+      .map((line) => {
+        const [, at = "0", ...rest] = line.split(" ")
+        return [Number(at), rest.join(" ")] as const
+      })
+      .toSorted((a, b) => a[0] - b[0])
+    const zero = timeline.find(([, what]) => what === "tab goto")?.[0] ?? 0
+    console.log(
+      timeline
+        .filter(
+          ([at, what]) => at <= ended || what.includes("graph fill") || what.includes("timeouts"),
+        )
+        .map(([at, what]) => `${at - zero} ${what}`)
+        .join("\n"),
+    )
     const rows = [
       { what: "open: first journal on screen", value: openMs, budget: budgets.openMs },
       { what: "open: the index has the long page's last block", value: fillMs, budget: null },
