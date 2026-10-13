@@ -1,3 +1,4 @@
+export { Background, inBackground } from "./background.ts"
 export {
   Graph,
   ImportFailed,

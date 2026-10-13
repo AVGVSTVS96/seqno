@@ -3,13 +3,19 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, test, type Page } from "@playwright/test"
 import { Effect } from "effect"
-import { pickFolder } from "./browser.ts"
+import { jump, pickFolder } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
 import { lastReference, lastWords } from "./years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
-const budgets = { openMs: 5_000, reopenMs: 5_000, reopenIndexedMs: 4_000, reopenSearchMs: 2_000 }
+const budgets = {
+  openMs: 5_000,
+  fillJumpMs: 1_500,
+  reopenMs: 5_000,
+  reopenIndexedMs: 4_000,
+  reopenSearchMs: 2_000,
+}
 
 const firstJournal = (page: Page) =>
   page.locator(".seqno-journal [role=treeitem]").first().waitFor()
@@ -88,6 +94,11 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     await page.getByRole("button", { name: "Open a folder" }).first().click()
     await firstJournal(page)
     const openMs = since(opening)
+    const fillJumpMs = Math.max(
+      await jump(page, 0.5),
+      await jump(page, 0.25),
+      await jump(page, 0.75),
+    )
     await indexedLastBlock(page)
     const fillMs = since(opening)
     const reloadedWhile = await saveStarted(page, "graph")
@@ -117,6 +128,11 @@ test(`${years} years of journals open from their snapshot, reopen from the index
 
     const rows = [
       { what: "open: first journal on screen", value: openMs, budget: budgets.openMs },
+      {
+        what: "open: rows on screen after a jump during the fill, slowest of three",
+        value: fillJumpMs,
+        budget: budgets.fillJumpMs,
+      },
       { what: "open: the index has the long page's last block", value: fillMs, budget: null },
       {
         what: `reopen after a reload while the save was ${reloadedWhile}: first journal`,

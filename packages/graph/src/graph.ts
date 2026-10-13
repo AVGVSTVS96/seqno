@@ -14,6 +14,7 @@ import {
 import { LoroDoc, VersionVector, type LoroTreeNode } from "loro-crdt"
 import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
+import { inBackground } from "./background.ts"
 import { changedSince, type Changed } from "./changes.ts"
 import { applyCommand, mergeTargetOf, trashOf, type Unresolved } from "./commands.ts"
 import { collectChanges, emptyPending, translate } from "./events.ts"
@@ -251,7 +252,7 @@ const make = (source: GraphSource) =>
         (id) => Effect.sync(() => register(id)).pipe(Effect.andThen(Effect.yieldNow)),
         { discard: true },
       ),
-    ).pipe(Effect.andThen(filled.open), Effect.forkIn(scope))
+    ).pipe(Effect.andThen(filled.open), inBackground, Effect.forkIn(scope))
     yield* fill
 
     const pages = serial(Effect.sync(() => listed().map(([, page]) => page)))

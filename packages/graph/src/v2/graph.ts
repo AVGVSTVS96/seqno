@@ -2,6 +2,7 @@ import { Clock, Crypto, Effect, Latch, Layer, Option, PubSub, Semaphore, Stream 
 import { LoroDoc, VersionVector } from "loro-crdt"
 import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
+import { inBackground } from "../background.ts"
 import type { Unresolved } from "../commands.ts"
 import {
   Graph,
@@ -124,7 +125,7 @@ const make = (source: GraphSource) =>
         (id) => Effect.sync(() => register(id)).pipe(Effect.andThen(Effect.yieldNow)),
         { discard: true },
       ),
-    ).pipe(Effect.andThen(filled.open), Effect.forkIn(scope))
+    ).pipe(Effect.andThen(filled.open), inBackground, Effect.forkIn(scope))
     yield* fill
 
     const livePages = () =>

@@ -14,7 +14,7 @@ import {
   SubscriptionRef,
 } from "effect"
 import { GraphEvent, PageId, type Block, type BlockId } from "@seqno/domain"
-import { Graph, newPeerId, vaultReplica } from "@seqno/graph"
+import { Graph, inBackground, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index, type IndexError } from "@seqno/index"
 import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { SaveState, type SkippedFile } from "@seqno/rpc"
@@ -395,6 +395,7 @@ export const openSession = (place: GraphPlace) =>
             ),
           ),
           Effect.andThen(saveIndexNow),
+          inBackground,
         ),
         scope,
       ),
