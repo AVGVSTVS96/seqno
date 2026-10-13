@@ -41,7 +41,24 @@ const LIFECYCLE: ReadonlyArray<Facet> = ["exist", "tree", "text", "created", "up
 
 const SUBTREE = `WITH RECURSIVE sub(rid) AS (SELECT ?1 UNION ALL SELECT b.rid FROM blocks b JOIN sub ON b.parent = sub.rid)`
 
+const LINKED_FROM_SUBTREE = `${SUBTREE}
+SELECT n.page, count(DISTINCT r.block) FROM sub
+JOIN refs r ON r.block = sub.rid
+JOIN page_names n ON n.name = r.target
+WHERE n.page IN (?2, ?3)
+GROUP BY n.page`
+
+const COUNT_BACKLINKS = `
+UPDATE pages SET backlinks = (
+  SELECT count(DISTINCT r.block) FROM page_names n
+  JOIN refs r ON r.target = n.name
+  JOIN blocks b ON b.rid = r.block
+  WHERE n.page = ?1 AND b.page != ?1)
+WHERE rid = ?1`
+
 const names = (rows: ReadonlyArray<Row>) => rows.map((row) => decodeName(row)[0])
+
+const decodeCount = Schema.decodeUnknownSync(Schema.Tuple([Rid, Schema.Int]))
 
 const ridOf = (rows: ReadonlyArray<Row>, missing: string): number => {
   const row = rows[0]
@@ -50,6 +67,23 @@ const ridOf = (rows: ReadonlyArray<Row>, missing: string): number => {
 }
 
 export const indexer = (db: Statements, changes: Changes) => {
+  const backlinks = new Map<number, number>()
+  const relink = (page: number, by: number) => backlinks.set(page, (backlinks.get(page) ?? 0) + by)
+
+  const recount = (page: number) => {
+    backlinks.delete(page)
+    db.run(COUNT_BACKLINKS, [page])
+  }
+
+  const linkedPages = (targets: ReadonlyArray<string>, from: number) => {
+    const pages = new Set<number>()
+    for (const target of targets)
+      for (const row of db.all("SELECT page FROM page_names WHERE name = ?", [target]))
+        pages.add(decodeRid(row)[0])
+    pages.delete(from)
+    return pages
+  }
+
   const pageRid = (id: PageId) =>
     ridOf(
       db.all("SELECT rid FROM pages WHERE id = ?", [id]),
@@ -102,11 +136,17 @@ export const indexer = (db: Statements, changes: Changes) => {
       db.run(`INSERT INTO ${table} VALUES (?, ?, ?, ?)`, [owner, key, value, toNum(value)])
   }
 
-  const syncFacets = (rid: number, before: BlockFacets, after: BlockFacets) => {
+  const syncFacets = (rid: number, page: number, before: BlockFacets, after: BlockFacets) => {
     const refs = symmetricDifference(before.refs, after.refs)
     const tags = symmetricDifference(before.tags, after.tags)
     const props = changedPropKeys(before.props, after.props)
     const taskFields = changedTaskFields(before.task, after.task)
+    if (refs.length > 0) {
+      const was = linkedPages(before.refs, page)
+      const now = linkedPages(after.refs, page)
+      for (const linked of was) if (!now.has(linked)) relink(linked, -1)
+      for (const linked of now) if (!was.has(linked)) relink(linked, 1)
+    }
     if (refs.length > 0 || tags.length > 0) {
       db.run("DELETE FROM refs WHERE block = ?", [rid])
       const tagged = new Set(after.tags)
@@ -134,14 +174,18 @@ export const indexer = (db: Statements, changes: Changes) => {
     }
   }
 
-  const removeBlock = (rid: number) => {
-    syncFacets(rid, readFacets(rid), NO_FACETS)
+  const removeBlock = (rid: number, page: number) => {
+    syncFacets(rid, page, readFacets(rid), NO_FACETS)
     db.run("DELETE FROM fts WHERE rowid = ?", [rid])
     db.run("DELETE FROM blocks WHERE rid = ?", [rid])
   }
 
-  const moveToPage = (rid: number, page: number) => {
-    db.run(`${SUBTREE} UPDATE blocks SET page = ?2 WHERE rid IN (SELECT rid FROM sub)`, [rid, page])
+  const moveToPage = (rid: number, from: number, to: number) => {
+    for (const row of db.all(LINKED_FROM_SUBTREE, [rid, from, to])) {
+      const [page, blocks] = decodeCount(row)
+      relink(page, page === from ? blocks : -blocks)
+    }
+    db.run(`${SUBTREE} UPDATE blocks SET page = ?2 WHERE rid IN (SELECT rid FROM sub)`, [rid, to])
     touch(changes, "move")
   }
 
@@ -177,6 +221,7 @@ export const indexer = (db: Statements, changes: Changes) => {
       db.run("DELETE FROM page_names WHERE page = ? AND alias = 1", [rid])
       for (const alias of after.aliases)
         db.run("INSERT OR IGNORE INTO page_names VALUES (?, ?, 1)", [alias, rid])
+      recount(rid)
       touch(changes, "page.alias")
     }
     if (props.length > 0) {
@@ -185,7 +230,7 @@ export const indexer = (db: Statements, changes: Changes) => {
     }
   }
 
-  return GraphEvent.match({
+  const index = GraphEvent.match({
     PageUpserted: ({ page }) => {
       const after = pageFacets(page)
       const row = db.all("SELECT rid, name, name_lc, day FROM pages WHERE id = ?", [page.id])[0]
@@ -201,6 +246,7 @@ export const indexer = (db: Statements, changes: Changes) => {
         )
         db.run("INSERT INTO page_names VALUES (?, ?, 0)", [page.name, rid])
         syncPageFacets(rid, NO_PAGE_FACETS, after)
+        recount(rid)
         touch(changes, "page.name")
         touch(changes, "page.alias")
         return
@@ -217,6 +263,7 @@ export const indexer = (db: Statements, changes: Changes) => {
       touch(changes, "page.name")
       if (name === page.name) return
       db.run("UPDATE page_names SET name = ? WHERE page = ? AND alias = 0", [page.name, rid])
+      recount(rid)
       touch(changes, "page.alias")
     },
 
@@ -227,7 +274,7 @@ export const indexer = (db: Statements, changes: Changes) => {
       const blocks = db
         .all("SELECT rid FROM blocks WHERE page = ?", [rid])
         .map((r) => decodeRid(r)[0])
-      for (const block of blocks) removeBlock(block)
+      for (const block of blocks) removeBlock(block, rid)
       if (blocks.length > 0) touchLifecycle()
       syncPageFacets(rid, readPageFacets(rid), NO_PAGE_FACETS)
       db.run("DELETE FROM page_names WHERE page = ?", [rid])
@@ -250,7 +297,7 @@ export const indexer = (db: Statements, changes: Changes) => {
           `block ${block.id} could not be inserted`,
         )
         db.run("INSERT INTO fts (rowid, content) VALUES (?, ?)", [rid, block.text])
-        syncFacets(rid, NO_FACETS, after)
+        syncFacets(rid, page, NO_FACETS, after)
         touchLifecycle()
         return
       }
@@ -270,8 +317,8 @@ export const indexer = (db: Statements, changes: Changes) => {
       if (created !== createdAt) touch(changes, "created")
       if (updated !== updatedAt) touch(changes, "updated")
       if (oldParent !== parent) touch(changes, "tree")
-      if (oldPage !== page) moveToPage(rid, page)
-      syncFacets(rid, readFacets(rid), after)
+      if (oldPage !== page) moveToPage(rid, oldPage, page)
+      syncFacets(rid, page, readFacets(rid), after)
     },
 
     BlockMoved: ({ blockId, pageId, parentId }) => {
@@ -283,15 +330,23 @@ export const indexer = (db: Statements, changes: Changes) => {
       const parent = parentId === null ? null : blockRid(parentId)
       if (oldParent !== parent) db.run("UPDATE blocks SET parent = ? WHERE rid = ?", [parent, rid])
       touch(changes, "tree")
-      if (oldPage !== page) moveToPage(rid, page)
+      if (oldPage !== page) moveToPage(rid, oldPage, page)
     },
 
     BlockDeleted: ({ blockId }) => {
       const old = readBlock(blockId)
       if (old === undefined) return
       const subtree = db.all(`${SUBTREE} SELECT rid FROM sub`, [old[0]]).map((r) => decodeRid(r)[0])
-      for (const rid of subtree) removeBlock(rid)
+      for (const rid of subtree) removeBlock(rid, old[1])
       touchLifecycle()
     },
   })
+
+  const settle = () => {
+    for (const [page, by] of backlinks)
+      if (by !== 0) db.run("UPDATE pages SET backlinks = backlinks + ? WHERE rid = ?", [by, page])
+    backlinks.clear()
+  }
+
+  return { index, settle }
 }

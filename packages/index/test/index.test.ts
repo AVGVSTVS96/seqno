@@ -196,6 +196,122 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     ),
   )
 
+  it.effect("keeps each page's backlink count through moves, aliases, renames and deletes", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        const launch = pageId(4)
+        const titles = new Map([
+          [project, "project"],
+          [journal, "journal"],
+          [notes, "notes"],
+          [launch, "launch"],
+        ])
+        const counts = Effect.map(index.pageStats, (stats) =>
+          Object.fromEntries(
+            stats
+              .filter((stat) => stat.backlinks > 0)
+              .map((stat) => [titles.get(stat.pageId), stat.backlinks]),
+          ),
+        )
+        yield* index.apply(graph)
+        assert.deepStrictEqual(yield* counts, { project: 5 })
+        yield* index.apply([
+          { _tag: "BlockMoved", blockId: blockId(2), pageId: project, parentId: null },
+        ])
+        assert.deepStrictEqual(yield* counts, { project: 3 })
+        yield* index.apply([
+          { _tag: "BlockMoved", blockId: blockId(2), pageId: notes, parentId: null },
+          upsertBlock(blockId(9), notes, "[[Project]], also known as #proj, and [[Launch]]"),
+          upsertBlock(blockId(4), journal, "standup"),
+        ])
+        assert.deepStrictEqual(yield* counts, { project: 5 })
+        yield* index.apply([upsertPage(project, "Project"), upsertPage(launch, "Launch")])
+        assert.deepStrictEqual(yield* counts, { project: 5, launch: 1 })
+        yield* index.apply([
+          upsertPage(project, "Launch plan", { alias: "launch" }),
+          upsertBlock(blockId(10), journal, "[[launch plan]] and [[Launch]]"),
+        ])
+        assert.deepStrictEqual(yield* counts, { project: 2, launch: 2 })
+        yield* index.apply([
+          { _tag: "BlockDeleted", blockId: blockId(2), pageId: notes },
+          { _tag: "PageDeleted", pageId: journal },
+        ])
+        assert.deepStrictEqual(yield* counts, { project: 1, launch: 1 })
+      }),
+    ),
+  )
+
+  it.effect("keeps backlink counts equal to counting them, over random edits", () =>
+    usingIndex(sqlite())((index) =>
+      Effect.gen(function* () {
+        let state = 7
+        const random = (below: number) => {
+          state = (Math.imul(state, 1_103_515_245) + 12_345) >>> 0
+          return (state >>> 8) % below
+        }
+        const names = ["alpha", "beta", "gamma", "delta", "omega"]
+        const pages = [1, 2, 3, 4].map(pageId)
+        const live = new Map<BlockId, PageId>()
+        const parents = new Map<BlockId, BlockId | null>()
+        const subtree = (id: BlockId): ReadonlyArray<BlockId> => [
+          id,
+          ...[...parents].flatMap(([child, parent]) => (parent === id ? subtree(child) : [])),
+        ]
+        const pick = <A>(from: ReadonlyArray<A>): A => from[random(from.length)] ?? assert.fail()
+        const text = () =>
+          Array.from({ length: random(4) }, () => `[[${pick(names)}]]`).join(" and ")
+        const renamed = (page: PageId): GraphEvent =>
+          upsertPage(page, pick(names), random(2) === 0 ? {} : { alias: pick(names) })
+        const step = (): ReadonlyArray<GraphEvent> => {
+          const blocks = [...live.keys()]
+          const kind = blocks.length === 0 ? 0 : random(5)
+          if (kind === 0) {
+            const id = blockId(100 + random(40))
+            const page = live.get(id) ?? pick(pages)
+            live.set(id, page)
+            parents.set(id, null)
+            return [upsertBlock(id, page, text())]
+          }
+          if (kind === 1) {
+            const id = pick(blocks)
+            const page = pick(pages)
+            const moving = subtree(id)
+            const under = blocks.filter(
+              (other) => !moving.includes(other) && live.get(other) === page,
+            )
+            const parent = under.length === 0 || random(2) === 0 ? null : pick(under)
+            for (const moved of moving) live.set(moved, page)
+            parents.set(id, parent)
+            return [{ _tag: "BlockMoved", blockId: id, pageId: page, parentId: parent }]
+          }
+          if (kind === 2) {
+            const id = pick(blocks)
+            for (const gone of subtree(id)) {
+              live.delete(gone)
+              parents.delete(gone)
+            }
+            return [{ _tag: "BlockDeleted", blockId: id, pageId: pageId(0) }]
+          }
+          return [renamed(pick(pages))]
+        }
+        const counted = `
+SELECT p.id, (SELECT count(DISTINCT r.block) FROM page_names n
+  JOIN refs r ON r.target = n.name
+  JOIN blocks b ON b.rid = r.block
+  WHERE n.page = p.rid AND b.page != p.rid)
+FROM pages p ORDER BY p.id`
+        yield* index.apply(pages.map(renamed))
+        for (let round = 0; round < 300; round++) {
+          yield* index.apply(Array.from({ length: 1 + random(4) }, step).flat())
+          const stored = (yield* index.pageStats)
+            .map((stat) => [stat.pageId, stat.backlinks])
+            .toSorted(([left], [right]) => String(left).localeCompare(String(right)))
+          assert.deepStrictEqual(stored, yield* index.query(counted))
+        }
+      }),
+    ),
+  )
+
   it.effect("lists names that are referenced but have no page, titled as written", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {

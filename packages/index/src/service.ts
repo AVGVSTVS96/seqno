@@ -111,11 +111,7 @@ AND NOT EXISTS (
 ${REFERENCE_ORDER}`
 
 const PAGE_STATS = `
-SELECT p.id,
-  (SELECT count(DISTINCT r.block) FROM page_names n
-    JOIN refs r ON r.target = n.name
-    JOIN blocks b ON b.rid = r.block
-    WHERE n.page = p.rid AND b.page != p.rid),
+SELECT p.id, p.backlinks,
   (SELECT min(created) FROM blocks WHERE page = p.rid),
   (SELECT max(updated) FROM blocks WHERE page = p.rid)
 FROM pages p`
@@ -342,8 +338,9 @@ const refreshed = (
 
 const applyAll = (db: Statements, events: Iterable<GraphEvent>): Changes => {
   const changes: Changes = new Map()
-  const index = indexer(db, changes)
+  const { index, settle } = indexer(db, changes)
   for (const event of events) index(event)
+  settle()
   return changes
 }
 

@@ -262,6 +262,16 @@ On the 10-year graph a cursor resolves in 0.06 ms while its character exists and
 
 **Tried and reverted.** Effect yields through `setTimeout` in a browser, and timers nested past five levels wait at least 4 ms, so the fills, which yield once a page, cost at least 4 ms a page. Running the worker's Effect tasks on a `MessageChannel` cut the first fill of ten years from 45 to 57 s to 18 to 31 s, but the fills then took the worker for most of their run: the journals jump showed rows after 1.25 s instead of 20 ms during a fill, and one reload in the middle of a fill never showed a journal within 15 minutes. The clamp is what keeps the fills out of the tabs' way until they run at a lower priority than the tabs' requests.
 
+## Pages keep their backlink counts
+
+**Decision.** Each row of `pages` carries its backlink count, and the indexer keeps it current as it writes: when a block's links change it adds or takes one from each page the old or new links name (once per page, however many of its names the block links), when a block moves to another page it adjusts the two pages it moved between, and when a page's names change it counts that page again. A write sums its changes per page and stores them once at the end. First and last edit times are read through two indexes, `(page, created)` and `(page, updated)`, so each is one lookup. The page stats query reads these instead of counting.
+
+**Why.** All pages and the search palette both watch page stats, and the stats re-run on any change to names, links, moves, blocks or edit times, which includes every keystroke in any tab. The query counted every page's backlinks from scratch: for each of the 6,654 pages it joined the page's names to the 162k links and looked up each link's block to leave out the page's own, with a temporary B-tree per page for the distinct count. That was 133 of its 159 ms in Node's SQLite at ten years; the first and last edit times were 22 ms each, since the page index didn't hold them.
+
+**Cost.** One lookup per link a written block adds or drops, to find the pages it names. The index file grows by 6.5% (67.3 to 71.7 MB at ten years), and indexes saved by older builds are filled again once, since the schema version changed.
+
+**Numbers.** Ten years of journals, sqlite-wasm under V8 (the engine Chrome runs) in Node: the stats query took 281 to 298 ms and takes 34 to 39 ms, returning the same rows; with the decoding around it, 228 to 265 ms became 42 to 44 ms. Reading 6,654 rows through sqlite-wasm costs about 25 ms by itself. The fill takes 1 to 2 s longer (26 to 29 s before), and a keystroke's index write is unchanged (p95 about 1 ms). `packages/index/test/index.test.ts` checks the counts through moves, aliases, renames and deletes, and compares them with counting after each of 300 random batches of edits.
+
 ## Bulk commands touch each tree node a fixed number of times
 
 **Decision.** A command on many blocks (delete, move, indent, outdent) keys its selection by node id once and works out each block's position once before sorting. Siblings come from one list per parent that the recorder fills on first use and keeps current as it moves nodes. Every recorder in a transaction shares those lists, since an `Undo` inside a `dispatchAll` moves nodes too.

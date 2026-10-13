@@ -1,5 +1,5 @@
 export const SCHEMA = `
-CREATE TABLE pages (rid INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, name TEXT NOT NULL, name_lc TEXT NOT NULL, day INTEGER);
+CREATE TABLE pages (rid INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, name TEXT NOT NULL, name_lc TEXT NOT NULL, day INTEGER, backlinks INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX pages_day ON pages(day);
 CREATE INDEX pages_name ON pages(name_lc);
 
@@ -18,7 +18,8 @@ CREATE INDEX page_props_kn ON page_props(key, num);
 CREATE INDEX page_props_page ON page_props(page);
 
 CREATE TABLE blocks (rid INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, page INTEGER NOT NULL, parent INTEGER, content TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
-CREATE INDEX blocks_page ON blocks(page);
+CREATE INDEX blocks_page ON blocks(page, created);
+CREATE INDEX blocks_page_updated ON blocks(page, updated);
 CREATE INDEX blocks_parent ON blocks(parent);
 CREATE INDEX blocks_created ON blocks(created);
 CREATE INDEX blocks_updated ON blocks(updated);

@@ -93,7 +93,7 @@ const open = () => {
   PAGES.forEach((p, i) => {
     const rid = i + 1
     const name = p.name.toLowerCase()
-    db.prepare("INSERT INTO pages VALUES (?, ?, ?, ?, ?)").run(
+    db.prepare("INSERT INTO pages (rid, id, name, name_lc, day) VALUES (?, ?, ?, ?, ?)").run(
       rid,
       `page-${rid}`,
       p.name,
