@@ -49,11 +49,12 @@ On a CI runner it opens in about 2 s, scrolls both at a 16.7 ms p95, and keeps a
 
 ## Opening and reopening years of journals, in Chrome
 
-`open.bench.ts`, in the same `scroll` run, writes the same ten years of journals with the `seen` file of the device that wrote the snapshot (the long page loads last, so the fill writes it last), opens the folder and waits until All pages lists `quillwort`, a name only the long page's last block links to, which ends the fill. All pages reads that from the index alone. Then it reloads the tab while the index save after the fill writes. The worker is a `SharedWorker` with `extendedLifetime`, so it outlives the tab long enough to finish that save, and the reloaded tab reopens the graph from it instead of filling again. Once the reopened index has the long page's last block, it searches for that block, which the graph hasn't read yet. Last, it opens the same years again under another folder name, reloads once half the final index is on disk, and times the rest of that fill, which must take less than a whole fill.
+`open.bench.ts`, in the same `scroll` run, writes the same ten years of journals with the `seen` file of the device that wrote the snapshot (the long page loads last, so the fill writes it last), opens the folder, jumps to the middle, a quarter and three quarters of the journals while the first fill runs, and waits until All pages lists `quillwort`, a name only the long page's last block links to, which ends the fill. All pages reads that from the index alone. Then it reloads the tab while the index save after the fill writes. The worker is a `SharedWorker` with `extendedLifetime`, so it outlives the tab long enough to finish that save, and the reloaded tab reopens the graph from it instead of filling again. Once the reopened index has the long page's last block, it searches for that block, which the graph hasn't read yet. Last, it opens the same years again under another folder name, reloads once half the final index is on disk, and times the rest of that fill, which must take less than a whole fill.
 
 | Number                                           | Budget                 |
 | ------------------------------------------------ | ---------------------- |
 | Open: first journal on screen                    | 5 s                    |
+| Open: rows after a jump during the fill, slowest | 1.5 s                  |
 | Reopen: first journal on screen                  | 5 s                    |
 | Reopen: the index file the closed tab saved      | > 0 MB                 |
 | Reopen: the index has the long page's last block | 4 s                    |
