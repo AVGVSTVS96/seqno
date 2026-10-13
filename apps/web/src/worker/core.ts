@@ -47,8 +47,6 @@ import { Device, GraphPlaces } from "./place.ts"
 import { withReferenceEdits } from "./rename.ts"
 import { openSession, type Session } from "./session.ts"
 
-const mark = (label: string) => Effect.sync(() => console.log(`seqno-t ${Date.now()} ${label}`))
-
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
 const decodePageId = Schema.decodeUnknownOption(PageId)
 
@@ -235,10 +233,8 @@ const SessionsLive = Layer.effect(
     const start = (shared: Shared, wait: boolean) =>
       Effect.gen(function* () {
         const { graph } = shared
-        yield* mark(`start ${graph}`)
         const place = yield* places.open(graph)
         const held = yield* Scope.provide(locks.hold(graph, wait), shared.scope)
-        yield* mark(`lock ${graph} ${Option.isSome(held)}`)
         if (Option.isNone(held)) return yield* new GraphLocked({ graph })
         const session = yield* openSession(place).pipe(
           Scope.provide(shared.scope),
@@ -344,7 +340,6 @@ const SessionsLive = Layer.effect(
         ),
       open: (client, graph, wait) =>
         Effect.gen(function* () {
-          yield* mark(`OpenGraph ${client} ${graph} ${wait}`)
           const now = yield* SubscriptionRef.get(yield* viewOf(client))
           if (now._tag !== "Open" || now.graph !== graph) {
             yield* leave(client, View.Idle())
@@ -353,7 +348,6 @@ const SessionsLive = Layer.effect(
             yield* guarded(
               shared.users.has(client) ? show(client, View.Open({ graph, session })) : Effect.void,
             )
-            yield* mark(`OpenGraph done ${client}`)
             return {
               graph,
               pages: yield* session.graph.pages,

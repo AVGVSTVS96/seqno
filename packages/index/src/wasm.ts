@@ -20,19 +20,6 @@ const deserializer =
       ),
     )
 
-const slow = <A>(label: string, run: () => A): A => {
-  const started = performance.now()
-  try {
-    return run()
-  } finally {
-    const ms = performance.now() - started
-    if (ms > 10)
-      console.log(
-        `seqno-t ${Date.now()} sql ${Math.round(ms)}ms ${label.replace(/\s+/g, " ").slice(0, 90)}`,
-      )
-  }
-}
-
 const driverOf = (module: Module, db: Database): Driver => {
   const into = deserializer(module)
   const cache = new Map<string, PreparedStatement>()
@@ -49,33 +36,31 @@ const driverOf = (module: Module, db: Database): Driver => {
     return statement
   }
   return {
-    exec: (sql) => slow(sql, () => void db.exec(sql)),
-    run: (sql, params) => slow(sql, () => void bound(sql, params).stepReset()),
-    all: (sql, params) =>
-      slow(sql, () => {
-        const statement = bound(sql, params)
-        const rows: Array<unknown> = []
-        try {
-          while (statement.step()) rows.push(statement.get([]))
-        } finally {
-          statement.reset()
-        }
-        return rows
-      }),
-    serialize: () => slow("serialize", () => module.capi.sqlite3_js_db_export(db)),
-    deserialize: (image) =>
-      slow("deserialize", () => {
-        const scratch = new module.oo1.DB(":memory:")
-        try {
-          into(scratch, image)
-          scratch.exec("SELECT count(*) FROM sqlite_schema")
-        } finally {
-          scratch.close()
-        }
-        cache.forEach((statement) => statement.finalize())
-        cache.clear()
-        into(db, image)
-      }),
+    exec: (sql) => void db.exec(sql),
+    run: (sql, params) => void bound(sql, params).stepReset(),
+    all: (sql, params) => {
+      const statement = bound(sql, params)
+      const rows: Array<unknown> = []
+      try {
+        while (statement.step()) rows.push(statement.get([]))
+      } finally {
+        statement.reset()
+      }
+      return rows
+    },
+    serialize: () => module.capi.sqlite3_js_db_export(db),
+    deserialize: (image) => {
+      const scratch = new module.oo1.DB(":memory:")
+      try {
+        into(scratch, image)
+        scratch.exec("SELECT count(*) FROM sqlite_schema")
+      } finally {
+        scratch.close()
+      }
+      cache.forEach((statement) => statement.finalize())
+      cache.clear()
+      into(db, image)
+    },
   }
 }
 
