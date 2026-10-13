@@ -6,10 +6,10 @@
   "outputDirectory": "apps/web/dist",
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "has": [{ "type": "host", "value": "seqno-app.vercel.app" }],
       "missing": [{ "type": "header", "key": "x-forwarded-host", "value": "seqno.vercel.app" }],
-      "destination": "https://seqno.vercel.app/app/:path*",
+      "destination": "https://seqno.vercel.app/app/$1",
       "permanent": true
     }
   ],
