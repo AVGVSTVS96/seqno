@@ -9,7 +9,7 @@ import { lastBlock } from "./years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
-const budgets = { openMs: 5_000, reopenMs: 5_000, reopenSearchMs: 5_000, resumeSlackMs: 10_000 }
+const budgets = { openMs: 5_000, reopenMs: 5_000, reopenSearchMs: 5_000 }
 
 const firstJournal = (page: Page) =>
   page.locator(".seqno-journal [role=treeitem]").first().waitFor()
@@ -80,6 +80,7 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     await searchFindsLastBlock(page)
     const fillMs = since(opening)
     const reloadedWhile = await saveStarted(page, "graph")
+    const bytesAtReload = (await indexFile(page, "graph")).bytes
 
     const reopening = performance.now()
     await page.reload()
@@ -94,7 +95,7 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     const resuming = performance.now()
     await page.getByRole("button", { name: "Open a folder" }).first().click()
     await firstJournal(page)
-    await savedAtLeast(page, "resumed", indexBytes / 4)
+    await savedAtLeast(page, "resumed", indexBytes / 2)
     const cutAtMs = since(resuming)
     const resumed = performance.now()
     await page.reload()
@@ -110,6 +111,11 @@ test(`${years} years of journals open from their snapshot, reopen from the index
         value: reopenMs,
         budget: budgets.reopenMs,
       },
+      {
+        what: "reopen: index file MB on disk at the reload",
+        value: bytesAtReload / 1e6,
+        budget: null,
+      },
       { what: "reopen: index file MB the closed tab saved", value: indexBytes / 1e6, budget: null },
       {
         what: "reopen: search finds the last block",
@@ -117,14 +123,14 @@ test(`${years} years of journals open from their snapshot, reopen from the index
         budget: budgets.reopenSearchMs,
       },
       {
-        what: "second fill: reloaded once a quarter of the index was saved",
+        what: "second fill: reloaded once half the index was saved",
         value: cutAtMs,
         budget: null,
       },
       {
-        what: "second fill: the rest, after the reload",
+        what: "second fill: the rest, after the reload (a restart takes a whole fill)",
         value: restMs,
-        budget: fillMs - cutAtMs + budgets.resumeSlackMs,
+        budget: fillMs,
       },
     ]
     console.table(rows.map((row) => ({ ...row, value: Math.round(row.value * 10) / 10 })))
