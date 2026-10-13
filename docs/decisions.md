@@ -252,6 +252,16 @@ On the 10-year graph a cursor resolves in 0.06 ms while its character exists and
 
 **Numbers.** Ten years of journals in headless Chrome, scrolling 60 px a frame: frame p95 rose to 50 ms with 13 frames over 50 ms after about 100 days, and the DOM held 45k nodes. Windowed, p95 stays at 16.8 ms with none over 50 ms through 30 years, with 4 to 6 days mounted. `tools/bench` checks it in CI.
 
+## All pages mounts only the rows near the screen
+
+**Decision.** The All pages table mounts the rows within 1,200 px of the screen and stands two spacer rows in for the rest. Every row is one height, measured from a mounted row, so the window is plain arithmetic. Spacers are watched with an `IntersectionObserver`, the way Journals and the outliner window theirs.
+
+**Why.** A reopen of ten years from the saved index was budgeted at 5 s and measured 4.8 to 5.5 s on CI, so it failed on slow runners. Timing every step in the worker and the tab on CI showed the index wasn't the cost: reading the 67 MB file took 260 to 270 ms, loading it 15 ms, checking its stamp and finding nothing changed (`findIdSpansBetween`) 1 ms, all done before the first journal showed. Up to the first journal (1.4 s on a fast runner): 0.1 s to the tab's first call, 0.65 to 0.8 s restoring the snapshot (mostly Loro decoding the one tree to list the pages), 0.15 s for the rest of the vault's pass, 0.4 s for the tab to show the journal. The rest, 2.2 s of a 3.9 s run, was All pages: React rendering 6,654 rows of router links, and the scroll restore reading `scrollTop`, which forced layout of the whole table (626 ms by CPU profile). An empty catch-up also made every live query run a second time right after the load; it now writes nothing.
+
+**Numbers.** CI, ten years in headless Chrome, the reopen until All pages lists the long page's last reference: 1.8 to 2.2 s on normal runners (9.8 to 12.3 s for the Node bench's import and seed), down from 4.8 to 5.5 s. The budget is 4 s.
+
+**Tried and reverted.** Effect yields through `setTimeout` in a browser, and timers nested past five levels wait at least 4 ms, so the fills, which yield once a page, cost at least 4 ms a page. Running the worker's Effect tasks on a `MessageChannel` cut the first fill of ten years from 45 to 57 s to 18 to 31 s, but the fills then took the worker for most of their run: the journals jump showed rows after 1.25 s instead of 20 ms during a fill, and one reload in the middle of a fill never showed a journal within 15 minutes. The clamp is what keeps the fills out of the tabs' way until they run at a lower priority than the tabs' requests.
+
 ## Bulk commands touch each tree node a fixed number of times
 
 **Decision.** A command on many blocks (delete, move, indent, outdent) keys its selection by node id once and works out each block's position once before sorting. Siblings come from one list per parent that the recorder fills on first use and keeps current as it moves nodes. Every recorder in a transaction shares those lists, since an `Undo` inside a `dispatchAll` moves nodes too.

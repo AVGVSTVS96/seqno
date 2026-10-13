@@ -56,12 +56,12 @@ On a CI runner it opens in about 2 s, scrolls both at a 16.7 ms p95, and keeps a
 | Open: first journal on screen                    | 5 s                    |
 | Reopen: first journal on screen                  | 5 s                    |
 | Reopen: the index file the closed tab saved      | > 0 MB                 |
-| Reopen: the index has the long page's last block | 5 s                    |
+| Reopen: the index has the long page's last block | 4 s                    |
 | Reopen: then search shows that block             | 2 s                    |
 | Second fill: the rest, after a mid-fill reload   | less than a whole fill |
 | Fill time                                        | -                      |
 
-On cloud (headless Chrome 154) the first open shows a journal in about 3 s and fills the index in 72 to 82 s; a reload while the save writes finds the 67 MB file on disk and shows a journal in 3.4 s. On a CI runner, search after the reopen shows the long page's last block in about 1.1 s; before the graph looked blocks up on the page the index has them on, it waited about 33 s for the graph's walk of every page. Without `extendedLifetime` the reload ended the worker mid-write, left no file, and the reopen filled from scratch. In Node, the vault open takes about 0.4 s and loading the image and catching up 7 ms, against 6 s for the fill.
+On cloud (headless Chrome 154) the first open shows a journal in about 3 s and fills the index in 72 to 82 s; a reload while the save writes finds the 67 MB file on disk and shows a journal in 3.4 s. On a CI runner the reopen shows a journal in about 2 s and All pages lists `quillwort` 0.1 to 0.2 s later, 1.8 to 2.2 s after the reload; before All pages mounted only the rows near the screen, rendering all 6,654 of them took that to 4.8 to 5.5 s. Search after the reopen then shows the long page's last block in about 0.8 s; before the graph looked blocks up on the page the index has them on, it waited about 33 s for the graph's walk of every page. Without `extendedLifetime` the reload ended the worker mid-write, left no file, and the reopen filled from scratch. In Node, the vault open takes about 0.4 s and loading the image and catching up 7 ms, against 6 s for the fill.
 
 `SEQNO_BENCH_FOLDER` opens a folder already written with `write-years.ts` instead of writing one.
 
