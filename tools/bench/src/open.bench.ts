@@ -14,13 +14,14 @@ const budgets = { openMs: 5_000, reopenMs: 5_000, reopenSearchMs: 5_000 }
 const firstJournal = (page: Page) =>
   page.locator(".seqno-journal [role=treeitem]").first().waitFor()
 
-const searchFindsLastBlock = async (page: Page) => {
+const searchFindsLastBlock = async (page: Page, graph = "graph") => {
   await page.getByRole("button", { name: "Search", exact: true }).click()
   const box = page.getByRole("searchbox", { name: "Search" })
   const option = page
     .locator("[role=option][data-kind=Block]")
     .filter({ hasText: lastBlock })
     .first()
+  let smallest = Number.POSITIVE_INFINITY
   for (;;) {
     await box.fill(lastBlock)
     const found = await option.waitFor({ timeout: 250 }).then(
@@ -29,8 +30,10 @@ const searchFindsLastBlock = async (page: Page) => {
     )
     if (found) break
     await box.fill("")
+    smallest = Math.min(smallest, (await indexFile(page, graph)).bytes)
   }
   await page.keyboard.press("Escape")
+  return smallest
 }
 
 const indexFile = (page: Page, graph: string) =>
@@ -105,7 +108,7 @@ test(`${years} years of journals open from their snapshot, reopen from the index
       }),
     )
     const indexBytes = (await indexFile(page, "graph")).bytes
-    await searchFindsLastBlock(page)
+    const smallestWhileCatchingUp = await searchFindsLastBlock(page)
     const reopenSearchMs = since(reopening)
 
     await pickFolder(page, folder, "resumed")
@@ -135,6 +138,11 @@ test(`${years} years of journals open from their snapshot, reopen from the index
         budget: null,
       },
       { what: "reopen: index file MB the closed tab saved", value: indexBytes / 1e6, budget: null },
+      {
+        what: "reopen: smallest index file MB while catching up",
+        value: smallestWhileCatchingUp / 1e6,
+        budget: null,
+      },
       {
         what: "reopen: search finds the last block",
         value: reopenSearchMs,
