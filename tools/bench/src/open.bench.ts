@@ -17,7 +17,10 @@ const firstJournal = (page: Page) =>
 const searchFindsLastBlock = async (page: Page) => {
   await page.getByRole("button", { name: "Search", exact: true }).click()
   const box = page.getByRole("searchbox", { name: "Search" })
-  const option = page.getByRole("option").filter({ hasText: lastBlock }).first()
+  const option = page
+    .locator("[role=option][data-kind=Block]")
+    .filter({ hasText: lastBlock })
+    .first()
   for (;;) {
     await box.fill(lastBlock)
     const found = await option.waitFor({ timeout: 250 }).then(
