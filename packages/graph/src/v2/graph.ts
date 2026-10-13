@@ -38,7 +38,17 @@ const make = (source: GraphSource) =>
     const known = emptyKnown()
     const lookup: Lookup = {
       trees,
-      homes: { home: (id) => Option.fromUndefinedOr(known.homes.get(id)) },
+      homes: {
+        home: (id) => Option.fromUndefinedOr(known.homes.get(id)),
+        onPage: (page) => {
+          const seen = new Map<string, BlockId>()
+          for (const id of known.byPage.get(page) ?? []) {
+            const key = known.homes.get(id)
+            if (key !== undefined) seen.set(key, id)
+          }
+          return seen
+        },
+      },
     }
     const places = new Map<PageId, Place>()
     const placeOf = (page: PageId): Place => {
@@ -48,7 +58,7 @@ const make = (source: GraphSource) =>
         doc,
         roots: () => trees.tree(page).roots(),
         root: (index) => trees.tree(page).createNode(undefined, index),
-        trash: () => trees.trash(page),
+        trash: () => trees.trash(page, () => lookup.homes.onPage(page)),
       }
       places.set(page, made)
       return made
@@ -138,7 +148,7 @@ const make = (source: GraphSource) =>
       Effect.suspend(() => {
         const home = Option.flatMap(Option.fromUndefinedOr(known.homes.get(id)), (key) =>
           Option.flatMap(parseKey(key), ([at, node]) =>
-            Option.map(trees.node(at, node), (found) => ({ page: at, node: found })),
+            Option.map(trees.node(at, node), (found) => ({ page: at, node: found, key })),
           ),
         )
         const found = Option.flatMap(home, (spot) => {

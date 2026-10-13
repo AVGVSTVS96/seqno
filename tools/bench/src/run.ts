@@ -11,7 +11,7 @@ import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { bulkOnLongPage } from "./bulk.ts"
 import { Vault, layer as vaultLayer, seenPath, snapshotName, snapshotPath } from "@seqno/vault"
 import { layerNode as folderStorage, nodeStorage } from "@seqno/vault/node"
-import { emptyGraph, serviceOf } from "./graph.ts"
+import { emptyGraph, emptyPagesGraph, serviceOf } from "./graph.ts"
 import { opensInFreshProcess, writeYearsAsPages } from "./pages.ts"
 import { undoAfterRemote } from "./undo.ts"
 
@@ -172,9 +172,16 @@ const main = Effect.gen(function* () {
   }
   const undos = yield* Effect.scoped(undoAfterRemote(snapshot, REMOTE_EDITS))
   const bulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED)
+  const pagesBulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED, emptyPagesGraph)
   const [years, yearsMs] = yield* timed(writeYearsAsPages(YEARS, LONG_PAGE))
   const pagesOpens = yield* Effect.orDie(opensInFreshProcess(years.snapshot))
   const ofLongPage = `${SELECTED.toLocaleString("en")} of a ${LONG_PAGE / 1000}k-block page`
+  const bulkRows = (layout: string, times: typeof bulk) => [
+    { what: `delete ${ofLongPage}${layout}`, ms: times.deleteMs, budget: budgets.bulkMs },
+    { what: `undo that delete${layout}`, ms: times.undoMs, budget: budgets.bulkMs },
+    { what: `move ${ofLongPage}${layout}`, ms: times.moveMs, budget: budgets.bulkMs },
+    { what: `indent ${ofLongPage}${layout}`, ms: times.indentMs, budget: budgets.bulkMs },
+  ]
   const rows = [
     { what: "open: page list and first page (median)", ms: median(opens), budget: budgets.openMs },
     {
@@ -192,10 +199,8 @@ const main = Effect.gen(function* () {
       ms: Math.max(...undos),
       budget: budgets.undoMs,
     },
-    { what: `delete ${ofLongPage}`, ms: bulk.deleteMs, budget: budgets.bulkMs },
-    { what: "undo that delete", ms: bulk.undoMs, budget: budgets.bulkMs },
-    { what: `move ${ofLongPage}`, ms: bulk.moveMs, budget: budgets.bulkMs },
-    { what: `indent ${ofLongPage}`, ms: bulk.indentMs, budget: budgets.bulkMs },
+    ...bulkRows("", bulk),
+    ...bulkRows(", a tree per page", pagesBulk),
     { what: "import and seed", ms: seedMs, budget: null },
     { what: "index fill behind the open", ms: fillMs, budget: null },
     {

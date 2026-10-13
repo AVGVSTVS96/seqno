@@ -39,6 +39,7 @@ Built alongside the one-tree layout; the app still writes the one-tree layout. E
 - **Journals** written with `journalPageId(day)` land in one tree on every device; the converter gives each day's journal that id.
 - **Undo** uses the same recorder per page tree; a move between pages records the new pointer, the old placement going to the trash and the old `at`, so undo puts the block back with what other devices typed into it.
 - **Events** compare each touched block's place with the last place this session reported, so a page restored from the trash, merged into another or moved under a pointer reports exactly the blocks that changed.
+- **Reads per node stay fixed.** Every Loro read is a call into wasm (a map `get` costs 4 to 8 µs on a 20k-block page), so bulk commands read each node a fixed number of times: `uuid`, `ref` and `trash`, written once when a node is made, are read once and kept by spot key; `at` is read only for homes listed in `moved`, which a JS set mirrors; a page's sibling list takes the blocks this session already read from what it knows; and a block is looked up among its siblings starting at its Loro index.
 
 ## Tests
 
@@ -50,5 +51,5 @@ pnpm test --project @seqno/graph
 
 - On the one-tree layout, Loro reports a move only as a change to the whole tree, so `changedSince` reads the ops of every change that moved a node to find which ones.
 - Undo is exact for one client's own history. When another client or device edited the same block between a step and its undo, text positions come from rebasing alone: text put back next to someone else's insert at the same spot can land on the other side of it, and a character this client typed, deleted and got back by undoing the delete can survive undoing the typing. Loro's own undo has the same limits.
-- Tree-per-page layout: a page that shows blocks moved in from a long page reads that page's tree when first opened. Bulk commands on it scan sibling lists linearly, so they aren't tuned for 20k-block pages yet.
+- Tree-per-page layout: a page that shows blocks moved in from a long page reads that page's tree when first opened.
 - Tree-per-page layout: moving a block between pages wins over a delete, indent or move of the same block made meanwhile on another device. Loro's own tree would pick the later of the two.

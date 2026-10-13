@@ -1,7 +1,7 @@
 import { Option, Schema } from "effect"
-import { LoroMap, type LoroDoc, type LoroTree, type LoroTreeNode, type TreeID } from "loro-crdt"
+import { LoroMap, type LoroDoc, type LoroTreeNode, type TreeID } from "loro-crdt"
 import { JournalDay, PageId, Props, normalizePageName, type Page } from "@seqno/domain"
-import { inOrder, isTreeId, makeTrash, isTrash, readProps } from "../tree.ts"
+import { inOrder, isTreeId, readProps } from "../tree.ts"
 
 export const TITLES = "titles"
 export const DAYS = "days"
@@ -35,9 +35,14 @@ export const journalPageId = (day: JournalDay): PageId => {
 export interface Spot {
   readonly page: PageId
   readonly node: LoroTreeNode
+  readonly key: string
 }
 
-export const keyOf = (spot: Spot): string => `${spot.page}|${spot.node.id}`
+export const spotOf = (page: PageId, node: LoroTreeNode): Spot => ({
+  page,
+  node,
+  key: `${page}|${node.id}`,
+})
 
 export const parseKey = (key: unknown): Option.Option<readonly [PageId, TreeID]> => {
   if (typeof key !== "string") return Option.none()
@@ -131,14 +136,13 @@ export const listPages = (dir: Directory): Listing => {
 }
 
 export const resolvePage = (listing: Listing, page: PageId): Option.Option<PageId> => {
-  const seen = new Set<PageId>()
   let at = page
-  for (let into = listing.merged.get(at); into !== undefined; into = listing.merged.get(at)) {
-    if (seen.has(at)) return Option.none()
-    seen.add(at)
+  for (let steps = 0; steps <= listing.merged.size; steps++) {
+    const into = listing.merged.get(at)
+    if (into === undefined) return listing.live.has(at) ? Option.some(at) : Option.none()
     at = into
   }
-  return listing.live.has(at) ? Option.some(at) : Option.none()
+  return Option.none()
 }
 
 export const feeding = (listing: Listing, page: PageId): ReadonlyArray<PageId> =>
@@ -159,6 +163,3 @@ export const mergedFrom = (listing: Listing, page: PageId): ReadonlyArray<PageId
   [...listing.merged.keys()]
     .filter((from) => Option.contains(resolvePage(listing, from), page))
     .toSorted()
-
-export const trashOfTree = (tree: LoroTree): LoroTreeNode =>
-  tree.roots().find((root) => isTrash(root)) ?? makeTrash(tree)

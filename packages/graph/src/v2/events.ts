@@ -1,14 +1,15 @@
 import { Option, Schema } from "effect"
 import type { LoroEventBatch } from "loro-crdt"
 import { PageId, type BlockId, type GraphEvent, type Page } from "@seqno/domain"
-import { blockIdOf, isTreeId, readBlock } from "../tree.ts"
-import { AT, REF, feeding, isDirectory, keyOf, pageOfTree, parseKey, type Spot } from "./layout.ts"
+import { isTreeId, readBlock } from "../tree.ts"
+import { AT, REF, feeding, isDirectory, pageOfTree, type Spot } from "./layout.ts"
 import {
   homeOf,
   itemOf,
   locate,
   nodeChildren,
   readView,
+  spotAt,
   treeRoots,
   type Located,
   type Trees,
@@ -52,7 +53,7 @@ export const place = (known: Known, id: BlockId, home: string, position: Positio
 
 export const remember = (known: Known, page: PageId, reads: ReturnType<typeof readView>) => {
   for (const read of reads) {
-    place(known, read.block.id, keyOf(read.home), { page, parent: read.block.parentId })
+    place(known, read.block.id, read.home.key, { page, parent: read.block.parentId })
   }
 }
 
@@ -97,11 +98,6 @@ export const collectChanges = (batch: LoroEventBatch, pending: Pending): boolean
 
 const samePage = (a: Page, b: Page): boolean => JSON.stringify(a) === JSON.stringify(b)
 
-const spotOf = (trees: Trees, key: string): Option.Option<Spot> =>
-  Option.flatMap(parseKey(key), ([page, id]) =>
-    Option.map(trees.node(page, id), (node) => ({ page, node })),
-  )
-
 interface Outcome {
   readonly home: Spot
   readonly id: BlockId
@@ -121,7 +117,7 @@ export const translate = (
   const queue: Array<Spot> = []
   const queued = new Set<string>()
   const enqueue = (home: Spot) => {
-    const key = keyOf(home)
+    const key = home.key
     if (queued.has(key)) return
     queued.add(key)
     queue.push(home)
@@ -140,7 +136,7 @@ export const translate = (
       known.pages.delete(id)
       deaths.push({ _tag: "PageDeleted", pageId: id })
       for (const block of known.byPage.get(id) ?? []) {
-        Option.map(spotOf(trees, known.homes.get(block) ?? ""), enqueue)
+        Option.map(spotAt(trees, known.homes.get(block) ?? ""), enqueue)
       }
     }
     if ((now === undefined) !== (before === undefined) || listing.merged.has(id)) {
@@ -150,21 +146,21 @@ export const translate = (
   }
   const changed = new Set<string>()
   for (const key of pending.data) {
-    Option.map(spotOf(trees, key), (spot) => {
+    Option.map(spotAt(trees, key), (spot) => {
       const home = homeOf(trees, spot)
-      changed.add(keyOf(home))
+      changed.add(home.key)
       enqueue(home)
     })
   }
   for (const key of pending.nodes)
-    Option.map(spotOf(trees, key), (spot) => enqueue(homeOf(trees, spot)))
+    Option.map(spotAt(trees, key), (spot) => enqueue(homeOf(trees, spot)))
 
   const memo: Located = new Map()
   const outcomes: Array<Outcome> = []
   for (let at = 0; at < queue.length; at++) {
     const home = queue[at]
     if (home === undefined) continue
-    const id = blockIdOf(home.node)
+    const id = trees.facts(home).id
     if (Option.isNone(id)) continue
     const where = locate(trees, home, memo)
     const before = known.at.get(id.value)
@@ -172,7 +168,7 @@ export const translate = (
     const moved =
       where._tag === "Live"
         ? before === undefined || before.page !== where.page
-        : before !== undefined || changed.has(keyOf(home)) || pending.nodes.has(keyOf(home))
+        : before !== undefined || changed.has(home.key) || pending.nodes.has(home.key)
     if (!moved) continue
     Option.map(itemOf(trees, home), (item) =>
       nodeChildren(item).forEach((child) => enqueue(homeOf(trees, child))),
@@ -182,7 +178,7 @@ export const translate = (
   const depth = (outcome: Outcome) =>
     outcome.where._tag === "Live" ? outcome.where.depth : Number.MAX_SAFE_INTEGER
   for (const { home, id, where, before } of outcomes.toSorted((a, b) => depth(a) - depth(b))) {
-    const homeKey = keyOf(home)
+    const homeKey = home.key
     if (where._tag !== "Live") {
       if (before === undefined && !changed.has(homeKey) && !pending.nodes.has(homeKey)) continue
       known.homes.set(id, homeKey)

@@ -8,7 +8,7 @@ A tool: the benchmarks that CI runs on every push. Each fails when a budgeted nu
 pnpm --filter @seqno/bench bench
 ```
 
-It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and takes a snapshot. The bulk commands run on their own graph, the 20k-block page the Chrome benchmark scrolls, opened fresh for each. Then:
+It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and takes a snapshot. The bulk commands run on their own graph, the 20k-block page the Chrome benchmark scrolls, opened fresh for each, once in each layout. Then:
 
 | Number                                            | Budget | How                                                                                                                                                                                              |
 | ------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -20,6 +20,7 @@ It generates the seeded 50k-block graph from `@seqno/fixtures`, imports it, and 
 | Undo that delete                                  | 2 s    | Undo it.                                                                                                                                                                                         |
 | Move 5,000 of a 20k-block page                    | 2 s    | Move the same selection to the top of the page.                                                                                                                                                  |
 | Indent 5,000 of a 20k-block page                  | 2 s    | Indent 5,000 top-level blocks, from the second one down.                                                                                                                                         |
+| The same four, a tree per page                    | 2 s    | The same page and commands on `graphV2Layer`.                                                                                                                                                    |
 | Import and seed                                   | -      | Reported only.                                                                                                                                                                                   |
 | Index fill behind the open                        | -      | Reported only.                                                                                                                                                                                   |
 | Index: load the saved image and catch up (median) | 100 ms | The image saved after the fill, loaded into a new index, caught up on the pages the 300 keystrokes changed.                                                                                      |

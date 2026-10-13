@@ -4,22 +4,27 @@ import type { Graph } from "@seqno/graph"
 import { emptyGraph } from "./graph.ts"
 import { importFiles, longPageFiles } from "./years.ts"
 
-const longPage = (blocks: number) =>
-  Effect.gen(function* () {
-    const imported = yield* importFiles(longPageFiles(blocks))
-    const graph = yield* emptyGraph("50")
-    yield* graph.load(imported.pages)
-    return yield* graph.snapshot
-  })
+type Empty = typeof emptyGraph
+
+const longPage = (blocks: number, empty: Empty) =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const imported = yield* importFiles(longPageFiles(blocks))
+      const graph = yield* empty("50")
+      yield* graph.load(imported.pages)
+      return yield* graph.snapshot
+    }),
+  )
 
 const timedOn = (
+  empty: Empty,
   snapshot: Uint8Array,
   commands: (blocks: ReadonlyArray<Block>) => ReadonlyArray<Command>,
   then: (graph: Graph["Service"]) => Effect.Effect<unknown> = () => Effect.void,
 ) =>
   Effect.scoped(
     Effect.gen(function* () {
-      const graph = yield* emptyGraph("51")
+      const graph = yield* empty("51")
       yield* graph.restore([snapshot])
       const page = (yield* graph.pages)[0]
       if (page === undefined) return yield* Effect.die("the long page did not load")
@@ -38,19 +43,20 @@ const ids = (blocks: ReadonlyArray<Block>): readonly [BlockId, ...Array<BlockId>
   return [first, ...rest]
 }
 
-export const bulkOnLongPage = (blocks: number, selected: number) =>
+export const bulkOnLongPage = (blocks: number, selected: number, empty: Empty = emptyGraph) =>
   Effect.gen(function* () {
-    const snapshot = yield* longPage(blocks)
+    const snapshot = yield* longPage(blocks, empty)
     const middle = (all: ReadonlyArray<Block>) => ids(all.slice(blocks / 4, blocks / 4 + selected))
     const [deleteMs, undoMs] = yield* timedOn(
+      empty,
       snapshot,
       (all) => [{ _tag: "DeleteBlocks", blockIds: middle(all) }],
       (graph) => Effect.orDie(graph.dispatch({ _tag: "Undo" })),
     )
-    const [moveMs] = yield* timedOn(snapshot, (all) => [
+    const [moveMs] = yield* timedOn(empty, snapshot, (all) => [
       { _tag: "MoveBlocks", blockIds: middle(all), parentId: null },
     ])
-    const [indentMs] = yield* timedOn(snapshot, (all) => [
+    const [indentMs] = yield* timedOn(empty, snapshot, (all) => [
       {
         _tag: "Indent",
         blockIds: ids(all.filter((block) => block.parentId === null).slice(1, selected + 1)),

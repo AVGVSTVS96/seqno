@@ -12,23 +12,25 @@ import {
 import { CommandRejected } from "@seqno/rpc"
 import { Unresolved } from "../commands.ts"
 import type { Recorder } from "../history.ts"
-import { blockIdOf, isCollapsed, readProps, textOf, writeBlock, writeProps } from "../tree.ts"
-import { AT, REF, ensurePageData, keyOf, parseKey, resolvePage, type Spot } from "./layout.ts"
+import { isCollapsed, readProps, textOf, writeBlock, writeProps } from "../tree.ts"
+import { AT, REF, ensurePageData, parseKey, resolvePage, spotOf, type Spot } from "./layout.ts"
 import {
   homeOf,
   isShown,
   itemOf,
+  placementOf,
   locate,
   nodeChildren,
   pageTrees,
   sameSpot,
-  treeRoots,
   type Item,
+  type Located,
   type Trees,
 } from "./outline.ts"
 
 export interface Homes {
   readonly home: (id: BlockId) => Option.Option<string>
+  readonly onPage: (page: PageId) => ReadonlyMap<string, BlockId>
 }
 
 export interface Workspace {
@@ -53,11 +55,11 @@ interface Slot {
 const reject = (reason: string) => Effect.fail(new CommandRejected({ reason }))
 
 const parentKey = (parent: Parent): string =>
-  parent._tag === "Page" ? `page:${parent.page}` : `block:${keyOf(parent.item.home)}`
+  parent._tag === "Page" ? `page:${parent.page}` : `block:${parent.item.key}`
 
 const shownItem = (trees: Trees, spot: Spot): Option.Option<Item> => {
   const home = homeOf(trees, spot)
-  return Option.map(blockIdOf(home.node), (id) => ({ id, key: keyOf(home), home, at: spot }))
+  return Option.map(trees.facts(home).id, (id) => ({ id, key: home.key, home, at: spot }))
 }
 
 const sameItem = (a: Item, b: Item): boolean => a.key === b.key
@@ -69,8 +71,14 @@ interface Siblings {
   readonly rank: (item: Item) => number
 }
 
+const NEAR = 8
+
 const indexIn = ({ items, rank }: Siblings, item: Item): number => {
   const target = rank(item)
+  const top = Math.min(target % GROUP, items.length - 1)
+  for (let at = top; at >= 0 && at > top - NEAR; at--) {
+    if (items[at]?.key === item.key) return at
+  }
   let low = 0
   let high = items.length - 1
   while (low <= high) {
@@ -107,22 +115,51 @@ const rankIn = (trees: Trees, parent: Parent): ((item: Item) => number) => {
   return (item) => (order.get(item.at.page) ?? order.size) * GROUP + (item.at.node.index() ?? 0)
 }
 
-const reader = (trees: Trees) => {
+const reader = ({ trees, homes }: Lookup) => {
   const lists = new Map<string, Siblings>()
+  const ranks = new Map<string, (item: Item) => number>()
+
+  const rankFor = (parent: Parent) => {
+    const key = parentKey(parent)
+    const known = ranks.get(key)
+    if (known !== undefined) return known
+    const made = rankIn(trees, parent)
+    ranks.set(key, made)
+    return made
+  }
+
+  const rankOf = (parent: Parent, item: Item): number => rankFor(parent)(item)
+
+  const shown = (spot: Spot): ReadonlyArray<Item> =>
+    isShown(trees, spot) ? Option.toArray(shownItem(trees, spot)) : []
+
+  const rootsOf = (page: PageId): ReadonlyArray<Item> => {
+    const seen = homes.onPage(page)
+    return pageTrees(trees, page).flatMap((own) =>
+      trees
+        .tree(own)
+        .roots()
+        .flatMap((node) => {
+          const spot = spotOf(own, node)
+          const id = seen.get(spot.key)
+          return id === undefined || trees.moved(spot)
+            ? shown(spot)
+            : [{ id, key: spot.key, home: spot, at: spot }]
+        }),
+    )
+  }
 
   const siblings = (parent: Parent): Siblings => {
     const key = parentKey(parent)
     const known = lists.get(key)
     if (known !== undefined) return known
-    const spots =
-      parent._tag === "Page"
-        ? pageTrees(trees, parent.page).flatMap((page) => treeRoots(trees, page))
-        : nodeChildren(parent.item)
     const made = {
-      items: spots.flatMap((spot) =>
-        isShown(trees, spot) ? Option.toArray(shownItem(trees, spot)) : [],
-      ),
-      rank: rankIn(trees, parent),
+      items: [
+        ...(parent._tag === "Page"
+          ? rootsOf(parent.page)
+          : nodeChildren(parent.item).flatMap(shown)),
+      ],
+      rank: rankFor(parent),
     }
     lists.set(key, made)
     return made
@@ -140,24 +177,25 @@ const reader = (trees: Trees) => {
         page: Option.getOrElse(resolvePage(trees.listing(), item.at.page), () => item.at.page),
       }
     }
-    const home = homeOf(trees, { page: item.at.page, node: above })
+    const home = homeOf(trees, spotOf(item.at.page, above))
     return Option.match(itemOf(trees, home), {
       onNone: (): Parent => ({ _tag: "Page", page: item.at.page }),
       onSome: (found): Parent => ({ _tag: "Block", item: found }),
     })
   }
 
-  return { lists, children, parentOf, indexOf }
+  return { lists, children, parentOf, indexOf, rankOf }
 }
 
 export const outliner = (ws: Workspace) => {
   const { trees } = ws
-  const { lists, children, parentOf, indexOf } = reader(trees)
+  const { lists, children, parentOf, indexOf, rankOf } = reader(ws)
 
-  const forget = (item: Item) => {
+  const forget = (item: Item): boolean => {
     const list = lists.get(parentKey(parentOf(item)))
     const at = list === undefined ? -1 : indexIn(list, item)
     if (at !== -1) list?.items.splice(at, 1)
+    return at !== -1
   }
 
   const slotIn = (parent: Parent, index: number, moving: Item | undefined): Slot => {
@@ -197,7 +235,7 @@ export const outliner = (ws: Workspace) => {
     const chain: Array<LoroTreeNode> = []
     for (let at = slot.parent; at !== undefined; at = at.parent()) {
       if (at.id === node.id) {
-        const stale = chain.find((one) => !isShown(trees, { page: slot.page, node: one }))
+        const stale = chain.find((one) => !isShown(trees, spotOf(slot.page, one)))
         if (stale !== undefined) trees.tree(slot.page).move(stale.id, trees.trash(slot.page).id, 0)
         return
       }
@@ -218,8 +256,7 @@ export const outliner = (ws: Workspace) => {
   }
 
   const place = (item: Item, parent: Parent, index: number): Item => {
-    forget(item)
-    const slot = slotIn(parent, index, item)
+    const slot = slotIn(parent, index, forget(item) ? undefined : item)
     const record = ws.record(slot.page)
     const placed = ((): Item => {
       if (slot.page === item.home.page) {
@@ -235,10 +272,10 @@ export const outliner = (ws: Workspace) => {
         return item
       }
       const node = record.create(slot.parent, indexOfSlot(slot))
-      node.data.set(REF, keyOf(item.home))
-      const at = { page: slot.page, node }
-      ws.record(item.home.page).set(item.home.node.data, AT, keyOf(at))
-      trees.dir.moved.set(keyOf(item.home), true)
+      node.data.set(REF, item.home.key)
+      const at = spotOf(slot.page, node)
+      ws.record(item.home.page).set(item.home.node.data, AT, at.key)
+      trees.markMoved(item.home)
       ws.record(item.at.page).trash(item.at.node)
       return { ...item, at }
     })()
@@ -256,16 +293,16 @@ export const outliner = (ws: Workspace) => {
       const id = yield* Effect.orDie(newBlockId)
       const slot = slotIn(parent, index, undefined)
       const node = ws.record(slot.page).create(slot.parent, indexOfSlot(slot))
-      const spot = { page: slot.page, node }
-      const item = { id, key: keyOf(spot), home: spot, at: spot }
+      const spot = spotOf(slot.page, node)
+      const item = { id, key: spot.key, home: spot, at: spot }
       remember(parent, index, item)
       return item
     })
 
-  return { children, parentOf, indexOf, place, trash, create }
+  return { children, parentOf, indexOf, rankOf, place, trash, create }
 }
 
-type Outliner = Pick<ReturnType<typeof reader>, "children" | "parentOf" | "indexOf">
+type Outliner = Pick<ReturnType<typeof reader>, "children" | "parentOf" | "indexOf" | "rankOf">
 
 type Writer = ReturnType<typeof outliner>
 
@@ -274,18 +311,22 @@ const touch = (ws: Workspace, item: Item) =>
     ws.record(item.home.page).set(item.home.node.data, "updated", now),
   )
 
-const blockItem = (ws: Lookup, id: BlockId): Effect.Effect<Item, CommandRejected | Unresolved> =>
+const blockItem = (
+  ws: Lookup,
+  id: BlockId,
+  memo: Located = new Map(),
+): Effect.Effect<Item, CommandRejected | Unresolved> =>
   Option.match(ws.homes.home(id), {
     onNone: () => Effect.fail(new Unresolved({ id })),
     onSome: (key) => {
-      const found = Option.flatMap(
-        Option.flatMap(parseKey(key), ([page, node]) =>
-          Option.map(ws.trees.node(page, node), (at): Spot => ({ page, node: at })),
-        ),
-        (home) => itemOf(ws.trees, home),
+      const found = Option.flatMap(parseKey(key), ([page, node]) =>
+        Option.map(ws.trees.node(page, node), (at): Item => {
+          const home = { page, node: at, key }
+          return { id, key, home, at: placementOf(ws.trees, home) }
+        }),
       )
       return Option.match(
-        Option.filter(found, (item) => locate(ws.trees, item.home)._tag === "Live"),
+        Option.filter(found, (item) => locate(ws.trees, item.home, memo)._tag === "Live"),
         {
           onNone: () => reject(`block ${id} was deleted`),
           onSome: (item) => Effect.succeed(item),
@@ -329,7 +370,7 @@ const position = (out: Outliner, item: Item): ReadonlyArray<number> => {
   let at = item
   for (let depth = 0; depth < 1000; depth++) {
     const parent = out.parentOf(at)
-    path.push(out.indexOf(parent, at))
+    path.push(out.rankOf(parent, at))
     if (parent._tag === "Page") break
     at = parent.item
   }
@@ -341,18 +382,20 @@ const byPosition = (left: ReadonlyArray<number>, right: ReadonlyArray<number>): 
   return differs === -1 ? left.length - right.length : (left[differs] ?? 0) - (right[differs] ?? 0)
 }
 
-const selection = (ws: Workspace, out: Outliner, ids: ReadonlyArray<BlockId>) =>
-  Effect.map(
-    Effect.forEach(ids, (id) => blockItem(ws, id)),
+const selection = (ws: Workspace, out: Outliner, ids: ReadonlyArray<BlockId>) => {
+  const memo: Located = new Map()
+  return Effect.map(
+    Effect.forEach(ids, (id) => blockItem(ws, id, memo)),
     (items) => {
-      const chosen = new Map(items.map((item) => [keyOf(item.home), item]))
+      const chosen = new Map(items.map((item) => [item.key, item]))
       return [...chosen.values()]
-        .filter((item) => !ancestors(out, item).some((up) => chosen.has(keyOf(up.home))))
+        .filter((item) => !ancestors(out, item).some((up) => chosen.has(up.key)))
         .map((item) => ({ item, at: position(out, item) }))
         .toSorted((a, b) => byPosition(a.at, b.at))
         .map(({ item }) => item)
     },
   )
+}
 
 const createBlock = (out: Writer, parent: Parent, index: number, text: string) =>
   Effect.gen(function* () {
@@ -391,7 +434,7 @@ const mergeTarget = (out: Outliner, item: Item): Item | undefined => {
 
 export const mergeTargetOf = (ws: Lookup, id: BlockId) =>
   Effect.map(blockItem(ws, id), (item) =>
-    Option.map(Option.fromUndefinedOr(mergeTarget(reader(ws.trees), item)), (target) => target.id),
+    Option.map(Option.fromUndefinedOr(mergeTarget(reader(ws), item)), (target) => target.id),
   )
 
 const childAfter = (ws: Workspace, out: Outliner, parent: Parent, after: BlockId | undefined) =>

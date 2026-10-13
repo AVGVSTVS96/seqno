@@ -1,7 +1,7 @@
 import { Option, Schema } from "effect"
 import { PageId, type BlockId } from "@seqno/domain"
 import { loroVersion, type Changed } from "../changes.ts"
-import { blockIdOf, isTreeId } from "../tree.ts"
+import { isTreeId } from "../tree.ts"
 import { MERGED, MOVED, isDirectory, pageOfTree } from "./layout.ts"
 import { homeOf, locate, type Located, type Trees } from "./outline.ts"
 import { spotsOf } from "./repair.ts"
@@ -59,7 +59,7 @@ export const changedSince = (
   const memo: Located = new Map()
   for (const spot of spotsOf(trees, nodes)) {
     const home = homeOf(trees, spot)
-    Option.map(blockIdOf(home.node), (id) => blocks.add(id))
+    Option.map(trees.facts(home).id, (id) => blocks.add(id))
     const where = locate(trees, home, memo)
     if (where._tag === "Live") pages.add(where.page)
   }

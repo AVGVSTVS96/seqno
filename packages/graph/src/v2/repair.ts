@@ -1,7 +1,7 @@
 import { Option } from "effect"
 import type { Page, PageId } from "@seqno/domain"
-import { blockIdOf, setProp } from "../tree.ts"
-import { AT, ensurePageData, parseKey, type Spot } from "./layout.ts"
+import { setProp } from "../tree.ts"
+import { AT, ensurePageData, parseKey, spotOf, type Spot } from "./layout.ts"
 import { homeOf, locate, placementOf, sameSpot, type Located, type Trees } from "./outline.ts"
 
 export const repairNames = (trees: Trees, touched: Iterable<PageId>): boolean => {
@@ -36,8 +36,8 @@ export const repairNames = (trees: Trees, touched: Iterable<PageId>): boolean =>
 
 const cut = (trees: Trees, homes: ReadonlyArray<Spot>) => {
   const [first] = homes.toSorted((a, b) => {
-    const left = Option.getOrElse(blockIdOf(a.node), () => "")
-    const right = Option.getOrElse(blockIdOf(b.node), () => "")
+    const left = Option.getOrElse(trees.facts(a).id, () => "")
+    const right = Option.getOrElse(trees.facts(b).id, () => "")
     return left < right ? -1 : left > right ? 1 : 0
   })
   if (first === undefined) return
@@ -67,7 +67,7 @@ export const spotsOf = (trees: Trees, keys: Iterable<string>): ReadonlyArray<Spo
   [...keys].flatMap((key) =>
     Option.toArray(
       Option.flatMap(parseKey(key), ([page, id]) =>
-        Option.map(trees.node(page, id), (node): Spot => ({ page, node })),
+        Option.map(trees.node(page, id), (node) => spotOf(page, node)),
       ),
     ),
   )
