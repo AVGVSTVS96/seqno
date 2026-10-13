@@ -72,6 +72,30 @@ const sharedWorkers = async (page: Page) => {
     .map((target) => target.targetId)
 }
 
+const workerConsole = async (page: Page) => {
+  const heard: Array<string> = []
+  const cdp = await page.context().browser()?.newBrowserCDPSession()
+  if (cdp === undefined) return heard
+  cdp.on("Target.receivedMessageFromTarget", ({ message }) => {
+    const parsed: unknown = JSON.parse(message)
+    const text = JSON.stringify(parsed)
+    if (text.includes("consoleAPICalled") || text.includes("exceptionThrown"))
+      heard.push(text.slice(0, 800))
+  })
+  const { targetInfos } = await cdp.send("Target.getTargets")
+  for (const target of targetInfos.filter((info) => info.type === "shared_worker")) {
+    const { sessionId } = await cdp.send("Target.attachToTarget", {
+      targetId: target.targetId,
+      flatten: false,
+    })
+    await cdp.send("Target.sendMessageToTarget", {
+      sessionId,
+      message: JSON.stringify({ id: 1, method: "Runtime.enable" }),
+    })
+  }
+  return heard
+}
+
 const since = (started: number) => performance.now() - started
 
 test(`${years} years of journals open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
@@ -94,6 +118,7 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     const reloadedWhile = await saveStarted(page, "graph")
     const bytesAtReload = (await indexFile(page, "graph")).bytes
     const workersBefore = await sharedWorkers(page)
+    const heard = await workerConsole(page)
 
     const reopening = performance.now()
     await page.reload()
@@ -109,6 +134,7 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     )
     const indexBytes = (await indexFile(page, "graph")).bytes
     const smallestWhileCatchingUp = await searchFindsLastBlock(page)
+    console.log(JSON.stringify(heard.slice(0, 40)))
     const reopenSearchMs = since(reopening)
 
     await pickFolder(page, folder, "resumed")
