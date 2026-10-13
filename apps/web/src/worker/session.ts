@@ -304,7 +304,7 @@ export const openSession = (place: GraphPlace) =>
             ...changed.value.pages,
             ...(yield* pagesOfBlocks([...changed.value.blocks])),
           ])
-          yield* index.owe([...pages], pagesIn(pages))
+          if (pages.size > 0) yield* index.owe([...pages], pagesIn(pages))
           yield* mark("owed")
           costs.saveMs = Option.some(ms)
           costs.pageMs = Option.some(stamp.value.pageMs)
