@@ -1,7 +1,7 @@
 import { SCHEMA as QUERY_SCHEMA } from "@seqno/query"
 import type { Statements } from "./sqlite.ts"
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export const RELAXED = `
 PRAGMA journal_mode = memory;
@@ -12,6 +12,7 @@ PRAGMA cache_size = -32000;
 
 export const SCHEMA = `
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) WITHOUT ROWID;
+CREATE TABLE unwritten (page TEXT PRIMARY KEY) WITHOUT ROWID;
 ${QUERY_SCHEMA}`
 
 const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`

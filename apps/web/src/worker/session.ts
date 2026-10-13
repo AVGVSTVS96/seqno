@@ -151,7 +151,7 @@ export const openSession = (place: GraphPlace) =>
     const saving = yield* SubscriptionRef.make<SaveState>(SaveState.cases.Saved.make({}))
     const unsaved = yield* Latch.make(false)
     const edits = { count: 0 }
-    const filling = { running: false, behind: new Set<PageId>() }
+    const filling = { running: false, marked: false }
     const graph = yield* serviceOf(
       Graph,
       Graph.layer({ peer, snapshot: Option.none(), updates: [] }),
@@ -183,7 +183,7 @@ export const openSession = (place: GraphPlace) =>
     const indexing = yield* Semaphore.make(1)
     const quiet = yield* Latch.make(false)
     const recording = { pending: 0 }
-    const sinceSave = { pages: new Set<PageId>(), refilled: false }
+    const sinceSave = { pages: new Set<PageId>(), rewritten: 0 }
     const costs = { pageMs: Option.none<number>(), saveMs: Option.none<number>() }
 
     const indexEvents = (events: ReadonlyArray<GraphEvent>) =>
@@ -195,9 +195,7 @@ export const openSession = (place: GraphPlace) =>
               .apply(events)
               .pipe(
                 Effect.catchTag("IndexError", (error) =>
-                  filling.running
-                    ? Effect.sync(() => pages.forEach((page) => filling.behind.add(page)))
-                    : Effect.fail(error),
+                  filling.running ? index.owe([...pages], Effect.succeed([])) : Effect.fail(error),
                 ),
               )
             pages.forEach((page) => sinceSave.pages.add(page))
@@ -225,7 +223,10 @@ export const openSession = (place: GraphPlace) =>
         Effect.gen(function* () {
           const image = yield* indexing.withPermits(1)(
             Effect.gen(function* () {
-              if (filling.running || (!sinceSave.refilled && sinceSave.pages.size === 0)) {
+              if (
+                (filling.running && !filling.marked) ||
+                (sinceSave.rewritten === 0 && sinceSave.pages.size === 0)
+              ) {
                 return Option.none<Uint8Array<ArrayBuffer>>()
               }
               const version = yield* graph.version
@@ -234,7 +235,7 @@ export const openSession = (place: GraphPlace) =>
                 encodeIndexStamp({ version: Object.fromEntries(version), pageMs }),
               )
               sinceSave.pages.clear()
-              sinceSave.refilled = false
+              sinceSave.rewritten = 0
               return Option.some(bytes)
             }),
           )
@@ -258,69 +259,93 @@ export const openSession = (place: GraphPlace) =>
 
     const indexed = yield* Latch.make(true)
     const scope = yield* Effect.scope
-    const catchUp: Effect.Effect<void, IndexError> = Effect.flatMap(
-      Effect.sync(() => {
-        const behind = [...filling.behind]
-        filling.behind.clear()
-        if (behind.length === 0) filling.running = false
-        return behind
-      }),
-      (behind) =>
-        behind.length === 0
-          ? Effect.void
-          : Effect.andThen(
-              index.fill(
-                pagesIn(new Set(behind)),
-                Stream.fromIterable(behind).pipe(Stream.mapEffect(graph.pageEvents)),
-              ),
-              Effect.andThen(
-                Effect.sync(() => behind.forEach((page) => sinceSave.pages.add(page))),
-                catchUp,
-              ),
-            ),
+
+    const loaded = Effect.gen(function* () {
+      const [image, ms] = yield* timed(place.indexFile.read)
+      if (Option.isNone(image)) return false
+      return yield* indexing.withPermits(1)(
+        Effect.gen(function* () {
+          const stamp = Option.flatMap(yield* index.load(image.value), decodeIndexStamp)
+          if (Option.isNone(stamp)) return false
+          const changed = yield* graph.changedSince(new Map(Object.entries(stamp.value.version)))
+          if (Option.isNone(changed)) return false
+          const pages = new Set([
+            ...changed.value.pages,
+            ...(yield* pagesOfBlocks([...changed.value.blocks])),
+          ])
+          yield* index.owe([...pages], pagesIn(pages))
+          costs.saveMs = Option.some(ms)
+          costs.pageMs = Option.some(stamp.value.pageMs)
+          filling.marked = true
+          return true
+        }),
+      )
+    })
+
+    const started = indexing.withPermits(1)(
+      Effect.andThen(
+        index.start(graph.pages),
+        Effect.sync(() => {
+          filling.marked = true
+        }),
+      ),
     )
 
-    const caughtUp = (version: Readonly<Record<string, number>>) =>
+    const progress = { written: 0, savedAt: 0, saving: false }
+    const wrote = (savesProgress: boolean) =>
+      Effect.suspend(() => {
+        sinceSave.rewritten += 1
+        progress.written += 1
+        if (!savesProgress || progress.saving || progress.written < 2 * progress.savedAt) {
+          return Effect.void
+        }
+        progress.saving = true
+        progress.savedAt = progress.written
+        return Effect.forkIn(
+          Effect.ensuring(
+            saveIndexNow,
+            Effect.sync(() => {
+              progress.saving = false
+            }),
+          ),
+          scope,
+        )
+      })
+
+    const owed = indexing.withPermits(1)(
       Effect.gen(function* () {
-        const changed = yield* graph.changedSince(new Map(Object.entries(version)))
-        if (Option.isNone(changed)) return false
-        const pages = new Set([
-          ...changed.value.pages,
-          ...(yield* pagesOfBlocks([...changed.value.blocks])),
-        ])
-        yield* index.refresh(
-          pagesIn(pages),
-          Stream.fromIterable(pages).pipe(
-            Stream.mapEffect((page) =>
-              Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
+        const unwritten = new Set(yield* index.unwritten)
+        if (unwritten.size === 0) filling.running = false
+        const inOrder = (yield* graph.pages).flatMap((page) =>
+          unwritten.delete(page.id) ? [page.id] : [],
+        )
+        return [...inOrder, ...unwritten]
+      }),
+    )
+
+    const writeOwed: Effect.Effect<void, IndexError> = Effect.gen(function* () {
+      let pages = yield* owed
+      while (pages.length > 0) {
+        const count = pages.length
+        const long = Option.match(Option.all([costs.pageMs, costs.saveMs]), {
+          onNone: () => true,
+          onSome: ([pageMs, saveMs]) => count * pageMs > saveMs,
+        })
+        progress.written = 0
+        progress.savedAt = Math.ceil(count / 32)
+        const [, ms] = yield* timed(
+          index.refresh(
+            Stream.fromIterable(pages).pipe(
+              Stream.mapEffect((page) =>
+                Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
+              ),
+              Stream.tap(() => wrote(long)),
             ),
           ),
         )
-        pages.forEach((page) => sinceSave.pages.add(page))
-        return true
-      })
-
-    const loaded = Effect.gen(function* () {
-      const [stamp, ms] = yield* timed(
-        Effect.flatMap(place.indexFile.read, (image) =>
-          Option.isNone(image)
-            ? Effect.succeedNone
-            : Effect.map(index.load(image.value), Option.flatMap(decodeIndexStamp)),
-        ),
-      )
-      if (Option.isNone(stamp)) return false
-      costs.saveMs = Option.some(ms)
-      costs.pageMs = Option.some(stamp.value.pageMs)
-      if (yield* caughtUp(stamp.value.version)) return true
-      yield* index.reset
-      return false
-    })
-
-    const refill = Effect.gen(function* () {
-      const [, ms] = yield* timed(index.fill(graph.pages, graph.everything))
-      const pages = (yield* graph.pages).length
-      if (pages > 0) costs.pageMs = Option.some(ms / pages)
-      sinceSave.refilled = true
+        if (long) costs.pageMs = Option.some(ms / count)
+        pages = yield* owed
+      }
     })
 
     const openIndex = Effect.andThen(
@@ -328,12 +353,13 @@ export const openSession = (place: GraphPlace) =>
         indexed.close,
         Effect.sync(() => {
           filling.running = true
+          filling.marked = false
         }),
       ),
       Effect.forkIn(
         Effect.andThen(
-          Effect.flatMap(loaded, (caught) => (caught ? Effect.void : refill)),
-          catchUp,
+          Effect.flatMap(loaded, (caught) => (caught ? Effect.void : started)),
+          writeOwed,
         ).pipe(
           logged,
           Effect.ensuring(

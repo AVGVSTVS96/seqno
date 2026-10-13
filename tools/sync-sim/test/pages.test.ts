@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Crypto, Effect, Layer, Option, Schema } from "effect"
+import { Context, Crypto, Effect, Layer, Option, Schema, Stream } from "effect"
 import {
   BlockId,
   DeviceId,
@@ -65,7 +65,20 @@ const device = (cloud: FakeCloud, id: string, peer: `${number}`) =>
         Effect.flatMap(graph.load(pages), indexed),
       flush: Effect.asVoid(graph.flush((update) => Effect.orDie(vault.writeUpdate(update.bytes)))),
       sync: Effect.asVoid(Effect.orDie(vault.sync(replica))),
-      refill: Effect.orDie(index.fill(graph.pages, graph.everything)),
+      refill: Effect.orDie(
+        Effect.andThen(
+          index.start(graph.pages),
+          Effect.flatMap(index.unwritten, (pages) =>
+            index.refresh(
+              Stream.fromIterable(pages).pipe(
+                Stream.mapEffect((page) =>
+                  Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     }
   })
 

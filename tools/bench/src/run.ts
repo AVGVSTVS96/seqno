@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Layer, Option, Stream } from "effect"
-import { DeviceId, type Command } from "@seqno/domain"
+import { DeviceId, type Command, type PageId } from "@seqno/domain"
 import { generateGraph, toLogseqFiles } from "@seqno/fixtures"
 import { vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
@@ -108,6 +108,13 @@ const openThroughVault = (root: string, peer: string) =>
     return yield* graph.page(journal.id)
   })
 
+const written = (graph: Effect.Success<ReturnType<typeof emptyGraph>>, pages: Iterable<PageId>) =>
+  Stream.fromIterable(pages).pipe(
+    Stream.mapEffect((page) =>
+      Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
+    ),
+  )
+
 const reopenIndex = (
   graph: Effect.Success<ReturnType<typeof emptyGraph>>,
   image: Uint8Array,
@@ -118,14 +125,11 @@ const reopenIndex = (
     yield* index.load(image)
     const changed = yield* graph.changedSince(since)
     if (Option.isNone(changed)) return yield* Effect.die("the saved stamp is not in the graph")
-    yield* index.refresh(
+    yield* index.owe(
+      [...changed.value.pages],
       Effect.map(graph.pages, (pages) => pages.filter((page) => changed.value.pages.has(page.id))),
-      Stream.fromIterable(changed.value.pages).pipe(
-        Stream.mapEffect((page) =>
-          Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
-        ),
-      ),
     )
+    yield* index.refresh(written(graph, changed.value.pages))
   })
 
 const main = Effect.gen(function* () {
@@ -143,7 +147,12 @@ const main = Effect.gen(function* () {
     vaultOpens.push(ms)
   }
   const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(layerNode())))
-  const [, fillMs] = yield* timed(index.fill(graph.pages, graph.everything))
+  const [, fillMs] = yield* timed(
+    Effect.andThen(
+      index.start(graph.pages),
+      Effect.flatMap(index.unwritten, (pages) => index.refresh(written(graph, pages))),
+    ),
+  )
   const stamp = yield* graph.version
   const image = yield* index.image(JSON.stringify(Object.fromEntries(stamp)))
   const block = first.blocks[0]

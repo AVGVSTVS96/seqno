@@ -515,46 +515,76 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     ),
   )
 
-  it.live("fill adds pages batch by batch and refreshes live queries once, at the end", () =>
-    usingIndex(sqlite())((index) =>
-      Effect.gen(function* () {
-        const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
-        assert.deepStrictEqual(yield* Queue.take(results), [[0]])
-        yield* index.fill(
-          Effect.succeed([]),
-          Stream.fromIterable([
-            [
-              upsertPage(journal, "Oct 6th, 2026", {}, 20261006),
-              upsertBlock(blockId(20), journal, "TODO x"),
-            ],
-            [upsertPage(notes, "notes"), upsertBlock(blockId(21), notes, "TODO y")],
-          ]),
-        )
-        assert.deepStrictEqual(yield* Queue.take(results), [[2]])
-        assert.deepStrictEqual(yield* Queue.size(results), 0)
-      }).pipe(Effect.scoped),
-    ),
+  it.live(
+    "start names every page as unwritten, and refresh writes them, waking live queries once",
+    () =>
+      usingIndex(sqlite())((index) =>
+        Effect.gen(function* () {
+          const journalDay = upsertPage(journal, "Oct 6th, 2026", {}, 20261006)
+          yield* index.start(pagesOf(journalDay, upsertPage(notes, "notes")))
+          const owed = yield* index.unwritten
+          const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
+          assert.deepStrictEqual(yield* Queue.take(results), [[0]])
+          yield* index.refresh(
+            Stream.fromIterable([
+              [journal, [journalDay, upsertBlock(blockId(20), journal, "TODO x")]],
+              [notes, [upsertPage(notes, "notes"), upsertBlock(blockId(21), notes, "TODO y")]],
+            ] as const),
+          )
+          assert.deepStrictEqual(yield* Queue.take(results), [[2]])
+          assert.deepStrictEqual(yield* Queue.size(results), 0)
+          assert.deepStrictEqual([owed.toSorted(), yield* index.unwritten], [[journal, notes], []])
+        }).pipe(Effect.scoped),
+      ),
   )
 
-  it.effect("fill and refresh name every page first, so no page shows as only referenced", () =>
+  it.effect("an image keeps the pages not written yet, so a cut-off fill can go on", () =>
+    Effect.gen(function* () {
+      const image = yield* usingIndex(sqlite())((index) =>
+        Effect.gen(function* () {
+          yield* index.start(pagesOf(upsertPage(notes, "Notes"), upsertPage(project, "Project")))
+          yield* index.refresh(
+            Stream.make([
+              notes,
+              [upsertPage(notes, "Notes"), upsertBlock(blockId(1), notes, "x")],
+            ] as const),
+          )
+          yield* index.owe([journal], Effect.succeed([]))
+          return yield* index.image("v1")
+        }),
+      )
+      const owed = yield* usingIndex(sqlite())((index) =>
+        Effect.andThen(index.load(image), index.unwritten),
+      )
+      assert.deepStrictEqual(owed.toSorted(), [project, journal].toSorted())
+    }),
+  )
+
+  it.effect("start and owe name pages first, so no page shows as only referenced", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         const seen: Array<ReadonlyArray<string>> = []
         const look = Effect.map(index.referencedPages, (pages) =>
           seen.push(pages.map((page) => page.name)),
         )
-        yield* index.fill(
-          pagesOf(upsertPage(notes, "Notes"), upsertPage(project, "Project")),
+        yield* index.start(pagesOf(upsertPage(notes, "Notes"), upsertPage(project, "Project")))
+        yield* index.refresh(
           Stream.fromIterable([
             [
-              upsertPage(notes, "Notes"),
-              upsertBlock(blockId(1), notes, "see [[Project]] and [[Later]]"),
+              notes,
+              [
+                upsertPage(notes, "Notes"),
+                upsertBlock(blockId(1), notes, "see [[Project]] and [[Later]]"),
+              ],
             ],
-            [upsertPage(project, "Project"), upsertBlock(blockId(2), project, "plan")],
-          ]).pipe(Stream.tap(() => look)),
+            [project, [upsertPage(project, "Project"), upsertBlock(blockId(2), project, "plan")]],
+          ] as const).pipe(Stream.tap(() => look)),
+        )
+        yield* index.owe(
+          [notes, journal],
+          pagesOf(upsertPage(notes, "Notes"), upsertPage(journal, "Later")),
         )
         yield* index.refresh(
-          pagesOf(upsertPage(notes, "Notes"), upsertPage(journal, "Later")),
           Stream.fromIterable([
             [notes, [upsertPage(notes, "Notes"), upsertBlock(blockId(1), notes, "see [[Later]]")]],
             [journal, [upsertPage(journal, "Later")]],
@@ -617,7 +647,6 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
         const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
         assert.deepStrictEqual(yield* Queue.take(results), [[0]])
         yield* index.refresh(
-          Effect.succeed([]),
           Stream.fromIterable([
             [
               notes,

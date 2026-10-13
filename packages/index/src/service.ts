@@ -319,6 +319,7 @@ const ftsQuery = (text: string): string | null => {
 const PAGE_BLOCKS = `SELECT b.id FROM blocks b JOIN pages p ON p.rid = b.page WHERE p.id = ?`
 
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
+const decodePageId = Schema.decodeUnknownOption(PageId)
 
 const refreshed = (
   db: Statements,
@@ -344,6 +345,16 @@ const applyAll = (db: Statements, events: Iterable<GraphEvent>): Changes => {
   const index = indexer(db, changes)
   for (const event of events) index(event)
   return changes
+}
+
+const writeNames = (db: Statements, pages: ReadonlyArray<Page>) =>
+  void applyAll(
+    db,
+    pages.map((page): GraphEvent => ({ _tag: "PageUpserted", page })),
+  )
+
+const markUnwritten = (db: Statements, ids: ReadonlyArray<PageId>) => {
+  for (const id of ids) db.run("INSERT OR IGNORE INTO unwritten VALUES (?)", [id])
 }
 
 const make = Effect.gen(function* () {
@@ -375,18 +386,13 @@ const make = Effect.gen(function* () {
 
   const referencedPages = sqlite.use(referencedOf)
 
-  const named = <E, R>(pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
-    writer.withPermits(1)(
-      Effect.flatMap(pages, (read) =>
-        sqlite.transaction(
-          (db) =>
-            void applyAll(
-              db,
-              read.map((page): GraphEvent => ({ _tag: "PageUpserted", page })),
-            ),
-        ),
-      ),
-    )
+  const naming = <E, R>(
+    pages: Effect.Effect<ReadonlyArray<Page>, E, R>,
+    write: (db: Statements, pages: ReadonlyArray<Page>) => void,
+  ) =>
+    writer
+      .withPermits(1)(Effect.flatMap(pages, (read) => sqlite.transaction((db) => write(db, read))))
+      .pipe(Effect.ensuring(reactivity.invalidate([REBUILT])))
 
   return {
     stamp: sqlite.use(readStamp).pipe(Effect.map(Option.fromNullOr)),
@@ -408,39 +414,38 @@ const make = Effect.gen(function* () {
         )
       }).pipe(Effect.ensuring(reactivity.invalidate([REBUILT])), writer.withPermits(1)),
 
-    fill: <E, R, E2, R2>(
-      pages: Effect.Effect<ReadonlyArray<Page>, E2, R2>,
-      contents: Stream.Stream<ReadonlyArray<GraphEvent>, E, R>,
-    ) =>
-      Effect.andThen(
-        named(pages),
-        Stream.runForEach(contents, (batch) =>
-          Effect.andThen(
-            writer.withPermits(1)(sqlite.transaction((db) => void applyAll(db, batch))),
-            Effect.yieldNow,
+    start: <E, R>(pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
+      naming(pages, (db, read) => {
+        recreate(db)
+        writeNames(db, read)
+        markUnwritten(
+          db,
+          read.map((page) => page.id),
+        )
+      }),
+
+    owe: <E, R>(ids: ReadonlyArray<PageId>, pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
+      naming(pages, (db, read) => {
+        writeNames(db, read)
+        markUnwritten(db, ids)
+      }),
+
+    unwritten: sqlite.use((db) =>
+      db.all("SELECT page FROM unwritten").flatMap(([id]) => Option.toArray(decodePageId(id))),
+    ),
+
+    refresh: <E, R>(contents: Stream.Stream<readonly [PageId, ReadonlyArray<GraphEvent>], E, R>) =>
+      Stream.runForEach(contents, ([pageId, events]) =>
+        Effect.andThen(
+          writer.withPermits(1)(
+            sqlite.transaction((db) => {
+              applyAll(db, refreshed(db, pageId, events))
+              db.run("DELETE FROM unwritten WHERE page = ?", [pageId])
+            }),
           ),
+          Effect.yieldNow,
         ),
       ).pipe(Effect.ensuring(reactivity.invalidate([REBUILT]))),
-
-    refresh: <E, R, E2, R2>(
-      pages: Effect.Effect<ReadonlyArray<Page>, E2, R2>,
-      contents: Stream.Stream<readonly [PageId, ReadonlyArray<GraphEvent>], E, R>,
-    ) =>
-      Effect.andThen(
-        named(pages),
-        Stream.runForEach(contents, ([pageId, events]) =>
-          Effect.andThen(
-            writer.withPermits(1)(
-              sqlite.transaction((db) => void applyAll(db, refreshed(db, pageId, events))),
-            ),
-            Effect.yieldNow,
-          ),
-        ),
-      ).pipe(Effect.ensuring(reactivity.invalidate([REBUILT]))),
-
-    reset: sqlite
-      .transaction(recreate)
-      .pipe(writer.withPermits(1), Effect.ensuring(reactivity.invalidate([REBUILT]))),
 
     image: (stamp: string) =>
       writer.withPermits(1)(

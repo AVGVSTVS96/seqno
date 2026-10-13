@@ -63,6 +63,16 @@ const POISON_VOICE_NOTE = `
 DELETE FROM fts WHERE rowid = (SELECT rid FROM blocks WHERE content = 'I recorded a [[voice note]].');
 INSERT INTO fts (rowid, content) SELECT rid, 'poison' FROM blocks WHERE content = 'I recorded a [[voice note]].';`
 
+const HEADINGS_BLOCKS = `SELECT b.rid FROM blocks b JOIN pages p ON p.rid = b.page WHERE p.name_lc = 'headings'`
+
+const HEADINGS_NOT_WRITTEN = `
+INSERT INTO unwritten SELECT id FROM pages WHERE name_lc = 'headings';
+DELETE FROM fts WHERE rowid IN (${HEADINGS_BLOCKS});
+DELETE FROM refs WHERE block IN (${HEADINGS_BLOCKS});
+DELETE FROM props WHERE block IN (${HEADINGS_BLOCKS});
+DELETE FROM tasks WHERE block IN (${HEADINGS_BLOCKS});
+DELETE FROM blocks WHERE rid IN (${HEADINGS_BLOCKS});`
+
 const coreLayer = (
   root: string,
   starter: Starter | null,
@@ -808,6 +818,29 @@ describe("the core worker on the real graph, vault and index", () => {
         )
         assert.deepStrictEqual(found, [["zephyr "], ["I recor"]])
       }),
+  )
+
+  it.live("a reopened graph writes the pages its saved index still owes, and keeps the rest", () =>
+    Effect.gen(function* () {
+      const root = yield* copyOfFixture
+      yield* Effect.scoped(Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })))
+      yield* editSavedIndex(`laptop:${root}`, `${POISON_VOICE_NOTE}${HEADINGS_NOT_WRITTEN}`)
+      const found = yield* Effect.scoped(
+        Effect.gen(function* () {
+          const core = yield* coreOn(root)
+          yield* core.OpenGraph({ graph: "og" })
+          const written = yield* core.Search({ text: "List H3" }).pipe(
+            Effect.repeat({
+              until: (hits) => hits.blocks.length > 0,
+              schedule: Schedule.spaced("10 millis"),
+            }),
+          )
+          const kept = yield* core.Search({ text: "poison" })
+          return [written, kept].map((hits) => hits.blocks.map((block) => block.text))
+        }),
+      )
+      assert.deepStrictEqual(found, [["### List H3"], ["I recorded a [[voice note]]."]])
+    }),
   )
 
   it.live("a saved index from another edit log is dropped and filled again", () =>
