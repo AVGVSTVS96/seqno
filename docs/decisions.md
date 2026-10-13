@@ -263,6 +263,56 @@ On the 10-year graph a cursor resolves in 0.06 ms while its character exists and
 
 Pasting 5,000 blocks (1.2 to 1.7 s) never took this path. Its time is Loro writing and committing the new blocks plus the events for them, about 0.25 ms a block. `tools/bench` checks all four of its numbers (delete, its undo, move, indent) against 2 s on every CI run; a CI runner measured 0.55, 0.23, 0.27 and 0.67 s. The sync simulator's real-graph suite passed 50 of 50 seeds of 600 ops and 6 of 6 seeds of 10k ops with no violations.
 
+**On the tree-per-page layout** (see "A tree per page, in one Loro doc"), the same four commands first took 2 to 3 times as long as on the one-tree layout, for the same kind of reason: calls into wasm per block. On that layout, whether a node shows, where its home is, where it is placed and which block it is come from four keys of its data map (`trash`, `ref`, `at`, `uuid`), and each helper read them again, one `LoroMap.get` each at 4 to 8 µs on the 20k-block page: deleting 5,000 blocks and undoing it made 173k of them, against 27k on the one-tree layout. Finding a block among its siblings was a binary search that asked Loro for a sibling's `index()` at every step, 312k calls to indent 5,000 blocks against 30k, and placing a block searched for it again after it had left the list, which ended in a linear scan each time. Now:
+
+- `uuid`, `ref` and `trash` are written once, when a node is made, so they are read once and kept, keyed by the node's spot (`page|node`), which every spot carries from when it's made.
+- `at` is read only for homes listed in `moved`, the only ones that can have it, through a JS set that mirrors the map.
+- A page's sibling list takes the blocks the session has already read from what it knows (their home keys), and reads Loro only for the rest: the trash, pointers, and homes moved away. The search for a page's trash skips them the same way.
+- A block is looked up among its siblings from its Loro index first, where it is unless hidden nodes come before it, and a selection is sorted by Loro index without building the list.
+
+Every command now makes no more Loro calls than on the one-tree layout (deleting 5,000 blocks and undoing it: 7k `get`s instead of 173k, 7k `index()` calls instead of 47k). The benchmark also timed another graph's work: the graph it builds the long page with stayed open, and its background page read ran during the first timed command. It is closed first now.
+
+| 5,000 of a 20k-block page, median of 10 | One tree | A tree per page, before | After  |
+| --------------------------------------- | -------- | ----------------------- | ------ |
+| Delete                                  | 341 ms   | 717 ms                  | 291 ms |
+| Undo that delete                        | 203 ms   | 311 ms                  | 196 ms |
+| Move to the top                         | 289 ms   | 791 ms                  | 362 ms |
+| Indent                                  | 588 ms   | 1,148 ms                | 524 ms |
+
+Node on the Ryzen 7 5700G, through the benchmark's own code, five processes of each, interleaved. Move's median includes a 40 to 60 ms full garbage collection of the benchmark's setup that lands in move's window on the tree-per-page layout and later on the other. With the heap collected before each command (six of each), the medians are 321 against 315 ms for delete, 229 against 246 for its undo, 294 against 322 for move and 678 against 715 for indent. `tools/bench` checks all four on both layouts against 2 s on every CI run. The sync simulator, running the tree-per-page graph against the real vault and index, passed 50 of 50 seeds of 600 ops with no violations after the change.
+
+## A tree per page, in one Loro doc
+
+**Decision.** A second layout, `graphV2Layer` in `@seqno/graph`, keeps each page's blocks in a Loro tree of its own (`blocks:<pageId>`), all in the one Loro doc per graph, and lists pages in flat maps keyed by page id (`titles`, `days`, `trashed`, `mergedInto`, and `pageData` for page properties). It is built next to today's one-tree layout and gives the same `Graph` service; the app still writes the one-tree layout, and switching waits on the open calls in [roadmap.md](roadmap.md).
+
+**Why.** Loro decodes a tree container whole the first time anything reads it. With every page and block in one tree, opening ten years of journals spent most of its time decoding 150k nodes just to list the pages and show today's journal: the first touch of the one tree took 1.27 s, against 2.8 ms for one page's tree. A spike compared four layouts on the same ten and 30 years of journals (Node on `cloud`):
+
+| Ten years, 150k blocks                          | A: one tree (today) | A + flat directory | B: a tree per page, one doc | C: a doc per page          |
+| ----------------------------------------------- | ------------------- | ------------------ | --------------------------- | -------------------------- |
+| Page list                                       | 1.34 s              | 0.24 s             | 0.23 s                      | 0.23 s                     |
+| First journal after it                          | 2.5 ms              | 1.1 s              | 6.8 ms                      | 8 to 10 ms                 |
+| Memory after open                               | 367 MB              | 370 MB             | 334 MB                      | 107 MB                     |
+| Merge 1k remote edits to the 10 latest journals | 0.5 to 0.6 s        | 0.47 to 0.49 s     | 54 to 57 ms                 | 73 to 86 ms                |
+| Merge 1k remote edits across the graph          | 0.6 s               | 0.6 s              | 0.84 to 0.88 s              | 1.5 to 9.2 s               |
+| Compact: export the snapshot                    | 1.3 to 1.4 s        | 1.3 to 1.4 s       | 1.4 s                       | 3.5 to 3.8 s               |
+| Files in the folder for the graph               | 1 snapshot          | 1 snapshot         | 1 snapshot                  | 6,655 (19,960 at 30 years) |
+
+- A flat directory in front of the one tree lists pages fast but still decodes the whole tree for the first journal (4.2 s at 30 years), so the tree itself has to split.
+- B and C both open fast. C also saves memory, but everything that spans pages gets harder: a merge loads every page doc it touches (711 of them for 1k edits), compaction writes thousands of files, the sync protocol would track a version per file, and Loro can't move a node between docs, so moving a block to another page would be copy-then-delete, which loses what another device typed into it meanwhile.
+- B keeps one edit log, one version vector, one sync protocol and the vault as it is. C stays the fallback if a real iPhone shows memory matters.
+
+How B works:
+
+- **Moves between pages are pointer moves.** Loro moves a node only within its own tree. A block moved to another page keeps its home node, with its text and its whole subtree, where it is; the target page gets a pointer node, and the home's `at` key names it. A node shows only where `at` says, so two devices moving one block to two pages resolve by the last writer of `at`, the way Loro resolves its own concurrent moves, and text or children another device adds meanwhile land on the home node and show at the new place. Moving the block back home moves the home node and drops the pointer. Every home that ever got a pointer is listed in a `moved` map.
+- **Repair looks only at what changed.** Same-name pages are looked for among the pages a change touched. Cycles (two devices moving two blocks under each other across pages) are looked for among the nodes a change touched, and only once some block has moved between pages; a cycle is cut at the block with the smallest id, which goes back to the top of its home page. A restore checks only the homes listed in `moved`.
+- **Same-name pages merge through the directory.** `mergedInto[loser] = winner`, and the winner's page shows the loser's tree after its own. Nothing moves, so blocks a device that hadn't heard of the merge adds to the merged-away page still show.
+- **Journals are keyed by day.** `journalPageId(day)` gives a day's journal the same page id on every device (`0000YYYY-MMDD-7000-8000-000000000000`), so two devices that each create today's journal before syncing write into one tree instead of making two pages that need a merge. The converter gives each day's journal that id.
+- **Undo is keyed by doc.** The undo recorder records writes to any Loro map and keeps its rebasing state per doc, so the page trees and the directory maps share one history. A move between pages records the new pointer, the old placement going to the trash and the old `at`, so undo puts the block back with what other devices typed into it.
+
+**Cost.** A move between pages wins over a delete, indent or move of the same block that another device made meanwhile, where Loro's own tree would pick the later one. A page that shows blocks moved in from a long page reads that page's tree the first time it opens. The snapshot is about 6% larger (63.0 against 59.4 MB at ten years).
+
+**Numbers.** Ten years of journals with a 20k-block page, in Node: an open (restore the snapshot, list the pages, read today's journal) takes 0.20 to 0.38 s against 1.7 to 2.3 s on the one-tree layout, at 510 against 670 MB of whole-process memory. `tools/bench` opens it in a fresh process on every CI run against a 300 ms budget; a CI runner measured 109 ms. The spike put 30 years at about 0.35 s against 5.5 s; the built layout hasn't been measured there yet. `convertOneTree` converts a ten-year one-tree graph in 37 s, and converting the same files again gives byte-identical snapshots, so devices that convert one folder write the same ops. Bulk commands on a 20k-block page cost about what they cost on the one-tree layout (see "Bulk commands touch each tree node a fixed number of times"). Every `@seqno/graph` test runs on both layouts; `packages/graph/test/pages.test.ts` and `pages-fuzz.test.ts` cover moves between pages, pointers, merges and cycles, and `tools/sync-sim/test/pages.test.ts` checks moves between pages, same-day journals, page merges and undo across pages against the real vault and index.
+
 ## Smaller decisions
 
 | Question                                     | Answer                                                                                                  | Why                                                                                                                                                                                                    |

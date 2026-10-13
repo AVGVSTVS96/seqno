@@ -75,6 +75,30 @@ tree "blocks"
 - **Commands** (`@seqno/domain`): `CreatePage`, `RenamePage`, `DeletePage`, `InsertBlock(s)`, `EditText`, `SplitBlock`, `MergeWithPrevious`, `Indent`, `Outdent`, `MoveBlocks`, `DeleteBlocks`, `SetCollapsed`, `SetProperty`, `Undo`, `Redo`.
 - **Undo** is seqno's own, not Loro's. Each command records its inverse as it runs: a text delta that takes the edit back, "move to the trash" for what it created, the old place for what it moved or deleted, the old value for each property. Each tab has its own undo and redo stacks, so Mod+Z in one tab never takes back what another typed. Typing in one block is one step, every other command is its own step, and edits from other devices are never undone. Text inverses are rebased on every change to their block, so undo removes only this tab's characters. Undo reads only the current state, so it costs the same however long the history is.
 
+### A tree per page (built, not used by the app yet)
+
+`@seqno/graph` also has a second layout, `graphV2Layer`, behind the same `Graph` service and the same tests. An open lists the pages from small directory maps and decodes a page's tree only when that page is read, instead of decoding one tree that holds every block. Why, and the numbers, are in [decisions.md](decisions.md).
+
+```
+map "titles"      pageId -> title      (a page exists while it has one)
+map "days"        pageId -> journal day
+map "trashed"     pageId -> true
+map "mergedInto"  pageId -> pageId     (same-name pages)
+map "pageData"    pageId -> props, propKeys
+map "moved"       home key -> true     (blocks that ever moved to another page)
+tree "blocks:<pageId>"                  one per page
+  block (root)    uuid, text, props, propKeys, collapsed?, created, updated, at?
+    block ...
+  pointer         ref -> home key       (a block moved in from another page)
+  trash (root)    trash: true
+```
+
+- **Moving a block to another page leaves its home node where it is.** The target page gets a pointer node, and the home's `at` names it. The block shows only where `at` says, its text and children stay on the home node, and two devices moving it to two pages end up with the last writer of `at`.
+- **Same-name pages merge through `mergedInto`.** The surviving page shows the other's tree after its own; nothing moves.
+- **A day's journal has a fixed id**, `journalPageId(day)`, so every device's "today" is one page and one tree.
+- **Repair after a commit or merge looks only at what it touched**: same-name pages among the touched pages, and cycles among the touched nodes once some block has moved between pages.
+- **Undo** records into the same history from every page tree and the directory maps. `convertOneTree` turns a one-tree graph into this layout, byte for byte the same on every device.
+
 ## Edit log and sync
 
 | File                                 | Written by                | Holds                                                                                                            |
