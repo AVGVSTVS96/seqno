@@ -69,6 +69,7 @@ export const makeTrees = (doc: LoroDoc): Trees => {
 
 export interface Item {
   readonly id: BlockId
+  readonly key: string
   readonly home: Spot
   readonly at: Spot
 }
@@ -91,7 +92,12 @@ export const placementOf = (trees: Trees, home: Spot): Spot => {
 export const sameSpot = (a: Spot, b: Spot): boolean => a.node.id === b.node.id && a.page === b.page
 
 export const itemOf = (trees: Trees, home: Spot): Option.Option<Item> =>
-  Option.map(blockIdOf(home.node), (id) => ({ id, home, at: placementOf(trees, home) }))
+  Option.map(blockIdOf(home.node), (id) => ({
+    id,
+    key: keyOf(home),
+    home,
+    at: placementOf(trees, home),
+  }))
 
 export const isShown = (trees: Trees, spot: Spot): boolean => {
   if (isTrash(spot.node)) return false
