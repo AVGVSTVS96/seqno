@@ -434,7 +434,10 @@ const make = Effect.gen(function* () {
       db.all("SELECT page FROM unwritten").flatMap(([id]) => Option.toArray(decodePageId(id))),
     ),
 
-    refresh: <E, R>(contents: Stream.Stream<readonly [PageId, ReadonlyArray<GraphEvent>], E, R>) =>
+    refresh: <E, R, E2 = never, R2 = never>(
+      contents: Stream.Stream<readonly [PageId, ReadonlyArray<GraphEvent>], E, R>,
+      written: (pageId: PageId) => Effect.Effect<void, E2, R2> = () => Effect.void,
+    ) =>
       Stream.runForEach(contents, ([pageId, events]) =>
         Effect.andThen(
           writer.withPermits(1)(
@@ -443,7 +446,7 @@ const make = Effect.gen(function* () {
               db.run("DELETE FROM unwritten WHERE page = ?", [pageId])
             }),
           ),
-          Effect.yieldNow,
+          Effect.andThen(written(pageId), Effect.yieldNow),
         ),
       ).pipe(Effect.ensuring(reactivity.invalidate([REBUILT]))),
 

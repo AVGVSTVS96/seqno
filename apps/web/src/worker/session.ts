@@ -339,8 +339,8 @@ export const openSession = (place: GraphPlace) =>
               Stream.mapEffect((page) =>
                 Effect.map(graph.pageEvents(page), (events) => [page, events] as const),
               ),
-              Stream.tap(() => wrote(long)),
             ),
+            () => wrote(long),
           ),
         )
         if (long) costs.pageMs = Option.some(ms / count)

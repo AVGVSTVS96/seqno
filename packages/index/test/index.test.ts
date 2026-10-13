@@ -516,13 +516,14 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
   )
 
   it.live(
-    "start names every page as unwritten, and refresh writes them, waking live queries once",
+    "start names every page as unwritten, and refresh writes them one by one, waking live queries once",
     () =>
       usingIndex(sqlite())((index) =>
         Effect.gen(function* () {
           const journalDay = upsertPage(journal, "Oct 6th, 2026", {}, 20261006)
           yield* index.start(pagesOf(journalDay, upsertPage(notes, "notes")))
           const owed = yield* index.unwritten
+          const owing: Array<readonly [PageId, ReadonlyArray<PageId>]> = []
           const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
           assert.deepStrictEqual(yield* Queue.take(results), [[0]])
           yield* index.refresh(
@@ -530,10 +531,21 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
               [journal, [journalDay, upsertBlock(blockId(20), journal, "TODO x")]],
               [notes, [upsertPage(notes, "notes"), upsertBlock(blockId(21), notes, "TODO y")]],
             ] as const),
+            (page) => Effect.map(index.unwritten, (left) => void owing.push([page, left])),
           )
           assert.deepStrictEqual(yield* Queue.take(results), [[2]])
           assert.deepStrictEqual(yield* Queue.size(results), 0)
-          assert.deepStrictEqual([owed.toSorted(), yield* index.unwritten], [[journal, notes], []])
+          assert.deepStrictEqual(
+            [owed.toSorted(), owing, yield* index.unwritten],
+            [
+              [journal, notes].toSorted(),
+              [
+                [journal, [notes]],
+                [notes, []],
+              ],
+              [],
+            ],
+          )
         }).pipe(Effect.scoped),
       ),
   )
