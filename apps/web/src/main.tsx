@@ -11,6 +11,7 @@ import {
   lastGraph,
   openGraph,
   prefersDark,
+  remembersGraph,
   resolvedTheme,
   saveState,
   startingGraph,
@@ -24,7 +25,10 @@ import { notify } from "./ui/shell/Notices.tsx"
 const registry = AtomRegistry.make({
   scheduleTask,
   defaultIdleTTL: 400,
-  initialValues: [[coreLayer, Layer.orDie(WorkerCore)]],
+  initialValues: [
+    [coreLayer, Layer.orDie(WorkerCore)],
+    [remembersGraph, !embedded],
+  ],
 })
 
 const darkScheme = matchMedia("(prefers-color-scheme: dark)")
@@ -63,9 +67,9 @@ addEventListener("beforeunload", (event) => {
   if (saveFailed.now) event.preventDefault()
 })
 
-const starting =
-  startingGraph(registry.get(lastGraph)) ??
-  (embedded ? { _tag: "Demo" as const, name: demoGraph } : null)
+const starting = embedded
+  ? { _tag: "Demo" as const, name: demoGraph }
+  : startingGraph(registry.get(lastGraph))
 if (starting !== null) registry.set(openGraph, starting)
 
 if (embedded) {

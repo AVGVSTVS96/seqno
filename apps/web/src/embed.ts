@@ -4,7 +4,7 @@ export const embedded =
 export const canPickFolders = "showDirectoryPicker" in window && !embedded
 
 export const toParent = (type: "ready" | "escape") =>
-  window.parent.postMessage({ type: `seqno:${type}` }, "*")
+  window.parent.postMessage({ type: `seqno:${type}` }, location.origin)
 
 const closesNatively = () =>
   document.querySelector("[popover=auto]:popover-open, dialog:modal") !== null

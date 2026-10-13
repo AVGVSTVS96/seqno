@@ -17,7 +17,7 @@ export const projects = (d: Days): ReadonlyArray<StarterFile> => [
     `started:: ${d.date(-16)}`,
     "",
     "- Logseq, rebuilt local-first on Loro, SQLite and Effect. web first, then iOS and desktop",
-    "\t- [repo](https://github.com/AVGVSTVS96/seqno) · [app](https://seqno-app.vercel.app) · [site](https://seqno.vercel.app)",
+    "\t- [repo](https://github.com/AVGVSTVS96/seqno) · [app](https://seqno.vercel.app/app) · [site](https://seqno.vercel.app)",
     `- I was comparing Obsidian and Logseq two months into teaching myself to code: ${ref(ids.logseqHole)}`,
     ...decisions("seqno"),
     "- ## open",

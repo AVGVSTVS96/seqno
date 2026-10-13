@@ -22,7 +22,7 @@ The index is in-memory SQLite, saved as one file per graph in OPFS (`indexes/<gr
 
 The two demo graphs live in OPFS as `demo` (Getting started, `src/worker/demo.ts`) and `developer` (Developer graph, `src/worker/developer.ts`). A first visit shows a chooser between them before anything opens; later visits reopen the last graph.
 
-The homepage embeds the app in an iframe with `?embed` (`src/embed.ts`). Embedded, it skips the chooser and opens Getting started, leaves out folder picking and About seqno (a cross-site frame can't show a folder picker), and posts `{ type: "seqno:ready" }` to the parent each time a graph opens, and `{ type: "seqno:escape" }` for each Escape the app doesn't use itself (handlers that use one call `preventDefault`, and open dialogs and popovers close on their own), so the homepage can close full screen. Its storage is partitioned under the homepage, so the embedded demo is a copy separate from the one at seqno-app.vercel.app.
+The homepage embeds the app in an iframe with `?embed` (`src/embed.ts`). Embedded, it skips the chooser and opens Getting started, leaves out folder picking and About seqno, doesn't change which graph the app resumes, and posts `{ type: "seqno:ready" }` to the parent each time a graph opens, and `{ type: "seqno:escape" }` for each Escape the app doesn't use itself (handlers that use one call `preventDefault`, and open dialogs and popovers close on their own), so the homepage can close full screen. It runs on the homepage's own origin, so it shares graphs, settings and the core worker with the app open in other tabs.
 
 Each demo graph has a content version, set next to its starter in `src/worker/browser.ts`:
 
@@ -33,6 +33,10 @@ Each demo graph has a content version, set next to its starter in `src/worker/br
 The session stamps the version into the graph's folder (`starter-version`). When the shipped version differs from the stamp, it clears the folder and writes the fresh starter, so returning visitors get new content and lose their demo edits. Bump the number whenever a starter changes. Folders you pick never have a starter, so this never touches your own graphs. A demo folder with markdown but no edit log yet (a seeded fixture) is imported as it is and stamped.
 
 Files under `src/worker/` may import core packages; everything else here may not, and starts the worker with `new SharedWorker(new URL(...))`.
+
+## Hosting
+
+The app lives at [seqno.vercel.app/app](https://seqno.vercel.app/app/), on the homepage's origin. Vercel builds it with base `/app/` into `dist/app` (`vercel.json` at the repo root), and the homepage project rewrites `/app/*` to this project. Requests that reach `seqno-app.vercel.app` directly, without the homepage's `x-forwarded-host`, redirect to the same path under `seqno.vercel.app/app/`. Local dev and the tests run at `/`; the router takes its basepath from Vite's `BASE_URL`.
 
 ## Run it
 

@@ -43,6 +43,8 @@ export const lastGraph = Atom.kvs({
   defaultValue: (): string | null => null,
 }).pipe(Atom.keepAlive)
 
+export const remembersGraph = Atom.make(true).pipe(Atom.keepAlive)
+
 export const graphsOpenedAt = Atom.kvs({
   runtime: settingsRuntime,
   key: "seqno.graphsOpenedAt",
@@ -95,7 +97,7 @@ export const openGraph = appRuntime
       )
       const now = yield* Clock.currentTimeMillis
       get.set(importReport, opened.skipped)
-      get.set(lastGraph, graph)
+      if (get.registry.get(remembersGraph)) get.set(lastGraph, graph)
       get.set(graphsOpenedAt, { ...get.registry.get(graphsOpenedAt), [graph]: now })
       yield* Reactivity.invalidate(pagesKey)
       return opened

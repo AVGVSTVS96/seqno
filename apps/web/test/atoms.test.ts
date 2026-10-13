@@ -15,6 +15,7 @@ import {
   pageNamed,
   prefersDark,
   resolvedTheme,
+  remembersGraph,
   rightSidebar,
   settingsLayer,
   startingGraph,
@@ -199,6 +200,20 @@ describe("app atoms", () => {
       yield* settle
       const opened = next.get(openGraph)
       assert.strictEqual(AsyncResult.isSuccess(opened) ? opened.value.graph : null, "notes")
+    }),
+  )
+
+  it.effect("leaves the graph to resume alone when it isn't to remember what it opens", () =>
+    Effect.gen(function* () {
+      const entries = new Map([["seqno.lastGraph", '"notes"']])
+      const embedded = testRegistry(entries)
+      embedded.set(remembersGraph, false)
+      embedded.mount(openGraph)
+      embedded.set(openGraph, { _tag: "Demo", name: "demo" })
+      yield* settle
+      const opened = embedded.get(openGraph)
+      assert.strictEqual(AsyncResult.isSuccess(opened) ? opened.value.graph : null, "demo")
+      assert.strictEqual(entries.get("seqno.lastGraph"), '"notes"')
     }),
   )
 })
