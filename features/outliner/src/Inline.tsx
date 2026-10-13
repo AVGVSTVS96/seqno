@@ -12,6 +12,7 @@ import {
   plainText,
   type Inline,
   type LinkTarget,
+  type Span,
 } from "@seqno/syntax"
 import { blockAtom, pageTreeAtom } from "./core.ts"
 import { usePreview } from "./Preview.tsx"
@@ -99,12 +100,12 @@ const BlockRef = ({ uuid, children }: { readonly uuid: string; readonly children
 const PageLink = ({
   name,
   brackets,
-  from,
+  span,
   children,
 }: {
   readonly name: string
   readonly brackets: boolean
-  readonly from?: number
+  readonly span?: Span
   readonly children: ReactNode
 }) => {
   const renderer = use(RenderContext)
@@ -115,7 +116,9 @@ const PageLink = ({
         role="link"
         tabIndex={0}
         className="seqno-pageref-link"
-        data-from={from}
+        data-from={span === undefined ? undefined : span.from + (brackets ? 2 : 0)}
+        data-start={span?.from}
+        data-end={span?.to}
         onClick={toPage(renderer.navigate, name)}
         onKeyDown={clickOnEnter}
         {...preview.trigger}
@@ -328,7 +331,7 @@ const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
       </code>
     ),
     PageRef: ({ name, brackets, span }) => (
-      <PageLink name={name} brackets={brackets} from={span.from + (brackets ? 2 : 0)}>
+      <PageLink name={name} brackets={brackets} span={span}>
         {name}
       </PageLink>
     ),
