@@ -97,6 +97,8 @@ const timed = <A, E>(effect: Effect.Effect<A, E>) =>
     return [value, (yield* Clock.currentTimeMillis) - started] as const
   })
 
+const mark = (label: string) => Effect.sync(() => console.log(`seqno-t ${Date.now()} ${label}`))
+
 const starterStamp = "starter-version"
 const decodeStamp = Schema.decodeUnknownOption(Schema.FiniteFromString)
 const encoder = new TextEncoder()
@@ -285,19 +287,25 @@ export const openSession = (place: GraphPlace) =>
     const scope = yield* Effect.scope
 
     const loaded = Effect.gen(function* () {
+      yield* mark("index read start")
       const [image, ms] = yield* timed(place.indexFile.read)
+      yield* mark(`index read ${ms}ms ${Option.map(image, (bytes) => bytes.length)}`)
       if (Option.isNone(image)) return false
       return yield* indexing.withPermits(1)(
         Effect.gen(function* () {
+          yield* mark("index load start")
           const stamp = Option.flatMap(yield* index.load(image.value), decodeIndexStamp)
+          yield* mark("index loaded")
           if (Option.isNone(stamp)) return false
           const changed = yield* graph.changedSince(new Map(Object.entries(stamp.value.version)))
+          yield* mark(`changedSince ${Option.map(changed, (c) => [c.pages.size, c.blocks.size])}`)
           if (Option.isNone(changed)) return false
           const pages = new Set([
             ...changed.value.pages,
             ...(yield* pagesOfBlocks([...changed.value.blocks])),
           ])
           yield* index.owe([...pages], pagesIn(pages))
+          yield* mark("owed")
           costs.saveMs = Option.some(ms)
           costs.pageMs = Option.some(stamp.value.pageMs)
           filling.marked = true
@@ -391,22 +399,25 @@ export const openSession = (place: GraphPlace) =>
               Effect.sync(() => {
                 filling.running = false
               }),
-              indexed.open,
+              Effect.andThen(indexed.open, mark("indexed")),
             ),
           ),
           Effect.andThen(saveIndexNow),
+          Effect.andThen(mark("index saved after open")),
         ),
         scope,
       ),
     )
     const restore = (blobs: ReadonlyArray<Uint8Array>) =>
-      graph
-        .restore(blobs)
-        .pipe(
-          Effect.ensuring(
-            Effect.flatMap(graph.version, (now) => (now.size > 0 ? openIndex : Effect.void)),
-          ),
-        )
+      Effect.andThen(
+        mark(`restore start ${blobs.map((blob) => blob.length)}`),
+        graph.restore(blobs),
+      ).pipe(
+        Effect.tap(() => mark("restored")),
+        Effect.ensuring(
+          Effect.flatMap(graph.version, (now) => (now.size > 0 ? openIndex : Effect.void)),
+        ),
+      )
     const replica = vaultReplica({
       ...graph,
       restore,
@@ -431,8 +442,10 @@ export const openSession = (place: GraphPlace) =>
       }
     })
 
+    yield* mark("session start")
     if (place.starter !== null) yield* layStarter(place.storage, place.starter)
     const opened = yield* vault.sync(replica)
+    yield* mark("vault synced")
     const skipped: Array<SkippedFile> = []
     if (opened.merged.length === 0 && opened.waiting.length === 0) {
       const imported = yield* importGraph.pipe(
@@ -448,7 +461,9 @@ export const openSession = (place: GraphPlace) =>
       yield* record(Effect.succeed(seeded.events))
     }
     yield* record(Effect.flatMap(todaysJournal(graph), graph.load))
+    yield* mark("journal recorded")
     yield* save
+    yield* mark("saved")
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
     yield* Effect.forkScoped(

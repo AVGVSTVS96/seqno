@@ -56,6 +56,44 @@ const savedAtLeast = async (page: Page, graph: string, bytes: number) => {
 
 const since = (started: number) => performance.now() - started
 
+const workerMarks = async (page: Page) => {
+  const heard: Array<string> = []
+  const cdp = await page.context().browser()?.newBrowserCDPSession()
+  if (cdp === undefined) return heard
+  cdp.on("Target.receivedMessageFromTarget", ({ message }) => {
+    const parsed: unknown = JSON.parse(message)
+    const text = JSON.stringify(parsed)
+    const found = /seqno-t [^"]*/.exec(text)
+    if (found !== null) heard.push(found[0])
+    else if (text.includes("exceptionThrown")) heard.push(text.slice(0, 400))
+  })
+  const attach = async (targetId: string) => {
+    const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: false })
+    await cdp.send("Target.sendMessageToTarget", {
+      sessionId,
+      message: JSON.stringify({ id: 1, method: "Runtime.enable" }),
+    })
+  }
+  cdp.on("Target.targetCreated", ({ targetInfo }) => {
+    if (targetInfo.type === "shared_worker") {
+      heard.push(`seqno-t ${Date.now()} new shared worker`)
+      void attach(targetInfo.targetId)
+    }
+  })
+  await cdp.send("Target.setDiscoverTargets", { discover: true })
+  const { targetInfos } = await cdp.send("Target.getTargets")
+  for (const target of targetInfos.filter((info) => info.type === "shared_worker")) {
+    await attach(target.targetId)
+  }
+  return heard
+}
+
+const longTasks = (page: Page) =>
+  page.evaluate(() => {
+    const tasks: unknown = Reflect.get(globalThis, "seqnoLongTasks")
+    return Array.isArray(tasks) ? tasks.map(String) : []
+  })
+
 const searchShowsLastBlock = async (page: Page) => {
   await page.keyboard.press("Escape")
   await page.getByRole("button", { name: "Search", exact: true }).click()
@@ -93,14 +131,52 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     const reloadedWhile = await saveStarted(page, "graph")
     const bytesAtReload = (await indexFile(page, "graph")).bytes
 
+    const heard = await workerMarks(page)
+    await page.addInitScript(() => {
+      const tasks: Array<string> = []
+      Reflect.set(globalThis, "seqnoLongTasks", tasks)
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          tasks.push(
+            `seqno-t ${Math.round(performance.timeOrigin + entry.startTime)} page longtask ${Math.round(entry.duration)}ms`,
+          )
+        }
+      }).observe({ type: "longtask", buffered: true })
+    })
+    const tab: Array<string> = []
+    const tabMark = (label: string) => tab.push(`seqno-t ${Date.now()} tab ${label}`)
+    tabMark("goto")
     const reopening = performance.now()
     await page.goto("/")
     await firstJournal(page)
+    tabMark("first journal")
     const reopenMs = since(reopening)
     const indexBytes = (await indexFile(page, "graph")).bytes
-    await indexedLastBlock(page)
+    tabMark("index file read")
+    await page.keyboard.press("Escape")
+    await page.keyboard.press("g")
+    await page.keyboard.press("a")
+    await page.getByRole("button", { name: "Search pages" }).click()
+    tabMark("all pages shown")
+    await page.getByRole("searchbox", { name: "Search pages" }).fill(lastReference)
+    tabMark("filter typed")
+    await page
+      .getByRole("main")
+      .getByText(lastReference, { exact: true })
+      .first()
+      .waitFor({ timeout: 300_000 })
+    tabMark("quillwort listed")
     const reopenIndexedMs = since(reopening)
     const reopenSearchMs = await searchShowsLastBlock(page)
+    tabMark("search shown")
+    const timeline = [...heard, ...tab, ...(await longTasks(page))]
+      .map((line) => {
+        const [, at = "0", ...rest] = line.split(" ")
+        return [Number(at), rest.join(" ")] as const
+      })
+      .toSorted((a, b) => a[0] - b[0])
+    const zero = timeline.find(([, what]) => what === "tab goto")?.[0] ?? 0
+    console.log(timeline.map(([at, what]) => `${at - zero} ${what}`).join("\n"))
 
     await pickFolder(page, folder, "resumed")
     await page.goto("/graphs")

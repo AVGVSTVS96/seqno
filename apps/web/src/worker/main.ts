@@ -31,4 +31,11 @@ const Server = RpcServer.layer(CoreRpcs.merge(PageRpcs)).pipe(
   Layer.provide(Protocol),
 )
 
+let tick = performance.now()
+setInterval(() => {
+  const now = performance.now()
+  if (now - tick > 150) console.log(`seqno-t ${Date.now()} lag ${Math.round(now - tick - 50)}ms`)
+  tick = now
+}, 50)
+
 BrowserRuntime.runMain(Layer.launch(Server))

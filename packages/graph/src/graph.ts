@@ -245,13 +245,18 @@ const make = (source: GraphSource) =>
     }
 
     const scope = yield* Effect.scope
-    const fill = Effect.suspend(() =>
-      Effect.forEach(
+    const fill = Effect.suspend(() => {
+      console.log(`seqno-t ${Date.now()} graph fill start ${registry.pages.size}`)
+      return Effect.forEach(
         [...registry.pages.keys()],
         (id) => Effect.sync(() => register(id)).pipe(Effect.andThen(Effect.yieldNow)),
         { discard: true },
-      ),
-    ).pipe(Effect.andThen(filled.open), Effect.forkIn(scope))
+      )
+    }).pipe(
+      Effect.andThen(filled.open),
+      Effect.andThen(Effect.sync(() => console.log(`seqno-t ${Date.now()} graph fill end`))),
+      Effect.forkIn(scope),
+    )
     yield* fill
 
     const pages = serial(Effect.sync(() => listed().map(([, page]) => page)))
