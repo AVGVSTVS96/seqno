@@ -26,6 +26,7 @@ import {
 import { minimalChange } from "./edits.ts"
 import type { EditorHost, LinkTarget } from "./host.ts"
 import {
+  acceptOnArrival,
   blockChoices,
   Choice,
   choose,
@@ -165,9 +166,13 @@ const searchPlugin = (blockId: BlockId, host: EditorHost) =>
         Effect.yieldNow.pipe(
           Effect.andThen(choicesFor(popup, blockId, host)),
           Effect.flatMap((choices) =>
-            Effect.sync(() =>
-              view.dispatch({ effects: showResults.of({ kind, from, query, choices }) }),
-            ),
+            Effect.sync(() => {
+              view.dispatch({ effects: showResults.of({ kind, from, query, choices }) })
+              const shown = view.state.field(popupField)
+              if (shown?.accepting === true && shown.searched === shown.query) {
+                accept(view, shown.active)
+              }
+            }),
           ),
         ),
       )
@@ -281,7 +286,10 @@ const move = (delta: number) => (view: EditorView) => {
 
 const acceptActive = (view: EditorView) => {
   const popup = view.state.field(popupField)
-  return popup !== null && accept(view, popup.active)
+  if (popup === null) return false
+  if (popup.searched === popup.query) return accept(view, popup.active)
+  view.dispatch({ effects: acceptOnArrival.of(null) })
+  return true
 }
 
 const targetOf = (choice: Choice): LinkTarget | null =>

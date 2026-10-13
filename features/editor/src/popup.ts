@@ -25,6 +25,7 @@ export interface Popup {
   readonly searched: string | null
   readonly active: number
   readonly pointer: boolean
+  readonly accepting: boolean
 }
 
 export interface Results {
@@ -38,6 +39,7 @@ export const openPopup = StateEffect.define<{ readonly kind: PopupKind; readonly
 export const closePopup = StateEffect.define<null>()
 export const showResults = StateEffect.define<Results>()
 export const choose = StateEffect.define<{ readonly index: number; readonly pointer: boolean }>()
+export const acceptOnArrival = StateEffect.define<null>()
 
 export const triggers: Readonly<Record<PopupKind, string>> = {
   Page: "[[",
@@ -97,6 +99,7 @@ const opened = (state: EditorState, kind: PopupKind, from: number): Popup => {
     searched: local === null ? null : query,
     active: 0,
     pointer: false,
+    accepting: false,
   }
 }
 
@@ -121,6 +124,7 @@ const tracked = (popup: Popup, tr: Transaction): Popup | null => {
     searched: local === null ? popup.searched : query,
     active: 0,
     pointer: false,
+    accepting: false,
   }
 }
 
@@ -152,6 +156,8 @@ const withEffects = (state: EditorState, popup: Popup | null, tr: Transaction) =
       const count = next.choices.length
       const active = ((effect.value.index % count) + count) % count
       next = { ...next, active, pointer: effect.value.pointer }
+    } else if (effect.is(acceptOnArrival) && next !== null) {
+      next = { ...next, accepting: true }
     }
   }
   return next

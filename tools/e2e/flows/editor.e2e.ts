@@ -1,3 +1,4 @@
+import type { Locator, Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { expect, restOfToday, test } from "../src/test.ts"
 
@@ -113,14 +114,73 @@ test("/Scheduled picks a date in a calendar, and an empty block gets a warning",
   await expect(page.getByRole("dialog", { name: "Deadline date" })).toHaveCount(0)
 })
 
-test("[[ suggests pages and completes the reference", async ({ page, seqno }) => {
-  await page.keyboard.type(" [[Get")
-  const popup = page.getByRole("listbox", { name: "Search for a page" })
-  await expect(popup.getByRole("option", { selected: true })).toHaveText("Getting started")
-  await page.keyboard.press("Enter")
-  await expect(seqno.editor).toHaveText(`${welcome} [[Getting started]]`)
+const linked = `${welcome} [[Getting started]]`
+
+const typeLink = (page: Page) => page.keyboard.type(" [[Get")
+
+const closings: ReadonlyArray<readonly [string, (page: Page) => Promise<void>]> = [
+  [
+    "Enter on the suggestion",
+    async (page) => {
+      await typeLink(page)
+      await expect(page.getByRole("option", { selected: true })).toHaveText("Getting started")
+      await page.keyboard.press("Enter")
+    },
+  ],
+  [
+    "a click on the suggestion",
+    async (page) => {
+      await typeLink(page)
+      await page.getByRole("option", { name: "Getting started" }).click()
+    },
+  ],
+  ["typing ]]", (page) => page.keyboard.type(" [[Getting started]]")],
+  [
+    "Enter before the suggestions catch up",
+    async (page) => {
+      await page.keyboard.type(" [[Getting started")
+      await page.keyboard.press("Enter")
+    },
+  ],
+]
+
+const clickPastEnd = async (line: Locator) => {
+  const box = await line.boundingBox()
+  await line.click({ position: { x: (box?.width ?? 2) - 2, y: (box?.height ?? 2) / 2 } })
+}
+
+for (const [closing, close] of closings) {
+  test(`a link closed by ${closing} takes typing after it from End, Mod+Right and a click past the line`, async ({
+    page,
+    seqno,
+  }) => {
+    await close(page)
+    await expect(seqno.editor).toHaveText(linked)
+    await expect(page.getByRole("listbox", { name: "Search for a page" })).toHaveCount(0)
+    await page.keyboard.press("End")
+    await page.keyboard.type("1")
+    await page.keyboard.press("ControlOrMeta+ArrowRight")
+    await page.keyboard.type("2")
+    await clickPastEnd(seqno.editor.locator(".cm-line").last())
+    await page.keyboard.type("3")
+    await expect(seqno.editor).toHaveText(`${linked}123`)
+  })
+}
+
+test("clicking past the end of a block that ends in a link puts the caret after the link", async ({
+  page,
+  seqno,
+}) => {
+  await page.keyboard.type(" [[Getting started]]")
+  await page.keyboard.press("Escape")
+  const content = seqno.today
+    .getByRole("treeitem")
+    .filter({ hasText: welcome })
+    .locator(".seqno-content")
+  await expect(content.getByRole("link", { name: "Getting started" })).toBeVisible()
+  await clickPastEnd(content)
   await page.keyboard.type("!")
-  await expect(seqno.editor).toHaveText(`${welcome} [[Getting started]]!`)
+  await expect(seqno.editor).toHaveText(`${linked}!`)
 })
 
 test("Mod+Enter rotates the task marker", async ({ page, seqno }) => {

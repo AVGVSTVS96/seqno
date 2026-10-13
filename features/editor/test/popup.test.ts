@@ -172,6 +172,15 @@ describe("page search", () => {
     )
   })
 
+  it("waits for the typed text's results when Enter comes before them", async () => {
+    const { view, popups } = mount("see ", { _tag: "End" })
+    typeKeys(view, "[[proj")
+    assert.strictEqual(press(view, "Enter"), true)
+    assert.deepStrictEqual([text(view), labels(popups)], ["see [[proj]]", relativeDates])
+    await vi.waitFor(() => assert.strictEqual(text(view), "see [[Projects]]"))
+    assert.deepStrictEqual([caret(view), popupOf(popups)], [16, null])
+  })
+
   it("puts the new page first when no page starts with the text, and drops it on an exact match", async () => {
     const plan = mount("", { _tag: "End" })
     typeKeys(plan.view, "[[plan")
