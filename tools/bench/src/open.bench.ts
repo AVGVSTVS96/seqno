@@ -60,6 +60,15 @@ const savedAtLeast = async (page: Page, graph: string, bytes: number) => {
   }
 }
 
+const sharedWorkers = async (page: Page) => {
+  const cdp = await page.context().newCDPSession(page)
+  const { targetInfos } = await cdp.send("Target.getTargets")
+  await cdp.detach()
+  return targetInfos
+    .filter((target) => target.type === "shared_worker")
+    .map((target) => target.targetId)
+}
+
 const since = (started: number) => performance.now() - started
 
 test(`${years} years of journals open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
@@ -81,11 +90,20 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     const fillMs = since(opening)
     const reloadedWhile = await saveStarted(page, "graph")
     const bytesAtReload = (await indexFile(page, "graph")).bytes
+    const workersBefore = await sharedWorkers(page)
 
     const reopening = performance.now()
     await page.reload()
     await firstJournal(page)
     const reopenMs = since(reopening)
+    const workersAfter = await sharedWorkers(page)
+    console.log(
+      JSON.stringify({
+        chrome: page.context().browser()?.version(),
+        workersBefore,
+        workersAfter,
+      }),
+    )
     const indexBytes = (await indexFile(page, "graph")).bytes
     await searchFindsLastBlock(page)
     const reopenSearchMs = since(reopening)
