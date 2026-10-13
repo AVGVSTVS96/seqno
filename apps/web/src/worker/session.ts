@@ -262,12 +262,21 @@ export const openSession = (place: GraphPlace) =>
 
     const loaded = Effect.gen(function* () {
       const [image, ms] = yield* timed(place.indexFile.read)
+      yield* Effect.logInfo(
+        `seqno-index read ${Option.map(image, (bytes) => bytes.length)} in ${ms}`,
+      )
       if (Option.isNone(image)) return false
       return yield* indexing.withPermits(1)(
         Effect.gen(function* () {
           const stamp = Option.flatMap(yield* index.load(image.value), decodeIndexStamp)
+          yield* Effect.logInfo(
+            `seqno-index stamp ${JSON.stringify(stamp)} now ${JSON.stringify([...(yield* graph.version)])}`,
+          )
           if (Option.isNone(stamp)) return false
           const changed = yield* graph.changedSince(new Map(Object.entries(stamp.value.version)))
+          yield* Effect.logInfo(
+            `seqno-index changed ${Option.map(changed, (c) => [c.pages.size, c.blocks.size])}`,
+          )
           if (Option.isNone(changed)) return false
           const pages = new Set([
             ...changed.value.pages,
@@ -327,6 +336,7 @@ export const openSession = (place: GraphPlace) =>
       let pages = yield* owed
       while (pages.length > 0) {
         const count = pages.length
+        yield* Effect.logInfo(`seqno-index pass ${count} ${pages.slice(0, 3).join(",")}`)
         const long = Option.match(Option.all([costs.pageMs, costs.saveMs]), {
           onNone: () => true,
           onSome: ([pageMs, saveMs]) => count * pageMs > saveMs,
