@@ -91,51 +91,6 @@ const workerMarks = async (page: Page) => {
   return heard
 }
 
-interface ProfileNode {
-  readonly id: number
-  readonly callFrame: {
-    readonly functionName: string
-    readonly url: string
-    readonly lineNumber: number
-  }
-  readonly hitCount?: number
-  readonly children?: ReadonlyArray<number>
-}
-
-const top = (map: Map<string, number>) =>
-  [...map]
-    .toSorted((a, b) => b[1] - a[1])
-    .slice(0, 45)
-    .map(([name, value]) => `${Math.round(value)}ms ${name}`)
-    .join("\n")
-
-const summarize = (nodes: ReadonlyArray<ProfileNode>, ms: number) => {
-  const hits = nodes.reduce((sum, node) => sum + (node.hitCount ?? 0), 0)
-  const perHit = ms / Math.max(1, hits)
-  const byId = new Map(nodes.map((node) => [node.id, node]))
-  const label = (node: ProfileNode) =>
-    `${node.callFrame.functionName || "(anon)"} ${node.callFrame.url.split("/").pop()}:${node.callFrame.lineNumber}`
-  const self = new Map<string, number>()
-  const total = new Map<string, number>()
-  const totalOf = (node: ProfileNode, above: ReadonlySet<string>): number => {
-    const own = (node.hitCount ?? 0) * perHit
-    const name = label(node)
-    self.set(name, (self.get(name) ?? 0) + own)
-    const inner = new Set(above).add(name)
-    const sum =
-      own +
-      (node.children ?? []).reduce((acc, id) => {
-        const child = byId.get(id)
-        return child === undefined ? acc : acc + totalOf(child, inner)
-      }, 0)
-    if (!above.has(name)) total.set(name, (total.get(name) ?? 0) + sum)
-    return sum
-  }
-  const root = nodes[0]
-  if (root !== undefined) totalOf(root, new Set())
-  return `self:\n${top(self)}\ntotal:\n${top(total)}`
-}
-
 const longTasks = (page: Page) =>
   page.evaluate(() => {
     const tasks: unknown = Reflect.get(globalThis, "seqnoLongTasks")
@@ -201,10 +156,6 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     const reopenMs = since(reopening)
     const indexBytes = (await indexFile(page, "graph")).bytes
     tabMark("index file read")
-    const profiler = await page.context().newCDPSession(page)
-    await profiler.send("Profiler.enable")
-    await profiler.send("Profiler.start")
-    const profiling = performance.now()
     await page.keyboard.press("Escape")
     await page.keyboard.press("g")
     await page.keyboard.press("a")
@@ -218,8 +169,6 @@ test(`${years} years of journals open from their snapshot, reopen from the index
       .first()
       .waitFor({ timeout: 300_000 })
     tabMark("quillwort listed")
-    const { profile } = await profiler.send("Profiler.stop")
-    console.log(summarize(profile.nodes, since(profiling)))
     const reopenIndexedMs = since(reopening)
     const reopenSearchMs = await searchShowsLastBlock(page)
     tabMark("search shown")
