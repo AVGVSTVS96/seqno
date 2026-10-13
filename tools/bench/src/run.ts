@@ -23,6 +23,7 @@ const budgets = {
   bulkMs: 2000,
   reopenIndexMs: 100,
   pagesOpenMs: 300,
+  pagesBlockMs: 2000,
 }
 const OPENS = 3
 const KEYSTROKES = 300
@@ -218,7 +219,7 @@ const main = Effect.gen(function* () {
     {
       what: `${YEARS} years, a tree per page: then the long page's last block, by id and page (median)`,
       ms: median(pagesOpens.map(({ blockMs }) => blockMs)),
-      budget: null,
+      budget: budgets.pagesBlockMs,
     },
     { what: `${YEARS} years, a tree per page: write them`, ms: yearsMs, budget: null },
   ]

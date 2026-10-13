@@ -226,6 +226,16 @@ On the 10-year graph a cursor resolves in 0.06 ms while its character exists and
 
 **Numbers.** Headless Chrome 154 on `cloud`, ten years of journals (150k blocks): the first open fills the index in 74 s and saves it 0.4 s later; reloading finds the last page in search after 4.2 s instead of 70.5 s. At 30 years (390k blocks) the first fill takes 4 minutes and the index is 185 MB; reloading finds the last page after 10.3 s instead of 229.5 s. In Node, loading the 50k-block graph's image and catching up after 300 keystrokes takes 9.5 ms, against 9.4 s for the fill. The 50 real-graph simulator seeds, 50 seeds of the real vault and 50 of the stand-in all converged after the change.
 
+## A block is looked up on the page the index has it on
+
+**Decision.** `Graph.block` takes the block's page as well as its id. A block id leads to a block only once the graph has read the block's page: one-tree keeps a registry from block id to tree node, tree-per-page a map from block id to its home node. Given a page it hasn't read, the graph reads that page first (one-tree walks the page's block ids, tree-per-page reads the page's tree), then finds the block. The worker gets each block's page from the index (`blocks.page`), in one query for every lookup: search, block references, queries, ancestors, `GetBlock`, and the reference edits of renames and merges. A block whose page has no such block any more (moved since the index saw it), or one the index doesn't have, waits for the graph's background walk of every page, outside the graph's lock.
+
+**Why.** A fill reads every page through `pageEvents`, so it registers every block as it goes. A reopen from the saved index reads no pages, so a block on a page nobody had opened waited for the background walk, about 30 s at ten years in Chrome, and held the graph's lock while it waited, so typing and opening pages waited too. The index already knows every block's page, and reading one page is what opening it costs.
+
+**Cost.** One indexed lookup per batch of blocks, and the first lookup on a page that hasn't been read pays for reading that page: about 1 s for the 20k-block long page on a CI runner, a few milliseconds for a journal.
+
+**Numbers.** CI, ten years in headless Chrome, reopened from the saved index: search shows the long page's last block in 1.1 s, down from 32 to 34 s. In Node, the long page's last block right after the open: one-tree 2,578 ms to 329 ms, tree-per-page 6,724 ms to 857 ms.
+
 ## Opening imports the newest snapshot without decoding it first
 
 **Decision.** When the graph is still empty, the vault imports the newest snapshot straight away. It picks it by the versions the `seen` files already list, and takes the snapshot's version from the graph right after the import (before the graph merges same-named pages, which commits ops of its own). Older snapshots it covers are checked on the next pass, as every snapshot still is. A snapshot no `seen` file lists is tried after the listed ones, and who wrote it comes from its name's hash, as before.
