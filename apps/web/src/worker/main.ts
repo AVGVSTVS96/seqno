@@ -1,5 +1,5 @@
 import { BrowserCrypto, BrowserRuntime, BrowserWorkerRunner } from "@effect/platform-browser"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Scheduler } from "effect"
 import { RpcServer } from "effect/rpc"
 import { initSync } from "loro-crdt/web/loro_wasm.js"
 import loroWasm from "loro-crdt/web/loro_wasm_bg.wasm?url"
@@ -46,4 +46,25 @@ setInterval(() => {
   tick = now
 }, 50)
 
-BrowserRuntime.runMain(Layer.launch(Server))
+const channel = new MessageChannel()
+const queued: Array<() => void> = []
+channel.port1.addEventListener("message", () => queued.shift()?.())
+channel.port1.start()
+
+// Timers nested past five levels wait at least 4 ms each: https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps
+const nextTask = (task: () => void) => {
+  let live = true
+  queued.push(() => {
+    if (live) task()
+  })
+  channel.port2.postMessage(null)
+  return () => {
+    live = false
+  }
+}
+
+BrowserRuntime.runMain(
+  Layer.launch(Server).pipe(
+    Effect.provideService(Scheduler.Scheduler, new Scheduler.MixedScheduler("async", nextTask)),
+  ),
+)
