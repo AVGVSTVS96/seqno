@@ -63,12 +63,13 @@ export const loadYears = (graph: Graph["Service"], { years, until, longPage }: Y
       firstJournalDay: dayOf(first),
     })
     const [config, ...files] = toLogseqFiles(generated)
-    const all = longPage > 0 ? [...files, ...longPageFiles(longPage)] : files
-    for (let at = 0; at < all.length; at += filesPerLoad) {
-      const chunk = all.slice(at, at + filesPerLoad)
-      const imported = yield* importFiles(config === undefined ? chunk : [config, ...chunk])
+    const withConfig = (chunk: typeof files) => (config === undefined ? chunk : [config, ...chunk])
+    for (let at = 0; at < files.length; at += filesPerLoad) {
+      const imported = yield* importFiles(withConfig(files.slice(at, at + filesPerLoad)))
       yield* graph.load(imported.pages)
     }
+    if (longPage > 0)
+      yield* graph.load((yield* importFiles(withConfig(longPageFiles(longPage)))).pages)
     return {
       days,
       pages: generated.pages.length + (longPage > 0 ? 1 : 0),

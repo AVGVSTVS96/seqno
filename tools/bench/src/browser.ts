@@ -4,8 +4,6 @@ import { createServer } from "node:http"
 import { join, relative } from "node:path"
 import type { Page } from "@playwright/test"
 
-const picked = ["seqno-bench-picked", "graph"]
-
 const serveFolder = async (from: string, files: ReadonlyArray<string>) => {
   const server = createServer((request, response) => {
     const file = files[Number(request.url?.slice(1))]
@@ -22,7 +20,8 @@ const serveFolder = async (from: string, files: ReadonlyArray<string>) => {
   }
 }
 
-export const pickFolder = async (page: Page, from: string) => {
+export const pickFolder = async (page: Page, from: string, graph = "graph") => {
+  const picked = ["seqno-bench-picked", graph]
   const files = (await readdir(from, { recursive: true, withFileTypes: true }))
     .filter((entry) => entry.isFile())
     .map((entry) => relative(from, join(entry.parentPath, entry.name)))

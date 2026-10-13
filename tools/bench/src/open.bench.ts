@@ -9,7 +9,7 @@ import { lastBlock } from "./years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
-const budgets = { openMs: 5_000, reopenMs: 5_000, reopenSearchMs: 5_000 }
+const budgets = { openMs: 5_000, reopenMs: 5_000, reopenSearchMs: 5_000, resumeSlackMs: 10_000 }
 
 const firstJournal = (page: Page) =>
   page.locator(".seqno-journal [role=treeitem]").first().waitFor()
@@ -30,41 +30,36 @@ const searchFindsLastBlock = async (page: Page) => {
   await page.keyboard.press("Escape")
 }
 
-const savedIndexBytes = (page: Page) =>
-  page.evaluate(async () => {
+const indexFile = (page: Page, graph: string) =>
+  page.evaluate(async (name) => {
     const root = await navigator.storage.getDirectory()
     const indexes = await root.getDirectoryHandle("indexes").catch(() => undefined)
-    if (indexes === undefined) return 0
-    for await (const handle of indexes.values()) {
-      if (handle.kind === "file" && handle.name.endsWith(".sqlite")) {
-        return (await handle.getFile()).size
-      }
+    const names: Array<string> = []
+    if (indexes !== undefined) for await (const entry of indexes.keys()) names.push(entry)
+    const file = await indexes?.getFileHandle(`${name}.sqlite`).catch(() => undefined)
+    return {
+      writing: names.includes(`${name}.sqlite.crswap`),
+      bytes: file === undefined ? 0 : (await file.getFile()).size,
     }
-    return 0
-  })
+  }, graph)
 
-const indexSave = (page: Page) =>
-  page.evaluate(async () => {
-    const root = await navigator.storage.getDirectory()
-    const indexes = await root.getDirectoryHandle("indexes").catch(() => undefined)
-    if (indexes === undefined) return "none"
-    for await (const handle of indexes.values()) {
-      if (handle.name.endsWith(".sqlite.crswap")) return "writing"
-      if (handle.kind === "file" && (await handle.getFile()).size > 0) return "written"
-    }
-    return "none"
-  })
-
-const saveStarted = async (page: Page) => {
+const saveStarted = async (page: Page, graph: string) => {
   for (;;) {
-    const state = await indexSave(page)
-    if (state !== "none") return state
+    const { writing, bytes } = await indexFile(page, graph)
+    if (writing) return "writing"
+    if (bytes > 0) return "written"
+  }
+}
+
+const savedAtLeast = async (page: Page, graph: string, bytes: number) => {
+  for (;;) {
+    if ((await indexFile(page, graph)).bytes >= bytes) return
   }
 }
 
 const since = (started: number) => performance.now() - started
 
-test(`${years} years of journals open from their snapshot, and a reload while the index saves reopens from that save`, async ({
+test(`${years} years of journals open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
   page,
 }) => {
   const given = process.env["SEQNO_BENCH_FOLDER"]
@@ -79,37 +74,61 @@ test(`${years} years of journals open from their snapshot, and a reload while th
     await page.getByRole("button", { name: "Open a folder" }).first().click()
     await firstJournal(page)
     const openMs = since(opening)
-    const reloadedWhile = await saveStarted(page)
-    const savingMs = since(opening)
+    await searchFindsLastBlock(page)
+    const fillMs = since(opening)
+    const reloadedWhile = await saveStarted(page, "graph")
 
     const reopening = performance.now()
     await page.reload()
     await firstJournal(page)
     const reopenMs = since(reopening)
-    const indexMb = (await savedIndexBytes(page)) / 1e6
+    const indexBytes = (await indexFile(page, "graph")).bytes
     await searchFindsLastBlock(page)
     const reopenSearchMs = since(reopening)
 
+    await pickFolder(page, folder, "resumed")
+    await page.goto("/graphs")
+    const resuming = performance.now()
+    await page.getByRole("button", { name: "Open a folder" }).first().click()
+    await firstJournal(page)
+    await savedAtLeast(page, "resumed", indexBytes / 4)
+    const cutAtMs = since(resuming)
+    const resumed = performance.now()
+    await page.reload()
+    await firstJournal(page)
+    await searchFindsLastBlock(page)
+    const restMs = since(resumed)
+
     const rows = [
       { what: "open: first journal on screen", value: openMs, budget: budgets.openMs },
+      { what: "open: search finds the last block filled", value: fillMs, budget: null },
       {
-        what: `open: filled, index save ${reloadedWhile} at reload`,
-        value: savingMs,
-        budget: null,
+        what: `reopen after a reload while the save was ${reloadedWhile}: first journal`,
+        value: reopenMs,
+        budget: budgets.reopenMs,
       },
-      { what: "reopen: first journal on screen", value: reopenMs, budget: budgets.reopenMs },
-      { what: "reopen: index file MB the closed tab saved", value: indexMb, budget: null },
+      { what: "reopen: index file MB the closed tab saved", value: indexBytes / 1e6, budget: null },
       {
         what: "reopen: search finds the last block",
         value: reopenSearchMs,
         budget: budgets.reopenSearchMs,
+      },
+      {
+        what: "second fill: reloaded once a quarter of the index was saved",
+        value: cutAtMs,
+        budget: null,
+      },
+      {
+        what: "second fill: the rest, after the reload",
+        value: restMs,
+        budget: fillMs - cutAtMs + budgets.resumeSlackMs,
       },
     ]
     console.table(rows.map((row) => ({ ...row, value: Math.round(row.value * 10) / 10 })))
     expect(
       rows.filter((row) => row.budget !== null && row.value > row.budget).map((row) => row.what),
     ).toEqual([])
-    expect(indexMb).toBeGreaterThan(0)
+    expect([indexBytes > 0, cutAtMs < fillMs]).toEqual([true, true])
   } finally {
     if (given === undefined) await rm(folder, { recursive: true })
   }
