@@ -452,6 +452,12 @@
   color: var(--fg);
 }
 
+.seqno-table .seqno-table-gap td {
+  height: auto;
+  padding: 0;
+  border: 0;
+}
+
 .seqno-table .seqno-table-gutter,
 .seqno-table .seqno-table-rest {
   border-right: 0;

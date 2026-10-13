@@ -11,6 +11,7 @@ import {
 import { AsyncResult } from "effect/reactivity"
 import { useState } from "react"
 import { normalizePageName } from "@seqno/domain"
+import { viewportOf, type Viewport } from "@seqno/outliner"
 import type { PageStat } from "@seqno/rpc"
 import { allPages } from "../../atoms.ts"
 import { PagesStyle } from "../PageView.tsx"
@@ -27,6 +28,10 @@ const columns: ReadonlyArray<readonly [SortColumn | "tags", string]> = [
 ]
 
 const noStats: ReadonlyArray<PageStat> = []
+
+const overscan = 1200
+const edgeMargin = "600px 0px"
+const unmeasured = 33
 
 const Filter = ({
   text,
@@ -83,6 +88,61 @@ export const AllPages = () => {
     filter: filter ?? "",
     journals,
   })
+  const [viewport, setViewport] = useState<Viewport>(() => ({
+    top: 0,
+    bottom: window.innerHeight,
+  }))
+  const [rowHeight, setRowHeight] = useState(unmeasured)
+  const [rowObserver] = useState(
+    () =>
+      new ResizeObserver((entries) => {
+        const size = entries[0]?.borderBoxSize[0]?.blockSize
+        if (size !== undefined && size > 0) setRowHeight(size)
+      }),
+  )
+  const [edgeObserver] = useState(
+    () =>
+      new IntersectionObserver(
+        (entries, observer) => {
+          const edges = entries.filter(({ target }) => target.isConnected)
+          const body = edges[0]?.target.parentElement ?? null
+          setViewport((current) => viewportOf(body, current))
+          for (const { target, isIntersecting } of edges) {
+            if (!isIntersecting) continue
+            observer.unobserve(target)
+            observer.observe(target)
+          }
+        },
+        { rootMargin: edgeMargin, scrollMargin: edgeMargin },
+      ),
+  )
+  const measure = (row: HTMLTableRowElement | null) => {
+    if (row === null) return
+    rowObserver.observe(row)
+    return () => rowObserver.unobserve(row)
+  }
+  const watchEdge = (row: HTMLTableRowElement | null) => {
+    if (row === null) return
+    edgeObserver.observe(row)
+    return () => edgeObserver.unobserve(row)
+  }
+  const from = Math.min(rows.length, Math.max(0, Math.floor((viewport.top - overscan) / rowHeight)))
+  const to = Math.min(
+    rows.length,
+    Math.max(from, Math.ceil((viewport.bottom + overscan) / rowHeight)),
+  )
+  const gap = (key: string, count: number) =>
+    count === 0 ? null : (
+      <tr
+        key={key}
+        ref={watchEdge}
+        className="seqno-table-gap"
+        aria-hidden
+        style={{ height: count * rowHeight }}
+      >
+        <td colSpan={columns.length + 2} />
+      </tr>
+    )
   const sortBy = (column: SortColumn) =>
     setSort({
       column,
@@ -151,8 +211,9 @@ export const AllPages = () => {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ page, backlinks, created, updated }) => (
-              <tr key={page.name}>
+            {gap("gap-start", from)}
+            {rows.slice(from, to).map(({ page, backlinks, created, updated }, at) => (
+              <tr key={page.name} ref={at === 0 ? measure : undefined}>
                 <td className="seqno-table-gutter" />
                 <td>
                   <PageLink page={page} className="seqno-table-page" />
@@ -174,6 +235,7 @@ export const AllPages = () => {
                 <td className="seqno-table-rest" />
               </tr>
             ))}
+            {gap("gap-end", rows.length - to)}
           </tbody>
         </table>
       </div>
