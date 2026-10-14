@@ -193,6 +193,26 @@ export const memory = async (page: Page) => {
   }
 }
 
+export const shown = (
+  page: Page,
+  selector: string,
+  text?: { readonly is: string } | { readonly has: string },
+) =>
+  page.waitForFunction(
+    (wanted) =>
+      [...document.querySelectorAll(wanted.selector)].some((element) => {
+        const content = element.textContent ?? ""
+        const matches =
+          wanted.text === undefined ||
+          ("is" in wanted.text ? content === wanted.text.is : content.includes(wanted.text.has))
+        return matches && element.checkVisibility()
+      }),
+    { selector, text },
+    { polling: "raf", timeout: 300_000 },
+  )
+
+export const firstJournal = (page: Page) => shown(page, ".seqno-journal [role=treeitem]")
+
 export const jump = (page: Page, fraction: number) =>
   page.evaluate(async (to) => {
     const scroller = document.querySelector(".main-content-container")

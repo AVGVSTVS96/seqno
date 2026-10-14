@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, test } from "@playwright/test"
 import { Effect } from "effect"
-import { jump, memory, pickFolder, scrollFrames } from "./browser.ts"
+import { firstJournal, jump, memory, pickFolder, scrollFrames } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
@@ -22,7 +22,7 @@ test(`${years} years of journals open, and the journals and a ${longPage}-block 
     await page.goto("/")
     const started = performance.now()
     await page.getByRole("button", { name: "Open a folder" }).first().click()
-    await page.locator(".seqno-journal [role=treeitem]").first().waitFor()
+    await firstJournal(page)
     const openMs = performance.now() - started
     const opened = await memory(page)
     const journals = await scrollFrames(page, pxPerFrame, frames)

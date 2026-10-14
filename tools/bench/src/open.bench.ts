@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, test, type Page } from "@playwright/test"
 import { Effect } from "effect"
-import { jump, keepInBrowser } from "./browser.ts"
+import { firstJournal, jump, keepInBrowser, shown } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
 import { lastReference, lastWords } from "./years.ts"
 
@@ -17,20 +17,13 @@ const budgets = {
   reopenSearchMs: 2_000,
 }
 
-const firstJournal = (page: Page) =>
-  page.locator(".seqno-journal [role=treeitem]").first().waitFor()
-
 const indexedLastBlock = async (page: Page) => {
   await page.keyboard.press("Escape")
   await page.keyboard.press("g")
   await page.keyboard.press("a")
   await page.getByRole("button", { name: "Search pages" }).click()
   await page.getByRole("searchbox", { name: "Search pages" }).fill(lastReference)
-  await page
-    .getByRole("main")
-    .getByText(lastReference, { exact: true })
-    .first()
-    .waitFor({ timeout: 300_000 })
+  await shown(page, "main .seqno-table-page", { is: lastReference })
 }
 
 const indexFile = (page: Page, graph: string) =>
@@ -69,11 +62,7 @@ const searchShowsLastBlock = async (page: Page) => {
   await page
     .getByRole("searchbox", { name: "Search", exact: true })
     .fill(`${lastWords} ${lastReference}`)
-  await page
-    .locator("[role=option][data-kind=Block]")
-    .filter({ hasText: lastWords })
-    .first()
-    .waitFor({ timeout: 300_000 })
+  await shown(page, "[role=option][data-kind=Block]", { has: lastWords })
   const ms = since(searching)
   await page.keyboard.press("Escape")
   return ms
