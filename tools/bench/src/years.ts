@@ -1,4 +1,5 @@
 import { Effect, Layer } from "effect"
+import { PageId } from "@seqno/domain"
 import { generateGraph, toLogseqFiles } from "@seqno/fixtures"
 import type { Graph, journalsByDay } from "@seqno/graph"
 import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
@@ -55,6 +56,14 @@ export const longPageFiles = (blocks: number) => {
     .map((file) => ({ ...file, content: `${file.content.trimEnd()}\n- ${lastBlock}\n` }))
 }
 
+const longPageId = PageId.make("ffffffff-ffff-7fff-bfff-ffffffffffff")
+
+const lastById: typeof journalsByDay = (pages) =>
+  pages.map(({ page, blocks }) => ({
+    page: { ...page, id: longPageId },
+    blocks: blocks.map((block) => ({ ...block, pageId: longPageId })),
+  }))
+
 export const loadYears = (
   graph: Graph["Service"],
   { years, until, longPage }: Years,
@@ -77,7 +86,7 @@ export const loadYears = (
       yield* graph.load(incoming(imported.pages))
     }
     if (longPage > 0)
-      yield* graph.load((yield* importFiles(withConfig(longPageFiles(longPage)))).pages)
+      yield* graph.load(lastById((yield* importFiles(withConfig(longPageFiles(longPage)))).pages))
     return {
       days,
       pages: generated.pages.length + (longPage > 0 ? 1 : 0),
