@@ -23,8 +23,8 @@ import { readBlock } from "../tree.ts"
 import { changedSince } from "./changes.ts"
 import { applyCommand, mergeTargetOf, outliner, type Lookup, type Workspace } from "./commands.ts"
 import { collectChanges, emptyKnown, emptyPending, remember, translate } from "./events.ts"
-import { parseKey } from "./layout.ts"
-import { locate, makeTrees, readView } from "./outline.ts"
+import { parseKey, spotOf } from "./layout.ts"
+import { locate, makeTrees, pageTrees, readView } from "./outline.ts"
 import { movedHomes, repairCycles, repairNames, spotsOf } from "./repair.ts"
 import { writePage } from "./write.ts"
 
@@ -118,6 +118,17 @@ const make = (source: GraphSource) =>
       if (!loaded.has(id) && trees.listing().live.has(id)) readPage(id)
     }
 
+    const seek = (id: BlockId, page: PageId) => {
+      if (loaded.has(page) || !trees.listing().live.has(page)) return
+      for (const own of pageTrees(trees, page)) {
+        for (const node of trees.tree(own).getNodes()) {
+          const spot = spotOf(own, node)
+          if (Option.contains(trees.facts(spot).id, id)) return void known.homes.set(id, spot.key)
+        }
+      }
+      readPage(page)
+    }
+
     const scope = yield* Effect.scope
     const fill = Effect.suspend(() =>
       Effect.forEach(
@@ -168,7 +179,7 @@ const make = (source: GraphSource) =>
     const block = (id: BlockId, on?: PageId) =>
       serial(
         Effect.suspend(() => {
-          if (on !== undefined && !known.homes.has(id)) register(on)
+          if (on !== undefined && !known.homes.has(id)) seek(id, on)
           return findBlock(id)
         }),
       ).pipe(
