@@ -748,6 +748,22 @@ describe("the core worker on the real graph, vault and index", () => {
       }),
   )
 
+  it.effect("an empty folder opens with today's journal and nothing else", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(new Date(2026, 9, 13, 12).getTime())
+      const root = yield* emptyFolder
+      const titles = Effect.scoped(
+        Effect.gen(function* () {
+          const core = yield* coreOn(root)
+          yield* core.OpenGraph({ graph: "og" })
+          return (yield* core.GetPages()).map((page) => [page.title, page.journalDay])
+        }),
+      )
+      assert.deepStrictEqual(yield* titles, [["Oct 13th, 2026", 20261013]])
+      assert.deepStrictEqual(yield* titles, [["Oct 13th, 2026", 20261013]])
+    }),
+  )
+
   it.effect(
     "a page made by hand with a journal date for a title is that day's journal, and today's once the day comes",
     () =>

@@ -482,7 +482,10 @@ const make = (source: GraphSource) =>
                 doc.setPeerId(BigInt(source.peer))
               }
             })
-            return { events: yield* settled, update: Option.some(update) }
+            return {
+              events: yield* settled,
+              update: Option.liftPredicate(update, (written) => written.end > 0),
+            }
           }),
         )
       })
