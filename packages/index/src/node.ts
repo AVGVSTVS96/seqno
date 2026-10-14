@@ -26,6 +26,8 @@ const driverOf = (db: DatabaseSync): Driver => {
         scratch.close()
       }
       cache.clear()
+      db.close()
+      db.open()
       db.deserialize(image)
     },
   }
