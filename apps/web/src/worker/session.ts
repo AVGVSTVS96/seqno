@@ -7,7 +7,6 @@ import {
   Latch,
   Layer,
   Option,
-  Schedule,
   Schema,
   Semaphore,
   Stream,
@@ -258,6 +257,7 @@ export const openSession = (place: GraphPlace) =>
       Effect.map(graph.pages, (pages) => pages.filter((page) => ids.has(page.id)))
 
     const indexed = yield* Latch.make(true)
+    const opened = yield* Latch.make(false)
     const scope = yield* Effect.scope
 
     const loaded = Effect.gen(function* () {
@@ -358,7 +358,9 @@ export const openSession = (place: GraphPlace) =>
       ),
       Effect.forkIn(
         Effect.andThen(
-          Effect.flatMap(loaded, (caught) => (caught ? Effect.void : started)),
+          Effect.flatMap(Effect.andThen(opened.await, loaded), (caught) =>
+            caught ? Effect.void : started,
+          ),
           writeOwed,
         ).pipe(
           logged,
@@ -408,9 +410,9 @@ export const openSession = (place: GraphPlace) =>
       }
     })
 
-    const opened = yield* vault.sync(replica)
+    const synced = yield* vault.sync(replica)
     const skipped: Array<SkippedFile> = []
-    if (opened.merged.length === 0 && opened.waiting.length === 0) {
+    if (synced.merged.length === 0 && synced.waiting.length === 0) {
       const imported = yield* importGraph.pipe(
         Effect.provide(Layer.merge(layerFolder(place.storage), LogseqSyntaxLive)),
       )
@@ -428,7 +430,7 @@ export const openSession = (place: GraphPlace) =>
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
     yield* Effect.forkScoped(
-      Effect.repeat(logged(vault.sync(replica)), Schedule.spaced("5 seconds")),
+      Effect.forever(Effect.andThen(Effect.sleep("5 seconds"), logged(vault.sync(replica)))),
     )
     yield* Effect.forkScoped(
       Effect.forever(
@@ -452,5 +454,6 @@ export const openSession = (place: GraphPlace) =>
       indexed: indexed.await,
       closing: saveIndexNow,
     }
+    yield* opened.open
     return session
   })

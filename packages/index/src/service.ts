@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, Schema, Semaphore, Stream } from "effect"
+import { Array as Arr, Context, Effect, Layer, Option, Schema, Semaphore, Stream } from "effect"
 import { Reactivity } from "effect/reactivity"
 import { BlockId, GraphEvent, PageId, normalizePageName, type Page } from "@seqno/domain"
 import { titleIn } from "./facets.ts"
@@ -65,6 +65,7 @@ export interface PagesGraph {
 }
 
 const REBUILD_BATCH = 2_000
+const NAMES_PER_WRITE = 250
 
 const decodeBlockHit = Schema.decodeUnknownSync(BlockHit)
 const decodePageHit = Schema.decodeUnknownSync(PageHit)
@@ -383,12 +384,23 @@ const make = Effect.gen(function* () {
 
   const referencedPages = sqlite.use(referencedOf)
 
+  const inWrites = <A>(items: ReadonlyArray<A>, write: (db: Statements, step: Array<A>) => void) =>
+    Effect.forEach(
+      Arr.chunksOf(items, NAMES_PER_WRITE),
+      (step) =>
+        Effect.andThen(
+          Effect.yieldNow,
+          sqlite.transaction((db) => write(db, step)),
+        ),
+      { discard: true },
+    )
+
   const naming = <E, R>(
     pages: Effect.Effect<ReadonlyArray<Page>, E, R>,
-    write: (db: Statements, pages: ReadonlyArray<Page>) => void,
+    write: (read: ReadonlyArray<Page>) => Effect.Effect<void, IndexError>,
   ) =>
     writer
-      .withPermits(1)(Effect.flatMap(pages, (read) => sqlite.transaction((db) => write(db, read))))
+      .withPermits(1)(Effect.flatMap(pages, write))
       .pipe(Effect.ensuring(reactivity.invalidate([REBUILT])))
 
   return {
@@ -412,20 +424,23 @@ const make = Effect.gen(function* () {
       }).pipe(Effect.ensuring(reactivity.invalidate([REBUILT])), writer.withPermits(1)),
 
     start: <E, R>(pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
-      naming(pages, (db, read) => {
-        recreate(db)
-        writeNames(db, read)
-        markUnwritten(
-          db,
-          read.map((page) => page.id),
-        )
-      }),
+      naming(pages, (read) =>
+        Effect.andThen(
+          sqlite.transaction(recreate),
+          inWrites(read, (db, step) => {
+            writeNames(db, step)
+            markUnwritten(
+              db,
+              step.map((page) => page.id),
+            )
+          }),
+        ),
+      ),
 
     owe: <E, R>(ids: ReadonlyArray<PageId>, pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
-      naming(pages, (db, read) => {
-        writeNames(db, read)
-        markUnwritten(db, ids)
-      }),
+      naming(pages, (read) =>
+        Effect.andThen(inWrites(ids, markUnwritten), inWrites(read, writeNames)),
+      ),
 
     unwritten: sqlite.use((db) =>
       db.all("SELECT page FROM unwritten").flatMap(([id]) => Option.toArray(decodePageId(id))),
