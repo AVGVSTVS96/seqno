@@ -10,10 +10,10 @@ import { lastReference, lastWords } from "./years.ts"
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
 const budgets = {
-  openMs: 5_000,
+  openMs: 2_000,
   fillJumpMs: 1_500,
-  reopenMs: 5_000,
-  reopenIndexedMs: 4_000,
+  reopenMs: 2_000,
+  reopenIndexedMs: 3_000,
   reopenSearchMs: 2_000,
 }
 

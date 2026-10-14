@@ -380,9 +380,48 @@ How it works (`apps/web/src/worker/layout.ts`):
 | Node, 50k blocks: open through the vault           | 0.35 to 0.40 s            | 0.14 to 0.15 s  |
 | Node: a block on the 20k-block page not read yet   | -                         | 0.22 s          |
 
-The one-tree Chrome open is the scroll benchmark's picked folder in the same runs; the rest of that column is the last run before the switch. In Node the open is five times faster, but in Chrome only 15 to 20%: the block tree was a small part of the open there, and what the rest is hasn't been broken down. The fill varied with the runner (27 s in one run, 37 s in two); the Mac fills in 25 to 26 s. A search hit on a page the session hadn't read first read that whole page on the new layout, 2.3 s in Chrome on the Mac against the 2 s budget, so the graph now finds such a block by each node's `uuid` alone (see `packages/graph/README.md`). Every budget held: typing, undo after remote edits, the index reload and the bulk commands run on both layouts in Node, and the tree-per-page sync simulator suite passes 50 of 50 seeds of 600 ops on every CI run.
+The one-tree Chrome open is the scroll benchmark's picked folder in the same runs; the rest of that column is the last run before the switch. In Node the open is five times faster, but in Chrome only 15 to 20%: the block tree was a small part of the open there. Where the rest went is in "A graph opens before its index fills". The fill varied with the runner (27 s in one run, 37 s in two); the Mac fills in 25 to 26 s. A search hit on a page the session hadn't read first read that whole page on the new layout, 2.3 s in Chrome on the Mac against the 2 s budget, so the graph now finds such a block by each node's `uuid` alone (see `packages/graph/README.md`). Every budget held: typing, undo after remote edits, the index reload and the bulk commands run on both layouts in Node, and the tree-per-page sync simulator suite passes 50 of 50 seeds of 600 ops on every CI run.
 
 **Cost.** A tab still on an older build that opens a converted browser graph finds no one-tree edit log there, imports the graph's markdown again (for a demo, its starter), and writes one-tree files; the next open on a new build deletes them as leftovers of the conversion. Older tabs that have the graph open reload into the new build when it takes the graph over (see "Tabs" in [architecture.md](architecture.md)), so this takes an older tab that didn't have it open at the time.
+
+## A graph opens before its index fills
+
+**Decision.** A session reads its saved index file while the vault restores the graph, but loads it, or starts a fill, only once the session has opened. The fill writes page names 250 pages to a transaction with a step aside between them. The vault's 5-second pass waits 5 seconds after the open's own pass. `OpenGraph` answers without the page list; the tab reads it with `GetPages`, as it already did.
+
+**Why.** Tracing the open of ten years kept in the browser in headless Chrome (Mac, M1 Max, frame by frame, the worker's and the tab's steps marked), from the click to the first journal's rows, about 850 ms:
+
+| Step                                                                     | ms             |
+| ------------------------------------------------------------------------ | -------------- |
+| Tab: the click to `OpenGraph` reaching the worker                        | 40             |
+| Worker: graph place, lock, edit log, graph layer                         | 15             |
+| SQLite's wasm module (the first open in a worker; 9 after)               | 40             |
+| Vault: list the files, read the `seen` files                             | 8              |
+| Read the 63 MB snapshot from OPFS                                        | 35 to 40       |
+| Loro imports it (the worker's first import; 42 once Loro's code is warm) | 150 to 170     |
+| List the pages, same-name repair                                         | 37 to 39       |
+| Rest of the vault's pass, and its `seen` file write                      | 30             |
+| **Waiting for the index fill**                                           | **250 to 280** |
+| Today's journal, save                                                    | 6              |
+| `OpenGraph` answer: 6,654 pages encoded, sent, decoded                   | 35 to 50       |
+| `GetPages`: the same 6,654 pages again, beside a second vault pass       | 30 to 60       |
+| Tab: journals list, `WatchPage`, first rows                              | 50 to 70       |
+
+The wait was the biggest step. Restoring the snapshot started the fill at once, and the fill wrote all 6,654 page names in one transaction under the session's index lock, which adding today's journal needs too, so the open waited about 250 ms for it whatever its priority. On a reopen the same spot was the index load, or a major GC of the closed session's garbage. Loading the file is CPU, but reading it is I/O (260 to 270 ms for 67 MB on CI), so the read still overlaps the restore. The immediate second vault pass and the second page list were work nobody used. What is left is mostly Loro's import and the first wasm compile of Loro and SQLite in a fresh worker.
+
+Two things the trace also showed. Playwright retries a locator's wait after 0, 20, 50, 100 and 100 ms, then every 500 ms, so every Chrome benchmark wait past 270 ms landed on a 500 ms step: the Mac's open showed rows 387 ms after the click while the bench reported 872 ms. The benchmarks now check the page every animation frame, and the numbers below are measured that way. And SQLite 3.53.4 reads freed memory when a connection still holding a prepared statement takes an image with `sqlite3_deserialize`, sets a pragma, then prepares an `IN (SELECT ... json_each)` query: node:sqlite segfaults, sqlite-wasm traps. Loading the index after the open made that order happen in the worker tests. The wasm driver already finalizes its statements first; the node:sqlite driver, which has no finalize, closes and reopens its connection.
+
+**Cost.** A rename or Backspace merge right after a large graph opens waits a little longer for the fill, which now starts later.
+
+**Numbers.** CI, ten years in headless Chrome, frame by frame, before (main at 264b7db, two runs) and after (three runs, and one run before the read moved back to the open):
+
+| What                                                | Before       | After          |
+| --------------------------------------------------- | ------------ | -------------- |
+| Kept in the browser: open to the first journal      | 1.33, 1.42 s | 0.62 to 1.00 s |
+| Kept in the browser: reopen to the first journal    | 0.83, 1.55 s | 0.89 to 1.06 s |
+| Reopen: the index has the long page's last block    | 1.11, 1.84 s | 1.03 to 1.37 s |
+| Picked folder (one tree): open to the first journal | 1.57, 2.12 s | 1.13 to 1.64 s |
+
+On the Mac the open's rows showed 185 to 410 ms after the click, against 480 to 745 ms before. The budgets went from 5 s to 2 s for the open and the reopen, 4 s to 3 s for the reopen's index, and 5 s to 3 s for the picked folder's open.
 
 ## Smaller decisions
 

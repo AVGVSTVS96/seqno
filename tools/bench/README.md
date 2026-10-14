@@ -37,14 +37,14 @@ It writes ten years of daily journals (3,653 journals and 3,001 other pages, 150
 
 | Number                                           | Budget  |
 | ------------------------------------------------ | ------- |
-| Open: click to the first journal on screen       | 5 s     |
+| Open: click to the first journal on screen       | 3 s     |
 | Journals: frame time p95, then 600 frames deeper | 33.4 ms |
 | Long page: frame time p95                        | 33.4 ms |
 | Journals: DOM nodes after scrolling              | 15,000  |
 | Rows on screen after a jump to the middle        | 1.5 s   |
 | Frames over 50 ms, page heap, Chrome memory      | -       |
 
-On a CI runner it opens in about 2 s, scrolls both at a 16.7 ms p95, and keeps about 2,700 DOM nodes. At 60 Hz a frame is 16.7 ms, so a p95 of 33.4 ms allows one dropped frame in twenty. Chrome memory is the proportional set size of every Chrome process (Linux only).
+Every timed wait in the Chrome benchmarks checks the page on each animation frame (`shown` in `src/browser.ts`); Playwright's own waits retry every 500 ms once 270 ms have passed, so they rounded every time up to a 500 ms step. On a CI runner it opens in 1.1 to 1.6 s, scrolls both at a 16.7 ms p95, and keeps 3,300 to 6,600 DOM nodes. At 60 Hz a frame is 16.7 ms, so a p95 of 33.4 ms allows one dropped frame in twenty. Chrome memory is the proportional set size of every Chrome process (Linux only).
 
 ## Opening and reopening years of journals kept in the browser, in Chrome
 
@@ -52,16 +52,16 @@ On a CI runner it opens in about 2 s, scrolls both at a 16.7 ms p95, and keeps a
 
 | Number                                           | Budget                 |
 | ------------------------------------------------ | ---------------------- |
-| Open: first journal on screen                    | 5 s                    |
+| Open: first journal on screen                    | 2 s                    |
 | Open: rows after a jump during the fill, slowest | 1.5 s                  |
-| Reopen: first journal on screen                  | 5 s                    |
+| Reopen: first journal on screen                  | 2 s                    |
 | Reopen: the index file the closed tab saved      | > 0 MB                 |
-| Reopen: the index has the long page's last block | 4 s                    |
+| Reopen: the index has the long page's last block | 3 s                    |
 | Reopen: then search shows that block             | 2 s                    |
 | Second fill: the rest, after a mid-fill reload   | less than a whole fill |
 | Fill time                                        | -                      |
 
-On a CI runner the first open shows a journal in 1.6 to 2.0 s and fills the index in 27 to 37 s; the reopen shows a journal in 1.1 to 1.5 s and the index has `quillwort` 1.4 to 1.7 s after the reload. Search after the reopen then shows the long page's last block in about 0.3 s: the graph finds it by its `uuid` on a page it hasn't read, where reading the whole page took that to 2.3 s on the Mac. On one tree, before the switch, the same runners showed the first journal in about 2.8 s and the reopen in about 1.4 s; on cloud (headless Chrome 154) the first open took about 3 s and the fill 72 to 82 s. Before All pages mounted only the rows near the screen, rendering all 6,654 of them took the reopen's `quillwort` to 4.8 to 5.5 s, and before the graph looked blocks up on the page the index has them on, the search waited about 33 s for the graph's walk of every page. Without `extendedLifetime` the reload ended the worker mid-write, left no file, and the reopen filled from scratch. In Node, the vault open takes about 0.4 s and loading the image and catching up 7 ms, against 6 s for the fill.
+On a CI runner the first open shows a journal in 0.6 to 1.0 s and fills the index in 24 to 36 s; the reopen shows a journal in 0.9 to 1.1 s and the index has `quillwort` 1.0 to 1.4 s after the reload (the open waited about 0.3 s on the index fill before; see "A graph opens before its index fills" in `docs/decisions.md`). Search after the reopen then shows the long page's last block in 0.2 to 0.3 s: the graph finds it by its `uuid` on a page it hasn't read, where reading the whole page took that to 2.3 s on the Mac. On one tree, before the switch, the same runners showed the first journal in about 2.8 s and the reopen in about 1.4 s; on cloud (headless Chrome 154) the first open took about 3 s and the fill 72 to 82 s. Before All pages mounted only the rows near the screen, rendering all 6,654 of them took the reopen's `quillwort` to 4.8 to 5.5 s, and before the graph looked blocks up on the page the index has them on, the search waited about 33 s for the graph's walk of every page. Without `extendedLifetime` the reload ended the worker mid-write, left no file, and the reopen filled from scratch. In Node, the vault open takes about 0.4 s and loading the image and catching up 7 ms, against 6 s for the fill.
 
 `SEQNO_BENCH_FOLDER` makes `open.bench.ts` open a folder already written with `write-years.ts ... tree-per-page` instead of writing one.
 
