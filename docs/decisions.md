@@ -368,6 +368,20 @@ How it works (`apps/web/src/worker/layout.ts`):
 - **Journals are keyed by day on the way in.** The tree-per-page layout gives each day's first journal `journalPageId(day)` whether it is converted, imported from markdown (a demo's starter) or made as today's journal (`journalsByDay`, the same rule the converter uses). `load` and `seed` themselves still keep the ids they are given.
 - **The demo graphs convert like any browser graph** instead of starting over from their starter. Starting over would have been simpler only by one case: the conversion is the same code a folder will need, and a visitor's edits to a demo survive it. A starter version bump still clears a demo, on either layout.
 
+**Numbers.** CI runners, three runs each, ten years of journals with a 20k-block page:
+
+| What                                               | One tree                  | A tree per page |
+| -------------------------------------------------- | ------------------------- | --------------- |
+| Chrome: open to the first journal                  | 1.9 to 2.4 s (folder)     | 1.6 to 2.0 s    |
+| Chrome: reopen to the first journal                | 1.4 s (before the switch) | 1.1 to 1.5 s    |
+| Chrome: search after the reopen, long page's block | 0.8 s (before the switch) | 0.3 s           |
+| Chrome: index fill                                 | 25 s (before the switch)  | 27 to 37 s      |
+| Node, 50k blocks: open to the first page           | 0.26 s                    | 0.05 s          |
+| Node, 50k blocks: open through the vault           | 0.35 to 0.40 s            | 0.14 to 0.15 s  |
+| Node: a block on the 20k-block page not read yet   | -                         | 0.22 s          |
+
+The one-tree Chrome open is the scroll benchmark's picked folder in the same runs; the rest of that column is the last run before the switch. In Node the open is five times faster, but in Chrome only 15 to 20%: the block tree was a small part of the open there, and what the rest is hasn't been broken down. The fill varied with the runner (27 s in one run, 37 s in two); the Mac fills in 25 to 26 s. A search hit on a page the session hadn't read first read that whole page on the new layout, 2.3 s in Chrome on the Mac against the 2 s budget, so the graph now finds such a block by each node's `uuid` alone (see `packages/graph/README.md`). Every budget held: typing, undo after remote edits, the index reload and the bulk commands run on both layouts in Node, and the tree-per-page sync simulator suite passes 50 of 50 seeds of 600 ops on every CI run.
+
 **Cost.** A tab still on an older build that opens a converted browser graph finds no one-tree edit log there, imports the graph's markdown again (for a demo, its starter), and writes one-tree files; the next open on a new build deletes them as leftovers of the conversion. Older tabs that have the graph open reload into the new build when it takes the graph over (see "Tabs" in [architecture.md](architecture.md)), so this takes an older tab that didn't have it open at the time.
 
 ## Smaller decisions
