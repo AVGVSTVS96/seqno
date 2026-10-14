@@ -13,7 +13,16 @@ import { CommandRejected } from "@seqno/rpc"
 import { Unresolved } from "../commands.ts"
 import type { Recorder } from "../history.ts"
 import { isCollapsed, readProps, textOf, writeBlock, writeProps } from "../tree.ts"
-import { AT, REF, ensurePageData, parseKey, resolvePage, spotOf, type Spot } from "./layout.ts"
+import {
+  AT,
+  REF,
+  ensurePageData,
+  journalPageId,
+  parseKey,
+  resolvePage,
+  spotOf,
+  type Spot,
+} from "./layout.ts"
 import {
   homeOf,
   isShown,
@@ -464,11 +473,29 @@ export const applyCommand = (
   command: Command,
 ): Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto> =>
   Command.match(command, {
-    CreatePage: ({ title }) =>
+    CreatePage: ({ title, journalDay }) =>
       Effect.gen(function* () {
         yield* checkTitle(ws, title)
-        const id = yield* Effect.orDie(newPageId)
-        ws.record(id).set(ws.trees.dir.titles, id, title)
+        const { dir } = ws.trees
+        if (journalDay === undefined) {
+          const id = yield* Effect.orDie(newPageId)
+          return ws.record(id).set(dir.titles, id, title)
+        }
+        const { live, trashed, titled } = ws.trees.listing()
+        const id = journalPageId(journalDay)
+        if (
+          [...live.values()].some((page) => page.journalDay === journalDay) ||
+          (titled.has(id) && !trashed.has(id))
+        ) {
+          return yield* reject("a journal for that day already exists")
+        }
+        const record = ws.record(id)
+        if (trashed.has(id)) {
+          record.set(dir.trashed, id, undefined)
+          out.children({ _tag: "Page", page: id }).toReversed().forEach(out.trash)
+        }
+        record.set(dir.titles, id, title)
+        record.set(dir.days, id, journalDay)
       }),
     RenamePage: ({ pageId, title }) =>
       Effect.gen(function* () {

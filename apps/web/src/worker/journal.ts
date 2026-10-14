@@ -1,7 +1,13 @@
-import { Clock, Effect } from "effect"
-import { newBlockId, newPageId, normalizePageName, type JournalDay } from "@seqno/domain"
+import { Clock, Effect, Option } from "effect"
+import {
+  newBlockId,
+  newPageId,
+  normalizePageName,
+  type Command,
+  type JournalDay,
+} from "@seqno/domain"
 import type { Graph } from "@seqno/graph"
-import { defaultConfig, formatJournalDay } from "@seqno/interop"
+import { defaultConfig, formatJournalDay, parseJournalDay } from "@seqno/interop"
 import type { PageTree } from "@seqno/rpc"
 
 export const journalDayOf = (millis: number): JournalDay => {
@@ -37,3 +43,14 @@ export const todaysJournal = (graph: Graph["Service"]) =>
     }
     return [journal]
   })
+
+export const journalDayOfTitle = (title: string) =>
+  parseJournalDay(title.trim(), defaultConfig.journalTitleFormat)
+
+export const withJournalDay = (command: Command): Command =>
+  command._tag === "CreatePage"
+    ? Option.match(journalDayOfTitle(command.title), {
+        onNone: () => ({ _tag: "CreatePage", title: command.title }),
+        onSome: (journalDay) => ({ _tag: "CreatePage", title: command.title, journalDay }),
+      })
+    : command

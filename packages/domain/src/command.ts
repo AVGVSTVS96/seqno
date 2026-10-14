@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 import { BlockId, PageId } from "./ids.ts"
-import { Props } from "./model.ts"
+import { JournalDay, Props } from "./model.ts"
 
 const Offset = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
@@ -25,7 +25,7 @@ export const BlockDraft: Schema.Codec<BlockDraft> = Schema.Struct({
 })
 
 export const Command = Schema.TaggedUnion({
-  CreatePage: { title: Schema.String },
+  CreatePage: { title: Schema.String, journalDay: Schema.optionalKey(JournalDay) },
   RenamePage: { pageId: PageId, title: Schema.String },
   DeletePage: { pageId: PageId },
   InsertBlock: {

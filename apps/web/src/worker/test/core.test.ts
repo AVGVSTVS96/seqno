@@ -18,6 +18,7 @@ import {
   Stream,
 } from "effect"
 import { RpcClient, type RpcGroup, type RpcMessage, RpcServer, RpcTest } from "effect/rpc"
+import { TestClock } from "effect/testing"
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, graphV2Layer, journalPageId, journalsByDay } from "@seqno/graph"
 import { layerNode } from "@seqno/index/node"
@@ -744,6 +745,48 @@ describe("the core worker on the real graph, vault and index", () => {
         )
         assert.strictEqual(journals.length, 1)
         assert.deepStrictEqual(journals[0]?.toSorted(), ["", "from the phone"])
+      }),
+  )
+
+  it.effect(
+    "a page made by hand with a journal date for a title is that day's journal, and today's once the day comes",
+    () =>
+      Effect.gen(function* () {
+        yield* TestClock.setTime(new Date(2026, 9, 13, 12).getTime())
+        const root = yield* emptyFolder
+        const made = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const core = yield* coreOn(root, tour(1, "first tour"))
+            yield* core.OpenGraph({ graph: "og" })
+            const events = yield* core.Dispatch({
+              command: { _tag: "CreatePage", title: "Oct 14th, 2026" },
+            })
+            return events.flatMap((event) => (event._tag === "PageUpserted" ? [event.page] : []))
+          }),
+        )
+        assert.deepStrictEqual(
+          made.map(({ title, journalDay }) => ({ title, journalDay })),
+          [{ title: "Oct 14th, 2026", journalDay: 20261014 }],
+        )
+        if (layout === "TreePerPage") {
+          assert.deepStrictEqual(
+            made.map((page) => page.id),
+            ["00002026-1014-7000-8000-000000000000"],
+          )
+        }
+        yield* TestClock.adjust("1 day")
+        const todays = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const core = yield* coreOn(root, tour(1, "first tour"))
+            yield* core.OpenGraph({ graph: "og" })
+            const pages = yield* core.GetPages()
+            return pages.filter((page) => page.journalDay === 20261014).map((page) => page.id)
+          }),
+        )
+        assert.deepStrictEqual(
+          todays,
+          made.map((page) => page.id),
+        )
       }),
   )
 

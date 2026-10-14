@@ -40,8 +40,7 @@ import {
   type QueryResult,
   type Reference,
 } from "@seqno/rpc"
-import { defaultConfig, parseJournalDay } from "@seqno/interop"
-import { journalDayOf } from "./journal.ts"
+import { journalDayOf, journalDayOfTitle, withJournalDay } from "./journal.ts"
 import { GraphLocks } from "./lock.ts"
 import { Device, GraphPlaces } from "./place.ts"
 import { withReferenceEdits } from "./rename.ts"
@@ -392,7 +391,9 @@ const CoreHandlers = CoreRpcs.toLayer(
     const places = yield* GraphPlaces
     const dispatchAll = (client: number, commands: ReadonlyArray<Command>) =>
       Effect.flatMap(current(client), (session) =>
-        Effect.forEach(commands, (command) => withReferenceEdits(session, command)).pipe(
+        Effect.forEach(commands, (command) =>
+          withReferenceEdits(session, withJournalDay(command)),
+        ).pipe(
           Effect.flatMap((expanded) =>
             session.record(session.graph.dispatchAll(expanded.flat(), String(client))),
           ),
@@ -451,15 +452,12 @@ const CoreHandlers = CoreRpcs.toLayer(
   }),
 )
 
-const journalTitled = (title: string) =>
-  Option.isSome(parseJournalDay(title, defaultConfig.journalTitleFormat))
-
 const graphNodeOf = (page: GraphPage): GraphNode => ({
   name: page.name,
   title: page.title,
   kind: page.tag
     ? "tag"
-    : page.day !== null || (!page.exists && journalTitled(page.title))
+    : page.day !== null || (!page.exists && Option.isSome(journalDayOfTitle(page.title)))
       ? "journal"
       : "page",
   created: page.created,
@@ -491,9 +489,7 @@ const PageHandlers = PageRpcs.toLayer(
             Stream.map((pages) =>
               pages.map((page) => ({
                 ...page,
-                journalDay: Option.getOrNull(
-                  parseJournalDay(page.title, defaultConfig.journalTitleFormat),
-                ),
+                journalDay: Option.getOrNull(journalDayOfTitle(page.title)),
               })),
             ),
             Stream.orDie,

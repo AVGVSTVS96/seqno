@@ -2,7 +2,17 @@ import { assert, describe, it } from "@effect/vitest"
 import { Effect, Fiber, Stream } from "effect"
 import { TestClock } from "effect/testing"
 import { BlockId, PageId, type Command } from "@seqno/domain"
-import { createdBlock, createdPage, nth, openGraph, outline, seedPage, tags } from "./support.ts"
+import { journalPageId } from "@seqno/graph"
+import {
+  createdBlock,
+  createdPage,
+  format,
+  nth,
+  openGraph,
+  outline,
+  seedPage,
+  tags,
+} from "./support.ts"
 
 const rejection = <A, E extends { readonly _tag: string }>(effect: Effect.Effect<A, E>) =>
   Effect.map(Effect.flip(effect), (error) =>
@@ -56,6 +66,59 @@ describe("pages", () => {
           yield* rejection(graph.dispatch({ _tag: "CreatePage", title: "   " })),
           "a page title cannot be empty",
         )
+      }),
+    ),
+  )
+
+  it.effect("a page created for a journal day is that day's journal", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const created = yield* graph.dispatch({
+          _tag: "CreatePage",
+          title: "Oct 14th, 2026",
+          journalDay: 20261014,
+        })
+        const pageId = createdPage(created)
+        if (format === "v2") assert.strictEqual(pageId, "00002026-1014-7000-8000-000000000000")
+        assert.deepStrictEqual(yield* graph.pages, [
+          {
+            id: pageId,
+            name: "oct 14th, 2026",
+            title: "Oct 14th, 2026",
+            journalDay: 20261014,
+            props: {},
+          },
+        ])
+        assert.strictEqual(
+          yield* rejection(
+            graph.dispatch({ _tag: "CreatePage", title: "2026-10-14", journalDay: 20261014 }),
+          ),
+          "a journal for that day already exists",
+        )
+      }),
+    ),
+  )
+
+  it.effect("a deleted journal created again comes back empty, and undo deletes it again", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const journal = {
+          _tag: "CreatePage",
+          title: "Oct 14th, 2026",
+          journalDay: 20261014,
+        } as const
+        const first = createdPage(yield* graph.dispatch(journal))
+        yield* graph.dispatch({ _tag: "InsertBlock", pageId: first, parentId: null, text: "old" })
+        yield* graph.dispatch({ _tag: "DeletePage", pageId: first })
+        const again = createdPage(yield* graph.dispatch(journal))
+        if (format === "v2") assert.strictEqual(again, journalPageId(20261014))
+        assert.deepStrictEqual(
+          (yield* graph.pages).map((page) => [page.title, page.journalDay]),
+          [["Oct 14th, 2026", 20261014]],
+        )
+        assert.deepStrictEqual((yield* graph.page(again)).blocks, [])
+        yield* graph.dispatch({ _tag: "Undo" })
+        assert.deepStrictEqual(yield* graph.pages, [])
       }),
     ),
   )

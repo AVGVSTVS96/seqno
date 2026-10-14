@@ -7,6 +7,7 @@ import {
   newPageId,
   normalizePageName,
   type BlockId,
+  type Page,
   type PageId,
   type PropertyTarget,
 } from "@seqno/domain"
@@ -115,16 +116,19 @@ const selection = (ws: Workspace, ids: ReadonlyArray<BlockId>) =>
 
 const isPage = (node: LoroTreeNode): boolean => node.parent() === undefined
 
-const nameTaken = (ws: Workspace, title: string, except?: TreeID): boolean => {
-  const name = normalizePageName(title)
-  return ws.tree
+const pageTaken = (ws: Workspace, taken: (page: Page) => boolean, except?: TreeID): boolean =>
+  ws.tree
     .roots()
     .some(
       (root) =>
         root.id !== except &&
         !ws.tree.isNodeDeleted(root.id) &&
-        Option.exists(readPage(root), (page) => page.name === name),
+        Option.exists(readPage(root), taken),
     )
+
+const nameTaken = (ws: Workspace, title: string, except?: TreeID): boolean => {
+  const name = normalizePageName(title)
+  return pageTaken(ws, (page) => page.name === name, except)
 }
 
 const checkTitle = (ws: Workspace, title: string, except?: TreeID) =>
@@ -189,11 +193,16 @@ const targetNode = (ws: Workspace, target: PropertyTarget) =>
 
 export const applyCommand = (ws: Workspace, command: Command) =>
   Command.match(command, {
-    CreatePage: ({ title }) =>
+    CreatePage: ({ title, journalDay }) =>
       Effect.gen(function* () {
         yield* checkTitle(ws, title)
+        if (journalDay !== undefined && pageTaken(ws, (page) => page.journalDay === journalDay)) {
+          return yield* reject("a journal for that day already exists")
+        }
         const id = yield* Effect.orDie(newPageId)
-        writePage(ws.record.create(undefined), id, title)
+        const root = ws.record.create(undefined)
+        writePage(root, id, title)
+        if (journalDay !== undefined) root.data.set("journalDay", journalDay)
       }),
     RenamePage: ({ pageId, title }) =>
       Effect.gen(function* () {
