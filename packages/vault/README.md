@@ -4,15 +4,16 @@ The core side's edit-log files in a synced folder: each device's Loro update fil
 
 ## What's inside
 
-| Export                                                  | What it does                                                                                                                                                   |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Vault`, `layer(config)`                                | `writeUpdate(bytes)` saves one update file named by its peer and op counter. `sync(replica)` lists, downloads, merges, acks, compacts and deletes in one pass. |
-| `Replica`, `loroReplica(doc)`                           | The port a graph implements (`version`, `merge`, `restore`, `snapshot`). `@seqno/graph`'s `vaultReplica` is the real one.                                      |
-| `Storage`                                               | The file adapter port: `list`, `read`, `write` (atomic), `remove`, `download`.                                                                                 |
-| `layerOpfs`, `layerDirectoryHandle`, `directoryStorage` | Browser adapters for OPFS and for a folder picked with the File System Access API.                                                                             |
-| `@seqno/vault/node`                                     | `nodeStorage` and `layerNode` on `node:fs`: temp file, `datasync`, rename.                                                                                     |
-| `makeFakeCloud`                                         | A fake iCloud for tests: per-device views, late and out-of-order delivery, placeholders, eviction, conflict copies.                                            |
-| `updatePath`, `snapshotPath`, `seenPath`                | The layout: `updates/<device>/<peer>-<n>.loro`, `snapshots/<hash>.loro`, `seen/<device>.json`.                                                                 |
+| Export                                                  | What it does                                                                                                                                                     |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Vault`, `layer(config)`                                | `writeUpdate(bytes)` saves one update file named by its peer and op counter. `sync(replica)` lists, downloads, merges, acks, compacts and deletes in one pass.   |
+| `Replica`, `loroReplica(doc)`                           | The port a graph implements (`version`, `merge`, `restore`, `snapshot`). `@seqno/graph`'s `vaultReplica` is the real one.                                        |
+| `Storage`                                               | The file adapter port: `list`, `read`, `write` (atomic), `remove`, `download`.                                                                                   |
+| `layerOpfs`, `layerDirectoryHandle`, `directoryStorage` | Browser adapters for OPFS and for a folder picked with the File System Access API.                                                                               |
+| `@seqno/vault/node`                                     | `nodeStorage` and `layerNode` on `node:fs`: temp file, `datasync`, rename.                                                                                       |
+| `makeFakeCloud`                                         | A fake iCloud for tests: per-device views, late and out-of-order delivery, placeholders, eviction, conflict copies.                                              |
+| `updatePath`, `snapshotPath`, `seenPath`                | The layout: `updates/<device>/<peer>-<n>.loro`, `snapshots/<hash>.loro`, `seen/<device>.json`.                                                                   |
+| `editLogDir`, `treePerPageMarker`                       | A graph on the tree-per-page layout keeps those files under `edit-log/` instead, and `edit-log/layout` marks it. The vault itself reads whatever folder it gets. |
 
 - An update file holds one peer's ops and is named after that peer, in the writing device's own folder. That is the session's peer, or the content-hashed peer an import was written with.
 - `synced: false` (a folder no other device sees, like OPFS) makes a snapshot this device wrote count as confirmed at once, so a lone device can compact and delete.

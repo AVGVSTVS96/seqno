@@ -324,7 +324,7 @@ Node on the Ryzen 7 5700G, through the benchmark's own code, five processes of e
 
 ## A tree per page, in one Loro doc
 
-**Decision.** A second layout, `graphV2Layer` in `@seqno/graph`, keeps each page's blocks in a Loro tree of its own (`blocks:<pageId>`), all in the one Loro doc per graph, and lists pages in flat maps keyed by page id (`titles`, `days`, `trashed`, `mergedInto`, and `pageData` for page properties). It is built next to today's one-tree layout and gives the same `Graph` service; the app still writes the one-tree layout, and switching waits on the open calls in [roadmap.md](roadmap.md).
+**Decision.** A second layout, `graphV2Layer` in `@seqno/graph`, keeps each page's blocks in a Loro tree of its own (`blocks:<pageId>`), all in the one Loro doc per graph, and lists pages in flat maps keyed by page id (`titles`, `days`, `trashed`, `mergedInto`, and `pageData` for page properties). It gives the same `Graph` service as the one-tree layout. Bassim picked it (B below) over a doc per page (C), which is dropped, with no iPhone memory test. Graphs kept in the browser use it; picked folders stay on one tree until how a synced folder converts is decided (see "Graphs kept in the browser switch first").
 
 **Why.** Loro decodes a tree container whole the first time anything reads it. With every page and block in one tree, opening ten years of journals spent most of its time decoding 150k nodes just to list the pages and show today's journal: the first touch of the one tree took 1.27 s, against 2.8 ms for one page's tree. A spike compared four layouts on the same ten and 30 years of journals (Node on `cloud`):
 
@@ -340,7 +340,7 @@ Node on the Ryzen 7 5700G, through the benchmark's own code, five processes of e
 
 - A flat directory in front of the one tree lists pages fast but still decodes the whole tree for the first journal (4.2 s at 30 years), so the tree itself has to split.
 - B and C both open fast. C also saves memory, but everything that spans pages gets harder: a merge loads every page doc it touches (711 of them for 1k edits), compaction writes thousands of files, the sync protocol would track a version per file, and Loro can't move a node between docs, so moving a block to another page would be copy-then-delete, which loses what another device typed into it meanwhile.
-- B keeps one edit log, one version vector, one sync protocol and the vault as it is. C stays the fallback if a real iPhone shows memory matters.
+- B keeps one edit log, one version vector, one sync protocol and the vault as it is. C was the fallback in case a real iPhone showed memory mattered; it is dropped, and that test won't run.
 
 How B works:
 
@@ -353,6 +353,22 @@ How B works:
 **Cost.** A move between pages wins over a delete, indent or move of the same block that another device made meanwhile, where Loro's own tree would pick the later one. A page that shows blocks moved in from a long page reads that page's tree the first time it opens. The snapshot is about 6% larger (63.0 against 59.4 MB at ten years).
 
 **Numbers.** Ten years of journals with a 20k-block page, in Node: an open (restore the snapshot, list the pages, read today's journal) takes 0.20 to 0.38 s against 1.7 to 2.3 s on the one-tree layout, at 510 against 670 MB of whole-process memory. `tools/bench` opens it in a fresh process on every CI run against a 300 ms budget; a CI runner measured 109 ms. The spike put 30 years at about 0.35 s against 5.5 s; the built layout hasn't been measured there yet. `convertOneTree` converts a ten-year one-tree graph in 37 s, and converting the same files again gives byte-identical snapshots, so devices that convert one folder write the same ops. Bulk commands on a 20k-block page cost about what they cost on the one-tree layout (see "Bulk commands touch each tree node a fixed number of times"). Every `@seqno/graph` test runs on both layouts; `packages/graph/test/pages.test.ts` and `pages-fuzz.test.ts` cover moves between pages, pointers, merges and cycles, and `tools/sync-sim/test/pages.test.ts` checks moves between pages, same-day journals, page merges and undo across pages against the real vault and index.
+
+## Graphs kept in the browser switch first
+
+**Decision.** Graphs kept in the browser (OPFS: the two demo graphs, and any graph made there later) open on the tree-per-page layout, with today's journal on `journalPageId(today)`. Picked folders open on one tree, as before, and this build never converts or writes one on the new layout.
+
+**Why.** A browser graph has one writer: one device, and every tab of a build shares one worker and one doc. Nothing has to agree across devices, so it can switch on its own. A synced folder can't until every device that opens it runs a build that reads the new layout and exactly one of them converts it; that order waits on Bassim (see [roadmap.md](roadmap.md)). The two calls still open on the layout (moving a block between pages as a pointer, and the move winning over another device's edit to that block) only bite when two devices edit one graph, so browser graphs don't settle them. What the switch does fix is that a browser graph's moves between pages are written as pointers from now on, so a later change to copy-then-delete would have to keep reading them.
+
+How it works (`apps/web/src/worker/layout.ts`):
+
+- **Where the edit log is says the layout.** A tree-per-page graph keeps its update files, snapshots and `seen` files under `edit-log/` in its folder, where a one-tree graph keeps them at the top, and `edit-log/layout` marks it. Neither layout ever reads the other's files, and the marker is written only once the conversion has been checked, so it is the step that commits it.
+- **A folder this build keeps on one tree refuses a marked one.** A folder that a later build converts won't open here ("a newer version of seqno changed how this graph is saved; reload to update"), instead of getting one-tree edits next to the new ones.
+- **A browser graph without the marker converts on open.** The open clears whatever an unfinished conversion left under `edit-log/`, converts the one-tree files with `convertOneTree`, writes the snapshot, reads it back and compares it with the one-tree files page by page (`compareConverted`: every page, its blocks, ids, props, order and times, journals under their day's id). Only then does it write the marker and delete the one-tree files. If any page differs, it deletes what it wrote and the graph doesn't open, with the pages named, and the one-tree files stay. A conversion cut off before the marker starts over next time; one cut off after it only finishes deleting.
+- **Journals are keyed by day on the way in.** The tree-per-page layout gives each day's first journal `journalPageId(day)` whether it is converted, imported from markdown (a demo's starter) or made as today's journal (`journalsByDay`, the same rule the converter uses). `load` and `seed` themselves still keep the ids they are given.
+- **The demo graphs convert like any browser graph** instead of starting over from their starter. Starting over would have been simpler only by one case: the conversion is the same code a folder will need, and a visitor's edits to a demo survive it. A starter version bump still clears a demo, on either layout.
+
+**Cost.** A tab still on an older build that opens a converted browser graph finds no one-tree edit log there, imports the graph's markdown again (for a demo, its starter), and writes one-tree files; the next open on a new build deletes them as leftovers of the conversion. Older tabs that have the graph open reload into the new build when it takes the graph over (see "Tabs" in [architecture.md](architecture.md)), so this takes an older tab that didn't have it open at the time.
 
 ## Smaller decisions
 

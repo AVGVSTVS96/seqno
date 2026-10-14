@@ -5,6 +5,10 @@ export const updatesDir = "updates"
 export const snapshotsDir = "snapshots"
 export const seenDir = "seen"
 
+export const editLogDir = "edit-log"
+
+export const treePerPageMarker = { path: `${editLogDir}/layout`, text: "tree-per-page\n" } as const
+
 export const updatePath = (device: DeviceId, peer: string, start: number): string =>
   `${updatesDir}/${device}/${peer}-${start}.loro`
 

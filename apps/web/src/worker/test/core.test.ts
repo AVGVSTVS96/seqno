@@ -1,6 +1,6 @@
 import { cp, mkdir, mkdtemp, readdir, rename, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, relative } from "node:path"
 import { DatabaseSync } from "node:sqlite"
 import { fileURLToPath } from "node:url"
 import { assert, describe, it } from "@effect/vitest"
@@ -19,9 +19,9 @@ import {
 } from "effect"
 import { RpcClient, type RpcGroup, type RpcMessage, RpcServer, RpcTest } from "effect/rpc"
 import { DeviceId } from "@seqno/domain"
-import { Graph, PeerId } from "@seqno/graph"
+import { Graph, PeerId, graphV2Layer, journalPageId, journalsByDay } from "@seqno/graph"
 import { layerNode } from "@seqno/index/node"
-import { CoreRpcs, PageRpcs, tabLock, type SaveState } from "@seqno/rpc"
+import { CoreRpcs, PageRpcs, tabLock, type PageTree, type SaveState } from "@seqno/rpc"
 import { StorageFailed, type Storage } from "@seqno/vault"
 import { nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
@@ -29,11 +29,21 @@ import { demoGraph } from "../demo.ts"
 import { developerGraph } from "../developer.ts"
 import { journalDayOf, todaysJournal } from "../journal.ts"
 import { GraphLocks, layerWebLocks } from "../lock.ts"
+import type { Layout } from "../layout.ts"
 import { Device, GraphPlaces, type IndexFile, type Starter } from "../place.ts"
 
 const fixture = fileURLToPath(
   new URL("../../../../../fixtures/graphs/og-syntax-mix/", import.meta.url),
 )
+
+const layout: Layout = process.env["SEQNO_GRAPH"] === "v2" ? "TreePerPage" : "OneTree"
+
+const graphLayer = layout === "TreePerPage" ? graphV2Layer : Graph.layer
+
+const incoming = (pages: ReadonlyArray<PageTree>) =>
+  layout === "TreePerPage" ? journalsByDay(pages) : pages
+
+const logOf = (root: string) => (layout === "TreePerPage" ? join(root, "edit-log") : root)
 
 const WebCrypto = Layer.succeed(
   Crypto.Crypto,
@@ -79,6 +89,7 @@ const coreLayer = (
   device = "laptop",
   storage: Storage["Service"] = nodeStorage(root),
   locks: Layer.Layer<GraphLocks> = layerWebLocks,
+  placeLayout = layout,
 ) =>
   RealCore.pipe(
     Layer.provide(
@@ -86,6 +97,7 @@ const coreLayer = (
         open: () =>
           Effect.succeed({
             storage,
+            layout: placeLayout,
             synced: true,
             sqlite: layerNode(),
             indexFile: indexFileOf(`${device}:${root}`),
@@ -101,9 +113,16 @@ const coreLayer = (
 
 const AllRpcs = CoreRpcs.merge(PageRpcs)
 
-const coreOn = (root: string, starter: Starter | null = null, device = "laptop") =>
+const coreOn = (
+  root: string,
+  starter: Starter | null = null,
+  device = "laptop",
+  placeLayout = layout,
+) =>
   Effect.gen(function* () {
-    const handlers = yield* Layer.build(coreLayer(root, starter, device))
+    const handlers = yield* Layer.build(
+      coreLayer(root, starter, device, nodeStorage(root), layerWebLocks, placeLayout),
+    )
     return yield* Effect.provide(RpcTest.makeClient(AllRpcs), handlers)
   })
 
@@ -518,7 +537,9 @@ describe("the core worker on the real graph, vault and index", () => {
               "time-tracked task\n:LOGBOOK:\nCLOCK: [2025-03-09 Sun 10:00:00]--[2025-03-09 Sun 10:30:00] =>  00:30:00\n:END:",
             ],
           )
-          const written = yield* Effect.promise(() => readdir(join(root, "updates", "laptop")))
+          const written = yield* Effect.promise(() =>
+            readdir(join(logOf(root), "updates", "laptop")),
+          )
           assert.deepStrictEqual(
             written.map((name) => name.replace(/^\d+-/, "<peer>-")),
             ["<peer>-0.loro", "<peer>-0.loro"],
@@ -635,7 +656,7 @@ describe("the core worker on the real graph, vault and index", () => {
               return third.id
             }),
           )
-        const own = join(root, "updates", "laptop")
+        const own = join(logOf(root), "updates", "laptop")
         const away = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-away-")))
         yield* Effect.scoped(
           Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })),
@@ -676,13 +697,13 @@ describe("the core worker on the real graph, vault and index", () => {
           Effect.gen(function* () {
             const graph = yield* Effect.map(
               Layer.build(
-                Graph.layer({ peer: PeerId.make("7"), snapshot: Option.none(), updates: [] }).pipe(
+                graphLayer({ peer: PeerId.make("7"), snapshot: Option.none(), updates: [] }).pipe(
                   Layer.provide(WebCrypto),
                 ),
               ),
               (context) => Context.get(context, Graph),
             )
-            const [journal] = yield* Effect.provide(todaysJournal(graph), WebCrypto)
+            const [journal] = incoming(yield* Effect.provide(todaysJournal(graph), WebCrypto))
             if (journal === undefined) return assert.fail("an empty graph has no journal yet")
             yield* graph.load([journal])
             const block = journal.blocks[0] ?? assert.fail("a new journal has a block")
@@ -698,8 +719,8 @@ describe("the core worker on the real graph, vault and index", () => {
         )
         if (Option.isNone(phone)) return assert.fail("the phone wrote nothing")
         yield* Effect.promise(async () => {
-          await mkdir(join(root, "updates", "phone"), { recursive: true })
-          await writeFile(join(root, "updates", "phone", "7-0.loro"), phone.value.bytes)
+          await mkdir(join(logOf(root), "updates", "phone"), { recursive: true })
+          await writeFile(join(logOf(root), "updates", "phone", "7-0.loro"), phone.value.bytes)
         })
         const today = journalDayOf(yield* Clock.currentTimeMillis)
         const journals = yield* Effect.scoped(
@@ -726,9 +747,13 @@ describe("the core worker on the real graph, vault and index", () => {
       const alone = yield* pagesOn(laptopRoot, "laptop")
       yield* pagesOn(phoneRoot, "phone")
       yield* Effect.promise(() =>
-        cp(join(phoneRoot, "updates", "phone"), join(laptopRoot, "updates", "phone"), {
-          recursive: true,
-        }),
+        cp(
+          join(logOf(phoneRoot), "updates", "phone"),
+          join(logOf(laptopRoot), "updates", "phone"),
+          {
+            recursive: true,
+          },
+        ),
       )
       const together = yield* pagesOn(laptopRoot, "laptop")
       assert.deepStrictEqual(together, alone)
@@ -1478,6 +1503,126 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         assert.isTrue(Option.isNone(yield* Fiber.await(waiting).pipe(Effect.timeoutOption(50))))
         yield* letGo
         assert.strictEqual((yield* Fiber.join(waiting)).graph, "og-locked")
+      }),
+    ),
+  )
+})
+
+const filesIn = (dir: string) =>
+  Effect.promise(async () =>
+    (await readdir(dir, { recursive: true, withFileTypes: true }).catch(() => []))
+      .filter((entry) => entry.isFile())
+      .map((entry) =>
+        relative(dir, join(entry.parentPath, entry.name)).replace(/[0-9a-f]{32}/, "<hash>"),
+      )
+      .toSorted(),
+  )
+
+const welcomeAs = (root: string, placeLayout: Layout, edit = "") =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const core = yield* coreOn(root, tour(1, "first tour"), "laptop", placeLayout)
+      const opened = yield* core.OpenGraph({ graph: "demo" })
+      const welcome = yield* core.GetPage({ pageId: named(opened.pages, "Welcome").id })
+      const first = welcome.blocks[0] ?? assert.fail("Welcome has no block")
+      if (edit !== "") {
+        yield* core.Dispatch({
+          command: { _tag: "EditText", blockId: first.id, from: 0, to: 0, insert: edit },
+        })
+      }
+      yield* core.OpenGraph({ graph: "demo" })
+      const today = journalDayOf(yield* Clock.currentTimeMillis)
+      return {
+        welcome: (yield* core.GetBlock({ blockId: first.id })).text,
+        today: opened.pages.filter((page) => page.journalDay === today).map((page) => page.id),
+        day: today,
+      }
+    }),
+  )
+
+describe.runIf(layout === "TreePerPage")("graphs kept in the browser, a tree per page", () => {
+  it.effect("a new one saves a tree per page under edit-log, with today's journal on its day", () =>
+    Effect.gen(function* () {
+      const root = yield* emptyFolder
+      const opened = yield* welcomeAs(root, "TreePerPage", "my ")
+      assert.deepStrictEqual(opened.today, [journalPageId(opened.day)])
+      assert.strictEqual(opened.welcome, "my first tour")
+      assert.deepStrictEqual(
+        (yield* filesIn(root)).filter((path) => !path.startsWith("edit-log/updates/")),
+        ["edit-log/layout", "edit-log/seen/laptop.json", "pages/Welcome.md", "starter-version"],
+      )
+      assert.strictEqual((yield* welcomeAs(root, "TreePerPage")).welcome, "my first tour")
+    }),
+  )
+
+  it.effect(
+    "one saved as one tree converts on open, keeps its edits and loses its one-tree files",
+    () =>
+      Effect.gen(function* () {
+        const root = yield* emptyFolder
+        const before = yield* welcomeAs(root, "OneTree", "my ")
+        assert.strictEqual(before.today.length, 1)
+        assert.notStrictEqual(before.today[0], journalPageId(before.day))
+        assert.isAbove((yield* filesIn(join(root, "updates"))).length, 0)
+        const after = yield* welcomeAs(root, "TreePerPage")
+        assert.deepStrictEqual(after, { ...before, today: [journalPageId(before.day)] })
+        const converted = yield* filesIn(root)
+        assert.deepStrictEqual(
+          converted.filter((path) => !path.startsWith("edit-log/updates/")),
+          [
+            "edit-log/layout",
+            "edit-log/seen/laptop.json",
+            "edit-log/snapshots/<hash>.loro",
+            "pages/Welcome.md",
+            "starter-version",
+          ],
+        )
+        assert.deepStrictEqual(yield* welcomeAs(root, "TreePerPage"), after)
+        assert.deepStrictEqual(
+          (yield* filesIn(root)).filter((path) => path.startsWith("edit-log/snapshots/")),
+          ["edit-log/snapshots/<hash>.loro"],
+        )
+      }),
+  )
+
+  it.effect("a conversion cut off before it was checked starts over from the one-tree files", () =>
+    Effect.gen(function* () {
+      const root = yield* emptyFolder
+      const before = yield* welcomeAs(root, "OneTree", "my ")
+      yield* Effect.promise(async () => {
+        await mkdir(join(root, "edit-log", "snapshots"), { recursive: true })
+        await writeFile(
+          join(root, "edit-log", "snapshots", "0123456789abcdef0123456789abcdef.loro"),
+          "half a snapshot",
+        )
+      })
+      assert.strictEqual((yield* welcomeAs(root, "TreePerPage")).welcome, before.welcome)
+      assert.deepStrictEqual(
+        (yield* filesIn(root)).filter((path) => path.startsWith("edit-log/snapshots/")),
+        ["edit-log/snapshots/<hash>.loro"],
+      )
+    }),
+  )
+
+  it.effect("a folder this version keeps as one tree won't open once it is a tree per page", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const root = yield* copyOfFixture
+        yield* Effect.scoped(
+          Effect.flatMap(coreOn(root, null, "laptop", "TreePerPage"), (core) =>
+            core.OpenGraph({ graph: "og" }),
+          ),
+        )
+        const core = yield* coreOn(root, null, "laptop", "OneTree")
+        const refused = yield* Effect.flip(core.OpenGraph({ graph: "og" }))
+        assert.deepStrictEqual(
+          [refused._tag, "reason" in refused ? refused.reason : ""],
+          [
+            "GraphUnavailable",
+            "a newer version of seqno changed how this graph is saved; reload to update",
+          ],
+        )
+        assert.deepStrictEqual(yield* filesIn(join(root, "updates")), [])
       }),
     ),
   )

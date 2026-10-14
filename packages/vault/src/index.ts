@@ -9,7 +9,14 @@ export {
 } from "./vault.ts"
 export { loroReplica, type Replica } from "./replica.ts"
 export { Version, covers, type Span } from "./version.ts"
-export { snapshotName, snapshotPath, seenPath, updatePath } from "./layout.ts"
+export {
+  editLogDir,
+  seenPath,
+  snapshotName,
+  snapshotPath,
+  treePerPageMarker,
+  updatePath,
+} from "./layout.ts"
 export { PermissionNeeded, directoryStorage, layerDirectoryHandle, layerOpfs } from "./browser.ts"
 export {
   makeFakeCloud,

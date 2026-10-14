@@ -1,6 +1,7 @@
 import { Option, Schema } from "effect"
 import { LoroMap, type LoroDoc, type LoroTreeNode, type TreeID } from "loro-crdt"
 import { JournalDay, PageId, Props, normalizePageName, type Page } from "@seqno/domain"
+import type { PageTree } from "@seqno/rpc"
 import { inOrder, isTreeId, readProps } from "../tree.ts"
 
 export const TITLES = "titles"
@@ -30,6 +31,29 @@ export const pageOfTree = (name: unknown): Option.Option<PageId> =>
 export const journalPageId = (day: JournalDay): PageId => {
   const digits = String(day).padStart(12, "0")
   return PageId.make(`${digits.slice(0, 8)}-${digits.slice(8)}-7000-8000-000000000000`)
+}
+
+export const dayIds = (pages: Iterable<Page>): ReadonlyMap<PageId, PageId> => {
+  const firstOfDay = new Map<JournalDay, PageId>()
+  for (const page of pages) {
+    if (page.journalDay === null) continue
+    const known = firstOfDay.get(page.journalDay)
+    if (known === undefined || page.id < known) firstOfDay.set(page.journalDay, page.id)
+  }
+  return new Map([...firstOfDay].map(([day, id]) => [id, journalPageId(day)]))
+}
+
+export const journalsByDay = (pages: ReadonlyArray<PageTree>): ReadonlyArray<PageTree> => {
+  const ids = dayIds(pages.map(({ page }) => page))
+  return pages.map((tree) => {
+    const id = ids.get(tree.page.id)
+    return id === undefined
+      ? tree
+      : {
+          page: { ...tree.page, id },
+          blocks: tree.blocks.map((block) => ({ ...block, pageId: id })),
+        }
+  })
 }
 
 export interface Spot {

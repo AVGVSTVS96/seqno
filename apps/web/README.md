@@ -22,6 +22,8 @@ The index is in-memory SQLite, saved as one file per graph in OPFS (`indexes/<gr
 
 The two demo graphs live in OPFS as `demo` (Getting started, `src/worker/demo.ts`) and `developer` (Developer graph, `src/worker/developer.ts`). A first visit shows a chooser between them before anything opens; later visits reopen the last graph.
 
+Graphs kept in OPFS are on the tree-per-page layout; picked folders stay on one tree (`src/worker/layout.ts`, why in `docs/decisions.md`). Each place says its layout, and the session opens the edit log there before anything else: a tree-per-page graph's edit log is under `edit-log/`, marked by `edit-log/layout`. An OPFS graph without the marker converts its one-tree files on open, checks the result page by page, writes the marker and deletes the old files. A picked folder with the marker doesn't open. Pages on their way into the tree-per-page layout (the starter's import, today's journal) get their journals keyed by day first. The worker tests run on both layouts (`@seqno/web` and `@seqno/web v2`).
+
 The homepage embeds the app in an iframe with `?embed` (`src/embed.ts`). Embedded, it skips the chooser and opens Getting started, leaves out folder picking and About seqno, doesn't change which graph the app resumes, and posts `{ type: "seqno:ready" }` to the parent each time a graph opens, and `{ type: "seqno:escape" }` for each Escape the app doesn't use itself (handlers that use one call `preventDefault`, and open dialogs and popovers close on their own), so the homepage can close full screen. It runs on the homepage's own origin, so it shares graphs, settings and the core worker with the app open in other tabs.
 
 Each demo graph has a content version, set next to its starter in `src/worker/browser.ts`:

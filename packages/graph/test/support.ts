@@ -3,7 +3,7 @@ import type { BlockId, GraphEvent, PageId } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
 import { Graph, PeerId, graphV2Layer, type GraphSource } from "@seqno/graph"
 
-const WebCrypto = Layer.succeed(
+export const WebCrypto = Layer.succeed(
   Crypto.Crypto,
   Crypto.make({
     randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),

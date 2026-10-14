@@ -2,8 +2,9 @@ import { Context, Effect, Layer, Schema, type Option } from "effect"
 import { DeviceId } from "@seqno/domain"
 import type { IndexError, Sqlite } from "@seqno/index"
 import { FolderError, GraphFolder } from "@seqno/interop"
-import { Entry, type Storage, type StorageFailed } from "@seqno/vault"
+import { Entry, editLogDir, type Storage, type StorageFailed } from "@seqno/vault"
 import type { GraphUnavailable } from "@seqno/rpc"
+import type { Layout } from "./layout.ts"
 
 export interface StarterFile {
   readonly path: string
@@ -22,6 +23,7 @@ export interface IndexFile {
 
 export interface GraphPlace {
   readonly storage: Storage["Service"]
+  readonly layout: Layout
   readonly synced: boolean
   readonly sqlite: Layer.Layer<Sqlite, IndexError>
   readonly indexFile: IndexFile
@@ -46,7 +48,7 @@ export class Device extends Context.Service<
   { readonly device: DeviceId; readonly formerPeers: ReadonlyArray<string> }
 >()("@seqno/web/worker/Device") {}
 
-const vaultFolders = new Set(["updates", "snapshots", "seen"])
+const vaultFolders = new Set(["updates", "snapshots", "seen", editLogDir])
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()

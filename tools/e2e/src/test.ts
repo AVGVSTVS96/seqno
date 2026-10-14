@@ -3,7 +3,7 @@ import { journalTitle } from "./journal.ts"
 import { opfsFiles } from "./opfs.ts"
 
 const updateFiles = async (page: Page) =>
-  Object.keys(await opfsFiles(page, ["graphs", "demo", "updates"]))
+  Object.keys(await opfsFiles(page, ["graphs", "demo", "edit-log", "updates"]))
     .toSorted()
     .join("\n")
 

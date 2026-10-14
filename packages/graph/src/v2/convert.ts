@@ -1,10 +1,9 @@
 import { Effect, Option } from "effect"
 import { LoroDoc } from "loro-crdt"
-import type { PageId } from "@seqno/domain"
 import { ImportFailed, PeerId, peerOf } from "../graph.ts"
 import { loader } from "../loader.ts"
 import { TREE, livePages, readBlock, walkBlocks, type BlockState } from "../tree.ts"
-import { journalPageId } from "./layout.ts"
+import { dayIds } from "./layout.ts"
 import { makeTrees } from "./outline.ts"
 import { writePage, type PageState } from "./write.ts"
 
@@ -31,16 +30,10 @@ const readOneTree = (doc: LoroDoc): Array<PageState> =>
   })
 
 const withJournalIds = (pages: ReadonlyArray<PageState>): ReadonlyArray<PageState> => {
-  const firstOfDay = new Map<number, PageId>()
-  for (const { page } of pages) {
-    if (page.journalDay === null) continue
-    const known = firstOfDay.get(page.journalDay)
-    if (known === undefined || page.id < known) firstOfDay.set(page.journalDay, page.id)
-  }
+  const ids = dayIds(pages.map(({ page }) => page))
   return pages.map((state) => {
-    const day = state.page.journalDay
-    if (day === null || firstOfDay.get(day) !== state.page.id) return state
-    const id = journalPageId(day)
+    const id = ids.get(state.page.id)
+    if (id === undefined) return state
     return {
       page: { ...state.page, id },
       blocks: state.blocks.map((read) => ({ ...read, block: { ...read.block, pageId: id } })),

@@ -18,8 +18,9 @@ import { Graph, inBackground, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index, type IndexError } from "@seqno/index"
 import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { SaveState, type SkippedFile } from "@seqno/rpc"
-import { Entry, Storage, Vault, layer as vaultLayer, type StorageFailed } from "@seqno/vault"
+import { Storage, Vault, layer as vaultLayer } from "@seqno/vault"
 import { todaysJournal } from "./journal.ts"
+import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 
 export interface Session {
@@ -108,30 +109,6 @@ const stampOf = (storage: Storage["Service"]) =>
     Effect.catchTag("FileUnavailable", () => Effect.succeedNone),
   )
 
-const hasEditLog = (storage: Storage["Service"]) =>
-  Effect.map(
-    Effect.all([storage.list("updates"), storage.list("snapshots")]),
-    ([updates, snapshots]) => updates.length + snapshots.length > 0,
-  )
-
-const removeFiles = (
-  storage: Storage["Service"],
-  dir: string,
-): Effect.Effect<void, StorageFailed> =>
-  Effect.flatMap(storage.list(dir), (entries) =>
-    Effect.forEach(
-      entries,
-      (entry) => {
-        const path = dir === "" ? entry.name : `${dir}/${entry.name}`
-        return Entry.$match(entry, {
-          File: () => storage.remove(path),
-          Directory: () => removeFiles(storage, path),
-        })
-      },
-      { discard: true },
-    ),
-  )
-
 const layStarter = (storage: Storage["Service"], starter: Starter) =>
   Effect.gen(function* () {
     const stamp = yield* stampOf(storage)
@@ -157,12 +134,11 @@ export const openSession = (place: GraphPlace) =>
     const unsaved = yield* Latch.make(false)
     const edits = { count: 0 }
     const filling = { running: false, marked: false }
-    const graph = yield* serviceOf(
-      Graph,
-      Graph.layer({ peer, snapshot: Option.none(), updates: [] }),
-    )
+    if (place.starter !== null) yield* layStarter(place.storage, place.starter)
+    const log = yield* openEditLog(place.storage, place.layout, device)
+    const graph = yield* serviceOf(Graph, log.graph({ peer, snapshot: Option.none(), updates: [] }))
     const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(place.sqlite)))
-    const storage = Layer.succeed(Storage, place.storage)
+    const storage = Layer.succeed(Storage, log.storage)
     const vault = yield* serviceOf(
       Vault,
       vaultLayer({
@@ -432,7 +408,6 @@ export const openSession = (place: GraphPlace) =>
       }
     })
 
-    if (place.starter !== null) yield* layStarter(place.storage, place.starter)
     const opened = yield* vault.sync(replica)
     const skipped: Array<SkippedFile> = []
     if (opened.merged.length === 0 && opened.waiting.length === 0) {
@@ -444,11 +419,11 @@ export const openSession = (place: GraphPlace) =>
           .map(skippedFile)
           .toSorted((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
       )
-      const seeded = yield* graph.seed(imported.pages)
+      const seeded = yield* graph.seed(log.incoming(imported.pages))
       if (Option.isSome(seeded.update)) yield* vault.writeUpdate(seeded.update.value.bytes)
       yield* record(Effect.succeed(seeded.events))
     }
-    yield* record(Effect.flatMap(todaysJournal(graph), graph.load))
+    yield* record(Effect.flatMap(todaysJournal(graph), (pages) => graph.load(log.incoming(pages))))
     yield* save
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))

@@ -5,6 +5,7 @@ import { StorageFailed, directoryStorage } from "@seqno/vault"
 import { demoGraph } from "./demo.ts"
 import { developerGraph } from "./developer.ts"
 import { journalDayOf } from "./journal.ts"
+import type { Layout } from "./layout.ts"
 import { GraphLocation, GraphLocations } from "./locations.ts"
 import {
   Device,
@@ -22,6 +23,13 @@ const starters = new Map<
   ["demo", { version: 1, files: demoGraph }],
   ["developer", { version: 5, files: developerGraph }],
 ])
+
+interface Found {
+  readonly handle: FileSystemDirectoryHandle
+  readonly layout: Layout
+  readonly synced: boolean
+  readonly starter: Starter | null
+}
 
 const opfsFolder = (path: ReadonlyArray<string>) =>
   Effect.promise(() =>
@@ -103,10 +111,12 @@ export const BrowserGraphPlaces = Layer.effect(
         Effect.flatMap(locations.resolve(graph), (location) =>
           Effect.map(
             GraphLocation.match(location, {
-              FolderGraph: ({ handle }) => Effect.succeed({ handle, synced: true, starter: null }),
-              OpfsGraph: ({ name }) =>
+              FolderGraph: ({ handle }): Effect.Effect<Found> =>
+                Effect.succeed({ handle, layout: "OneTree", synced: true, starter: null }),
+              OpfsGraph: ({ name }): Effect.Effect<Found> =>
                 Effect.all({
                   handle: opfsFolder(["graphs", name]),
+                  layout: Effect.succeed<Layout>("TreePerPage"),
                   synced: Effect.succeed(false),
                   starter: Effect.map(Clock.currentTimeMillis, (now): Starter | null => {
                     const starter = starters.get(name)
@@ -116,8 +126,9 @@ export const BrowserGraphPlaces = Layer.effect(
                   }),
                 }),
             }),
-            ({ handle, synced, starter }) => ({
+            ({ handle, layout, synced, starter }) => ({
               storage: directoryStorage(handle),
+              layout,
               synced,
               sqlite: layerWasmMemory,
               indexFile: indexFile(graph, locations.listed),

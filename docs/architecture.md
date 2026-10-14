@@ -28,6 +28,8 @@ Why each piece was chosen, with the numbers behind it, is in [decisions.md](deci
                                ▼
    graph folder (OPFS, or a folder picked with File System Access)
      updates/<deviceId>/<peer>-<n>.loro   snapshots/<hash>.loro   seen/<deviceId>.json
+     edit-log/layout  edit-log/updates/…  edit-log/snapshots/…  edit-log/seen/…
+                                          (instead, on the tree-per-page layout)
      journals/  pages/  logseq/config.edn  assets/          (Logseq's own files)
 ```
 
@@ -56,7 +58,7 @@ Every tab of one seqno build talks to the same core worker, so a graph open in t
 
 ## Data model
 
-One Loro document per graph. Pages and blocks live in one movable tree:
+One Loro document per graph. A graph kept in the browser keeps each page's blocks in a tree of its own (below); a picked folder keeps pages and blocks in one movable tree:
 
 ```
 tree "blocks"
@@ -75,9 +77,9 @@ tree "blocks"
 - **Commands** (`@seqno/domain`): `CreatePage`, `RenamePage`, `DeletePage`, `InsertBlock(s)`, `EditText`, `SplitBlock`, `MergeWithPrevious`, `Indent`, `Outdent`, `MoveBlocks`, `DeleteBlocks`, `SetCollapsed`, `SetProperty`, `Undo`, `Redo`.
 - **Undo** is seqno's own, not Loro's. Each command records its inverse as it runs: a text delta that takes the edit back, "move to the trash" for what it created, the old place for what it moved or deleted, the old value for each property. Each tab has its own undo and redo stacks, so Mod+Z in one tab never takes back what another typed. Typing in one block is one step, every other command is its own step, and edits from other devices are never undone. Text inverses are rebased on every change to their block, so undo removes only this tab's characters. Undo reads only the current state, so it costs the same however long the history is.
 
-### A tree per page (built, not used by the app yet)
+### A tree per page (graphs kept in the browser)
 
-`@seqno/graph` also has a second layout, `graphV2Layer`, behind the same `Graph` service and the same tests. An open lists the pages from small directory maps and decodes a page's tree only when that page is read, instead of decoding one tree that holds every block. Why, and the numbers, are in [decisions.md](decisions.md).
+`@seqno/graph` has a second layout, `graphV2Layer`, behind the same `Graph` service and the same tests. An open lists the pages from small directory maps and decodes a page's tree only when that page is read, instead of decoding one tree that holds every block. Graphs kept in the browser use it; picked folders stay on one tree until how a synced folder converts is decided. Why, and the numbers, are in [decisions.md](decisions.md).
 
 ```
 map "titles"      pageId -> title      (a page exists while it has one)
@@ -98,6 +100,7 @@ tree "blocks:<pageId>"                  one per page
 - **A day's journal has a fixed id**, `journalPageId(day)`, so every device's "today" is one page and one tree.
 - **Repair after a commit or merge looks only at what it touched**: same-name pages among the touched pages, and cycles among the touched nodes once some block has moved between pages.
 - **Undo** records into the same history from every page tree and the directory maps. `convertOneTree` turns a one-tree graph into this layout, byte for byte the same on every device.
+- **On disk** the edit log sits under `edit-log/`, and `edit-log/layout` marks the folder as this layout. A browser graph without the marker converts when it opens: the converted snapshot is read back and checked against the one-tree files page by page, then the marker goes in and the one-tree files go away. A picked folder with the marker doesn't open in this build.
 
 ## Edit log and sync
 
