@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { Effect, Layer, Option, Stream } from "effect"
 import { DeviceId, type Command, type PageId } from "@seqno/domain"
 import { generateGraph, toLogseqFiles } from "@seqno/fixtures"
-import { vaultReplica } from "@seqno/graph"
+import { journalsByDay, vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
 import { layerNode } from "@seqno/index/node"
 import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
@@ -44,27 +44,41 @@ const median = (values: ReadonlyArray<number>) =>
 const p95 = (values: ReadonlyArray<number>) =>
   values.toSorted((a, b) => a - b)[Math.ceil(values.length * 0.95) - 1] ?? 0
 
-const snapshotOfGenerated = Effect.gen(function* () {
-  const files = toLogseqFiles(generateGraph())
-  const byPath = new Map(files.map((file) => [file.path, file.content]))
-  const folder = Layer.succeed(
-    GraphFolder,
-    GraphFolder.of({
-      list: Effect.succeed([...byPath.keys()].toSorted()),
-      read: (path) => Effect.succeed(byPath.get(path) ?? ""),
-      write: () => Effect.void,
-      remove: () => Effect.void,
-    }),
-  )
-  const imported = yield* importGraph.pipe(Effect.provide(Layer.merge(folder, LogseqSyntaxLive)))
-  const graph = yield* emptyGraph("1")
-  yield* graph.seed(imported.pages)
-  return yield* graph.snapshot
-})
+type Empty = typeof emptyGraph
 
-const open = (snapshot: Uint8Array, peer: string) =>
+interface Layout {
+  readonly label: string
+  readonly empty: Empty
+  readonly incoming: typeof journalsByDay
+}
+
+const layouts: ReadonlyArray<Layout> = [
+  { label: "", empty: emptyGraph, incoming: (pages) => pages },
+  { label: ", a tree per page", empty: emptyPagesGraph, incoming: journalsByDay },
+]
+
+const snapshotOfGenerated = ({ empty, incoming }: Layout) =>
   Effect.gen(function* () {
-    const graph = yield* emptyGraph(peer)
+    const files = toLogseqFiles(generateGraph())
+    const byPath = new Map(files.map((file) => [file.path, file.content]))
+    const folder = Layer.succeed(
+      GraphFolder,
+      GraphFolder.of({
+        list: Effect.succeed([...byPath.keys()].toSorted()),
+        read: (path) => Effect.succeed(byPath.get(path) ?? ""),
+        write: () => Effect.void,
+        remove: () => Effect.void,
+      }),
+    )
+    const imported = yield* importGraph.pipe(Effect.provide(Layer.merge(folder, LogseqSyntaxLive)))
+    const graph = yield* empty("1")
+    yield* graph.seed(incoming(imported.pages))
+    return yield* graph.snapshot
+  })
+
+const open = (empty: Empty, snapshot: Uint8Array, peer: string) =>
+  Effect.gen(function* () {
+    const graph = yield* empty(peer)
     yield* graph.restore([snapshot])
     const pages = yield* graph.pages
     const journal = pages.find((page) => page.journalDay !== null) ?? pages[0]
@@ -93,9 +107,9 @@ const folderOf = (snapshot: Uint8Array, version: ReadonlyMap<string, number>) =>
     (root) => Effect.promise(() => rm(root, { recursive: true })),
   )
 
-const openThroughVault = (root: string, peer: string) =>
+const openThroughVault = (empty: Empty, root: string, peer: string) =>
   Effect.gen(function* () {
-    const graph = yield* emptyGraph(peer)
+    const graph = yield* empty(peer)
     const vault = yield* serviceOf(
       Vault,
       vaultLayer({ device, members: [device], compactAfterFiles: 100, compactEvery: 0 }).pipe(
@@ -133,45 +147,88 @@ const reopenIndex = (
     yield* index.refresh(written(graph, changed.value.pages))
   })
 
-const main = Effect.gen(function* () {
-  const [snapshot, seedMs] = yield* timed(snapshotOfGenerated)
-  const opens: Array<number> = []
-  for (let run = 0; run < OPENS; run++) {
-    const [, ms] = yield* timed(Effect.scoped(open(snapshot, String(10 + run))))
-    opens.push(ms)
-  }
-  const { graph, first } = yield* open(snapshot, "20")
-  const folder = yield* folderOf(snapshot, yield* graph.version)
-  const vaultOpens: Array<number> = []
-  for (let run = 0; run < OPENS; run++) {
-    const [, ms] = yield* timed(Effect.scoped(openThroughVault(folder, String(30 + run))))
-    vaultOpens.push(ms)
-  }
-  const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(layerNode())))
-  const [, fillMs] = yield* timed(
-    Effect.andThen(
-      index.start(graph.pages),
-      Effect.flatMap(index.unwritten, (pages) => index.refresh(written(graph, pages))),
-    ),
-  )
-  const stamp = yield* graph.version
-  const image = yield* index.image(JSON.stringify(Object.fromEntries(stamp)))
-  const block = first.blocks[0]
-  if (block === undefined) return yield* Effect.die("the first journal has no blocks")
-  const keystrokes: Array<number> = []
-  for (let at = 0; at < KEYSTROKES; at++) {
-    const command: Command = { _tag: "EditText", blockId: block.id, from: at, to: at, insert: "x" }
-    const [, ms] = yield* timed(
-      Effect.flatMap(graph.dispatch(command), (events) => index.apply(events)),
+const onGenerated = (layout: Layout) =>
+  Effect.gen(function* () {
+    const [snapshot, seedMs] = yield* timed(snapshotOfGenerated(layout))
+    const opens: Array<number> = []
+    for (let run = 0; run < OPENS; run++) {
+      const [, ms] = yield* timed(Effect.scoped(open(layout.empty, snapshot, String(10 + run))))
+      opens.push(ms)
+    }
+    const { graph, first } = yield* open(layout.empty, snapshot, "20")
+    const folder = yield* folderOf(snapshot, yield* graph.version)
+    const vaultOpens: Array<number> = []
+    for (let run = 0; run < OPENS; run++) {
+      const [, ms] = yield* timed(
+        Effect.scoped(openThroughVault(layout.empty, folder, String(30 + run))),
+      )
+      vaultOpens.push(ms)
+    }
+    const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(layerNode())))
+    const [, fillMs] = yield* timed(
+      Effect.andThen(
+        index.start(graph.pages),
+        Effect.flatMap(index.unwritten, (pages) => index.refresh(written(graph, pages))),
+      ),
     )
-    keystrokes.push(ms)
-  }
-  const reopens: Array<number> = []
-  for (let run = 0; run < OPENS; run++) {
-    const [, ms] = yield* timed(Effect.scoped(reopenIndex(graph, image, stamp)))
-    reopens.push(ms)
-  }
-  const undos = yield* Effect.scoped(undoAfterRemote(snapshot, REMOTE_EDITS))
+    const stamp = yield* graph.version
+    const image = yield* index.image(JSON.stringify(Object.fromEntries(stamp)))
+    const block = first.blocks[0]
+    if (block === undefined) return yield* Effect.die("the first journal has no blocks")
+    const keystrokes: Array<number> = []
+    for (let at = 0; at < KEYSTROKES; at++) {
+      const command: Command = {
+        _tag: "EditText",
+        blockId: block.id,
+        from: at,
+        to: at,
+        insert: "x",
+      }
+      const [, ms] = yield* timed(
+        Effect.flatMap(graph.dispatch(command), (events) => index.apply(events)),
+      )
+      keystrokes.push(ms)
+    }
+    const reopens: Array<number> = []
+    for (let run = 0; run < OPENS; run++) {
+      const [, ms] = yield* timed(Effect.scoped(reopenIndex(graph, image, stamp)))
+      reopens.push(ms)
+    }
+    const undos = yield* Effect.scoped(undoAfterRemote(snapshot, REMOTE_EDITS, layout.empty))
+    const { label } = layout
+    return [
+      {
+        what: `open: page list and first page (median)${label}`,
+        ms: median(opens),
+        budget: budgets.openMs,
+      },
+      {
+        what: `open through the vault: newest snapshot to first page (median)${label}`,
+        ms: median(vaultOpens),
+        budget: budgets.vaultOpenMs,
+      },
+      {
+        what: `keystroke: edit and index write (p95)${label}`,
+        ms: p95(keystrokes),
+        budget: budgets.keystrokeP95Ms,
+      },
+      {
+        what: `undo after ${REMOTE_EDITS} edits from another device (slowest)${label}`,
+        ms: Math.max(...undos),
+        budget: budgets.undoMs,
+      },
+      { what: `import and seed${label}`, ms: seedMs, budget: null },
+      { what: `index fill behind the open${label}`, ms: fillMs, budget: null },
+      {
+        what: `index: load the saved image and catch up after typing (median)${label}`,
+        ms: median(reopens),
+        budget: budgets.reopenIndexMs,
+      },
+    ]
+  }).pipe(Effect.scoped)
+
+const main = Effect.gen(function* () {
+  const generated = yield* Effect.forEach(layouts, onGenerated)
   const bulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED)
   const pagesBulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED, emptyPagesGraph)
   const [years, yearsMs] = yield* timed(writeYearsAsPages(YEARS, LONG_PAGE))
@@ -186,31 +243,9 @@ const main = Effect.gen(function* () {
     { what: `indent ${ofLongPage}${layout}`, ms: times.indentMs, budget: budgets.bulkMs },
   ]
   const rows = [
-    { what: "open: page list and first page (median)", ms: median(opens), budget: budgets.openMs },
-    {
-      what: "open through the vault: newest snapshot to first page (median)",
-      ms: median(vaultOpens),
-      budget: budgets.vaultOpenMs,
-    },
-    {
-      what: "keystroke: edit and index write (p95)",
-      ms: p95(keystrokes),
-      budget: budgets.keystrokeP95Ms,
-    },
-    {
-      what: `undo after ${REMOTE_EDITS} edits from another device (slowest)`,
-      ms: Math.max(...undos),
-      budget: budgets.undoMs,
-    },
+    ...generated.flat(),
     ...bulkRows("", bulk),
     ...bulkRows(", a tree per page", pagesBulk),
-    { what: "import and seed", ms: seedMs, budget: null },
-    { what: "index fill behind the open", ms: fillMs, budget: null },
-    {
-      what: "index: load the saved image and catch up after typing (median)",
-      ms: median(reopens),
-      budget: budgets.reopenIndexMs,
-    },
     {
       what: `${YEARS} years, a tree per page: snapshot to page list and today's journal, fresh process (median)`,
       ms: median(pagesOpens.map(({ openMs }) => openMs)),

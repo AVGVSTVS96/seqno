@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect"
 import { generateGraph, toLogseqFiles } from "@seqno/fixtures"
-import type { Graph } from "@seqno/graph"
+import type { Graph, journalsByDay } from "@seqno/graph"
 import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 
 export interface Years {
@@ -55,7 +55,11 @@ export const longPageFiles = (blocks: number) => {
     .map((file) => ({ ...file, content: `${file.content.trimEnd()}\n- ${lastBlock}\n` }))
 }
 
-export const loadYears = (graph: Graph["Service"], { years, until, longPage }: Years) =>
+export const loadYears = (
+  graph: Graph["Service"],
+  { years, until, longPage }: Years,
+  incoming: typeof journalsByDay = (pages) => pages,
+) =>
   Effect.gen(function* () {
     const days = Math.round(years * 365.25)
     const first = new Date(until.getFullYear(), until.getMonth(), until.getDate() - days + 1)
@@ -70,7 +74,7 @@ export const loadYears = (graph: Graph["Service"], { years, until, longPage }: Y
     const withConfig = (chunk: typeof files) => (config === undefined ? chunk : [config, ...chunk])
     for (let at = 0; at < files.length; at += filesPerLoad) {
       const imported = yield* importFiles(withConfig(files.slice(at, at + filesPerLoad)))
-      yield* graph.load(imported.pages)
+      yield* graph.load(incoming(imported.pages))
     }
     if (longPage > 0)
       yield* graph.load((yield* importFiles(withConfig(longPageFiles(longPage)))).pages)

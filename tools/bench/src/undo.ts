@@ -6,8 +6,8 @@ import { emptyGraph } from "./graph.ts"
 const STEPS = 5
 const TYPED = "undo"
 
-const opened = (snapshot: Uint8Array, peer: string) =>
-  Effect.tap(emptyGraph(peer), (graph) => graph.restore([snapshot]))
+const opened = (empty: typeof emptyGraph, snapshot: Uint8Array, peer: string) =>
+  Effect.tap(empty(peer), (graph) => graph.restore([snapshot]))
 
 const firstBlocks = (graph: Graph["Service"], count: number) =>
   Effect.gen(function* () {
@@ -22,10 +22,14 @@ const firstBlocks = (graph: Graph["Service"], count: number) =>
     return blocks
   })
 
-export const undoAfterRemote = (snapshot: Uint8Array, remoteEdits: number) =>
+export const undoAfterRemote = (
+  snapshot: Uint8Array,
+  remoteEdits: number,
+  empty: typeof emptyGraph = emptyGraph,
+) =>
   Effect.gen(function* () {
-    const local = yield* opened(snapshot, "40")
-    const remote = yield* opened(snapshot, "41")
+    const local = yield* opened(empty, snapshot, "40")
+    const remote = yield* opened(empty, snapshot, "41")
     const typedInto = (yield* firstBlocks(local, STEPS)).map((block) => block.id)
     for (const blockId of typedInto) {
       for (const [offset, char] of [...TYPED].entries()) {

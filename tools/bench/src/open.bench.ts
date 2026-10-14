@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, test, type Page } from "@playwright/test"
 import { Effect } from "effect"
-import { jump, pickFolder } from "./browser.ts"
+import { jump, keepInBrowser } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
 import { lastReference, lastWords } from "./years.ts"
 
@@ -79,19 +79,22 @@ const searchShowsLastBlock = async (page: Page) => {
   return ms
 }
 
-test(`${years} years of journals open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
+const openFromList = (page: Page, graph: string) =>
+  page.getByRole("button", { name: graph, exact: true }).click()
+
+test(`${years} years of journals kept in the browser open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
   page,
 }) => {
   const given = process.env["SEQNO_BENCH_FOLDER"]
   const folder = given ?? (await mkdtemp(join(tmpdir(), "seqno-bench-")))
   try {
     if (given === undefined) {
-      await Effect.runPromise(Effect.scoped(writeYears(folder, years, longPage)))
+      await Effect.runPromise(Effect.scoped(writeYears(folder, years, longPage, "tree-per-page")))
     }
-    await pickFolder(page, folder)
-    await page.goto("/")
+    await keepInBrowser(page, folder, "graph")
+    await page.goto("/graphs")
     const opening = performance.now()
-    await page.getByRole("button", { name: "Open a folder" }).first().click()
+    await openFromList(page, "graph")
     await firstJournal(page)
     const openMs = since(opening)
     const fillJumpMs = Math.max(
@@ -113,10 +116,10 @@ test(`${years} years of journals open from their snapshot, reopen from the index
     const reopenIndexedMs = since(reopening)
     const reopenSearchMs = await searchShowsLastBlock(page)
 
-    await pickFolder(page, folder, "resumed")
+    await keepInBrowser(page, folder, "resumed")
     await page.goto("/graphs")
     const resuming = performance.now()
-    await page.getByRole("button", { name: "Open a folder" }).first().click()
+    await openFromList(page, "resumed")
     await firstJournal(page)
     await savedAtLeast(page, "resumed", indexBytes / 2)
     const cutAtMs = since(resuming)

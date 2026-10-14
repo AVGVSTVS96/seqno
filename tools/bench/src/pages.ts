@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Schema } from "effect"
 import { BlockId, PageId } from "@seqno/domain"
+import { journalsByDay } from "@seqno/graph"
 import { emptyPagesGraph } from "./graph.ts"
 import { loadYears } from "./years.ts"
 
@@ -14,7 +15,7 @@ export const writeYearsAsPages = (years: number, longPage: number) =>
   Effect.scoped(
     Effect.gen(function* () {
       const graph = yield* emptyPagesGraph("60")
-      const shape = yield* loadYears(graph, { years, until, longPage })
+      const shape = yield* loadYears(graph, { years, until, longPage }, journalsByDay)
       const long = (yield* graph.pages).find((page) => page.name === "long page")
       const last = long === undefined ? undefined : (yield* graph.page(long.id)).blocks.at(-1)
       if (last === undefined) return yield* Effect.die("the years have no long page")

@@ -20,8 +20,7 @@ const serveFolder = async (from: string, files: ReadonlyArray<string>) => {
   }
 }
 
-export const pickFolder = async (page: Page, from: string, graph = "graph") => {
-  const picked = ["seqno-bench-picked", graph]
+const copyIntoOpfs = async (page: Page, from: string, into: ReadonlyArray<string>) => {
   const files = (await readdir(from, { recursive: true, withFileTypes: true }))
     .filter((entry) => entry.isFile())
     .map((entry) => relative(from, join(entry.parentPath, entry.name)))
@@ -37,29 +36,63 @@ export const pickFolder = async (page: Page, from: string, graph = "graph") => {
             root,
           )
         for (const [at, path] of seed.files.entries()) {
-          const parts = [...seed.picked, ...path.split("/")]
+          const parts = [...seed.into, ...path.split("/")]
           const name = parts.pop() ?? ""
           const file = await (await directory(parts)).getFileHandle(name, { create: true })
           const body = (await fetch(`${seed.base}${at}`)).body
           if (body !== null) await body.pipeTo(await file.createWritable())
         }
       },
-      { base, files, picked },
+      { base, files, into },
     )
   } finally {
     server.close()
   }
-  await page.addInitScript((path) => {
+}
+
+const dismissHints = (page: Page) =>
+  page.addInitScript(() => {
     localStorage.setItem(
       "seqno.dismissedHints",
       JSON.stringify(["contents", "page-link", "shift-click", "references", "search"]),
     )
+  })
+
+export const pickFolder = async (page: Page, from: string, graph = "graph") => {
+  const picked = ["seqno-bench-picked", graph]
+  await copyIntoOpfs(page, from, picked)
+  await dismissHints(page)
+  await page.addInitScript((path) => {
     window.showDirectoryPicker = () =>
       path.reduce(
         async (dir, part) => (await dir).getDirectoryHandle(part),
         navigator.storage.getDirectory(),
       )
   }, picked)
+}
+
+export const keepInBrowser = async (page: Page, from: string, graph: string) => {
+  await copyIntoOpfs(page, from, ["graphs", graph])
+  await page.evaluate(
+    (name) =>
+      new Promise<void>((resolve, reject) => {
+        const opening = indexedDB.open("seqno", 1)
+        opening.addEventListener("upgradeneeded", () =>
+          opening.result.createObjectStore("graphs", { keyPath: "name" }),
+        )
+        opening.addEventListener("error", () => reject(opening.error))
+        opening.addEventListener("success", () => {
+          const saving = opening.result
+            .transaction("graphs", "readwrite")
+            .objectStore("graphs")
+            .put({ _tag: "OpfsGraph", name })
+          saving.addEventListener("success", () => resolve())
+          saving.addEventListener("error", () => reject(saving.error))
+        })
+      }),
+    graph,
+  )
+  await dismissHints(page)
 }
 
 export interface Frames {
