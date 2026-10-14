@@ -79,8 +79,7 @@ const FakeCore = CoreRpcs.toLayer(
     )
     return CoreRpcs.of({
       Attach: () => Stream.empty,
-      OpenGraph: ({ graph }) =>
-        Effect.succeed({ graph, pages: [inbox, older, today], skipped: [] }),
+      OpenGraph: ({ graph }) => Effect.succeed({ graph, skipped: [] }),
       ForgetGraph: () => Effect.void,
       Dispatch: ({ command }) =>
         Command.match(command, {
@@ -160,7 +159,6 @@ describe("app atoms", () => {
       const opened = registry.get(openGraph)
       assert.deepStrictEqual(AsyncResult.isSuccess(opened) ? opened.value : null, {
         graph: "demo",
-        pages: [inbox, older, today],
         skipped: [],
       })
       assert.deepStrictEqual(

@@ -360,13 +360,9 @@ const SessionsLive = Layer.effect(
             yield* guarded(
               shared.users.has(client) ? show(client, View.Open({ graph, session })) : Effect.void,
             )
-            return {
-              graph,
-              pages: yield* session.graph.pages,
-              skipped: first ? session.skipped : [],
-            }
+            return { graph, skipped: first ? session.skipped : [] }
           }
-          return { graph, pages: yield* now.session.graph.pages, skipped: [] }
+          return { graph, skipped: [] }
         }),
       current: (client) =>
         Effect.flatMap(viewOf(client), (view) =>

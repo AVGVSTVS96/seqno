@@ -189,9 +189,10 @@ const welcomeOn = (root: string, starter: Starter | null) =>
   Effect.scoped(
     Effect.gen(function* () {
       const core = yield* coreOn(root, starter)
-      const opened = yield* core.OpenGraph({ graph: "demo" })
-      const welcome = opened.pages.find((page) => page.title === "Welcome")
-      if (welcome === undefined) return opened.pages.map((page) => page.title).toSorted()
+      yield* core.OpenGraph({ graph: "demo" })
+      const pages = yield* core.GetPages()
+      const welcome = pages.find((page) => page.title === "Welcome")
+      if (welcome === undefined) return pages.map((page) => page.title).toSorted()
       return (yield* core.GetPage({ pageId: welcome.id })).blocks.map((block) => block.text)
     }),
   )
@@ -200,8 +201,9 @@ const editWelcome = (root: string, starter: Starter) =>
   Effect.scoped(
     Effect.gen(function* () {
       const core = yield* coreOn(root, starter)
-      const opened = yield* core.OpenGraph({ graph: "demo" })
-      const welcome = yield* core.GetPage({ pageId: named(opened.pages, "Welcome").id })
+      yield* core.OpenGraph({ graph: "demo" })
+      const pages = yield* core.GetPages()
+      const welcome = yield* core.GetPage({ pageId: named(pages, "Welcome").id })
       const first = welcome.blocks[0] ?? assert.fail("Welcome has no block")
       yield* core.Dispatch({
         command: { _tag: "EditText", blockId: first.id, from: 0, to: 0, insert: "my " },
@@ -217,10 +219,11 @@ const pagesOn = (root: string, device: string) =>
   Effect.scoped(
     Effect.gen(function* () {
       const core = yield* coreOn(root, null, device)
-      const opened = yield* core.OpenGraph({ graph: "og" })
-      const tasks = yield* core.GetPage({ pageId: named(opened.pages, "tasks").id })
+      yield* core.OpenGraph({ graph: "og" })
+      const pages = yield* core.GetPages()
+      const tasks = yield* core.GetPage({ pageId: named(pages, "tasks").id })
       return {
-        titles: opened.pages.map((page) => page.title).toSorted(),
+        titles: pages.map((page) => page.title).toSorted(),
         tasks: tasks.blocks.map((block) => block.text),
       }
     }),
@@ -234,9 +237,10 @@ describe("the core worker on the real graph, vault and index", () => {
         Effect.gen(function* () {
           const today = journalDayOf(yield* Clock.currentTimeMillis)
           const core = yield* coreOn(yield* emptyFolder, { version: 1, files: demoGraph(today) })
-          const opened = yield* core.OpenGraph({ graph: "demo" })
+          yield* core.OpenGraph({ graph: "demo" })
+          const pages = yield* core.GetPages()
           assert.deepStrictEqual(
-            opened.pages
+            pages
               .filter((page) => page.journalDay === null)
               .map((page) => page.title)
               .toSorted(),
@@ -266,10 +270,8 @@ describe("the core worker on the real graph, vault and index", () => {
               "recipes/Roasted tomato sauce",
             ],
           )
-          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 15)
-          const trees = yield* Effect.forEach(opened.pages, (page) =>
-            core.GetPage({ pageId: page.id }),
-          )
+          assert.strictEqual(pages.filter((page) => page.journalDay !== null).length, 15)
+          const trees = yield* Effect.forEach(pages, (page) => core.GetPage({ pageId: page.id }))
           assert.deepStrictEqual(
             trees
               .filter((tree) => !tree.blocks.some((block) => block.text.trim() !== ""))
@@ -365,9 +367,10 @@ describe("the core worker on the real graph, vault and index", () => {
             version: 1,
             files: developerGraph(today),
           })
-          const opened = yield* core.OpenGraph({ graph: "developer" })
+          yield* core.OpenGraph({ graph: "developer" })
+          const pages = yield* core.GetPages()
           assert.deepStrictEqual(
-            opened.pages
+            pages
               .filter((page) => page.journalDay === null)
               .map((page) => page.title)
               .toSorted(),
@@ -430,8 +433,8 @@ describe("the core worker on the real graph, vault and index", () => {
               "watching",
             ],
           )
-          assert.strictEqual(opened.pages.filter((page) => page.journalDay !== null).length, 227)
-          const blocks = (yield* Effect.forEach(opened.pages, (page) =>
+          assert.strictEqual(pages.filter((page) => page.journalDay !== null).length, 227)
+          const blocks = (yield* Effect.forEach(pages, (page) =>
             core.GetPage({ pageId: page.id }),
           )).flatMap((tree) => tree.blocks)
           const ids = new Set(blocks.flatMap((block) => [block.id, block.props["id"] ?? ""]))
@@ -510,7 +513,8 @@ describe("the core worker on the real graph, vault and index", () => {
           const root = yield* copyOfFixture
           const core = yield* coreOn(root)
           const opened = yield* core.OpenGraph({ graph: "og" })
-          const titles = opened.pages
+          const pages = yield* core.GetPages()
+          const titles = pages
             .filter((page) => page.journalDay === null || page.journalDay === 20250309)
             .map((page) => page.title)
             .toSorted()
@@ -528,7 +532,7 @@ describe("the core worker on the real graph, vault and index", () => {
             "two-space indent",
           ])
           assert.deepStrictEqual(opened.skipped, [])
-          const journal = yield* core.GetPage({ pageId: named(opened.pages, "Mar 9th, 2025").id })
+          const journal = yield* core.GetPage({ pageId: named(pages, "Mar 9th, 2025").id })
           assert.deepStrictEqual(
             journal.blocks.map((block) => block.text),
             [
@@ -615,8 +619,9 @@ describe("the core worker on the real graph, vault and index", () => {
         const block = yield* Effect.scoped(
           Effect.gen(function* () {
             const first = yield* coreOn(root)
-            const opened = yield* first.OpenGraph({ graph: "og" })
-            const tasks = yield* first.GetPage({ pageId: named(opened.pages, "tasks").id })
+            yield* first.OpenGraph({ graph: "og" })
+            const pages = yield* first.GetPages()
+            const tasks = yield* first.GetPage({ pageId: named(pages, "tasks").id })
             const third = tasks.blocks[2] ?? assert.fail("tasks has no third block")
             yield* first.Dispatch({
               command: { _tag: "EditText", blockId: third.id, from: 0, to: 1, insert: "We" },
@@ -645,8 +650,9 @@ describe("the core worker on the real graph, vault and index", () => {
           Effect.scoped(
             Effect.gen(function* () {
               const core = yield* coreOn(root)
-              const opened = yield* core.OpenGraph({ graph: "og" })
-              const tasks = yield* core.GetPage({ pageId: named(opened.pages, "tasks").id })
+              yield* core.OpenGraph({ graph: "og" })
+              const pages = yield* core.GetPages()
+              const tasks = yield* core.GetPage({ pageId: named(pages, "tasks").id })
               const third = tasks.blocks[2] ?? assert.fail("tasks has no third block")
               const offset = at(third.text)
               yield* core.Dispatch({
@@ -726,8 +732,9 @@ describe("the core worker on the real graph, vault and index", () => {
         const journals = yield* Effect.scoped(
           Effect.gen(function* () {
             const core = yield* coreOn(root)
-            const opened = yield* core.OpenGraph({ graph: "og" })
-            const todays = opened.pages.filter((page) => page.journalDay === today)
+            yield* core.OpenGraph({ graph: "og" })
+            const pages = yield* core.GetPages()
+            const todays = pages.filter((page) => page.journalDay === today)
             return yield* Effect.forEach(todays, (page) =>
               Effect.map(core.GetPage({ pageId: page.id }), (tree) =>
                 tree.blocks.map((block) => block.text),
@@ -776,8 +783,9 @@ describe("the core worker on the real graph, vault and index", () => {
         }
         const handlers = yield* Layer.build(coreLayer(root, null, "laptop", storage))
         const core = yield* Effect.provide(RpcTest.makeClient(AllRpcs), handlers)
-        const opened = yield* core.OpenGraph({ graph: "og" })
-        const tasks = yield* core.GetPage({ pageId: named(opened.pages, "tasks").id })
+        yield* core.OpenGraph({ graph: "og" })
+        const pages = yield* core.GetPages()
+        const tasks = yield* core.GetPage({ pageId: named(pages, "tasks").id })
         const third = tasks.blocks[2] ?? assert.fail("tasks has no third block")
         const reach = (tag: SaveState["_tag"]) =>
           core.WatchSaveState().pipe(
@@ -824,8 +832,9 @@ describe("the core worker on the real graph, vault and index", () => {
         yield* Effect.scoped(
           Effect.gen(function* () {
             const phone = yield* coreOn(root, null, "phone")
-            const opened = yield* phone.OpenGraph({ graph: "og" })
-            const headings = yield* phone.GetPage({ pageId: named(opened.pages, "headings").id })
+            yield* phone.OpenGraph({ graph: "og" })
+            const pages = yield* phone.GetPages()
+            const headings = yield* phone.GetPage({ pageId: named(pages, "headings").id })
             const first = headings.blocks[0] ?? assert.fail("headings has no blocks")
             yield* phone.Dispatch({
               command: { _tag: "EditText", blockId: first.id, from: 0, to: 0, insert: "zephyr " },
@@ -932,8 +941,9 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
           Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })),
         )
         const core = yield* coreOn(root)
-        const opened = yield* core.OpenGraph({ graph: "og" })
-        const [target, ...others] = yield* Effect.forEach(opened.pages, (page) =>
+        yield* core.OpenGraph({ graph: "og" })
+        const pages = yield* core.GetPages()
+        const [target, ...others] = yield* Effect.forEach(pages, (page) =>
           core.GetPage({ pageId: page.id }),
         )
         const anchor = target?.blocks[0] ?? assert.fail("the first page has no blocks")
@@ -970,9 +980,10 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
     Effect.scoped(
       Effect.gen(function* () {
         const core = yield* coreOn(yield* copyOfFixture)
-        const opened = yield* core.OpenGraph({ graph: "og" })
-        const alpha = named(opened.pages, "project/Alpha")
-        const tasks = yield* core.GetPage({ pageId: named(opened.pages, "tasks").id })
+        yield* core.OpenGraph({ graph: "og" })
+        const pages = yield* core.GetPages()
+        const alpha = named(pages, "project/Alpha")
+        const tasks = yield* core.GetPage({ pageId: named(pages, "tasks").id })
         const first = yield* Deferred.make<void>()
         const updates = yield* core.WatchReferences({ pageId: alpha.id }).pipe(
           Stream.tap(() => Deferred.succeed(first, undefined)),
@@ -994,7 +1005,7 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         const texts = yield* Effect.forEach(yield* Fiber.join(updates), (references) =>
           Effect.forEach(references, (reference) =>
             Effect.map(core.GetBlock({ blockId: reference.blockId }), (found) => [
-              named(opened.pages, "Mar 9th, 2025").id === reference.pageId ? "journal" : "page",
+              named(pages, "Mar 9th, 2025").id === reference.pageId ? "journal" : "page",
               found.text,
             ]),
           ),
@@ -1020,12 +1031,13 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
     Effect.scoped(
       Effect.gen(function* () {
         const core = yield* coreOn(yield* copyOfFixture)
-        const opened = yield* core.OpenGraph({ graph: "og" })
-        const alpha = named(opened.pages, "project/Alpha")
+        yield* core.OpenGraph({ graph: "og" })
+        const pages = yield* core.GetPages()
+        const alpha = named(pages, "project/Alpha")
         yield* core.Dispatch({
           command: {
             _tag: "InsertBlock",
-            pageId: named(opened.pages, "tasks").id,
+            pageId: named(pages, "tasks").id,
             parentId: null,
             text: "ask about the Alpha Project budget",
           },
@@ -1045,15 +1057,16 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
     Effect.scoped(
       Effect.gen(function* () {
         const core = yield* coreOn(yield* copyOfFixture)
-        const opened = yield* core.OpenGraph({ graph: "og" })
+        yield* core.OpenGraph({ graph: "og" })
+        const pages = yield* core.GetPages()
         const stats = yield* core.WatchPageStats().pipe(Stream.take(1), Stream.runCollect)
         const backlinks = new Map(
           stats.flat().map((stat) => [stat.pageId, stat.backlinks] as const),
         )
-        assert.strictEqual(backlinks.get(named(opened.pages, "project/Alpha").id), 3)
-        assert.strictEqual(backlinks.get(named(opened.pages, "project/Beta").id), 1)
-        assert.strictEqual(backlinks.get(named(opened.pages, "tasks").id), 0)
-        const tasks = yield* core.GetPage({ pageId: named(opened.pages, "tasks").id })
+        assert.strictEqual(backlinks.get(named(pages, "project/Alpha").id), 3)
+        assert.strictEqual(backlinks.get(named(pages, "project/Beta").id), 1)
+        assert.strictEqual(backlinks.get(named(pages, "tasks").id), 0)
+        const tasks = yield* core.GetPage({ pageId: named(pages, "tasks").id })
         const child =
           tasks.blocks.find((block) => block.parentId !== null) ?? assert.fail("no nested block")
         assert.deepStrictEqual(
@@ -1090,9 +1103,10 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
     Effect.scoped(
       Effect.gen(function* () {
         const core = yield* coreOn(yield* copyOfFixture)
-        const opened = yield* core.OpenGraph({ graph: "og" })
-        const tasks = named(opened.pages, "tasks").id
-        const headings = named(opened.pages, "headings").id
+        yield* core.OpenGraph({ graph: "og" })
+        const pages = yield* core.GetPages()
+        const tasks = named(pages, "tasks").id
+        const headings = named(pages, "headings").id
         const watched = yield* Stream.toQueue(core.WatchPage({ pageId: tasks }), {
           capacity: "unbounded",
         })
@@ -1245,9 +1259,10 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         const tab = yield* tabsOn(yield* copyOfFixture)
         const first = yield* tab(0)
         const second = yield* tab(1)
-        const opened = yield* first.OpenGraph({ graph: "og-shared" })
+        yield* first.OpenGraph({ graph: "og-shared" })
+        const pages = yield* first.GetPages()
         yield* second.OpenGraph({ graph: "og-shared" })
-        const tasks = named(opened.pages, "tasks").id
+        const tasks = named(pages, "tasks").id
         const block = (yield* first.GetPage({ pageId: tasks })).blocks[2] ?? assert.fail("no block")
         const watching = yield* Deferred.make<void>()
         const seen = yield* second.WatchPage({ pageId: tasks }).pipe(
@@ -1289,9 +1304,10 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         const tab = yield* tabsOn(yield* copyOfFixture)
         const first = yield* tab(0)
         const second = yield* tab(1)
-        const opened = yield* first.OpenGraph({ graph: "og-undo" })
+        yield* first.OpenGraph({ graph: "og-undo" })
+        const pages = yield* first.GetPages()
         yield* second.OpenGraph({ graph: "og-undo" })
-        const tasks = named(opened.pages, "tasks").id
+        const tasks = named(pages, "tasks").id
         const block = (yield* first.GetPage({ pageId: tasks })).blocks[2] ?? assert.fail("no block")
         const type = (core: typeof first, from: number, insert: string) =>
           core.Dispatch({
@@ -1328,9 +1344,10 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         const secondAttached = yield* Effect.forkChild(
           Stream.runDrain(second.Attach({ tab: "second" })),
         )
-        const opened = yield* first.OpenGraph({ graph: "og-closing" })
+        yield* first.OpenGraph({ graph: "og-closing" })
+        const pages = yield* first.GetPages()
         yield* second.OpenGraph({ graph: "og-closing" })
-        const tasks = yield* first.GetPage({ pageId: named(opened.pages, "tasks").id })
+        const tasks = yield* first.GetPage({ pageId: named(pages, "tasks").id })
         const block = tasks.blocks[2] ?? assert.fail("tasks has no third block")
         yield* first.Dispatch({
           command: { _tag: "EditText", blockId: block.id, from: 0, to: 1, insert: "We" },
@@ -1382,8 +1399,9 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
           const attached = yield* Effect.forkChild(
             Stream.runDrain(closing.Attach({ tab: "closing" })),
           )
-          const opened = yield* closing.OpenGraph({ graph: "og-reopened" })
-          const tasks = yield* closing.GetPage({ pageId: named(opened.pages, "tasks").id })
+          yield* closing.OpenGraph({ graph: "og-reopened" })
+          const pages = yield* closing.GetPages()
+          const tasks = yield* closing.GetPage({ pageId: named(pages, "tasks").id })
           const block = tasks.blocks[2] ?? assert.fail("tasks has no third block")
           held.writes = true
           yield* closing.Dispatch({
@@ -1441,8 +1459,9 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
           const attached = yield* Effect.forkChild(
             Stream.runDrain(closing.Attach({ tab: "closing-late" })),
           )
-          const opened = yield* closing.OpenGraph({ graph: "og-late" })
-          const tasks = yield* closing.GetPage({ pageId: named(opened.pages, "tasks").id })
+          yield* closing.OpenGraph({ graph: "og-late" })
+          const pages = yield* closing.GetPages()
+          const tasks = yield* closing.GetPage({ pageId: named(pages, "tasks").id })
           const block = tasks.blocks[2] ?? assert.fail("tasks has no third block")
           held.writes = true
           yield* closing.Dispatch({
@@ -1473,8 +1492,9 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         const moves = yield* tab
           .Attach({ tab: "older" })
           .pipe(Stream.take(1), Stream.runCollect, Effect.forkChild)
-        const opened = yield* tab.OpenGraph({ graph: "og-moved" })
-        const tasks = yield* tab.GetPage({ pageId: named(opened.pages, "tasks").id })
+        yield* tab.OpenGraph({ graph: "og-moved" })
+        const pages = yield* tab.GetPages()
+        const tasks = yield* tab.GetPage({ pageId: named(pages, "tasks").id })
         const block = tasks.blocks[2] ?? assert.fail("tasks has no third block")
         yield* tab.Dispatch({
           command: { _tag: "EditText", blockId: block.id, from: 0, to: 1, insert: "We" },
@@ -1522,8 +1542,9 @@ const welcomeAs = (root: string, placeLayout: Layout, edit = "") =>
   Effect.scoped(
     Effect.gen(function* () {
       const core = yield* coreOn(root, tour(1, "first tour"), "laptop", placeLayout)
-      const opened = yield* core.OpenGraph({ graph: "demo" })
-      const welcome = yield* core.GetPage({ pageId: named(opened.pages, "Welcome").id })
+      yield* core.OpenGraph({ graph: "demo" })
+      const pages = yield* core.GetPages()
+      const welcome = yield* core.GetPage({ pageId: named(pages, "Welcome").id })
       const first = welcome.blocks[0] ?? assert.fail("Welcome has no block")
       if (edit !== "") {
         yield* core.Dispatch({
@@ -1534,7 +1555,7 @@ const welcomeAs = (root: string, placeLayout: Layout, edit = "") =>
       const today = journalDayOf(yield* Clock.currentTimeMillis)
       return {
         welcome: (yield* core.GetBlock({ blockId: first.id })).text,
-        today: opened.pages.filter((page) => page.journalDay === today).map((page) => page.id),
+        today: pages.filter((page) => page.journalDay === today).map((page) => page.id),
         day: today,
       }
     }),

@@ -16,7 +16,6 @@ export type SkippedFile = typeof SkippedFile.Type
 
 export const GraphOpened = Schema.Struct({
   graph: Schema.String,
-  pages: Schema.Array(Page),
   skipped: Schema.Array(SkippedFile),
 })
 export type GraphOpened = typeof GraphOpened.Type
