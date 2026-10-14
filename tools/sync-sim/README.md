@@ -22,6 +22,8 @@ Time and randomness come only from Effect's `Clock` and `Crypto`, so the same se
 pnpm test --project @seqno/sync-sim
 ```
 
+CI also runs the tree-per-page suite, 50 seeds of 600 ops: `pnpm --filter @seqno/sync-sim sim --suite ci --graph pages`.
+
 Longer runs: `pnpm --filter @seqno/sync-sim sim --suite ci --graph real` (or `--vault real` for the stand-in graph on the real vault) and `pnpm --filter @seqno/sync-sim mutants`.
 
 ## Known gaps

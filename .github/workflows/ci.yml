@@ -38,6 +38,18 @@ jobs:
       - run: pnpm --filter @seqno/bench bench
       - run: pnpm --filter @seqno/bench scroll
 
+  sim:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @seqno/sync-sim sim --suite ci --graph pages
+
   e2e:
     runs-on: ubuntu-24.04
     steps:
