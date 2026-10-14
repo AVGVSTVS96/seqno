@@ -262,6 +262,7 @@ export const openSession = (place: GraphPlace) =>
 
     const loaded = Effect.gen(function* () {
       const [image, ms] = yield* timed(place.indexFile.read)
+      yield* opened.await
       if (Option.isNone(image)) return false
       return yield* indexing.withPermits(1)(
         Effect.gen(function* () {
@@ -358,9 +359,7 @@ export const openSession = (place: GraphPlace) =>
       ),
       Effect.forkIn(
         Effect.andThen(
-          Effect.flatMap(Effect.andThen(opened.await, loaded), (caught) =>
-            caught ? Effect.void : started,
-          ),
+          Effect.flatMap(loaded, (caught) => (caught ? Effect.void : started)),
           writeOwed,
         ).pipe(
           logged,
