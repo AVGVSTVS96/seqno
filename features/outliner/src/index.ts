@@ -11,7 +11,6 @@ export {
   reportRejection,
   type Rejection,
 } from "./core.ts"
-export { segments, viewportOf, windowOf, type Segment, type Viewport } from "./layout.ts"
 export { historyStep, type Editing, type HistoryStep } from "./history.ts"
 export type { BlockMenuRequest, Navigate, NavigationTarget, OpenBlockMenu } from "./navigation.ts"
 export { Outliner, PropertyValue, type OutlinerProps } from "./Outliner.tsx"
