@@ -23,5 +23,11 @@
       }
     ]
   },
+  "overrides": [
+    {
+      "files": ["features/outliner/src/virtual.tsx"],
+      "rules": { "react/incompatible-library": "off" }
+    }
+  ],
   "jsPlugins": ["./tools/lint/src/plugin.ts"]
 }
