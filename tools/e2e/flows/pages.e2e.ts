@@ -4,6 +4,7 @@ import { join } from "node:path"
 import type { Page } from "@playwright/test"
 import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
+import { flingTo, landedWell } from "../src/fling.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, openDemo, test } from "../src/test.ts"
 
@@ -232,6 +233,15 @@ test("the journals list mounts only the days near the screen, from the newest to
   await expect(oldest.getByRole("treeitem")).toHaveText(["day 1"])
   await expect(page.getByRole("article", { name: "Mar 1st, 2025", exact: true })).toHaveCount(0)
   expect(await days.count()).toBeLessThan(20)
+})
+
+test("a fast fling through the developer graph's journals lands on days wherever it stops", async ({
+  page,
+}) => {
+  await openDemo(page, "/", "Developer graph")
+  await expect(page.getByRole("article").first().getByRole("treeitem").first()).toBeVisible()
+  const stops = [0.85, 0.3, 0.97, 0.55, 0.05]
+  expect(await flingTo(page, stops, ".seqno-journal")).toEqual(landedWell(stops))
 })
 
 test("the header menu exports the page as markdown and opens Settings", async ({ page }) => {
