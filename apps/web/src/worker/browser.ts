@@ -21,7 +21,7 @@ const starters = new Map<
   { readonly version: number; readonly files: (today: JournalDay) => ReadonlyArray<StarterFile> }
 >([
   ["demo", { version: 1, files: demoGraph }],
-  ["developer", { version: 5, files: developerGraph }],
+  ["developer", { version: 6, files: developerGraph }],
 ])
 
 interface Found {

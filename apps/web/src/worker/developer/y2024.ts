@@ -199,7 +199,7 @@ export const y2024: ReadonlyArray<StarterFile> = [
   on(
     20240924,
     "- [nixos-wsl-starter](https://github.com/AVGVSTVS96/nixos-wsl-starter): NixOS on WSL, so I can develop on Windows [[projects/dotfiles]]",
-    "\t- the setup I used on my work machine, learning software development in my free time while I worked as an IT/AV technician [[learning to code]]",
+    "\t- the setup I used on my work machine, learning software development in my free time while I worked as an IT/AV technician at the New York City Bar Association [[learning to code]]",
   ),
   on(
     20240922,
