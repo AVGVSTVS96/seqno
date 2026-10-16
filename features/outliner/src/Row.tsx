@@ -36,6 +36,7 @@ export interface RowProps {
   readonly references: number
   readonly referencesOpen: boolean
   readonly below: ReactNode
+  readonly index: number
   readonly measure: Ref<HTMLDivElement>
   readonly actions: RowActions
   readonly children: ReactNode
@@ -68,6 +69,7 @@ export const RowView = ({
   references,
   referencesOpen,
   below,
+  index,
   measure,
   actions,
   children,
@@ -80,6 +82,7 @@ export const RowView = ({
   return (
     <div
       ref={measure}
+      data-index={index}
       data-block-id={block.id}
       role="treeitem"
       aria-level={depth + 1}

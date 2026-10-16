@@ -24,6 +24,7 @@
     "@seqno/rpc": "workspace:*",
     "@seqno/syntax": "workspace:*",
     "@tabler/icons-react": "3.49.0",
+    "@tanstack/react-virtual": "3.14.19",
     "effect": "4.0.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",

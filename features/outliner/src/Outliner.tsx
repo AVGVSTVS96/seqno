@@ -38,7 +38,7 @@ import {
 import { moveCommand, type DropTarget } from "./drop.ts"
 import { historyFocus, historyStep, type Editing, type HistoryStep } from "./history.ts"
 import { Inlines } from "./Inline.tsx"
-import { layOut, offsetsOf, segments, viewportOf, windowOf, type Viewport } from "./layout.ts"
+import { layOut } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { BlockRefs } from "./BlockRefs.tsx"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
@@ -57,6 +57,7 @@ import { highlights, selectedRange, type Selection } from "./selection.ts"
 import { EditorIntent, type EditorSlotProps } from "./slot.ts"
 import { nextMarker } from "./tasks.ts"
 import { topLevel, type Outline, type Row } from "./tree.ts"
+import { useVirtualList } from "./virtual.tsx"
 import styles from "./outliner.css?inline"
 
 export interface OutlinerProps {
@@ -66,6 +67,7 @@ export interface OutlinerProps {
   readonly editor?: ComponentType<EditorSlotProps>
   readonly embedded?: boolean
   readonly addable?: boolean
+  readonly windowed?: boolean
   readonly resolveAsset?: (path: string) => string | undefined
   readonly onBlockMenu?: OpenBlockMenu
 }
@@ -96,9 +98,6 @@ export const Outliner = (props: OutlinerProps) =>
   })
 
 const noCounts: Readonly<Record<string, number>> = {}
-
-const overscan = 800
-const edgeMargin = "400px 0px"
 
 const createdBlock = (events: ReadonlyArray<GraphEvent>, except: BlockId) =>
   events.flatMap((event) =>
@@ -189,6 +188,10 @@ const AddBlock = ({
       </span>
     </span>
   </button>
+)
+
+const Gap = ({ height }: { readonly height: number }) => (
+  <div className="seqno-gap" aria-hidden style={{ height }} />
 )
 
 const stopEvent = (event: { stopPropagation: () => void }) => event.stopPropagation()
@@ -318,7 +321,6 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
   const runAll = useAtomSet(dispatchAllAtom, { mode: "promiseExit" })
   const dispatchAll = (commands: ReadonlyArray<Command>) => runAll(commands).then(Exit.isSuccess)
-  const container = useRef<HTMLDivElement>(null)
   const pressed = useRef<BlockId | null>(null)
   const swept = useRef(false)
   const [localEditing, setLocalEditing] = useState<Editing | null>(null)
@@ -335,64 +337,32 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     if (!next.delete(blockId)) next.add(blockId)
     setToggledRefs(next)
   }
-  const [viewport, setViewport] = useState<Viewport>(() => ({
-    top: 0,
-    bottom: window.innerHeight,
-  }))
-  const [heights, setHeights] = useState<ReadonlyMap<string, number>>(new Map())
-  const [rowObserver] = useState(
-    () =>
-      new ResizeObserver((entries) => {
-        const measured = entries.flatMap((entry) => {
-          const id =
-            entry.target instanceof HTMLElement ? entry.target.dataset["blockId"] : undefined
-          const size = entry.borderBoxSize[0]?.blockSize
-          return id === undefined || size === undefined ? [] : [[id, size] as const]
-        })
-        setHeights((previous) =>
-          measured.every(([id, size]) => previous.get(id) === size)
-            ? previous
-            : new Map([...previous, ...measured]),
-        )
-      }),
-  )
-  const [edgeObserver] = useState(
-    () =>
-      new IntersectionObserver(
-        (entries, observer) => {
-          const edges = entries.filter(({ target }) => target.isConnected)
-          const element = edges[0]?.target.parentElement ?? null
-          setViewport((current) => viewportOf(element, current))
-          for (const { target, isIntersecting } of edges) {
-            if (!isIntersecting) continue
-            observer.unobserve(target)
-            observer.observe(target)
-          }
-        },
-        { rootMargin: edgeMargin, scrollMargin: edgeMargin },
-      ),
-  )
   const laid = layOut(tree, zoom, embedded)
   const { view } = laid
   const rows = view.rows
   const requested =
     request !== null && !embedded && laid.positions.has(request.blockId) ? request : null
   const editing = requested ?? localEditing
+  const indexOf = (blockId: BlockId) => laid.positions.get(blockId) ?? -1
+  const {
+    placed,
+    trailing,
+    element: container,
+    attach,
+    measure,
+    reveal: revealIndex,
+  } = useVirtualList({
+    id: `${pageId} ${zoom ?? ""}`,
+    windowed: props.windowed ?? false,
+    count: rows.length,
+    estimate: laid.estimate,
+    key: laid.key,
+    overscan: 20,
+    keep: [editing === null ? -1 : indexOf(editing.blockId), ...dragged.map(indexOf)],
+  })
   const setEditing = (next: Editing | null) => {
     setLocalEditing(next)
     if (request !== null) setRequest(null)
-  }
-
-  const measure = (element: HTMLDivElement | null) => {
-    if (element === null) return
-    rowObserver.observe(element)
-    return () => rowObserver.unobserve(element)
-  }
-
-  const watchEdge = (element: HTMLDivElement | null) => {
-    if (element === null) return
-    edgeObserver.observe(element)
-    return () => edgeObserver.unobserve(element)
   }
 
   const after = (command: Command, then: (events: ReadonlyArray<GraphEvent>) => void) => {
@@ -419,25 +389,15 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     else void run(command)
   }
 
-  const indexOf = (blockId: BlockId) => laid.positions.get(blockId) ?? -1
   const range = selectedRange(rows, selection)
   const selected = range === null ? [] : rows.slice(range[0], range[1]).map((row) => row.block.id)
   const selectedSet = new Set(selected)
   const highlighted = highlights(rows, range)
-  const tops = offsetsOf(laid, heights)
-  const [from, to] = windowOf(tops, viewport, overscan)
-  const editingIndex = editing === null ? -1 : indexOf(editing.blockId)
-  const shown = [
-    ...Array.from({ length: to - from }, (_, offset) => from + offset),
-    editingIndex,
-    ...dragged.map(indexOf),
-  ]
-  const parts = segments(tops, shown)
 
   const reveal = (blockId: BlockId) => {
-    container.current
-      ?.querySelector(`[data-block-id="${blockId}"]`)
-      ?.scrollIntoView({ block: "nearest" })
+    const shown = container.current?.querySelector(`[data-block-id="${blockId}"]`) ?? null
+    if (shown === null) revealIndex(indexOf(blockId))
+    else shown.scrollIntoView({ block: "nearest" })
   }
 
   const edit = (block: Block, caret: number) => {
@@ -742,6 +702,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         references={references}
         referencesOpen={refsShown}
         below={refsShown ? <BlockRefs uuid={refId} /> : null}
+        index={index}
         measure={measure}
         actions={actionsFor(row)}
       >
@@ -785,21 +746,12 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       },
     )
 
-  const gapKey = (part: { readonly from: number; readonly to: number }) =>
-    part.from === 0 ? "gap-start" : part.to === rows.length ? "gap-end" : `gap-${part.from}`
-  const body = parts.flatMap((part) =>
-    part._tag === "Gap"
-      ? [
-          <div
-            key={gapKey(part)}
-            ref={watchEdge}
-            className="seqno-gap"
-            aria-hidden
-            style={{ height: part.height }}
-          />,
-        ]
-      : rows.slice(part.from, part.to).map((row, offset) => renderRow(row, part.from + offset)),
-  )
+  const body = placed.flatMap(({ index, gap }) => {
+    const row = rows[index]
+    if (row === undefined) return []
+    const shown = renderRow(row, index)
+    return gap === 0 ? [shown] : [<Gap key={`gap-${row.block.id}`} height={gap} />, shown]
+  })
 
   return (
     <RenderContext value={renderer}>
@@ -816,7 +768,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
           />
         ) : null}
         <div
-          ref={container}
+          ref={attach}
           className="seqno-outline"
           role="tree"
           aria-label="Outline"
@@ -827,6 +779,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
           onBlur={onBlur}
         >
           {body}
+          {trailing === 0 ? null : <Gap key="gap-end" height={trailing} />}
           {embedded ? null : rows.length === 0 ? (
             <AddBlock
               className="seqno-add-first"

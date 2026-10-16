@@ -3,6 +3,7 @@ import { useAtomMount, useAtomValue } from "@effect/atom-react"
 import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
+import { ScrollContent } from "@seqno/outliner"
 import { attemptedGraph, lastGraph, leftSidebarOpen, openGraph, rightSidebar } from "../atoms.ts"
 import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
 import { Hints } from "./hints/Hints.tsx"
@@ -57,7 +58,9 @@ const Layout = ({
         <div className="main-container">
           <LeftSidebar graph={graph} />
           <main className="main-content-container">
-            <div className="main-content">{content(ready ?? true, problem ?? null)}</div>
+            <ScrollContent className="main-content">
+              {content(ready ?? true, problem ?? null)}
+            </ScrollContent>
           </main>
         </div>
       </div>

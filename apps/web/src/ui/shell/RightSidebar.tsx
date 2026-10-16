@@ -13,7 +13,7 @@ import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useContext, useId, useState, type ReactNode } from "react"
 import { normalizePageName, type BlockId } from "@seqno/domain"
-import { blockAtom } from "@seqno/outliner"
+import { blockAtom, ScrollContent } from "@seqno/outliner"
 import {
   allPages,
   dispatch,
@@ -273,49 +273,51 @@ const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
   const many = shown.length > 1
   return (
     <div className="sidebar-item-list">
-      {shown.map((item, index) => {
-        const key = sidebarItemKey(item)
-        const isCollapsed = collapsed.has(key)
-        const actions: CardActions = {
-          close: () =>
-            items.length === 0
-              ? updateSidebar({ _tag: "Toggle" })
-              : closeSidebarItem(registry, item),
-          closeOthers: () =>
-            items.forEach((other) => {
-              if (sidebarItemKey(other) !== key) updateSidebar({ _tag: "Close", item: other })
+      <ScrollContent className="sidebar-item-stack">
+        {shown.map((item, index) => {
+          const key = sidebarItemKey(item)
+          const isCollapsed = collapsed.has(key)
+          const actions: CardActions = {
+            close: () =>
+              items.length === 0
+                ? updateSidebar({ _tag: "Toggle" })
+                : closeSidebarItem(registry, item),
+            closeOthers: () =>
+              items.forEach((other) => {
+                if (sidebarItemKey(other) !== key) updateSidebar({ _tag: "Close", item: other })
+              }),
+            closeAll: () => updateSidebar({ _tag: "Clear" }),
+            toggle: () =>
+              setCollapsed((current) =>
+                current.has(key)
+                  ? new Set([...current].filter((other) => other !== key))
+                  : new Set([...current, key]),
+              ),
+            collapseOthers: () => setCollapsed(new Set(keys.filter((other) => other !== key))),
+            collapseAll: () => setCollapsed(new Set(keys)),
+            expandAll: () => setCollapsed(new Set()),
+            openAsPage: SidebarItem.match(item, {
+              Page:
+                ({ name }) =>
+                () =>
+                  void navigate({ to: "/page/$name", params: { name: normalizePageName(name) } }),
+              Block: () => null,
+              Help: () => null,
+              PageGraph: () => null,
             }),
-          closeAll: () => updateSidebar({ _tag: "Clear" }),
-          toggle: () =>
-            setCollapsed((current) =>
-              current.has(key)
-                ? new Set([...current].filter((other) => other !== key))
-                : new Set([...current, key]),
-            ),
-          collapseOthers: () => setCollapsed(new Set(keys.filter((other) => other !== key))),
-          collapseAll: () => setCollapsed(new Set(keys)),
-          expandAll: () => setCollapsed(new Set()),
-          openAsPage: SidebarItem.match(item, {
-            Page:
-              ({ name }) =>
-              () =>
-                void navigate({ to: "/page/$name", params: { name: normalizePageName(name) } }),
-            Block: () => null,
-            Help: () => null,
-            PageGraph: () => null,
-          }),
-        }
-        return (
-          <Card
-            key={key}
-            item={item}
-            first={index === 0}
-            many={many}
-            collapsed={isCollapsed}
-            actions={actions}
-          />
-        )
-      })}
+          }
+          return (
+            <Card
+              key={key}
+              item={item}
+              first={index === 0}
+              many={many}
+              collapsed={isCollapsed}
+              actions={actions}
+            />
+          )
+        })}
+      </ScrollContent>
     </div>
   )
 }

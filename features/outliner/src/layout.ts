@@ -27,7 +27,7 @@ const hiddenLine = /^\s*(?:id|collapsed)::/
 
 const propertiesBox = 16
 
-export const estimateHeight = (block: Block) => {
+const estimateHeight = (block: Block) => {
   let lines = 0
   for (const line of block.text.split("\n")) {
     if (!hiddenLine.test(line)) lines += Math.max(1, Math.ceil(line.length / lineChars))
@@ -54,7 +54,8 @@ export interface Laid {
   readonly view: Outline
   readonly positions: ReadonlyMap<BlockId, number>
   readonly ordinals: ReadonlyArray<number | null>
-  readonly estimates: ReadonlyArray<number>
+  readonly key: (index: number) => string
+  readonly estimate: (index: number) => number
 }
 
 const laidOut = new WeakMap<PageTree, Map<string, Laid>>()
@@ -66,35 +67,16 @@ export const layOut = (tree: PageTree, zoom: BlockId | null, embedded: boolean):
   const found = known.get(key)
   if (found !== undefined) return found
   const view = outline(tree, zoom, embedded)
+  const estimates = view.rows.map((row) => estimateHeight(row.block))
   const laid: Laid = {
     view,
     positions: new Map(view.rows.map((row, index) => [row.block.id, index])),
     ordinals: ordinalsOf(view.rows),
-    estimates: view.rows.map((row) => estimateHeight(row.block)),
+    key: (index) => view.rows[index]?.block.id ?? String(index),
+    estimate: (index) => estimates[index] ?? 0,
   }
   known.set(key, laid)
   return laid
-}
-
-const measuredTops = new WeakMap<
-  Laid,
-  { readonly heights: ReadonlyMap<string, number>; readonly tops: ReadonlyArray<number> }
->()
-
-export const offsetsOf = (
-  laid: Laid,
-  heights: ReadonlyMap<string, number>,
-): ReadonlyArray<number> => {
-  const known = measuredTops.get(laid)
-  if (known?.heights === heights) return known.tops
-  const tops = [0]
-  let total = 0
-  laid.view.rows.forEach((row, index) => {
-    total += heights.get(row.block.id) ?? laid.estimates[index] ?? 0
-    tops.push(total)
-  })
-  measuredTops.set(laid, { heights, tops })
-  return tops
 }
 
 const firstEndingAfter = (tops: ReadonlyArray<number>, y: number) => {

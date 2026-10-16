@@ -30,8 +30,12 @@ const skipped = async (path: string) => {
 }
 
 describe("React Compiler", () => {
-  it("compiles every component", async () => {
+  it("compiles every component but the hook that calls TanStack Virtual", async () => {
     expect(components.length).toBeGreaterThan(40)
-    expect((await Promise.all(components.map(skipped))).flat()).toEqual([])
+    expect((await Promise.all(components.map(skipped))).flat()).toEqual([
+      expect.stringMatching(
+        /^features\/outliner\/src\/virtual\.tsx:\d+ Use of incompatible library$/,
+      ),
+    ])
   })
 })

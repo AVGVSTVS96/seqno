@@ -3,7 +3,7 @@ import { expect, test } from "vitest"
 import { page, userEvent } from "vitest/browser"
 import { render } from "vitest-browser-react"
 import type { Block, BlockId } from "@seqno/domain"
-import { coreLayer, Outliner, type NavigationTarget } from "../src/index.ts"
+import { coreLayer, Outliner, ScrollContent, type NavigationTarget } from "../src/index.ts"
 import { block, fakeCore, id, pageId } from "./fake-core.ts"
 import { themeTokens } from "./theme.ts"
 
@@ -349,13 +349,67 @@ test("code blocks render highlighted lines with line numbers", async () => {
   ])
 })
 
-test("only rows near the viewport are mounted while the document scrolls", async () => {
-  await mount(Array.from({ length: 3000 }, (_, n) => block(n + 1, `row ${n + 1}`)))
-  expect(page.getByRole("treeitem").elements().length).toBeLessThan(120)
-  window.scrollTo(0, document.documentElement.scrollHeight)
+const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+
+const mountWindowed = async (count: number) => {
+  const core = fakeCore(Array.from({ length: count }, (_, n) => block(n + 1, `row ${n + 1}`)))
+  await render(
+    <div data-testid="scroller" style={{ width: "600px", height: "600px", overflowY: "auto" }}>
+      <style>{themeTokens}</style>
+      <RegistryProvider initialValues={[[coreLayer, core.layer]]}>
+        <ScrollContent>
+          <Outliner pageId={pageId} zoom={null} windowed onNavigate={() => undefined} />
+        </ScrollContent>
+      </RegistryProvider>
+    </div>,
+  )
+  await expect.element(page.getByRole("tree")).toBeInTheDocument()
+  const scroller = page.getByTestId("scroller").element()
+  const inView = (selector: string) => {
+    const box = scroller.getBoundingClientRect()
+    return [...scroller.querySelectorAll(selector)].filter((element) => {
+      const at = element.getBoundingClientRect()
+      return at.height > 0 && at.bottom > box.top && at.top < box.bottom
+    }).length
+  }
+  return { scroller, inView }
+}
+
+test("only rows near the viewport are mounted while the list scrolls", async () => {
+  const { scroller } = await mountWindowed(3000)
+  expect(page.getByRole("treeitem").elements().length).toBeLessThan(80)
+  scroller.scrollTop = scroller.scrollHeight
   await expect.element(page.getByText("row 3000", { exact: true })).toBeInTheDocument()
   expect(page.getByText("row 1", { exact: true }).elements()).toEqual([])
-  expect(page.getByRole("treeitem").elements().length).toBeLessThan(120)
-  window.scrollTo(0, 0)
+  expect(page.getByRole("treeitem").elements().length).toBeLessThan(80)
+  scroller.scrollTop = 0
   await expect.element(page.getByText("row 1", { exact: true })).toBeInTheDocument()
+})
+
+test("a fast fling shows rows wherever it stops", async () => {
+  const { scroller, inView } = await mountWindowed(3000)
+  for (const stop of [0.9, 0.2, 0.6]) {
+    const target = (scroller.scrollHeight - scroller.clientHeight) * stop
+    while (Math.abs(scroller.scrollTop - target) > 1) {
+      scroller.scrollTop +=
+        Math.sign(target - scroller.scrollTop) *
+        Math.min(5000, Math.abs(target - scroller.scrollTop))
+      await frame()
+    }
+    await frame()
+    await frame()
+    expect([inView(".seqno-gap"), inView("[role=treeitem]") > 10]).toEqual([0, true])
+  }
+})
+
+test("Mod+Shift+A on a long page selects every block and scrolls to the last one", async () => {
+  const { inView } = await mountWindowed(3000)
+  await page.getByText("row 2", { exact: true }).click()
+  await userEvent.keyboard("{Escape}{Control>}{Shift>}a{/Shift}{/Control}")
+  await expect.element(page.getByText("row 3000", { exact: true })).toBeInTheDocument()
+  await frame()
+  expect([
+    inView(".seqno-gap"),
+    page.getByText("row 3000", { exact: true }).element().closest("[role=treeitem]")?.ariaSelected,
+  ]).toEqual([0, "true"])
 })
