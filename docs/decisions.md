@@ -246,7 +246,7 @@ On the 10-year graph a cursor resolves in 0.06 ms while its character exists and
 
 ## The journals list mounts only the days near the screen
 
-**Decision.** The journals view lays out every day back to the first one, but mounts only the days within 1,200 px of the screen. The others are spacers: measured days keep their measured height, and days not yet seen take the average height of the measured ones. Spacers are watched with an `IntersectionObserver`, the same way the outliner windows its rows, using the outliner's `windowOf` and `segments`.
+**Decision.** The journals view lays out every day back to the first one, but mounts only the days on screen and two either side. The others are spacers: measured days keep their measured height, and days not yet seen count as 600 px. TanStack Virtual does the windowing, as for every long list (see below).
 
 **Why.** The list used to mount three more days whenever its end came near and never unmounted any. Every day kept its rows, its page watch and its linked references, so scrolling back through a few months grew the DOM by about 350 nodes a day and frames got slower the further you went. Laying out every day also gives the scrollbar the whole range, so dragging it to 2019 lands in 2019.
 
@@ -254,11 +254,21 @@ On the 10-year graph a cursor resolves in 0.06 ms while its character exists and
 
 ## All pages mounts only the rows near the screen
 
-**Decision.** The All pages table mounts the rows within 1,200 px of the screen and stands two spacer rows in for the rest. Every row is one height, measured from a mounted row, so the window is plain arithmetic. Spacers are watched with an `IntersectionObserver`, the way Journals and the outliner window theirs.
+**Decision.** The All pages table mounts the rows near the screen and stands spacer rows in for the rest. TanStack Virtual does the windowing, as for every long list (see below).
 
 **Why.** A reopen of ten years from the saved index was budgeted at 5 s and measured 4.8 to 5.5 s on CI, so it failed on slow runners. Timing every step in the worker and the tab on CI showed the index wasn't the cost: reading the 67 MB file took 260 to 270 ms, loading it 15 ms, checking its stamp and finding nothing changed (`findIdSpansBetween`) 1 ms, all done before the first journal showed. Up to the first journal (1.4 s on a fast runner): 0.1 s to the tab's first call, 0.65 to 0.8 s restoring the snapshot (mostly Loro decoding the one tree to list the pages), 0.15 s for the rest of the vault's pass, 0.4 s for the tab to show the journal. The rest, 2.2 s of a 3.9 s run, was All pages: React rendering 6,654 rows of router links, and the scroll restore reading `scrollTop`, which forced layout of the whole table (626 ms by CPU profile). An empty catch-up also made every live query run a second time right after the load; it now writes nothing.
 
 **Numbers.** CI, ten years in headless Chrome, the reopen until All pages lists the long page's last reference: 1.8 to 2.2 s on normal runners (9.8 to 12.3 s for the Node bench's import and seed), down from 4.8 to 5.5 s. The budget is 4 s.
+
+## Long lists are windowed by TanStack Virtual
+
+**Decision.** A page's outline, the journals and All pages are windowed by TanStack Virtual (`@tanstack/react-virtual`), through `useVirtualList` in `@seqno/outliner`. The main column and the right sidebar each hand their scroll element to the lists inside them (`ScrollContent`), and a list measures where it starts in it, so a page's title or a sidebar card above it is accounted for. The journals are one list of days, and the outline inside a day renders all its rows; so does an embed's or a reference's. When something above the screen changes height, TanStack moves the scroll position by the same amount, so the scrollers turn off the browser's own scroll anchoring (`overflow-anchor: none`), which would move it a second time. Measured heights outlive a remount, so Back lands where you left.
+
+**Why.** The old windowing moved its window only when an `IntersectionObserver` saw a spacer start or stop crossing the screen. A fast scroll landed inside a spacer: one callback with a stale position, then nothing, so the journals stayed blank until you scrolled back up to where days were. TanStack reads the scroll position on every scroll event. Days are the items, rather than every day's rows: a flat list of rows needs every day's block tree to know its rows (3,650 trees for ten years), and TanStack keeps the view still when an item above it changes height, not when items are inserted above it, which a flat list of days that load as they come near would do.
+
+**Cost.** React Compiler doesn't memoize a function that calls `useVirtualizer` (TanStack's instance stays the same object while its values change), and oxlint's `react/incompatible-library` reports the call. The one hook that makes it, `useTanStack` in `features/outliner/src/virtual.tsx`, hands out the virtual items, which are a new array whenever they change, so everything that uses them is memoized as usual. `.oxlintrc.json` turns that rule off for that one file, and `apps/web/test/compiler.test.ts` expects that one skip and no other. Content that grows above the screen inside the journal day you're reading (an image that loads late) isn't compensated, since TanStack only sees the day's height change.
+
+**Numbers.** Fling flows, 3,000 px a frame to five stops: on the old windowing the developer graph's journals left only a spacer on screen at 4 of 5 stops; with TanStack, days or rows are on screen at every stop and nothing on screen moves over the next 30 frames, also on a 3,000-block page whose images load 250 ms late. With Chrome's scroll anchoring doing the compensation instead of TanStack, that page was left 164 px off at 3 of 8 stops. The CI bench (ten years, scrolling 60 px a frame) is unchanged: frame p95 16.7 ms on the journals and 16.8 ms deeper, 16.7 ms on the 20k-block page, no frame over 50 ms, 5,853 DOM nodes after scrolling the journals; rows show 61 ms after a jump to the middle of the journals (31 to 39 ms on the last three runs before) and 17 ms on the long page (12 to 29 ms).
 
 ## Background work runs below the tabs' requests
 
