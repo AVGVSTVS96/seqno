@@ -2,12 +2,13 @@ import { defineConfig } from "@playwright/test"
 import { browserFlag } from "./src/browser.ts"
 
 const port = 4174
+const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 
 export default defineConfig({
   testDir: "src",
   testMatch: "*.bench.ts",
   workers: 1,
-  timeout: 15 * 60_000,
+  timeout: years * 90_000,
   reporter: "list",
   use: {
     baseURL: `http://127.0.0.1:${port}/`,

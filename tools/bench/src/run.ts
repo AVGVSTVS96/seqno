@@ -30,7 +30,7 @@ const KEYSTROKES = 300
 const REMOTE_EDITS = 1000
 const LONG_PAGE = 20_000
 const SELECTED = 5_000
-const YEARS = 10
+const YEARS = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 
 const timed = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {

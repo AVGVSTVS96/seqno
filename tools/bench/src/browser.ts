@@ -208,7 +208,7 @@ export const shown = (
         return matches && element.checkVisibility()
       }),
     { selector, text },
-    { polling: "raf", timeout: 300_000 },
+    { polling: "raf", timeout: 0 },
   )
 
 export const firstJournal = (page: Page) => shown(page, ".seqno-journal [role=treeitem]")

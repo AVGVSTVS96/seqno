@@ -60,12 +60,15 @@ Every timed wait in the Chrome benchmarks checks the page on each animation fram
 | Reopen: then search shows that block             | 2 s                    |
 | Second fill: the rest, after a mid-fill reload   | less than a whole fill |
 | Fill time                                        | -                      |
+| Chrome memory after the first fill, and at last  | -                      |
 
 On a CI runner the first open shows a journal in 0.6 to 1.0 s and fills the index in 24 to 36 s; the reopen shows a journal in 0.9 to 1.1 s and the index has `quillwort` 1.0 to 1.4 s after the reload (the open waited about 0.3 s on the index fill before; see "A graph opens before its index fills" in `docs/decisions.md`). Search after the reopen then shows the long page's last block in 0.2 to 0.3 s: the graph finds it by its `uuid` on a page it hasn't read, where reading the whole page took that to 2.3 s on the Mac. On one tree, before the switch, the same runners showed the first journal in about 2.8 s and the reopen in about 1.4 s; on cloud (headless Chrome 154) the first open took about 3 s and the fill 72 to 82 s. Before All pages mounted only the rows near the screen, rendering all 6,654 of them took the reopen's `quillwort` to 4.8 to 5.5 s, and before the graph looked blocks up on the page the index has them on, the search waited about 33 s for the graph's walk of every page. Without `extendedLifetime` the reload ended the worker mid-write, left no file, and the reopen filled from scratch. In Node, the vault open takes about 0.4 s and loading the image and catching up 7 ms, against 6 s for the fill.
 
 `SEQNO_BENCH_FOLDER` makes `open.bench.ts` open a folder already written with `write-years.ts ... tree-per-page` instead of writing one.
 
-`SEQNO_BENCH_YEARS` and `SEQNO_BENCH_LONG_PAGE` change the graph's size. `node src/write-years.ts <folder> <years> <long page blocks> [tree-per-page]` writes the same graph as a folder to open by hand, on one tree unless asked.
+`SEQNO_BENCH_YEARS` and `SEQNO_BENCH_LONG_PAGE` change the graph's size, in Node and in Chrome, and each Chrome test gets 90 s per year. `SEQNO_BENCH_LAYOUT=tree-per-page` has the scroll benchmark open the years kept in the browser instead of in a picked folder. The `scale` workflow, run by hand from the Actions tab with a number of years, runs the Node benchmark, the open benchmark and the scroll benchmark in both layouts at that size, each on its own runner.
+
+The years are written in slices of 4,000 files, each slice in its own `node` process: it restores the snapshot the slice before it wrote, loads its pages and writes a new snapshot. Holding the whole graph in one process took about 8 KB of Loro memory per block, 3.2 GB at 30 years, and wasm can't go past 4 GB; a slice peaks at 1.7 GB of memory at 30 years and 2.8 GB at 60 (3.8 GB on one tree). Each runs with a 16 GB heap limit, because V8 runs a full garbage collection on every growth of wasm memory once it is over half the heap limit. With Node's default limit, which inside a memory-capped container comes from the cap, writing 30 years spent 99% of its time collecting. `node src/write-years.ts <folder> <years> <long page blocks> [tree-per-page]` writes the same graph as a folder to open by hand, on one tree unless asked.
 
 ## Known gaps
 

@@ -4,23 +4,30 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Schema } from "effect"
 import { BlockId, PageId } from "@seqno/domain"
-import { journalsByDay } from "@seqno/graph"
 import { emptyPagesGraph } from "./graph.ts"
-import { loadYears } from "./years.ts"
+import { writeSlicesInFreshProcesses } from "./years.ts"
 
 const until = new Date(2026, 9, 12)
 const OPENS = 3
 
 export const writeYearsAsPages = (years: number, longPage: number) =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const graph = yield* emptyPagesGraph("60")
-      const shape = yield* loadYears(graph, { years, until, longPage }, journalsByDay)
-      const long = (yield* graph.pages).find((page) => page.name === "long page")
-      const last = long === undefined ? undefined : (yield* graph.page(long.id)).blocks.at(-1)
-      if (last === undefined) return yield* Effect.die("the years have no long page")
-      return { shape, snapshot: yield* graph.snapshot, last }
-    }),
+  Effect.acquireUseRelease(
+    Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-bench-years-"))),
+    (folder) =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const { snapshot } = yield* Effect.promise(() =>
+            writeSlicesInFreshProcesses(folder, { years, until, longPage }, "tree-per-page"),
+          )
+          const graph = yield* emptyPagesGraph("60")
+          yield* graph.restore([snapshot])
+          const long = (yield* graph.pages).find((page) => page.name === "long page")
+          const last = long === undefined ? undefined : (yield* graph.page(long.id)).blocks.at(-1)
+          if (last === undefined) return yield* Effect.die("the years have no long page")
+          return { snapshot, last }
+        }),
+      ),
+    (folder) => Effect.promise(() => rm(folder, { recursive: true })),
   )
 
 const Last = Schema.Struct({ blockId: BlockId, pageId: PageId })
@@ -59,7 +66,7 @@ export const opensInFreshProcess = (snapshot: Uint8Array, last: Last) =>
         yield* Effect.promise(() => writeFile(file, snapshot))
         const output = execFileSync(
           process.execPath,
-          [import.meta.filename, file, last.blockId, last.pageId],
+          [...process.execArgv, import.meta.filename, file, last.blockId, last.pageId],
           { encoding: "utf8" },
         )
         return yield* Schema.decodeUnknownEffect(Opens)(output.trim().split("\n").at(-1) ?? "")

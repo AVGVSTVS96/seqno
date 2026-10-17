@@ -1,27 +1,53 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { expect, test } from "@playwright/test"
-import { Effect } from "effect"
-import { firstJournal, jump, memory, pickFolder, scrollFrames } from "./browser.ts"
+import { expect, test, type Page } from "@playwright/test"
+import { firstJournal, jump, keepInBrowser, memory, pickFolder, scrollFrames } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
+import type { Layout } from "./years.ts"
 
 const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
 const budgets = { openMs: 3_000, frameP95Ms: 33.4, domNodes: 15_000, jumpMs: 1_500 }
 const frames = 600
 const pxPerFrame = 60
+const layout: Layout =
+  process.env["SEQNO_BENCH_LAYOUT"] === "tree-per-page" ? "tree-per-page" : "one-tree"
 
-test(`${years} years of journals open, and the journals and a ${longPage}-block page scroll smoothly`, async ({
+const ways: Record<
+  Layout,
+  {
+    readonly what: string
+    readonly put: typeof keepInBrowser
+    readonly from: string
+    readonly open: (page: Page) => Promise<void>
+  }
+> = {
+  "one-tree": {
+    what: "in a picked folder",
+    put: pickFolder,
+    from: "/",
+    open: (page) => page.getByRole("button", { name: "Open a folder" }).first().click(),
+  },
+  "tree-per-page": {
+    what: "kept in the browser",
+    put: keepInBrowser,
+    from: "/graphs",
+    open: (page) => page.getByRole("button", { name: "graph", exact: true }).click(),
+  },
+}
+const way = ways[layout]
+
+test(`${years} years of journals ${way.what} open, and the journals and a ${longPage}-block page scroll smoothly`, async ({
   page,
 }) => {
   const folder = await mkdtemp(join(tmpdir(), "seqno-bench-"))
   try {
-    const shape = await Effect.runPromise(Effect.scoped(writeYears(folder, years, longPage)))
-    await pickFolder(page, folder)
-    await page.goto("/")
+    const shape = await writeYears(folder, years, longPage, layout)
+    await way.put(page, folder, "graph")
+    await page.goto(way.from)
     const started = performance.now()
-    await page.getByRole("button", { name: "Open a folder" }).first().click()
+    await way.open(page)
     await firstJournal(page)
     const openMs = performance.now() - started
     const opened = await memory(page)

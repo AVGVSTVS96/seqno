@@ -2,8 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, test, type Page } from "@playwright/test"
-import { Effect } from "effect"
-import { firstJournal, jump, keepInBrowser, shown } from "./browser.ts"
+import { firstJournal, jump, keepInBrowser, memory, shown } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
 import { lastReference, lastWords } from "./years.ts"
 
@@ -78,7 +77,7 @@ test(`${years} years of journals kept in the browser open from their snapshot, r
   const folder = given ?? (await mkdtemp(join(tmpdir(), "seqno-bench-")))
   try {
     if (given === undefined) {
-      await Effect.runPromise(Effect.scoped(writeYears(folder, years, longPage, "tree-per-page")))
+      await writeYears(folder, years, longPage, "tree-per-page")
     }
     await keepInBrowser(page, folder, "graph")
     await page.goto("/graphs")
@@ -93,6 +92,7 @@ test(`${years} years of journals kept in the browser open from their snapshot, r
     )
     await indexedLastBlock(page)
     const fillMs = since(opening)
+    const filled = await memory(page)
     const reloadedWhile = await saveStarted(page, "graph")
     const bytesAtReload = (await indexFile(page, "graph")).bytes
 
@@ -117,6 +117,7 @@ test(`${years} years of journals kept in the browser open from their snapshot, r
     await firstJournal(page)
     await indexedLastBlock(page)
     const restMs = since(resumed)
+    const end = await memory(page)
 
     const rows = [
       { what: "open: first journal on screen", value: openMs, budget: budgets.openMs },
@@ -126,6 +127,7 @@ test(`${years} years of journals kept in the browser open from their snapshot, r
         budget: budgets.fillJumpMs,
       },
       { what: "open: the index has the long page's last block", value: fillMs, budget: null },
+      { what: "open: Chrome MB once the index has it", value: filled.chromeMb, budget: null },
       {
         what: `reopen after a reload while the save was ${reloadedWhile}: first journal`,
         value: reopenMs,
@@ -153,6 +155,7 @@ test(`${years} years of journals kept in the browser open from their snapshot, r
         value: restMs,
         budget: fillMs,
       },
+      { what: "second fill: Chrome MB at the end", value: end.chromeMb, budget: null },
     ]
     console.table(rows.map((row) => ({ ...row, value: Math.round(row.value * 10) / 10 })))
     expect(
