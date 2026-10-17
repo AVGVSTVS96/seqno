@@ -1,0 +1,51 @@
+name: scale
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: Years of daily journals
+        default: "30"
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    runs-on: ubuntu-24.04
+    env:
+      SEQNO_BENCH_YEARS: ${{ inputs.years }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @seqno/bench bench
+
+  chrome:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - bench: src/open.bench.ts
+            layout: tree-per-page
+          - bench: src/scroll.bench.ts
+            layout: tree-per-page
+          - bench: src/scroll.bench.ts
+            layout: one-tree
+    env:
+      SEQNO_BENCH_YEARS: ${{ inputs.years }}
+      SEQNO_BENCH_LAYOUT: ${{ matrix.layout }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @seqno/bench scroll ${{ matrix.bench }}
