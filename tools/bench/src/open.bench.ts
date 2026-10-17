@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { expect, test, type Page } from "@playwright/test"
-import { firstJournal, jump, keepInBrowser, memory, shown } from "./browser.ts"
+import { expect, type Page } from "@playwright/test"
+import { firstJournal, jump, keepInBrowser, memory, shown, test } from "./browser.ts"
 import { writeYears } from "./write-years.ts"
 import { lastReference, lastWords } from "./years.ts"
 
@@ -38,18 +38,19 @@ const indexFile = (page: Page, graph: string) =>
     }
   }, graph)
 
+const aFrame = () => new Promise((resolve) => setTimeout(resolve, 16))
+
 const saveStarted = async (page: Page, graph: string) => {
   for (;;) {
     const { writing, bytes } = await indexFile(page, graph)
     if (writing) return "writing"
     if (bytes > 0) return "written"
+    await aFrame()
   }
 }
 
 const savedAtLeast = async (page: Page, graph: string, bytes: number) => {
-  for (;;) {
-    if ((await indexFile(page, graph)).bytes >= bytes) return
-  }
+  while ((await indexFile(page, graph)).bytes < bytes) await aFrame()
 }
 
 const since = (started: number) => performance.now() - started

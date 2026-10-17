@@ -1,8 +1,16 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { expect, test, type Page } from "@playwright/test"
-import { firstJournal, jump, keepInBrowser, memory, pickFolder, scrollFrames } from "./browser.ts"
+import { expect, type Page } from "@playwright/test"
+import {
+  firstJournal,
+  jump,
+  keepInBrowser,
+  memory,
+  pickFolder,
+  scrollFrames,
+  test,
+} from "./browser.ts"
 import { writeYears } from "./write-years.ts"
 import type { Layout } from "./years.ts"
 

@@ -1,8 +1,28 @@
-import { readdir, readFile } from "node:fs/promises"
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises"
 import { createReadStream } from "node:fs"
 import { createServer } from "node:http"
+import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
-import type { Page } from "@playwright/test"
+import { chromium, test as playwright, type Page } from "@playwright/test"
+
+export const test = playwright.extend<{ page: Page }>({
+  page: async ({ baseURL, viewport, channel, headless, launchOptions }, use) => {
+    const profile = await mkdtemp(join(tmpdir(), "seqno-bench-profile-"))
+    const context = await chromium.launchPersistentContext(profile, {
+      ...launchOptions,
+      ...(channel === undefined ? {} : { channel }),
+      ...(baseURL === undefined ? {} : { baseURL }),
+      headless,
+      viewport,
+    })
+    try {
+      await use(context.pages()[0] ?? (await context.newPage()))
+    } finally {
+      await context.close()
+      await rm(profile, { recursive: true })
+    }
+  },
+})
 
 const serveFolder = async (from: string, files: ReadonlyArray<string>) => {
   const server = createServer((request, response) => {
