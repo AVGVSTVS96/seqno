@@ -1,5 +1,5 @@
 import type { GraphFile } from "../files.ts"
-import type { GeneratedGraph, GeneratedPage } from "./graph.ts"
+import { generatePages, type GeneratedBlock, type GeneratedGraph, type GeneratedPage, type GeneratorOptions } from "./graph.ts"
 
 export const logseqConfig = `{:meta/version 1
  :preferred-format "Markdown"
@@ -22,22 +22,36 @@ const withId = (lines: readonly string[], id: string) => {
   return [...lines.slice(0, at), `id:: ${id}`, ...lines.slice(at)]
 }
 
-export const toLogseqFiles = (graph: GeneratedGraph): GraphFile[] => {
-  const referenced = new Set<string>()
-  for (const block of graph.blocks) for (const [, id] of block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/g)) referenced.add(id!)
+export const configFile: GraphFile = { path: "logseq/config.edn", content: logseqConfig }
+
+const referencedIn = (blocks: Iterable<GeneratedBlock>, into = new Set<string>()) => {
+  for (const block of blocks) for (const [, id] of block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/g)) into.add(id!)
+  return into
+}
+
+const pageFile = (page: GeneratedPage, blocks: Iterable<GeneratedBlock>, referenced: ReadonlySet<string>): GraphFile => {
   const depth = new Map<string, number>()
-  const lines = new Map<string, string[]>(graph.pages.map((page) => [page.id, []]))
-  for (const block of graph.blocks) {
+  const out: string[] = []
+  for (const block of blocks) {
     const d = block.parentId === null ? 0 : depth.get(block.parentId)! + 1
     depth.set(block.id, d)
     const text = block.text.split("\n")
     const indent = "\t".repeat(d)
-    const out = lines.get(block.pageId)!
     for (const [i, line] of (referenced.has(block.id) ? withId(text, block.id) : text).entries())
       out.push(`${indent}${i === 0 ? "- " : "  "}${line}`)
   }
-  return [
-    { path: "logseq/config.edn", content: logseqConfig },
-    ...graph.pages.map((page) => ({ path: pagePath(page), content: `${lines.get(page.id)!.join("\n")}\n` })),
-  ]
+  return { path: pagePath(page), content: `${out.join("\n")}\n` }
+}
+
+export const toLogseqFiles = (graph: GeneratedGraph): GraphFile[] => {
+  const referenced = referencedIn(graph.blocks)
+  const byPage = new Map<string, GeneratedBlock[]>(graph.pages.map((page) => [page.id, []]))
+  for (const block of graph.blocks) byPage.get(block.pageId)!.push(block)
+  return [configFile, ...graph.pages.map((page) => pageFile(page, byPage.get(page.id)!, referenced))]
+}
+
+export function* logseqPageFiles(options: Partial<GeneratorOptions> = {}): Generator<GraphFile> {
+  const referenced = new Set<string>()
+  for (const { blocks } of generatePages(options)) referencedIn(blocks, referenced)
+  for (const { page, blocks } of generatePages(options)) yield pageFile(page, blocks, referenced)
 }

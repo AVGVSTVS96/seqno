@@ -186,7 +186,12 @@ const pageBlocks = (ctx: ContentContext, page: GeneratedPage, count: number, out
   }
 }
 
-export const generateGraph = (options: Partial<GeneratorOptions> = {}): GeneratedGraph => {
+export interface GeneratedPageBlocks {
+  readonly page: GeneratedPage
+  readonly blocks: readonly GeneratedBlock[]
+}
+
+export function* generatePages(options: Partial<GeneratorOptions> = {}): Generator<GeneratedPageBlocks> {
   const opts = { ...defaultGeneratorOptions, ...options }
   if (opts.blocks < opts.pages + opts.journals) throw new Error("need at least one block per page")
   const rng = createRng(opts.seed)
@@ -199,7 +204,19 @@ export const generateGraph = (options: Partial<GeneratorOptions> = {}): Generate
     tagPages: pages.filter((p) => p.journalDay === null && !p.name.includes("/")),
     blockIds,
   }
+  for (const [i, page] of pages.entries()) {
+    const blocks: GeneratedBlock[] = []
+    pageBlocks(ctx, page, counts[i]!, blocks, blockIds)
+    yield { page, blocks }
+  }
+}
+
+export const generateGraph = (options: Partial<GeneratorOptions> = {}): GeneratedGraph => {
+  const pages: GeneratedPage[] = []
   const blocks: GeneratedBlock[] = []
-  pages.forEach((page, i) => pageBlocks(ctx, page, counts[i]!, blocks, blockIds))
-  return { options: opts, pages, blocks }
+  for (const one of generatePages(options)) {
+    pages.push(one.page)
+    for (const block of one.blocks) blocks.push(block)
+  }
+  return { options: { ...defaultGeneratorOptions, ...options }, pages, blocks }
 }

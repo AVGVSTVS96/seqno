@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import {
   applyEdits,
+  configFile,
   generateEdits,
   generateGraph,
   graphDigest,
   graphStats,
   logseqConfig,
+  logseqPageFiles,
   readGraph,
   toLogseqFiles,
   type GeneratedGraph,
@@ -96,6 +98,13 @@ describe("toLogseqFiles", () => {
       },
       { path: "journals/2025_01_02.md", content: `- see ((${target}))\n` },
     ])
+  })
+
+  it("writes the same files page by page, one generated page at a time", () => {
+    const options = { seed: 7, blocks: 3_000, pages: 60, journals: 40 }
+    const files = toLogseqFiles(generateGraph(options))
+    expect([configFile, ...logseqPageFiles(options)]).toEqual(files)
+    expect(files.some((f) => f.content.includes("id:: "))).toBe(true)
   })
 
   it("gives every page of the 50k graph its own file", () => {

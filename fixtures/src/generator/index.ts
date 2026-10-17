@@ -2,9 +2,11 @@ export { createRng, type Rng } from "./rng.ts"
 export {
   defaultGeneratorOptions,
   generateGraph,
+  generatePages,
   type GeneratedBlock,
   type GeneratedGraph,
   type GeneratedPage,
+  type GeneratedPageBlocks,
   type GeneratorOptions,
 } from "./graph.ts"
 export {
@@ -21,4 +23,4 @@ export {
 } from "./edits.ts"
 export { graphStats } from "./stats.ts"
 export { graphDigest } from "./digest.ts"
-export { logseqConfig, toLogseqFiles } from "./logseq.ts"
+export { configFile, logseqConfig, logseqPageFiles, toLogseqFiles } from "./logseq.ts"
