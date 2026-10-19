@@ -49,13 +49,16 @@ const openOnce = (snapshot: Uint8Array, last: Last, peer: string) =>
       const { blocks } = yield* graph.page(today.id)
       if (blocks.length === 0) return yield* Effect.die("today's journal has no blocks")
       const opened = performance.now()
+      const rssMb = process.memoryUsage.rss() / 1e6
       yield* graph.block(last.blockId, last.pageId)
-      return { openMs: opened - started, blockMs: performance.now() - opened }
+      return { openMs: opened - started, blockMs: performance.now() - opened, rssMb }
     }),
   )
 
 const Opens = Schema.fromJsonString(
-  Schema.Array(Schema.Struct({ openMs: Schema.Finite, blockMs: Schema.Finite })),
+  Schema.Array(
+    Schema.Struct({ openMs: Schema.Finite, blockMs: Schema.Finite, rssMb: Schema.Finite }),
+  ),
 )
 
 export const opensInFreshProcess = (snapshot: Uint8Array, last: Last) =>

@@ -259,6 +259,9 @@ const main = Effect.gen(function* () {
     { what: `${yearsOf(size)}, a tree per page: write them`, ms: yearsMs, budget: null },
   ]
   console.table(rows.map((row) => ({ ...row, ms: Math.round(row.ms * 100) / 100 })))
+  console.log(
+    `${yearsOf(size)}, a tree per page: ${Math.round(pagesOpens[0]?.rssMb ?? 0)} MB of process memory after the first open`,
+  )
   const over = rows.filter((row) => row.budget !== null && row.ms > row.budget)
   if (over.length > 0) {
     return yield* Effect.die(`over budget: ${over.map((row) => row.what).join(", ")}`)
