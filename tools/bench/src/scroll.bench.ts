@@ -11,10 +11,10 @@ import {
   scrollFrames,
   test,
 } from "./browser.ts"
+import { size, yearsOf } from "./size.ts"
 import { writeYears } from "./write-years.ts"
 import type { Layout } from "./years.ts"
 
-const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
 const budgets = { openMs: 3_000, frameP95Ms: 33.4, domNodes: 15_000, jumpMs: 1_500 }
 const frames = 600
@@ -46,12 +46,12 @@ const ways: Record<
 }
 const way = ways[layout]
 
-test(`${years} years of journals ${way.what} open, and the journals and a ${longPage}-block page scroll smoothly`, async ({
+test(`${yearsOf(size)} of journals ${way.what} open, and the journals and a ${longPage}-block page scroll smoothly`, async ({
   page,
 }) => {
   const folder = await mkdtemp(join(tmpdir(), "seqno-bench-"))
   try {
-    const shape = await writeYears(folder, years, longPage, layout)
+    const shape = await writeYears(folder, size, longPage, layout)
     await way.put(page, folder, "graph")
     await page.goto(way.from)
     const started = performance.now()

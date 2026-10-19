@@ -3,10 +3,10 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, type Page } from "@playwright/test"
 import { firstJournal, jump, keepInBrowser, memory, shown, test } from "./browser.ts"
+import { size, yearsOf } from "./size.ts"
 import { writeYears } from "./write-years.ts"
 import { lastReference, lastWords } from "./years.ts"
 
-const years = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
 const budgets = {
   openMs: 2_000,
@@ -71,14 +71,14 @@ const searchShowsLastBlock = async (page: Page) => {
 const openFromList = (page: Page, graph: string) =>
   page.getByRole("button", { name: graph, exact: true }).click()
 
-test(`${years} years of journals kept in the browser open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
+test(`${yearsOf(size)} of journals kept in the browser open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
   page,
 }) => {
   const given = process.env["SEQNO_BENCH_FOLDER"]
   const folder = given ?? (await mkdtemp(join(tmpdir(), "seqno-bench-")))
   try {
     if (given === undefined) {
-      await writeYears(folder, years, longPage, "tree-per-page")
+      await writeYears(folder, size, longPage, "tree-per-page")
     }
     await keepInBrowser(page, folder, "graph")
     await page.goto("/graphs")

@@ -5,19 +5,20 @@ import { join } from "node:path"
 import { Effect, Schema } from "effect"
 import { BlockId, PageId } from "@seqno/domain"
 import { emptyPagesGraph } from "./graph.ts"
+import type { Size } from "./size.ts"
 import { writeSlicesInFreshProcesses } from "./years.ts"
 
 const until = new Date(2026, 9, 12)
 const OPENS = 3
 
-export const writeYearsAsPages = (years: number, longPage: number) =>
+export const writeYearsAsPages = (size: Size, longPage: number) =>
   Effect.acquireUseRelease(
     Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-bench-years-"))),
     (folder) =>
       Effect.scoped(
         Effect.gen(function* () {
           const { snapshot } = yield* Effect.promise(() =>
-            writeSlicesInFreshProcesses(folder, { years, until, longPage }, "tree-per-page"),
+            writeSlicesInFreshProcesses(folder, { ...size, until, longPage }, "tree-per-page"),
           )
           const graph = yield* emptyPagesGraph("60")
           yield* graph.restore([snapshot])

@@ -13,6 +13,7 @@ import { Vault, layer as vaultLayer, seenPath, snapshotName, snapshotPath } from
 import { layerNode as folderStorage, nodeStorage } from "@seqno/vault/node"
 import { emptyGraph, emptyPagesGraph, serviceOf } from "./graph.ts"
 import { opensInFreshProcess, writeYearsAsPages } from "./pages.ts"
+import { size, yearsOf } from "./size.ts"
 import { undoAfterRemote } from "./undo.ts"
 
 const budgets = {
@@ -30,7 +31,6 @@ const KEYSTROKES = 300
 const REMOTE_EDITS = 1000
 const LONG_PAGE = 20_000
 const SELECTED = 5_000
-const YEARS = Number(process.env["SEQNO_BENCH_YEARS"] ?? 10)
 
 const timed = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
@@ -231,7 +231,7 @@ const main = Effect.gen(function* () {
   const generated = yield* Effect.forEach(layouts, onGenerated)
   const bulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED)
   const pagesBulk = yield* bulkOnLongPage(LONG_PAGE, SELECTED, emptyPagesGraph)
-  const [years, yearsMs] = yield* timed(writeYearsAsPages(YEARS, LONG_PAGE))
+  const [years, yearsMs] = yield* timed(writeYearsAsPages(size, LONG_PAGE))
   const pagesOpens = yield* Effect.orDie(
     opensInFreshProcess(years.snapshot, { blockId: years.last.id, pageId: years.last.pageId }),
   )
@@ -247,16 +247,16 @@ const main = Effect.gen(function* () {
     ...bulkRows("", bulk),
     ...bulkRows(", a tree per page", pagesBulk),
     {
-      what: `${YEARS} years, a tree per page: snapshot to page list and today's journal, fresh process (median)`,
+      what: `${yearsOf(size)}, a tree per page: snapshot to page list and today's journal, fresh process (median)`,
       ms: median(pagesOpens.map(({ openMs }) => openMs)),
       budget: budgets.pagesOpenMs,
     },
     {
-      what: `${YEARS} years, a tree per page: then the long page's last block, by id and page (median)`,
+      what: `${yearsOf(size)}, a tree per page: then the long page's last block, by id and page (median)`,
       ms: median(pagesOpens.map(({ blockMs }) => blockMs)),
       budget: budgets.pagesBlockMs,
     },
-    { what: `${YEARS} years, a tree per page: write them`, ms: yearsMs, budget: null },
+    { what: `${yearsOf(size)}, a tree per page: write them`, ms: yearsMs, budget: null },
   ]
   console.table(rows.map((row) => ({ ...row, ms: Math.round(row.ms * 100) / 100 })))
   const over = rows.filter((row) => row.budget !== null && row.ms > row.budget)

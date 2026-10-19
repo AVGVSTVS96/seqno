@@ -8,9 +8,9 @@ import { configFile, generateGraph, logseqPageFiles, toLogseqFiles } from "@seqn
 import { journalsByDay } from "@seqno/graph"
 import { GraphFolder, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { emptyGraph, emptyPagesGraph } from "./graph.ts"
+import type { Size } from "./size.ts"
 
-export interface Years {
-  readonly years: number
+export interface Years extends Size {
   readonly until: Date
   readonly longPage: number
 }
@@ -92,14 +92,14 @@ const layouts: Record<
   "tree-per-page": { empty: emptyPagesGraph, incoming: journalsByDay },
 }
 
-const generatorOptions = ({ years, until }: Years) => {
+const generatorOptions = ({ years, density, until }: Years) => {
   const days = Math.round(years * 365.25)
   const first = new Date(until.getFullYear(), until.getMonth(), until.getDate() - days + 1)
   return {
     seed: 20261011,
     journals: days,
     pages: Math.round(years * pagesPerYear),
-    blocks: Math.round(years * blocksPerYear),
+    blocks: Math.round(years * blocksPerYear * density),
     firstJournalDay: dayOf(first),
   }
 }
@@ -163,6 +163,7 @@ export const writeSlicesInFreshProcesses = async (folder: string, years: Years, 
       folder,
       layout,
       String(years.years),
+      String(years.density),
       years.until.toISOString(),
       String(years.longPage),
       String(slice),
@@ -173,8 +174,15 @@ export const writeSlicesInFreshProcesses = async (folder: string, years: Years, 
 }
 
 if (import.meta.main) {
-  const [folder = "", layout, years = "10", until = "", longPage = "0", slice = "0"] =
-    process.argv.slice(2)
+  const [
+    folder = "",
+    layout,
+    years = "10",
+    density = "1",
+    until = "",
+    longPage = "0",
+    slice = "0",
+  ] = process.argv.slice(2)
   const at = Number(slice)
   Effect.runPromise(
     Effect.gen(function* () {
@@ -183,7 +191,12 @@ if (import.meta.main) {
           ? Option.none()
           : Option.some(yield* Effect.promise(() => readFile(slicePath(folder, at - 1))))
       const written = yield* writeSlice(
-        { years: Number(years), until: new Date(until), longPage: Number(longPage) },
+        {
+          years: Number(years),
+          density: Number(density),
+          until: new Date(until),
+          longPage: Number(longPage),
+        },
         layout === "tree-per-page" ? layout : "one-tree",
         at,
         before,

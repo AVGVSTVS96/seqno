@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { DeviceId } from "@seqno/domain"
 import { editLogDir, seenPath, snapshotName, snapshotPath, treePerPageMarker } from "@seqno/vault"
+import type { Size } from "./size.ts"
 import { shapeOf, writeSlicesInFreshProcesses, type Layout } from "./years.ts"
 
 const writer = DeviceId.make("bench")
@@ -14,12 +15,12 @@ const write = async (path: string, bytes: Uint8Array) => {
 
 export const writeYears = async (
   out: string,
-  years: number,
+  size: Size,
   longPage: number,
   layout: Layout = "one-tree",
 ) => {
   const started = performance.now()
-  const asked = { years, until: new Date(), longPage }
+  const asked = { ...size, until: new Date(), longPage }
   const slices = await mkdtemp(join(tmpdir(), "seqno-years-"))
   try {
     const { snapshot, version } = await writeSlicesInFreshProcesses(slices, asked, layout)
@@ -52,10 +53,10 @@ export const writeYears = async (
 }
 
 if (import.meta.main) {
-  const [out = "years", years = "10", longPage = "0", layout] = process.argv.slice(2)
+  const [out = "years", years = "10", longPage = "0", layout, density = "1"] = process.argv.slice(2)
   writeYears(
     out,
-    Number(years),
+    { years: Number(years), density: Number(density) },
     Number(longPage),
     layout === "tree-per-page" ? layout : "one-tree",
   ).then(

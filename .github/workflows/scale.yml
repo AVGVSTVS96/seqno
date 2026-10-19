@@ -6,6 +6,9 @@ on:
       years:
         description: Years of daily journals
         default: "30"
+      density:
+        description: Blocks a day, as a multiple of the usual 36
+        default: "1"
 
 permissions:
   contents: read
@@ -15,6 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       SEQNO_BENCH_YEARS: ${{ inputs.years }}
+      SEQNO_BENCH_DENSITY: ${{ inputs.density }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -39,6 +43,7 @@ jobs:
             layout: one-tree
     env:
       SEQNO_BENCH_YEARS: ${{ inputs.years }}
+      SEQNO_BENCH_DENSITY: ${{ inputs.density }}
       SEQNO_BENCH_LAYOUT: ${{ matrix.layout }}
     steps:
       - uses: actions/checkout@v7
