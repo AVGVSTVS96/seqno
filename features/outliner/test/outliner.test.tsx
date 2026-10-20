@@ -8,6 +8,8 @@ import {
   coreLayer,
   NestedLists,
   Outliner,
+  placeOf,
+  restorePlace,
   ScrollContent,
   useVirtualList,
   type NavigationTarget,
@@ -386,7 +388,10 @@ const mountWindowed = async (count: number, nested = false) => {
   const core = fakeCore(Array.from({ length: count }, (_, n) => block(n + 1, `row ${n + 1}`)))
   const outline = <Outliner pageId={pageId} zoom={null} windowed onNavigate={() => undefined} />
   await render(
-    <div data-testid="scroller" style={{ width: "600px", height: "600px", overflowY: "auto" }}>
+    <div
+      data-testid="scroller"
+      style={{ width: "600px", height: "600px", overflowY: "auto", overflowAnchor: "none" }}
+    >
       <style>{themeTokens}</style>
       <RegistryProvider initialValues={[[coreLayer, core.layer]]}>
         <ScrollContent>{nested ? <Days>{outline}</Days> : outline}</ScrollContent>
@@ -460,4 +465,47 @@ test("Mod+Shift+A on a long page selects every block and scrolls to the last one
     inView(".seqno-gap"),
     page.getByText("row 3000", { exact: true }).element().closest("[role=treeitem]")?.ariaSelected,
   ]).toEqual([0, "true"])
+})
+
+test("a row above the screen that grows moves nothing on screen, scrolling up or down", async () => {
+  const { scroller } = await mountWindowed(3000)
+  for (const step of [-300, 300]) {
+    scroller.scrollTop = 40_000
+    await frame()
+    await frame()
+    const before = placeOf(scroller).anchor
+    const top = scroller.getBoundingClientRect().top
+    const above = page
+      .getByRole("treeitem")
+      .elements()
+      .findLast((shown) => shown.getBoundingClientRect().bottom < top - 400)
+    scroller.scrollTop += step
+    await new Promise((resolve) => scroller.addEventListener("scroll", resolve, { once: true }))
+    above?.style.setProperty("padding-bottom", "200px")
+    await frame()
+    await frame()
+    const after = placeOf(scroller).anchor
+    scroller.scrollTop -= step
+    await frame()
+    expect([above === undefined, after?.key === before?.key, placeOf(scroller).anchor]).toEqual([
+      false,
+      false,
+      before,
+    ])
+  }
+})
+
+test("Back by row puts a row back at its distance from the top, mounted or not", async () => {
+  const { scroller } = await mountWindowed(3000)
+  page.getByText("row 30", { exact: true }).element().closest("[role=treeitem]")?.scrollIntoView()
+  await frame()
+  expect(placeOf(scroller).anchor).toEqual({ key: id(30), top: 0 })
+  scroller.scrollTop = 0
+  await frame()
+  const stopMounted = restorePlace(scroller, { offset: 0, anchor: { key: id(30), top: 0 } })
+  await expect.poll(() => placeOf(scroller).anchor).toEqual({ key: id(30), top: 0 })
+  stopMounted()
+  const stopFar = restorePlace(scroller, { offset: 0, anchor: { key: id(2500), top: 0 } })
+  await expect.poll(() => placeOf(scroller).anchor).toEqual({ key: id(2500), top: 0 })
+  stopFar()
 })

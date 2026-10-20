@@ -57,7 +57,7 @@ import { highlights, selectedRange, type Selection } from "./selection.ts"
 import { EditorIntent, type EditorSlotProps } from "./slot.ts"
 import { nextMarker } from "./tasks.ts"
 import { topLevel, type Outline, type Row } from "./tree.ts"
-import { useVirtualList } from "./virtual.tsx"
+import { useHeldHeight, useVirtualList } from "./virtual.tsx"
 import styles from "./outliner.css?inline"
 
 export interface OutlinerProps {
@@ -72,10 +72,13 @@ export interface OutlinerProps {
   readonly onBlockMenu?: OpenBlockMenu
 }
 
-export const Outliner = (props: OutlinerProps) =>
-  AsyncResult.match(useAtomValue(pageTreeAtom(props.pageId)), {
+const listId = (pageId: PageId, zoom: BlockId | null) => `${pageId} ${zoom ?? ""}`
+
+export const Outliner = (props: OutlinerProps) => {
+  const held = useHeldHeight(listId(props.pageId, props.zoom), props.windowed ?? false)
+  return AsyncResult.match(useAtomValue(pageTreeAtom(props.pageId)), {
     onInitial: () => (
-      <div className="seqno-outliner-status" role="status">
+      <div className="seqno-outliner-status" role="status" style={{ minHeight: held }}>
         Loading page
       </div>
     ),
@@ -96,6 +99,7 @@ export const Outliner = (props: OutlinerProps) =>
     ),
     onSuccess: ({ value }) => <OutlineView tree={value} {...props} />,
   })
+}
 
 const noCounts: Readonly<Record<string, number>> = {}
 
@@ -352,7 +356,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     measure,
     reveal: revealIndex,
   } = useVirtualList({
-    id: `${pageId} ${zoom ?? ""}`,
+    id: listId(pageId, zoom),
     windowed: props.windowed ?? false,
     count: rows.length,
     estimate: laid.estimate,

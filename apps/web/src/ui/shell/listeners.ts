@@ -1,7 +1,7 @@
 import type { ParsedLocation, RegisteredRouter } from "@tanstack/react-router"
 import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
 import { normalizePageName } from "@seqno/domain"
-import { historyAtom, historyStep } from "@seqno/outliner"
+import { historyAtom, historyStep, placeOf, restorePlace, type Place } from "@seqno/outliner"
 import {
   journals,
   leftSidebarOpen,
@@ -89,51 +89,32 @@ const recordVisit = (registry: AtomRegistry.AtomRegistry, router: RegisteredRout
 
 const nothing = (): void => undefined
 
-const userScrolls = ["wheel", "pointerdown", "keydown", "touchstart"] as const
-
 const mainColumn = () => document.querySelector<HTMLElement>(".main-content-container")
 
 const keyOf = (location: ParsedLocation) => location.state.key ?? location.href
 
-const scrollWhenTall = (main: HTMLElement, target: number) => {
-  main.scrollTop = target
-  const content = main.firstElementChild
-  if (main.scrollTop === target || content === null) return nothing
-  const observer = new ResizeObserver(() => {
-    if (main.scrollHeight - main.clientHeight < target) return
-    main.scrollTop = target
-    stop()
-  })
-  const stop = () => {
-    observer.disconnect()
-    for (const type of userScrolls) main.removeEventListener(type, stop)
-  }
-  observer.observe(content)
-  for (const type of userScrolls) main.addEventListener(type, stop, { passive: true })
-  return stop
-}
+const atTop: Place = { offset: 0, anchor: null }
 
 const scrollMemory = (router: RegisteredRouter) => {
-  const offsets = new Map<string, number>()
+  const places = new Map<string, Place>()
   let restored: string | null = null
-  let stopWaiting = nothing
+  let stopHolding = nothing
   const stopSaving = router.subscribe("onBeforeLoad", ({ fromLocation }) => {
     const main = mainColumn()
-    if (fromLocation !== undefined && main !== null)
-      offsets.set(keyOf(fromLocation), main.scrollTop)
+    if (fromLocation !== undefined && main !== null) places.set(keyOf(fromLocation), placeOf(main))
   })
   const stopRestoring = router.subscribe("onRendered", ({ toLocation }) => {
     const key = keyOf(toLocation)
     if (key === restored) return
     restored = key
-    stopWaiting()
+    stopHolding()
     const main = mainColumn()
-    if (main !== null) stopWaiting = scrollWhenTall(main, offsets.get(key) ?? 0)
+    if (main !== null) stopHolding = restorePlace(main, places.get(key) ?? atTop)
   })
   return () => {
     stopSaving()
     stopRestoring()
-    stopWaiting()
+    stopHolding()
   }
 }
 
