@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { expect, type Page } from "@playwright/test"
 import {
+  domNodes,
   firstJournal,
   jump,
   keepInBrowser,
@@ -62,6 +63,7 @@ test(`${yearsOf(size)} of journals ${way.what} open, and the journals and a ${lo
     const journals = await scrollFrames(page, pxPerFrame, frames)
     const deeper = await scrollFrames(page, pxPerFrame, frames)
     const scrolled = await memory(page)
+    const mounted = await domNodes(page)
     const journalsJump = await jump(page, 0.5)
     await page.getByRole("button", { name: "Search", exact: true }).click()
     await page.getByRole("searchbox", { name: "Search" }).fill("Long page")
@@ -77,7 +79,7 @@ test(`${yearsOf(size)} of journals ${way.what} open, and the journals and a ${lo
       { what: "long page: frame p95 (ms)", value: long.p95, budget: budgets.frameP95Ms },
       {
         what: "journals: DOM nodes after scrolling",
-        value: scrolled.domNodes,
+        value: mounted,
         budget: budgets.domNodes,
       },
       {

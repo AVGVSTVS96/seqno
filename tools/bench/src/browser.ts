@@ -208,9 +208,17 @@ export const memory = async (page: Page) => {
   const total = (await Promise.all([...tree].map(pss))).reduce((a, b) => a + b, 0)
   return {
     pageHeapMb: Math.round(metric("JSHeapUsedSize") / 1e6),
-    domNodes: metric("Nodes"),
     chromeMb: Math.round(total / 1e6),
   }
+}
+
+export const domNodes = async (page: Page) => {
+  const session = await page.context().newCDPSession(page)
+  await session.send("HeapProfiler.collectGarbage")
+  await session.send("Performance.enable")
+  const { metrics } = await session.send("Performance.getMetrics")
+  await session.detach()
+  return metrics.find((one) => one.name === "Nodes")?.value ?? 0
 }
 
 export const shown = (
