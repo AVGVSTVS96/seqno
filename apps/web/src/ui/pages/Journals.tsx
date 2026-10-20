@@ -1,5 +1,5 @@
 import { useAtomValue } from "@effect/atom-react"
-import { useVirtualList } from "@seqno/outliner"
+import { NestedLists, useVirtualList } from "@seqno/outliner"
 import { journals } from "../../atoms.ts"
 import { PageView } from "../PageView.tsx"
 import { today } from "./atoms.ts"
@@ -23,16 +23,18 @@ export const Journals = () => {
   })
   return (
     <div ref={attach} className="seqno-journals">
-      {placed.flatMap(({ index, gap }) => {
-        const page = days[index]
-        if (page === undefined) return []
-        const day = (
-          <div key={page.id} ref={measure} data-index={index} className="seqno-journal">
-            <PageView page={page} zoom={null} inJournals />
-          </div>
-        )
-        return gap === 0 ? [day] : [<Gap key={`gap-${page.id}`} height={gap} />, day]
-      })}
+      <NestedLists>
+        {placed.flatMap(({ index, gap }) => {
+          const page = days[index]
+          if (page === undefined) return []
+          const day = (
+            <div key={page.id} ref={measure} data-index={index} className="seqno-journal">
+              <PageView page={page} zoom={null} inJournals />
+            </div>
+          )
+          return gap === 0 ? [day] : [<Gap key={`gap-${page.id}`} height={gap} />, day]
+        })}
+      </NestedLists>
       {trailing === 0 ? null : <Gap key="gap-end" height={trailing} />}
     </div>
   )

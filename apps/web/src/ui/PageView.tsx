@@ -46,7 +46,7 @@ export const PageView = ({
             pageId={page.id}
             zoom={zoom}
             addable
-            windowed={!inJournals}
+            windowed
             onNavigate={navigateTo}
             editor={EditorSlot}
             resolveAsset={resolveAsset}

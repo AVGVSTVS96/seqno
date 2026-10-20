@@ -3,6 +3,7 @@ import {
   useVirtualizer,
   type Range,
   type VirtualItem,
+  type Virtualizer,
 } from "@tanstack/react-virtual"
 import { createContext, use, useRef, useState, type ReactNode, type RefObject } from "react"
 
@@ -12,6 +13,12 @@ interface Scroll {
 }
 
 const ScrollContext = createContext<Scroll | null>(null)
+
+const NestedContext = createContext(false)
+
+export const NestedLists = ({ children }: { readonly children: ReactNode }) => (
+  <NestedContext value>{children}</NestedContext>
+)
 
 export const ScrollContent = ({
   className,
@@ -58,24 +65,51 @@ export interface VirtualListOptions {
 
 interface Attached {
   readonly scroll: Scroll | null
-  readonly margin: number
+  readonly margin: number | null
+  readonly nested: boolean
   readonly initial: Array<VirtualItem>
   readonly range: (range: Range) => Array<number>
 }
 
+type List = Virtualizer<HTMLElement, HTMLElement>
+
+const scrollTo = (
+  offset: number,
+  { adjustments, behavior }: { adjustments?: number; behavior?: ScrollBehavior },
+  list: List,
+) => {
+  const element = list.scrollElement
+  if (element === null) return
+  const top = adjustments === undefined ? offset : element.scrollTop + adjustments
+  element.scrollTo(behavior === undefined ? { top } : { top, behavior })
+}
+
+const whileSpanning = (item: VirtualItem, _: number, list: List) => {
+  const fold = (list.scrollOffset ?? 0) + list.scrollAdjustments
+  const start = list.options.scrollMargin
+  const above = list.itemSizeCache.has(item.key)
+    ? item.end <= fold && list.scrollDirection !== "backward"
+    : item.start < fold
+  return above && start < fold && fold < start + list.getTotalSize()
+}
+
 const useTanStack = (options: VirtualListOptions & Attached) => {
-  const { scroll } = options
+  const { scroll, margin } = options
   const virtualizer = useVirtualizer<HTMLElement, HTMLElement>({
-    count: scroll === null ? 0 : options.count,
+    count: scroll === null || margin === null ? 0 : options.count,
     getScrollElement: () => scroll?.element ?? null,
     initialOffset: () => scroll?.element.scrollTop ?? 0,
+    scrollToFn: scrollTo,
     estimateSize: options.estimate,
     getItemKey: options.key,
     overscan: options.overscan,
     rangeExtractor: options.range,
-    scrollMargin: options.margin,
+    scrollMargin: margin ?? 0,
     initialMeasurementsCache: options.initial,
   })
+  virtualizer.shouldAdjustScrollPositionOnItemSizeChange = options.nested
+    ? whileSpanning
+    : undefined
   return {
     items: virtualizer.getVirtualItems(),
     total: virtualizer.getTotalSize(),
@@ -85,16 +119,24 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
   }
 }
 
-const remembered = new Map<string, Array<VirtualItem>>()
-
-const remember = (id: string, items: Array<VirtualItem>) => {
-  remembered.delete(id)
-  remembered.set(id, items)
-  for (const old of remembered.keys()) {
-    if (remembered.size <= 20) return
-    remembered.delete(old)
+const memory = (capacity: number) => {
+  const lists = new Map<string, Array<VirtualItem>>()
+  return {
+    recall: (id: string) => lists.get(id) ?? [],
+    remember: (id: string, items: Array<VirtualItem>) => {
+      lists.delete(id)
+      lists.set(id, items)
+      for (const old of lists.keys()) {
+        if (lists.size <= capacity) return
+        lists.delete(old)
+      }
+    },
   }
 }
+
+const topLevel = memory(20)
+
+const nestedLevel = memory(100)
 
 const withKept = (range: Range, keep: ReadonlyArray<number>) => {
   const shown = defaultRangeExtractor(range)
@@ -114,15 +156,18 @@ const nothing = () => undefined
 
 export const useVirtualList = (options: VirtualListOptions): VirtualList => {
   const context = use(ScrollContext)
+  const nested = use(NestedContext)
   const scroll = options.windowed ? context : null
-  const [margin, setMargin] = useState(0)
+  const remembered = nested ? nestedLevel : topLevel
+  const [margin, setMargin] = useState<number | null>(null)
   const list = useRef<HTMLElement | null>(null)
   const keep = options.keep ?? []
   const { items, total, measure, reveal, snapshot } = useTanStack({
     ...options,
     scroll,
     margin,
-    initial: remembered.get(options.id) ?? [],
+    nested,
+    initial: remembered.recall(options.id),
     range: (range) => withKept(range, keep),
   })
   const attach = (element: HTMLElement | null) => {
@@ -134,7 +179,7 @@ export const useVirtualList = (options: VirtualListOptions): VirtualList => {
     observer.observe(scroll.content)
     return () => {
       observer.disconnect()
-      remember(options.id, snapshot())
+      remembered.remember(options.id, snapshot())
     }
   }
   if (scroll === null) {
@@ -147,12 +192,13 @@ export const useVirtualList = (options: VirtualListOptions): VirtualList => {
       reveal: nothing,
     }
   }
+  const start = margin ?? 0
   return {
     placed: items.map((item, at) => ({
       index: item.index,
-      gap: item.start - (items[at - 1]?.end ?? margin),
+      gap: item.start - (items[at - 1]?.end ?? start),
     })),
-    trailing: margin + total - (items.at(-1)?.end ?? margin),
+    trailing: start + total - (items.at(-1)?.end ?? start),
     element: list,
     attach,
     measure,

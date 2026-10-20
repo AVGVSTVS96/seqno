@@ -2,8 +2,16 @@ import { RegistryProvider } from "@effect/atom-react"
 import { expect, test } from "vitest"
 import { page, userEvent } from "vitest/browser"
 import { render } from "vitest-browser-react"
+import type { ReactNode } from "react"
 import type { Block, BlockId } from "@seqno/domain"
-import { coreLayer, Outliner, ScrollContent, type NavigationTarget } from "../src/index.ts"
+import {
+  coreLayer,
+  NestedLists,
+  Outliner,
+  ScrollContent,
+  useVirtualList,
+  type NavigationTarget,
+} from "../src/index.ts"
 import { block, fakeCore, id, pageId } from "./fake-core.ts"
 import { themeTokens } from "./theme.ts"
 
@@ -351,15 +359,37 @@ test("code blocks render highlighted lines with line numbers", async () => {
 
 const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
 
-const mountWindowed = async (count: number) => {
+const Days = ({ children }: { readonly children: ReactNode }) => {
+  const { placed, trailing, attach, measure } = useVirtualList({
+    id: "days",
+    windowed: true,
+    count: 3,
+    estimate: () => 600,
+    key: (index) => index,
+    overscan: 1,
+  })
+  return (
+    <div ref={attach}>
+      <NestedLists>
+        {placed.map(({ index, gap }) => (
+          <div key={index} ref={measure} data-index={index} style={{ marginTop: gap }}>
+            {index === 1 ? children : <p style={{ height: "900px", margin: 0 }}>day {index}</p>}
+          </div>
+        ))}
+      </NestedLists>
+      {trailing === 0 ? null : <div style={{ height: trailing }} />}
+    </div>
+  )
+}
+
+const mountWindowed = async (count: number, nested = false) => {
   const core = fakeCore(Array.from({ length: count }, (_, n) => block(n + 1, `row ${n + 1}`)))
+  const outline = <Outliner pageId={pageId} zoom={null} windowed onNavigate={() => undefined} />
   await render(
     <div data-testid="scroller" style={{ width: "600px", height: "600px", overflowY: "auto" }}>
       <style>{themeTokens}</style>
       <RegistryProvider initialValues={[[coreLayer, core.layer]]}>
-        <ScrollContent>
-          <Outliner pageId={pageId} zoom={null} windowed onNavigate={() => undefined} />
-        </ScrollContent>
+        <ScrollContent>{nested ? <Days>{outline}</Days> : outline}</ScrollContent>
       </RegistryProvider>
     </div>,
   )
@@ -400,6 +430,24 @@ test("a fast fling shows rows wherever it stops", async () => {
     await frame()
     expect([inView(".seqno-gap"), inView("[role=treeitem]") > 10]).toEqual([0, true])
   }
+})
+
+test("a long outline inside a windowed list of days mounts only its rows near the viewport", async () => {
+  const { scroller, inView } = await mountWindowed(3000, true)
+  expect(page.getByRole("treeitem").elements().length).toBeLessThan(80)
+  for (const stop of [0.9, 0.2, 0.6]) {
+    const target = (scroller.scrollHeight - scroller.clientHeight) * stop
+    while (Math.abs(scroller.scrollTop - target) > 1) {
+      scroller.scrollTop +=
+        Math.sign(target - scroller.scrollTop) *
+        Math.min(5000, Math.abs(target - scroller.scrollTop))
+      await frame()
+    }
+    await frame()
+    await frame()
+    expect([inView(".seqno-gap"), inView("[role=treeitem]") > 10]).toEqual([0, true])
+  }
+  expect(page.getByRole("treeitem").elements().length).toBeLessThan(80)
 })
 
 test("Mod+Shift+A on a long page selects every block and scrolls to the last one", async () => {
