@@ -1,11 +1,12 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { expect, it } from "vitest"
+import { expect, it, onTestFinished } from "vitest"
 import { findDisableDirectives } from "../src/directives.ts"
 
 it("finds oxlint and eslint disable directives in workspace sources only", () => {
   const root = mkdtempSync(path.join(tmpdir(), "seqno-directives-"))
+  onTestFinished(() => rmSync(root, { recursive: true, force: true }))
   const write = (file: string, text: string) => {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
     writeFileSync(path.join(root, file), text)

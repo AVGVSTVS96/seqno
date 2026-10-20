@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, readdir, rename, writeFile } from "node:fs/promises"
+import { cp, mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { DatabaseSync } from "node:sqlite"
@@ -173,13 +173,17 @@ const heldLocks = Effect.map(
   ({ held }) => (held ?? []).flatMap((info) => (info.name === undefined ? [] : [info.name])),
 )
 
-const copyOfFixture = Effect.promise(async () => {
-  const root = await mkdtemp(join(tmpdir(), "seqno-core-"))
-  await cp(fixture, root, { recursive: true })
-  return root
-})
+const tempFolder = (prefix: string) =>
+  Effect.acquireRelease(
+    Effect.promise(() => mkdtemp(join(tmpdir(), prefix))),
+    (root) => Effect.promise(() => rm(root, { recursive: true, force: true })),
+  )
 
-const emptyFolder = Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-starter-")))
+const copyOfFixture = Effect.tap(tempFolder("seqno-core-"), (root) =>
+  Effect.promise(() => cp(fixture, root, { recursive: true })),
+)
+
+const emptyFolder = tempFolder("seqno-starter-")
 
 const tour = (version: number, line: string): Starter => ({
   version,
@@ -664,7 +668,7 @@ describe("the core worker on the real graph, vault and index", () => {
             }),
           )
         const own = join(logOf(root), "updates", "laptop")
-        const away = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-away-")))
+        const away = yield* tempFolder("seqno-away-")
         yield* Effect.scoped(
           Effect.flatMap(coreOn(root), (core) => core.OpenGraph({ graph: "og" })),
         )
