@@ -1,12 +1,10 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
 import type { Page } from "@playwright/test"
 import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { flingTo, landedWell } from "../src/fling.ts"
-import { latePictures, longOutline } from "../src/long.ts"
+import { openLongPage } from "../src/long.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
+import { awayAndBack, crawl, landsOn, topRow } from "../src/steady.ts"
 import { expect, openDemo, restOfToday, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
@@ -178,16 +176,69 @@ test("hovering an image shows its actions, and the corner resizes it for good", 
 })
 
 test("a fast fling through a long page lands on rows wherever it stops", async ({ page }) => {
-  const folder = await mkdtemp(join(tmpdir(), "seqno-long-"))
-  await mkdir(join(folder, "pages"))
-  await writeFile(join(folder, "pages", "long.md"), longOutline(3000))
-  await seedOpfs(page, folder, ["graphs", "demo"])
-  await rm(folder, { recursive: true })
-  await latePictures(page)
-  await openDemo(page, "/page/long")
-  await expect(page.getByRole("main").getByRole("treeitem").first()).toHaveText(/^row 1 /)
+  await openLongPage(page)
   const stops = [0.85, 0.3, 0.97, 0.55, 0.05]
   expect(await flingTo(page, stops, "[role=treeitem]")).toEqual(landedWell(stops))
+})
+
+test("scrolling back up a long page past slow pictures keeps the top row still", async ({
+  page,
+}) => {
+  await openLongPage(page)
+  await flingTo(page, [1], "[role=treeitem]")
+  await crawl(page, -70, 15_000)
+  await flingTo(page, [1], "[role=treeitem]")
+  const up = await crawl(page, -400, 15_000)
+  expect(up.moved).toEqual([])
+  expect(up.checked).toBeGreaterThan(10)
+})
+
+test("Back returns to the same row of a long page after a fling past slow pictures", async ({
+  page,
+}) => {
+  await openLongPage(page)
+  for (const stop of [0.3, 0.7]) {
+    await flingTo(page, [0.9, 0.1, stop], "[role=treeitem]")
+    await page.waitForTimeout(1000)
+    const before = await topRow(page)
+    expect(before).toMatch(/^row \d+/)
+    await awayAndBack(page)
+    await landsOn(page, before)
+  }
+})
+
+test("Back returns to the same row of a long page after the window gets narrower", async ({
+  page,
+}) => {
+  await openLongPage(page)
+  await flingTo(page, [0.9, 0.1, 0.5], "[role=treeitem]")
+  await page.waitForTimeout(1000)
+  const before = await topRow(page)
+  await awayAndBack(page, () => page.setViewportSize({ width: 900, height: 720 }))
+  await landsOn(page, before)
+})
+
+test("Back returns to the same row of a long page after 21 other pages", async ({ page }) => {
+  const stops = Array.from({ length: 21 }, (_, n) => `stop ${n + 1}`)
+  await openLongPage(page, stops)
+  await flingTo(page, [0.9, 0.1, 0.5], "[role=treeitem]")
+  await page.waitForTimeout(1000)
+  const before = await topRow(page)
+  const palette = page.getByRole("dialog", { name: "Search" })
+  const firstRow = page.getByRole("main").getByRole("treeitem").first()
+  for (const stop of stops) {
+    await page.keyboard.press("ControlOrMeta+k")
+    await palette.getByRole("searchbox", { name: "Search" }).fill(stop)
+    await expect(palette.getByRole("option").first()).toHaveText(stop)
+    await page.keyboard.press("Enter")
+    await expect(firstRow).toHaveText(stop)
+  }
+  for (const stop of stops.toReversed().slice(1)) {
+    await page.goBack()
+    await expect(firstRow).toHaveText(stop)
+  }
+  await page.goBack()
+  await landsOn(page, before)
 })
 
 test("a long page fills the view when a scroll lands just as the rows catch up", async ({

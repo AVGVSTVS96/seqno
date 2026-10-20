@@ -7,6 +7,7 @@ import { appAvailable } from "../src/env.ts"
 import { flingTo, landedWell } from "../src/fling.ts"
 import { latePictures, longOutline } from "../src/long.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
+import { awayAndBack, crawl, landsOn, topRow } from "../src/steady.ts"
 import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
@@ -289,30 +290,47 @@ test("the keyboard walks a long journal day, and Mod+Shift+A selects all of it",
   await expect(last).toBeInViewport()
 })
 
-test("Back returns to the same block in the middle of a long journal day", async ({ page }) => {
-  const day = await openLongDay(page)
-  await expect(day.locator("img").first()).toHaveJSProperty("complete", true)
-  const main = page.getByRole("main")
-  const topRow = () =>
-    main.evaluate((scroller) => {
-      const box = scroller.getBoundingClientRect()
-      const row = [...scroller.querySelectorAll("[role=treeitem]")].find(
-        (shown) => shown.getBoundingClientRect().top >= box.top,
-      )
-      return [row?.textContent?.slice(0, 10), Math.round(row?.getBoundingClientRect().top ?? 0)]
-    })
-  await main.evaluate((scroller) =>
-    scroller.scrollTo({ top: scroller.scrollHeight / 2, behavior: "instant" }),
+test("Back returns to the same row of a long journal day after a fling past slow pictures", async ({
+  page,
+}) => {
+  await openLongDay(page)
+  for (const stop of [0.3, 0.7]) {
+    await flingTo(page, [0.9, 0.1, stop], "[role=treeitem]")
+    await page.waitForTimeout(1000)
+    const before = await topRow(page)
+    expect(before).toMatch(/^row \d+/)
+    await awayAndBack(page)
+    await landsOn(page, before)
+  }
+})
+
+const notesOf = (day: number) =>
+  Array.from({ length: 3 + (day % 6) }, (_, n) => `- day ${day + 1} note ${n + 1}`).join("\n")
+
+const openDays = async (page: Page) => {
+  const folder = await mkdtemp(join(tmpdir(), "seqno-days-"))
+  await mkdir(join(folder, "journals"))
+  await Promise.all(
+    Array.from({ length: 20 }, (_, day) => {
+      const name = `2025_01_${String(day + 1).padStart(2, "0")}.md`
+      const body = day % 10 === 2 ? longOutline(1000, { pictures: false }) : notesOf(day)
+      return writeFile(join(folder, "journals", name), `${body}\n`)
+    }),
   )
-  await page.waitForTimeout(1000)
-  const before = await topRow()
-  expect(before[0]).toMatch(/^row \d+/)
-  await page.keyboard.press("g")
-  await page.keyboard.press("a")
-  await expect(page.getByRole("table", { name: "All pages" })).toBeVisible()
-  await page.waitForTimeout(300)
-  await page.goBack()
-  await expect.poll(topRow).toEqual(before)
+  await seedOpfs(page, folder, ["graphs", "demo"])
+  await rm(folder, { recursive: true })
+  await openDemo(page)
+  await expect(page.getByRole("article").first().getByRole("treeitem").first()).toBeVisible()
+}
+
+test("scrolling back up the journals past days that scrolled away keeps the top row still", async ({
+  page,
+}) => {
+  await openDays(page)
+  expect((await crawl(page, 400)).moved).toEqual([])
+  const up = await crawl(page, -400)
+  expect(up.moved).toEqual([])
+  expect(up.checked).toBeGreaterThan(100)
 })
 
 test("the header menu exports the page as markdown and opens Settings", async ({ page }) => {
