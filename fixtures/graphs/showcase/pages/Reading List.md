@@ -1,7 +1,7 @@
 - Books to finish this autumn
 	- *The Well-Tempered Garden*, a chapter a night
 	- *Soil Science for Beginners*, borrowed from the library
-		- due back on [[Oct 20th, 2026]]
+		- due back on [[Oct 13th, 2026]]
 - Articles
 	- [Passive solar greenhouses](https://example.com/passive-solar), saved for the venting section
 - DONE *A Year in the Allotment*
