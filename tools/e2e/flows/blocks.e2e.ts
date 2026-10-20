@@ -5,6 +5,7 @@ import type { Page } from "@playwright/test"
 import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { flingTo, landedWell } from "../src/fling.ts"
+import { latePictures, longOutline } from "../src/long.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, openDemo, restOfToday, test } from "../src/test.ts"
 
@@ -176,27 +177,13 @@ test("hovering an image shows its actions, and the corner resizes it for good", 
   await expect(page.getByRole("main").locator(".seqno-image-frame")).toHaveCount(0)
 })
 
-const longPage = (blocks: number) =>
-  Array.from({ length: blocks }, (_, n) => {
-    const indent = n % 5 === 0 ? "" : "\t"
-    const words = n % 9 === 0 ? 70 : n % 4
-    const picture = n % 25 === 12 ? ` ![](https://pictures.seqno.test/${n}.svg)` : ""
-    return `${indent}- row ${n + 1}${" and more".repeat(words)}${picture}`
-  }).join("\n")
-
 test("a fast fling through a long page lands on rows wherever it stops", async ({ page }) => {
   const folder = await mkdtemp(join(tmpdir(), "seqno-long-"))
   await mkdir(join(folder, "pages"))
-  await writeFile(join(folder, "pages", "long.md"), longPage(3000))
+  await writeFile(join(folder, "pages", "long.md"), longOutline(3000))
   await seedOpfs(page, folder, ["graphs", "demo"])
   await rm(folder, { recursive: true })
-  await page.route("https://pictures.seqno.test/**", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 250))
-    await route.fulfill({
-      contentType: "image/svg+xml",
-      body: '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"/>',
-    })
-  })
+  await latePictures(page)
   await openDemo(page, "/page/long")
   await expect(page.getByRole("main").getByRole("treeitem").first()).toHaveText(/^row 1 /)
   const stops = [0.85, 0.3, 0.97, 0.55, 0.05]

@@ -5,6 +5,7 @@ import type { Page } from "@playwright/test"
 import { scrollToText } from "../design/seqno.ts"
 import { appAvailable } from "../src/env.ts"
 import { flingTo, landedWell } from "../src/fling.ts"
+import { latePictures, longOutline } from "../src/long.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, openDemo, test } from "../src/test.ts"
 
@@ -242,6 +243,76 @@ test("a fast fling through the developer graph's journals lands on days wherever
   await expect(page.getByRole("article").first().getByRole("treeitem").first()).toBeVisible()
   const stops = [0.85, 0.3, 0.97, 0.55, 0.05]
   expect(await flingTo(page, stops, ".seqno-journal")).toEqual(landedWell(stops))
+})
+
+const openLongDay = async (page: Page) => {
+  const folder = await mkdtemp(join(tmpdir(), "seqno-long-day-"))
+  await mkdir(join(folder, "journals"))
+  await writeFile(join(folder, "journals", "2025_01_02.md"), "- the day after\n")
+  await writeFile(join(folder, "journals", "2025_01_01.md"), longOutline(3000))
+  await writeFile(join(folder, "journals", "2024_12_31.md"), "- the day before\n")
+  await seedOpfs(page, folder, ["graphs", "demo"])
+  await rm(folder, { recursive: true })
+  await latePictures(page)
+  await openDemo(page)
+  const day = page.getByRole("article", { name: "Jan 1st, 2025", exact: true })
+  await expect(day.getByRole("treeitem").first()).toHaveText(/^row 1 /)
+  return day
+}
+
+test("a long journal day mounts only the rows near the screen, and a fling through it lands on rows", async ({
+  page,
+}) => {
+  const day = await openLongDay(page)
+  expect(await day.getByRole("treeitem").count()).toBeLessThan(100)
+  const stops = [0.85, 0.3, 0.97, 0.55, 0.05]
+  expect(await flingTo(page, stops, "[role=treeitem]")).toEqual(landedWell(stops))
+  expect(await day.getByRole("treeitem").count()).toBeLessThan(100)
+})
+
+test("the keyboard walks a long journal day, and Mod+Shift+A selects all of it", async ({
+  page,
+}) => {
+  const day = await openLongDay(page)
+  await day
+    .getByRole("treeitem")
+    .filter({ hasText: /^row 2 and more$/ })
+    .click()
+  await page.keyboard.press("Escape")
+  for (let step = 0; step < 80; step++) await page.keyboard.press("ArrowDown")
+  const selected = day.locator("[role=treeitem][aria-selected=true]")
+  await expect(selected).toHaveText(/^row 82 /)
+  await expect(selected).toBeInViewport()
+  await page.keyboard.press("ControlOrMeta+Shift+a")
+  const last = day.getByRole("treeitem").filter({ hasText: /^row 3000 / })
+  await expect(last).toHaveAttribute("aria-selected", "true")
+  await expect(last).toBeInViewport()
+})
+
+test("Back returns to the same block in the middle of a long journal day", async ({ page }) => {
+  const day = await openLongDay(page)
+  await expect(day.locator("img").first()).toHaveJSProperty("complete", true)
+  const main = page.getByRole("main")
+  const topRow = () =>
+    main.evaluate((scroller) => {
+      const box = scroller.getBoundingClientRect()
+      const row = [...scroller.querySelectorAll("[role=treeitem]")].find(
+        (shown) => shown.getBoundingClientRect().top >= box.top,
+      )
+      return [row?.textContent?.slice(0, 10), Math.round(row?.getBoundingClientRect().top ?? 0)]
+    })
+  await main.evaluate((scroller) =>
+    scroller.scrollTo({ top: scroller.scrollHeight / 2, behavior: "instant" }),
+  )
+  await page.waitForTimeout(1000)
+  const before = await topRow()
+  expect(before[0]).toMatch(/^row \d+/)
+  await page.keyboard.press("g")
+  await page.keyboard.press("a")
+  await expect(page.getByRole("table", { name: "All pages" })).toBeVisible()
+  await page.waitForTimeout(300)
+  await page.goBack()
+  await expect.poll(topRow).toEqual(before)
 })
 
 test("the header menu exports the page as markdown and opens Settings", async ({ page }) => {
