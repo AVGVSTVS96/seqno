@@ -193,7 +193,7 @@ const targetNode = (ws: Workspace, target: PropertyTarget) =>
 
 export const applyCommand = (ws: Workspace, command: Command) =>
   Command.match(command, {
-    CreatePage: ({ title, journalDay }) =>
+    CreatePage: ({ title, journalDay, props }) =>
       Effect.gen(function* () {
         yield* checkTitle(ws, title)
         if (journalDay !== undefined && pageTaken(ws, (page) => page.journalDay === journalDay)) {
@@ -203,6 +203,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         const root = ws.record.create(undefined)
         writePage(root, id, title)
         if (journalDay !== undefined) root.data.set("journalDay", journalDay)
+        Object.entries(props ?? {}).forEach(([key, value]) => ws.record.prop(root.data, key, value))
       }),
     RenamePage: ({ pageId, title }) =>
       Effect.gen(function* () {

@@ -25,7 +25,11 @@ export const BlockDraft: Schema.Codec<BlockDraft> = Schema.Struct({
 })
 
 export const Command = Schema.TaggedUnion({
-  CreatePage: { title: Schema.String, journalDay: Schema.optionalKey(JournalDay) },
+  CreatePage: {
+    title: Schema.String,
+    journalDay: Schema.optionalKey(JournalDay),
+    props: Schema.optionalKey(Props),
+  },
   RenamePage: { pageId: PageId, title: Schema.String },
   DeletePage: { pageId: PageId },
   InsertBlock: {

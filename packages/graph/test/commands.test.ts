@@ -49,6 +49,35 @@ describe("pages", () => {
     ),
   )
 
+  it.effect("creates a page with its properties in one step that one undo takes back", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const created = yield* graph.dispatch({
+          _tag: "CreatePage",
+          title: "Board",
+          props: { "ls-type": "whiteboard-page" },
+        })
+        const pageId = createdPage(created)
+        assert.deepStrictEqual(yield* graph.pages, [
+          {
+            id: pageId,
+            name: "board",
+            title: "Board",
+            journalDay: null,
+            props: { "ls-type": "whiteboard-page" },
+          },
+        ])
+        yield* graph.dispatch({ _tag: "Undo" })
+        assert.deepStrictEqual(yield* graph.pages, [])
+        yield* graph.dispatch({ _tag: "Redo" })
+        assert.deepStrictEqual(
+          (yield* graph.pages).map((page) => [page.title, page.props]),
+          [["Board", { "ls-type": "whiteboard-page" }]],
+        )
+      }),
+    ),
+  )
+
   it.effect("rejects empty and duplicate page names", () =>
     withGraph((graph) =>
       Effect.gen(function* () {

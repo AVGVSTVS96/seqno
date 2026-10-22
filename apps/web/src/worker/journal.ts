@@ -47,10 +47,11 @@ export const todaysJournal = (graph: Graph["Service"]) =>
 export const journalDayOfTitle = (title: string) =>
   parseJournalDay(title.trim(), defaultConfig.journalTitleFormat)
 
-export const withJournalDay = (command: Command): Command =>
-  command._tag === "CreatePage"
-    ? Option.match(journalDayOfTitle(command.title), {
-        onNone: () => ({ _tag: "CreatePage", title: command.title }),
-        onSome: (journalDay) => ({ _tag: "CreatePage", title: command.title, journalDay }),
-      })
-    : command
+export const withJournalDay = (command: Command): Command => {
+  if (command._tag !== "CreatePage") return command
+  const { journalDay: _, ...rest } = command
+  return Option.match(journalDayOfTitle(command.title), {
+    onNone: () => rest,
+    onSome: (journalDay) => ({ ...rest, journalDay }),
+  })
+}

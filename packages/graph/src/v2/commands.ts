@@ -473,13 +473,18 @@ export const applyCommand = (
   command: Command,
 ): Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto> =>
   Command.match(command, {
-    CreatePage: ({ title, journalDay }) =>
+    CreatePage: ({ title, journalDay, props }) =>
       Effect.gen(function* () {
         yield* checkTitle(ws, title)
         const { dir } = ws.trees
+        const withProps = (id: PageId) =>
+          Object.entries(props ?? {}).forEach(([key, value]) =>
+            ws.record(id).prop(ensurePageData(dir, id), key, value),
+          )
         if (journalDay === undefined) {
           const id = yield* Effect.orDie(newPageId)
-          return ws.record(id).set(dir.titles, id, title)
+          ws.record(id).set(dir.titles, id, title)
+          return withProps(id)
         }
         const { live, trashed, titled } = ws.trees.listing()
         const id = journalPageId(journalDay)
@@ -496,6 +501,7 @@ export const applyCommand = (
         }
         record.set(dir.titles, id, title)
         record.set(dir.days, id, journalDay)
+        withProps(id)
       }),
     RenamePage: ({ pageId, title }) =>
       Effect.gen(function* () {

@@ -65,6 +65,7 @@ const HIDDEN_KEYS = new Set([
   "updated-at",
   "background-color",
   "background_color",
+  "ls-type",
 ])
 const QUOTE = /^[ \t]*>[ \t]?/
 const PLANNING = /(SCHEDULED|DEADLINE): <([^>\n]*)>/g
