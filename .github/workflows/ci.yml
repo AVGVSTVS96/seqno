@@ -21,54 +21,57 @@ jobs:
         node: [24, 26]
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/setup
         with:
-          node-version: ${{ matrix.node }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          node: ${{ matrix.node }}
       - run: pnpm check
 
   bench:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
       - run: pnpm --filter @seqno/bench bench
-      - run: pnpm --filter @seqno/bench scroll
+
+  scroll:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1/2, 2/2]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @seqno/bench scroll --shard=${{ matrix.shard }}
 
   sim:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { from: 1, seeds: 17 }
+          - { from: 18, seeds: 17 }
+          - { from: 35, seeds: 16 }
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @seqno/sync-sim sim --suite ci --graph pages
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @seqno/sync-sim sim --suite ci --graph pages --from ${{ matrix.from }} --seeds ${{ matrix.seeds }}
 
   e2e:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @seqno/e2e test
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @seqno/e2e test --shard=${{ matrix.shard }}/3
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright
+          name: playwright-${{ matrix.shard }}
           path: |
             tools/e2e/playwright-report
             tools/e2e/test-results

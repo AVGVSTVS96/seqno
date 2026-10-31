@@ -1,0 +1,17 @@
+name: Setup
+description: pnpm, Node and the workspace's dependencies.
+
+inputs:
+  node:
+    default: "24"
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.node }}
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+      shell: bash

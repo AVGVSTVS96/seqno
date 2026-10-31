@@ -4,6 +4,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "check": "pnpm lint && oxfmt --check && pnpm typecheck && pnpm test",
     "lint": "oxlint --deny-warnings && node tools/lint/src/directives.ts",
     "fmt": "oxfmt",
