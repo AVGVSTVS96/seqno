@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir, rm, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { Context, Crypto, Effect, Layer, Option, Schema } from "effect"
 import { DeviceId } from "@seqno/domain"
@@ -20,29 +20,46 @@ const WebCrypto = Layer.succeed(
 
 const phone = Schema.decodeUnknownSync(DeviceId)("phone")
 
+const phoneOn = (root: string) =>
+  Effect.gen(function* () {
+    const graph = Context.get(
+      yield* Layer.build(
+        Graph.layer({ peer: PeerId.make("4242"), snapshot: Option.none(), updates: [] }).pipe(
+          Layer.provide(WebCrypto),
+        ),
+      ),
+      Graph,
+    )
+    const vault = Context.get(
+      yield* Layer.build(
+        vaultLayer({
+          device: phone,
+          members: [phone],
+          compactAfterFiles: 1e6,
+          compactEvery: 0,
+        }).pipe(Layer.provide(layerNode(root))),
+      ),
+      Vault,
+    )
+    yield* Effect.orDie(vault.sync(vaultReplica(graph)))
+    return { graph, vault }
+  })
+
+const textsIn = (root: string) =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const { graph } = yield* phoneOn(root)
+      const pages = yield* Effect.forEach(yield* graph.pages, (page) =>
+        Effect.orDie(graph.page(page.id)),
+      )
+      return pages.flatMap((page) => page.blocks.map((block) => block.text))
+    }),
+  )
+
 const onPhone = (root: string) =>
   Effect.scoped(
     Effect.gen(function* () {
-      const graph = Context.get(
-        yield* Layer.build(
-          Graph.layer({ peer: PeerId.make("4242"), snapshot: Option.none(), updates: [] }).pipe(
-            Layer.provide(WebCrypto),
-          ),
-        ),
-        Graph,
-      )
-      const vault = Context.get(
-        yield* Layer.build(
-          vaultLayer({
-            device: phone,
-            members: [phone],
-            compactAfterFiles: 1e6,
-            compactEvery: 0,
-          }).pipe(Layer.provide(layerNode(root))),
-        ),
-        Vault,
-      )
-      yield* Effect.orDie(vault.sync(vaultReplica(graph)))
+      const { graph, vault } = yield* phoneOn(root)
       const pages = yield* Effect.forEach(yield* graph.pages, (page) =>
         Effect.orDie(graph.page(page.id)),
       )
@@ -76,15 +93,18 @@ test("a block you move stays where you put it when your phone deleted it before 
   await page.keyboard.press("Enter")
   await page.keyboard.type("third")
   await page.keyboard.press("Escape")
-  await expect(page.locator("[data-save-state]")).toHaveAttribute("data-save-state", "saved")
-
   const copy = testInfo.outputPath("phone")
-  const files = await opfsFiles(page, folder)
-  for (const [path, bytes] of Object.entries(files)) {
-    if (!/^(updates|snapshots|seen)\//.test(path)) continue
-    await mkdir(dirname(join(copy, path)), { recursive: true })
-    await writeFile(join(copy, path), bytes)
+  const copied = async () => {
+    await rm(copy, { recursive: true, force: true })
+    const files = await opfsFiles(page, folder)
+    for (const [path, bytes] of Object.entries(files)) {
+      if (!/^(updates|snapshots|seen)\//.test(path)) continue
+      await mkdir(dirname(join(copy, path)), { recursive: true })
+      await writeFile(join(copy, path), bytes)
+    }
+    return Effect.runPromise(textsIn(copy))
   }
+  await expect.poll(copied).toEqual(expect.arrayContaining(["first", "second", "third"]))
   await Effect.runPromise(onPhone(copy))
 
   await seqno.today.getByRole("treeitem").filter({ hasText: "second" }).click()
