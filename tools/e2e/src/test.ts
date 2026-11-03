@@ -1,19 +1,33 @@
 import { expect, test as base, type Page } from "@playwright/test"
 import { journalTitle } from "./journal.ts"
-import { opfsFiles } from "./opfs.ts"
 
-const updateFiles = async (page: Page) =>
-  Object.keys(await opfsFiles(page, ["graphs", "demo", "edit-log", "updates"]))
-    .toSorted()
-    .join("\n")
+const editLogFiles = (page: Page) =>
+  page.evaluate(async () => {
+    const names: Array<string> = []
+    const walk = async (dir: FileSystemDirectoryHandle, prefix: string): Promise<void> => {
+      for await (const entry of dir.values()) {
+        if (entry.kind === "file") names.push(`${prefix}${entry.name}`)
+        else await walk(entry, `${prefix}${entry.name}/`)
+      }
+    }
+    const root = await navigator.storage.getDirectory()
+    const graph = await (await root.getDirectoryHandle("graphs")).getDirectoryHandle("demo")
+    const log = await graph.getDirectoryHandle("edit-log")
+    for await (const entry of log.values()) {
+      if (entry.kind === "directory" && (entry.name === "updates" || entry.name === "snapshots")) {
+        await walk(entry, `${entry.name}/`)
+      }
+    }
+    return names.toSorted().join("\n")
+  })
 
 export const saved = (page: Page, timeout = 5_000) =>
   expect
     .poll(
       async () => {
-        const before = await updateFiles(page)
+        const before = await editLogFiles(page)
         await page.waitForTimeout(500)
-        return before !== "" && before === (await updateFiles(page))
+        return before !== "" && before === (await editLogFiles(page))
       },
       { timeout },
     )
