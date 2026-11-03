@@ -42,7 +42,7 @@ describe("OPML export", () => {
         `      <outline text="see read **Dune** &amp; [[Ada]] #books at [site](https://example.com/a?b=1&amp;c=2)"/>`,
         `      <outline text="if (a &lt; b) go()"/>`,
         `    </outline>`,
-        `    <outline text="==bright== and \`code\`"/>`,
+        `    <outline text="^^bright^^ and \`code\`"/>`,
         `  </body>`,
         `</opml>`,
         ``,

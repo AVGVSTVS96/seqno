@@ -260,7 +260,31 @@ const closingAt = (source: string, from: number, delimiter: string): number => {
   return -1
 }
 
+const boldItalicAt = (source: string, at: number, base: number): Token | null => {
+  const inner = at + 3
+  if (!source.startsWith("***", at) || isSpace(source[inner]) || source[inner] === "*") return null
+  const close = closingAt(source, inner, "***")
+  if (close === -1) return null
+  const end = close + 3
+  return {
+    node: {
+      _tag: "Italic",
+      children: [
+        {
+          _tag: "Bold",
+          children: parseInline(source.slice(inner, close), base + inner),
+          span: { from: base + at + 1, to: base + end - 1 },
+        },
+      ],
+      span: { from: base + at, to: base + end },
+    },
+    end,
+  }
+}
+
 const emphasisAt = (source: string, at: number, base: number): Token | null => {
+  const both = boldItalicAt(source, at, base)
+  if (both !== null) return both
   for (const [delimiter, tag] of delimiters) {
     if (!source.startsWith(delimiter, at)) continue
     const inner = at + delimiter.length

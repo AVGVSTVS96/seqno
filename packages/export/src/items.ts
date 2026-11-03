@@ -1,5 +1,15 @@
 import type { Block, PageId } from "@seqno/domain"
-import { analyzeBlock, blockContent, parseInline, type Inline } from "@seqno/syntax"
+import {
+  analyzeBlock,
+  blockContent,
+  isRule,
+  isTableRow,
+  isTableSeparator,
+  listLine,
+  parseInline,
+  tableCells,
+  type Inline,
+} from "@seqno/syntax"
 import type { Shelf } from "./library.ts"
 
 export interface Run {
@@ -34,11 +44,79 @@ export type Item =
       readonly lines: ReadonlyArray<string>
     }
   | { readonly _tag: "Raw"; readonly level: number; readonly lines: ReadonlyArray<string> }
+  | { readonly _tag: "List"; readonly level: number; readonly items: ReadonlyArray<ListItem> }
+  | {
+      readonly _tag: "Table"
+      readonly level: number
+      readonly header: ReadonlyArray<Run> | null
+      readonly rows: ReadonlyArray<ReadonlyArray<Run>>
+    }
+  | { readonly _tag: "Rule"; readonly level: number; readonly line: string }
+
+export interface ListItem {
+  readonly ordered: boolean
+  readonly number: number | null
+  readonly checkbox: boolean | null
+  readonly lines: ReadonlyArray<Run>
+  readonly children: ReadonlyArray<ListItem>
+}
+
+interface OpenItem {
+  readonly indent: number
+  readonly item: Omit<ListItem, "lines" | "children"> & {
+    readonly lines: Array<Run>
+    readonly children: Array<ListItem>
+  }
+}
+
+const listOf = (lines: ReadonlyArray<string>): ReadonlyArray<ListItem> => {
+  const roots: Array<ListItem> = []
+  const path: Array<OpenItem> = []
+  for (const text of lines) {
+    const marked = listLine(text)
+    if (marked === null) {
+      path.at(-1)?.item.lines.push(lineRun(text.trimStart()))
+      continue
+    }
+    while ((path.at(-1)?.indent ?? -1) >= marked.indent) path.pop()
+    const item = {
+      ordered: marked.ordered,
+      number: marked.number,
+      checkbox: marked.checkbox,
+      lines: [lineRun(text.slice(marked.from))],
+      children: [],
+    }
+    const parent = path.at(-1)
+    if (parent === undefined) roots.push(item)
+    else parent.item.children.push(item)
+    path.push({ indent: marked.indent, item })
+  }
+  return roots
+}
+
+const cellsOf = (line: string): ReadonlyArray<Run> =>
+  tableCells(line).map(({ from, to }) => ({
+    source: line,
+    from,
+    to,
+    nodes: parseInline(line.slice(0, to)).filter((node) => node.span.from >= from),
+  }))
+
+const tableOf = (level: number, lines: ReadonlyArray<string>): Item => {
+  const separated = lines.length > 1 && isTableSeparator(lines[1] ?? "")
+  const rows = lines.filter((_, index) => !(index === 1 && separated))
+  const cells = rows.map(cellsOf)
+  return separated
+    ? { _tag: "Table", level, header: cells[0] ?? [], rows: cells.slice(1) }
+    : { _tag: "Table", level, header: null, rows: cells }
+}
 
 const maxEmbedDepth = 5
 const QUOTE = /^[ \t]*>[ \t]?/
 const EMBED_BLOCK = /^\(\(([0-9a-f-]{36})\)\)$/i
 const EMBED_PAGE = /^\[\[(.+)\]\]$/
+const MATH = /^[ \t]*\$\$[ \t]*$/
+const FOOTNOTE = /^[ \t]*\[\^[^\]]+\]:/
 
 export const lineRun = (line: string): Run => ({
   source: line,
@@ -76,7 +154,17 @@ const embedded = (node: Inline, level: number, context: Context): ReadonlyArray<
   }
   const name = EMBED_PAGE.exec(node.args)?.[1]
   const page = name === undefined ? undefined : context.shelf.page(name)
-  return page === undefined ? null : pageItems(page.page.id, level, deeper)
+  if (page === undefined) return null
+  const props = Object.entries(page.page.props)
+  return [
+    ...(props.length === 0
+      ? []
+      : [
+          { _tag: "Properties", level: Math.max(1, level - 1), props } as const,
+          { _tag: "Paragraph", level: Math.max(1, level - 1), lines: [lineRun("")] } as const,
+        ]),
+    ...pageItems(page.page.id, level, deeper),
+  ]
 }
 
 const split = (run: Run, level: number, context: Context): ReadonlyArray<Piece> => {
@@ -146,6 +234,51 @@ const bodyItems = (
       )
       continue
     }
+    if (MATH.test(line.text)) {
+      flush()
+      const inner = [line.text]
+      while (index + 1 < lines.length) {
+        index++
+        const next = lines[index]?.text ?? ""
+        inner.push(next)
+        if (MATH.test(next)) break
+      }
+      items.push({ _tag: "Raw", level, lines: inner })
+      continue
+    }
+    if (FOOTNOTE.test(line.text)) {
+      flush()
+      items.push({ _tag: "Raw", level, lines: [line.text] })
+      continue
+    }
+    if (isTableRow(line.text)) {
+      flush()
+      const rows = [line.text]
+      while (index + 1 < lines.length && isTableRow(lines[index + 1]?.text ?? "")) {
+        index++
+        rows.push(lines[index]?.text ?? "")
+      }
+      items.push(tableOf(level, rows))
+      continue
+    }
+    if (listLine(line.text) !== null) {
+      flush()
+      const listed = [line.text]
+      while (index + 1 < lines.length) {
+        const next = lines[index + 1]?.text ?? ""
+        const fenced = regions.some((candidate) => candidate.span.from === lines[index + 1]?.from)
+        if (next.trim() === "" || fenced || isTableRow(next) || QUOTE.test(next)) break
+        index++
+        listed.push(next)
+      }
+      items.push({ _tag: "List", level, items: listOf(listed) })
+      continue
+    }
+    if (isRule(line.text)) {
+      flush()
+      items.push({ _tag: "Rule", level, line: line.text })
+      continue
+    }
     const marked = QUOTE.exec(line.text)
     if (marked !== null) {
       if (paragraph.length > 0) flush()
@@ -178,13 +311,13 @@ const blockItems = (
   const first = lines[0]?.text ?? ""
   const content = blockContent(text)
   const items: Array<Item> = []
-  const titled = content.title !== null
-  const start = content.title?.[0]?.span.from ?? (titled ? first.length : 0)
+  const titled = content.title !== null && !isTableRow(first)
+  const start = titled ? (content.title?.[0]?.span.from ?? first.length) : 0
   const title: Run = {
     source: text,
     from: start,
     to: titled ? first.length : 0,
-    nodes: content.title ?? [],
+    nodes: titled ? (content.title ?? []) : [],
   }
   const pieces = split(title, level, context)
   const [lead, ...rest] = pieces

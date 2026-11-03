@@ -99,17 +99,17 @@ describe("text export options", () => {
   it("writes the page's properties first, then the blocks as Logseq would", () => {
     expect(page({})).toBe(
       [
-        "title:: Notes",
-        "",
+        "  title:: Notes",
+        "  ",
         "- TODO [#A] read **Dune** with [[Ada]] #books",
-        "  second line *slanted*",
+        "  second line *slanted*  ",
         "\t-",
         "\t  ```js",
         "\t  const x = 1",
         "\t    nested()",
         "\t  ```",
         "\t-",
-        "\t  > a quote",
+        "\t  > a quote  ",
         "\t- spaced",
         "\t  more",
         "",
@@ -122,15 +122,64 @@ describe("text export options", () => {
       page({ removeBrackets: true, removeEmphasis: true, removeTags: true, removeProperties: true })
         .split("\n")
         .slice(0, 2),
-    ).toEqual(["- TODO [#A] read Dune with Ada ", "  second line slanted"])
+    ).toEqual(["- TODO [#A] read Dune with Ada ", "  second line slanted  "])
   })
 
   it("indents with tabs alone when the style is spaces", () => {
-    expect(page({ indent: "spaces", removeProperties: true }).split("\n").slice(0, 3)).toEqual([
-      "TODO [#A] read **Dune** with [[Ada]] #books",
-      "  second line *slanted*",
-      "\t```js",
-    ])
+    expect(page({ indent: "spaces" })).toBe(
+      [
+        "title:: Notes",
+        "  ",
+        "TODO [#A] read **Dune** with [[Ada]] #books",
+        "  second line *slanted*  ",
+        "\t```js",
+        "\t  const x = 1",
+        "\t    nested()",
+        "\t```",
+        "\t> a quote  ",
+        "\tspaced",
+        "\t  more",
+        "",
+      ].join("\n"),
+    )
+  })
+
+  it("writes lists and tables inside a block as Logseq's standard Markdown does", () => {
+    const shaped = libraryOf({
+      shaped: [
+        "- Steps",
+        "  1. water",
+        "  2. lift",
+        "     1. loosen",
+        "  * [ ] buy",
+        "  * [x] wash",
+        "  and after",
+        "- | Bed | Crop |",
+        "  | --- | :-: |",
+        "  | 1 | **Garlic** |",
+        "- ==mark== ***both*** _it_ {{cloze hidden}}",
+        "  last line",
+      ].join("\n"),
+    })
+    expect(exportBlocks(shaped, { _tag: "Page", pageId: pageId(1) }, "text", defaults)).toBe(
+      [
+        "- Steps",
+        "\t1. water",
+        "\t2. lift",
+        "\t\t1. loosen",
+        "\t* [ ] buy",
+        "\t* [X] wash  ",
+        "and after",
+        "",
+        "-",
+        "  | Bed | Crop |",
+        "  |---|---|",
+        "  | 1 | **Garlic** |",
+        "- ^^mark^^ *__both__* *it* hidden",
+        "  last line",
+        "",
+      ].join("\n"),
+    )
   })
 
   it("drops every indent with no-indent, but keeps the code's own", () => {

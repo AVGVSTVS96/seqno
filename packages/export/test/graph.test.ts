@@ -199,8 +199,8 @@ describe("graph export", () => {
     )
     expect(files).toEqual({
       "demo_markdown_1761120000/pages/Ada.md": [
-        "alias:: Countess",
-        "",
+        "  alias:: Countess",
+        "  ",
         `- DONE wrote the "notes"`,
         "  id:: 61506710-484c-46d5-9983-3d1651ec02c8",
         "  collapsed:: true",
@@ -209,6 +209,8 @@ describe("graph export", () => {
       ].join("\n"),
       "demo_markdown_1761120000/pages/Babbage.md": [
         `- met wrote the "notes"`,
+        "  alias:: Countess",
+        "  ",
         `\t- DONE wrote the "notes"`,
         "\t  collapsed:: true",
         "\t\t- child",

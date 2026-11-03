@@ -85,6 +85,14 @@ describe("parseInline", () => {
     ])
   })
 
+  it("reads ***both*** as bold inside italic, as Logseq does", () => {
+    expect(show(parseInline("a ***both*** b"))).toStrictEqual([
+      "Text(a )@0-2",
+      "Italic[Bold[Text(both)@5-9]@3-11]@2-12",
+      "Text( b)@12-14",
+    ])
+  })
+
   it("reads emphasis, highlight, strike and inline code, nesting refs inside", () => {
     expect(
       show(parseInline("**Bold [[x]]**, *italic*, ==mark==, ~~gone~~ and `[[not a ref]]`")),

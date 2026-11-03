@@ -21,14 +21,20 @@ const refOf = (node: Inline): string | null =>
       ? node.target.uuid
       : null
 
-const walk = (
+const walk = <C>(
   run: Run,
   inlines: Inlines,
   depth: number,
+  context: C,
   gap: (text: string) => string,
-  node: (node: Inline, raw: string, children: (nodes: ReadonlyArray<Inline>) => string) => string,
+  node: (
+    node: Inline,
+    raw: string,
+    context: C,
+    children: (nodes: ReadonlyArray<Inline>, context: C) => string,
+  ) => string,
 ): string => {
-  const children = (from: number, to: number, nodes: ReadonlyArray<Inline>): string => {
+  const children = (from: number, to: number, nodes: ReadonlyArray<Inline>, inner: C): string => {
     let out = ""
     let at = from
     for (const child of nodes) {
@@ -38,19 +44,20 @@ const walk = (
       const target = uuid === null || depth >= maxRefDepth ? undefined : inlines.ref(uuid)
       out +=
         target === undefined
-          ? node(child, raw, (inner) =>
+          ? node(child, raw, inner, (nested, next) =>
               children(
-                inner[0]?.span.from ?? child.span.to,
-                inner.at(-1)?.span.to ?? child.span.to,
-                inner,
+                nested[0]?.span.from ?? child.span.to,
+                nested.at(-1)?.span.to ?? child.span.to,
+                nested,
+                next,
               ),
             )
-          : walk(target, inlines, depth + 1, gap, node)
+          : walk(target, inlines, depth + 1, inner, gap, node)
       at = child.span.to
     }
     return out + gap(run.source.slice(at, to))
   }
-  return children(run.from, run.to, run.nodes)
+  return children(run.from, run.to, run.nodes, context)
 }
 
 const emphasisOf = (node: Inline) =>
@@ -61,25 +68,37 @@ const emphasisOf = (node: Inline) =>
     ? node
     : null
 
+const CLOZE = /^\s*(.*?)\s*$/s
+
 export const markdownOf = (run: Run, inlines: Inlines, depth = 0): string =>
   walk(
     run,
     inlines,
     depth,
+    false,
     (text) => text,
-    (node, raw, children) => {
+    (node, raw, starred, children) => {
       const emphasis = emphasisOf(node)
       if (emphasis !== null) {
-        const inner = children(emphasis.children)
-        if (inlines.removals.emphasis) return inner
-        const open = emphasis.children[0]?.span.from ?? emphasis.span.to
-        const close = emphasis.children.at(-1)?.span.to ?? emphasis.span.from
-        return (
-          raw.slice(0, open - emphasis.span.from) + inner + raw.slice(close - emphasis.span.from)
-        )
+        if (inlines.removals.emphasis) return children(emphasis.children, starred)
+        switch (emphasis._tag) {
+          case "Bold":
+            return starred
+              ? `__${children(emphasis.children, true)}__`
+              : `**${children(emphasis.children, true)}**`
+          case "Italic":
+            return starred
+              ? `_${children(emphasis.children, true)}_`
+              : `*${children(emphasis.children, true)}*`
+          case "Strike":
+            return `~~${children(emphasis.children, starred)}~~`
+          case "Highlight":
+            return `^^${children(emphasis.children, starred)}^^`
+        }
       }
       if (node._tag === "PageRef" && node.brackets && inlines.removals.brackets) return node.name
       if (node._tag === "Tag" && inlines.removals.tags) return ""
+      if (node._tag === "Macro" && node.name === "cloze") return CLOZE.exec(node.args)?.[1] ?? ""
       return raw
     },
   )
@@ -94,7 +113,8 @@ export const escapeHtml = (text: string) =>
 const tagOf = { Bold: "b", Italic: "i", Strike: "del", Highlight: "mark" } as const
 
 export const htmlOf = (run: Run, inlines: Inlines, depth = 0): string =>
-  walk(run, inlines, depth, escapeHtml, (node, raw, children) => {
+  walk(run, inlines, depth, null, escapeHtml, (node, raw, context, nested) => {
+    const children = (nodes: ReadonlyArray<Inline>) => nested(nodes, context)
     switch (node._tag) {
       case "Text":
         return escapeHtml(raw)
@@ -109,7 +129,9 @@ export const htmlOf = (run: Run, inlines: Inlines, depth = 0): string =>
       case "BlockRef":
         return `<a>${escapeHtml(raw)}</a>`
       case "Macro":
-        return `<code>${escapeHtml(raw)}</code>`
+        return node.name === "cloze"
+          ? `<code>${escapeHtml(CLOZE.exec(node.args)?.[1] ?? "")}</code>`
+          : `<code>${escapeHtml(raw)}</code>`
       case "Priority":
         return escapeHtml(raw)
       case "Bold":
