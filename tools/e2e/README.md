@@ -10,7 +10,7 @@ A tool: Playwright flows that drive the built web app in headless Chrome, plus a
 | `src/test.ts`    | The shared `test`: fails any test whose page throws an uncaught error, and holds role-based locators.                                                                 |
 | `src/opfs.ts`    | `seedOpfs`, `loadGraphFolder`, `opfsFiles`, `fixtureGraph`: put fixture graphs into OPFS or behind the folder picker.                                                 |
 | `src/steady.ts`  | `crawl` scrolls a step a frame and lists each painted frame where the top row moved; `landsOn` checks Back put the same row back at the same place and kept it there. |
-| `src/env.ts`     | Runs against `SEQNO_E2E_BASE_URL` if set; otherwise builds and previews `apps/web` on port 4173.                                                                      |
+| `src/env.ts`     | Runs against `SEQNO_E2E_BASE_URL` if set; otherwise builds and previews `apps/web` on a free port (`SEQNO_E2E_PORT` to pick one).                                     |
 | `design/`        | `pnpm design [scenes] [--app] [--theme]` shoots each scene in both apps and both themes into `design-out/compare.html`.                                               |
 | `FEATURE_MAP.md` | Every user-facing feature, how to reach it, and the flow that covers it.                                                                                              |
 

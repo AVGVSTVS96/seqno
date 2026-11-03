@@ -17,7 +17,7 @@ Look the feature up in `tools/e2e/FEATURE_MAP.md`. The Flow column names the fil
 pnpm --filter @seqno/e2e test flows/journal.e2e.ts -g "reload keeps text"
 ```
 
-With no `SEQNO_E2E_BASE_URL`, Playwright builds `apps/web`, serves it with `vite preview` on port 4173, runs the flows in headless Chrome and stops the server. If 4173 is taken, the run fails on purpose rather than test another worktree's build. Then run your own server on a free port and point the flows at it:
+With no `SEQNO_E2E_BASE_URL`, Playwright builds `apps/web`, serves it with `vite preview` on a free port (or `SEQNO_E2E_PORT`), so runs in other worktrees never answer for it, runs the flows in headless Chrome and stops the server. To iterate against a dev server instead, run your own on a free port and point the flows at it:
 
 ```sh
 pnpm --filter @seqno/web dev --port 5199 --strictPort         # background it
