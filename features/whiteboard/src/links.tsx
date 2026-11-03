@@ -172,12 +172,12 @@ export const BlockLink = ({
   link,
   showContent,
   env,
-  hideOnBoard = false,
+  hideOnBoard,
 }: {
   readonly link: string
   readonly showContent: boolean
   readonly env: LinkEnv
-  readonly hideOnBoard?: boolean
+  readonly hideOnBoard: boolean
 }) =>
   isBlockLink(link) ? (
     <BlockTarget uuid={link} showContent={showContent} env={env} hideOnBoard={hideOnBoard} />
@@ -235,7 +235,7 @@ const LinkRow = ({
 }) => (
   <div className="wb-link-item">
     <span className="wb-link-item-target">
-      <BlockLink link={link} showContent={showContent} env={env} />
+      <BlockLink link={link} showContent={showContent} env={env} hideOnBoard={false} />
     </span>
     <span className="wb-link-item-gap" />
     {onBoard ? null : (

@@ -1600,8 +1600,10 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     html: string,
     text: string,
     at: Vec | null,
-    { shift = false, drop = false }: { readonly shift?: boolean; readonly drop?: boolean } = {},
+    how: { readonly shift?: boolean; readonly drop?: boolean } = {},
   ) => {
+    const shift = how.shift === true
+    const drop = how.drop === true
     const where = at ?? toWorld(cam, center(viewport))
     const point: Vec = [round(where[0]), round(where[1])]
     if (text !== "" && !shift && isWebUrl(text)) {
