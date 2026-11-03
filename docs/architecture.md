@@ -150,6 +150,19 @@ The same query in both syntaxes:
 - **Typed AST to SQL.** The AST is an Effect Schema with a fixed set of public fields (`page`, `page.day`, `tag`, `task.status`, `property.x`, `updated`, ...). One file maps fields to tables. `under` compiles to a recursive CTE, and page names also match aliases.
 - **`WatchQuery`** parses the text (Logseq syntax, then Dataview), compiles it, works out its read keys, and streams results from the index.
 
+## Plugins
+
+Logseq marketplace plugins run unchanged. Each one is an iframe on its own origin (Logseq's R2 mirror) that talks to `@seqno/plugins` in the tab through `@logseq/libs`'s postMessage protocol:
+
+```
+plugin iframe ── api:call ──▶ host ──▶ Logseq API in seqno ──▶ CoreClient (Dispatch, GetPage, WatchQuery …)
+              ◀── reply ────
+              ◀── hooks ──── route changes, theme mode, WatchChanges (every committed edit), slots
+              ── provideUI ▶ toolbar items, {{renderer}} slots, floating windows (sanitized HTML)
+```
+
+What a plugin registers (toolbar items, slash commands, block menu items, shortcuts, themes) lives in atoms the shell reads. The API answers in Logseq's file-graph shapes, so plugins built for Logseq see blocks with `content`, `properties` and numeric ids. Themes are stylesheets: seqno's tokens read Logseq's `--ls-*` variables first.
+
 ## Packages
 
 | Side   | Packages                                                                                | Job                                                  |

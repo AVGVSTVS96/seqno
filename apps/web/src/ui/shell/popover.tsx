@@ -282,16 +282,19 @@ export const Dialog = ({
   label,
   className,
   focusSelf,
+  onClose,
   children,
 }: {
   readonly id: string
   readonly label: string
   readonly className?: string
   readonly focusSelf?: boolean
+  readonly onClose?: () => void
   readonly children: ReactNode
 }) => (
   <dialog
     id={id}
+    onClose={onClose}
     aria-label={label}
     {...(focusSelf ? { tabIndex: -1, "data-focus-self": "" } : {})}
     className={className === undefined ? "dialog" : `dialog ${className}`}

@@ -69,6 +69,22 @@
   align-items: center;
 }
 
+.plugin-items-pagebar {
+  justify-content: flex-end;
+  gap: var(--space-3);
+  min-height: var(--header-button-size);
+  margin-block-end: calc(-1 * var(--header-button-size));
+}
+
+.injected-ui-item-pagebar {
+  opacity: 0.3;
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+
+.injected-ui-item-pagebar:hover {
+  opacity: 1;
+}
+
 .injected-ui-item-toolbar {
   display: flex;
   opacity: var(--opacity-header-icon);

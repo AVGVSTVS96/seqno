@@ -17,6 +17,7 @@ The web app runs in Chrome and Edge on the real core: a Loro edit log, a SQLite 
 - **Blocks.** Tasks and priorities, SCHEDULED and DEADLINE with a date picker, properties as `key:: value` lines, headings, code blocks edited in place, images with resizing, embeds, block references with counts, hover previews, and linked and unlinked references.
 - **Vim mode.** A switch in Settings: vim inside each block (normal, insert, visual), and `j` `k` `dd` `yy` `p` `o` `>>` `zc` `V` `u` over blocks, next to Logseq's own keys.
 - **Export.** Export page and a block's Copy / Export as open Logseq's dialog: text (dashes, spaces or no indent, `[[text]] -> text`, remove emphasis, `#tags` or properties, newline after block, level <= N), OPML, HTML and a PNG of the rendered blocks, copied or saved. Export graph in the header menu downloads EDN, JSON, Roam JSON, or a zip of standard Markdown or OPML files, in the shapes Logseq's importers read.
+- **Plugins.** Logseq marketplace plugins run unchanged. More › Plugins opens Logseq's Plugins page: Installed and Marketplace, plugins and themes, search, Install, an on/off switch, settings and Uninstall. Plugins get toolbar buttons, slash commands, block menu items, `{{renderer}}` slots, their own windows, settings and shortcuts, and themes restyle seqno through Logseq's CSS variables. Proven on Journals calendar, Word count, Markdown Table Editor, Pomodoro timer and Dev theme.
 - **Queries.** Live `{{query}}` blocks drawn like Logseq's. They take Logseq syntax, or Dataview-style text.
 - **Tests.** About 490 unit and component tests and 56 Playwright flows against a production build. A design harness puts 12 screens next to Logseq in light and dark.
 
@@ -73,7 +74,8 @@ Ten years at 2× and 4× the blocks a day (`SEQNO_BENCH_DENSITY`, a heavy writer
 
 ### UI
 
-- **Missing features:** flashcards, plugins, command palette commands and filters, All pages views and filters, linked-reference filters, a toolbar for selected blocks, Export public pages (Logseq desktop only), the query builder menu, and Settings beyond General and Keymap.
+- **Missing features:** flashcards, command palette commands and filters, All pages views and filters, linked-reference filters, a toolbar for selected blocks, Export public pages (Logseq desktop only), the query builder menu, and Settings beyond General and Keymap.
+- **Plugins:** they load from the network (Logseq's R2 mirror), each tab runs its own copy, desktop-only (`effect`) plugins are hidden, plugin commands don't show in a command palette yet (seqno has none), page and highlight menu items aren't placed, and the API parts listed in [decisions.md](decisions.md) answer "not supported yet". Themes apply through Logseq's variables only, not its class names.
 - `[[` suggests pages only; Logseq 2.x also lists matching blocks.
 - Favorites live in app storage, not `config.edn`, so Logseq doesn't see them and a Logseq graph's favorites aren't imported.
 - The date picker stays in edit mode after Submit and has no keyboard navigation. Resizing an image writes its width only.

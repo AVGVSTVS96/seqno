@@ -1,7 +1,13 @@
 import { Effect, Stream } from "effect"
 import { AsyncResult, type AtomRegistry } from "effect/reactivity"
 import { CoreClient } from "@seqno/rpc"
-import { changedPayload, installedPlugins, startPlugins, type Host } from "@seqno/plugins"
+import {
+  changedPayload,
+  installedPlugins,
+  routePayload,
+  startPlugins,
+  type Host,
+} from "@seqno/plugins"
 import { openGraph, resolvedTheme } from "../../atoms.ts"
 import type { router as appRouter } from "../../router.tsx"
 import { makeBridge } from "./bridge.ts"
@@ -27,16 +33,9 @@ export const startPluginHost = (registry: AtomRegistry.AtomRegistry, router: typ
     )
     const bridge = makeBridge(registry, router)
     const host = startPlugins(registry, bridge)
-    router.subscribe("onResolved", () => {
-      const route = bridge.route()
-      host.hook("app", "route_changed", {
-        path:
-          route._tag === "Page"
-            ? `/page/${encodeURIComponent(route.name)}`
-            : router.state.location.pathname,
-        template: route._tag === "Page" ? "/page/:name" : router.state.location.pathname,
-      })
-    })
+    router.subscribe("onResolved", () =>
+      host.hook("app", "route_changed", routePayload(bridge.route())),
+    )
     registry.subscribe(resolvedTheme, (mode) => host.hook("app", "theme_mode_changed", { mode }))
     void bridge
       .run(

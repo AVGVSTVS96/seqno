@@ -63,7 +63,7 @@ export const pluginInfoOf = (
   const icon = text(logseq["icon"])
   return {
     id: listing.id,
-    title: text(logseq["title"]) ?? listing.title,
+    title: listing.title === "" ? (text(logseq["title"]) ?? listing.id) : listing.title,
     description: text(pkg["description"]) ?? listing.description,
     author: text(pkg["author"]) ?? listing.author,
     version: text(pkg["version"]) ?? "0.0.0",

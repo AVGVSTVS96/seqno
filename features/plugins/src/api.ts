@@ -22,6 +22,8 @@ import {
   contentOf,
   pageJson,
   properties,
+  pulledBlock,
+  pulledPage,
   treeJson,
   uuidOfNumber,
   type Tree,
@@ -161,6 +163,41 @@ const elementRect = (selector: unknown) => {
   const query = text(selector)
   const element = query === null ? null : document.querySelector(query)
   return element === null ? null : element.getBoundingClientRect().toJSON()
+}
+
+export const routePayload = (route: Route) => {
+  switch (route._tag) {
+    case "Journals":
+      return { path: "/", template: "/", name: "home", parameters: { path: {}, query: {} } }
+    case "Page":
+      return {
+        path: `/page/${encodeURIComponent(route.name)}`,
+        template: "/page/:name",
+        name: "page",
+        parameters: { path: { name: route.name }, query: {} },
+      }
+    case "AllPages":
+      return {
+        path: "/all-pages",
+        template: "/all-pages",
+        name: "all-pages",
+        parameters: { path: {}, query: {} },
+      }
+    case "Graph":
+      return {
+        path: "/graph",
+        template: "/graph",
+        name: "graph",
+        parameters: { path: {}, query: {} },
+      }
+    case "Other":
+      return {
+        path: route.path,
+        template: route.path,
+        name: "other",
+        parameters: { path: {}, query: {} },
+      }
+  }
 }
 
 const unsupported = (method: string) => new Error(`seqno doesn't support logseq ${method} yet`)
@@ -384,7 +421,7 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
     )
 
   const rowsOf = async (result: QueryResult) => {
-    if (result._tag === "PageRows") return result.pages.map(pageJson)
+    if (result._tag === "PageRows") return []
     const trees = new Map<string, Tree>()
     const out = []
     for (const block of result.blocks) {
@@ -396,7 +433,7 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
   }
 
   const registerSimple = (pid: string, args: ReadonlyArray<unknown>) => {
-    const [options, action] = args
+    const [options, action] = list(args[0])
     const opts = record(options)
     const key = text(opts["key"])
     const eventKey = text(list(action)[1])
@@ -416,26 +453,7 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
     return null
   }
 
-  const routeInfo = () => {
-    const route = bridge.route()
-    switch (route._tag) {
-      case "Journals":
-        return { path: "/", template: "/", name: "home", parameters: { path: {}, query: {} } }
-      case "Page":
-        return {
-          path: `/page/${encodeURIComponent(route.name)}`,
-          template: "/page/:name",
-          name: "page",
-          parameters: { path: { name: route.name }, query: {} },
-        }
-      case "AllPages":
-        return { path: "/all-pages", template: "/all-pages", name: "all-pages", parameters: {} }
-      case "Graph":
-        return { path: "/graph", template: "/graph", name: "graph", parameters: {} }
-      case "Other":
-        return { path: route.path, template: route.path, name: "other", parameters: {} }
-    }
-  }
+  const routeInfo = () => routePayload(bridge.route())
 
   const pushState = (to: unknown, params: unknown) => {
     const name = text(record(params)["name"])
@@ -530,6 +548,17 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
         return name === null ? info : (record(info)[name] ?? null)
       },
       get_user_configs: () => userConfigs(),
+      get_app_info: () => ({ version: logseqVersion, supportDb: false }),
+      invoke_external_plugin_cmd: (_, [pid, , key]) => {
+        const command = registry
+          .get(pluginCommands)
+          .find(
+            (one) =>
+              one.pid === pid && (one.key === key || one.key === `${String(key)}_${String(pid)}`),
+          )
+        return command === undefined ? null : host.hook("editor", command.eventKey, {}, command.pid)
+      },
+      check_current_is_db_graph: () => false,
       get_current_graph: () => {
         const name = bridge.graphName()
         return name === null ? null : { url: `logseq_local_${name}`, name, path: name }
@@ -773,11 +802,15 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
           throw unsupported("datascriptQuery with inputs")
         }
         const result = await runQuery(`#+BEGIN_QUERY\n{:query ${dsl}}\n#+END_QUERY`)
-        return (await rowsOf(result)).map((row) => [row])
+        return result._tag === "PageRows"
+          ? result.pages.map((page) => [pulledPage(page)])
+          : (await rowsOf(result)).map((row) => [pulledBlock(row)])
       },
       q: async (_, [query]) => {
         const dsl = text(query)
-        return dsl === null ? null : rowsOf(await runQuery(dsl))
+        if (dsl === null) return null
+        const result = await runQuery(dsl)
+        return result._tag === "PageRows" ? result.pages.map(pageJson) : rowsOf(result)
       },
     }
 

@@ -6,7 +6,7 @@ import { createApi, lastCursor, type Bridge } from "./api.ts"
 import { createHost, type Host } from "./host.ts"
 import { fetchPlugin, type MarketItem } from "./marketplace.ts"
 import { record, text } from "./package.ts"
-import { contentOf } from "./shapes.ts"
+import { contentOf, numberOf } from "./shapes.ts"
 import {
   installedPlugins,
   pluginCommands,
@@ -114,9 +114,11 @@ export const changedPayload = (events: ReadonlyArray<GraphEvent>) => {
     event._tag === "BlockUpserted"
       ? [
           {
+            id: numberOf(event.block.id),
             uuid: event.block.id,
             content: contentOf(event.block),
-            page: { uuid: event.block.pageId },
+            page: { id: numberOf(event.block.pageId) },
+            parent: { id: numberOf(event.block.parentId ?? event.block.pageId) },
           },
         ]
       : [],

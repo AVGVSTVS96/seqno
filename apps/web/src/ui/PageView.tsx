@@ -14,6 +14,7 @@ import { useNavigateTo } from "./pages/navigation.ts"
 import { PageProperties } from "./pages/PageProperties.tsx"
 import pagesCss from "./pages/pages.css?inline"
 import { PageTitle } from "./pages/PageTitle.tsx"
+import { PluginItems } from "@seqno/plugins"
 import { NameReferences, References } from "./pages/References.tsx"
 
 export const PagesStyle = () => (
@@ -41,6 +42,7 @@ export const PageView = ({
     <div className="seqno-page" data-zoomed={zoomed}>
       <PagesStyle />
       <article {...(zoomed ? { "aria-label": page.title } : { "aria-labelledby": heading })}>
+        {zoomed || inJournals === true ? null : <PluginItems type="pagebar" />}
         {zoomed ? null : <PageTitle page={page} id={heading} link={inJournals ?? false} />}
         <div className="seqno-page-blocks">
           {zoomed ? null : <PageProperties page={page} />}

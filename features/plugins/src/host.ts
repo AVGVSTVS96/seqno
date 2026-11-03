@@ -36,6 +36,7 @@ interface Loaded {
   readonly hooks: Set<string>
   readonly requests: Map<number, (value: unknown) => void>
   connected: boolean
+  restarted: boolean
   sdk: string | null
   nextUid: number
 }
@@ -215,11 +216,17 @@ export const createHost = (
     const { schema, isSync } = record(payload)
     const items = settingItems(schema)
     setRunning(pid, (current) => ({ ...current, schema: items }))
-    if (isSync === true) {
-      const defaults = Object.fromEntries(
-        items.filter((item) => item.key !== "").map((item) => [item.key, item.default]),
-      )
-      saveSettings(pid, { ...defaults, ...settingsOf(pid) })
+    if (isSync !== true) return
+    const stored = settingsOf(pid)
+    const missing = items.filter((item) => item.type !== "heading" && !(item.key in stored))
+    if (missing.length === 0) return
+    saveSettings(pid, {
+      ...Object.fromEntries(missing.map((item) => [item.key, item.default])),
+      ...stored,
+    })
+    const plugin = plugins.get(pid)
+    if (plugin !== undefined && !plugin.restarted) {
+      void unload(pid).then(() => load(plugin.info, true))
     }
   }
 
@@ -322,7 +329,7 @@ export const createHost = (
     send()
   }
 
-  const load = (info: PluginInfo) => {
+  const load = (info: PluginInfo, restarted = false) => {
     if (plugins.has(info.id)) return
     addThemes(info.themes)
     if (info.main === null || settingsOf(info.id)["disabled"] === true) return
@@ -344,6 +351,7 @@ export const createHost = (
       hooks: new Set(),
       requests: new Map(),
       connected: false,
+      restarted,
       sdk: null,
       nextUid: 0,
     }

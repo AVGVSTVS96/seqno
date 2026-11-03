@@ -49,14 +49,22 @@ const matches = (query: string, ...fields: ReadonlyArray<string>) => {
   return needle === "" || fields.some((field) => field.toLowerCase().includes(needle))
 }
 
-const Icon = ({ src, theme: isTheme }: { readonly src: string | null; readonly theme: boolean }) =>
-  src === null ? (
+const Icon = ({
+  src,
+  theme: isTheme,
+}: {
+  readonly src: string | null
+  readonly theme: boolean
+}) => {
+  const [failed, setFailed] = useState(false)
+  return src === null || failed ? (
     <span className="plugin-icon plugin-icon-empty" aria-hidden>
       {isTheme ? <IconPalette size={28} /> : <IconPuzzle size={28} />}
     </span>
   ) : (
-    <img className="plugin-icon" src={src} alt="" loading="lazy" />
+    <img className="plugin-icon" src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
   )
+}
 
 const Card = ({
   title,
@@ -382,8 +390,16 @@ const Body = () => {
   )
 }
 
-export const PluginsDialog = () => (
-  <Dialog id={dialogId} label="Plugins" className="plugins-dialog">
-    <Body />
-  </Dialog>
-)
+export const PluginsDialog = () => {
+  const [opened, setOpened] = useState(0)
+  return (
+    <Dialog
+      id={dialogId}
+      label="Plugins"
+      className="plugins-dialog"
+      onClose={() => setOpened(opened + 1)}
+    >
+      <Body key={opened} />
+    </Dialog>
+  )
+}

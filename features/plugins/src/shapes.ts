@@ -111,3 +111,27 @@ export const blockJson = (tree: Tree, block: Block, nested: boolean): BlockJson 
 
 export const treeJson = (tree: Tree) =>
   childrenIn(tree, null).map((block) => blockJson(tree, block, true))
+
+export const pulledPage = (page: Page) => ({
+  id: numberOf(page.id),
+  uuid: page.id,
+  name: page.name,
+  "original-name": page.title,
+  "journal?": page.journalDay !== null,
+  "journal-day": page.journalDay,
+  properties: properties(page.props),
+  format: "markdown",
+})
+
+export const pulledBlock = (block: BlockJson) => ({
+  id: block.id,
+  uuid: block.uuid,
+  content: block.content,
+  format: block.format,
+  page: block.page,
+  parent: block.parent,
+  left: block.left,
+  properties: block.properties,
+  ...(block.marker === undefined ? {} : { marker: block.marker }),
+  ...(block.priority === undefined ? {} : { priority: block.priority }),
+})
