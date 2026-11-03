@@ -4,7 +4,7 @@ import { settingsLayer } from "../../atoms.ts"
 
 const settingsRuntime = Atom.runtime((get) => get(settingsLayer))
 
-const setting = <S extends Schema.ConstraintCodec<unknown, unknown>>(
+export const setting = <S extends Schema.ConstraintCodec<unknown, unknown>>(
   key: string,
   schema: S,
   defaultValue: S["Type"],

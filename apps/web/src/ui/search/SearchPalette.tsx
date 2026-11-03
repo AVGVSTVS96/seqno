@@ -1,22 +1,75 @@
-import { useAtom, useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react"
-import { IconFile, IconHash, IconPointFilled, IconSquarePlus2 } from "@tabler/icons-react"
+import {
+  RegistryContext,
+  useAtom,
+  useAtomMount,
+  useAtomSet,
+  useAtomValue,
+} from "@effect/atom-react"
+import {
+  IconCommand,
+  IconFile,
+  IconHash,
+  IconPalette,
+  IconPointFilled,
+  IconSquareCheck,
+  IconSquarePlus2,
+  IconX,
+} from "@tabler/icons-react"
 import { useMatchRoute, useRouter } from "@tanstack/react-router"
-import { Exit } from "effect"
+import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { Fragment, useId, useState, type KeyboardEvent, type ReactNode } from "react"
-import { blockRefId, type BlockId } from "@seqno/domain"
+import {
+  Fragment,
+  useContext,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react"
+import { blockRefId, type BlockId, type Page } from "@seqno/domain"
+import { chosenThemes, pluginCommands, runtimeThemes, type PluginTheme } from "@seqno/plugins"
 import type { PageStat } from "@seqno/rpc"
 import {
   allPages,
   createPage,
   openGraph,
+  pageNamed,
+  resolvedTheme,
   rightSidebar,
   searchOpen,
   type SidebarItem,
 } from "../../atoms.ts"
 import { pageStats, referencedOnly } from "../pages/atoms.ts"
-import { isSearchKey, paletteHits, paletteQuery, searchShortcut } from "./atoms.ts"
-import { groupsOf, highlight, itemKey, noHits, type Group, type Item } from "./model.ts"
+import { applyTheme, themeChosen } from "../plugins/PluginsDialog.tsx"
+import {
+  builtInCommands,
+  byUse,
+  commandHistory,
+  pluginPaletteCommands,
+  used,
+  type RunnableCommand,
+} from "../shell/commands.ts"
+import {
+  isSearchKey,
+  pageHits,
+  paletteFilter,
+  paletteHits,
+  paletteKey,
+  paletteQuery,
+  searchShortcut,
+} from "./atoms.ts"
+import {
+  filterLabel,
+  groupsOf,
+  highlight,
+  itemKey,
+  noHits,
+  type Filter,
+  type Group,
+  type Item,
+  type ThemeOption,
+} from "./model.ts"
 import { Keys } from "../shell/Keys.tsx"
 import { onMac } from "../shell/shortcuts.ts"
 import searchCss from "./search.css?inline"
@@ -30,17 +83,92 @@ const Marked = ({ text, query }: { readonly text: string; readonly query: string
     part.mark ? <mark key={at}>{part.text}</mark> : <Fragment key={at}>{part.text}</Fragment>,
   )
 
-const iconOf = (item: Item): ReactNode =>
-  item._tag === "Create" ? (
-    <IconSquarePlus2 size={14} aria-hidden />
-  ) : item._tag === "Page" ? (
-    item.page.tag === true ? (
-      <IconHash size={14} aria-hidden />
-    ) : (
-      <IconFile size={14} aria-hidden />
-    )
-  ) : (
-    <IconPointFilled size={14} aria-hidden />
+const filterIcons: Readonly<Record<Filter, ReactNode>> = {
+  "current-page": <IconFile size={14} aria-hidden />,
+  nodes: <IconPointFilled size={14} aria-hidden />,
+  commands: <IconCommand size={14} aria-hidden />,
+  themes: <IconPalette size={14} aria-hidden />,
+}
+
+const iconOf = (item: Item): ReactNode => {
+  switch (item._tag) {
+    case "Create":
+      return <IconSquarePlus2 size={14} aria-hidden />
+    case "Page":
+      return item.page.tag === true ? (
+        <IconHash size={14} aria-hidden />
+      ) : (
+        <IconFile size={14} aria-hidden />
+      )
+    case "Block":
+      return <IconPointFilled size={14} aria-hidden />
+    case "Command":
+      return <IconCommand size={14} aria-hidden />
+    case "Filter":
+      return filterIcons[item.filter]
+    case "Theme":
+      return item.theme.selected ? (
+        <IconSquareCheck size={14} aria-hidden />
+      ) : (
+        <IconPalette size={14} aria-hidden />
+      )
+  }
+}
+
+const textOf = (item: Item, query: string): ReactNode => {
+  switch (item._tag) {
+    case "Create":
+      return (
+        <>
+          Create page
+          <span className="seqno-palette-detail"> — Create page called '{item.title}'</span>
+        </>
+      )
+    case "Page":
+      return <Marked text={item.page.title} query={query} />
+    case "Block":
+      return <Marked text={item.block.text} query={query} />
+    case "Command":
+      return <Marked text={item.command.label} query={query} />
+    case "Filter":
+      return (
+        <>
+          {item.text}
+          <span className="seqno-palette-detail"> — Add filter to search</span>
+        </>
+      )
+    case "Theme":
+      return (
+        <>
+          <Marked text={item.theme.name} query={query} />
+          <span className="seqno-palette-detail"> — {item.theme.detail}</span>
+        </>
+      )
+  }
+}
+
+const stepsOf = (combo: ReadonlyArray<string>) =>
+  combo.reduce<ReadonlyArray<ReadonlyArray<string>>>(
+    (steps, key) =>
+      key === "then" ? [...steps, []] : [...steps.slice(0, -1), [...(steps.at(-1) ?? []), key]],
+    [[]],
+  )
+
+const Shortcut = ({ combos }: { readonly combos: ReadonlyArray<ReadonlyArray<string>> }) =>
+  combos.length === 0 ? null : (
+    <span className="seqno-palette-shortcut">
+      {combos.map((combo, at) => (
+        <Fragment key={combo.join(" ")}>
+          {at === 0 ? null : <span className="seqno-palette-shortcut-or" />}
+          {stepsOf(combo).map((step, position) => (
+            <Fragment key={position}>
+              {position === 0 ? null : <span className="seqno-palette-shortcut-then">then</span>}
+              <Keys keys={step} framed />
+            </Fragment>
+          ))}
+        </Fragment>
+      ))}
+    </span>
   )
 
 const Row = ({ item, query }: { readonly item: Item; readonly query: string }) => (
@@ -57,18 +185,8 @@ const Row = ({ item, query }: { readonly item: Item; readonly query: string }) =
     ) : null}
     <span className="seqno-palette-line">
       <span className="seqno-palette-tile">{iconOf(item)}</span>
-      <span className="seqno-palette-text">
-        {item._tag === "Create" ? (
-          <>
-            Create page
-            <span className="seqno-palette-detail"> — Create page called '{item.title}'</span>
-          </>
-        ) : item._tag === "Page" ? (
-          <Marked text={item.page.title} query={query} />
-        ) : (
-          <Marked text={item.block.text} query={query} />
-        )}
-      </span>
+      <span className="seqno-palette-text">{textOf(item, query)}</span>
+      {item._tag === "Command" ? <Shortcut combos={item.command.keys} /> : null}
     </span>
   </>
 )
@@ -76,10 +194,81 @@ const Row = ({ item, query }: { readonly item: Item; readonly query: string }) =
 const refOf = (item: Item) =>
   item._tag === "Block"
     ? `((${blockRefId(item.block)}))`
-    : `[[${item._tag === "Page" ? item.page.title : item.title}]]`
+    : item._tag === "Page"
+      ? `[[${item.page.title}]]`
+      : null
 
-const copyRef = (item: Item) =>
-  void navigator.clipboard.writeText(refOf(item)).catch(() => undefined)
+const copyRef = (item: Item) => {
+  const ref = refOf(item)
+  if (ref !== null) void navigator.clipboard.writeText(ref).catch(() => undefined)
+}
+
+const useCurrentPage = (): Page | undefined => {
+  const onPage = useMatchRoute()({ to: "/page/$name" })
+  const named = useAtomValue(pageNamed(onPage === false ? "" : onPage.name))
+  return Option.getOrUndefined(AsyncResult.getOrElse(named, () => Option.none()))
+}
+
+const actionOf = (item: Item) => {
+  switch (item._tag) {
+    case "Create":
+      return "Create"
+    case "Command":
+      return "Trigger"
+    case "Filter":
+      return "Filter"
+    case "Theme":
+      return "Apply theme"
+    case "Page":
+    case "Block":
+      return null
+  }
+}
+
+const Tip = ({ filter }: { readonly filter: Filter | null }) => {
+  const [slash] = useState(() => Math.random() < 0.5)
+  return (
+    <div className="seqno-palette-tip">
+      <span className="seqno-palette-tip-title">Tip:</span>
+      <span className="seqno-palette-tip-text">
+        {filter !== null ? (
+          <>
+            Press <Keys keys={["escape"]} /> to clear search filter
+          </>
+        ) : slash ? (
+          <>
+            Type <Keys keys={["/"]} /> to filter search results
+          </>
+        ) : (
+          <>
+            Press <Keys keys={["shift", "enter"]} /> to open a result in the sidebar
+          </>
+        )}
+      </span>
+    </div>
+  )
+}
+
+const themeOptions = (
+  themes: ReadonlyArray<PluginTheme>,
+  chosen: Parameters<typeof themeChosen>[0],
+  mode: "light" | "dark",
+): ReadonlyArray<ThemeOption & { readonly entry: PluginTheme | null }> => [
+  {
+    name: "Logseq default theme",
+    url: null,
+    detail: `${mode} #logseq-classic-theme`,
+    selected: themeChosen(chosen, null),
+    entry: null,
+  },
+  ...themes.map((entry) => ({
+    name: entry.name,
+    url: entry.url,
+    detail: `${entry.mode ?? mode} #${entry.pid}`,
+    selected: themeChosen(chosen, entry),
+    entry,
+  })),
+]
 
 const Palette = ({
   onRoute,
@@ -88,26 +277,66 @@ const Palette = ({
   readonly onRoute: boolean
   readonly onClose: () => void
 }) => {
+  const registry = useContext(RegistryContext)
   const [query, setQuery] = useAtom(paletteQuery)
+  const [chosenFilter, setFilter] = useAtom(paletteFilter)
+  const currentPage = useCurrentPage()
+  const filter = chosenFilter === "current-page" && currentPage === undefined ? null : chosenFilter
   const hits = AsyncResult.getOrElse(useAtomValue(paletteHits), () => noHits)
+  const onPage = AsyncResult.getOrElse(
+    useAtomValue(pageHits(currentPage?.id ?? null)),
+    () => noHits,
+  )
   const pages = useAtomValue(allPages)
   const stats = AsyncResult.getOrElse(useAtomValue(pageStats), () => noStats)
+  const history = useAtomValue(commandHistory)
+  const plugins = useAtomValue(pluginCommands)
+  const themes = themeOptions(
+    useAtomValue(runtimeThemes),
+    useAtomValue(chosenThemes),
+    useAtomValue(resolvedTheme),
+  )
   const setOpen = useAtomSet(searchOpen)
   const updateSidebar = useAtomSet(rightSidebar)
   const create = useAtomSet(createPage, { mode: "promiseExit" })
   const router = useRouter()
   const [expanded, setExpanded] = useState<ReadonlySet<Group["id"]>>(new Set())
-  const [active, setActive] = useState({ query, index: 0 })
+  const [active, setActive] = useState({ query, filter, index: 0 })
+  const returnTo = useRef<HTMLElement | null>(null)
+  const dialog = useRef<HTMLDialogElement | null>(null)
+  const input = useRef<HTMLInputElement | null>(null)
   const ids = useId()
   const referenced = useAtomValue(referencedOnly)
-  const groups = groupsOf({ query, hits, pages, referenced, stats, expanded })
+  const commands: ReadonlyArray<RunnableCommand> = byUse(
+    [...builtInCommands(registry, router), ...pluginPaletteCommands(registry, plugins)],
+    history,
+  )
+  const groups = groupsOf({
+    query,
+    hits,
+    pages,
+    referenced,
+    stats,
+    expanded,
+    filter,
+    filters: [
+      ...(currentPage === undefined ? [] : ["current-page" as const]),
+      "nodes",
+      "commands",
+      "themes",
+    ],
+    commands,
+    themes,
+    pageHits: onPage,
+  })
   const items = groups.flatMap((group) => group.items)
-  const index = active.query === query ? Math.min(active.index, items.length - 1) : 0
+  const fresh = active.query === query && active.filter === filter
+  const index = fresh ? Math.min(active.index, items.length - 1) : 0
   const current = items[index]
   const optionId = (at: number) => `${ids}-option-${at}`
 
   const choose = (at: number) => {
-    setActive({ query, index: at })
+    setActive({ query, filter, index: at })
     document.getElementById(optionId(at))?.scrollIntoView({ block: "nearest" })
   }
 
@@ -126,21 +355,50 @@ const Palette = ({
     onClose()
   }
 
+  const narrow = (next: Filter | null, text: string) => {
+    setFilter(next)
+    setQuery(text)
+    setExpanded(new Set())
+    input.current?.focus()
+  }
+
+  const trigger = (id: string) => {
+    const command = commands.find((one) => one.id === id)
+    if (command === undefined) return
+    dialog.current?.close()
+    onClose()
+    used(registry, id)
+    command.run(returnTo.current)
+  }
+
   const open = async (item: Item, sidebar: boolean) => {
-    if (item._tag === "Create") {
-      const created = await create(item.title)
-      if (Exit.isFailure(created)) return
-      const name = created.value
-      return sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+    switch (item._tag) {
+      case "Command":
+        return trigger(item.command.id)
+      case "Filter": {
+        const slash = query.lastIndexOf("/")
+        return narrow(item.filter, slash === -1 ? query : query.slice(0, slash))
+      }
+      case "Theme": {
+        const picked = themes.find((theme) => theme.url === item.theme.url)
+        if (picked !== undefined) applyTheme(registry, picked.entry)
+        return onClose()
+      }
+      case "Create": {
+        const created = await create(item.title)
+        if (Exit.isFailure(created)) return
+        const name = created.value
+        return sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+      }
+      case "Page":
+        return sidebar
+          ? toSidebar({ _tag: "Page", name: item.page.name })
+          : goTo(item.page.name, null)
+      case "Block":
+        return sidebar
+          ? toSidebar({ _tag: "Block", blockId: item.block.id })
+          : goTo(item.page.name, item.block.id)
     }
-    if (item._tag === "Page") {
-      return sidebar
-        ? toSidebar({ _tag: "Page", name: item.page.name })
-        : goTo(item.page.name, null)
-    }
-    return sidebar
-      ? toSidebar({ _tag: "Block", blockId: item.block.id })
-      : goTo(item.page.name, item.block.id)
   }
 
   const starts = groups.map((_, at) =>
@@ -156,13 +414,23 @@ const Palette = ({
       return next
     })
 
+  const dismiss = () => {
+    if (filter !== null) narrow(null, query)
+    else if (query !== "") setQuery("")
+    else onClose()
+  }
+
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const count = items.length
     const next = event.key === "ArrowDown" || (event.ctrlKey && event.key === "n")
     const previous = event.key === "ArrowUp" || (event.ctrlKey && event.key === "p")
+    const narrowed = paletteKey(event)
     if (isSearchKey(event)) {
       event.preventDefault()
       onClose()
+    } else if (narrowed !== undefined) {
+      event.preventDefault()
+      narrow(narrowed, "")
     } else if ((event.metaKey || event.ctrlKey) && event.key === "ArrowDown") {
       event.preventDefault()
       const group = groupOf(index)
@@ -177,7 +445,7 @@ const Palette = ({
       (event.metaKey || event.ctrlKey) &&
       event.key.toLowerCase() === "c" &&
       current !== undefined &&
-      current._tag !== "Create" &&
+      refOf(current) !== null &&
       event.currentTarget.selectionStart === event.currentTarget.selectionEnd
     ) {
       event.preventDefault()
@@ -185,16 +453,23 @@ const Palette = ({
     }
   }
 
+  const action = current === undefined ? null : actionOf(current)
+
   return (
     <dialog
       className="seqno-palette ui__modal-panel cp__cmdk"
       aria-label="Search"
-      ref={(dialog) => {
-        if (dialog !== null && !dialog.open) dialog.showModal()
+      data-keeps-selection
+      ref={(element) => {
+        dialog.current = element
+        if (element === null || element.open) return
+        returnTo.current =
+          document.activeElement instanceof HTMLElement ? document.activeElement : null
+        element.showModal()
       }}
       onCancel={(event) => {
         event.preventDefault()
-        onClose()
+        dismiss()
       }}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose()
@@ -205,6 +480,7 @@ const Palette = ({
       </style>
       <div className="seqno-palette-input">
         <input
+          ref={input}
           type="search"
           aria-label="Search"
           placeholder="What are you looking for?"
@@ -220,6 +496,21 @@ const Palette = ({
         />
       </div>
       <div className="seqno-palette-results search-results" id={`${ids}-results`}>
+        {filter === null ? null : (
+          <div className="seqno-palette-filter">
+            <span>Search only:</span>
+            <span>{filterLabel(filter)}</span>
+            <button
+              type="button"
+              aria-label="Clear filter"
+              className="seqno-palette-filter-clear"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => narrow(null, query)}
+            >
+              <IconX size={18} aria-hidden />
+            </button>
+          </div>
+        )}
         {groups.map((group, position) => {
           const start = starts[position] ?? 0
           return (
@@ -228,7 +519,8 @@ const Palette = ({
                 <div className="seqno-palette-group-head">
                   <span className="seqno-palette-group-title">{group.title}</span>
                   <span className="seqno-palette-group-count">{group.total}</span>
-                  {group.total > group.items.length || expanded.has(group.id) ? (
+                  {filter === null &&
+                  (group.total > group.items.length || expanded.has(group.id)) ? (
                     <button
                       type="button"
                       className="seqno-palette-more"
@@ -252,7 +544,7 @@ const Palette = ({
                     className="seqno-palette-item"
                     data-kind={item._tag}
                     onMouseMove={() => {
-                      if (start + at !== index) setActive({ query, index: start + at })
+                      if (start + at !== index) setActive({ query, filter, index: start + at })
                     }}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={(event) => void open(item, event.shiftKey)}
@@ -266,17 +558,12 @@ const Palette = ({
         })}
       </div>
       <div className="seqno-palette-footer">
-        <div className="seqno-palette-tip">
-          <span className="seqno-palette-tip-title">Tip:</span>
-          <span className="seqno-palette-tip-text">
-            Press <Keys keys={["shift", "enter"]} /> to open a result in the sidebar
-          </span>
-        </div>
+        <Tip filter={filter} />
         {current === undefined ? null : (
           <div className="seqno-palette-actions">
-            {current._tag === "Create" ? (
+            {action !== null ? (
               <button type="button" data-active onClick={() => void open(current, false)}>
-                <span>Create</span>
+                <span>{action}</span>
                 <Keys keys={["enter"]} />
               </button>
             ) : (

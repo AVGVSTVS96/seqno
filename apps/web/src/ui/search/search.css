@@ -300,3 +300,54 @@
 .seqno-palette-actions button > span:first-child {
   opacity: 0.6;
 }
+
+.seqno-palette-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  opacity: 0.7;
+}
+
+.seqno-palette-filter-clear {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  scale: 0.75;
+  cursor: pointer;
+}
+
+.seqno-palette-filter-clear:hover {
+  background: var(--bg-ghost-hover);
+}
+
+.seqno-palette-shortcut {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+  font-size: var(--text-xs);
+}
+
+.seqno-palette-shortcut-or {
+  align-self: stretch;
+  width: 1px;
+  margin: 0 var(--space-1);
+  background: var(--fg-muted);
+  opacity: 0.5;
+}
+
+.seqno-palette-shortcut-then {
+  padding: 0 var(--space-1);
+  color: var(--fg-muted);
+  font-size: 10px;
+}

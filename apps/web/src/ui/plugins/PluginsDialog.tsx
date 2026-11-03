@@ -1,5 +1,5 @@
 import pluginsCss from "./plugins.css?inline"
-import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
+import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconCloudDownload,
   IconPalette,
@@ -11,7 +11,7 @@ import {
   IconX,
 } from "@tabler/icons-react"
 import { Effect } from "effect"
-import { AsyncResult, Atom } from "effect/reactivity"
+import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
 import { useContext, useState, type ReactNode } from "react"
 import {
   chosenThemes,
@@ -25,6 +25,7 @@ import {
   setEnabled,
   settingsFor,
   uninstall,
+  type ChosenTheme,
   type MarketItem,
   type PluginInfo,
   type PluginTheme,
@@ -199,20 +200,27 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
   )
 }
 
+export const themeChosen = (
+  chosen: { readonly light: ChosenTheme | null; readonly dark: ChosenTheme | null },
+  entry: PluginTheme | null,
+) =>
+  entry === null
+    ? chosen.light === null && chosen.dark === null
+    : [chosen.light, chosen.dark].some((pick) => pick?.url === entry.url)
+
+export const applyTheme = (registry: AtomRegistry.AtomRegistry, entry: PluginTheme | null) => {
+  if (entry === null) return registry.set(chosenThemes, { light: null, dark: null })
+  const pick = { pid: entry.pid, url: entry.url }
+  if (entry.mode === null) return registry.set(chosenThemes, { light: pick, dark: pick })
+  registry.set(chosenThemes, { ...registry.get(chosenThemes), [entry.mode]: pick })
+  registry.set(theme, entry.mode)
+}
+
 const ThemeRow = ({ entry }: { readonly entry: PluginTheme | null }) => {
-  const [chosen, setChosen] = useAtom(chosenThemes)
-  const setMode = useAtomSet(theme)
-  const active =
-    entry === null
-      ? chosen.light === null && chosen.dark === null
-      : [chosen.light, chosen.dark].some((pick) => pick?.url === entry.url)
-  const use = () => {
-    if (entry === null) return setChosen({ light: null, dark: null })
-    const pick = { pid: entry.pid, url: entry.url }
-    if (entry.mode === null) return setChosen({ light: pick, dark: pick })
-    setChosen({ ...chosen, [entry.mode]: pick })
-    setMode(entry.mode)
-  }
+  const chosen = useAtomValue(chosenThemes)
+  const registry = useContext(RegistryContext)
+  const active = themeChosen(chosen, entry)
+  const use = () => applyTheme(registry, entry)
   return (
     <li className="plugin-theme-row">
       <button

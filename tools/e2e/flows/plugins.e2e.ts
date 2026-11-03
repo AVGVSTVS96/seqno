@@ -49,9 +49,9 @@ test("the marketplace lists plugins, desktop-only ones too, and themes, and Inst
   )
   await expect(dialog.getByText("Nothing found.")).toBeVisible()
   await dialog.getByRole("tab", { name: "Marketplace" }).click()
-  await expect(dialog.getByRole("radio", { name: "Plugins (11)" })).toBeVisible()
+  await expect(dialog.getByRole("radio", { name: "Plugins (14)" })).toBeVisible()
   await expect(dialog.getByRole("radio", { name: "Themes (5)" })).toBeVisible()
-  await expect(dialog.getByRole("listitem")).toHaveCount(11)
+  await expect(dialog.getByRole("listitem")).toHaveCount(14)
   await expect(dialog.getByRole("listitem", { name: "Archivist" })).toHaveCount(1)
   await dialog.getByRole("searchbox", { name: "Search plugins" }).fill("calendar")
   await expect(dialog.getByRole("listitem")).toHaveCount(1)
@@ -162,6 +162,89 @@ test("Markdown Table Editor opens from the block menu and writes the table back"
   await expect(page.locator("#logseq-markdown-table_lsp_main")).not.toHaveClass(/visible/)
   await expect(seqno.today.getByRole("treeitem").filter({ hasText: "pear" })).toHaveCount(1)
   await expect(seqno.today.getByRole("treeitem").filter({ hasText: "apple" })).toHaveCount(0)
+})
+
+test("Random Note's commands are in the command palette with its keys, and run from there", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Random Note")
+  await page.keyboard.press("ControlOrMeta+Shift+KeyP")
+  const palette = page.getByRole("dialog", { name: "Search" })
+  await palette.getByRole("searchbox", { name: "Search" }).fill("random note")
+  await expect(palette.getByRole("option")).toHaveText([
+    "Random note => tags mode",
+    "Random note => query mode",
+    "Random note => page mode",
+    "Random note => card mode",
+    "Random note => Let's goRN",
+  ])
+  await palette.getByRole("option", { name: "Random note => query mode" }).click()
+  await expect(palette).toHaveCount(0)
+  const dialog = await openPlugins(page)
+  await dialog.getByRole("button", { name: "Random Note settings" }).click()
+  const settings = page.getByRole("dialog", { name: "Plugin settings" })
+  await expect(settings.getByRole("radio", { name: "query" })).toBeChecked()
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("ControlOrMeta+Shift+KeyP")
+  await expect(palette.getByRole("option").first()).toHaveText("Random note => query mode")
+})
+
+test("Markmap opens from the command palette and from its own keys, and draws the open page", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Markmap")
+  await page.goto("/page/ideas")
+  await expect(page.getByRole("heading", { name: "Ideas", level: 1 })).toBeVisible()
+  await page.keyboard.press("ControlOrMeta+Shift+KeyP")
+  const palette = page.getByRole("dialog", { name: "Search" })
+  await palette.getByRole("searchbox", { name: "Search" }).fill("markmap")
+  await expect(palette.getByRole("option")).toHaveText([
+    "Open MarkmapCtrlMthenCtrlM",
+    "Open Full MarkmapCtrlAlt⇧MthenCtrlAlt⇧M",
+  ])
+  await page.keyboard.press("Enter")
+  const markmap = page.locator("#logseq-mark-map_lsp_main")
+  await expect(markmap).toHaveClass(/visible/)
+  const drawn = page.frameLocator("#logseq-mark-map_iframe").locator("svg")
+  await expect(drawn.getByText("Loose thoughts go here", { exact: false })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(markmap).not.toHaveClass(/visible/)
+  await page.keyboard.press("Control+m")
+  await page.keyboard.press("Control+m")
+  await expect(markmap).toHaveClass(/visible/)
+})
+
+test("Merge Pages adds its item to the page menu, and merging moves a page's blocks into another", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "logseq-mergepages-plugin")
+  await page.goto("/page/ideas")
+  await page.getByRole("heading", { name: "Ideas", level: 1 }).click({ button: "right" })
+  await page
+    .getByRole("menu", { name: "Page actions" })
+    .getByRole("menuitem", { name: "Merge Page With" })
+    .click()
+  const picker = page.frameLocator("#logseq-mergepages-plugin_iframe")
+  const search = picker.getByPlaceholder("Search for a page to merge into...")
+  await expect(search).toBeFocused()
+  await search.pressSequentially("basil")
+  await search.press("ArrowRight")
+  await picker.getByText("BASIL", { exact: true }).click()
+  await expect(page).toHaveURL(/\/page\/basil$/)
+  await expect(
+    page.getByRole("treeitem").filter({ hasText: "Loose thoughts go here" }),
+  ).toHaveCount(1)
+  await page.getByRole("button", { name: "More" }).click()
+  await expect(
+    page.getByRole("menu", { name: "More" }).getByRole("menuitem", { name: "Merge Page With" }),
+  ).toBeVisible()
 })
 
 test("a marketplace theme restyles seqno through Logseq's variables, and the default theme undoes it", async ({

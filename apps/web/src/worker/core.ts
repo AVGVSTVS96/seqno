@@ -469,10 +469,12 @@ const CoreHandlers = CoreRpcs.toLayer(
             Stream.mapEffect((hits) => session.blocks(hits.map((hit) => hit.blockId))),
           ),
         ),
-      Search: ({ text }, { client }) =>
+      Search: ({ text, pageId }, { client }) =>
         Effect.gen(function* () {
           const session = yield* current(client.id)
-          const hits = yield* Effect.orDie(session.index.search(text))
+          const hits = yield* Effect.orDie(
+            session.index.search(text, pageId === undefined ? {} : { limit: 100, page: pageId }),
+          )
           return {
             pages: yield* pagesOf(
               session,

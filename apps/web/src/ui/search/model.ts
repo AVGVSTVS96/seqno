@@ -4,6 +4,21 @@ import { crumbLabel, listValues } from "../pages/model.ts"
 
 export type PageName = Pick<Page, "name" | "title"> & { readonly tag?: boolean }
 
+export type Filter = "current-page" | "nodes" | "commands" | "themes"
+
+export interface PaletteCommand {
+  readonly id: string
+  readonly label: string
+  readonly keys: ReadonlyArray<ReadonlyArray<string>>
+}
+
+export interface ThemeOption {
+  readonly name: string
+  readonly url: string | null
+  readonly detail: string
+  readonly selected: boolean
+}
+
 export type Item =
   | { readonly _tag: "Create"; readonly title: string }
   | { readonly _tag: "Page"; readonly page: PageName }
@@ -13,9 +28,21 @@ export type Item =
       readonly page: Page
       readonly crumbs: ReadonlyArray<string>
     }
+  | { readonly _tag: "Command"; readonly command: PaletteCommand }
+  | { readonly _tag: "Filter"; readonly filter: Filter; readonly text: string }
+  | { readonly _tag: "Theme"; readonly theme: ThemeOption }
+
+export type GroupId =
+  | "create"
+  | "current-page"
+  | "nodes"
+  | "recent"
+  | "commands"
+  | "themes"
+  | "filters"
 
 export interface Group {
-  readonly id: "create" | "nodes" | "recent"
+  readonly id: GroupId
   readonly title: string | null
   readonly items: ReadonlyArray<Item>
   readonly total: number
@@ -31,6 +58,7 @@ export const noHits: Hits = { pages: [], blocks: [], ancestors: [] }
 
 const nodesShown = 10
 const recentShown = 5
+const shownPerGroup = 5
 
 const terms = (query: string) =>
   query
@@ -85,15 +113,55 @@ export const blockHits = (hits: Hits, pages: ReadonlyArray<Page>) => {
 const matches = (page: PageName, words: ReadonlyArray<string>) =>
   words.every((word) => page.title.toLowerCase().includes(word.toLowerCase()))
 
+const filterLabels: Readonly<Record<Filter, string>> = {
+  "current-page": "Current page",
+  nodes: "Nodes",
+  commands: "Commands",
+  themes: "Themes",
+}
+
+export const filterLabel = (filter: Filter) => filterLabels[filter]
+
+export const filterText = (filter: Filter) => `Search only ${filterLabels[filter].toLowerCase()}`
+
+const wordsMatch = (text: string, words: ReadonlyArray<string>) => {
+  const lower = text.toLowerCase()
+  return words.every((word) => lower.includes(word.toLowerCase()))
+}
+
+const byMatch = <A>(items: ReadonlyArray<A>, query: string, textOf: (item: A) => string) => {
+  const words = terms(query)
+  if (words.length === 0) return items
+  const wanted = query.trim().toLowerCase()
+  const at = (item: A) => {
+    const found = textOf(item).toLowerCase().indexOf(wanted)
+    return found === -1 ? Number.MAX_SAFE_INTEGER : found
+  }
+  return items
+    .filter((item) => wordsMatch(textOf(item), words))
+    .toSorted((left, right) => at(left) - at(right))
+}
+
+const filterQuery = (query: string) => {
+  const slash = query.lastIndexOf("/")
+  return slash === -1 ? null : { before: query.slice(0, slash), after: query.slice(slash + 1) }
+}
+
 export const groupsOf = (input: {
   readonly query: string
   readonly hits: Hits
   readonly pages: ReadonlyArray<Page>
   readonly referenced: ReadonlyArray<PageName>
   readonly stats: ReadonlyArray<PageStat>
-  readonly expanded: ReadonlySet<Group["id"]>
+  readonly expanded: ReadonlySet<GroupId>
+  readonly filter?: Filter | null
+  readonly filters?: ReadonlyArray<Filter>
+  readonly commands?: ReadonlyArray<PaletteCommand>
+  readonly themes?: ReadonlyArray<ThemeOption>
+  readonly pageHits?: Hits
 }): ReadonlyArray<Group> => {
   const { query, hits, pages, referenced, stats, expanded } = input
+  const filter = input.filter ?? null
   const words = terms(query)
   const name = normalizePageName(query)
   const exists =
@@ -117,36 +185,101 @@ export const groupsOf = (input: {
     ...hits.pages.map((page): Item => ({ _tag: "Page", page })),
     ...blockHits(hits, pages).map((hit): Item => ({ _tag: "Block", ...hit })),
   ]
+  const onPage = blockHits(input.pageHits ?? noHits, pages).map((hit): Item => ({
+    _tag: "Block",
+    ...hit,
+  }))
   const updated = new Map(stats.map((stat) => [stat.pageId, stat.updated ?? 0]))
   const recent = pages
     .filter((page) => updated.has(page.id) && matches(page, words))
     .toSorted((left, right) => (updated.get(right.id) ?? 0) - (updated.get(left.id) ?? 0))
     .map((page): Item => ({ _tag: "Page", page }))
-  const limited = (id: Group["id"], title: string, items: ReadonlyArray<Item>, shown: number) => ({
+  const commands = byMatch(input.commands ?? [], query, (command) => command.label).map(
+    (command): Item => ({ _tag: "Command", command }),
+  )
+  const themes = byMatch(input.themes ?? [], query, (theme) => theme.name).map((theme): Item => ({
+    _tag: "Theme",
+    theme,
+  }))
+  const split = filterQuery(query)
+  const filters = byMatch(
+    (input.filters ?? []).map((one) => ({ filter: one, text: filterText(one) })),
+    split?.after ?? "",
+    (one) => one.text,
+  ).map((one): Item => ({ _tag: "Filter", ...one }))
+  const group = (id: GroupId, title: string, items: ReadonlyArray<Item>, shown: number): Group => ({
     id,
     title,
-    items: expanded.has(id) ? items : items.slice(0, shown),
+    items: filter !== null || expanded.has(id) ? items : items.slice(0, shown),
     total: items.length,
   })
-  return [
-    ...(exists
-      ? []
-      : [
-          {
-            id: "create",
-            title: null,
-            items: [{ _tag: "Create", title: query.trim() }],
-            total: 1,
-          } satisfies Group,
-        ]),
-    ...(nodes.length === 0 ? [] : [limited("nodes", "Nodes", nodes, nodesShown)]),
-    ...(recent.length === 0 ? [] : [limited("recent", "Recently updated", recent, recentShown)]),
-  ]
+  const create: Group = {
+    id: "create",
+    title: null,
+    items: exists ? [] : [{ _tag: "Create", title: query.trim() }],
+    total: 1,
+  }
+  const ordered: ReadonlyArray<Group> = query.startsWith("/")
+    ? [group("filters", "Filters", filters, shownPerGroup)]
+    : split !== null
+      ? [
+          group("nodes", "Nodes", nodes, nodesShown),
+          create,
+          group("filters", "Filters", filters, shownPerGroup),
+        ]
+      : filter === "nodes"
+        ? [
+            group("current-page", "Current page", onPage, shownPerGroup),
+            group("nodes", "Nodes", nodes, nodesShown),
+            create,
+          ]
+        : filter === "current-page"
+          ? [group("current-page", "Current page", onPage, shownPerGroup)]
+          : filter === "commands"
+            ? [group("commands", "Commands", commands, shownPerGroup)]
+            : filter === "themes"
+              ? [group("themes", "Themes", themes, shownPerGroup)]
+              : words.length === 0
+                ? [group("recent", "Recently updated", recent, recentShown)]
+                : [
+                    group("nodes", "Nodes", nodes, nodesShown),
+                    group("recent", "Recently updated", recent, recentShown),
+                    group("commands", "Commands", commands, shownPerGroup),
+                    create,
+                    group("filters", "Filters", filters, shownPerGroup),
+                  ]
+  return withCreateAfterFirstMatch(ordered.filter((one) => one.items.length > 0))
 }
 
-export const itemKey = (item: Item) =>
-  item._tag === "Create"
-    ? "create"
-    : item._tag === "Page"
-      ? `page:${item.page.name}`
-      : `block:${item.block.id}`
+const isMatch = (item: Item) => item._tag === "Page" || item._tag === "Block"
+
+const withCreateAfterFirstMatch = (groups: ReadonlyArray<Group>): ReadonlyArray<Group> => {
+  const create = groups.find((group) => group.id === "create")
+  const first = groups.find((group) => group.items.some(isMatch))
+  if (create === undefined || first === undefined) return groups
+  return groups.flatMap((group) => {
+    if (group.id === "create") return []
+    if (group !== first) return [group]
+    const at = group.items.findIndex(isMatch) + 1
+    return [
+      { ...group, items: [...group.items.slice(0, at), ...create.items, ...group.items.slice(at)] },
+    ]
+  })
+}
+
+export const itemKey = (item: Item) => {
+  switch (item._tag) {
+    case "Create":
+      return "create"
+    case "Page":
+      return `page:${item.page.name}`
+    case "Block":
+      return `block:${item.block.id}`
+    case "Command":
+      return `command:${item.command.id}`
+    case "Filter":
+      return `filter:${item.filter}`
+    case "Theme":
+      return `theme:${item.theme.url ?? ""}`
+  }
+}

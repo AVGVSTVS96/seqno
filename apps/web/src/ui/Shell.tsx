@@ -37,6 +37,7 @@ import { Header } from "./shell/Header.tsx"
 import { HelpButton } from "./shell/HelpButton.tsx"
 import { LeftSidebar } from "./shell/LeftSidebar.tsx"
 import { Notices } from "./shell/Notices.tsx"
+import { PageMenu } from "./shell/PageMenu.tsx"
 import { shellListeners } from "./shell/listeners.ts"
 import { RightSidebar } from "./shell/RightSidebar.tsx"
 import { Settings } from "./shell/Settings.tsx"
@@ -116,6 +117,7 @@ const Layout = ({
                 <RightSidebar />
                 <HelpButton />
                 <BlockMenu />
+                <PageMenu />
                 <ExportDialog />
                 <GraphExportDialog />
                 <Settings />

@@ -571,6 +571,7 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
       label: text(opts["label"]) ?? text(opts["desc"]) ?? key,
       type: text(opts["type"]) ?? "$commands$",
       keybinding: keybindingOf(opts["keybinding"]),
+      palette: args[1] === true,
       eventKey,
       clearSelection: record(opts["extras"])["clearSelection"] === true,
     }

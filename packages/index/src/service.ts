@@ -302,7 +302,7 @@ const SEARCH_BLOCKS = `
 SELECT b.id, p.id, b.content FROM fts
 JOIN blocks b ON b.rid = fts.rowid
 JOIN pages p ON p.rid = b.page
-WHERE fts MATCH ?1
+WHERE fts MATCH ?1 AND (?3 IS NULL OR p.id = ?3)
 ORDER BY rank
 LIMIT ?2`
 
@@ -551,18 +551,21 @@ const make = Effect.gen(function* () {
         sqlite.use((db) => blockReferencesOf(db, blockId)),
       ).pipe(Stream.changesWith(sameBlocks)),
 
-    search: (text: string, limit = 20): Effect.Effect<SearchResult, IndexError> =>
+    search: (
+      text: string,
+      { limit = 20, page = null }: { readonly limit?: number; readonly page?: string | null } = {},
+    ): Effect.Effect<SearchResult, IndexError> =>
       sqlite.use((db) => {
         const name = normalizePageName(text)
         const match = ftsQuery(text)
         return {
           pages:
-            name === ""
+            name === "" || page !== null
               ? []
               : db
                   .all(SEARCH_PAGES, [name, limit])
                   .map(([pageId, title]) => decodePageHit({ pageId, title })),
-          blocks: match === null ? [] : blockHits(db.all(SEARCH_BLOCKS, [match, limit])),
+          blocks: match === null ? [] : blockHits(db.all(SEARCH_BLOCKS, [match, limit, page])),
         }
       }),
   }

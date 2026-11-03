@@ -1,3 +1,5 @@
+export const onMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent)
+
 export type ShortcutAction =
   | "ToggleTheme"
   | "ToggleLeftSidebar"
@@ -14,6 +16,13 @@ export type ShortcutAction =
   | "CloseTopSidebarItem"
   | "ToggleContents"
   | "OpenTodayInSidebar"
+  | "ToggleSettings"
+  | "GoPlugins"
+  | "SelectThemeColor"
+  | "SearchThemes"
+  | "GoBackward"
+  | "GoForward"
+  | "ToggleFavorite"
 
 const bindings: ReadonlyArray<readonly [string, ShortcutAction]> = [
   ["t t", "ToggleTheme"],
@@ -31,6 +40,13 @@ const bindings: ReadonlyArray<readonly [string, ShortcutAction]> = [
   ["c t", "CloseTopSidebarItem"],
   ["alt shift c", "ToggleContents"],
   ["alt shift j", "OpenTodayInSidebar"],
+  ["t s", "ToggleSettings"],
+  ["t p", "GoPlugins"],
+  ["t i", "SelectThemeColor"],
+  [onMac ? "mod shift i" : "alt shift i", "SearchThemes"],
+  ["mod [", "GoBackward"],
+  ["mod ]", "GoForward"],
+  ["mod shift f", "ToggleFavorite"],
 ]
 
 export const keysOf = (action: ShortcutAction): ReadonlyArray<string> =>
@@ -57,10 +73,18 @@ export const idle: KeyState = { pending: null, action: null }
 const letterOf = (press: KeyPress) =>
   press.code.startsWith("Key") ? press.code.slice(3).toLowerCase() : press.key.toLowerCase()
 
+const modPressed = (press: KeyPress) => (onMac ? press.metaKey : press.ctrlKey)
+
 export const nextKeyState = (state: KeyState, press: KeyPress): KeyState => {
-  if (press.ctrlKey || press.metaKey) return idle
-  if (press.key === "?") return { pending: null, action: actionFor("?") }
   const letter = letterOf(press)
+  if (press.ctrlKey || press.metaKey) {
+    const bound =
+      modPressed(press) && !press.altKey
+        ? actionFor(`mod ${press.shiftKey ? "shift " : ""}${letter}`)
+        : null
+    return { pending: null, action: bound }
+  }
+  if (press.key === "?") return { pending: null, action: actionFor("?") }
   if (press.altKey) {
     return { pending: null, action: actionFor(`alt ${press.shiftKey ? "shift " : ""}${letter}`) }
   }
@@ -70,5 +94,3 @@ export const nextKeyState = (state: KeyState, press: KeyPress): KeyState => {
   const starts = bindings.some(([keys]) => keys.startsWith(`${letter} `))
   return { pending: starts ? letter : null, action: null }
 }
-
-export const onMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent)

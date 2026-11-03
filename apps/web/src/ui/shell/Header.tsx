@@ -17,21 +17,19 @@ import { AsyncResult } from "effect/reactivity"
 import type { Page } from "@seqno/domain"
 import { SaveState } from "@seqno/rpc"
 import {
-  favorites,
   journals,
   leftSidebarOpen,
   pageNamed,
   rightSidebar,
   saveState,
   searchOpen,
-  toggleFavorite,
 } from "../../atoms.ts"
 import { Appearance } from "./Appearance.tsx"
-import { DeletePage } from "./DeletePage.tsx"
 import { PluginItems } from "@seqno/plugins"
 import { openPlugins } from "../plugins/PluginsDialog.tsx"
-import { exported, openGraphExport } from "./Export.tsx"
+import { openGraphExport } from "./Export.tsx"
 import { IconButton } from "./IconButton.tsx"
+import { PageMenuItems } from "./PageMenu.tsx"
 import {
   Menu,
   MenuItem,
@@ -54,27 +52,15 @@ const useCurrentPage = (): Page | undefined => {
   return Option.getOrUndefined(AsyncResult.getOrElse(named, () => Option.none()))
 }
 
-const deleteDialog = "seqno-delete-page"
-
 const MoreMenu = () => {
   const page = useCurrentPage()
-  const setExported = useAtomSet(exported)
-  const exportPage = (target: Page) =>
-    setExported({
-      name: target.title,
-      target: { _tag: "Page", pageId: target.id },
-      pages: [target.id],
-    })
-  const navigate = useNavigate()
   const more = usePopover({ placement: { align: "start", gap: -2, inset: 11 }, kind: "menu" })
   const appearance = usePopover({
     placement: { align: "end", gap: 4, inset: 0 },
     kind: "dialog",
     anchorOverride: more.anchor,
   })
-  const toggle = useAtomSet(toggleFavorite)
   const setSettingsTab = useAtomSet(settingsTab)
-  const starred = useAtomValue(favorites).some((favorite) => favorite.id === page?.id)
   return (
     <>
       <IconButton
@@ -86,13 +72,7 @@ const MoreMenu = () => {
       <Menu handle={more} label="More" className="more-menu">
         {page === undefined ? null : (
           <>
-            <MenuItem onSelect={() => toggle(page.name)}>
-              {starred ? "Unfavorite" : "Add to Favorites"}
-            </MenuItem>
-            {page.journalDay === null ? (
-              <MenuItem onSelect={() => openDialog(deleteDialog)}>Delete page</MenuItem>
-            ) : null}
-            <MenuItem onSelect={() => exportPage(page)}>Export page</MenuItem>
+            <PageMenuItems page={page} />
             <MenuSeparator />
           </>
         )}
@@ -119,9 +99,6 @@ const MoreMenu = () => {
         </MenuItem>
       </Menu>
       <Appearance handle={appearance} />
-      {page === undefined || page.journalDay !== null ? null : (
-        <DeletePage id={deleteDialog} page={page} onDeleted={() => void navigate({ to: "/" })} />
-      )}
     </>
   )
 }

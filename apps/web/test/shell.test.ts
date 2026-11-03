@@ -62,6 +62,18 @@ describe("shell shortcuts", () => {
     expect(actionsOf([press("T", { code: "KeyT", shiftKey: true }), press("l")])).toEqual([])
   })
 
+  it("runs Logseq's Mod combos for history and favorites, and Logseq's t chords for settings", () => {
+    expect(actionsOf([press("[", { code: "BracketLeft", ctrlKey: true })])).toEqual(["GoBackward"])
+    expect(actionsOf([press("]", { code: "BracketRight", ctrlKey: true })])).toEqual(["GoForward"])
+    expect(actionsOf([press("F", { ctrlKey: true, shiftKey: true })])).toEqual(["ToggleFavorite"])
+    expect(typed("tstptigs")).toEqual([
+      "ToggleSettings",
+      "GoPlugins",
+      "SelectThemeColor",
+      "GoShortcuts",
+    ])
+  })
+
   it("labels each action with its keys", () => {
     expect(keysOf("ToggleRightSidebar")).toEqual(["t", "r"])
     expect(keysOf("ToggleContents")).toEqual(["alt", "shift", "c"])

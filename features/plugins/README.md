@@ -24,6 +24,7 @@ plugin iframe (seqno's origin, lsp/…)   seqno tab
 - `DB.datascriptQuery` runs on Datascript (`datalog.ts`), the engine Logseq queries with, over a copy of the graph in Logseq 0.10.9's file-graph schema. The copy is built from `ExportPages` the first time a plugin queries and follows `WatchChanges` a page at a time. Inputs resolve as Logseq's (`inputs.ts`): strings are read as EDN, keyword inputs such as `:today`, `:-7d`, `:current-page` and `:current-block` become their values, and `"[[page]]"` becomes the page's name.
 - `insertBlock` with `customUUID` writes that uuid as the block's `id::`, so `getBlock`, `((refs))` and Datalog's `:block/uuid` reach it; a uuid already in use throws Logseq's "Custom block UUID already exists". Blocks with an `id::` answer with it as their `uuid`, as in Logseq.
 - Selecting text in a block fires `onInputSelectionEnd` with Logseq's payload, its `point` where the mouse let go (or the selection's end for keyboard selections). A `provideUI` with no slot or path floats at the `left`/`top` it asks for.
+- Commands registered with `palette` (`registerCommandPalette`, `registerCommand` with `palette: true`) are in the command palette (Mod+Shift+P, and in search), with their keybinding; `page-menu-item` commands are in the page menu (the header's `…` and a right-click on the page title) and get `{ page }`. Keybindings may be chords (`r n`, `ctrl+m ctrl+m`); ones without a modifier don't fire while typing in a text box.
 - An API method seqno lacks throws "seqno doesn't support logseq … yet", which the plugin receives as a rejected call.
 
 ## Testing
@@ -34,6 +35,6 @@ plugin iframe (seqno's origin, lsp/…)   seqno tab
 
 - A plugin's display in one tab doesn't follow `DB.onChanged` for edits made in another tab.
 - A plugin installed in a browser without the Cache API (an `http://` address other than localhost) loads from the mirror and doesn't work offline.
-- Not placed yet: page and highlight menu items, the command palette.
+- Highlight menu items (`registerHighlightContextMenuItem`) belong to the PDF viewer.
 - Not supported yet: Git, `Experiments`, and `datascriptQuery` inputs that are functions (Logseq takes those only through the host's own window).
 - The Datalog copy has no pre-blocks (page properties are on the page entity), no `:block/created-at` or `:block/updated-at`, and no `:block/refs` to blocks that don't exist.

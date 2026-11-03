@@ -167,6 +167,41 @@
    "icon": "icon.png",
    "id": "logseq-done-time",
    "addedAt": 1710353393000
+  },
+  {
+   "title": "Random Note",
+   "description": "Random walk through your Logseq notes.",
+   "author": "tankcool",
+   "repo": "tankcool/logseq-random-note",
+   "icon": "icon.png",
+   "supportsDB": false,
+   "id": "logseq-random-note",
+   "addedAt": 1631757107000
+  },
+  {
+   "title": "logseq-mergepages-plugin",
+   "name": "logseq-mergepages-plugin",
+   "description": "Simple plugin to help merge pages.",
+   "author": "benjypng",
+   "repo": "benjypng/logseq-mergepages-plugin",
+   "icon": "./icon.svg",
+   "supportsDB": true,
+   "supportsDBOnly": true,
+   "id": "logseq-mergepages-plugin",
+   "addedAt": 1639916353000
+  },
+  {
+   "title": "Markmap",
+   "description": "Mind map support based on markmap library.",
+   "author": "vipzhicheng",
+   "repo": "vipzhicheng/logseq-plugin-mark-map",
+   "icon": "./icon.png",
+   "sponsors": [
+    "https://www.buymeacoffee.com/vipzhicheng"
+   ],
+   "supportsDB": true,
+   "id": "logseq-mark-map",
+   "addedAt": 1630664401000
   }
  ]
 }

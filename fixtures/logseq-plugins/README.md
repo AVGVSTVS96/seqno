@@ -20,6 +20,9 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 | `files/QWxleA/log-stats`                       | Log-Stats             | 0.1.4    |
 | `files/c6p/logseq-hypothesis`                  | Hypothesis            | v0.2.4   |
 | `files/mjs/logseq-done-time`                   | DONE time             | v1.0     |
+| `files/tankcool/logseq-random-note` | Random Note | 1.1.2 |
+| `files/vipzhicheng/logseq-plugin-mark-map` | Markmap | v0.4.6 |
+| `files/benjypng/logseq-mergepages-plugin` | logseq-mergepages-plugin | v2.0.0 |
 
 - `plugins.json` and `stats.json`: those entries from `logseq/marketplace`, including two desktop-only (`effect`) plugins, which Logseq's web marketplace hides and its desktop app lists.
 - `packages/<owner>__<repo>.json`: what `https://plugins.logseq.io/r2/<owner>/<repo>` answers.

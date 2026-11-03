@@ -11,7 +11,7 @@ import {
   visibleProps,
   visibleRows,
 } from "../src/ui/pages/model.ts"
-import { groupsOf, highlight } from "../src/ui/search/model.ts"
+import { groupsOf, highlight, type Item } from "../src/ui/search/model.ts"
 
 const pageId = (n: number) => PageId.make(`01920000-0000-7000-8000-1${String(n).padStart(11, "0")}`)
 const blockId = (n: number) =>
@@ -33,6 +33,25 @@ const blockOf = (n: number, page: number, text: string, parent: number | null = 
   collapsed: false,
   props: {},
 })
+
+const label = (item: Item) => {
+  switch (item._tag) {
+    case "Create":
+      return `create ${item.title}`
+    case "Page":
+      return `page ${item.page.title}`
+    case "Block":
+      return `block ${item.crumbs.join(" / ")}: ${item.block.text}`
+    case "Command":
+      return `command ${item.command.label}`
+    case "Filter":
+      return `filter ${item.text}`
+    case "Theme":
+      return `theme ${item.theme.name}`
+  }
+}
+
+const command = (id: string, title: string) => ({ id, label: title, keys: [] })
 
 const garden = pageOf(1, "Garden Plan")
 const reading = pageOf(2, "Reading List")
@@ -157,7 +176,7 @@ describe("search palette", () => {
     )
   })
 
-  it("offers to create a missing page, lists nodes with their page and recent pages", () => {
+  it("lists nodes with Create after the first match, then recent pages", () => {
     const groups = groupsOf({
       query: "gar",
       hits: {
@@ -174,21 +193,15 @@ describe("search palette", () => {
       expanded: new Set(),
     })
     assert.deepStrictEqual(
-      groups.map((group) => [
-        group.title,
-        group.items.map((item) =>
-          item._tag === "Create"
-            ? `create ${item.title}`
-            : item._tag === "Page"
-              ? `page ${item.page.title}`
-              : `block ${item.crumbs.join(" / ")}: ${item.block.text}`,
-        ),
-      ]),
+      groups.map((group) => [group.title, group.items.map(label)]),
       [
-        [null, ["create gar"]],
         [
           "Nodes",
-          ["page Garden Plan", "block Reading List / Books to finish: for the Garden Plan"],
+          [
+            "page Garden Plan",
+            "create gar",
+            "block Reading List / Books to finish: for the Garden Plan",
+          ],
         ],
         ["Recently updated", ["page Garden Plan"]],
       ],
@@ -221,6 +234,74 @@ describe("search palette", () => {
       recent.map((group) => [group.title, group.total, group.items.length]),
       [["Recently updated", 7, 5]],
     )
+  })
+
+  const commands = [
+    command("ui/toggle-wide-mode", "Toggle wide mode"),
+    command("ui/toggle-theme", "Toggle between dark/light theme"),
+    command("ui/toggle-settings", "Toggle settings"),
+    command("ui/toggle-right-sidebar", "Toggle right sidebar"),
+    command("ui/toggle-left-sidebar", "Toggle left sidebar"),
+    command("ui/toggle-help", "Toggle help"),
+    command("go/home", "Go to home"),
+  ]
+  const noHits = { pages: [], blocks: [], ancestors: [] }
+  const palette = (query: string, filter: "current-page" | "nodes" | "commands" | null = null) =>
+    groupsOf({
+      query,
+      hits: noHits,
+      pages: [garden],
+      referenced: [],
+      stats: [],
+      expanded: new Set(),
+      filter,
+      filters: ["current-page", "nodes", "commands", "themes"],
+      commands,
+      themes: [],
+      pageHits: { pages: [], blocks: [blockOf(9, 1, "toggle the sprinklers")], ancestors: [] },
+    }).map((group) => [group.title, group.total, group.items.map(label)])
+
+  it("lists matching commands, five at a time, then Create and the filters", () => {
+    assert.deepStrictEqual(palette("toggle"), [
+      [
+        "Commands",
+        6,
+        [
+          "command Toggle wide mode",
+          "command Toggle between dark/light theme",
+          "command Toggle settings",
+          "command Toggle right sidebar",
+          "command Toggle left sidebar",
+        ],
+      ],
+      [null, 1, ["create toggle"]],
+      [
+        "Filters",
+        4,
+        [
+          "filter Search only current page",
+          "filter Search only nodes",
+          "filter Search only commands",
+          "filter Search only themes",
+        ],
+      ],
+    ])
+  })
+
+  it("turns a slash into the filter list, matched by what follows it", () => {
+    assert.deepStrictEqual(palette("/com"), [["Filters", 1, ["filter Search only commands"]]])
+    assert.deepStrictEqual(palette("garden/no"), [
+      [null, 1, ["create garden/no"]],
+      ["Filters", 1, ["filter Search only nodes"]],
+    ])
+  })
+
+  it("shows only the filtered group, in full", () => {
+    assert.deepStrictEqual(palette("", "commands")[0]?.[1], 7)
+    assert.deepStrictEqual(palette("home", "commands"), [["Commands", 1, ["command Go to home"]]])
+    assert.deepStrictEqual(palette("toggle", "current-page"), [
+      ["Current page", 1, ["block Garden Plan: toggle the sprinklers"]],
+    ])
   })
 
   it("lists a page that exists only as a tag, and offers no Create for it", () => {

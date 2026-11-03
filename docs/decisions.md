@@ -614,6 +614,14 @@ New pages and today's journal follow `config.edn`'s `:preferred-format`, as in L
 
 **Cost.** Logseq quirks kept: front matter with any line that isn't `key: value` (a YAML list) is not properties at all, and `tags: [a, b]` gives the pages `[a` and `b]`. Not kept: whole-page Export of an Org page in Logseq re-reads the Org text as Markdown (its export looks up the page's format by a key that is never found); seqno exports Org pages with Org syntax, as Logseq does for selected blocks.
 
+## The command palette is search with a filter, as in Logseq 2.x
+
+**Decision.** Mod+Shift+P opens the Mod+K search with its Commands filter on, as Logseq 2.x does, rather than a second dialog. Search lists matching commands in its own group between Recently updated and Create, Create sits after the first page or block hit, and `/` lists the filters (current page, nodes, commands, themes). Commands carry Logseq's ids and labels, so the order is Logseq's: most run first (counts in local storage), then by id. Commands that act on selected blocks (indent, rotate TODO, expand, move, copy) replay their key on the element that had focus when the palette opened, and the palette keeps the selection (`data-keeps-selection`). Plugin commands come from `register-plugin-simple-command` calls whose third argument is `true`, as Logseq's `register_plugin_simple_command` reads it. Search blocks in page asks the core for hits on one page (`Search` with a `pageId`) instead of filtering the overall top 20.
+
+**Why.** seqno's search already matches 2.x's, and Logseq 2.x folded its old command palette into the same dialog, so one dialog keeps search, commands and filters in step. Replaying the key keeps one path for each block action: the outliner's own key handler, the same one the shortcut runs.
+
+**Cost.** A command whose feature seqno lacks isn't listed, so the list is shorter than Logseq's (see the roadmap). A replayed command does nothing when nothing is selected, as in Logseq.
+
 ## Smaller decisions
 
 | Question                                     | Answer                                                                                                                                                                                                                                                                                                                | Why                                                                                                                                                                                                    |

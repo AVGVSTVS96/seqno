@@ -9,16 +9,26 @@ import { closeDialogOf, Dialog } from "./popover.tsx"
 export const DeletePage = ({
   id,
   page,
+  onClose,
   onDeleted,
 }: {
   readonly id: string
   readonly page: Page
+  readonly onClose: () => void
   readonly onDeleted: () => void
 }) => {
   const run = useAtomSet(dispatch, { mode: "promiseExit" })
   const title = useId()
   return (
-    <Dialog id={id} label="Delete page" className="confirm">
+    <Dialog
+      id={id}
+      label="Delete page"
+      className="confirm"
+      onClose={onClose}
+      ref={(dialog) => {
+        if (dialog !== null && !dialog.open) dialog.showModal()
+      }}
+    >
       <div className="confirm-body" aria-labelledby={title}>
         <h2 id={title} className="confirm-title">
           <IconAlertTriangle size={18} aria-hidden />

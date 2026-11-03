@@ -21,8 +21,8 @@ export const hostAtom = Atom.make<Host | null>(null).pipe(Atom.keepAlive)
 
 const onMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
 
-const comboMatches = (combo: string, event: KeyboardEvent) => {
-  const parts = combo.toLowerCase().split("+")
+const stepMatches = (step: string, event: KeyboardEvent) => {
+  const parts = step.toLowerCase().split("+")
   const key = parts.at(-1) ?? ""
   const has = (name: string) => parts.includes(name)
   const mod = has("mod")
@@ -34,6 +34,22 @@ const comboMatches = (combo: string, event: KeyboardEvent) => {
     event.ctrlKey === (has("ctrl") || (mod && !onMac))
   )
 }
+
+const comboMatches = (combo: string, event: KeyboardEvent, previous: KeyboardEvent | null) => {
+  const steps = combo.trim().split(/\s+/)
+  const last = steps.at(-1) ?? ""
+  if (steps.length === 1) return stepMatches(last, event)
+  const first = steps[0] ?? ""
+  return previous !== null && stepMatches(first, previous) && stepMatches(last, event)
+}
+
+const modifierKeys = new Set(["Control", "Shift", "Alt", "Meta"])
+
+const modified = (combo: string) => /(^|[+ ])(mod|ctrl|meta|alt)\+/i.test(combo)
+
+const typingIn = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || target.closest("input, textarea, select") !== null)
 
 const shortcutOf = (command: PluginCommand) => {
   const binding = command.keybinding
@@ -63,6 +79,9 @@ export const runHighlightItem = (host: Host, command: PluginCommand, highlight: 
     },
     command.pid,
   )
+
+export const runPageCommand = (host: Host, command: PluginCommand, page: string) =>
+  host.hook("editor", command.eventKey, { page }, command.pid)
 
 const insertAtCaret = (insert: string, backward: number) => {
   const live = editingBlock()
@@ -116,15 +135,22 @@ export const startPlugins = (registry: AtomRegistry.AtomRegistry, bridge: Bridge
   }
   watchSelection(host)
 
+  let previous: KeyboardEvent | null = null
   window.addEventListener(
     "keydown",
     (event) => {
       const editing = editingBlock() !== null
+      const typing = !editing && typingIn(event.target)
+      if (modifierKeys.has(event.key)) return
+      const before = previous
+      previous = event
       for (const command of registry.get(pluginCommands)) {
         const mode = command.keybinding?.mode ?? "global"
         if ((mode === "editing" && !editing) || (mode === "non-editing" && editing)) continue
-        if (shortcutOf(command).some((combo) => comboMatches(combo, event))) {
+        const bound = shortcutOf(command).filter((combo) => !typing || modified(combo))
+        if (bound.some((combo) => comboMatches(combo, event, before))) {
           event.preventDefault()
+          previous = null
           runCommand(host, command, editingBlock()?.blockId ?? null)
           return
         }

@@ -93,6 +93,7 @@ export interface PluginCommand {
   readonly label: string
   readonly type: string
   readonly keybinding: Keybinding | null
+  readonly palette: boolean
   readonly eventKey: string
   readonly clearSelection: boolean
 }

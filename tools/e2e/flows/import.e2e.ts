@@ -49,6 +49,7 @@ test("search finds an imported block", async ({ page }) => {
   await page.getByRole("searchbox", { name: "Search" }).fill("voice")
   await expect(page.getByRole("listbox", { name: "Nodes" }).getByRole("option")).toHaveText([
     "voice note",
+    "Create page — Create page called 'voice'",
     "tasksI recorded a [[voice note]].",
   ])
 })

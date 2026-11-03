@@ -130,7 +130,7 @@ export const WatchQuery = Rpc.make("WatchQuery", {
 })
 
 export const Search = Rpc.make("Search", {
-  payload: { text: Schema.String },
+  payload: { text: Schema.String, pageId: Schema.optional(PageId) },
   success: SearchHits,
   error: GraphNotOpen,
 })

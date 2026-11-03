@@ -9,9 +9,12 @@ import {
   resolvedTheme,
   rightSidebar,
   theme,
+  toggleFavorite,
   type SidebarItem,
 } from "../../atoms.ts"
 import { createWhiteboard } from "../pages/Whiteboards.tsx"
+import { openPlugins } from "../plugins/PluginsDialog.tsx"
+import { openPalette } from "../search/atoms.ts"
 import { openDialog, togglePopover } from "./popover.tsx"
 import { idle, nextKeyState, type KeyState, type ShortcutAction } from "./shortcuts.ts"
 import { recentPages, remember, settingsDialogId, settingsTab, wideMode } from "./state.ts"
@@ -39,7 +42,22 @@ const isEditable = (target: EventTarget | null) =>
 
 const keyState = Atom.make<KeyState>(idle).pipe(Atom.keepAlive)
 
-const perform = (
+export const currentPageName = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter) => {
+  const named = router.state.matches.flatMap((match) =>
+    match.routeId === "/page/$name" ? [normalizePageName(match.params.name)] : [],
+  )[0]
+  if (named !== undefined) return named
+  const home = router.state.matches.some((match) => match.routeId === "/")
+  return home ? (registry.get(journals)[0]?.name ?? null) : null
+}
+
+const toggleSettings = () => {
+  const dialog = document.getElementById(settingsDialogId)
+  if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close()
+  else openDialog(settingsDialogId)
+}
+
+export const perform = (
   registry: AtomRegistry.AtomRegistry,
   router: RegisteredRouter,
 ): Record<ShortcutAction, () => void> => ({
@@ -83,6 +101,19 @@ const perform = (
     if (today !== undefined) {
       registry.set(rightSidebar, { _tag: "Open", item: { _tag: "Page", name: today.name } })
     }
+  },
+  ToggleSettings: () => {
+    registry.set(settingsTab, "general")
+    toggleSettings()
+  },
+  GoPlugins: openPlugins,
+  SelectThemeColor: () => openPalette(registry, "themes"),
+  SearchThemes: () => openPalette(registry, "themes"),
+  GoBackward: () => router.history.back(),
+  GoForward: () => router.history.forward(),
+  ToggleFavorite: () => {
+    const name = currentPageName(registry, router)
+    if (name !== null) registry.set(toggleFavorite, name)
   },
 })
 

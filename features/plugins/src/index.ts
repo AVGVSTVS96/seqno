@@ -15,6 +15,7 @@ export {
   runCommand,
   runHighlightItem,
   type HighlightPayload,
+  runPageCommand,
   setEnabled,
   startPlugins,
   uninstall,

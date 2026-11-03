@@ -513,6 +513,14 @@ FROM pages p ORDER BY p.id`
           pages: [],
           blocks: [{ blockId: blockId(7), pageId: notes, text: "Deploy the app on Friday" }],
         })
+        assert.deepStrictEqual(yield* index.search("deploy", { page: journal }), {
+          pages: [],
+          blocks: [],
+        })
+        assert.deepStrictEqual(yield* index.search("app", { page: notes }), {
+          pages: [],
+          blocks: [{ blockId: blockId(7), pageId: notes, text: "Deploy the app on Friday" }],
+        })
       }),
     ),
   )

@@ -4,6 +4,7 @@ import { Cause, Exit } from "effect"
 import { useState, type MouseEvent } from "react"
 import { normalizePageName, type Page } from "@seqno/domain"
 import { dispatch } from "../../atoms.ts"
+import { pageMenu } from "../shell/PageMenu.tsx"
 import { PageLink } from "./PageLink.tsx"
 
 interface Draft {
@@ -38,11 +39,16 @@ export const PageTitle = ({
   const rename = useAtomSet(dispatch, { mode: "promiseExit" })
   const navigate = useNavigate()
   const matchRoute = useMatchRoute()
+  const openMenu = useAtomSet(pageMenu)
   const editable = page.journalDay === null
+  const onContextMenu = (event: MouseEvent<HTMLElement>) => {
+    event.preventDefault()
+    openMenu({ page, x: event.clientX, y: event.clientY })
+  }
 
   if (link) {
     return (
-      <h1 id={id} className="seqno-page-title page-title title">
+      <h1 id={id} className="seqno-page-title page-title title" onContextMenu={onContextMenu}>
         <PageLink page={page} className="seqno-page-title-link journal-title" />
       </h1>
     )
@@ -73,6 +79,7 @@ export const PageTitle = ({
         className="seqno-page-title page-title title"
         data-editable={editable}
         tabIndex={editable ? 0 : undefined}
+        onContextMenu={onContextMenu}
         onClick={(event) => {
           if (editable) setDraft({ caret: caretAt(event, page.title.length), problem: null })
         }}

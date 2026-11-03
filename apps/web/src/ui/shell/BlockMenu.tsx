@@ -77,7 +77,7 @@ const close = (menu: HTMLElement) => menu.closest<HTMLElement>("[popover]")?.hid
 
 const pointerGap = 5
 
-const placeAt = (menu: HTMLElement, x: number, y: number) => {
+export const placeAt = (menu: HTMLElement, x: number, y: number) => {
   const below = y + pointerGap + menu.offsetHeight + 8 <= window.innerHeight
   const top = below ? y + pointerGap : Math.max(8, y - pointerGap - menu.offsetHeight)
   menu.style.setProperty("--anchor-x", `${x}px`)
