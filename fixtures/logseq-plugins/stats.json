@@ -198,5 +198,20 @@
     736
    ]
   ]
+ },
+ "logseq-pdf-translator": {
+  "stargazers_count": 1,
+  "releases": [
+   [
+    "v0.2.0",
+    false,
+    100
+   ],
+   [
+    "v0.1.0",
+    false,
+    16
+   ]
+  ]
  }
 }

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EE5A52;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357ABD;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 蓝色方块 (英文字符) -->
+  <rect x="25" y="25" width="300" height="300" rx="100" fill="url(#blueGradient)"/>
+  
+  <!-- 英文"en"字 -->
+  <text x="175" y="175" font-family="Arial, sans-serif" font-size="175" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">en</text>
+  
+  <!-- 红色方块 (中文字符) -->
+  <rect x="175" y="175" width="300" height="300" rx="100" fill="url(#redGradient)"/>
+  
+  <!-- 中文"中"字 -->
+  <text x="325" y="350" font-family="Arial, sans-serif" font-size="175" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">中</text>
+</svg>

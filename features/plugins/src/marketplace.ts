@@ -47,7 +47,6 @@ export const loadMarket = async (): Promise<ReadonlyArray<MarketItem>> => {
     const id = text(item["id"])
     const repo = text(item["repo"])
     if (id === null || repo === null) return []
-    if (item["effect"] === true && item["web"] !== true) return []
     const icon = text(item["icon"])
     const addedAt = item["addedAt"]
     return [

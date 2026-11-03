@@ -120,6 +120,17 @@
    "theme": true,
    "id": "logseq-laurel-theme",
    "addedAt": 1632625009000
+  },
+  {
+   "title": "logseq-pdf-translator",
+   "description": "A PDF mouse hover translator.",
+   "author": "ZYJ-3721",
+   "repo": "ZYJ-3721/logseq-pdf-translator",
+   "icon": "./icon.png",
+   "effect": true,
+   "supportsDB": true,
+   "id": "logseq-pdf-translator",
+   "addedAt": 1772530699000
   }
  ]
 }

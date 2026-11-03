@@ -14,8 +14,9 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 | `files/sethfair/logseq-atlas-theme`            | Atlas Theme           | v0.3.5   |
 | `files/stdword/logseq-bujo-theme`              | Bullet Journal theme  | 1.4.6    |
 | `files/pengx17/logseq-laurel-theme`            | Laurel theme          | v1.8.8   |
+| `files/ZYJ-3721/logseq-pdf-translator`         | PDF Translator        | v0.2.0   |
 
-- `plugins.json` and `stats.json`: those entries from `logseq/marketplace`, plus one desktop-only (`effect`) plugin that the web marketplace hides.
+- `plugins.json` and `stats.json`: those entries from `logseq/marketplace`, including two desktop-only (`effect`) plugins, which Logseq's web marketplace hides and its desktop app lists.
 - `packages/<owner>__<repo>.json`: what `https://plugins.logseq.io/r2/<owner>/<repo>` answers.
 - `files/<owner>/<repo>/<version>/`: what `https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/<owner>/<repo>/<version>/` serves.
 - `jsdelivr/npm/@logseq/libs`: what `https://cdn.jsdelivr.net/npm/@logseq/libs` serves (0.0.17), for packages like Catppuccin whose `index.html` loads the SDK from there.

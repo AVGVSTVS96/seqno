@@ -37,7 +37,7 @@ const keptCalendarFiles = (page: Page) => () =>
 const iso = (day: Date) =>
   `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`
 
-test("the marketplace lists web plugins and themes, and Install adds one to Installed", async ({
+test("the marketplace lists plugins, desktop-only ones too, and themes, and Install adds one to Installed", async ({
   page,
   seqno,
 }) => {
@@ -49,10 +49,10 @@ test("the marketplace lists web plugins and themes, and Install adds one to Inst
   )
   await expect(dialog.getByText("Nothing found.")).toBeVisible()
   await dialog.getByRole("tab", { name: "Marketplace" }).click()
-  await expect(dialog.getByRole("radio", { name: "Plugins (5)" })).toBeVisible()
+  await expect(dialog.getByRole("radio", { name: "Plugins (7)" })).toBeVisible()
   await expect(dialog.getByRole("radio", { name: "Themes (5)" })).toBeVisible()
-  await expect(dialog.getByRole("listitem")).toHaveCount(5)
-  await expect(dialog.getByRole("listitem", { name: "Archivist" })).toHaveCount(0)
+  await expect(dialog.getByRole("listitem")).toHaveCount(7)
+  await expect(dialog.getByRole("listitem", { name: "Archivist" })).toHaveCount(1)
   await dialog.getByRole("searchbox", { name: "Search plugins" }).fill("calendar")
   await expect(dialog.getByRole("listitem")).toHaveCount(1)
   const card = dialog.getByRole("listitem", { name: "Journals calendar" })

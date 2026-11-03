@@ -27,6 +27,5 @@ plugin iframe (seqno's origin, lsp/…)   seqno tab
 
 - Each tab runs its own copy.
 - A plugin installed in a browser without the Cache API (an `http://` address other than localhost) loads from the mirror and doesn't work offline.
-- `effect` (desktop-only) plugins are hidden, as on Logseq's web build.
 - Not placed yet: page and highlight menu items, the command palette.
 - Not supported yet: `datascriptQuery` inputs, `customUUID`, Git, file storage, `Experiments`.

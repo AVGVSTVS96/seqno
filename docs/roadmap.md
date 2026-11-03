@@ -76,7 +76,7 @@ Ten years at 2× and 4× the blocks a day (`SEQNO_BENCH_DENSITY`, a heavy writer
 ### UI
 
 - **Missing features:** flashcards, command palette commands and filters, All pages views and filters, linked-reference filters, a toolbar for selected blocks, the query builder menu, and Settings beyond General and Keymap.
-- **Plugins:** each tab runs its own copy, desktop-only (`effect`) plugins are hidden, plugin commands don't show in a command palette yet (seqno has none), page and highlight menu items aren't placed, and the API parts listed in [decisions.md](decisions.md) answer "not supported yet". Themes that rely on Logseq's nested block markup (`.block-children` threading) don't find it in seqno's flat outline.
+- **Plugins:** each tab runs its own copy, plugin commands don't show in a command palette yet (seqno has none), page and highlight menu items aren't placed, and the API parts listed in [decisions.md](decisions.md) answer "not supported yet". Themes that rely on Logseq's nested block markup (`.block-children` threading) don't find it in seqno's flat outline.
 - `[[` suggests pages only; Logseq 2.x also lists matching blocks.
 - Favorites live in app storage, not `config.edn`, so Logseq doesn't see them and a Logseq graph's favorites aren't imported.
 - The date picker stays in edit mode after Submit and has no keyboard navigation. Resizing an image writes its width only.
