@@ -22,13 +22,13 @@ const slotted = 50
 export const PluginItem = ({
   host,
   item,
-  inMenu = false,
+  inMenu,
 }: {
   readonly host: Host
   readonly item: UIItem
   readonly inMenu?: boolean
 }) => {
-  const names = logseq(inMenu ? "seqno-plugin-menu-item" : "seqno-plugin-item", item)
+  const names = logseq(inMenu === true ? "seqno-plugin-menu-item" : "seqno-plugin-item", item)
   return (
     <div
       {...names}
@@ -39,7 +39,7 @@ export const PluginItem = ({
         injectUI(
           item.pid,
           {
-            key: inMenu ? `pl-${item.key}` : item.key,
+            key: inMenu === true ? `pl-${item.key}` : item.key,
             slot: names.id ?? "",
             path: null,
             template: item.template,
