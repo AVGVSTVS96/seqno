@@ -620,6 +620,15 @@ importers:
       '@playwright/test':
         specifier: 1.63.0
         version: 1.63.0
+      '@seqno/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@seqno/graph':
+        specifier: workspace:*
+        version: link:../../packages/graph
+      '@seqno/vault':
+        specifier: workspace:*
+        version: link:../../packages/vault
       effect:
         specifier: 4.0.1
         version: 4.0.1
