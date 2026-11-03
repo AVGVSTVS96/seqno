@@ -32,7 +32,10 @@ const inlinesOf = (shelf: Shelf, options: BlockOptions): Inlines => ({
   },
   ref: (uuid) => {
     const block = shelf.block(uuid)
-    return block === undefined ? undefined : titleOf(block)
+    if (block === undefined) return undefined
+    return shelf.dialect(block.pageId) === "org"
+      ? { source: "", from: 0, to: 0, nodes: [] }
+      : titleOf(block)
   },
 })
 
