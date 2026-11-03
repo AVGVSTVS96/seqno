@@ -280,7 +280,7 @@
   transform: scale(var(--bullet-hover-scale));
 }
 
-.seqno-bullet.is-numbered {
+.seqno-bullet[data-numbered] {
   width: var(--block-control-size);
   margin-inline: calc((var(--bullet-box) - var(--block-control-size)) / 2);
   border-radius: 0;

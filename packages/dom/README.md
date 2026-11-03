@@ -1,0 +1,39 @@
+# @seqno/dom
+
+Logseq 0.10.9's names for seqno's elements, in one table. Logseq themes and plugins select Logseq's class names, ids and attributes (`.ls-block`, `#dot-<uuid>`, `[blockid]`), so every seqno element Logseq also has carries them.
+
+A component names its element once, by its own seqno class, and spreads what `logseq()` returns:
+
+```tsx
+<button
+  {...logseq("seqno-bullet", { blockId, folded, numbered })}
+  data-folded={folded || undefined}
+/>
+// class="seqno-bullet bullet-container bullet-closed" id="dot-<uuid>" blockid="<uuid>"
+```
+
+- The key is the element's seqno class, and `logseq()` puts it first in `className`, so `rg seqno-bullet` finds the CSS, the component and the table entry.
+- Each entry links to the Logseq 0.10.9 line that renders it.
+- seqno's CSS selects only seqno's names and seqno's `data-*` state, never a Logseq name, so a fix here can't change seqno's own look.
+- Code that isn't JSX uses the same output: `element.className = logseq("seqno-plugin-frame").className`.
+
+## What's inside
+
+| Module     | Exports                                                           |
+| ---------- | ----------------------------------------------------------------- |
+| `index.ts` | `logseq(part, ...state)`, `names(...tokens)`, `LogseqNames`       |
+| `block.ts` | what Logseq's `block.cljs` renders: block rows and bullets        |
+| `refs.ts`  | `refsSelf`: a block's `data-refs-self` value, as Logseq builds it |
+
+## Cover a new component
+
+1. Find what Logseq 0.10.9 renders for it in `src/main/frontend/components/` at https://github.com/logseq/logseq/tree/0.10.9.
+2. Build it from seqno's shared pieces (`Dialog`, `Menu`, `MenuItem`, tooltips, `Popup`), which already carry their Logseq names.
+3. Add a row for each of its own Logseq parts to the table file for that Logseq source file, keyed by the element's seqno class, with the 0.10.9 link above it. State that changes Logseq's names is the entry's argument.
+4. Spread `logseq("<seqno class>", state)` on the element. seqno's own state goes in `data-*`.
+
+## Tests
+
+```sh
+pnpm test --project @seqno/dom
+```

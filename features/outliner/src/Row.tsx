@@ -1,10 +1,10 @@
 import type { DragEvent, MouseEvent, PointerEvent, ReactNode, Ref } from "react"
 import { IconCaretRightFilled } from "@tabler/icons-react"
+import { logseq } from "@seqno/dom"
 import type { BlockId } from "@seqno/domain"
 import type { BlockContent } from "@seqno/syntax"
 import type { DropZone } from "./drop.ts"
 import type { Highlight } from "./selection.ts"
-import { refsSelf } from "./logseq.ts"
 import type { Row } from "./tree.ts"
 
 export interface RowActions {
@@ -56,9 +56,6 @@ const selectionEdge = (highlight: Highlight) =>
         ? "last"
         : "middle"
 
-const bulletClass = (numbered: boolean, folded: boolean) =>
-  `seqno-bullet bullet-container${numbered ? " is-numbered as-order-list typed-list" : ""}${folded ? " bullet-closed" : ""}`
-
 export const RowView = ({
   row,
   content,
@@ -79,6 +76,8 @@ export const RowView = ({
   children,
 }: RowProps) => {
   const { block, depth } = row
+  const folded = row.hasChildren && !row.expanded
+  const numbered = ordinal !== null
   const offset =
     content.title === null || content.heading === null
       ? undefined
@@ -86,18 +85,19 @@ export const RowView = ({
   return (
     <div
       ref={measure}
+      {...logseq("seqno-row", {
+        block,
+        level: depth + 1,
+        hasChildren: row.hasChildren,
+        folded,
+        selected,
+      })}
       data-index={index}
       data-block-id={block.id}
-      blockid={block.id}
-      level={depth + 1}
-      haschild={String(row.hasChildren)}
-      data-refs-self={refsSelf(block.text)}
-      data-collapsed={row.hasChildren && !row.expanded ? true : undefined}
       role="treeitem"
       aria-level={depth + 1}
       aria-selected={selected}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
-      className={`ls-block ${block.id} seqno-row${selected ? " selected" : ""}`}
       style={{ paddingLeft: indent(depth) }}
       onPointerEnter={actions.sweep}
       onDragOver={actions.dragOver}
@@ -142,7 +142,7 @@ export const RowView = ({
         />
       ))}
       <div
-        className="seqno-control block-control-wrap"
+        {...logseq("seqno-control", { folded, numbered })}
         style={offset === undefined ? undefined : { marginTop: offset }}
       >
         {canToggle ? (
@@ -165,11 +165,10 @@ export const RowView = ({
         )}
         <button
           type="button"
-          id={`dot-${block.id}`}
-          blockid={block.id}
-          className={bulletClass(ordinal !== null, row.hasChildren && !row.expanded)}
+          {...logseq("seqno-bullet", { blockId: block.id, folded, numbered })}
           aria-label="Zoom into block"
-          data-folded={row.hasChildren && !row.expanded ? true : undefined}
+          data-numbered={numbered || undefined}
+          data-folded={folded || undefined}
           draggable
           onClick={actions.bullet}
           onContextMenu={actions.menu}
@@ -177,7 +176,7 @@ export const RowView = ({
           onDragEnd={actions.dragEnd}
         >
           {ordinal === null ? (
-            <span className="seqno-dot bullet" blockid={block.id} />
+            <span {...logseq("seqno-dot", { blockId: block.id, selected })} />
           ) : (
             `${ordinal}.`
           )}

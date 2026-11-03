@@ -1,0 +1,53 @@
+import { BlockId, PageId } from "@seqno/domain"
+import { describe, expect, it } from "vitest"
+import { logseq, names, refsSelf } from "../src/index.ts"
+
+const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
+
+describe("logseq", () => {
+  it("puts the seqno name first, then Logseq's names, id and attributes", () => {
+    expect(logseq("seqno-bullet", { blockId, folded: true, numbered: true })).toEqual({
+      className: "seqno-bullet bullet-container bullet-closed as-order-list typed-list",
+      id: "dot-01920000-0000-7000-8000-000000000001",
+      blockid: "01920000-0000-7000-8000-000000000001",
+    })
+    expect(logseq("seqno-bullet", { blockId, folded: false, numbered: false }).className).toBe(
+      "seqno-bullet bullet-container",
+    )
+  })
+
+  it("names a block row as Logseq does", () => {
+    const block = {
+      id: blockId,
+      pageId: PageId.make("01920000-0000-7000-8000-0000000000aa"),
+      parentId: null,
+      text: "TODO water the [[projects/greenhouse]] #design",
+      collapsed: true,
+      props: {},
+    }
+    expect(
+      logseq("seqno-row", { block, level: 2, hasChildren: true, folded: true, selected: false }),
+    ).toEqual({
+      className: "seqno-row ls-block 01920000-0000-7000-8000-000000000001",
+      blockid: "01920000-0000-7000-8000-000000000001",
+      level: 2,
+      haschild: "true",
+      "data-refs-self": '["todo", "projects/greenhouse", "projects", "design"]',
+      "data-collapsed": true,
+    })
+  })
+})
+
+describe("names", () => {
+  it("joins the tokens that are set", () => {
+    expect(names("a", false, null, undefined, "", "b")).toBe("a b")
+  })
+})
+
+describe("refsSelf", () => {
+  it("lists marker, priority, refs with namespace parents and visible property keys", () => {
+    expect(
+      refsSelf("DONE [#A] see ((6512bd43-d9ca-4f3e-9a2b-000000000001))\nowner:: [[Ana]]"),
+    ).toBe('["done", "a", "6512bd43-d9ca-4f3e-9a2b-000000000001", "ana", "owner"]')
+  })
+})

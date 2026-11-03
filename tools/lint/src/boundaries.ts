@@ -14,6 +14,7 @@ export const repoMap: ReadonlyMap<string, Unit> = new Map([
   ["packages/syntax", { name: "@seqno/syntax", side: "pure" }],
   ["packages/query", { name: "@seqno/query", side: "pure" }],
   ["packages/export", { name: "@seqno/export", side: "pure" }],
+  ["packages/dom", { name: "@seqno/dom", side: "pure" }],
   ["packages/graph", { name: "@seqno/graph", side: "core" }],
   ["packages/index", { name: "@seqno/index", side: "core" }],
   ["packages/vault", { name: "@seqno/vault", side: "core" }],

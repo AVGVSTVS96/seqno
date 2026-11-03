@@ -36,11 +36,3 @@ export const refsSelf = (text: string) => {
   known.set(text, value)
   return value
 }
-
-declare module "react" {
-  interface HTMLAttributes<T> {
-    readonly blockid?: string | undefined
-    readonly level?: number | undefined
-    readonly haschild?: string | undefined
-  }
-}
