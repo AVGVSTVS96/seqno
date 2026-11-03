@@ -18,14 +18,15 @@ import { assetsApi, type AssetBridge } from "./assets.ts"
 import type { Api, Host } from "./host.ts"
 import { snakeCase } from "./protocol.ts"
 import { cursorPosition } from "./selection.ts"
+import type { LogseqDb } from "./datalog.ts"
+import { resolveInput, type InputContext } from "./inputs.ts"
 import { list, record, text } from "./package.ts"
 import {
   blockJson,
   contentOf,
   pageJson,
   properties,
-  pulledBlock,
-  pulledPage,
+  numberOf,
   treeJson,
   uuidOfNumber,
   type Tree,
@@ -70,6 +71,7 @@ export const lastCursor: { current: { blockId: BlockId; caret: number } | null }
 }
 
 const decodePageId = Schema.decodeUnknownOption(PageId)
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const uuidIn = (value: unknown): string | null => {
   if (typeof value === "number") return uuidOfNumber(value)
@@ -293,9 +295,22 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
     ])
   }
 
+  const withCustomId = async (draft: BlockDraft, custom: string | null): Promise<BlockDraft> => {
+    if (custom === null) return draft
+    const uuid = custom.trim().toLowerCase()
+    if (!UUID.test(uuid)) throw new Error(`Custom block UUID is not a UUID (${custom}).`)
+    if ((await findBlock(uuid)) !== null) {
+      throw new Error(`Custom block UUID already exists (${uuid}).`)
+    }
+    return { ...draft, props: { ...draft.props, id: uuid } }
+  }
+
   const insertBlock = async (target: unknown, content: unknown, options: unknown) => {
     const opts = record(options)
-    const draft = draftOf(text(content) ?? "", record(opts["properties"]))
+    const draft = await withCustomId(
+      draftOf(text(content) ?? "", record(opts["properties"])),
+      text(opts["customUUID"]),
+    )
     const events = await insertDrafts(target, [draft], opts)
     return blockOut(created(events)[0])
   }
@@ -415,6 +430,133 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
       out.push(blockJson(tree, block, false))
     }
     return out
+  }
+
+  const graphDb: {
+    current: { readonly graph: string | null; readonly db: LogseqDb } | null
+    stale: "all" | Set<PageId>
+    watching: boolean
+    queue: Promise<unknown>
+  } = { current: null, stale: new Set(), watching: false, queue: Promise.resolve() }
+
+  const dirty = (pageId: PageId) => {
+    if (graphDb.stale !== "all") graphDb.stale.add(pageId)
+  }
+
+  const markChanged = (events: ReadonlyArray<GraphEvent>) => {
+    for (const event of events) {
+      switch (event._tag) {
+        case "BlockUpserted":
+          dirty(event.block.pageId)
+          break
+        case "BlockMoved": {
+          dirty(event.pageId)
+          const from = graphDb.current?.db.pageOf(numberOf(event.blockId)) ?? null
+          if (from !== null) dirty(from)
+          break
+        }
+        case "BlockDeleted":
+          dirty(event.pageId)
+          break
+        case "PageUpserted":
+          if (graphDb.current?.db.hasPage(event.page) === true) dirty(event.page.id)
+          else graphDb.stale = "all"
+          break
+        case "PageDeleted":
+          graphDb.stale = "all"
+          break
+      }
+    }
+  }
+
+  const watchChanges = () => {
+    if (graphDb.watching) return
+    graphDb.watching = true
+    void bridge
+      .run(
+        Effect.flatMap(CoreClient, (client) =>
+          Stream.runForEach(client.WatchChanges(), (events) =>
+            Effect.sync(() => markChanged(events)),
+          ),
+        ),
+      )
+      .catch(() => undefined)
+      .finally(() => {
+        graphDb.watching = false
+        graphDb.stale = "all"
+      })
+  }
+
+  const build = async () => {
+    const graph = bridge.graphName()
+    watchChanges()
+    graphDb.stale = new Set()
+    const [files, { createLogseqDb }] = await Promise.all([
+      core((client) => client.ExportPages({})),
+      import("./datalog.ts"),
+    ])
+    graphDb.current = { graph, db: createLogseqDb(files) }
+    return graphDb.current.db
+  }
+
+  const freshDb = async (): Promise<LogseqDb> => {
+    const current = graphDb.current
+    const stale = graphDb.stale
+    if (current === null || current.graph !== bridge.graphName() || stale === "all") return build()
+    if (stale.size === 0) return current.db
+    graphDb.stale = new Set()
+    const trees = await Promise.all([...stale].map((pageId) => treeOf(pageId).catch(() => null)))
+    if (trees.some((tree) => tree === null)) return build()
+    try {
+      current.db.update(trees.flatMap((tree) => (tree === null ? [] : [tree])))
+      return current.db
+    } catch {
+      return build()
+    }
+  }
+
+  const logseqDb = () => {
+    const next = graphDb.queue.then(freshDb, freshDb)
+    graphDb.queue = next
+    return next
+  }
+
+  const inputContext = async (): Promise<InputContext> => {
+    const now = new Date()
+    const route = bridge.route()
+    const today = now.getFullYear() * 10_000 + (now.getMonth() + 1) * 100 + now.getDate()
+    const pageName =
+      route._tag === "Page"
+        ? ((await pageByName(route.name))?.name ?? normalizePageName(route.name))
+        : route._tag === "Journals"
+          ? ((await pages()).find((page) => page.journalDay === today)?.name ?? null)
+          : null
+    const live = editingBlock()
+    const found = live === null ? null : await findBlock(live.blockId)
+    return {
+      now,
+      currentPage: pageName,
+      currentBlock:
+        found === null
+          ? null
+          : {
+              eid: numberOf(found.block.id),
+              parent: numberOf(found.block.parentId ?? found.block.pageId),
+              page: found.tree.page.name,
+            },
+    }
+  }
+
+  const datalog = async (query: string, inputs: ReadonlyArray<unknown>) => {
+    const db = await logseqDb()
+    const { readEdn } = await import("./datalog.ts")
+    const context = await inputContext()
+    const given = [...inputs]
+    while (given.length > 0 && (given.at(-1) === null || given.at(-1) === undefined)) given.pop()
+    return db.query(
+      query,
+      given.map((input) => resolveInput(input, context, (edn) => readEdn([edn])[0])),
+    )
   }
 
   const registerSimple = (pid: string, args: ReadonlyArray<unknown>) => {
@@ -783,15 +925,8 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
       },
       new_block_uuid: () => crypto.randomUUID(),
       datascript_query: async (_, [query, ...inputs]) => {
-        const dsl = text(query)
-        if (dsl === null) return null
-        if (inputs.some((input) => input !== null && input !== undefined)) {
-          throw unsupported("datascriptQuery with inputs")
-        }
-        const result = await runQuery(`#+BEGIN_QUERY\n{:query ${dsl}}\n#+END_QUERY`)
-        return result._tag === "PageRows"
-          ? result.pages.map((page) => [pulledPage(page)])
-          : (await rowsOf(result)).map((row) => [pulledBlock(row)])
+        const datalogText = text(query)
+        return datalogText === null ? null : datalog(datalogText, inputs)
       },
       q: async (_, [query]) => {
         const dsl = text(query)

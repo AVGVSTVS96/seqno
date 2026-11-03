@@ -308,6 +308,9 @@ importers:
       '@seqno/editor':
         specifier: workspace:*
         version: link:../editor
+      '@seqno/export':
+        specifier: workspace:*
+        version: link:../../packages/export
       '@seqno/outliner':
         specifier: workspace:*
         version: link:../outliner
@@ -320,6 +323,9 @@ importers:
       '@tabler/icons-react':
         specifier: 3.49.0
         version: 3.49.0(react@19.3.0)
+      datascript:
+        specifier: 1.8.1
+        version: 1.8.1
       dompurify:
         specifier: 3.4.17
         version: 3.4.17
@@ -1707,6 +1713,10 @@ packages:
     resolution: {integrity: sha512-JQUCCK+/CAGbGGx618PlFZMXH81Jtj7t73CHv9dd/zVWvxgGT2zLFRjnKb+Ng46GIwcy+f7f88qd4duqllK+WQ==}
     engines: {node: ^22.14.0 || >=24.0.0}
 
+  datascript@1.8.1:
+    resolution: {integrity: sha512-WIkg5LtD6vI0OrWo3C+/Lo4+8sCf7cGExEb11y67tNuLGjFVlFShN95p8P9Zjidjc642boodXdbBSZH4j2GGXQ==}
+    engines: {node: '>=0.8.22'}
+
   decimal.js@10.6.0:
     resolution: {integrity: sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg==}
 
@@ -3070,6 +3080,8 @@ snapshots:
       whatwg-url: 17.2.0
     transitivePeerDependencies:
       - '@noble/hashes'
+
+  datascript@1.8.1: {}
 
   decimal.js@10.6.0: {}
 

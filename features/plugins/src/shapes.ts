@@ -1,4 +1,4 @@
-import type { Block, Page, Props } from "@seqno/domain"
+import { blockRefId, type Block, type Page, type Props } from "@seqno/domain"
 import { analyzeBlock, joinProperties, type PropertyLine } from "@seqno/syntax"
 
 const numbers = new Map<string, number>()
@@ -92,7 +92,7 @@ export const blockJson = (tree: Tree, block: Block, nested: boolean): BlockJson 
   const children = childrenIn(tree, block.id)
   return {
     id: numberOf(block.id),
-    uuid: block.id,
+    uuid: blockRefId(block),
     content: contentOf(block),
     format: "markdown",
     page: { id: numberOf(tree.page.id) },
@@ -105,33 +105,9 @@ export const blockJson = (tree: Tree, block: Block, nested: boolean): BlockJson 
     ...(syntax.priority === null ? {} : { priority: syntax.priority }),
     children: nested
       ? children.map((child) => blockJson(tree, child, true))
-      : children.map((child) => ["uuid", child.id] as const),
+      : children.map((child) => ["uuid", blockRefId(child)] as const),
   }
 }
 
 export const treeJson = (tree: Tree) =>
   childrenIn(tree, null).map((block) => blockJson(tree, block, true))
-
-export const pulledPage = (page: Page) => ({
-  id: numberOf(page.id),
-  uuid: page.id,
-  name: page.name,
-  "original-name": page.title,
-  "journal?": page.journalDay !== null,
-  "journal-day": page.journalDay,
-  properties: properties(page.props),
-  format: "markdown",
-})
-
-export const pulledBlock = (block: BlockJson) => ({
-  id: block.id,
-  uuid: block.uuid,
-  content: block.content,
-  format: block.format,
-  page: block.page,
-  parent: block.parent,
-  left: block.left,
-  properties: block.properties,
-  ...(block.marker === undefined ? {} : { marker: block.marker }),
-  ...(block.priority === undefined ? {} : { priority: block.priority }),
-})

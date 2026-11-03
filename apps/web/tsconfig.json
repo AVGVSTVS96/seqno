@@ -1,6 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src", "test", "vite.config.ts", "vitest.config.ts"],
+  "include": [
+    "src",
+    "test",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "../../features/plugins/src/datascript.d.ts"
+  ],
   "compilerOptions": {
     "lib": ["es2024", "dom", "dom.iterable", "dom.asynciterable"],
     "jsx": "react-jsx",

@@ -1,6 +1,14 @@
 import type { Asset } from "@seqno/rpc"
 import { assetKind, assetPathOf } from "@seqno/syntax"
 import { list, text } from "./package.ts"
+import {
+  clearStorage,
+  hasStorage,
+  readStorage,
+  removeStorage,
+  storageKeys,
+  writeStorage,
+} from "./storage.ts"
 
 export interface AssetBridge {
   readonly listed: () => ReadonlyArray<Asset>
@@ -55,10 +63,6 @@ const storagePath = (pid: string, key: unknown, denied: string) => {
   return path
 }
 
-const inSandbox = (assetsFlag: unknown) => {
-  if (assetsFlag !== true) throw new Error("seqno doesn't support logseq FileStorage yet")
-}
-
 export const assetsApi = (assets: AssetBridge, graphName: () => string | null) => {
   const absolute = (path: string) => `${graphName() ?? ""}/${path}`
 
@@ -106,36 +110,36 @@ export const assetsApi = (assets: AssetBridge, graphName: () => string | null) =
       return null
     },
     write_plugin_storage_file: async (pid, [owner, key, value, assetsFlag]) => {
-      inSandbox(assetsFlag)
+      if (assetsFlag !== true) return writeStorage(text(owner) ?? pid, text(key) ?? "", value)
       const path = storagePath(text(owner) ?? pid, key, "write file denied")
       await assets.write(path, bytesOf(value))
       return absolute(path)
     },
     read_plugin_storage_file: (pid, [owner, key, assetsFlag]) => {
-      inSandbox(assetsFlag)
+      if (assetsFlag !== true) return readStorage(text(owner) ?? pid, text(key) ?? "")
       return read(storagePath(text(owner) ?? pid, key, "read file denied"))
     },
     unlink_plugin_storage_file: async (pid, [owner, key, assetsFlag]) => {
-      inSandbox(assetsFlag)
+      if (assetsFlag !== true) return removeStorage(text(owner) ?? pid, text(key) ?? "")
       const path = storagePath(text(owner) ?? pid, key, "access file denied")
       if (found(path) === undefined) throw new Error("file not existed")
       await assets.remove(path)
       return null
     },
     exist_plugin_storage_file: (pid, [owner, key, assetsFlag]) => {
-      inSandbox(assetsFlag)
+      if (assetsFlag !== true) return hasStorage(text(owner) ?? pid, text(key) ?? "")
       const path = joined(storageRoot(text(owner) ?? pid), text(key) ?? "")
       return path !== null && found(path) !== undefined
     },
     list_plugin_storage_files: (pid, [owner, assetsFlag]) => {
-      inSandbox(assetsFlag)
+      if (assetsFlag !== true) return storageKeys(text(owner) ?? pid)
       const root = `${storageRoot(text(owner) ?? pid)}/`
       return assets
         .listed()
         .flatMap((asset) => (asset.path.startsWith(root) ? [asset.path.slice(root.length)] : []))
     },
     clear_plugin_storage_files: async (pid, [owner, assetsFlag]) => {
-      inSandbox(assetsFlag)
+      if (assetsFlag !== true) return clearStorage(text(owner) ?? pid)
       const root = `${storageRoot(text(owner) ?? pid)}/`
       await Promise.all(
         assets

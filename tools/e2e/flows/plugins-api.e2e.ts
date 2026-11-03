@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { serveMarketplace } from "../src/plugins.ts"
 import { expect, test } from "../src/test.ts"
@@ -62,4 +62,162 @@ test("Word count shows how many words are selected in a block, next to the selec
   expect(box === null ? null : [Math.round(box.x), Math.round(box.y)]).toEqual([point.x, point.y])
   await page.mouse.click(10, 10)
   await expect(page.locator("#logseq-wordcount-plugin_lsp_main")).not.toHaveClass(/visible/)
+})
+
+test("Quick Capture adds a note to today's journal, found with a Datalog query on :today", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Quick Capture")
+  await page.locator('[data-on-click="handleShowQuickCapture"]').click()
+  const capture = page.frameLocator("#logseq-quick-capture_iframe")
+  await capture.getByRole("textbox").fill("Order more seed potatoes")
+  await capture.getByRole("textbox").press("Control+Enter")
+  await expect(page.locator("#logseq-quick-capture_lsp_main")).not.toHaveClass(/visible/)
+  await expect(seqno.today.getByRole("treeitem").last()).toHaveText(/Order more seed potatoes/)
+})
+
+test("Quick Capture's default block puts notes under that block, matched by its text", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Quick Capture")
+  const dialog = await openPlugins(page)
+  await dialog.getByRole("button", { name: "Quick Capture settings" }).click()
+  const settings = page.getByRole("dialog", { name: "Plugin settings" })
+  await settings
+    .getByRole("textbox", { name: "Default Block" })
+    .fill("Welcome to the seqno demo graph")
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await page.locator('[data-on-click="handleShowQuickCapture"]').click()
+  const capture = page.frameLocator("#logseq-quick-capture_iframe")
+  await capture.getByRole("textbox").fill("Sketch the new bed layout")
+  await capture.getByRole("textbox").press("Control+Enter")
+  const child = seqno.today.getByRole("treeitem", { level: 2 })
+  await expect(child).toHaveText(/Sketch the new bed layout/)
+  await expect(child.locator("xpath=preceding-sibling::*[1]")).toHaveText(
+    /Welcome to the seqno demo graph/,
+  )
+})
+
+const statsBlock = async (page: Page, today: Locator, blocks: number) => {
+  await today.getByRole("treeitem").filter({ hasText: "Welcome to the seqno demo graph" }).click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("treeitem").getByRole("textbox")).toHaveText("")
+  await page.keyboard.insertText("{{renderer :logstats, text}}")
+  await page.keyboard.press("Escape")
+  const all = today.getByRole("treeitem").filter({ hasText: "Finished tasks (DONE)" })
+  await expect(all).toHaveCount(blocks)
+  const text = (await all.first().textContent()) ?? ""
+  const count = (label: string) => Number(new RegExp(`${label}: (\\d+)`).exec(text)?.[1])
+  return {
+    tasks: count("Tasks"),
+    done: count("Finished tasks \\(DONE\\)"),
+    refs: count("Block References"),
+  }
+}
+
+test("Log-Stats counts the graph's tasks with Datalog not, contains? and re-find, and follows edits", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Log-Stats")
+  const before = await statsBlock(page, seqno.today, 1)
+  expect(before.tasks).toBeGreaterThan(0)
+  await seqno.today.getByRole("treeitem").filter({ hasText: "Rain all morning" }).click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await page.keyboard.type("DONE turn the compost")
+  await page.keyboard.press("Enter")
+  await page.keyboard.type("TODO buy twine")
+  await page.keyboard.press("Escape")
+  const after = await statsBlock(page, seqno.today, 2)
+  expect(after).toEqual({ tasks: before.tasks + 1, done: before.done + 1, refs: before.refs })
+})
+
+const annotation = {
+  id: "seed-1",
+  uri: "https://example.org/seed-saving",
+  created: "2026-10-01T10:00:00.000000+00:00",
+  updated: "2026-10-01T10:00:00.000000+00:00",
+  text: "Dry the seeds for a week",
+  tags: [],
+  document: { title: ["Seed saving guide"] },
+  target: [{ source: "https://example.org/seed-saving", selector: [] }],
+  links: {},
+  user: "acct:gardener@hypothes.is",
+}
+
+test("Hypothesis keeps fetched notes in its file storage, so they're there after a reload", async ({
+  page,
+  seqno,
+}) => {
+  let online = true
+  await page.context().route(/^https:\/\/api\.hypothes\.is\/api\/search/, (route, request) =>
+    online
+      ? route.fulfill({
+          headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" },
+          json: {
+            rows: new URL(request.url()).searchParams.has("search_after") ? [] : [annotation],
+          },
+        })
+      : route.abort(),
+  )
+  await seqno.openDemoGraph()
+  await install(page, "Hypothesis")
+  const dialog = await openPlugins(page)
+  await dialog.getByRole("button", { name: "Hypothesis settings" }).click()
+  const settings = page.getByRole("dialog", { name: "Plugin settings" })
+  await settings.getByRole("textbox", { name: "API Token" }).fill("token")
+  await settings.getByRole("textbox", { name: "User account" }).fill("gardener")
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  const hypothesis = page.frameLocator("#logseq-hypothesis_iframe")
+  await page.locator('[title="Hypothes.is"]').click()
+  await hypothesis.getByRole("button", { name: "Fetch latest notes" }).click()
+  await expect(hypothesis.getByRole("button", { name: "Fetch latest notes" })).toBeEnabled()
+  await hypothesis.locator("#uri").click()
+  await expect(hypothesis.getByRole("option", { name: /Seed saving guide/ })).toBeVisible()
+  online = false
+  await page.reload()
+  await page.locator('[title="Hypothes.is"]').click()
+  await hypothesis.locator("#uri").click()
+  await expect(hypothesis.getByRole("option", { name: /Seed saving guide/ })).toBeVisible()
+})
+
+test("a block a plugin inserts with a customUUID keeps that uuid, so ((refs)) and getBlock reach it", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Quick Capture")
+  const uuid = "6650a1b2-1111-4000-8000-00000000abcd"
+  await expect(page.locator('[data-on-click="handleShowQuickCapture"]')).toBeVisible()
+  const plugin = page.frame({ url: /logseq-quick-capture/ })
+  const inserted = await plugin?.evaluate(`(async () => {
+    const page = await logseq.Editor.getCurrentPage() ?? (await logseq.Editor.getAllPages()).find((one) => one["journal?"])
+    const anchor = (await logseq.Editor.getPageBlocksTree(page.name)).at(-1)
+    const block = await logseq.Editor.insertBlock(anchor.uuid, "Seed order placed", { sibling: true, customUUID: "${uuid}" })
+    const again = await logseq.Editor.insertBlock(anchor.uuid, "twice", { sibling: true, customUUID: "${uuid}" }).catch((error) => error.message ?? String(error))
+    return [block.uuid, (await logseq.Editor.getBlock("${uuid}")).content, again]
+  })()`)
+  expect(inserted).toEqual([
+    uuid,
+    `Seed order placed\nid:: ${uuid}`,
+    `Custom block UUID already exists (${uuid}).`,
+  ])
+  await seqno.today.getByRole("treeitem").filter({ hasText: "Rain all morning" }).click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await expect(seqno.editor).toHaveText("")
+  await page.keyboard.insertText(`See ((${uuid}))`)
+  await page.keyboard.press("Escape")
+  await expect(seqno.today.getByRole("treeitem", { name: /^Zoom into block See / })).toHaveText(
+    /See Seed order placed/,
+  )
 })

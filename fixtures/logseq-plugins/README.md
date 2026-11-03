@@ -1,6 +1,6 @@
 # Logseq plugins for the plugin flows
 
-Real Logseq marketplace plugins, exactly as the marketplace serves them, so `tools/e2e/flows/plugins.e2e.ts` runs them without the network. Each folder keeps its plugin's own `LICENSE` (all MIT).
+Real Logseq marketplace plugins, exactly as the marketplace serves them, so the `tools/e2e/flows/plugins*.e2e.ts` flows run them without the network. Each folder keeps its plugin's own `LICENSE` (all MIT).
 
 | Folder                                         | Plugin                | Version  |
 | ---------------------------------------------- | --------------------- | -------- |
@@ -15,6 +15,9 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 | `files/stdword/logseq-bujo-theme`              | Bullet Journal theme  | 1.4.6    |
 | `files/pengx17/logseq-laurel-theme`            | Laurel theme          | v1.8.8   |
 | `files/ZYJ-3721/logseq-pdf-translator`         | PDF Translator        | v0.2.0   |
+| `files/tankcool/logseq-quick-capture`          | Quick Capture         | 0.0.7    |
+| `files/QWxleA/log-stats`                       | Log-Stats             | 0.1.4    |
+| `files/c6p/logseq-hypothesis`                  | Hypothesis            | v0.2.4   |
 
 - `plugins.json` and `stats.json`: those entries from `logseq/marketplace`, including two desktop-only (`effect`) plugins, which Logseq's web marketplace hides and its desktop app lists.
 - `packages/<owner>__<repo>.json`: what `https://plugins.logseq.io/r2/<owner>/<repo>` answers.

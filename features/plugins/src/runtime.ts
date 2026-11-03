@@ -1,6 +1,6 @@
 import { IconPuzzle } from "@tabler/icons-react"
 import { Atom, type AtomRegistry } from "effect/reactivity"
-import type { BlockId, GraphEvent } from "@seqno/domain"
+import { blockRefId, type BlockId, type GraphEvent } from "@seqno/domain"
 import { editingBlock, type SlashCommand } from "@seqno/editor"
 import { createApi, lastCursor, type Bridge } from "./api.ts"
 import { dropCopy, ensureCopy, keepCopy } from "./files.ts"
@@ -141,7 +141,7 @@ export const changedPayload = (events: ReadonlyArray<GraphEvent>) => {
       ? [
           {
             id: numberOf(event.block.id),
-            uuid: event.block.id,
+            uuid: blockRefId(event.block),
             content: contentOf(event.block),
             page: { id: numberOf(event.block.pageId) },
             parent: { id: numberOf(event.block.parentId ?? event.block.pageId) },
