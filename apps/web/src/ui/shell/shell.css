@@ -1067,6 +1067,10 @@
   border-radius: var(--radius-sm);
 }
 
+.export-dialog-picture-inner[data-transparent="true"] .wb-shot {
+  background-color: transparent;
+}
+
 .export-dialog-picture-inner {
   padding: var(--space-4);
   background: var(--bg-app);

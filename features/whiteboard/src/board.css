@@ -99,6 +99,13 @@
   contain: strict;
 }
 
+.wb-shot {
+  position: relative;
+  inset: auto;
+  contain: none;
+  background-color: var(--ls-primary-background-color);
+}
+
 .wb-root[data-grid="true"] {
   background-image:
     radial-gradient(circle, var(--wb-dot) 1.5px, transparent 1.6px),

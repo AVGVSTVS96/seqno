@@ -1,6 +1,7 @@
 import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconChalkboard,
+  IconFileExport,
   IconFlipHorizontal,
   IconFlipVertical,
   IconLayoutAlignBottom,
@@ -147,6 +148,7 @@ export interface BoardProps {
   readonly saveFiles: (files: ReadonlyArray<File>) => Promise<ReadonlyArray<Asset>>
   readonly openPage: (name: string, sidebar: boolean) => void
   readonly onRenamed: (name: string) => void
+  readonly onExport: (ids: ReadonlyArray<BlockId>) => void
   readonly references: number
   readonly referencesPanel: ReactNode
 }
@@ -167,6 +169,7 @@ interface Press {
   readonly moved: boolean
   readonly hit: BlockId | null
   readonly shift: boolean
+  readonly again: boolean
 }
 
 const SHAPE_KEYS: Record<string, Tool> = {
@@ -603,6 +606,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       case "Translating":
         if (pressed !== null && !pressed.moved && !pressed.shift && pressed.hit !== null) {
           setSelected([pressed.hit])
+          if (pressed.again) editAgain(pressed.hit)
         }
         void commit(changesOf(page.id, scene, done, styles)).then((events) => {
           const copies = done.copy
@@ -687,7 +691,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     switch (tool) {
       case "select": {
         const hit = event.ctrlKey ? null : topHit(scene, world, cam.zoom)
-        press.current = { at, moved: false, hit: hit?.block.id ?? null, shift: event.shiftKey }
+        press.current = {
+          at,
+          moved: false,
+          hit: hit?.block.id ?? null,
+          shift: event.shiftKey,
+          again: false,
+        }
         if (hit === null) {
           if (!event.shiftKey) setSelected([])
           setGesture({
@@ -704,6 +714,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         if (entering) press.current = { ...press.current, hit: hit.block.id }
         else press.current = { ...press.current, hit: id }
         const already = selection.includes(id)
+        if (!event.shiftKey && !entering && selection.length === 1 && already) {
+          press.current = { ...press.current, again: true }
+        }
         const next = event.shiftKey
           ? already
             ? selection.filter((other) => other !== id)
@@ -855,6 +868,12 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         )
       }
     }
+  }
+
+  const editAgain = (id: BlockId) => {
+    const item = scene.byId.get(id)
+    if (item === undefined || isLocked(item) || startEditing(id)) return
+    if (isInteractive(item)) setActive(id)
   }
 
   const onDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -1813,6 +1832,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             ]
           : []),
       ],
+      some ? [{ label: "Export", icon: IconFileExport, run: () => props.onExport(selection) }] : [],
       [
         {
           label: "Select all",

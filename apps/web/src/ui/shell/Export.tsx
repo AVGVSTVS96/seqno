@@ -19,12 +19,14 @@ import { CoreClient, type ExportedTree } from "@seqno/rpc"
 import { isHiddenProperty, joinProperties } from "@seqno/syntax"
 import { appRuntime, assetResolver, openGraph, propertyConfig, settingsLayer } from "../../atoms.ts"
 import { closeDialogOf, Dialog, openDialog } from "./popover.tsx"
+import { BoardShot, BoardStyle } from "@seqno/whiteboard"
 import { publishPages } from "./publish.ts"
 
 export interface ExportRequest {
   readonly name: string
   readonly target: ExportTarget
   readonly pages: ReadonlyArray<PageId>
+  readonly shapes?: ReadonlyArray<BlockId>
 }
 
 export const exported = Atom.make<ExportRequest | null>(null).pipe(Atom.keepAlive)
@@ -112,10 +114,12 @@ const pictureOf = (element: HTMLElement | null) =>
 
 const Picture = ({
   target,
+  shapes,
   transparent,
   pictured,
 }: {
   readonly target: ExportTarget
+  readonly shapes: ReadonlyArray<BlockId> | undefined
   readonly transparent: boolean
   readonly pictured: (element: HTMLDivElement | null) => void
 }) => {
@@ -137,7 +141,12 @@ const Picture = ({
   return (
     <div className="export-dialog-picture" aria-label="Exported picture" role="img">
       <div className="export-dialog-picture-inner" data-transparent={transparent} ref={pictured}>
-        {target._tag === "Page" ? (
+        {shapes !== undefined && target._tag === "Page" ? (
+          <>
+            <BoardStyle />
+            <BoardShot pageId={target.pageId} ids={shapes} resolveAsset={resolveAsset} />
+          </>
+        ) : target._tag === "Page" ? (
           <>
             <h1 className="export-dialog-picture-title">
               {trees.find((tree) => tree.page.id === target.pageId)?.page.title}
@@ -266,7 +275,8 @@ const useExportText = (request: ExportRequest, kind: Format) => {
 }
 
 const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
-  const [kind, setKind] = useAtom(format)
+  const [chosen, setKind] = useAtom(format)
+  const kind = request.shapes === undefined ? chosen : "png"
   const [transparent, setTransparent] = useState(false)
   const [copied, setCopied] = useState(false)
   const picture = useRef<HTMLDivElement | null>(null)
@@ -295,7 +305,7 @@ const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
     <>
       <div className="export-dialog-head">
         <div className="export-dialog-formats" role="group" aria-label="Format">
-          {formats.map(([value, label]) => (
+          {(request.shapes === undefined ? formats : []).map(([value, label]) => (
             <button
               key={value}
               type="button"
@@ -323,6 +333,7 @@ const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
         <>
           <Picture
             target={request.target}
+            shapes={request.shapes}
             transparent={transparent}
             pictured={(element) => {
               picture.current = element

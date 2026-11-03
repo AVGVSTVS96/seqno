@@ -7,6 +7,7 @@ import { Board } from "@seqno/whiteboard"
 import { assetResolver, rightSidebar } from "../../atoms.ts"
 import { saveAssetFiles } from "../assets.ts"
 import { EditorSlot } from "../EditorSlot.tsx"
+import { exported } from "../shell/Export.tsx"
 import { blockMenu } from "../shell/BlockMenu.tsx"
 import { vimMode } from "../shell/state.ts"
 import { pageStats } from "./atoms.ts"
@@ -28,6 +29,7 @@ export const BoardPage = ({
   const onBlockMenu = useAtomSet(blockMenu)
   const vim = useAtomValue(vimMode)
   const updateSidebar = useAtomSet(rightSidebar)
+  const setExported = useAtomSet(exported)
   const registry = useContext(RegistryContext)
   const onboarding = useAtomValue(onboardingBoard) === page.id
   const references = AsyncResult.getOrElse(
@@ -80,6 +82,14 @@ export const BoardPage = ({
         references={references}
         referencesPanel={<References page={page} unlinked={false} />}
         onRenamed={(name) => void navigate({ to: "/page/$name", params: { name }, replace: true })}
+        onExport={(ids) =>
+          setExported({
+            name: page.name,
+            target: { _tag: "Page", pageId: page.id },
+            pages: [page.id],
+            shapes: ids,
+          })
+        }
       />
     </div>
   )
