@@ -9,7 +9,7 @@ import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
 import { Hints } from "./hints/Hints.tsx"
 import { GraphChooser, OpenFailed } from "./OpenGraphScreen.tsx"
 import { BlockMenu } from "./shell/BlockMenu.tsx"
-import { ExportDialog } from "./shell/Export.tsx"
+import { ExportDialog, GraphExportDialog } from "./shell/Export.tsx"
 import { Header } from "./shell/Header.tsx"
 import { HelpButton } from "./shell/HelpButton.tsx"
 import { LeftSidebar } from "./shell/LeftSidebar.tsx"
@@ -68,6 +68,7 @@ const Layout = ({
       <HelpButton />
       <BlockMenu />
       <ExportDialog />
+      <GraphExportDialog />
       <Settings />
       <Notices />
       {isDemoGraph(graph) ? <Hints /> : null}

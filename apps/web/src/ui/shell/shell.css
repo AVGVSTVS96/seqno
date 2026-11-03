@@ -1011,6 +1011,101 @@
   resize: vertical;
 }
 
+.export-dialog-formats {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.export-dialog-formats > button {
+  width: 80px;
+}
+
+.export-dialog-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.export-dialog-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 28px;
+  font-size: var(--text-sm);
+}
+
+.export-dialog-row select {
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-popover);
+  color: var(--fg);
+  font: inherit;
+}
+
+.export-dialog-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.export-dialog-picture {
+  max-height: 384px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.export-dialog-picture-inner {
+  padding: var(--space-4);
+  background: var(--bg-app);
+}
+
+.export-dialog-picture-inner[data-transparent="true"] {
+  background: transparent;
+}
+
+.export-graph-dialog {
+  width: 502px;
+  padding: 28px;
+}
+
+.export-graph-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.export-graph-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.export-graph-choice {
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--fg-link);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  text-align: start;
+  cursor: pointer;
+}
+
+.export-graph-choice:hover {
+  text-decoration: underline;
+}
+
+.export-graph-choice:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+
 .export-dialog-actions {
   display: flex;
   gap: var(--space-6);

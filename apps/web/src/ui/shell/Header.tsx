@@ -1,7 +1,8 @@
-import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
+import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconAlertTriangle,
   IconColorSwatch,
+  IconFileExport,
   IconDots,
   IconHome,
   IconLayoutSidebarRight,
@@ -10,12 +11,10 @@ import {
   IconSettings,
 } from "@tabler/icons-react"
 import { useMatchRoute, useNavigate } from "@tanstack/react-router"
-import { Effect, Option } from "effect"
-import { AsyncResult, AtomRegistry } from "effect/reactivity"
-import { useContext } from "react"
+import { Option } from "effect"
+import { AsyncResult } from "effect/reactivity"
 import type { Page } from "@seqno/domain"
 import { SaveState } from "@seqno/rpc"
-import { pageTreeAtom } from "@seqno/outliner"
 import {
   favorites,
   journals,
@@ -28,7 +27,7 @@ import {
 } from "../../atoms.ts"
 import { Appearance } from "./Appearance.tsx"
 import { DeletePage } from "./DeletePage.tsx"
-import { exported, pageMarkdown } from "./Export.tsx"
+import { exported, openGraphExport } from "./Export.tsx"
 import { IconButton } from "./IconButton.tsx"
 import {
   Menu,
@@ -56,17 +55,9 @@ const deleteDialog = "seqno-delete-page"
 
 const MoreMenu = () => {
   const page = useCurrentPage()
-  const registry = useContext(RegistryContext)
   const setExported = useAtomSet(exported)
   const exportPage = (target: Page) =>
-    void Effect.runPromise(
-      AtomRegistry.getResult(registry, pageTreeAtom(target.id)).pipe(
-        Effect.map((tree) =>
-          setExported({ name: target.title, text: pageMarkdown(target.props, tree.blocks) }),
-        ),
-        Effect.ignore,
-      ),
-    )
+    setExported({ name: target.title, target: { _tag: "Page", pageId: target.id } })
   const navigate = useNavigate()
   const more = usePopover({ placement: { align: "start", gap: -2, inset: 11 }, kind: "menu" })
   const appearance = usePopover({
@@ -107,6 +98,9 @@ const MoreMenu = () => {
           onSelect={() => showPopover(appearance.id)}
         >
           Appearance
+        </MenuItem>
+        <MenuItem icon={<IconFileExport size={18} aria-hidden />} onSelect={openGraphExport}>
+          Export graph
         </MenuItem>
       </Menu>
       <Appearance handle={appearance} />

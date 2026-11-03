@@ -26,6 +26,13 @@ export const PageTree = Schema.Struct({
 })
 export type PageTree = typeof PageTree.Type
 
+export const ExportedTree = Schema.Struct({
+  page: Page,
+  blocks: Schema.Array(Block),
+  path: Schema.String,
+})
+export type ExportedTree = typeof ExportedTree.Type
+
 export const QueryResult = Schema.TaggedUnion({
   BlockRows: { blocks: Schema.Array(Block) },
   PageRows: { pages: Schema.Array(Page) },
@@ -89,6 +96,11 @@ export const GetPage = Rpc.make("GetPage", {
   error: Schema.Union([GraphNotOpen, PageNotFound]),
 })
 
+export const ExportPages = Rpc.make("ExportPages", {
+  success: Schema.Array(ExportedTree),
+  error: GraphNotOpen,
+})
+
 export const GetBlock = Rpc.make("GetBlock", {
   payload: { blockId: BlockId },
   success: Block,
@@ -142,6 +154,7 @@ export const CoreRpcs = RpcGroup.make(
   DispatchAll,
   GetPages,
   GetPage,
+  ExportPages,
   GetBlock,
   WatchPage,
   WatchQuery,

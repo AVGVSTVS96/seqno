@@ -228,7 +228,11 @@ const MenuView = ({
       >
         Copy block embed
       </MenuItem>
-      <MenuItem onSelect={() => setExported({ name: "blocks", text: markdown() })}>
+      <MenuItem
+        onSelect={() =>
+          setExported({ name: "blocks", target: { _tag: "Blocks", blockIds: request.blockIds } })
+        }
+      >
         Copy / Export as..
       </MenuItem>
       <MenuItem

@@ -30,6 +30,8 @@ export {
   CoreRpcs,
   Dispatch,
   DispatchAll,
+  ExportedTree,
+  ExportPages,
   GetBlock,
   GetPage,
   GetPages,

@@ -111,6 +111,7 @@ const FakeCore = CoreRpcs.toLayer(
       DispatchAll: () => rejected,
       GetPages: () => Effect.succeed([inbox, older, today]),
       GetPage: () => SubscriptionRef.get(tree),
+      ExportPages: () => Effect.succeed([]),
       GetBlock: () => Effect.succeed(parentBlock),
       WatchPage: () => SubscriptionRef.changes(tree),
       WatchQuery: () => Stream.empty,
