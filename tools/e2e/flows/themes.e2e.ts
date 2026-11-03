@@ -94,3 +94,23 @@ test("Dev theme labels headings, shrinks bullets and lays out the left sidebar t
   await expect(page.locator(".left-sidebar-inner > .wrap")).toHaveCSS("padding-top", "12px")
   await expect(page.locator(".left-sidebar-inner > .wrap")).toHaveCSS("margin-top", "0px")
 })
+
+test("Catppuccin Mocha turns seqno dark and colors its sidebar, folded bullets and checkboxes through Logseq's names", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await gettingStarted(page)
+  await useTheme(page, "Catppuccin", "Catppuccin Mocha")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await expect(page.locator("html[data-color=logseq] #left-sidebar")).toHaveCSS(
+    "background-color",
+    "rgb(24, 24, 37)",
+  )
+  await expect(page.locator(".ls-block .bullet-container.bullet-closed")).toHaveCSS(
+    "background-color",
+    "rgba(137, 180, 250, 0.15)",
+  )
+  await expect(page.locator(".ls-block .form-checkbox").first()).toHaveCSS("border-radius", "4px")
+  await expect(page.locator("h1.page-title")).toHaveCSS("color", "rgb(186, 194, 222)")
+})
