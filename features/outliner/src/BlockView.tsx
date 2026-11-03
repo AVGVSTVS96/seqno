@@ -18,6 +18,7 @@ import { Inlines } from "./Inline.tsx"
 import {
   BlockSource,
   clickOnEnter,
+  CodeSlot,
   HostBlock,
   PropertySettings,
   RenderContext,
@@ -52,8 +53,9 @@ const Heading = ({
 
 type CodeChange = (from: number, to: number, insert: string) => void
 
-const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: CodeChange }) =>
-  Match.valueTags(body, {
+const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: CodeChange }) => {
+  const Rendered = use(CodeSlot)
+  return Match.valueTags(body, {
     Paragraph: ({ inline }) => (
       <div className="seqno-line">
         <Inlines nodes={inline} />
@@ -64,15 +66,24 @@ const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: Cod
         <Inlines nodes={inline} />
       </Heading>
     ),
-    Code: ({ language, code, codeFrom }) => (
-      <CodeBlock
-        language={language}
-        code={code}
-        {...(onCode === undefined
-          ? {}
-          : { onEdit: (next: string) => onCode(codeFrom, codeFrom + code.length, next) })}
-      />
-    ),
+    Code: ({ language, code, codeFrom }) => {
+      const source = (
+        <CodeBlock
+          language={language}
+          code={code}
+          {...(onCode === undefined
+            ? {}
+            : { onEdit: (next: string) => onCode(codeFrom, codeFrom + code.length, next) })}
+        />
+      )
+      return Rendered === null ? (
+        source
+      ) : (
+        <Rendered language={language} code={code}>
+          {source}
+        </Rendered>
+      )
+    },
     Quote: ({ lines }) => (
       <blockquote className="seqno-quote">
         {lines.map((line, index) => (
@@ -83,6 +94,7 @@ const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: Cod
       </blockquote>
     ),
   })
+}
 
 const TaskControls = ({
   marker,

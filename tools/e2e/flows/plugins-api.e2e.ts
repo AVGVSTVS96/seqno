@@ -221,3 +221,74 @@ test("a block a plugin inserts with a customUUID keeps that uuid, so ((refs)) an
     /See Seed order placed/,
   )
 })
+
+const codeBlock = async (page: Page, today: Locator, after: string, code: string) => {
+  await today.getByRole("treeitem").filter({ hasText: after }).first().click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("treeitem").getByRole("textbox")).toHaveText("")
+  await page.keyboard.insertText(code)
+  await page.keyboard.press("Escape")
+}
+
+test("Fenced code plus draws htmlmixed and mermaid code blocks with Logseq's React and loadScripts, with buttons to show the code and edit the block", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Fenced code plus")
+  await codeBlock(
+    page,
+    seqno.today,
+    "Welcome to the seqno demo graph",
+    '```htmlmixed\n<b class="grown">Tomatoes</b>\n```',
+  )
+  const html = page
+    .locator(".ui-fenced-code-wrap")
+    .filter({ has: page.locator(".fcp-html-container") })
+  await expect(html.locator(".fcp-html-container b.grown")).toHaveText("Tomatoes")
+  await expect(html.locator(".ui-fenced-code-editor")).toBeHidden()
+  await html.locator(".ui-fenced-code-result").hover()
+  await html.getByRole("button", { name: "Show code" }).click()
+  await expect(html.locator(".ui-fenced-code-editor")).toHaveText(/<b class="grown">Tomatoes<\/b>/)
+  await expect(html.getByRole("button", { name: "Show code" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  )
+  await html.getByRole("button", { name: "Show code" }).click()
+  await expect(html.locator(".ui-fenced-code-editor")).toBeHidden()
+  await html.locator(".fcp-html-container").click()
+  await expect(page.getByRole("treeitem").getByRole("textbox")).toHaveCount(0)
+  await html.locator(".ui-fenced-code-result").hover()
+  await html.getByRole("button", { name: "Edit block" }).click()
+  await expect(page.getByRole("treeitem").getByRole("textbox")).toHaveText(/```htmlmixed/)
+  await page.keyboard.press("Escape")
+
+  await codeBlock(
+    page,
+    seqno.today,
+    "Welcome to the seqno demo graph",
+    "```mermaid\ngraph TD\n  Seed --> Sprout\n```",
+  )
+  const diagram = page.locator(".ui-fenced-code-result .mermaid > svg")
+  await expect(diagram).toContainText("Sprout")
+  await expect(page.locator('script[data-ref="logseq-fenced-code-plus"]')).toHaveAttribute(
+    "src",
+    /\/lsp\/xyhp915\/logseq-fenced-code-plus\/0\.0\.11\/vendors\/mermaid\.min\.js$/,
+  )
+})
+
+test("GitSeq reads seqno's graph as one without git: its toolbar shows a sync error, as on a folder git doesn't track", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "GitSeq")
+  await expect(page.locator('[title="Sync error — check logs"]')).toBeAttached()
+  const plugin = page.frame({ url: /gitseq/ })
+  expect(await plugin?.evaluate(`logseq.Git.execCommand(["status", "--porcelain"])`)).toEqual({
+    stdout: "",
+    stderr: "fatal: not a git repository: seqno keeps the graph's history in its own edit log",
+    exitCode: 128,
+  })
+})

@@ -491,3 +491,41 @@ textarea.plugin-setting-input {
   color: var(--fg-subtle);
   font-size: var(--text-sm);
 }
+
+.seqno-fenced-code:not([data-active]) .seqno-fenced-code-source {
+  display: none;
+}
+
+.seqno-fenced-code[data-active] .seqno-fenced-code-result {
+  padding-top: var(--space-2);
+}
+
+.seqno-fenced-code-result {
+  position: relative;
+}
+
+.seqno-fenced-code-actions {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-1);
+  z-index: 10;
+  display: flex;
+  gap: var(--space-1);
+  opacity: 0;
+  transition: opacity 150ms var(--ease-standard);
+}
+
+.seqno-fenced-code-result:hover > .seqno-fenced-code-actions,
+.seqno-fenced-code-actions:focus-within {
+  opacity: 1;
+}
+
+.seqno-fenced-code-action {
+  display: inline-flex;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--fg-muted);
+  cursor: pointer;
+}

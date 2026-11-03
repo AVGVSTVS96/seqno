@@ -510,7 +510,7 @@ Each format writes what Logseq 0.10.9 writes for the same graph, checked against
 
 **Why.** Bassim asked for plugins aimed at Logseq's own: hundreds already exist, and the 1:1 goal is a UI/UX one, so a plugin a user already has should just work. Answering in the file-graph shapes is what the plugins in the marketplace were built against; Logseq's newer database shapes break most of them. The proving set covers each surface: Journals calendar (main UI, toolbar items with positions, a Datalog query, navigation, SDK 0.2), Word count (slash command, `insertAtEditingCursor`, a `{{renderer}}` slot filled by `provideUI`, `DB.onChanged`, SDK 0.3), Markdown Table Editor (block menu item, a full-screen main UI that writes back with `updateBlock`, SDK 0.0.17), Pomodoro timer (toolbar items re-rendered every second, `provideModel` clicks, settings, an SDK from before hooks had to be asked for) and Dev theme (a theme-only package).
 
-**Cost.** Git and `Experiments` fail with a "seqno doesn't support … yet" error the plugin sees. A plugin whose settings schema brings defaults it never had restarts once, so a plugin that reads its settings at startup (Pomodoro) starts with them. Like Logseq, a plugin that syncs its schema then hears its settings through `onSettingsChanged`, which is how Catppuccin reapplies a saved accent after a reload. A theme package with its own `main` gets a settings gear once that main sends a schema (Catppuccin's accent), as Logseq lists settings for every installed package.
+**Cost.** A method seqno lacks fails with a "seqno doesn't support … yet" error the plugin sees. A plugin whose settings schema brings defaults it never had restarts once, so a plugin that reads its settings at startup (Pomodoro) starts with them. Like Logseq, a plugin that syncs its schema then hears its settings through `onSettingsChanged`, which is how Catppuccin reapplies a saved accent after a reload. A theme package with its own `main` gets a settings gear once that main sends a schema (Catppuccin's accent), as Logseq lists settings for every installed package.
 
 ## seqno's elements carry Logseq's names, from one table
 
@@ -551,6 +551,22 @@ Each format writes what Logseq 0.10.9 writes for the same graph, checked against
 **Why.** Each tab's copy used to hear every edit, so a plugin that writes on change wrote once per open tab: DONE time stamped a task twice with two tabs open. One plugin copy for all tabs would leave the other tabs without the plugin's UI. Delivering an edit where it was made keeps one write per change and puts the plugin's reaction, its message or its write, in the tab you're typing in, on that tab's undo history, as Logseq does in its one window. Proven on DONE time (`mjs/logseq-done-time`) in two tabs.
 
 **Cost.** A plugin that only displays something from `DB.onChanged` (Word count's live count) doesn't update in one tab for edits typed in another until that tab reloads it.
+
+## Plugins' Experiments get Logseq's React 17 in seqno's window
+
+**Decision.** `logseq.Experiments` calls seqno's window directly, as it calls Logseq's, now that plugins load from seqno's origin. Before the first plugin starts, seqno loads React and ReactDOM 17.0.2, the version Logseq 0.10.9 ships, as the `window.React` and `window.ReactDOM` plugins read, and sets `window.logseq.api` to Logseq's `exper_*` methods: `loadScripts`, `registerFencedCodeRenderer` and `registerExtensionsEnhancer`. A fenced code renderer draws with ReactDOM 17 into its own root inside seqno's React 19 outliner, in Logseq's markup (`.ui-fenced-code-wrap`, `.ui-fenced-code-result`, its two buttons).
+
+**Why.** Plugins hand seqno their own components and expect the host's React to run them. They're built against Logseq's React 17, often with React 18's JSX runtime, whose elements React 19 refuses, so handing them seqno's React would break them. A second React only for plugins keeps seqno on 19 and plugins on what they were built for. Of the marketplace's plugins, the ones that call Experiments use `registerFencedCodeRenderer` (Fenced code plus, runjs, chess, Typst and others), `loadScripts` (seven, Mermaid's among them), `React` (six) and the KaTeX enhancer (three); none calls the newer SDK's route or daemon renderers, `Components.Editor` or `Utils`, which Logseq 0.10.9 doesn't have either. Proven on Fenced code plus, whose `htmlmixed` and `mermaid` blocks render, the second through `loadScripts`.
+
+**Cost.** React 17 adds about 44 KB gzipped, loaded only once plugins are installed. Enhancers are accepted but never called, because they hand over Logseq's KaTeX and CodeMirror 5, and seqno has no math rendering and edits code in CodeMirror 6. A renderer redraws when the block's code is saved, where Logseq redraws as you type in its code editor.
+
+## Git: seqno's history is its edit log
+
+**Decision.** seqno doesn't run git. `logseq.Git.execCommand` answers as git does in a folder it doesn't track: exit code 128 and "fatal: not a git repository", with the reason. Logseq desktop's version control (commit now, auto commit, which is off by default, and page history) isn't rebuilt on git; the history a page-history view would read is already in seqno's Loro edit log.
+
+**Why.** Logseq desktop runs git on the graph's markdown files, which are its truth. seqno's truth is the Loro document, its markdown is a mirror that doesn't run yet (roadmap, hardening step 4), and a browser can't run git on a folder. Git over a rendered mirror would track a copy, not what the user edits, and plugins like GitSeq push and pull remotes, which a browser can't reach without a proxy. Answering in git's own shape lets them show their error state instead of failing: GitSeq's toolbar turns to "Sync error". Logseq's web build has no git either; it answers nothing.
+
+**Cost.** Git plugins don't work. A page history in seqno would be its own view on the edit log, which no one has designed yet. `loadIgnoreFile` and `saveIgnoreFile` aren't in Logseq 0.10.9 and still fail.
 
 ## Export public pages ships seqno's own read-only viewer
 

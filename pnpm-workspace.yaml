@@ -6,3 +6,6 @@ packages:
   - fixtures
 minimumReleaseAgeExclude:
   - vite@8.3.3
+peerDependencyRules:
+  allowedVersions:
+    react-dom@17>react: "19"

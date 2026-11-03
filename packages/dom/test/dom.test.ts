@@ -76,3 +76,27 @@ describe("refsSelf", () => {
     ).toBe('["done", "a", "6512bd43-d9ca-4f3e-9a2b-000000000001", "ana", "owner"]')
   })
 })
+
+describe("plugin names", () => {
+  it("names a plugin's fenced code renderer as Logseq's hook-ui-fenced-code does", () => {
+    expect(
+      [
+        logseq("seqno-fenced-code", true),
+        logseq("seqno-fenced-code", false),
+        logseq("seqno-fenced-code-source"),
+        logseq("seqno-fenced-code-result", false),
+        logseq("seqno-fenced-code-result", true),
+        logseq("seqno-fenced-code-actions"),
+        logseq("seqno-fenced-code-action"),
+      ].map((made) => made.className),
+    ).toEqual([
+      "seqno-fenced-code ui-fenced-code-wrap is-active",
+      "seqno-fenced-code ui-fenced-code-wrap",
+      "seqno-fenced-code-source ui-fenced-code-editor",
+      "seqno-fenced-code-result ui-fenced-code-result not-edit",
+      "seqno-fenced-code-result ui-fenced-code-result",
+      "seqno-fenced-code-actions actions",
+      "seqno-fenced-code-action ui__button",
+    ])
+  })
+})

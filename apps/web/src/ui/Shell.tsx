@@ -9,13 +9,14 @@ import type { PageId } from "@seqno/domain"
 import {
   AssetActions,
   BoardSlot,
+  CodeSlot,
   MacroSlot,
   PageDialects,
   PropertySettings,
   ScrollContent,
 } from "@seqno/outliner"
 import { blockColored } from "@seqno/pdf"
-import { PluginMacroSlot, PluginThemeLink } from "@seqno/plugins"
+import { PluginCode, PluginMacroSlot, PluginThemeLink } from "@seqno/plugins"
 import { BoardEmbed } from "./pages/Whiteboards.tsx"
 import {
   attemptedGraph,
@@ -85,50 +86,52 @@ const Layout = ({
   return (
     <AssetActions value={assets}>
       <MacroSlot value={pluginMacros}>
-        <BoardSlot value={boards}>
-          <div {...logseq("seqno-theme-container")}>
-            <div
-              {...inner}
-              className={names(inner.className, colored && logseq("seqno-hl-colored").className)}
-            >
+        <CodeSlot value={PluginCode}>
+          <BoardSlot value={boards}>
+            <div {...logseq("seqno-theme-container")}>
               <div
-                {...logseq("app")}
-                data-left-open={leftOpen}
-                data-right-open={rightOpen}
-                data-wide={wide}
-                style={{
-                  "--left-sidebar-width": `${leftWidth}px`,
-                  "--right-sidebar-width": `${rightWidth}vw`,
-                }}
+                {...inner}
+                className={names(inner.className, colored && logseq("seqno-hl-colored").className)}
               >
-                <div {...logseq("left-container")}>
-                  <Header />
-                  <div {...logseq("main-container")}>
-                    <LeftSidebar graph={graph} />
-                    <main {...logseq("main-content-container")}>
-                      <ScrollContent className={logseq("main-content").className}>
-                        {content(ready ?? true, problem ?? null)}
-                      </ScrollContent>
-                    </main>
+                <div
+                  {...logseq("app")}
+                  data-left-open={leftOpen}
+                  data-right-open={rightOpen}
+                  data-wide={wide}
+                  style={{
+                    "--left-sidebar-width": `${leftWidth}px`,
+                    "--right-sidebar-width": `${rightWidth}vw`,
+                  }}
+                >
+                  <div {...logseq("left-container")}>
+                    <Header />
+                    <div {...logseq("main-container")}>
+                      <LeftSidebar graph={graph} />
+                      <main {...logseq("main-content-container")}>
+                        <ScrollContent className={logseq("main-content").className}>
+                          {content(ready ?? true, problem ?? null)}
+                        </ScrollContent>
+                      </main>
+                    </div>
                   </div>
+                  <RightSidebar />
+                  <PdfLayer />
+                  <HelpButton />
+                  <BlockMenu />
+                  <PageMenu />
+                  <ExportDialog />
+                  <GraphExportDialog />
+                  <Settings />
+                  <Notices />
+                  <PluginsDialog />
+                  <PluginSettings />
+                  <PluginThemeLink mode={mode} />
+                  {isDemoGraph(graph) ? <Hints /> : null}
                 </div>
-                <RightSidebar />
-                <PdfLayer />
-                <HelpButton />
-                <BlockMenu />
-                <PageMenu />
-                <ExportDialog />
-                <GraphExportDialog />
-                <Settings />
-                <Notices />
-                <PluginsDialog />
-                <PluginSettings />
-                <PluginThemeLink mode={mode} />
-                {isDemoGraph(graph) ? <Hints /> : null}
               </div>
             </div>
-          </div>
-        </BoardSlot>
+          </BoardSlot>
+        </CodeSlot>
       </MacroSlot>
     </AssetActions>
   )

@@ -4,6 +4,7 @@ import type { BlockId, GraphEvent } from "@seqno/domain"
 import { editingBlock, type SlashCommand } from "@seqno/editor"
 import { createApi, lastCursor, type Bridge } from "./api.ts"
 import { dropCopy, ensureCopy, keepCopy } from "./files.ts"
+import { openHostScope } from "./experiments.ts"
 import { createHost, type Host } from "./host.ts"
 import { fetchPlugin, type MarketItem } from "./marketplace.ts"
 import { watchSelection } from "./selection.ts"
@@ -14,6 +15,7 @@ import {
   pluginCommands,
   pluginSettings,
   type PluginCommand,
+  type PluginInfo,
   type PluginSlashCommand,
 } from "./state.ts"
 
@@ -126,11 +128,18 @@ export const editorCommands = (
         }),
       }))
 
+const loadPlugin = async (registry: AtomRegistry.AtomRegistry, info: PluginInfo) => {
+  const host = registry.get(hostAtom)
+  if (host === null) return
+  await openHostScope(registry, host)
+  host.load(info)
+}
+
 export const startPlugins = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) => {
   const host = createHost(registry, createApi(registry, bridge))
   registry.set(hostAtom, host)
   for (const info of registry.get(installedPlugins)) {
-    host.load(info)
+    void loadPlugin(registry, info)
     void ensureCopy(info).catch(() => undefined)
   }
   watchSelection(host)
@@ -178,7 +187,7 @@ export const install = async (registry: AtomRegistry.AtomRegistry, item: MarketI
     ...registry.get(installedPlugins).filter((other) => other.id !== info.id),
     info,
   ])
-  registry.get(hostAtom)?.load(info)
+  await loadPlugin(registry, info)
   return info
 }
 
@@ -202,7 +211,7 @@ export const setEnabled = async (
   registry.set(pluginSettings(pid), { ...registry.get(pluginSettings(pid)), disabled: !enabled })
   if (!enabled) return host?.unload(pid)
   const info = registry.get(installedPlugins).find((one) => one.id === pid)
-  if (info !== undefined) host?.load(info)
+  if (info !== undefined) await loadPlugin(registry, info)
 }
 
 export const macroArguments = (args: string) =>

@@ -132,3 +132,12 @@ export const pluginCommands = Atom.make<ReadonlyArray<PluginCommand>>([]).pipe(A
 export const runtimeThemes = Atom.make<ReadonlyArray<PluginTheme>>([]).pipe(Atom.keepAlive)
 
 export const settingsFor = Atom.make<string | null>(null).pipe(Atom.keepAlive)
+
+export interface FencedRenderer {
+  readonly pid: string
+  readonly type: string
+  readonly edit: boolean
+  readonly render: unknown
+}
+
+export const fencedRenderers = Atom.make<ReadonlyArray<FencedRenderer>>([]).pipe(Atom.keepAlive)

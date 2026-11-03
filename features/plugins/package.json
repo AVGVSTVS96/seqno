@@ -24,7 +24,9 @@
     "dompurify": "3.4.17",
     "effect": "4.0.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-17": "npm:react@17.0.2",
+    "react-dom": "19.3.0",
+    "react-dom-17": "npm:react-dom@17.0.2"
   },
   "devDependencies": {
     "@effect/vitest": "4.0.1",

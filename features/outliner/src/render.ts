@@ -1,4 +1,4 @@
-import { createContext, type ComponentType, type KeyboardEvent } from "react"
+import { createContext, type ComponentType, type KeyboardEvent, type ReactNode } from "react"
 import type { Block, BlockId, PageId } from "@seqno/domain"
 import {
   blockContent,
@@ -79,6 +79,14 @@ export const BoardSlot = createContext<{
 export const MacroSlot = createContext<{ readonly Slot: ComponentType<MacroSlotProps> } | null>(
   null,
 )
+
+export interface CodeSlotProps {
+  readonly language: string
+  readonly code: string
+  readonly children: ReactNode
+}
+
+export const CodeSlot = createContext<ComponentType<CodeSlotProps> | null>(null)
 
 export const maxDepth = 3
 

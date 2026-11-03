@@ -202,6 +202,31 @@
    "supportsDB": true,
    "id": "logseq-mark-map",
    "addedAt": 1630664401000
+  },
+  {
+   "title": "Fenced code plus",
+   "description": "A Logseq plugin for missing types of fenced code.",
+   "repo": "xyhp915/logseq-fenced-code-plus",
+   "author": "xyhp915",
+   "icon": "icon.png",
+   "supportsDB": false,
+   "effect": true,
+   "sponsors": [
+    "https://opencollective.com/logseq"
+   ],
+   "id": "logseq-fenced-code-plus",
+   "addedAt": 1651558701000
+  },
+  {
+   "title": "GitSeq",
+   "description": "Encrypted git sync for Logseq. One keystroke to commit & push.",
+   "author": "Maxim Khomiakov",
+   "repo": "pihalf/gitseq",
+   "icon": "logo.png",
+   "theme": false,
+   "effect": false,
+   "id": "gitseq",
+   "addedAt": 1776249481000
   }
  ]
 }

@@ -925,6 +925,11 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
         return page === null ? null : bridge.navigate({ _tag: "Page", name: page.name })
       },
       new_block_uuid: () => crypto.randomUUID(),
+      git_exec_command: () => ({
+        stdout: "",
+        stderr: "fatal: not a git repository: seqno keeps the graph's history in its own edit log",
+        exitCode: 128,
+      }),
       datascript_query: async (_, [query, ...inputs]) => {
         const datalogText = text(query)
         return datalogText === null ? null : datalog(datalogText, inputs)

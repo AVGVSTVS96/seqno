@@ -15,6 +15,7 @@ import {
 import { entryOf, local } from "./files.ts"
 import { record, settingItems, strings, text, themesOf } from "./package.ts"
 import {
+  fencedRenderers,
   pluginCommands,
   pluginSettings,
   running,
@@ -382,6 +383,7 @@ export const createHost = (
     registry.set(slashCommands, without(registry.get(slashCommands), pid))
     registry.set(pluginCommands, without(registry.get(pluginCommands), pid))
     registry.set(runtimeThemes, without(registry.get(runtimeThemes), pid))
+    registry.set(fencedRenderers, without(registry.get(fencedRenderers), pid))
     registry.set(
       running,
       Object.fromEntries(Object.entries(registry.get(running)).filter(([key]) => key !== pid)),

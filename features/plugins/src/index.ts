@@ -21,4 +21,4 @@ export {
   uninstall,
 } from "./runtime.ts"
 export * from "./state.ts"
-export { PluginItems, PluginMacroSlot, PluginThemeLink } from "./slots.tsx"
+export { PluginCode, PluginItems, PluginMacroSlot, PluginThemeLink } from "./slots.tsx"

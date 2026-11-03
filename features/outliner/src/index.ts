@@ -26,9 +26,11 @@ export {
   AssetActions,
   BoardSlot,
   clickOnEnter,
+  CodeSlot,
   MacroSlot,
   PageDialects,
   PropertySettings,
+  type CodeSlotProps,
   type MacroSlotProps,
 } from "./render.ts"
 export { NestedLists, ScrollContent, useVirtualList, type VirtualList } from "./virtual.tsx"

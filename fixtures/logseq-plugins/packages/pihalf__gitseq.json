@@ -1,0 +1,13 @@
+{
+  "name": "gitseq",
+  "version": "v0.2.0",
+  "description": "gitseq — encrypted git sync for Logseq. One keystroke to commit & push.",
+  "main": "index.html",
+  "author": "Maxim Khomiakov",
+  "license": "MIT",
+  "logseq": {
+    "id": "gitseq",
+    "title": "GitSeq",
+    "icon": "./logo.png"
+  }
+}
