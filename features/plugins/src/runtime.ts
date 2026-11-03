@@ -43,6 +43,26 @@ const shortcutOf = (command: PluginCommand) => {
 export const runCommand = (host: Host, command: PluginCommand, uuid: BlockId | null) =>
   host.hook("editor", command.eventKey, uuid === null ? {} : { uuid }, command.pid)
 
+export interface HighlightPayload {
+  readonly text: string
+  readonly x: number
+  readonly y: number
+}
+
+export const runHighlightItem = (host: Host, command: PluginCommand, highlight: HighlightPayload) =>
+  host.hook(
+    "editor",
+    command.eventKey,
+    {
+      key: command.key,
+      content: { text: highlight.text },
+      point: { x: highlight.x, y: highlight.y },
+      format: null,
+      uuid: editingBlock()?.blockId ?? null,
+    },
+    command.pid,
+  )
+
 const insertAtCaret = (insert: string, backward: number) => {
   const live = editingBlock()
   if (live === null) return

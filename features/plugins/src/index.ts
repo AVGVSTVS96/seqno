@@ -11,6 +11,8 @@ export {
   install,
   macroArguments,
   runCommand,
+  runHighlightItem,
+  type HighlightPayload,
   setEnabled,
   startPlugins,
   uninstall,

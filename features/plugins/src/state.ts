@@ -94,6 +94,7 @@ export interface PluginCommand {
   readonly type: string
   readonly keybinding: Keybinding | null
   readonly eventKey: string
+  readonly clearSelection: boolean
 }
 
 export interface SettingItem {

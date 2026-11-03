@@ -428,6 +428,7 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
       type: text(opts["type"]) ?? "$commands$",
       keybinding: keybindingOf(opts["keybinding"]),
       eventKey,
+      clearSelection: record(opts["extras"])["clearSelection"] === true,
     }
     registry.set(pluginCommands, [
       ...registry.get(pluginCommands).filter((other) => !(other.pid === pid && other.key === key)),
