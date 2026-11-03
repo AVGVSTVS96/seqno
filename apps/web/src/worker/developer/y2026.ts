@@ -10,6 +10,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
     20260110,
     `- all my new code will always be 100% open source ${post("2009929579688014193")} [[open source]]`,
     "\t- if I have the choice, the ideal of open source beats monetizing it",
+    `\t- Tailwind got the sponsorship they deserve. that's the direction we should be going ${post("2009930560332800403")}`,
     "- OpenLeaf syncs through Convex now, conflicts settled by version numbers [[projects/openleaf]]",
   ),
   on(
@@ -26,8 +27,9 @@ export const y2026: ReadonlyArray<StarterFile> = [
   ),
   on(
     20260121,
-    "- started ai-tmux: save and restore agent sessions by their tmux context [[terminal]]",
+    "- started a tool to save and restore agent sessions by their tmux context [[terminal]]",
     "\t- session loss is a big issue for me. I often jump between projects, and some sessions I keep open for several weeks before I come back to them",
+    "\t- this ended up being a mistake. it didn't work in the end, and herdr replaced it",
   ),
   on(
     20260209,
@@ -57,7 +59,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
   on(20260305, `- watched ${yt("Work.", "hvk_XylEmLo")} again [[Historia Civilis]]`),
   on(
     20260308,
-    "- path-inventory: spec first, then an inventory of where Claude, Codex and OpenCode keep their sessions [[terminal]]",
+    "- spec first, then an inventory of where Claude, Codex and OpenCode keep their sessions [[terminal]]",
   ),
   on(
     20260314,
@@ -79,7 +81,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
     "- Tribunate binge: Sulla, the first triumvirate, the year of the six emperors, the Praetorian Guard [[Rome]]",
     `\t- ${yt("Sulla, Rome's Bloodiest Dictator", "RClu7ADAcb4")}`,
     `\t- ${yt("The Year of the Six Emperors", "pNImOXD1hLU")}`,
-    "- xBook: every X bookmark I have, in my own database #decision [[projects/commonplace]]",
+    "- every X bookmark I have goes in my own database #decision [[projects/commonplace]]",
     "\t- the X API is incredibly expensive, so I wanted to make sure I have a database of all my X bookmarks",
     "\t- bookmarks felt like they went missing sometimes, so it's always a good idea to save all of it",
     "\t- there's so much incredibly valuable stuff on X. I had to save it all",
@@ -168,7 +170,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
   ),
   on(
     20260616,
-    "- ohfable: a menu bar light for my Mac. green the moment a request to Fable succeeds again, red until then",
+    "- a menu bar light for my Mac. green the moment a request to Fable succeeds again, red until then",
     "\t- the US government banned Fable, and I wanted to know as soon as it was back",
     "\t- the first model whose judgment I felt I could trust. its communication style was the blocker, so it wasn't quite the click that Opus 5.5 is for me now",
   ),
@@ -181,7 +183,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
   on(
     20260622,
     "- [herdr-drovr](https://github.com/AVGVSTVS96/herdr-drovr): move herdr panes and tabs around easily [[terminal]]",
-    "- pierre-local: Pierre's demo site for their diffs and trees library, made local. a CLI so agents can show me any changes I'd want to see",
+    "- Pierre's demo site for their diffs and trees library, made local. a CLI so agents can show me any changes I'd want to see",
   ),
   on(
     20260624,
@@ -239,6 +241,7 @@ export const y2026: ReadonlyArray<StarterFile> = [
   on(
     20260710,
     `- ${yt("Try to Rule Fairly and You'll Be Overthrown", "rStL7niR7gs")} [[CGP Grey]] [[systems of power]]`,
+    "\t- not new: it's Rules for Rulers under a new title. the ninth time I've watched it since 2018",
     "\t- love the conflict between self-governance and human nature",
     "\t- positions of power are inherently corrupting, and they also attract particularly corruptible people",
     `\t  id:: ${ids.corruptible}`,
@@ -264,8 +267,9 @@ export const y2026: ReadonlyArray<StarterFile> = [
     `- posted the systems of power thing on X ${post("2078257803190563147")} [[systems of power]]`,
     "\t- people argue about which system is the right one. every system is flawed. human self-governance is a hard, society-sized problem",
     `\t  id:: ${ids.everySystem}`,
+    `\t- made an HTML page with Fable comparing different systems ${post("2078257804461347176")}`,
     "\t- [Systems of Power](https://systemsofpower.vercel.app): 16 systems, scored on decisiveness, long-term capacity, capture resistance and error correction",
-    "\t- its thesis: judge a system by how fast it reverses its worst decisions",
+    "\t- the page's thesis: judge a system by how fast it reverses its worst decisions",
     "\t- ![Systems of Power](https://pbs.twimg.com/amplify_video_thumb/2078256750151839744/img/dmoGGwEkVp1bSt0b.jpg)",
     `\t- goes with the Spectacles video on Switzerland's seven presidents, ${dated(20260619)}`,
     `- my dream: sleep and wake up in 100 or 1,000 years. I desperately want to see what humanity's future looks like ${post("2078242354847494402")} ${ref(ids.thousandYears)}`,
@@ -354,5 +358,20 @@ export const y2026: ReadonlyArray<StarterFile> = [
     "\t- I used to 3D print a couple of years ago, when it was more of a hobby just to get a printer running. now I love that Bambu offers printers as tools",
     "\t- Bambu Studio is the part I'm tempted to fix. I'm stopping myself: too many software projects already",
     `- ${yt("I don't get democracy", "O7LvhSQ5Te4")}, Johnny Harris [[systems of power]]`,
+  ),
+  on(
+    20260408,
+    "- react-shiki's CSS, first try: everything in `@layer base`, classes renamed to `rs-*`, old names aliased for one release #decision #react-shiki",
+    `\t- fixing specificity ${pr("AVGVSTVS96/react-shiki", 141)}`,
+  ),
+  on(
+    20260525,
+    "- react-shiki's CSS, second try: all of it scoped under `.rs-root` #decision #react-shiki",
+    `\t- styles only touch react-shiki's own DOM ${pr("AVGVSTVS96/react-shiki", 165)}`,
+  ),
+  on(
+    20260811,
+    "- react-shiki: named engines, cached and lazy-loaded. `'javascript'` skips the WASM fetch #decision #react-shiki",
+    `\t- an inline engine object re-highlighted in a loop ${pr("AVGVSTVS96/react-shiki", 192)}`,
   ),
 ]

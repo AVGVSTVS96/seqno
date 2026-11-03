@@ -27,7 +27,7 @@ export const y2023: ReadonlyArray<StarterFile> = [
   on(
     20230219,
     `- ${yt("History Summarized: The Republic of Venice", "7cHK4xzAhzE")}, Overly Sarcastic Productions [[history]]`,
-    "\t- this is where my Venice interest starts",
+    "\t- not my first time: this video is in my watch history from 2019-08-28 on, eight times in all",
     `\t- ${thumb("History Summarized: The Republic of Venice", "7cHK4xzAhzE")}`,
   ),
   on(
@@ -203,7 +203,7 @@ export const y2023: ReadonlyArray<StarterFile> = [
     20230528,
     "- a GitHub Action copies FastGPT's chat.js and interface.js into FlaskGPT #decision #fastgpt",
     "\t- two backends, one frontend. a fix lands once and both apps get it",
-    `\t- reviewed my own PR: "This looks like it worked perfectly, I like this Github Action a lot!" ${pr("AVGVSTVS96/flaskgpt", 19)}`,
+    `\t- reviewed my own PR: "This looks like it worked perfectly, I like this Github Action a lot!" ${pr("AVGVSTVS96/flaskGPT", 19)}`,
   ),
   on(
     20230530,
@@ -213,7 +213,7 @@ export const y2023: ReadonlyArray<StarterFile> = [
     "\t- newer tech is cooler, but it's always best to start off with what's popular",
     "- autoscroll stops when you scroll up, comes back when you return to the bottom #decision #fastgpt",
     "\t- you can read an old answer while a new one streams in",
-    `\t- a \`useAutoScroll\` hook. ${pr("AVGVSTVS96/reactgpt", 6)}`,
+    `\t- a \`useAutoScroll\` hook. ${pr("AVGVSTVS96/reactGPT", 6)}`,
   ),
   on(
     20230601,

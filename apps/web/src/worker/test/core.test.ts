@@ -414,21 +414,36 @@ describe("the core worker on the real graph, vault and index", () => {
               "people",
               "philosophy",
               "projects/PATCH.md",
+              "projects/assistant-ui",
               "projects/astro-fouc-killer",
+              "projects/autofork",
               "projects/better-github-skill",
               "projects/brand-it",
               "projects/codexbar",
+              "projects/comet-kvm-plugin",
               "projects/commonplace",
+              "projects/detour",
               "projects/dotfiles",
+              "projects/enclave",
               "projects/fastgpt",
+              "projects/herdr-drovr",
               "projects/hex",
+              "projects/hex-keyboard",
+              "projects/hex-voice",
+              "projects/oomph",
               "projects/openleaf",
               "projects/persistence-scope.nvim",
+              "projects/pigeon",
               "projects/portfolio",
               "projects/prompt-picker",
               "projects/react-shiki",
+              "projects/retake",
+              "projects/said",
               "projects/seqno",
               "projects/seqno/numbers",
+              "projects/speed",
+              "projects/survay",
+              "projects/textpeek",
               "projects/vim-herdr-navigator",
               "prompting",
               "racing",
@@ -441,7 +456,7 @@ describe("the core worker on the real graph, vault and index", () => {
               "watching",
             ],
           )
-          assert.strictEqual(pages.filter((page) => page.journalDay !== null).length, 227)
+          assert.strictEqual(pages.filter((page) => page.journalDay !== null).length, 270)
           const blocks = (yield* Effect.forEach(pages, (page) =>
             core.GetPage({ pageId: page.id }),
           )).flatMap((tree) => tree.blocks)
@@ -449,7 +464,7 @@ describe("the core worker on the real graph, vault and index", () => {
           const refs = blocks.flatMap((block) =>
             [...block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/g)].map((match) => match[1] ?? ""),
           )
-          assert.strictEqual(refs.length, 23)
+          assert.strictEqual(refs.length, 29)
           assert.deepStrictEqual(
             refs.filter((ref) => !ids.has(ref)),
             [],
@@ -465,22 +480,14 @@ describe("the core worker on the real graph, vault and index", () => {
               ),
             )
           assert.deepStrictEqual((yield* texts("{{query (task NOW DOING)}}")).toSorted(), [
-            "DOING go through every hex instruction file for only/never [[projects/hex]]",
-            "NOW seqno lazy open, first step of hardening [[projects/seqno]]",
+            "DOING the hex keyboard on the iPhone Duo, in every pose [[projects/hex-keyboard]]",
+            "NOW seqno: whiteboards, flashcards and plugins, the Logseq features still to build [[projects/seqno]]",
           ])
-          assert.deepStrictEqual(
-            (yield* texts("{{query (and [[decision]] [[seqno]])}}"))
-              .filter((text) => text.includes("#decision"))
-              .map((text) => text.slice(0, text.indexOf(" #decision")))
-              .toSorted(),
-            [
-              "Loro is the source of truth, markdown is the mirror",
-              "SQLite is a cache: `journal_mode=memory`, `synchronous=off`",
-              "desktop = Electron",
-              "one writer per file in the synced folder. delete only after another device confirms the snapshot",
-              "queries: Logseq syntax first, Dataview second",
-            ],
+          const fall = yield* texts(
+            "{{query (and [[decision]] (between [[Sep 15th, 2026]] [[Nov 3rd, 2026]]))}}",
           )
+          assert.isAbove(fall.length, 80)
+          assert.include(fall.join("\n"), "this graph keeps real dates")
           const decided = (project: string) =>
             Effect.map(
               texts(`{{query (and [[decision]] [[${project}]])}}`),
@@ -489,25 +496,44 @@ describe("the core worker on the real graph, vault and index", () => {
           assert.deepStrictEqual(
             yield* Effect.forEach(
               [
-                "react-shiki",
-                "portfolio",
                 "seqno",
-                "openleaf",
+                "react-shiki",
+                "autofork",
                 "hex",
+                "hex-keyboard",
+                "portfolio",
+                "assistant-ui",
+                "openleaf",
                 "fastgpt",
+                "commonplace",
+                "pigeon",
                 "dotfiles",
                 "patch-md",
-                "commonplace",
+                "detour",
+                "enclave",
+                "said",
                 "better-github-skill",
                 "persistence-scope",
                 "vim-herdr-navigator",
+                "brand-it",
+                "retake",
+                "comet-kvm",
+                "hex-voice",
+                "oomph",
+                "speed",
+                "textpeek",
+                "survay",
+                "herdr-drovr",
                 "astro-fouc-killer",
                 "codexbar",
                 "prompt-picker",
               ],
               decided,
             ),
-            [16, 13, 5, 5, 4, 5, 3, 3, 2, 2, 2, 2, 1, 1, 1],
+            [
+              23, 20, 16, 15, 14, 13, 8, 5, 5, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
+              1, 1, 1, 1,
+            ],
           )
         }),
       ),

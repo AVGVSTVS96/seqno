@@ -23,6 +23,10 @@ export const ids = {
   offNix: "0199c3e2-41a7-7d10-9b2e-5f4c8a1d2e11",
   patchFormat: "0199c3e2-41a7-7d10-9b2e-5f4c8a1d2e12",
   antimemetics: "0199c3e2-41a7-7d10-9b2e-5f4c8a1d2e13",
+  intentContract: "0199c3e2-41a7-7d10-9b2e-5f4c8a1d2e15",
+  fakeWalls: "0199c3e2-41a7-7d10-9b2e-5f4c8a1d2e16",
+  oneRunFixes: "0199c3e2-41a7-7d10-9b2e-5f4c8a1d2e17",
+  livingDates: "0199c3e2-41a7-7d10-9b2e-5f4c8a1d2e18",
 } as const
 
 export const ref = (id: string) => `((${id}))`
@@ -67,3 +71,8 @@ export const post = (id: string, label = "post") =>
 
 export const pr = (repo: string, n: number) =>
   `[${repo}#${n}](https://github.com/${repo}/pull/${n})`
+
+export const tweet = (label: string, id: string) => `[${label}](https://x.com/i/status/${id})`
+
+export const commit = (repo: string, sha: string) =>
+  `[${repo.split("/")[1]}@${sha}](https://github.com/${repo}/commit/${sha})`

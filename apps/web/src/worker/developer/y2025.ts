@@ -29,7 +29,7 @@ export const y2025: ReadonlyArray<StarterFile> = [
     "\t- react-markdown 9 removed the `inline` prop. the plugin adds it back",
     "\t- it checks for a `pre` parent in the AST. more accurate than guessing from line endings, which `isInlineCode` does",
     `\t- ${pr("AVGVSTVS96/react-shiki", 12)}`,
-    "- [fpskeytrainer](https://github.com/AVGVSTVS96/fpskeytrainer): a random key trainer. I'd started playing FPS games for a bit, and wanted my thumbs used to the keys again on my new keyboard [[keyboards]]",
+    "- [fpsKeyTrainer](https://github.com/AVGVSTVS96/fpsKeyTrainer): a random key trainer. I'd started playing FPS games for a bit, and wanted my thumbs used to the keys again on my new keyboard [[keyboards]]",
   ),
   on(
     20250222,

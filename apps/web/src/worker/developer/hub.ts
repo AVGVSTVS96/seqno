@@ -1,6 +1,6 @@
 import type { StarterFile } from "../place.ts"
 import type { Days } from "./kit.ts"
-import { dated, ids, page, ref } from "./kit.ts"
+import { dated, ids, page, ref, yt } from "./kit.ts"
 
 const person = (name: string, ...lines: ReadonlyArray<string>) =>
   page(name, "type:: [[person]]", "", ...lines)
@@ -11,9 +11,11 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "- [[About this graph]]",
     "- [[review]]: open tasks, decisions, what's due",
     "- **projects**",
-    "\t- now: [[projects/seqno]] · [[projects/hex]] · [[projects/commonplace]] · [[projects/brand-it]]",
-    "\t- libraries and tools: [[projects/react-shiki]] · [[projects/prompt-picker]] · [[projects/better-github-skill]] · [[projects/PATCH.md]] · [[projects/vim-herdr-navigator]] · [[projects/persistence-scope.nvim]] · [[projects/codexbar]] · [[projects/astro-fouc-killer]]",
-    "\t- before: [[projects/portfolio]] · [[projects/fastgpt]] · [[projects/openleaf]] · [[projects/dotfiles]]",
+    "\t- now: [[projects/seqno]] · [[projects/hex]] · [[projects/autofork]] · [[projects/hex-keyboard]] · [[projects/detour]] · [[projects/commonplace]]",
+    "\t- around hex: [[projects/hex-voice]] · [[projects/enclave]] · [[projects/pigeon]] · [[projects/said]] · [[projects/oomph]] · [[projects/speed]]",
+    "\t- libraries and tools: [[projects/react-shiki]] · [[projects/brand-it]] · [[projects/prompt-picker]] · [[projects/better-github-skill]] · [[projects/PATCH.md]] · [[projects/vim-herdr-navigator]] · [[projects/herdr-drovr]] · [[projects/persistence-scope.nvim]] · [[projects/codexbar]] · [[projects/astro-fouc-killer]] · [[projects/textpeek]] · [[projects/comet-kvm-plugin]]",
+    "\t- apps: [[projects/retake]] · [[projects/survay]]",
+    "\t- before: [[projects/portfolio]] · [[projects/fastgpt]] · [[projects/openleaf]] · [[projects/dotfiles]] · [[projects/assistant-ui]]",
     "\t- every project page lists its decisions, and why",
     "- **topics**",
     "\t- code: [[CRDTs]] · [[motion design]] · [[dark mode]] · [[design]] · [[prompting]] · [[open source]] · [[terminal]] · [[notes apps]] · [[naming]]",
@@ -36,6 +38,8 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "\t- the videos and books that stuck, and the history, sci-fi and keyboards that have nothing to do with code",
     "- The part I like most: every project page lists the decisions that went into it.",
     "- The agents write the code, the docs and the commit messages. This is the place I write.",
+    "- X is where the burst of inspiration happens. Notes are where I reflect on it after.",
+    `- It keeps real dates, and I keep adding to it: ${ref(ids.livingDates)}`,
     "- Start with Contents in the right sidebar (`t r`), or the [[review]] page.",
     "- Bassim",
   ),
@@ -49,8 +53,8 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "\t- {{query (task NOW DOING TODO)}}",
     "- ## due in the next two weeks",
     "\t- {{query (and (task NOW DOING TODO) (task.deadline <= +14d))}}",
-    "- ## decisions, last two weeks",
-    "\t- {{query (and [[decision]] (between -14d today))}}",
+    "- ## decisions this fall",
+    `\t- {{query (and [[decision]] (between ${dated(20260915)} today))}}`,
     "- ## every decision",
     "  collapsed:: true",
     "\t- {{query [[decision]]}}",
@@ -164,11 +168,15 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "Theo Browne",
     "- T3 Code. found react-shiki early. [site](https://t3.gg)",
     "- his videos, most days since January 2024. a big part of why I'm the engineer I am",
-    `\t- ${d.date(-24)}`,
+    `\t- ${dated(20260915)}`,
     "- it was a combination of all of his videos at the time. it was such a massive point for me, and set me directly on the right track",
     `\t- three of them were huge. I can't even express how much I learned from them: Rethinking React (${dated(20240108)}), Don't Contribute to Open Source (${dated(20240124)}), Unexpected Lessons I've Learned After 15 Years Of Coding (${dated(20240902)})`,
     "- I think I would die happy if my work gave even one person the amount of value Theo's work has given me",
     `- he found react-shiki, and reached out: ${dated(20250222)}`,
+    `- the first of his videos in my history: ${dated(20230201)}`,
+    "- liked, 2026",
+    `\t- ${yt("Realistic advice about software dev right now", "88qc67oYDl4")} · ${yt("I miss when programmers were lazy.", "iN_9aH3VuzU")} · ${yt("I don't have time to build these things, will you?", "wEAb0x3wTRc")}`,
+    `\t- ${yt("Everything we knew about software has changed", "xUnRQ9vLXxo")} · ${yt("My AGENTS.md & SKILLS.md Breakdown (Don't copy them)", "e1snsuY4lTI")} · ${yt("Did AI Kill React Native?", "oPZLPUtmROo")}`,
   ),
   person(
     "Wes Billman",
@@ -203,6 +211,10 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
   person(
     "CGP Grey",
     "- explainers. Rules for Rulers, and the rest. [youtube](https://www.youtube.com/@CGPGrey)",
+    "- Rules for Rulers, about ten times: 2018-07-15, 2018-12-07, 2018-12-10, 2019-02-28, 2019-06-13, 2020-01-16, 2021-04-18, 2022-02-16, then as Try to Rule Fairly and You'll Be Overthrown",
+    `\t- ${dated(20260710)} · ${dated(20260713)}`,
+    `\t- with the Cortex discussion (${yt("Rules for Rulers Discussion", "ILvD7zVN2jo")}, 2021) and the sequel on succession (${yt("Every Ruler Makes the Same Mistake When They Die", "ig_qpNfXHIU")}, 2022)`,
+    "- on institutions, 2018 to 2020: The Pope Is a King With Absolute Power, The Royal Family Runs on Rules You've Never Heard Of, Your State Could Give Your Vote to the Other Side [[systems of power]]",
   ),
   person(
     "Brian Klaas",

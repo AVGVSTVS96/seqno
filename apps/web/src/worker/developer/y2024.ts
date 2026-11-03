@@ -67,7 +67,7 @@ export const y2024: ReadonlyArray<StarterFile> = [
     `\t- ${pr("AVGVSTVS96/astroSite", 100)}`,
   ),
   on(20240331, "- command menu for the site, ⌘K [[projects/portfolio]]"),
-  on(20240405, "- practice repo for stacked PRs with Graphite. 14 small PRs in three days"),
+  on(20240405, "- learning stacked PRs with Graphite. 14 small PRs in three days"),
   on(
     20240406,
     "- split keyboard binge [[keyboards]]",
@@ -91,7 +91,7 @@ export const y2024: ReadonlyArray<StarterFile> = [
   on(
     20240420,
     "- PR: a regex so Tailwind IntelliSense works inside TS strings and arrays [[open source]]",
-    `\t- ${pr("paolotiu/tailwind-intellisense-regex-list", 29)}`,
+    `\t- the first try closed, the second merged the next day: ${pr("paolotiu/tailwind-intellisense-regex-list", 30)}`,
     "\t- wrote it up as a blog post on the site two days later",
   ),
   on(
@@ -198,7 +198,7 @@ export const y2024: ReadonlyArray<StarterFile> = [
   ),
   on(
     20240924,
-    "- [nixos-wsl-starter](https://github.com/AVGVSTVS96/nixos-wsl-starter): NixOS on WSL, so I can develop on Windows [[projects/dotfiles]]",
+    "- [nixos-wsl](https://github.com/AVGVSTVS96/nixos-wsl): NixOS on WSL, so I can develop on Windows [[projects/dotfiles]]",
     "\t- the setup I used on my work machine, learning software development in my free time while I worked as an IT/AV technician at the New York City Bar Association [[learning to code]]",
   ),
   on(
