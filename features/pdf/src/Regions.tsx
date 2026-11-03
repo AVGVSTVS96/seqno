@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { createPortal } from "react-dom"
 import type { DragEvent, MouseEvent, PointerEvent } from "react"
 import type { Highlight } from "./highlights.ts"
@@ -20,19 +21,19 @@ const TextRegion = ({ session, highlight }: { session: Session; highlight: Highl
   }
   return (
     <div
-      className="seqno-pdf-text-region"
-      id={`seqno-pdf-highlight-${highlight.id}`}
+      {...logseq("seqno-pdf-text-region", highlight.id)}
+      data-highlight-id={highlight.id}
       onClick={open}
       onContextMenu={open}
     >
       {highlight.position.rects.map((rect, index) => (
         <div
           key={index}
-          className="seqno-pdf-text-region-item"
+          {...logseq("seqno-pdf-text-region-item", highlight.properties.color)}
           style={px(scaledToViewport(rect, viewport))}
           draggable
           onDragStart={drag}
-          data-color={highlight.properties.color}
+          data-highlight-color={highlight.properties.color}
         />
       ))}
     </div>
@@ -106,10 +107,10 @@ const AreaRegion = ({
   }
   return (
     <div
-      className="seqno-pdf-area-region"
-      id={`seqno-pdf-highlight-${highlight.id}`}
+      {...logseq("seqno-pdf-area-region", highlight.id, highlight.properties.color)}
+      data-highlight-id={highlight.id}
+      data-highlight-color={highlight.properties.color}
       style={px(box)}
-      data-color={highlight.properties.color}
       draggable
       onDragStart={(event) => {
         if (session.snapshot().resizing !== null) {
@@ -139,7 +140,7 @@ export const Regions = ({ session, snapshot }: { session: Session; snapshot: Sna
   const byPage = Map.groupBy(snapshot.highlights, (highlight) => highlight.page)
   return [...snapshot.layers].map(([page, layer]) =>
     createPortal(
-      <div className="seqno-pdf-regions" data-scale={snapshot.scale}>
+      <div {...logseq("seqno-pdf-regions")} data-scale={snapshot.scale}>
         {(byPage.get(page) ?? []).map((highlight) =>
           highlight.content.image === undefined ? (
             <TextRegion key={highlight.id} session={session} highlight={highlight} />

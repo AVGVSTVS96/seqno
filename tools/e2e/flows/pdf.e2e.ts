@@ -71,17 +71,29 @@ test("a PDF link opens Logseq's viewer on the left, at the page and with the hig
   page,
 }) => {
   await openPaper(page)
-  await expect(viewer(page)).toHaveAttribute("id", "seqno-pdf-pane-1700000000000_0")
+  await expect(viewer(page)).toHaveAttribute("id", "pdf-layout-container_1700000000000_0")
   await expect(page.locator("body")).toHaveClass(/seqno-pdf-open/)
+  await expect(page.locator("body")).toHaveClass(/is-pdf-active/)
+  await expect(
+    page.locator(".extensions__pdf-container .extensions__pdf-viewer-cnt .extensions__pdf-viewer"),
+  ).toHaveCount(1)
+  await expect(page.locator(".extensions__pdf-toolbar .buttons")).toHaveCount(1)
+  expect(
+    await page.evaluate(() => {
+      const active: unknown = Reflect.get(window, "lsActivePdfViewer")
+      const element: unknown = Reflect.get(Object(active), "viewer")
+      return element instanceof HTMLElement && element.ownerDocument === document
+    }),
+  ).toBe(true)
   await expect(viewer(page).getByRole("spinbutton", { name: "Page number" })).toHaveValue("2")
   await expect(viewer(page).locator(".seqno-pdf-pager small")).toHaveText("/ 2")
-  await expect(pdfPage(page, 2).locator(`#seqno-pdf-highlight-${purple}`)).toHaveAttribute(
+  await expect(pdfPage(page, 2).locator(`[data-highlight-id="${purple}"]`)).toHaveAttribute(
     "data-color",
     "purple",
   )
   await pdfPage(page, 1).scrollIntoViewIfNeeded()
   await expect(
-    pdfPage(page, 1).locator(`#seqno-pdf-highlight-${green} .seqno-pdf-text-region-item`),
+    pdfPage(page, 1).locator(`[data-highlight-id="${green}"] .seqno-pdf-text-region-item`),
   ).toHaveAttribute("data-color", "green")
   const pane = await viewer(page).boundingBox()
   const main = await page.getByRole("main").boundingBox()
@@ -90,6 +102,7 @@ test("a PDF link opens Logseq's viewer on the left, at the page and with the hig
   await viewer(page).getByRole("button", { name: "Close" }).click()
   await expect(viewer(page)).toHaveCount(0)
   await expect(page.locator("body")).not.toHaveClass(/seqno-pdf-open/)
+  expect(await page.evaluate(() => Reflect.has(window, "lsActivePdfViewer"))).toBe(false)
 })
 
 test("picking a color for selected text makes a highlight, its annotation block and the .edn, and copies its ref", async ({
@@ -164,7 +177,7 @@ test("a saved highlight's menu copies its ref and text, recolors it, links to it
   await openPaper(page)
   await pdfPage(page, 1).scrollIntoViewIfNeeded()
   const region = pdfPage(page, 1).locator(
-    `#seqno-pdf-highlight-${green} .seqno-pdf-text-region-item`,
+    `[data-highlight-id="${green}"] .seqno-pdf-text-region-item`,
   )
   await region.click()
   await expect(menu(page).locator("li.seqno-pdf-item")).toHaveText([
@@ -253,7 +266,9 @@ test("the P<n> prefix and a ((ref)) to an annotation open the viewer at the high
   const prefixes = hlsPage(page).locator(".seqno-annotation-prefix strong")
   await expect(prefixes).toHaveText(["P1", "P2"])
   await prefixes.first().dispatchEvent("mousedown", { button: 0 })
-  await expect(pdfPage(page, 1).locator(`#seqno-pdf-highlight-${green}`)).toHaveClass(/is-flashing/)
+  await expect(pdfPage(page, 1).locator(`[data-highlight-id="${green}"]`)).toHaveClass(
+    /seqno-pdf-flash/,
+  )
   await expect(viewer(page).getByRole("spinbutton", { name: "Page number" })).toHaveValue("1")
   await viewer(page).getByRole("button", { name: "Close" }).click()
   await open(page, "Reading")
@@ -266,8 +281,8 @@ test("the P<n> prefix and a ((ref)) to an annotation open the viewer at the high
   await expect(ref).toHaveAttribute("data-hl-type", "area")
   await expect(ref.locator(".seqno-annotation-prefix strong")).toHaveText("P2")
   await ref.locator(".seqno-annotation-prefix strong").dispatchEvent("mousedown", { button: 0 })
-  await expect(pdfPage(page, 2).locator(`#seqno-pdf-highlight-${purple}`)).toHaveClass(
-    /is-flashing/,
+  await expect(pdfPage(page, 2).locator(`[data-highlight-id="${purple}"]`)).toHaveClass(
+    /seqno-pdf-flash/,
   )
 })
 

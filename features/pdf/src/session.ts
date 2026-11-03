@@ -17,6 +17,7 @@ import type { Navigate } from "@seqno/outliner"
 import {
   areaImagePath,
   boundingRect,
+  classesOf,
   fixSelectionText,
   hlsPageTitle,
   optimizeClientRects,
@@ -248,13 +249,17 @@ export class Session {
     window.addEventListener("resize", onResize)
     document.addEventListener("keydown", onKey)
     container.addEventListener("copy", onCopy)
-    document.body.classList.add("seqno-pdf-open")
+    document.body.classList.add(...classesOf("seqno-pdf-open"))
+    Reflect.set(window, "lsActivePdfViewer", viewer)
     return () => {
       stopRef()
       window.removeEventListener("resize", onResize)
       document.removeEventListener("keydown", onKey)
       container.removeEventListener("copy", onCopy)
-      document.body.classList.remove("seqno-pdf-open")
+      document.body.classList.remove(...classesOf("seqno-pdf-open"))
+      if (Reflect.get(window, "lsActivePdfViewer") === viewer) {
+        Reflect.deleteProperty(window, "lsActivePdfViewer")
+      }
       this.closeMenu()
       this.flush()
       if (this.resizeTimer !== null) clearTimeout(this.resizeTimer)
@@ -275,7 +280,7 @@ export class Session {
     const existing = host.querySelector(":scope > .seqno-pdf-highlights-layer")
     const layer = existing instanceof HTMLElement ? existing : document.createElement("div")
     if (existing === null) {
-      layer.className = "seqno-pdf-highlights-layer"
+      layer.className = classesOf("seqno-pdf-highlights-layer").join(" ")
       host.append(layer)
     }
     if (this.state.layers.get(page) === layer) return
@@ -319,12 +324,11 @@ export class Session {
       ignoreDestinationZoom: true,
     })
     setTimeout(() => {
-      const region = this.container?.ownerDocument.getElementById(
-        `seqno-pdf-highlight-${highlight.id}`,
-      )
+      const region = this.container?.querySelector(`[data-highlight-id="${highlight.id}"]`)
       if (region === null || region === undefined) return
-      region.classList.add("is-flashing")
-      setTimeout(() => region.classList.remove("is-flashing"), 1200)
+      const flash = classesOf("seqno-pdf-flash")
+      region.classList.add(...flash)
+      setTimeout(() => region.classList.remove(...flash), 1200)
     }, 200)
   }
 
@@ -623,14 +627,14 @@ export class Session {
       }
     }
     const viewerElement = this.viewer?.viewer
-    viewerElement?.classList.add("is-picking-area")
+    viewerElement?.classList.add(...classesOf("seqno-pdf-picking"))
     const move = (moved: MouseEvent) =>
       this.set({
         area: inContainer(boxBetween(start, clamp({ x: moved.clientX, y: moved.clientY }))),
       })
     const end = (ended: MouseEvent) => {
       container.removeEventListener("mousemove", move)
-      viewerElement?.classList.remove("is-picking-area")
+      viewerElement?.classList.remove(...classesOf("seqno-pdf-picking"))
       this.set({ area: null })
       const box = boxBetween(start, clamp({ x: ended.clientX, y: ended.clientY }))
       const pageBox = pageElement.getBoundingClientRect()

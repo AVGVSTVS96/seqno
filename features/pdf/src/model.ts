@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { assetPageName, cljsStringHash, hlsPagePrefix } from "@seqno/syntax"
 import type { Highlight } from "./highlights.ts"
 
@@ -223,3 +224,12 @@ export const annotationProps = (highlight: Highlight): Readonly<Record<string, s
     ? {}
     : { "hl-type": "area", "hl-stamp": String(highlight.content.image) }),
 })
+
+type ToggledPart =
+  | "seqno-pdf-open"
+  | "seqno-pdf-resizing"
+  | "seqno-pdf-picking"
+  | "seqno-pdf-flash"
+  | "seqno-pdf-highlights-layer"
+
+export const classesOf = (part: ToggledPart) => logseq(part).className.split(" ")

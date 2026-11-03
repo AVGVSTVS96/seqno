@@ -17,12 +17,7 @@ import {
   type LinkTarget,
   type Span,
 } from "@seqno/syntax"
-import {
-  AnnotationPrefix,
-  annotationAttributes,
-  isAnnotation,
-  isAreaAnnotation,
-} from "./Annotation.tsx"
+import { AnnotationPrefix, annotationMarks, isAnnotation, isAreaAnnotation } from "./Annotation.tsx"
 import { AssetFileLink, AssetMedia } from "./Asset.tsx"
 import { copyImage, ImageViewer } from "./ImageViewer.tsx"
 import { blockRefAtom, pageTreeAtom } from "./core.ts"
@@ -66,11 +61,7 @@ const AnnotationRef = ({
   const title = blank ? [] : (contentOf(block.text, dialect).title ?? [])
   const prefix = <AnnotationPrefix block={block} />
   return (
-    <span
-      className="seqno-annotation-ref"
-      data-hl-type={block.props["hl-type"]}
-      {...annotationAttributes(block.props)}
-    >
+    <span {...logseq("seqno-annotation-ref", { area })} {...annotationMarks(block.props)}>
       <span
         className="seqno-blockref"
         onMouseDown={(event) => {

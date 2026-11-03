@@ -4,6 +4,7 @@ import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useContext } from "react"
+import { logseq } from "@seqno/dom"
 import type { PageId } from "@seqno/domain"
 import {
   AssetActions,
@@ -54,12 +55,13 @@ const problemOf = (cause: Cause.Cause<unknown>) => {
   return error instanceof Error ? error.message : String(error)
 }
 
-const themeInner = (leftOpen: boolean, rightOpen: boolean, wide: boolean) =>
+const themeInner = (leftOpen: boolean, rightOpen: boolean, wide: boolean, colored: boolean) =>
   [
     "theme-inner",
     leftOpen ? "ls-left-sidebar-open" : null,
     rightOpen ? "ls-right-sidebar-open" : null,
     wide ? "ls-wide-mode" : null,
+    colored ? logseq("seqno-hl-colored").className : null,
   ]
     .filter((name) => name !== null)
     .join(" ")
@@ -95,10 +97,10 @@ const Layout = ({
       <MacroSlot value={pluginMacros}>
         <BoardSlot value={boards}>
           <div className="theme-container">
-            <div className={themeInner(leftOpen, rightOpen, wide)}>
+            <div className={themeInner(leftOpen, rightOpen, wide, colored)}>
               <div
                 id="app-container"
-                className={colored ? "app seqno-hl-colored" : "app"}
+                className="app"
                 data-left-open={leftOpen}
                 data-right-open={rightOpen}
                 data-wide={wide}

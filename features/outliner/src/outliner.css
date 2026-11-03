@@ -1351,7 +1351,7 @@
   margin: 4px 0;
 }
 
-[data-type="annotation"] .seqno-annotation-prefix {
+[data-annotation] .seqno-annotation-prefix {
   display: inline-flex;
   align-items: center;
   padding-right: 4px;
@@ -1359,58 +1359,58 @@
   cursor: alias;
 }
 
-[data-type="annotation"] .seqno-annotation-prefix::before {
+[data-annotation] .seqno-annotation-prefix::before {
   content: "📌 ";
 }
 
-[data-type="annotation"] .seqno-annotation-prefix .seqno-annotation-page-number {
+[data-annotation] .seqno-annotation-prefix .seqno-annotation-page-number {
   font-weight: 600;
 }
 
-[data-type="annotation"] .seqno-annotation-prefix .seqno-annotation-blank {
+[data-annotation] .seqno-annotation-prefix .seqno-annotation-blank {
   cursor: text;
 }
 
-[data-type="annotation"] [data-hl-type="area"] .seqno-annotation-prefix,
-.seqno-annotation-ref[data-hl-type="area"] .seqno-annotation-prefix {
+[data-annotation="area"] .seqno-annotation-prefix,
+.seqno-annotation-ref[data-annotation="area"] .seqno-annotation-prefix {
   display: block;
   padding-top: 5px;
 }
 
-[data-type="annotation"] [data-hl-type="area"] .seqno-annotation-page,
-.seqno-annotation-ref[data-hl-type="area"] .seqno-annotation-page {
+[data-annotation="area"] .seqno-annotation-page,
+.seqno-annotation-ref[data-annotation="area"] .seqno-annotation-page {
   display: inline-flex;
   justify-content: space-between;
   width: 85%;
 }
 
-[data-type="annotation"] [data-hl-type="area"] .seqno-annotation-page > label,
-.seqno-annotation-ref[data-hl-type="area"] .seqno-annotation-page > label {
+[data-annotation="area"] .seqno-annotation-page > label,
+.seqno-annotation-ref[data-annotation="area"] .seqno-annotation-page > label {
   flex: 1;
   cursor: text;
 }
 
-.seqno-hl-colored [data-hl-color="green"] .seqno-annotation-prefix::before {
+.seqno-hl-colored [data-highlight-color="green"] .seqno-annotation-prefix::before {
   content: "🟢 ";
 }
 
-.seqno-hl-colored [data-hl-color="purple"] .seqno-annotation-prefix::before {
+.seqno-hl-colored [data-highlight-color="purple"] .seqno-annotation-prefix::before {
   content: "🟣 ";
 }
 
-.seqno-hl-colored [data-hl-color="blue"] .seqno-annotation-prefix::before {
+.seqno-hl-colored [data-highlight-color="blue"] .seqno-annotation-prefix::before {
   content: "🔵 ";
 }
 
-.seqno-hl-colored [data-hl-color="yellow"] .seqno-annotation-prefix::before {
+.seqno-hl-colored [data-highlight-color="yellow"] .seqno-annotation-prefix::before {
   content: "🟡 ";
 }
 
-.seqno-hl-colored [data-hl-color="red"] .seqno-annotation-prefix::before {
+.seqno-hl-colored [data-highlight-color="red"] .seqno-annotation-prefix::before {
   content: "🔴 ";
 }
 
-[data-type="annotation"] .seqno-annotation-area {
+[data-annotation] .seqno-annotation-area {
   position: relative;
   display: inline-block;
   margin-top: 4px;
@@ -1420,7 +1420,7 @@
   cursor: text;
 }
 
-[data-type="annotation"] .seqno-annotation-area .seqno-annotation-area-actions {
+[data-annotation] .seqno-annotation-area .seqno-annotation-area-actions {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -1429,11 +1429,11 @@
   transition: opacity var(--duration-slow, 0.2s) ease;
 }
 
-[data-type="annotation"] .seqno-annotation-area:hover .seqno-annotation-area-actions {
+[data-annotation] .seqno-annotation-area:hover .seqno-annotation-area-actions {
   opacity: 1;
 }
 
-[data-type="annotation"] .seqno-annotation-area .seqno-annotation-area-button {
+[data-annotation] .seqno-annotation-area .seqno-annotation-area-button {
   display: flex;
   padding: 2px 4px;
   border: none;
@@ -1442,7 +1442,7 @@
   background: var(--bg, white);
 }
 
-[data-type="annotation"] .seqno-annotation-area img {
+[data-annotation] .seqno-annotation-area img {
   display: block;
   max-width: 100%;
   max-height: 420px;
@@ -1451,15 +1451,15 @@
   cursor: alias;
 }
 
-.seqno-annotation-ref[data-hl-type="area"] {
+.seqno-annotation-ref[data-annotation="area"] {
   display: block;
 }
 
-.seqno-annotation-ref[data-hl-type="area"] .seqno-blockref {
+.seqno-annotation-ref[data-annotation="area"] .seqno-blockref {
   display: block;
   border: none;
 }
 
-.seqno-annotation-ref[data-hl-type="area"] .seqno-annotation-prefix > .seqno-annotation-area {
+.seqno-annotation-ref[data-annotation="area"] .seqno-annotation-prefix > .seqno-annotation-area {
   cursor: alias;
 }

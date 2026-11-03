@@ -1,4 +1,5 @@
 import { RegistryContext, useAtom } from "@effect/atom-react"
+import { logseq } from "@seqno/dom"
 import {
   IconAdjustmentsHorizontal,
   IconArrowBack,
@@ -55,7 +56,8 @@ const Button = ({
   <a
     role="button"
     tabIndex={0}
-    className={active === true ? "seqno-pdf-button is-active" : "seqno-pdf-button"}
+    {...logseq("seqno-pdf-button", active === true)}
+    data-active={active === true}
     title={title}
     onClick={(event) => {
       event.stopPropagation()
@@ -75,7 +77,7 @@ const Toggle = ({ on, onChange, label }: { on: boolean; onChange: () => void; la
     role="switch"
     aria-checked={on}
     aria-label={label}
-    className="seqno-pdf-switch"
+    {...logseq("seqno-pdf-switch", on)}
     onClick={onChange}
   />
 )
@@ -121,20 +123,21 @@ const Metadata = ({
 }) => (
   <dialog
     className="seqno-pdf-dialog"
-    id="seqno-pdf-docinfo"
     ref={(dialog) => {
       if (dialog !== null && !dialog.open) dialog.showModal()
     }}
     onClose={onClose}
   >
-    <div className="seqno-pdf-inner-text">
-      {info.map(([key, value]) => (
-        <p key={key}>
-          <strong>{`${key}::`}</strong>
-          {"  "}
-          <i>{prValue(value)}</i>
-        </p>
-      ))}
+    <div {...logseq("seqno-pdf-docinfo")}>
+      <div {...logseq("seqno-pdf-inner-text")}>
+        {info.map(([key, value]) => (
+          <p key={key}>
+            <strong>{`${key}::`}</strong>
+            {"  "}
+            <i>{prValue(value)}</i>
+          </p>
+        ))}
+      </div>
     </div>
     <div className="seqno-pdf-actions">
       <button
@@ -164,19 +167,20 @@ const Settings = ({ session, onClose }: { session: Session; onClose: () => void 
       .then((meta) => setInfo(Object.entries(meta.info)))
       .catch(() => undefined)
   return (
-    <div className="seqno-pdf-settings seqno-pdf-overlay is-visible">
+    <div {...logseq("seqno-pdf-settings")} data-visible>
       <div
-        className="seqno-pdf-settings-inner seqno-pdf-popup"
+        {...logseq("seqno-pdf-settings-inner")}
         tabIndex={-1}
         ref={(box) => closeOnOutside(box, onClose, "More settings")}
         onKeyUp={escapeCloses(onClose)}
       >
-        <div className="seqno-pdf-settings-item seqno-pdf-theme-picker">
+        <div {...logseq("seqno-pdf-theme-picker")}>
           {themes.map((it) => (
             <button
               type="button"
               key={it}
-              data-theme={it}
+              {...logseq("seqno-pdf-theme", it)}
+              data-viewer-theme={it}
               aria-label={it}
               onClick={() => setTheme(it)}
             >
@@ -184,7 +188,7 @@ const Settings = ({ session, onClose }: { session: Session; onClose: () => void 
             </button>
           ))}
         </div>
-        <div className="seqno-pdf-settings-item seqno-pdf-toggle">
+        <div {...logseq("seqno-pdf-toggle", false)}>
           <label>Dashed style for area highlight</label>
           <Toggle
             on={dashed}
@@ -192,7 +196,7 @@ const Settings = ({ session, onClose }: { session: Session; onClose: () => void 
             label="Dashed style for area highlight"
           />
         </div>
-        <div className="seqno-pdf-settings-item seqno-pdf-toggle is-between">
+        <div {...logseq("seqno-pdf-toggle", true)} data-between>
           <label>Colored label for highlight block</label>
           <Toggle
             on={colored}
@@ -200,7 +204,7 @@ const Settings = ({ session, onClose }: { session: Session; onClose: () => void 
             label="Colored label for highlight block"
           />
         </div>
-        <div className="seqno-pdf-settings-item seqno-pdf-toggle is-between">
+        <div {...logseq("seqno-pdf-toggle", true)} data-between>
           <label>Auto open context menu for selections</label>
           <Toggle
             on={autoOpen}
@@ -208,8 +212,12 @@ const Settings = ({ session, onClose }: { session: Session; onClose: () => void 
             label="Auto open context menu for selections"
           />
         </div>
-        <div className="seqno-pdf-settings-item seqno-pdf-toggle">
-          <a className="is-info" title="Document metadata" onClick={showMetadata}>
+        <div {...logseq("seqno-pdf-toggle", false)}>
+          <a
+            {...logseq("seqno-pdf-metadata-link")}
+            title="Document metadata"
+            onClick={showMetadata}
+          >
             Document metadata
             <IconInfoCircle size={16} aria-hidden />
           </a>
@@ -239,16 +247,13 @@ const OutlineItem = ({
 }) => {
   const [expanded, setExpanded] = useState(false)
   const children = node.items.length > 0
-  const classes = [
-    "seqno-pdf-outline-item",
-    children ? "is-parent" : "",
-    expanded ? "is-expand" : "",
-  ]
-    .filter((name) => name !== "")
-    .join(" ")
   return (
-    <div className={classes}>
-      <div className="seqno-pdf-inner">
+    <div
+      {...logseq("seqno-pdf-outline-item", { parent: children, expanded })}
+      data-parent={children}
+      data-expanded={expanded}
+    >
+      <div {...logseq("seqno-pdf-inner")}>
         <a
           href="#"
           style={top ? { fontWeight: "bold" } : undefined}
@@ -264,14 +269,14 @@ const OutlineItem = ({
             }
           }}
         >
-          <i className="seqno-pdf-arrow">
+          <i {...logseq("seqno-pdf-arrow")}>
             <IconChevronRight size={16} aria-hidden />
           </i>
           <span>{node.title}</span>
         </a>
       </div>
       {children && expanded ? (
-        <div className="seqno-pdf-children">
+        <div {...logseq("seqno-pdf-children")}>
           {node.items.map((item, index) => (
             <OutlineItem key={index} session={session} node={item} top={false} />
           ))}
@@ -301,11 +306,8 @@ const HighlightsList = ({
   return sorted.map((highlight) => (
     <div
       key={highlight.id}
-      className={
-        active === highlight.id
-          ? "seqno-pdf-highlights-item is-active"
-          : "seqno-pdf-highlights-item"
-      }
+      {...logseq("seqno-pdf-highlights-item", active === highlight.id)}
+      data-active={active === highlight.id}
       onClick={() => {
         session.scrollTo(highlight)
         setActive(highlight.id)
@@ -314,7 +316,10 @@ const HighlightsList = ({
     >
       <h6>
         <span>
-          <small data-color={highlight.properties.color} />
+          <small
+            {...logseq("seqno-pdf-highlights-color", highlight.properties.color)}
+            data-highlight-color={highlight.properties.color}
+          />
           <strong>Page {highlight.page}</strong>
         </span>
         <button
@@ -329,9 +334,9 @@ const HighlightsList = ({
         </button>
       </h6>
       {highlight.content.image === undefined ? (
-        <p className="seqno-pdf-text-wrap">{highlight.content.text}</p>
+        <p {...logseq("seqno-pdf-text-wrap")}>{highlight.content.text}</p>
       ) : (
-        <p className="seqno-pdf-area-wrap">
+        <p {...logseq("seqno-pdf-area-wrap")}>
           <img src={image(highlight)} alt="" />
         </p>
       )}
@@ -381,38 +386,34 @@ const Outline = ({
     setTab("contents")
   }
   return (
-    <div
-      className={
-        visible
-          ? "seqno-pdf-outline-wrap seqno-pdf-overlay is-visible"
-          : "seqno-pdf-outline-wrap seqno-pdf-overlay"
-      }
-    >
+    <div {...logseq("seqno-pdf-outline-wrap", visible)} data-visible={visible}>
       <div
-        className="seqno-pdf-outline seqno-pdf-popup"
+        {...logseq("seqno-pdf-outline")}
         tabIndex={-1}
         ref={(box) => (visible ? closeOnOutside(box, close, "Outline") : undefined)}
         onKeyUp={escapeCloses(close)}
       >
-        <div className="seqno-pdf-outline-tabs">
-          <div className="seqno-pdf-inner">
+        <div {...logseq("seqno-pdf-outline-tabs")}>
+          <div {...logseq("seqno-pdf-inner")}>
             <button
               type="button"
-              className={tab === "contents" ? "is-active" : undefined}
+              {...logseq("seqno-pdf-outline-tab", tab === "contents")}
+              data-active={tab === "contents"}
               onClick={() => setTab("contents")}
             >
               Contents
             </button>
             <button
               type="button"
-              className={tab === "highlights" ? "is-active" : undefined}
+              {...logseq("seqno-pdf-outline-tab", tab === "highlights")}
+              data-active={tab === "highlights"}
               onClick={() => setTab("highlights")}
             >
               Highlights
             </button>
           </div>
         </div>
-        <div className="seqno-pdf-outline-panels">
+        <div {...logseq("seqno-pdf-outline-panels")}>
           {tab === "contents" ? (
             outline !== null && outline.length > 0 ? (
               <section>
@@ -421,7 +422,7 @@ const Outline = ({
                 ))}
               </section>
             ) : (
-              <section className="is-empty">No outlines</section>
+              <section {...logseq("seqno-pdf-outline-empty")}>No outlines</section>
             )
           ) : (
             <HighlightsList session={session} snapshot={snapshot} navigate={navigate} />
@@ -445,9 +446,9 @@ const Finder = ({ session, snapshot }: { session: Session; snapshot: Snapshot })
     session.find(input, caseSensitive, previous, type)
   const status = snapshot.find.status
   return (
-    <div className="seqno-pdf-finder-wrap seqno-pdf-overlay is-visible">
+    <div {...logseq("seqno-pdf-finder-wrap")} data-visible>
       <div
-        className="seqno-pdf-finder seqno-pdf-popup"
+        {...logseq("seqno-pdf-finder")}
         tabIndex={-1}
         ref={(box) => {
           if (box === null) return
@@ -463,8 +464,8 @@ const Finder = ({ session, snapshot }: { session: Session; snapshot: Snapshot })
           return () => document.removeEventListener("click", listener)
         }}
       >
-        <div className="seqno-pdf-find-input-inner">
-          <div className="seqno-pdf-find-input">
+        <div {...logseq("seqno-pdf-find-input-inner")}>
+          <div {...logseq("seqno-pdf-find-input")}>
             <input
               placeholder="search"
               type="text"
@@ -489,14 +490,15 @@ const Finder = ({ session, snapshot }: { session: Session; snapshot: Snapshot })
               }}
             />
             {input.trim() === "" ? null : (
-              <button type="button" className="seqno-pdf-enter-icon" title="Enter to search">
+              <button type="button" {...logseq("seqno-pdf-enter-icon")} title="Enter to search">
                 <IconArrowBack size={14} aria-hidden />
               </button>
             )}
           </div>
           <button
             type="button"
-            className={caseSensitive ? "is-active" : undefined}
+            {...logseq("seqno-pdf-case", caseSensitive)}
+            data-active={caseSensitive}
             aria-label="Match case"
             onClick={() => {
               setCaseSensitive(!caseSensitive)
@@ -515,10 +517,10 @@ const Finder = ({ session, snapshot }: { session: Session; snapshot: Snapshot })
             <IconX size={16} aria-hidden />
           </button>
         </div>
-        <div className="seqno-pdf-find-result">
+        <div {...logseq("seqno-pdf-find-result")}>
           {entered && input.trim() !== "" && status !== null ? (
             status === "not-found" ? (
-              <div className="is-not-found">Not found.</div>
+              <div {...logseq("seqno-pdf-not-found")}>Not found.</div>
             ) : (
               <div>
                 {snapshot.find.current} of {snapshot.find.total}
@@ -536,14 +538,15 @@ const Pager = ({ session, snapshot }: { session: Session; snapshot: Snapshot }) 
   const [typed, setTyped] = useState<{ page: number; value: string } | null>(null)
   const shown = typed !== null && typed.page === snapshot.page ? typed.value : String(snapshot.page)
   return (
-    <div className="seqno-pdf-pager">
-      <span className="seqno-pdf-page-number">
+    <div {...logseq("seqno-pdf-pager")}>
+      <span {...logseq("seqno-pdf-page-number")}>
         <input
           type="number"
           min={1}
           max={snapshot.pages}
           aria-label="Page number"
-          className={Number(shown) > 999 ? "is-long" : undefined}
+          {...logseq("seqno-pdf-page-input", Number(shown) > 999)}
+          data-long={Number(shown) > 999}
           value={shown}
           onMouseEnter={(event) => event.currentTarget.select()}
           onChange={(event) => setTyped({ page: snapshot.page, value: event.currentTarget.value })}
@@ -557,7 +560,7 @@ const Pager = ({ session, snapshot }: { session: Session; snapshot: Snapshot }) 
         />
         <small>/ {snapshot.pages}</small>
       </span>
-      <span className="seqno-pdf-page-buttons">
+      <span {...logseq("seqno-pdf-page-buttons")}>
         <Button onClick={() => session.previousPage()} title="Previous page">
           <IconArrowNarrowUp size={16} aria-hidden />
         </Button>
@@ -594,10 +597,10 @@ export const Toolbar = ({
     setOutline(!outline)
   }
   return (
-    <div className="seqno-pdf-header">
-      <div className="seqno-pdf-toolbar">
-        <div className="seqno-pdf-inner">
-          <div className="seqno-pdf-right seqno-pdf-buttons">
+    <div {...logseq("seqno-pdf-header")}>
+      <div {...logseq("seqno-pdf-toolbar")}>
+        <div {...logseq("seqno-pdf-inner")}>
+          <div {...logseq("seqno-pdf-buttons")}>
             <Button title="More settings" onClick={() => setSettings(!settings)}>
               <IconAdjustmentsHorizontal size={18} aria-hidden />
             </Button>

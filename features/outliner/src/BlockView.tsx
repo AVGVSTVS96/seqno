@@ -1,5 +1,6 @@
 import { use, useState, type MouseEvent, type ReactNode } from "react"
 import { Match } from "effect"
+import { logseq, names } from "@seqno/dom"
 import type { Block, Props } from "@seqno/domain"
 import {
   clockTotal,
@@ -11,12 +12,7 @@ import {
   type Marker,
   type PropertyConfig,
 } from "@seqno/syntax"
-import {
-  AnnotationPrefix,
-  annotationAttributes,
-  isAnnotation,
-  isAreaAnnotation,
-} from "./Annotation.tsx"
+import { AnnotationPrefix, annotationNames, isAnnotation, isAreaAnnotation } from "./Annotation.tsx"
 import { CodeBlock } from "./CodeBlock.tsx"
 import { Inlines } from "./Inline.tsx"
 import {
@@ -225,6 +221,11 @@ export const BlockView = ({
 }) => {
   const annotation = block !== undefined && isAnnotation(block.props) ? block : null
   const title = annotation !== null && blankAreaTitle(annotation) ? [] : content.title
+  const marks = annotation === null ? null : annotationNames(annotation.props)
+  const titleNames =
+    annotation === null
+      ? null
+      : logseq("seqno-annotation-title", { area: isAreaAnnotation(annotation.props) })
   const renderer = use(RenderContext)
   const host = use(HostBlock)
   const [drawer, setDrawer] = useState(false)
@@ -239,14 +240,14 @@ export const BlockView = ({
   return (
     <BlockSource value={onCode ?? null}>
       <div
-        className="seqno-block block-content"
+        className={names("seqno-block block-content", marks?.className)}
         {...(host === null ? {} : { id: `block-content-${host}`, blockid: host })}
-        {...annotationAttributes(props)}
+        {...marks?.attributes}
       >
         {title === null && !clocked && !empty ? null : (
           <div
-            className="seqno-title-row block-content-inner"
-            data-hl-type={annotation?.props["hl-type"]}
+            {...titleNames}
+            className={names("seqno-title-row block-content-inner", titleNames?.className)}
           >
             {title === null ? (
               <div className="seqno-title" />

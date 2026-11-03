@@ -1,9 +1,10 @@
 import { RegistryContext, useAtomValue } from "@effect/atom-react"
+import { logseq } from "@seqno/dom"
 import { IconLoader2 } from "@tabler/icons-react"
 import pdfViewerCss from "pdfjs-dist/web/pdf_viewer.css?inline"
 import { Suspense, use, useContext, useState, useSyncExternalStore, type PointerEvent } from "react"
 import type { PdfHost } from "./host.ts"
-import { colors } from "./model.ts"
+import { classesOf, colors } from "./model.ts"
 import { retryWithPassword } from "./open.ts"
 import pdfCss from "./pdf.css?inline"
 import { Regions } from "./Regions.tsx"
@@ -22,7 +23,7 @@ const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; ho
   const saved = !menu.fresh
   return (
     <ul
-      className="seqno-pdf-menu"
+      {...logseq("seqno-pdf-menu")}
       style={{ top: menu.top, left: menu.left, visibility: menu.hidden ? "hidden" : "visible" }}
       ref={(element) => {
         const viewer = element?.closest(".seqno-pdf-viewer")
@@ -37,11 +38,12 @@ const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; ho
       onMouseDown={(event) => event.stopPropagation()}
       onMouseUp={(event) => event.stopPropagation()}
     >
-      <li className="seqno-pdf-menu-colors">
+      <li {...logseq("seqno-pdf-menu-colors")}>
         {colors.map((color) => (
           <a
             key={color}
-            data-color={color}
+            {...logseq("seqno-pdf-menu-color", color)}
+            data-highlight-color={color}
             data-action={color}
             onClick={() => session.applyColor(color)}
           >
@@ -51,7 +53,7 @@ const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; ho
       </li>
       {saved ? (
         <li
-          className="seqno-pdf-item"
+          {...logseq("seqno-pdf-item")}
           data-action="ref"
           onClick={() => {
             session.copyRef(menu.highlight)
@@ -62,13 +64,13 @@ const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; ho
         </li>
       ) : null}
       {area ? null : (
-        <li className="seqno-pdf-item" data-action="copy" onClick={() => session.copyText(menu)}>
+        <li {...logseq("seqno-pdf-item")} data-action="copy" onClick={() => session.copyText(menu)}>
           Copy text
         </li>
       )}
       {saved ? (
         <li
-          className="seqno-pdf-item"
+          {...logseq("seqno-pdf-item")}
           data-action="link"
           onClick={() => session.linkedReferences(menu.highlight, host.navigate)}
         >
@@ -77,7 +79,7 @@ const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; ho
       ) : null}
       {saved ? (
         <li
-          className="seqno-pdf-item"
+          {...logseq("seqno-pdf-item")}
           data-action="del"
           onClick={() => session.remove(menu.highlight)}
         >
@@ -89,7 +91,7 @@ const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; ho
         : host.menuItems.map((item) => (
             <li
               key={item.key}
-              className="seqno-pdf-item"
+              {...logseq("seqno-pdf-item")}
               data-action="hook"
               onClick={() => session.runItem(item, menu)}
             >
@@ -109,7 +111,7 @@ const Resizer = ({ session }: { session: Session }) => {
     if (!(pane instanceof HTMLElement)) return
     handle.setPointerCapture(event.pointerId)
     setDragging(true)
-    document.documentElement.classList.add("seqno-pdf-resizing")
+    document.documentElement.classList.add(...classesOf("seqno-pdf-resizing"))
     let timer: ReturnType<typeof setTimeout> | null = null
     const move = (moved: globalThis.PointerEvent) => {
       const ratio = moved.clientX / document.documentElement.clientWidth
@@ -123,7 +125,7 @@ const Resizer = ({ session }: { session: Session }) => {
     }
     const end = () => {
       handle.removeEventListener("pointermove", move)
-      document.documentElement.classList.remove("seqno-pdf-resizing")
+      document.documentElement.classList.remove(...classesOf("seqno-pdf-resizing"))
       setDragging(false)
     }
     handle.addEventListener("pointermove", move)
@@ -132,7 +134,7 @@ const Resizer = ({ session }: { session: Session }) => {
   }
   return (
     <span
-      className="seqno-pdf-resizer"
+      {...logseq("seqno-pdf-resizer")}
       data-dragging={dragging}
       role="separator"
       aria-orientation="vertical"
@@ -154,9 +156,10 @@ const Viewer = ({
   const snapshot: Snapshot = useSyncExternalStore(session.subscribe, session.snapshot)
   const dashed = useAtomValue(areaDashed)
   return (
-    <div className="seqno-pdf-scroller">
+    <div {...logseq("seqno-pdf-scroller")}>
       <div
-        className={dashed ? "seqno-pdf-viewer is-area-dashed" : "seqno-pdf-viewer"}
+        {...logseq("seqno-pdf-viewer", dashed)}
+        data-dashed={dashed}
         ref={attach}
         onMouseDown={(event) => {
           if (event.button !== 0 || session.startArea(event.nativeEvent)) return
@@ -176,14 +179,14 @@ const Viewer = ({
         }}
       >
         <div className="pdfViewer" />
-        <div className="seqno-pdf-holder">
+        <div {...logseq("seqno-pdf-holder")}>
           {snapshot.menu === null ? null : (
             <ContextMenu session={session} menu={snapshot.menu} host={host} />
           )}
         </div>
         {snapshot.area === null ? null : (
-          <div className="seqno-pdf-area-selection">
-            <div className="seqno-pdf-shadow-rect" style={{ ...snapshot.area }} />
+          <div {...logseq("seqno-pdf-area-selection")}>
+            <div {...logseq("seqno-pdf-shadow-rect")} style={{ ...snapshot.area }} />
           </div>
         )}
       </div>
@@ -241,7 +244,7 @@ const Loader = ({ current, host }: { current: CurrentPdf; host: PdfHost }) => {
     )
   }
   return session === null ? null : (
-    <div className="seqno-pdf-loader">
+    <div {...logseq("seqno-pdf-loader")}>
       <Viewer session={session} attach={session.attach} host={host} />
     </div>
   )
@@ -260,9 +263,8 @@ export const PdfPane = ({ host }: { readonly host: PdfHost }) => {
       </style>
       {current === null ? null : (
         <div
-          className="seqno-pdf"
-          id={`seqno-pdf-pane-${current.asset.identity}`}
-          data-theme={theme}
+          {...logseq("seqno-pdf", { identity: current.asset.identity, theme })}
+          data-viewer-theme={theme}
         >
           <Suspense fallback={<Loading />}>
             <Loader

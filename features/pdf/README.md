@@ -11,6 +11,8 @@ Logseq's PDF viewer with highlights, as Logseq 0.10.9's desktop app has it. Clic
 
 `apps/web` mounts `PdfPane` with a `PdfHost` (asset reads and writes, notices, navigation and plugins' highlight menu items), and serves pdf.js's `cmaps/`, `standard_fonts/`, `wasm/` and `iccs/` under `pdfjs/` (`apps/web/pdfjs.ts`). The outliner draws annotation blocks and refs to them (the `P<n>` prefix, area pictures) in `features/outliner/src/Annotation.tsx`.
 
+Every element carries Logseq 0.10.9's class names, ids and attributes from `@seqno/dom`'s `pdf.ts` (`.extensions__pdf-container`, `#hl_<id>`, `data-color`), and the open viewer is `window.lsActivePdfViewer`, as in Logseq, so plugins that drive Logseq's viewer find it. seqno's own CSS selects only `seqno-pdf-*` names and `data-*` state.
+
 ## Testing
 
 `pnpm vitest run features/pdf` covers the pure rules and the `.edn` file against one Logseq made (`fixtures/graphs/pdf-highlights`). `tools/e2e/flows/pdf.e2e.ts` opens that graph in Chrome and makes, changes and deletes highlights.

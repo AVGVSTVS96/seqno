@@ -3,6 +3,7 @@ import { blockParts, type BlockParts } from "./block.ts"
 import { cmdkParts, type CmdkParts } from "./cmdk.ts"
 import { contentParts, type ContentParts } from "./content.ts"
 import { names, type LogseqNames, type Table } from "./names.ts"
+import { pdfParts, type PdfParts } from "./pdf.ts"
 
 export { names, type LogseqNames, type Table } from "./names.ts"
 export { refsSelf } from "./refs.ts"
@@ -14,9 +15,15 @@ export {
   vocabularyVersion,
 } from "./vocabulary.ts"
 
-type Parts = AssetParts & BlockParts & CmdkParts & ContentParts
+type Parts = AssetParts & BlockParts & CmdkParts & ContentParts & PdfParts
 
-const parts: Table<Parts> = { ...assetParts, ...blockParts, ...cmdkParts, ...contentParts }
+const parts: Table<Parts> = {
+  ...assetParts,
+  ...blockParts,
+  ...cmdkParts,
+  ...contentParts,
+  ...pdfParts,
+}
 
 export const logseq = <K extends keyof Parts>(part: K, ...state: Parts[K]): LogseqNames => {
   const made = parts[part](...state)

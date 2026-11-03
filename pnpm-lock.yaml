@@ -308,6 +308,9 @@ importers:
       '@effect/platform-browser':
         specifier: 4.0.1
         version: 4.0.1(effect@4.0.1)
+      '@seqno/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
       '@seqno/domain':
         specifier: workspace:*
         version: link:../../packages/domain
