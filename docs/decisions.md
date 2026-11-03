@@ -461,6 +461,14 @@ On the Mac the open's rows showed 185 to 410 ms after the click, against 480 to 
 
 **Cost.** Ex commands (`:s`, `:w`) are CodeMirror vim's, and a few of them mean nothing in a block. Turning the switch on or off applies to the next block you open, not one already open. Undo or redo pressed quickly one after another now wait for each other, with vim on or off, so each sees the rows the last one left.
 
+## Export follows Logseq's output, and PNG draws the real blocks
+
+**Decision.** `@seqno/export` is a pure package that turns pages and blocks into Logseq's export formats. The UI asks the core worker for the pages an export needs (`ExportPages`): for a page or blocks, the start page plus every page reached through `((block refs))` and `{{embed}}`, five deep; for the graph, every page, with each page's Logseq file path. The dialog renders text, OPML and HTML from those in the tab, so changing an option redraws at once. PNG renders the chosen page or blocks with the real outliner inside the dialog and turns that DOM into an image with `modern-screenshot` when you copy or save. EDN and JSON write page properties twice, on the page and on a first empty child block, because Logseq's importer reads them only from that block. The Markdown zip keeps every property, `id::` included, as Logseq's does despite its "no block properties" label, so block refs survive opening it as a graph; embedded copies drop their `id::` so a file never holds one id twice.
+
+**Why.** Logseq's own importers and other tools must read the files, so the shapes follow Logseq's code (`handler/export/*.cljs`, `handler/export.cljs`, `handler/external.cljs`) where a reader depends on them. Where Logseq's output breaks its own syntax (macros rewritten as `{{name(args)}}`, unescaped HTML, `.md` names on OPML files) seqno keeps the original text. Logseq's PNG captures its rendered page with html2canvas; drawing seqno's own outliner keeps the picture identical to the page without a second renderer. Loading only the reached pages keeps Export page fast: on the 50k-block graph, reading every page takes 1.1 s and 14.6 MB through the worker, where a page export reads only that page and what it reaches.
+
+**Cost.** Lists and tables inside a block stay text in OPML and HTML, property values stay strings where Logseq types `true`, numbers and reference sets, and multi-line blocks don't get Logseq's two-space hard breaks. Export graph on 50k blocks takes about 1 s to load and 0.1 to 1.4 s to write (JSON, EDN, the zip). Save to file names start `seqno_`, where Logseq's start `logseq_`.
+
 ## Smaller decisions
 
 | Question                                     | Answer                                                                                                  | Why                                                                                                                                                                                                    |

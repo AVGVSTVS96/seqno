@@ -155,7 +155,7 @@ The same query in both syntaxes:
 | Side   | Packages                                                                                | Job                                                  |
 | ------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | shared | `@seqno/domain`, `@seqno/rpc`                                                           | ids, schemas, commands, events; the UI-core contract |
-| pure   | `@seqno/syntax`, `@seqno/query`                                                         | markdown parsing, query text to SQL                  |
+| pure   | `@seqno/syntax`, `@seqno/query`, `@seqno/export`                                        | markdown parsing, query text to SQL, export formats  |
 | core   | `@seqno/graph`, `@seqno/index`, `@seqno/vault`, `@seqno/interop`, `apps/web/src/worker` | everything behind the RPC boundary                   |
 | UI     | `apps/web`, `@seqno/outliner`, `@seqno/editor`                                          | what you see and type into                           |
 | tools  | `@seqno/sync-sim`, `@seqno/e2e`, `@seqno/lint`                                          | sync simulator, browser flows, lint rules            |
