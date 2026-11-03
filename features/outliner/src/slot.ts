@@ -15,6 +15,7 @@ export const EditorIntent = Schema.TaggedUnion({
   MoveDown: {},
   Collapse: {},
   Expand: {},
+  NewBlock: { below: Schema.Boolean },
 })
 export type EditorIntent = typeof EditorIntent.Type
 

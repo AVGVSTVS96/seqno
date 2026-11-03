@@ -29,6 +29,7 @@ import { caretFromPoint, hasTextSelection } from "./caret.ts"
 import {
   blockAtom,
   blockRefCountsAtom,
+  blockRegister,
   dispatchAllAtom,
   dispatchAtom,
   editRequest,
@@ -58,6 +59,7 @@ import { EditorIntent, type EditorSlotProps } from "./slot.ts"
 import { nextMarker } from "./tasks.ts"
 import { topLevel, type Outline, type Row } from "./tree.ts"
 import { useHeldHeight, useVirtualList } from "./virtual.tsx"
+import { BlockKey, readBlockKey } from "./vim.ts"
 import styles from "./outliner.css?inline"
 
 export interface OutlinerProps {
@@ -70,6 +72,7 @@ export interface OutlinerProps {
   readonly windowed?: boolean
   readonly resolveAsset?: (path: string) => string | undefined
   readonly onBlockMenu?: OpenBlockMenu
+  readonly vim?: boolean
 }
 
 const listId = (pageId: PageId, zoom: BlockId | null) => `${pageId} ${zoom ?? ""}`
@@ -218,6 +221,7 @@ const useEmbedProps = () => {
     onNavigate: renderer.navigate,
     editor: renderer.editor,
     resolveAsset: renderer.resolveAsset,
+    vim: renderer.vim,
   }
 }
 
@@ -317,6 +321,7 @@ const dropZone = (event: DragEvent<HTMLDivElement>, row: Row): DropTarget => {
 const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const { tree, pageId, zoom, onNavigate, resolveAsset, onBlockMenu } = props
   const Editor = props.editor ?? PlainTextEditor
+  const vim = props.vim ?? false
   const embedded = props.embedded ?? false
   const addable = props.addable ?? false
   const parent = use(RenderContext)
@@ -327,6 +332,9 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const dispatchAll = (commands: ReadonlyArray<Command>) => runAll(commands).then(Exit.isSuccess)
   const pressed = useRef<BlockId | null>(null)
   const swept = useRef(false)
+  const vimKeys = useRef("")
+  const historyQueue = useRef(Promise.resolve())
+  const linewise = useRef(false)
   const [localEditing, setLocalEditing] = useState<Editing | null>(null)
   const [request, setRequest] = useAtom(editRequest)
   const [selection, setSelection] = useState<Selection | null>(null)
@@ -372,11 +380,19 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const after = (command: Command, then: (events: ReadonlyArray<GraphEvent>) => void) => {
     void run(command).then(Exit.match({ onFailure: () => undefined, onSuccess: then }))
   }
-  const history = (step: HistoryStep) => {
-    const before = latest().rows.map((row) => row.block)
+  const history = (step: HistoryStep, land: "Edit" | "Select" = "Edit") => {
     const current = editing?.blockId
-    after({ _tag: step }, (events) => {
+    historyQueue.current = historyQueue.current.then(async () => {
+      const before = latest().rows.map((row) => row.block)
+      const exit = await run({ _tag: step })
+      if (Exit.isFailure(exit)) return
+      const events = exit.value
       const focus = historyFocus(events, before)
+      if (land === "Select") {
+        const near = focus?.blockId ?? latest().rows[0]?.block.id
+        if (near !== undefined) select(near)
+        return
+      }
       const kept =
         focus === null
           ? current !== undefined &&
@@ -454,6 +470,27 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     }
   }
 
+  const insertAndEdit = (command: Command) =>
+    after(command, (events) => {
+      const created = events.find((event) => event._tag === "BlockUpserted")
+      if (created?._tag === "BlockUpserted") setEditing({ blockId: created.block.id, caret: 0 })
+    })
+
+  const newBlock = (now: Outline, row: Row, below: boolean) => {
+    const { block } = row
+    const inside = block.id === zoom || (below && row.hasChildren && row.expanded)
+    const siblings = now.children(block.parentId)
+    const before = siblings[siblings.findIndex((sibling) => sibling.id === block.id) - 1]
+    const anchor = below ? block : before
+    insertAndEdit({
+      _tag: "InsertBlock",
+      pageId,
+      parentId: inside ? block.id : block.parentId,
+      ...(inside || anchor === undefined ? {} : { after: anchor.id }),
+      text: "",
+    })
+  }
+
   const onIntent = (blockId: BlockId) => (intent: EditorIntent) => {
     const now = latest()
     const index = now.rows.findIndex((row) => row.block.id === blockId)
@@ -499,6 +536,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       Expand: () => {
         if (row.hasChildren) dispatch({ _tag: "SetCollapsed", blockId: block.id, collapsed: false })
       },
+      NewBlock: ({ below }) => newBlock(now, row, below),
     })
   }
 
@@ -507,8 +545,115 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       .writeText(blockIds.map((id) => markdownOf(view, id, 0)).join("\n"))
       .catch(() => undefined)
 
+  const runBlockKey = (action: BlockKey, visual: boolean) => {
+    const head = selection === null ? -1 : indexOf(selection.head)
+    const anchor = visual ? (selection?.anchor ?? null) : null
+    const chosen = nonEmpty(topLevel(view, selected))
+    const go = (index: number) => {
+      const row = rows[Math.max(0, Math.min(rows.length - 1, index))]
+      if (row !== undefined) select(row.block.id, anchor ?? row.block.id)
+    }
+    const row = rows[head]
+    const yank = (blockIds: ReadonlyArray<BlockId>) => {
+      registry.set(blockRegister, blockIds.map((id) => markdownOf(view, id, 0)).join("\n"))
+      void copy(blockIds)
+    }
+    const put = (below: boolean) => {
+      const text = registry.get(blockRegister)
+      const target = below ? chosen?.at(-1) : chosen?.[0]
+      const blocks = text === null ? null : nonEmpty(pastedBlocks(text) ?? [])
+      if (target === undefined || blocks === null) return
+      const parentId = view.parentOf(target)
+      const siblings = view.children(parentId)
+      const before = siblings[siblings.findIndex((sibling) => sibling.id === target) - 1]
+      const anchorId = below ? target : before?.id
+      after(
+        {
+          _tag: "InsertBlocks",
+          pageId,
+          parentId,
+          ...(anchorId === undefined ? {} : { after: anchorId }),
+          blocks,
+        },
+        (events) => {
+          const first = events.find((event) => event._tag === "BlockUpserted")
+          if (first?._tag === "BlockUpserted") select(first.block.id)
+        },
+      )
+    }
+    linewise.current =
+      visual && (action._tag === "Move" || action._tag === "Top" || action._tag === "Bottom")
+    BlockKey.match(action, {
+      Move: ({ by }) => go(head === -1 ? (by > 0 ? 0 : rows.length - 1) : head + by),
+      Top: () => go(0),
+      Bottom: () => go(rows.length - 1),
+      Edit: ({ at }) => {
+        if (row !== undefined) edit(row.block, at === "Start" ? 0 : row.block.text.length)
+      },
+      NewBlock: ({ below }) => {
+        if (row !== undefined) newBlock(view, row, below)
+      },
+      Delete: () => {
+        if (chosen === null) return
+        const end = Math.max(...chosen.map((id) => rows[indexOf(id)]?.end ?? 0))
+        const next = rows[end] ?? rows[indexOf(chosen[0]) - 1]
+        yank(chosen)
+        dispatch({ _tag: "DeleteBlocks", blockIds: chosen })
+        if (next === undefined) setSelection(null)
+        else select(next.block.id)
+      },
+      Yank: () => {
+        if (chosen === null) return
+        yank(chosen)
+        select(chosen[0])
+      },
+      Put: ({ below }) => put(below),
+      Indent: () => {
+        if (chosen !== null) dispatch({ _tag: "Indent", blockIds: chosen })
+      },
+      Outdent: () => {
+        if (chosen !== null) dispatch({ _tag: "Outdent", blockIds: chosen })
+      },
+      Fold: ({ collapsed }) => {
+        for (const id of chosen ?? []) {
+          const folded = rows[indexOf(id)]
+          if (folded?.hasChildren === true) {
+            dispatch({ _tag: "SetCollapsed", blockId: id, collapsed: collapsed ?? folded.expanded })
+          }
+        }
+      },
+      Visual: () => {
+        linewise.current = !visual
+        if (visual && selection !== null) select(selection.head)
+      },
+      Undo: () => history("Undo", "Select"),
+      Redo: () => history("Redo", "Select"),
+    })
+  }
+
+  const onVimKey = (event: KeyboardEvent<HTMLDivElement>): boolean => {
+    if (event.metaKey || event.altKey) return false
+    const key = event.ctrlKey
+      ? event.key.toLowerCase() === "r"
+        ? "<C-r>"
+        : null
+      : event.key.length === 1
+        ? event.key
+        : null
+    if (key === null) return false
+    const visual = selection !== null && (linewise.current || selection.anchor !== selection.head)
+    const read = readBlockKey(vimKeys.current, key, visual)
+    vimKeys.current = read.pending
+    if (read.action !== null) runBlockKey(read.action, visual)
+    return read.handled
+  }
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return
+    if (vim && onVimKey(event)) {
+      event.preventDefault()
+      return
+    }
     const mod = event.metaKey || event.ctrlKey
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
     const head = selection === null ? -1 : indexOf(selection.head)
@@ -534,8 +679,12 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       const target = head === -1 ? (down ? 0 : rows.length - 1) : head + (down ? 1 : -1)
       const row = rows[Math.max(0, Math.min(rows.length - 1, target))]
       if (row !== undefined) select(row.block.id)
-    } else if (key === "Escape" && selection !== null) setSelection(null)
-    else if (key === "Enter" && mod && chosen !== null) {
+    } else if (key === "Escape" && selection !== null) {
+      vimKeys.current = ""
+      if (vim && (linewise.current || selection.anchor !== selection.head)) select(selection.head)
+      else setSelection(null)
+      linewise.current = false
+    } else if (key === "Enter" && mod && chosen !== null) {
       for (const id of chosen) {
         const block = rows[indexOf(id)]?.block
         if (block !== undefined) setTask(block, nextMarker(contentOf(block.text).marker))
@@ -676,6 +825,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     editor: Editor,
     resolveAsset: resolveAsset ?? parent.resolveAsset,
     openMenu: onBlockMenu ?? parent.openMenu,
+    vim,
   }
 
   const renderRow = (row: Row, index: number) => {
@@ -736,19 +886,13 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
 
   const tail = view.children(zoom)
   const addBlock = (parentId: BlockId | null, last: BlockId | undefined) =>
-    after(
-      {
-        _tag: "InsertBlock",
-        pageId,
-        parentId,
-        ...(last === undefined ? {} : { after: last }),
-        text: "",
-      },
-      (events) => {
-        const created = events.find((event) => event._tag === "BlockUpserted")
-        if (created?._tag === "BlockUpserted") setEditing({ blockId: created.block.id, caret: 0 })
-      },
-    )
+    insertAndEdit({
+      _tag: "InsertBlock",
+      pageId,
+      parentId,
+      ...(last === undefined ? {} : { after: last }),
+      text: "",
+    })
 
   const body = placed.flatMap(({ index, gap }) => {
     const row = rows[index]

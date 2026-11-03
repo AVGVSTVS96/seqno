@@ -4,7 +4,7 @@ import { CursorPlacement } from "./host.ts"
 import { keystrokeOf, press, type Keystroke } from "./typing.ts"
 
 export const Arrival = Schema.TaggedUnion({
-  Caret: { cursor: CursorPlacement },
+  Caret: { cursor: CursorPlacement, vim: Schema.optionalKey(Schema.Literals(["Normal"])) },
   Merged: { tail: Schema.String },
 })
 export type Arrival = typeof Arrival.Type

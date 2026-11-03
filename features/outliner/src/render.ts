@@ -18,6 +18,7 @@ export interface Renderer {
   readonly editor: ComponentType<EditorSlotProps>
   readonly resolveAsset: (path: string) => string | undefined
   readonly openMenu: OpenBlockMenu | undefined
+  readonly vim: boolean
 }
 
 export const RenderContext = createContext<Renderer>({
@@ -29,6 +30,7 @@ export const RenderContext = createContext<Renderer>({
   Query: () => null,
   editor: PlainTextEditor,
   resolveAsset: () => undefined,
+  vim: false,
 })
 
 export type SourceEdit = (from: number, to: number, insert: string) => void

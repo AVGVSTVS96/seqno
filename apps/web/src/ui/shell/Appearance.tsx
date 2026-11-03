@@ -1,4 +1,5 @@
 import { useAtom, useAtomValue } from "@effect/atom-react"
+import type { Atom } from "effect/reactivity"
 import { useId, type ReactNode } from "react"
 import { resolvedTheme, theme, type ThemeChoice } from "../../atoms.ts"
 import { Keys } from "./Keys.tsx"
@@ -61,16 +62,22 @@ export const ThemeChoices = ({ labelledBy }: { readonly labelledBy: string }) =>
   )
 }
 
-export const WideModeSwitch = ({ labelledBy }: { readonly labelledBy: string }) => {
-  const [wide, setWide] = useAtom(wideMode)
+export const SettingSwitch = ({
+  setting,
+  labelledBy,
+}: {
+  readonly setting: Atom.Writable<boolean>
+  readonly labelledBy: string
+}) => {
+  const [on, setOn] = useAtom(setting)
   return (
     <button
       type="button"
       role="switch"
-      aria-checked={wide}
+      aria-checked={on}
       aria-labelledby={labelledBy}
       className="switch"
-      onClick={() => setWide(!wide)}
+      onClick={() => setOn(!on)}
     >
       <span className="switch-thumb" />
     </button>
@@ -99,7 +106,7 @@ export const Appearance = ({ handle }: { readonly handle: PopoverHandle }) => {
         <ThemeChoices labelledBy={themeLabel} />
       </Row>
       <Row label="Wide mode" labelId={wideLabel} keys={keysOf("ToggleWideMode")}>
-        <WideModeSwitch labelledBy={wideLabel} />
+        <SettingSwitch setting={wideMode} labelledBy={wideLabel} />
       </Row>
     </div>
   )

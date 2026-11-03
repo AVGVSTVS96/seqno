@@ -34,6 +34,7 @@ export const EditorAction = Schema.TaggedUnion({
   MergeNext: {},
   ZoomIn: {},
   ZoomOut: {},
+  NewBlock: { below: Schema.Boolean },
   Open: { target: LinkTarget, sidebar: Schema.Boolean },
   Notify: { message: Schema.String },
 })

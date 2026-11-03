@@ -141,6 +141,9 @@ importers:
       '@codemirror/view':
         specifier: 6.43.13
         version: 6.43.13
+      '@replit/codemirror-vim':
+        specifier: 6.4.0
+        version: 6.4.0(@codemirror/commands@6.11.1)(@codemirror/language@6.12.4)(@codemirror/search@6.7.2)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)
       '@seqno/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -698,6 +701,9 @@ packages:
   '@codemirror/language@6.12.4':
     resolution: {integrity: sha512-1q4PaT+o6PbgpkJt4Q8Fv5XJxTy4FUZ4MWETtyiDw3J0Pyr9E2vqcKL+k9wcvjNTIsauxvE7OfmWj3FRPHQ76A==}
 
+  '@codemirror/search@6.7.2':
+    resolution: {integrity: sha512-gUYkYhT2+n/+VGZ+8EzE5WFkYZUZYm1VOKDudIsNqh42uRVQJ0a6Yss9sdKT3MeOYfuL1N6AZA57oza0Oyr0LA==}
+
   '@codemirror/state@6.7.6':
     resolution: {integrity: sha512-kAz+AncRtKuIknedxT1bq4XwXv4UowhbkHU1myPrtVb/jZtImWuV5BXzv5vK6i3kYACsdiZiQKFQQ5Mq7elW8w==}
 
@@ -1114,6 +1120,18 @@ packages:
     engines: {node: '>= 20.0.0'}
     peerDependencies:
       '@redis/client': ^6.3.0
+
+  '@replit/codemirror-vim-core@0.1.0':
+    resolution: {integrity: sha512-1i6EBKpcNfDKvTmTh6N6g9lL6udD5t+uFNh4JCqozRnVlvUGOps7h/QzS2ne4zcvPUjvApKpmcP7Grc3fNbZiQ==}
+
+  '@replit/codemirror-vim@6.4.0':
+    resolution: {integrity: sha512-t9UMDNhkmeAkl0uRbiJVotv97bGD6mf4GyJJoEbrjUqa/Pov0s9eL+4AaI0Xto3OGri17i9qwIpT0JbVlVXt8A==}
+    peerDependencies:
+      '@codemirror/commands': 6.x.x
+      '@codemirror/language': 6.x.x
+      '@codemirror/search': 6.x.x
+      '@codemirror/state': 6.x.x
+      '@codemirror/view': 6.x.x
 
   '@rolldown/binding-android-arm-eabi@1.2.12':
     resolution: {integrity: sha512-dB/a1214qKfHMXCpgqR4OZT+jS4kTyEXbQGJPqzobt5EwH5rX080pxE37alt3RzvR1bf1Yz/yGqRfrYAxuPw0A==}
@@ -2255,6 +2273,12 @@ snapshots:
       '@lezer/lr': 1.4.10
       style-mod: 4.1.4
 
+  '@codemirror/search@6.7.2':
+    dependencies:
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.13
+      crelt: 1.0.7
+
   '@codemirror/state@6.7.6':
     dependencies:
       '@marijn/find-cluster-break': 1.0.4
@@ -2519,6 +2543,17 @@ snapshots:
   '@redis/time-series@6.3.0(@redis/client@6.3.0)':
     dependencies:
       '@redis/client': 6.3.0
+
+  '@replit/codemirror-vim-core@0.1.0': {}
+
+  '@replit/codemirror-vim@6.4.0(@codemirror/commands@6.11.1)(@codemirror/language@6.12.4)(@codemirror/search@6.7.2)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)':
+    dependencies:
+      '@codemirror/commands': 6.11.1
+      '@codemirror/language': 6.12.4
+      '@codemirror/search': 6.7.2
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.13
+      '@replit/codemirror-vim-core': 0.1.0
 
   '@rolldown/binding-android-arm-eabi@1.2.12':
     optional: true

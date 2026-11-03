@@ -13,6 +13,7 @@ import type { Handoff } from "./handoff.ts"
 import type { CursorPlacement, EditorHost } from "./host.ts"
 import { blockKeymap, propertiesKeymap } from "./keymap.ts"
 import { editorTheme } from "./theme.ts"
+import { enterInsert, vimMode } from "./vim.ts"
 
 export interface BlockEditorOptions {
   readonly block: Block
@@ -22,6 +23,7 @@ export interface BlockEditorOptions {
   readonly handoff: Handoff
   readonly properties?: PropertyTarget
   readonly hidden?: (key: string) => boolean
+  readonly vim?: boolean
 }
 
 export interface MountedEditor {
@@ -37,7 +39,7 @@ const headingClass = EditorView.editorAttributes.compute(["doc"], (state) => {
 
 export const mountBlockEditor = (
   parent: HTMLElement,
-  { block, cursor, updates, host, handoff, properties, hidden }: BlockEditorOptions,
+  { block, cursor, updates, host, handoff, properties, hidden, vim = false }: BlockEditorOptions,
   popups = createPopupStore(),
 ): MountedEditor => {
   const arrival = handoff.take()
@@ -74,6 +76,13 @@ export const mountBlockEditor = (
     state: EditorState.create({
       doc: merged ?? draft,
       extensions: [
+        vim
+          ? vimMode({
+              act: host.act,
+              history: (step) => dispatch({ _tag: step }),
+              handoff,
+            })
+          : [],
         properties === undefined
           ? blockKeymap(block.id, { ...host, dispatch }, handoff, whenConfirmed, fields.textOf)
           : propertiesKeymap(host),
@@ -108,6 +117,7 @@ export const mountBlockEditor = (
     }),
   })
 
+  if (vim && !(arrival?._tag === "Caret" && arrival.vim === "Normal")) enterInsert(view)
   const placement =
     merged !== null
       ? EditorSelection.cursor(fields.draftCaret(block, block.text.length))

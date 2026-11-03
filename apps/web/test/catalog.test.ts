@@ -8,20 +8,26 @@ describe("keyboard shortcut catalog", () => {
       [["Editing", [{ label: "Move block up", combos: [["alt", "shift", "arrowup"]] }]]],
     )
     assert.deepStrictEqual(
-      matchingGroups("redo").flatMap((group) => group.shortcuts),
+      matchingGroups("redo").map((group) => [group.title, group.shortcuts]),
       [
-        {
-          label: "Redo",
-          combos: [
-            ["mod", "shift", "z"],
-            ["mod", "y"],
+        [
+          "Basics",
+          [
+            {
+              label: "Redo",
+              combos: [
+                ["mod", "shift", "z"],
+                ["mod", "y"],
+              ],
+            },
           ],
-        },
+        ],
+        ["Vim mode", [{ label: "Undo or redo", combos: [["u"], ["ctrl", "r"]] }]],
       ],
     )
     assert.deepStrictEqual(
-      matchingGroups("toggle children").flatMap((group) => group.shortcuts),
-      [{ label: "Toggle children open or closed", combos: [["mod", ";"]] }],
+      matchingGroups("toggle children").map((group) => group.title),
+      ["Editing", "Vim mode"],
     )
     assert.deepStrictEqual(matchingGroups("no such shortcut"), [])
   })

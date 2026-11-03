@@ -50,6 +50,18 @@ export const editorTheme = EditorView.theme({
     caretColor: "var(--fg)",
   },
   ".cm-line": { padding: "0" },
+  ".cm-cursor": { borderLeftColor: "var(--fg)" },
+  "& .cm-selectionLayer .cm-selectionBackground": { background: "var(--bg-text-selection)" },
+  "& .cm-vimCursorLayer .cm-fat-cursor": {
+    background: "var(--fg)",
+    color: "var(--bg-app)",
+    borderRadius: "1px",
+  },
+  "&:not(.cm-focused) .cm-vimCursorLayer .cm-fat-cursor": {
+    background: "none",
+    outline: "1px solid var(--fg-subtle)",
+    color: "transparent",
+  },
   "&.sq-h1": heading("var(--text-h1)", "var(--leading-h1)", "var(--space-1)"),
   "&.sq-h2": heading("var(--text-h2)", "var(--leading-h2)", "3px"),
   "&.sq-h3": heading("var(--text-h3)", "var(--leading-h3)", null),

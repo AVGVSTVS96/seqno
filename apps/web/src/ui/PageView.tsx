@@ -7,6 +7,7 @@ import { Outliner } from "@seqno/outliner"
 import { assetResolver, createPage, pages } from "../atoms.ts"
 import { EditorSlot } from "./EditorSlot.tsx"
 import { blockMenu } from "./shell/BlockMenu.tsx"
+import { vimMode } from "./shell/state.ts"
 import { referencedOnly } from "./pages/atoms.ts"
 import { listValues } from "./pages/model.ts"
 import { useNavigateTo } from "./pages/navigation.ts"
@@ -34,6 +35,7 @@ export const PageView = ({
   const navigateTo = useNavigateTo()
   const resolveAsset = useAtomValue(assetResolver)
   const openMenu = useAtomSet(blockMenu)
+  const vim = useAtomValue(vimMode)
   const zoomed = zoom !== null
   return (
     <div className="seqno-page" data-zoomed={zoomed}>
@@ -51,6 +53,7 @@ export const PageView = ({
             editor={EditorSlot}
             resolveAsset={resolveAsset}
             onBlockMenu={openMenu}
+            vim={vim}
           />
         </div>
       </article>

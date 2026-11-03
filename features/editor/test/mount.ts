@@ -74,16 +74,19 @@ export const mount = (
     within = session(),
     updates = Stream.never,
     block = blockOf(text),
+    vim = false,
   }: {
     readonly within?: Session
     readonly updates?: Stream.Stream<Block>
     readonly block?: Block
+    readonly vim?: boolean
   } = {},
 ) => {
   const editor = mountBlockEditor(document.body.appendChild(document.createElement("div")), {
     block,
     cursor,
     updates,
+    vim,
     handoff: within.handoff,
     host: {
       dispatch: (command) => {

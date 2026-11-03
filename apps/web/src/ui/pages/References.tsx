@@ -8,6 +8,7 @@ import type { Reference } from "@seqno/rpc"
 import { allPages, assetResolver } from "../../atoms.ts"
 import { EditorSlot } from "../EditorSlot.tsx"
 import { blockMenu } from "../shell/BlockMenu.tsx"
+import { vimMode } from "../shell/state.ts"
 import { linkedReferences, nameReferences, unlinkedReferences } from "./atoms.ts"
 import { markMentions, wordsOf } from "./mentions.ts"
 import {
@@ -84,6 +85,7 @@ const ReferenceBlock = ({
   const navigateTo = useNavigateTo()
   const resolveAsset = useAtomValue(assetResolver)
   const openMenu = useAtomSet(blockMenu)
+  const vim = useAtomValue(vimMode)
   return (
     <div className="seqno-reference">
       <Crumbs pageId={pageId} trail={trail} />
@@ -94,6 +96,7 @@ const ReferenceBlock = ({
         editor={EditorSlot}
         resolveAsset={resolveAsset}
         onBlockMenu={openMenu}
+        vim={vim}
       />
     </div>
   )

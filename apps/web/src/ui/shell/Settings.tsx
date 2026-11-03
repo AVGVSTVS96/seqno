@@ -3,12 +3,12 @@ import { IconAdjustmentsHorizontal, IconKeyboard, IconX } from "@tabler/icons-re
 import { useId, type ReactNode } from "react"
 import { resolvedTheme } from "../../atoms.ts"
 import { revision } from "../../version.ts"
-import { ThemeChoices, themeLabelOf, WideModeSwitch } from "./Appearance.tsx"
+import { SettingSwitch, ThemeChoices, themeLabelOf } from "./Appearance.tsx"
 import { Keys } from "./Keys.tsx"
 import { closeDialogOf, Dialog } from "./popover.tsx"
 import { ShortcutList } from "./ShortcutList.tsx"
 import { keysOf } from "./shortcuts.ts"
-import { settingsDialogId, settingsTab, type SettingsTab } from "./state.ts"
+import { settingsDialogId, settingsTab, vimMode, wideMode, type SettingsTab } from "./state.ts"
 
 const tabs: ReadonlyArray<readonly [SettingsTab, string, ReactNode]> = [
   ["general", "General", <IconAdjustmentsHorizontal key="general" size={16} aria-hidden />],
@@ -37,6 +37,7 @@ const General = () => {
   const versionLabel = useId()
   const themeLabel = useId()
   const wideLabel = useId()
+  const vimLabel = useId()
   return (
     <>
       <Row label="Current version" labelId={versionLabel}>
@@ -49,8 +50,11 @@ const General = () => {
         <Keys keys={keysOf("ToggleTheme")} />
       </Row>
       <Row label="Wide mode" labelId={wideLabel}>
-        <WideModeSwitch labelledBy={wideLabel} />
+        <SettingSwitch setting={wideMode} labelledBy={wideLabel} />
         <Keys keys={keysOf("ToggleWideMode")} />
+      </Row>
+      <Row label="Vim mode" labelId={vimLabel}>
+        <SettingSwitch setting={vimMode} labelledBy={vimLabel} />
       </Row>
     </>
   )

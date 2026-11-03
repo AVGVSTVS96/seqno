@@ -1,4 +1,5 @@
 import { EditorView, runScopeHandlers } from "@codemirror/view"
+import { hasVim } from "./vim.ts"
 
 export interface Keystroke {
   readonly key: string
@@ -42,6 +43,12 @@ export const typeText = (view: EditorView, text: string) => {
 }
 
 export const press = (view: EditorView, stroke: Keystroke) => {
+  if (hasVim(view)) {
+    const event = new KeyboardEvent("keydown", { ...stroke, bubbles: true, cancelable: true })
+    view.contentDOM.dispatchEvent(event)
+    if (!event.defaultPrevented && printable(stroke)) typeText(view, stroke.key)
+    return
+  }
   if (runScopeHandlers(view, new KeyboardEvent("keydown", stroke), "editor")) return
   if (printable(stroke)) typeText(view, stroke.key)
 }

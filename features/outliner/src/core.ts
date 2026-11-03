@@ -104,3 +104,5 @@ export const historyAtom = coreRuntime
     { concurrent: true },
   )
   .pipe(Atom.keepAlive)
+
+export const blockRegister = Atom.make<string | null>(null).pipe(Atom.keepAlive)

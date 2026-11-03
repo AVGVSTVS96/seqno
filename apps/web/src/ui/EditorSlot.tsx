@@ -1,4 +1,4 @@
-import { RegistryContext } from "@effect/atom-react"
+import { RegistryContext, useAtomValue } from "@effect/atom-react"
 import { useRouter } from "@tanstack/react-router"
 import { Effect, Equal, Match, Option, Schema, Stream } from "effect"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
@@ -15,6 +15,7 @@ import { blockAtom, pageTreeAtom, type EditorIntent, type EditorSlotProps } from
 import { pages } from "../atoms.ts"
 import { referencedOnly } from "./pages/atoms.ts"
 import { notify } from "./shell/Notices.tsx"
+import { vimMode } from "./shell/state.ts"
 import { useNavigateTo } from "./pages/navigation.ts"
 import { searchHits } from "./search/atoms.ts"
 import { blockHits } from "./search/model.ts"
@@ -44,6 +45,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
   const registry = useContext(RegistryContext)
   const router = useRouter()
   const navigateTo = useNavigateTo()
+  const vim = useAtomValue(vimMode)
   const latest = () => AsyncResult.value(registry.get(pageTreeAtom(block.pageId)))
   const childrenOf = (parentId: BlockId | null) =>
     Option.match(latest(), {
@@ -104,6 +106,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
       Option.match(intentOf(command), { onSome: onIntent, onNone: () => dispatch(command) }),
     dispatchAll,
     act: EditorAction.match({
+      NewBlock: ({ below }) => onIntent({ _tag: "NewBlock", below }),
       FocusPrevious: () => onIntent({ _tag: "FocusPrevious" }),
       FocusNext: () => onIntent({ _tag: "FocusNext" }),
       Exit: () => onIntent({ _tag: "Exit" }),
@@ -151,6 +154,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
       updates={updates}
       host={host}
       handoff={handoff}
+      vim={vim}
     />
   )
 }

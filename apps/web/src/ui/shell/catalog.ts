@@ -94,6 +94,23 @@ export const shortcutGroups: ReadonlyArray<ShortcutGroup> = [
     ],
   },
   {
+    title: "Vim mode",
+    shortcuts: [
+      keys("Normal mode, then select the block", "escape"),
+      keys("Next or previous block", "j", "k"),
+      keys("First or last block", "g g", "shift g"),
+      keys("Edit the block at its start or end", "i", "a"),
+      keys("New block below or above", "o", "shift o"),
+      keys("Delete the selected blocks", "d d"),
+      keys("Copy the selected blocks", "y y"),
+      keys("Paste blocks below or above", "p", "shift p"),
+      keys("Indent or outdent the selected blocks", "> >", "< <"),
+      keys("Collapse, expand or toggle children", "z c", "z o", "z a"),
+      keys("Select whole blocks", "shift v"),
+      keys("Undo or redo", "u", "ctrl r"),
+    ],
+  },
+  {
     title: "Sidebars",
     shortcuts: [
       app("Toggle the left sidebar", "ToggleLeftSidebar"),

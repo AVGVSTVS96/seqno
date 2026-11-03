@@ -15,6 +15,8 @@ const setting = <S extends Schema.ConstraintCodec<unknown, unknown>>(
 
 export const wideMode = setting("seqno.wideMode", Schema.Boolean, false)
 
+export const vimMode = setting("seqno.vimMode", Schema.Boolean, false)
+
 export const leftSidebarWidth = setting("seqno.leftSidebarWidth", Schema.Finite, 246)
 
 export const rightSidebarWidth = setting("seqno.rightSidebarWidth", Schema.Finite, 40)
