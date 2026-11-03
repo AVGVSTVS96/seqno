@@ -9,5 +9,12 @@ A board is a page whose `ls-type` is `whiteboard-page`. Each shape is a top-leve
 - `gestures.ts`: pointer gestures and the commands each one commits.
 - `commands.ts`: move, resize, delete, z-order and text edits as `Command`s.
 - `preview.ts`: a gesture's commands applied locally, so a drag draws before the core answers.
+- `arrange.ts`: align, distribute, pack and flip.
+- `camera.ts`: the 100ms glide between cameras and each board's saved camera.
+- `media.ts`: dropped and pasted files and links, sized as Logseq sizes them.
+- `links.tsx`: shape links, Quick Links and backlinks.
+- `Embeds.tsx`: YouTube, tweet, website, HTML, video and PDF shapes.
+- `Rotate.tsx`: rotate targets and Logseq's rotate and resize cursors.
+- `Preview.tsx`: a board's drawing without the editor, for cards, embeds and Export.
 
 Test: `pnpm --filter @seqno/whiteboard exec vitest run`.

@@ -596,11 +596,27 @@ Each format writes what Logseq 0.10.9 writes for the same graph, checked against
 
 **Decision.** `@seqno/whiteboard` is seqno's own canvas: shapes as absolutely placed HTML and SVG under one CSS camera transform, gestures as pure functions from pointer state to `Command`s, and portals as the real `Outliner`. It reads and writes the shapes Logseq stores (tldraw v1 props in `logseq.tldraw.shape`, one top-level block per shape, block order as z-order), so nothing converts between a Logseq board and a seqno one. A drag draws from the gesture's commands applied locally and commits once, on release, as one `DispatchAll`, so one move is one undo step and one synced change.
 
-**Why.** Today's tldraw (5.x) is under the tldraw license, which forbids production use without a paid license key, and seqno is a public app. Logseq's own tldraw fork is MIT but built into Logseq's app (its shapes call Logseq's handlers and ClojureScript state), and its store keeps the board as one document, where seqno needs each shape as a block so it syncs, undoes and links like any other block. What Logseq's board does is small enough to own: straight connectors only, no rotation handle, no snapping to other shapes.
+**Why.** Today's tldraw (5.x) is under the tldraw license, which forbids production use without a paid license key, and seqno is a public app. Logseq's own tldraw fork is MIT but built into Logseq's app (its shapes call Logseq's handlers and ClojureScript state), and its store keeps the board as one document, where seqno needs each shape as a block so it syncs, undoes and links like any other block. What Logseq's board does is small enough to own: straight connectors only, rotation from the corners, no snapping to other shapes.
 
 Copying writes Logseq's clipboard: the shapes' `((refs))` as text and `<whiteboard-tldr>{shapes, assets, bindings}</whiteboard-tldr>` as html, words back in Logseq's fields, so shapes move between seqno and Logseq boards both ways. A paste, an Alt-drag copy or a clone handle mints its new block ids in the browser and sends them in `InsertBlocks` (the graph refuses an id already taken), as tldraw mints shape ids, so a copied connector binds to the copied shape in the same command and the whole copy is one undo step.
 
-**Cost.** Everything tldraw would give comes from seqno: hit testing, connector clipping, the grid. Shapes Logseq has that seqno doesn't draw yet (YouTube, tweet, iframe, video, HTML, PDF, groups) show as a labeled card and keep every prop, so writing them back loses nothing.
+**Cost.** Everything tldraw would give comes from seqno: hit testing, connector clipping, rotation, the grid, the camera's glide. A shape type seqno doesn't know shows as a labeled card and keeps every prop, so writing it back loses nothing.
+
+## Whiteboard rotation, groups and the camera follow Logseq's numbers, on seqno's model
+
+**Decision.** A shape keeps Logseq's `rotation` in radians about its center. Dragging an 18px target just outside a corner turns the selection about its center, Shift snapping the turn and the starting angle to 15°, with Logseq's rotate and resize cursors turned with the shape; connectors and portals don't rotate, as in Logseq. Hit tests, the marquee and connector clipping use the rotated outline. A group is a `group` shape whose `children` are its members' ids, as Logseq stores it; turning a group turns its members about the group's center. Zoom, fit, focus and reset glide for 100ms on an ease-in-out-sine of the view's edges, so zoom changes at an even pace, and a new glide replaces the one in flight; each board keeps its camera in `sessionStorage` for the tab, as Logseq keeps it per board.
+
+**Why.** Logseq's files carry rotation and groups, so a board drawn in Logseq should look and move the same here. Turning members is what a group's rotation means on seqno's model, where a group has no frame of its own to turn.
+
+**Cost.** Logseq turns only a group's frame and lets its members drift on the next update; seqno turns the members. A connector bound to a rotated shape anchors at the shape's center, as all of seqno's bindings do, where tldraw keeps an anchor point.
+
+## Logseq's onboarding board and welcome images load from Logseq's repository
+
+**Decision.** The first board you make, when the graph has none and you've never opened one, is filled with Logseq 0.10.9's `resources/whiteboard/onboarding.edn`, fetched at run time from `raw.githubusercontent.com/logseq/logseq/0.10.9/…`, read by `@seqno/interop` in the core worker and cloned with fresh ids as Logseq clones it, then inserted as one command. The Whiteboards welcome's hero images load from the same place. If the fetch fails the board opens empty and the welcome shows without its picture.
+
+**Why.** Bassim's target is Logseq's own first-board experience, and that board is Logseq's file. Logseq's resources are AGPL and seqno is MIT, so seqno links to them instead of shipping copies; the tldraw fork's cursors are MIT and are copied.
+
+**Cost.** The onboarding board and the welcome's picture need the network the first time.
 
 ## A ref to a block's Logseq id is looked up, not made its id
 
