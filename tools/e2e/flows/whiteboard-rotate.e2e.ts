@@ -11,6 +11,7 @@ const turn = (page: Page) =>
 const drawBox = async (page: Page) => {
   await page.keyboard.press("9")
   await drag(page, [300, 300], [400, 400])
+  await expect(shapes(page, "box")).toHaveCount(1)
   await page.mouse.click(800, 600)
   await page.mouse.click(350, 350)
 }

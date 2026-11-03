@@ -91,6 +91,7 @@ test("undo takes a new shape back and redo brings it again; Delete removes the s
   await expect(shapes(page, "box")).toHaveCount(0)
   await page.keyboard.press("ControlOrMeta+Shift+z")
   await expect(shapes(page, "box")).toHaveCount(1)
+  await page.mouse.click(800, 600)
   await page.mouse.click(350, 350)
   await page.keyboard.press("Delete")
   await expect(shapes(page, "box")).toHaveCount(0)

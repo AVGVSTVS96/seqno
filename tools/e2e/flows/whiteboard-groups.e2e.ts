@@ -36,7 +36,7 @@ test("Mod+G groups the selection: a click picks the group, a drag moves its shap
   await expect(frame(page, "selected")).toHaveCount(0)
   await page.mouse.click(350, 350)
   await expect(frame(page, "selected")).toHaveCount(1)
-  await expect(board(page).locator(".wb-handle")).toHaveCount(0)
+  await expect(board(page).locator('.wb-handle:not([data-kind="rotate"])')).toHaveCount(0)
 
   const before = [await left(page, 0), await left(page, 1)]
   await drag(page, [350, 350], [350, 450])

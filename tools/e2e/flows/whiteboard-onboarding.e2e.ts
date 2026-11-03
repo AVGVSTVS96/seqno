@@ -1,5 +1,7 @@
+import { mkdir, writeFile } from "node:fs/promises"
+import { join } from "node:path"
 import { appAvailable } from "../src/env.ts"
-import { fixtureGraph, loadGraphFolder } from "../src/opfs.ts"
+import { loadGraphFolder } from "../src/opfs.ts"
 import { expect, saved, test } from "../src/test.ts"
 import { board, newBoard, shapes } from "../src/whiteboard.ts"
 
@@ -59,9 +61,12 @@ test("when the onboarding file can't be fetched, the board opens empty", async (
 
 test("the first click on Whiteboards in the sidebar welcomes you, and Start whiteboarding runs Logseq's two-step tour", async ({
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(90_000)
-  await loadGraphFolder(page, fixtureGraph("graphs/og-syntax-mix"))
+  const graph = testInfo.outputPath("my-notes")
+  await mkdir(join(graph, "pages"), { recursive: true })
+  await writeFile(join(graph, "pages", "ideas.md"), "- sketch the [[Garden]]")
+  await loadGraphFolder(page, graph)
   await page.goto("/")
   await page.getByRole("button", { name: "Open a folder" }).click()
   await page.getByRole("button", { name: "Toggle left sidebar" }).click({ timeout: 30_000 })

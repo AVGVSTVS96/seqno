@@ -9,6 +9,7 @@ test.skip(!appAvailable, "waits on apps/web")
 const drawBox = async (page: Page) => {
   await page.keyboard.press("9")
   await drag(page, [300, 300], [400, 400])
+  await expect(shapes(page, "box")).toHaveCount(1)
   await page.mouse.click(800, 600)
 }
 
@@ -19,6 +20,7 @@ test("Export in the right-click menu saves a PNG of just the selected shapes, 8p
   await drawBox(page)
   await page.keyboard.press("o")
   await drag(page, [600, 300], [700, 400])
+  await expect(shapes(page, "ellipse")).toHaveCount(1)
   await page.mouse.click(800, 600)
   await page.mouse.click(350, 350, { button: "right" })
   await page.getByRole("menuitem", { name: "Export", exact: true }).click()
