@@ -1,6 +1,7 @@
 import type { Locator } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { journalTitle } from "../src/journal.ts"
+import { opfsFile } from "../src/opfs.ts"
 import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
@@ -72,4 +73,27 @@ test("systems of power reads in six places, each with its own days", async ({ pa
   ])
     await expect(main.getByRole("heading", { name: heading })).toBeVisible()
   await expect(main.getByText("positions of power are inherently corrupting").first()).toBeVisible()
+})
+
+test("a namespaced page's edit reaches its triple-lowbar file, and every demo file matches its page", async ({
+  page,
+}) => {
+  await openDemo(page)
+  await page.keyboard.press("Control+k")
+  await page.getByRole("searchbox", { name: "Search" }).fill("projects/Cold frame")
+  await expect(page.locator("[role=option][data-kind]").first()).toHaveText("projects/Cold frame")
+  await page.keyboard.press("Enter")
+  const frame = page.getByRole("article", { name: "projects/Cold frame", exact: true })
+  await frame.getByText("Ours uses an old window.").click()
+  await page.keyboard.press("End")
+  await page.keyboard.type(" It faces south.")
+  await page.keyboard.press("Escape")
+  await expect
+    .poll(
+      async () =>
+        (await opfsFile(page, ["graphs", "demo"], "pages/projects___Cold frame.md"))?.text ?? "",
+      { timeout: 15_000 },
+    )
+    .toContain(" It faces south.")
+  await expect(page.getByText("seqno didn't write")).toHaveCount(0)
 })

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Crypto, Effect, Layer, Option, Stream } from "effect"
+import { Clock, Context, Crypto, Effect, Layer, Option, Stream } from "effect"
 import { RpcTest } from "effect/rpc"
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
@@ -16,7 +16,9 @@ import { layerGitDeviceMemory } from "../git.ts"
 import { layerWebLocks } from "../lock.ts"
 import type { Layout } from "../layout.ts"
 import { memoryMirrorStore, type MirrorStore } from "../mirror-store.ts"
-import { Device, GraphPlaces } from "../place.ts"
+import { demoGraph } from "../demo.ts"
+import { journalDayOf } from "../journal.ts"
+import { Device, GraphPlaces, type Starter } from "../place.ts"
 
 const graphs = fileURLToPath(new URL("../../../../../fixtures/graphs/", import.meta.url))
 
@@ -50,7 +52,13 @@ const storeOf = (key: string) => {
 
 const AllRpcs = CoreRpcs.merge(PageRpcs, AssetRpcs)
 
-const coreOn = (root: string, device = "laptop", storage = nodeStorage(root)) =>
+const coreOn = (
+  root: string,
+  device = "laptop",
+  storage = nodeStorage(root),
+  starter: Starter | null = null,
+  synced = true,
+) =>
   Effect.gen(function* () {
     const handlers = yield* Layer.build(
       RealCore.pipe(
@@ -61,12 +69,12 @@ const coreOn = (root: string, device = "laptop", storage = nodeStorage(root)) =>
                 storage,
                 file: fileOf(storage, root),
                 layout,
-                synced: true,
+                synced,
                 sqlite: layerNode(),
                 indexFile: { read: Effect.succeedNone, write: () => Effect.void },
                 mirrorStore: storeOf(`${device}:${root}`),
                 changed: Stream.empty,
-                starter: null,
+                starter,
               }),
             forget: () => Effect.void,
           }),
@@ -190,6 +198,8 @@ const share = (from: string, to: string) =>
 const named = <A extends { readonly title: string }>(items: ReadonlyArray<A>, title: string) =>
   items.find((item) => item.title === title) ?? assert.fail(`no page titled ${title}`)
 
+const nothing: ReadonlyArray<string> = []
+
 const fixtures = [
   "og-syntax-mix",
   "org-and-front-matter",
@@ -233,6 +243,148 @@ describe("the markdown mirror", () => {
       }),
     120_000,
   )
+
+  it.live(
+    "the Getting started graph opens with every file matched to its page",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const root = yield* tempFolder
+          const files = demoGraph(journalDayOf(yield* Clock.currentTimeMillis))
+          const core = yield* coreOn(
+            root,
+            "laptop",
+            nodeStorage(root),
+            { version: 1, files },
+            false,
+          )
+          yield* core.OpenGraph({ graph: "demo" })
+          yield* core.CheckFiles()
+          yield* settled(root)
+          yield* Effect.sleep("2500 millis")
+          const status = yield* Effect.orDie(Stream.runHead(core.WatchMirror()))
+          const after = yield* pageFiles(root)
+          assert.deepStrictEqual(
+            {
+              left: Option.map(status, (found) => found.left.map((file) => file.path)),
+              changed: files.filter((file) => after[file.path] !== file.text).map((f) => f.path),
+              namespaced: files.filter((file) => file.path.includes("___")).length > 0,
+            },
+            { left: Option.some(nothing), changed: nothing, namespaced: true },
+          )
+        }),
+      ),
+    40_000,
+  )
+
+  const formats: ReadonlyArray<
+    readonly [string, string, string, Readonly<Record<string, string>>]
+  > = [
+    [
+      "triple-lowbar",
+      "{:file/name-format :triple-lowbar}",
+      "pages/projects___Cold frame.md",
+      {
+        "pages/projects___Seed tray.md": "- sow",
+        "pages/v1.2 notes.md": "- ship",
+        "pages/a___%5Fb.md": "- odd",
+      },
+    ],
+    [
+      "legacy",
+      "{}",
+      "pages/projects%2FCold frame.md",
+      {
+        "pages/projects%2FSeed tray.md": "- sow",
+        "pages/v1.2 notes.md": "title:: v1.2 notes\n\n- ship",
+        "pages/a%2F_b.md": "- odd",
+      },
+    ],
+    [
+      "legacy dots",
+      "{}",
+      "pages/projects.Cold frame.md",
+      {
+        "pages/projects%2FSeed tray.md": "- sow",
+        "pages/v1.2 notes.md": "title:: v1.2 notes\n\n- ship",
+        "pages/a%2F_b.md": "- odd",
+      },
+    ],
+  ]
+  for (const [format, config, existing, written] of formats) {
+    it.live(
+      `namespaced pages round trip under the ${format} file names`,
+      () =>
+        Effect.scoped(
+          Effect.gen(function* () {
+            const root = yield* folderWith({ "logseq/config.edn": config, [existing]: "- glass" })
+            const core = yield* coreOn(root)
+            yield* core.OpenGraph({ graph: format })
+            yield* core.CheckFiles()
+            yield* settled(root)
+            const frame = named(yield* core.GetPages(), "projects/Cold frame")
+            const glass = (yield* core.GetPage({ pageId: frame.id })).blocks[0]
+            if (glass === undefined) return assert.fail("Cold frame has no block")
+            yield* core.Dispatch({
+              command: { _tag: "EditText", blockId: glass.id, from: 5, to: 5, insert: " lid" },
+            })
+            for (const [title, text] of [
+              ["projects/Seed tray", "sow"],
+              ["v1.2 notes", "ship"],
+              ["a/_b", "odd"],
+            ] as const) {
+              const pageId =
+                (yield* core.Dispatch({ command: { _tag: "CreatePage", title } })).flatMap(
+                  (event) => (event._tag === "PageUpserted" ? [event.page.id] : []),
+                )[0] ?? assert.fail(`no page ${title}`)
+              yield* core.Dispatch({
+                command: { _tag: "InsertBlock", pageId, parentId: null, text },
+              })
+            }
+            const files = yield* until(pageFiles(root), (found) =>
+              Object.keys(written).every((path) => path in found),
+            )
+            const status = yield* Effect.orDie(Stream.runHead(core.WatchMirror()))
+            const reread = yield* folderWith(
+              Object.fromEntries(
+                Object.entries(files).flatMap(([path, text]) =>
+                  path.startsWith("pages/") ? [[path, String(text)]] : [],
+                ),
+              ),
+            )
+            yield* Effect.promise(() =>
+              writeFile(join(reread, "logseq", "config.edn"), config).catch(async () => {
+                await mkdir(join(reread, "logseq"))
+                await writeFile(join(reread, "logseq", "config.edn"), config)
+              }),
+            )
+            const again = yield* coreOn(reread, "reader")
+            yield* again.OpenGraph({ graph: `${format} again` })
+            const titles = (yield* again.GetPages())
+              .filter((page) => page.journalDay === null)
+              .map((page) => page.title)
+              .toSorted()
+            assert.deepStrictEqual(
+              {
+                left: Option.map(status, (found) => found.left.map((file) => file.path)),
+                existing: files[existing],
+                written: Object.fromEntries(
+                  Object.keys(written).map((path) => [path, files[path]]),
+                ),
+                titles,
+              },
+              {
+                left: Option.some(nothing),
+                existing: "- glass lid",
+                written: { ...written },
+                titles: ["a/_b", "projects/Cold frame", "projects/Seed tray", "v1.2 notes"],
+              },
+            )
+          }),
+        ),
+      40_000,
+    )
+  }
 
   it.live(
     "an edit reaches its page's file within two seconds, and no other file changes",

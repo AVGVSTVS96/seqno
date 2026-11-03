@@ -27,6 +27,8 @@ import {
   ImportIssue,
   LogseqSyntax,
   LogseqSyntaxLive,
+  configPath,
+  defaultConfig,
   importGraph,
   parseConfig,
   refsIn,
@@ -190,12 +192,14 @@ export const openSession = (place: GraphPlace) =>
     if (place.starter !== null) yield* layStarter(place.storage, place.starter)
     const log = yield* openEditLog(place.storage, place.layout, device)
     const graph = yield* serviceOf(Graph, log.graph({ peer, snapshot: Option.none(), updates: [] }))
-    const configText = yield* place.storage.read("logseq/config.edn").pipe(
+    const configFile = yield* place.storage.read(configPath).pipe(
       Effect.map((bytes) => decoder.decode(bytes)),
-      Effect.orElseSucceed(() => ""),
+      Effect.option,
     )
+    const configText = Option.getOrElse(configFile, () => "")
+    const config = Option.match(configFile, { onNone: () => defaultConfig, onSome: parseConfig })
     const properties = readPropertyConfig(configText)
-    const newPageFormat = parseConfig(configText).preferredFormat === "org" ? "org" : undefined
+    const newPageFormat = config.preferredFormat === "org" ? "org" : undefined
     const propertiesKey = propertyConfigKey(properties)
     const index = yield* serviceOf(
       Index,
@@ -554,7 +558,6 @@ export const openSession = (place: GraphPlace) =>
         return [...direct, ...written]
       })
 
-    const config = parseConfig(configText)
     const crypto = yield* Crypto.Crypto
     const baseVersion = Effect.gen(function* () {
       const stored = yield* place.mirrorStore.version

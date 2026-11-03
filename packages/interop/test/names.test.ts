@@ -4,6 +4,7 @@ import {
   defaultConfig,
   fileBodyFromTitle,
   formatJournalDay,
+  needsTitleProperty,
   parseConfig,
   parseJournalDay,
   titleFromFileBody,
@@ -22,12 +23,13 @@ describe("page file names", () => {
     [".hidden", "%2Ehidden"],
     ["a___b", "a%5F%5F%5Fb"],
     ["a_/b", "a%5F___b"],
-    ["a/_b", "a____b"],
+    ["a/_b", "a___%5Fb"],
+    ["con", "con"],
   ]
 
   it("encodes titles the way Logseq's triple-lowbar format does", () => {
     assert.deepStrictEqual(
-      pairs.map(([title]) => fileBodyFromTitle(title)),
+      pairs.map(([title]) => fileBodyFromTitle(title, "triple-lowbar")),
       pairs.map(([, body]) => body),
     )
   })
@@ -36,6 +38,28 @@ describe("page file names", () => {
     assert.deepStrictEqual(
       pairs.map(([, body]) => titleFromFileBody(body, "triple-lowbar")),
       pairs.map(([title]) => title),
+    )
+  })
+
+  it("encodes titles the way Logseq's legacy format does, and knows when the title needs title::", () => {
+    const legacy = ["a/b", "What? Why: now", "100%", "#tag|x \\ *e", "v1.2 notes", "/edge/"]
+    assert.deepStrictEqual(
+      legacy.map((title) => [
+        fileBodyFromTitle(title, "legacy"),
+        needsTitleProperty(title, "legacy"),
+      ]),
+      [
+        ["a%2Fb", false],
+        ["What%3F Why%3A now", false],
+        ["100%25", false],
+        ["%23tag%7Cx %5C %2Ae", false],
+        ["v1.2 notes", true],
+        ["edge", true],
+      ],
+    )
+    assert.deepStrictEqual(
+      pairs.filter(([title]) => needsTitleProperty(title, "triple-lowbar")),
+      [],
     )
   })
 

@@ -3,7 +3,7 @@ import { isWhiteboard, type Block, type BlockId, type Page, type Props } from "@
 import type { PageTree } from "@seqno/rpc"
 import type { LogseqConfig } from "./config.ts"
 import { formatJournalDay } from "./dates.ts"
-import { fileBodyFromTitle } from "./filenames.ts"
+import { fileBodyFromTitle, needsTitleProperty, type FileNameFormat } from "./filenames.ts"
 import { LogseqSyntax, titleKey, type OutlineBlock } from "./outline.ts"
 import { renderWhiteboard } from "./whiteboard.ts"
 
@@ -22,6 +22,7 @@ export const referencedIds = (pages: ReadonlyArray<PageTree>): ReadonlySet<strin
 export interface RenderOptions {
   readonly referenced: ReadonlySet<string>
   readonly keepIds?: ReadonlySet<string>
+  readonly fileNameFormat?: FileNameFormat
 }
 
 const outlineOf = (
@@ -47,8 +48,12 @@ const outlineOf = (
   return build(null)
 }
 
-const pageProps = (page: Page): Props => {
-  const key = titleKey(page.props)
+const pageProps = (page: Page, format: FileNameFormat | undefined): Props => {
+  const key =
+    titleKey(page.props) ??
+    (format !== undefined && page.journalDay === null && needsTitleProperty(page.title, format)
+      ? "title"
+      : undefined)
   return key === undefined ? page.props : { ...page.props, [key]: page.title }
 }
 
@@ -57,8 +62,8 @@ export const mirrorPath = (page: Page, config: LogseqConfig): string => {
   return page.journalDay !== null
     ? `${config.journalsDirectory}/${formatJournalDay(page.journalDay, config.journalFileFormat)}.${extension}`
     : isWhiteboard(page)
-      ? `${config.whiteboardsDirectory}/${fileBodyFromTitle(page.title)}.edn`
-      : `${config.pagesDirectory}/${fileBodyFromTitle(page.title)}.${extension}`
+      ? `${config.whiteboardsDirectory}/${fileBodyFromTitle(page.title, config.fileNameFormat)}.edn`
+      : `${config.pagesDirectory}/${fileBodyFromTitle(page.title, config.fileNameFormat)}.${extension}`
 }
 
 export const hasFile = ({ page, blocks }: PageTree): boolean =>
@@ -72,7 +77,7 @@ export const printPage = (
   isWhiteboard(page)
     ? renderWhiteboard(page, blocks)
     : syntax.print({
-        props: pageProps(page),
+        props: pageProps(page, options.fileNameFormat),
         blocks: outlineOf(blocks, options),
         ...(page.frontMatter === true ? { frontMatter: true } : {}),
         ...(page.format === undefined ? {} : { format: page.format }),
@@ -90,6 +95,9 @@ export const renderMirror = (pages: ReadonlyArray<PageTree>, config: LogseqConfi
     return new Map(
       pages
         .filter(hasFile)
-        .map((tree) => [mirrorPath(tree.page, config), printPage(syntax, tree, { referenced })]),
+        .map((tree) => [
+          mirrorPath(tree.page, config),
+          printPage(syntax, tree, { referenced, fileNameFormat: config.fileNameFormat }),
+        ]),
     )
   })

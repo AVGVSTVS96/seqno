@@ -223,6 +223,7 @@ export const makeMirror = (deps: MirrorDeps) =>
       printPage(syntax, tree, {
         referenced: referenced(tree),
         keepIds: disk === null ? new Set() : idsWrittenIn(disk),
+        fileNameFormat: config.fileNameFormat,
       })
 
     const faithful = (path: string, rendered: string) =>
@@ -232,6 +233,7 @@ export const makeMirror = (deps: MirrorDeps) =>
           printPage(syntax, file.tree, {
             referenced: new Set(),
             keepIds: idsWrittenIn(rendered),
+            fileNameFormat: config.fileNameFormat,
           }) === rendered,
       })
 

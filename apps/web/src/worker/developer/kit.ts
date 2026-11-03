@@ -32,7 +32,7 @@ export const ids = {
 export const ref = (id: string) => `((${id}))`
 
 export const page = (title: string, ...lines: ReadonlyArray<string>): StarterFile => ({
-  path: `pages/${fileBodyFromTitle(title)}.md`,
+  path: `pages/${fileBodyFromTitle(title, defaultConfig.fileNameFormat)}.md`,
   text: lines.join("\n"),
 })
 
