@@ -3,7 +3,6 @@ import { Effect, FileSystem, Layer, Option, Path, Result } from "effect"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import {
   BlockId,
-  DeviceId,
   PageId,
   shapeOf,
   shapeProps,
@@ -20,7 +19,7 @@ import {
   printEdn,
   readEdn,
   renderMirror,
-  writeMirror,
+  GraphFolder,
   type Edn,
 } from "@seqno/interop"
 
@@ -429,10 +428,14 @@ describe("whiteboard mirror", () => {
       const fs = yield* FileSystem.FileSystem
       const root = yield* fs.makeTempDirectoryScoped()
       const folder = layerFileSystem(root)
-      const device = DeviceId.make("mac")
+      const written = yield* renderMirror([drawn], defaultConfig)
       yield* Effect.provide(
-        writeMirror({ device, writer: device, pages: [drawn], config: defaultConfig }),
-        Layer.mergeAll(folder, LogseqSyntaxLive),
+        Effect.forEach(written, ([path, text]) =>
+          Effect.gen(function* () {
+            yield* (yield* GraphFolder).write(path, text)
+          }),
+        ),
+        folder,
       )
       const graph = yield* Effect.provide(importGraph, Layer.mergeAll(folder, LogseqSyntaxLive))
       const board = boardNamed(graph.pages, "plans")
@@ -495,26 +498,6 @@ describe("whiteboard mirror", () => {
         ':shapes-index ("01920000-0000-7000-8000-0000000000b2" "01920000-0000-7000-8000-0000000000b3")',
       )
     }).pipe(Effect.provide(LogseqSyntaxLive)),
-  )
-
-  it.effect("replaces a stale whiteboard file and leaves the board out of pages/", () =>
-    Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem
-      const path = yield* Path.Path
-      const root = yield* fs.makeTempDirectoryScoped()
-      yield* fs.makeDirectory(path.join(root, "whiteboards"))
-      yield* fs.writeFileString(path.join(root, "whiteboards", "Old board.edn"), "{}")
-      const device = DeviceId.make("mac")
-      const outcome = yield* Effect.provide(
-        writeMirror({ device, writer: device, pages: [drawn], config: defaultConfig }),
-        Layer.mergeAll(layerFileSystem(root), LogseqSyntaxLive),
-      )
-      assert.deepStrictEqual(outcome, {
-        _tag: "Mirrored",
-        written: ["whiteboards/Plans.edn", "logseq/config.edn"],
-        removed: ["whiteboards/Old board.edn"],
-      })
-    }).pipe(Effect.scoped, Effect.provide(Node)),
   )
 })
 

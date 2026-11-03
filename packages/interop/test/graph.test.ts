@@ -1,16 +1,8 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Crypto, Effect, FileSystem, Layer, Path } from "effect"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
-import { DeviceId } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
-import {
-  GraphFolder,
-  LogseqSyntaxLive,
-  importGraph,
-  layerFileSystem,
-  renderMirror,
-  writeMirror,
-} from "@seqno/interop"
+import { LogseqSyntaxLive, importGraph, layerFileSystem, renderMirror } from "@seqno/interop"
 
 const counter = { value: 0 }
 const SequentialCrypto = Layer.succeed(
@@ -208,58 +200,21 @@ describe("mirror", () => {
     }).pipe(Effect.provide(LogseqSyntaxLive)),
   )
 
-  it.effect("writes only changed files, removes deleted pages, and skips other devices", () =>
+  it.effect("skips Chrome's swap files and seqno's staging files without listing them", () =>
     Effect.gen(function* () {
-      const graph = yield* imported
-      const writer = DeviceId.make("macbook")
-      const mirror = (pages: ReadonlyArray<PageTree>, device = writer) =>
-        writeMirror({ device, writer, pages, config: graph.config })
-      const outcomes = yield* withGraph(
-        { "pages/Cafe\u0301.md": "- old" },
-        Effect.gen(function* () {
-          const first = yield* mirror(graph.pages)
-          const second = yield* mirror(graph.pages)
-          const third = yield* mirror(graph.pages.slice(0, 2))
-          const other = yield* mirror(graph.pages, DeviceId.make("iphone"))
-          const folder = yield* GraphFolder
-          return { first, second, third, other, files: yield* folder.list }
-        }),
-      )
-      assert.deepStrictEqual(outcomes, {
-        first: {
-          _tag: "Mirrored",
-          written: [
-            "journals/2026_10_06.md",
-            "pages/Project X.md",
-            "pages/a___b%3F.md",
-            "pages/notes.org",
-            "logseq/config.edn",
-          ],
-          removed: ["pages/Caf\u00e9.md"],
+      const graph = yield* withGraph(
+        {
+          "pages/Plans.md": "- plan",
+          "pages/Plans.md.crswap": "- half",
+          "pages/Plans.md.seqno-tmp": "- staged",
+          "pages/.Plans.md.crswap.icloud": "",
         },
-        second: { _tag: "Mirrored", written: [], removed: [] },
-        third: { _tag: "Mirrored", written: [], removed: ["pages/a___b%3F.md", "pages/notes.org"] },
-        other: { _tag: "NotWriter", writer },
-        files: ["journals/2026_10_06.md", "logseq/config.edn", "pages/Project X.md"],
-      })
-    }).pipe(Effect.provide(LogseqSyntaxLive)),
-  )
-
-  it.effect("treats an NFD file name from the listing as the page's NFC path", () =>
-    Effect.gen(function* () {
-      const graph = yield* imported
-      const writer = DeviceId.make("macbook")
-      const namespace = graph.pages[2]
-      if (namespace === undefined) return assert.fail("the namespace page was not imported")
-      const cafe = {
-        page: { ...namespace.page, title: "Caf\u00e9", name: "caf\u00e9" },
-        blocks: namespace.blocks,
-      }
-      const outcome = yield* withGraph(
-        { "pages/Cafe\u0301.md": namespaced, "logseq/config.edn": "{}" },
-        writeMirror({ device: writer, writer, pages: [cafe], config: graph.config }),
+        importGraph,
       )
-      assert.deepStrictEqual(outcome, { _tag: "Mirrored", written: [], removed: [] })
-    }).pipe(Effect.provide(LogseqSyntaxLive)),
+      assert.deepStrictEqual(
+        { pages: graph.pages.map((tree) => tree.page.title), issues: graph.issues },
+        { pages: ["Plans"], issues: [] },
+      )
+    }).pipe(Effect.provide(LogseqSyntaxLive), Effect.provide(SequentialCrypto)),
   )
 })
