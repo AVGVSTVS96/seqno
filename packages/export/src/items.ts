@@ -8,6 +8,7 @@ import {
   listLine,
   parseInline,
   tableCells,
+  type Dialect,
   type Inline,
 } from "@seqno/syntax"
 import type { Shelf } from "./library.ts"
@@ -94,19 +95,19 @@ const listOf = (lines: ReadonlyArray<string>): ReadonlyArray<ListItem> => {
   return roots
 }
 
-const cellsOf = (line: string): ReadonlyArray<Run> =>
+const cellsOf = (line: string, dialect: Dialect): ReadonlyArray<Run> =>
   tableCells(line).map(({ from, to }) => ({
     source: line,
     from,
     to,
-    nodes: parseInline(line.slice(0, to)).filter((node) => node.span.from >= from),
+    nodes: parseInline(line.slice(0, to), 0, dialect).filter((node) => node.span.from >= from),
   }))
 
-const tableOf = (level: number, lines: ReadonlyArray<string>): Item => {
+const tableOf = (level: number, lines: ReadonlyArray<string>, dialect: Dialect): Item => {
   const separated = lines.length > 1 && isTableSeparator(lines[1] ?? "")
   const [header = [], ...rows] = lines
     .filter((_, index) => !(index === 1 && separated))
-    .map(cellsOf)
+    .map((line) => cellsOf(line, dialect))
   return { _tag: "Table", level, header, rows }
 }
 
@@ -117,11 +118,11 @@ const EMBED_PAGE = /^\[\[(.+)\]\]$/
 const MATH = /^[ \t]*\$\$[ \t]*$/
 const FOOTNOTE = /^[ \t]*\[\^[^\]]+\]:/
 
-export const lineRun = (line: string): Run => ({
+export const lineRun = (line: string, dialect: Dialect = "markdown"): Run => ({
   source: line,
   from: 0,
   to: line.length,
-  nodes: parseInline(line),
+  nodes: parseInline(line, 0, dialect),
 })
 
 export const isEmpty = (run: Run) => run.source.slice(run.from, run.to).trim() === ""
@@ -141,11 +142,12 @@ type Piece =
 interface Context {
   readonly shelf: Shelf
   readonly depth: number
+  readonly dialect: Dialect
 }
 
 const embedded = (node: Inline, level: number, context: Context): ReadonlyArray<Item> | null => {
   if (node._tag !== "Macro" || node.name !== "embed" || context.depth >= maxEmbedDepth) return null
-  const deeper = { ...context, depth: context.depth + 1 }
+  const deeper = { ...context, depth: context.depth + 1, dialect: "markdown" as const }
   const uuid = EMBED_BLOCK.exec(node.args)?.[1]
   if (uuid !== undefined) {
     const target = context.shelf.block(uuid)
@@ -205,7 +207,7 @@ const bodyItems = (
   level: number,
   context: Context,
 ): ReadonlyArray<Item> => {
-  const regions = analyzeBlock(text).regions
+  const regions = analyzeBlock(text, context.dialect).regions
   const items: Array<Item> = []
   let paragraph: Array<Run> = []
   let quote: Array<Run> = []
@@ -257,7 +259,7 @@ const bodyItems = (
         index++
         rows.push(lines[index]?.text ?? "")
       }
-      items.push(tableOf(level, rows))
+      items.push(tableOf(level, rows, context.dialect))
       continue
     }
     if (listLine(line.text) !== null) {
@@ -290,11 +292,11 @@ const bodyItems = (
     const marked = QUOTE.exec(line.text)
     if (marked !== null) {
       if (paragraph.length > 0) flush()
-      quote.push(lineRun(line.text.slice(marked[0].length)))
+      quote.push(lineRun(line.text.slice(marked[0].length), context.dialect))
       continue
     }
     if (quote.length > 0) flush()
-    const pieces = split(lineRun(line.text), level, context)
+    const pieces = split(lineRun(line.text, context.dialect), level, context)
     for (const piece of pieces) {
       if (piece._tag === "Run") {
         if (pieces.length === 1 || !isEmpty(piece.run)) paragraph.push(piece.run)
@@ -317,7 +319,7 @@ const blockItems = (
   const text = block.text
   const lines = linesOf(text)
   const first = lines[0]?.text ?? ""
-  const content = blockContent(text)
+  const content = blockContent(text, context.dialect)
   const items: Array<Item> = []
   const titled = content.title !== null && !isTableRow(first)
   const start = titled ? (content.title?.[0]?.span.from ?? first.length) : 0
@@ -359,10 +361,13 @@ const pageItems = (pageId: PageId, level: number, context: Context): ReadonlyArr
   context.shelf.children(pageId, null).flatMap((block) => blockItems(block, pageId, level, context))
 
 export const itemsOfPage = (shelf: Shelf, pageId: PageId): ReadonlyArray<Item> =>
-  pageItems(pageId, 1, { shelf, depth: 0 })
+  pageItems(pageId, 1, { shelf, depth: 0, dialect: shelf.dialect(pageId) })
 
-export const itemsOfBlocks = (shelf: Shelf, blocks: ReadonlyArray<Block>): ReadonlyArray<Item> =>
-  blocks.flatMap((block) => blockItems(block, block.pageId, 1, { shelf, depth: 0 }))
+export const itemsOfBlocks = (shelf: Shelf, blocks: ReadonlyArray<Block>): ReadonlyArray<Item> => {
+  const first = blocks[0]
+  const dialect = first === undefined ? "markdown" : shelf.dialect(first.pageId)
+  return blocks.flatMap((block) => blockItems(block, block.pageId, 1, { shelf, depth: 0, dialect }))
+}
 
 export const upToLevel = (
   items: ReadonlyArray<Item>,

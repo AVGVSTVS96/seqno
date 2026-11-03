@@ -1,5 +1,5 @@
 import type { Block, BlockId, Page, PageId } from "@seqno/domain"
-import { defaultPropertyConfig, type PropertyConfig } from "@seqno/syntax"
+import { defaultPropertyConfig, type Dialect, type PropertyConfig } from "@seqno/syntax"
 
 export interface PageBlocks {
   readonly page: Page
@@ -19,6 +19,7 @@ export interface Shelf {
   readonly logseqId: (block: Block) => string
   readonly referenced: (block: Block) => boolean
   readonly properties: PropertyConfig
+  readonly dialect: (pageId: PageId) => Dialect
 }
 
 const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
@@ -40,6 +41,7 @@ export const shelve = ({ pages, referenced, properties }: Library): Shelf => {
   const byUuid = new Map<string, Block>()
   const byParent = new Map<string, Array<Block>>()
   const byName = new Map<string, PageBlocks>()
+  const org = new Set(pages.flatMap(({ page }) => (page.format === "org" ? [page.id] : [])))
   for (const entry of pages) {
     byName.set(entry.page.name, entry)
     const ids = new Set(entry.blocks.map((block) => block.id))
@@ -62,5 +64,6 @@ export const shelve = ({ pages, referenced, properties }: Library): Shelf => {
     referenced: (block) =>
       referenced.has(block.id.toLowerCase()) || referenced.has(logseqId(block)),
     properties: properties ?? defaultPropertyConfig,
+    dialect: (pageId) => (org.has(pageId) ? "org" : "markdown"),
   }
 }

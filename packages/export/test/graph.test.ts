@@ -1,7 +1,8 @@
 import { strFromU8, unzipSync } from "fflate"
 import { describe, expect, it } from "vitest"
+import { BlockId, PageId, type Block, type Page } from "@seqno/domain"
 import { readPropertyConfig } from "@seqno/syntax"
-import { exportGraph } from "../src/index.ts"
+import { exportGraph, type PageBlocks } from "../src/index.ts"
 import { pageId, pagesOf } from "./graph.ts"
 
 const pages = pagesOf({
@@ -295,5 +296,69 @@ describe("graph export", () => {
     expect(strFromU8(files["demo_opml_1761120000/pages/Ada.opml"] ?? new Uint8Array())).toContain(
       `<outline text="DONE wrote the &quot;notes&quot;">`,
     )
+  })
+})
+
+const flat = (entry: {
+  format: string
+  content: string
+  children: ReadonlyArray<never>
+}): ReadonlyArray<readonly [string, string]> => [
+  [entry.format, entry.content],
+  ...entry.children.flatMap(flat),
+]
+
+describe("Org pages in the graph exports", () => {
+  const orgId = PageId.make("01900000-0000-7000-8000-00000000000f")
+  const orgBlock = (n: number, content: string, extra: Partial<Block> = {}): Block => ({
+    id: BlockId.make(block(100 + n)),
+    pageId: orgId,
+    parentId: null,
+    text: content,
+    collapsed: false,
+    props: {},
+    ...extra,
+  })
+  const org: PageBlocks = {
+    page: {
+      id: orgId,
+      name: "reading list",
+      title: "Reading list",
+      journalDay: null,
+      props: { title: "Reading list", tags: "books" },
+      format: "org",
+    },
+    blocks: [
+      orgBlock(1, "TODO Finish /Dune/\nSCHEDULED: <2026-11-05 Thu>"),
+      orgBlock(2, "notes", { parentId: BlockId.make(block(101)) }),
+      orgBlock(3, "DONE Read it", { props: { rating: "5" } }),
+      orgBlock(4, "folded", { collapsed: true }),
+      orgBlock(5, "last one"),
+    ],
+  }
+  const orgOptions = {
+    ...options,
+    path: (page: Page) => `pages/${page.title}.${page.format === "org" ? "org" : "md"}`,
+  }
+
+  it("writes Org blocks with :org format and the content Logseq keeps for them", () => {
+    const page = JSON.parse(strFromU8(exportGraph([org], "json", orgOptions).bytes)).blocks[0]
+    expect(page.children.flatMap(flat)).toEqual([
+      ["org", "#+title: Reading list\n#+tags: books\n\n"],
+      ["org", "TODO Finish /Dune/\nSCHEDULED: <2026-11-05 Thu>\n"],
+      ["org", "notes\n"],
+      ["org", "DONE Read it"],
+      ["org", "folded\n:PROPERTIES:\n:collapsed: true\n:END:\n"],
+      ["org", "last one"],
+    ])
+    expect(page.properties).toEqual({ title: "Reading list", tags: ["books"] })
+  })
+
+  it("leaves Org pages out of the Markdown and OPML zips, as Logseq does", () => {
+    for (const format of ["markdown", "opml"] as const) {
+      const files = Object.keys(unzipSync(exportGraph([...pages, org], format, orgOptions).bytes))
+      expect(files.some((file) => file.includes("Reading list"))).toBe(false)
+      expect(files.some((file) => file.includes("Ada"))).toBe(true)
+    }
   })
 })

@@ -17,6 +17,7 @@ import type { Published, PublishedName, PublishedReference } from "@seqno/export
 import {
   NestedLists,
   Outliner,
+  PageDialects,
   PropertySettings,
   PropertyValue,
   ScrollContent,
@@ -585,6 +586,9 @@ const leftOpen = Atom.make(matchMedia("(min-width: 1024px)").matches).pipe(Atom.
 
 export const SiteView = ({ data }: { readonly data: Published }) => {
   const [site] = useState(() => siteOf(data))
+  const [org] = useState(
+    () => new Set(data.pages.flatMap(({ page }) => (page.format === "org" ? [page.id] : []))),
+  )
   const [properties] = useState(() => ({
     listKeys: new Set(data.listKeys),
     unparsedKeys: new Set<string>(),
@@ -595,100 +599,108 @@ export const SiteView = ({ data }: { readonly data: Published }) => {
   const journals = journalsOf(site).length > 0
   return (
     <PropertySettings value={properties}>
-      <style href="seqno/theme" precedence="theme">
-        {themeCss}
-      </style>
-      <style href="seqno/app" precedence="app">
-        {appCss}
-      </style>
-      <style href="seqno/shell" precedence="app">
-        {shellCss}
-      </style>
-      <style href="seqno/pages" precedence="pages">
-        {pagesCss}
-      </style>
-      <style href="seqno/site" precedence="pages">
-        {siteCss}
-      </style>
-      <div
-        className="app"
-        data-left-open={open}
-        data-right-open={false}
-        data-wide={false}
-        style={{ "--left-sidebar-width": "240px", "--right-sidebar-width": "0vw" }}
-      >
-        <div className="left-container">
-          <header className="head">
-            <div className="head-left">
-              <button
-                type="button"
-                aria-label="Toggle left sidebar"
-                className="icon-button"
-                aria-expanded={open}
-                onClick={() => setOpen(!open)}
+      <PageDialects value={(pageId) => (org.has(pageId) ? "org" : "markdown")}>
+        <style href="seqno/theme" precedence="theme">
+          {themeCss}
+        </style>
+        <style href="seqno/app" precedence="app">
+          {appCss}
+        </style>
+        <style href="seqno/shell" precedence="app">
+          {shellCss}
+        </style>
+        <style href="seqno/pages" precedence="pages">
+          {pagesCss}
+        </style>
+        <style href="seqno/site" precedence="pages">
+          {siteCss}
+        </style>
+        <div
+          className="app"
+          data-left-open={open}
+          data-right-open={false}
+          data-wide={false}
+          style={{ "--left-sidebar-width": "240px", "--right-sidebar-width": "0vw" }}
+        >
+          <div className="left-container">
+            <header className="head">
+              <div className="head-left">
+                <button
+                  type="button"
+                  aria-label="Toggle left sidebar"
+                  className="icon-button"
+                  aria-expanded={open}
+                  onClick={() => setOpen(!open)}
+                >
+                  <IconMenu2 size={20} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Search"
+                  className="icon-button"
+                  onClick={() => setSearching(true)}
+                >
+                  <IconSearch size={20} aria-hidden />
+                </button>
+              </div>
+              <div className="head-right" />
+            </header>
+            <div className="main-container">
+              <aside
+                className="left-sidebar"
+                aria-label="Left sidebar"
+                data-open={open}
+                inert={!open}
+                aria-hidden={!open}
               >
-                <IconMenu2 size={20} aria-hidden />
-              </button>
-              <button
-                type="button"
-                aria-label="Search"
-                className="icon-button"
-                onClick={() => setSearching(true)}
-              >
-                <IconSearch size={20} aria-hidden />
-              </button>
-            </div>
-            <div className="head-right" />
-          </header>
-          <div className="main-container">
-            <aside
-              className="left-sidebar"
-              aria-label="Left sidebar"
-              data-open={open}
-              inert={!open}
-              aria-hidden={!open}
-            >
-              <div className="left-sidebar-inner">
-                <div className="left-sidebar-wrap">
-                  <div className="left-sidebar-header">
-                    <div className="graph-switcher">
-                      <a href="#/" className="graph-switcher-trigger">
-                        <strong className="graph-name">{site.data.graph}</strong>
-                      </a>
-                    </div>
-                    <section className="sidebar-group" aria-label="Navigations">
-                      <nav className="sidebar-nav" aria-label="Navigations">
-                        {journals ? (
+                <div className="left-sidebar-inner">
+                  <div className="left-sidebar-wrap">
+                    <div className="left-sidebar-header">
+                      <div className="graph-switcher">
+                        <a href="#/" className="graph-switcher-trigger">
+                          <strong className="graph-name">{site.data.graph}</strong>
+                        </a>
+                      </div>
+                      <section className="sidebar-group" aria-label="Navigations">
+                        <nav className="sidebar-nav" aria-label="Navigations">
+                          {journals ? (
+                            <NavItem
+                              route={{ _tag: "Home" }}
+                              current={route}
+                              icon={
+                                <IconCalendar className="nav-item-icon" size={16} aria-hidden />
+                              }
+                              label="Journals"
+                            />
+                          ) : null}
                           <NavItem
-                            route={{ _tag: "Home" }}
-                            current={route}
-                            icon={<IconCalendar className="nav-item-icon" size={16} aria-hidden />}
-                            label="Journals"
+                            route={{ _tag: "AllPages" }}
+                            current={
+                              journals
+                                ? route
+                                : route._tag === "Home"
+                                  ? { _tag: "AllPages" }
+                                  : route
+                            }
+                            icon={<IconFiles className="nav-item-icon" size={16} aria-hidden />}
+                            label="Pages"
                           />
-                        ) : null}
-                        <NavItem
-                          route={{ _tag: "AllPages" }}
-                          current={
-                            journals ? route : route._tag === "Home" ? { _tag: "AllPages" } : route
-                          }
-                          icon={<IconFiles className="nav-item-icon" size={16} aria-hidden />}
-                          label="Pages"
-                        />
-                      </nav>
-                    </section>
+                        </nav>
+                      </section>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </aside>
-            <main className="main-content-container">
-              <ScrollContent className="main-content">
-                <Content key={hrefOf(route)} site={site} route={route} />
-              </ScrollContent>
-            </main>
+              </aside>
+              <main className="main-content-container">
+                <ScrollContent className="main-content">
+                  <Content key={hrefOf(route)} site={site} route={route} />
+                </ScrollContent>
+              </main>
+            </div>
           </div>
         </div>
-      </div>
-      {searching ? <Search site={site} onClose={() => setSearching(false)} /> : null}
+        {searching ? <Search site={site} onClose={() => setSearching(false)} /> : null}
+      </PageDialects>
     </PropertySettings>
   )
 }

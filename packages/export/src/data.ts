@@ -1,4 +1,4 @@
-import { normalizePageName, type Block, type PageId } from "@seqno/domain"
+import { normalizePageName, type Block, type BlockId, type PageId } from "@seqno/domain"
 import { joinProperties, parseInline, propertyKey, type PropertyConfig } from "@seqno/syntax"
 import { propertyLines, type PropertyLine } from "./items.ts"
 import { shelve, type Library, type PageBlocks, type Shelf } from "./library.ts"
@@ -108,8 +108,10 @@ const pagePropertiesOf = (
 
 const HEADING = /^(#+)[ \t]/
 
-const blockPropertiesOf = (block: Block, config: PropertyConfig): Properties => {
-  const level = HEADING.exec(block.text)?.[1]?.length
+type Format = "markdown" | "org"
+
+const blockPropertiesOf = (block: Block, config: PropertyConfig, format: Format): Properties => {
+  const level = format === "org" ? undefined : HEADING.exec(block.text)?.[1]?.length
   const kept = [
     ...(level === undefined ? [] : [["heading", level] as const]),
     ...typed(Object.entries(block.props), config),
@@ -117,8 +119,14 @@ const blockPropertiesOf = (block: Block, config: PropertyConfig): Properties => 
   return kept.length === 0 && Object.keys(block.props).length === 0 ? null : kept
 }
 
-const contentOf = (block: Block) =>
-  block.collapsed ? joinProperties(block.text, [["collapsed", "true"]]) : block.text
+const contentOf = (block: Block, format: Format, last: boolean) => {
+  if (format === "markdown") {
+    return block.collapsed ? joinProperties(block.text, [["collapsed", "true"]]) : block.text
+  }
+  if (Object.keys(block.props).length > 0) return block.text
+  const raw = joinProperties(block.text, block.collapsed ? [["collapsed", "true"]] : [], "org")
+  return last ? raw : `${raw}\n`
+}
 
 export interface ExportedPage {
   readonly id: string
@@ -129,19 +137,32 @@ export interface ExportedPage {
 
 export interface ExportedBlock {
   readonly id: string
+  readonly format: Format
   readonly content: string
   readonly lines: ReadonlyArray<PropertyLine>
   readonly properties: Properties
   readonly children: ReadonlyArray<ExportedBlock>
 }
 
-const blockOf = (shelf: Shelf, pageId: PageId, block: Block): ExportedBlock => ({
+interface Placement {
+  readonly pageId: PageId
+  readonly format: Format
+  readonly last: BlockId | null
+}
+
+const blockOf = (shelf: Shelf, at: Placement, block: Block): ExportedBlock => ({
   id: shelf.logseqId(block),
-  content: contentOf(block),
+  format: at.format,
+  content: contentOf(block, at.format, block.id === at.last),
   lines: propertyLines(block, false),
-  properties: blockPropertiesOf(block, shelf.properties),
-  children: shelf.children(pageId, block.id).map((child) => blockOf(shelf, pageId, child)),
+  properties: blockPropertiesOf(block, shelf.properties, at.format),
+  children: shelf.children(at.pageId, block.id).map((child) => blockOf(shelf, at, child)),
 })
+
+const lastBlock = (shelf: Shelf, pageId: PageId, parentId: BlockId | null): BlockId | null => {
+  const last = shelf.children(pageId, parentId).at(-1)
+  return last === undefined ? parentId : lastBlock(shelf, pageId, last.id)
+}
 
 export const hasFile = ({ page, blocks }: PageBlocks) =>
   blocks.length > 0 || Object.keys(page.props).length > 0
@@ -164,15 +185,15 @@ const propertiesBlock = (page: PageBlocks["page"], properties: Properties) =>
     : [
         {
           id: derivedUuid(page.id),
+          format: page.format ?? ("markdown" as const),
           content:
             page.frontMatter === true
-              ? [
-                  "---",
-                  ...Object.entries(page.props).map(([key, value]) => `${key}: ${value}`),
-                  "---",
-                ].join("\n")
-              : "",
-          lines: page.frontMatter === true ? [] : Object.entries(page.props),
+              ? joinProperties("", Object.entries(page.props), "frontMatter")
+              : page.format === "org"
+                ? `${joinProperties("", Object.entries(page.props), "directives")}\n\n`
+                : "",
+          lines:
+            page.frontMatter === true || page.format === "org" ? [] : Object.entries(page.props),
           properties,
           children: [],
         },
@@ -191,7 +212,17 @@ export const exportedPages = (library: Library): ReadonlyArray<ExportedPage> => 
         properties,
         children: [
           ...propertiesBlock(page, properties),
-          ...shelf.children(page.id, null).map((block) => blockOf(shelf, page.id, block)),
+          ...shelf.children(page.id, null).map((block) =>
+            blockOf(
+              shelf,
+              {
+                pageId: page.id,
+                format: page.format ?? "markdown",
+                last: lastBlock(shelf, page.id, null),
+              },
+              block,
+            ),
+          ),
         ],
       }
     })
@@ -212,7 +243,7 @@ const ednBlock = (block: ExportedBlock): Edn =>
   map([
     ["block/id", { _tag: "Uuid", value: block.id }],
     ["block/properties", ednProperties(block.properties)],
-    ["block/format", keyword("markdown")],
+    ["block/format", keyword(block.format)],
     ["block/children", vector(block.children.map(ednBlock))],
     ["block/content", block.content],
   ])
@@ -242,7 +273,7 @@ export const ednOf = (pages: ReadonlyArray<ExportedPage>): string =>
 interface JsonBlock {
   readonly id: string
   readonly properties: Record<string, PropertyValue> | null
-  readonly format: "markdown"
+  readonly format: Format
   readonly children: ReadonlyArray<JsonBlock>
   readonly content: string
 }
@@ -255,7 +286,7 @@ const jsonProperties = (properties: Properties) =>
 const jsonBlock = (block: ExportedBlock): JsonBlock => ({
   id: block.id,
   properties: jsonProperties(block.properties),
-  format: "markdown",
+  format: block.format,
   children: block.children.map(jsonBlock),
   content: block.content,
 })
@@ -317,9 +348,14 @@ const linkedNames = (pages: ReadonlyArray<ExportedPage>): ReadonlySet<string> =>
 
 export const roamJsonOf = (pages: ReadonlyArray<ExportedPage>, referenced: ReadonlySet<string>) => {
   const roamString = (block: ExportedBlock) =>
-    joinProperties(
-      block.content,
-      block.lines.filter(([key]) => key !== "collapsed"),
+    (block.format === "org"
+      ? block.properties === null
+        ? block.content
+        : joinProperties(block.content, block.lines, "org")
+      : joinProperties(
+          block.content,
+          block.lines.filter(([key]) => key !== "collapsed"),
+        )
     )
       .replaceAll(UUIDS, (uuid) =>
         referenced.has(uuid.toLowerCase()) ? uidOf(uuid.toLowerCase()) : uuid,
