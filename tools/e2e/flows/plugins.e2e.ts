@@ -297,21 +297,30 @@ test("installed plugins and themes keep working offline, after a reload", async 
   context,
   seqno,
 }) => {
+  test.slow()
   await seqno.openDemoGraph()
+  await expect
+    .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
+    .toBe(true)
   await install(page, "Journals calendar")
   await install(page, "logseq-wordcount-plugin")
+  await install(page, "Catppuccin", "Themes")
   await install(page, "Dev theme", "Themes")
   const dialog = await openPlugins(page)
   await dialog.getByRole("radio", { name: /^Themes/ }).click()
   await dialog.getByRole("radio", { name: "Dev theme", exact: true }).click()
   await page.keyboard.press("Escape")
-  await page.evaluate(() => navigator.serviceWorker.ready)
   await context.unrouteAll()
   await context.route("**", (route) => route.abort("internetdisconnected"))
   await context.setOffline(true)
   await page.reload()
   const font = () => page.evaluate(() => getComputedStyle(document.body).fontFamily)
   await expect.poll(font).toMatch(/^"Only Emoji", "Source Sans 3 VF"/)
+  const catppuccinSdk = () =>
+    page
+      .frame({ url: /\/lsp\/catppuccin\/logseq\// })
+      ?.evaluate(() => typeof Reflect.get(window, "logseq"))
+  await expect.poll(catppuccinSdk).toBe("object")
   await page.locator("#open-calendar-button").click()
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)

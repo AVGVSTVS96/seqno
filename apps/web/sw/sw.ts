@@ -19,13 +19,31 @@ const serve = (worker: ServiceWorkerGlobalScope) => {
   const files = new Set(build.files.map((file) => new URL(file, scope).href))
   const page = new URL("index.html", scope).href
 
+  const keep = async (url: string, response: Response) => {
+    if (pluginCache === null) return
+    const cache = await caches.open(pluginCache)
+    await cache.put(bare(url), response)
+  }
+
   const pluginFile = async (request: Request) => {
     const kept = await caches.match(request, { ignoreSearch: true, ignoreVary: true })
     if (kept !== undefined) return kept
     const response = await fetch(request)
-    if (response.ok && pluginCache !== null) {
-      const cache = await caches.open(pluginCache)
-      await cache.put(bare(request.url), response.clone())
+    if (response.ok) await keep(request.url, response.clone())
+    return response
+  }
+
+  const fromPlugin = async (clientId: string) => {
+    const client = await worker.clients.get(clientId)
+    return pluginRoot !== null && client?.url.startsWith(pluginRoot) === true
+  }
+
+  const pluginScript = async (request: Request, clientId: string) => {
+    const kept = await caches.match(request, { ignoreVary: true })
+    if (kept !== undefined) return kept
+    const response = await fetch(request)
+    if ((response.ok || response.type === "opaque") && (await fromPlugin(clientId))) {
+      await keep(request.url, response.clone())
     }
     return response
   }
@@ -69,6 +87,8 @@ const serve = (worker: ServiceWorkerGlobalScope) => {
     if (request.method !== "GET") return
     if (pluginRoot !== null && request.url.startsWith(pluginRoot))
       return event.respondWith(pluginFile(request))
+    if (request.destination === "script" && new URL(request.url).origin !== worker.location.origin)
+      return event.respondWith(pluginScript(request, event.clientId))
     if (!request.url.startsWith(scope)) return
     if (request.mode === "navigate") return event.respondWith(navigation(request))
     if (files.has(bare(request.url))) return event.respondWith(shellFile(request))
