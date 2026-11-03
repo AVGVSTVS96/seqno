@@ -170,12 +170,12 @@ What a plugin registers (toolbar items, slash commands, block menu items, shortc
 
 ## Packages
 
-| Side   | Packages                                                                                | Job                                                  |
-| ------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| shared | `@seqno/domain`, `@seqno/rpc`                                                           | ids, schemas, commands, events; the UI-core contract |
-| pure   | `@seqno/syntax`, `@seqno/query`, `@seqno/export`                                        | markdown parsing, query text to SQL, export formats  |
-| core   | `@seqno/graph`, `@seqno/index`, `@seqno/vault`, `@seqno/interop`, `apps/web/src/worker` | everything behind the RPC boundary                   |
-| UI     | `apps/web`, `@seqno/outliner`, `@seqno/editor`, `@seqno/pdf`                            | what you see and type into                           |
-| tools  | `@seqno/sync-sim`, `@seqno/e2e`, `@seqno/lint`                                          | sync simulator, browser flows, lint rules            |
+| Side   | Packages                                                                                              | Job                                                  |
+| ------ | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| shared | `@seqno/domain`, `@seqno/rpc`                                                                         | ids, schemas, commands, events; the UI-core contract |
+| pure   | `@seqno/syntax`, `@seqno/query`, `@seqno/export`                                                      | markdown parsing, query text to SQL, export formats  |
+| core   | `@seqno/graph`, `@seqno/index`, `@seqno/vault`, `@seqno/interop`, `@seqno/git`, `apps/web/src/worker` | everything behind the RPC boundary                   |
+| UI     | `apps/web`, `@seqno/outliner`, `@seqno/editor`, `@seqno/pdf`                                          | what you see and type into                           |
+| tools  | `@seqno/sync-sim`, `@seqno/e2e`, `@seqno/lint`                                                        | sync simulator, browser flows, lint rules            |
 
 The dependency rule: the UI side imports only shared, pure and other UI packages, and reaches the core only through `@seqno/rpc`. The core never imports UI code. Lint enforces it. The full repo map and rules are in [AGENTS.md](../AGENTS.md).

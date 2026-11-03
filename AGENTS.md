@@ -29,6 +29,7 @@ The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.
 | `@seqno/index`      | `packages/index`      | core     | SQLite schema, indexer from GraphEvents, backlinks, FTS, live queries.                                                          |
 | `@seqno/vault`      | `packages/vault`      | core     | Edit-log files: File System Access, OPFS and node-fs adapters, compaction.                                                      |
 | `@seqno/interop`    | `packages/interop`    | core     | Logseq OG graph import, markdown mirror writer.                                                                                 |
+| `@seqno/git`        | `packages/git`        | core     | Git over the graph's markdown files (isomorphic-git): commits, page history, `logseq.Git`.                                      |
 | `@seqno/web`        | `apps/web`            | ui       | Vite app: shell, routing. `apps/web/src/worker/**` is the core worker (worker side).                                            |
 | `@seqno/outliner`   | `features/outliner`   | ui       | Virtualized block tree view, keyboard navigation, collapse, zoom, drag.                                                         |
 | `@seqno/editor`     | `features/editor`     | ui       | Focused-block CodeMirror editor, `[[ (( #` autocomplete, the `/` menu.                                                          |

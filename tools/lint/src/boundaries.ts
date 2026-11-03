@@ -19,6 +19,7 @@ export const repoMap: ReadonlyMap<string, Unit> = new Map([
   ["packages/index", { name: "@seqno/index", side: "core" }],
   ["packages/vault", { name: "@seqno/vault", side: "core" }],
   ["packages/interop", { name: "@seqno/interop", side: "core" }],
+  ["packages/git", { name: "@seqno/git", side: "core" }],
   ["apps/web", { name: "@seqno/web", side: "ui" }],
   ["features/outliner", { name: "@seqno/outliner", side: "ui" }],
   ["features/editor", { name: "@seqno/editor", side: "ui" }],
