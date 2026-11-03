@@ -5,6 +5,7 @@ import { FolderError, GraphFolder } from "@seqno/interop"
 import { Entry, editLogDir, type Storage, type StorageFailed } from "@seqno/vault"
 import type { GraphUnavailable } from "@seqno/rpc"
 import type { OpenFile } from "./assets.ts"
+import type { GitPlace } from "./git.ts"
 import type { Layout } from "./layout.ts"
 import type { MirrorStore } from "./mirror-store.ts"
 
@@ -33,6 +34,7 @@ export interface GraphPlace {
   readonly indexFile: IndexFile
   readonly mirrorStore: MirrorStore
   readonly starter: Starter | null
+  readonly git?: Effect.Effect<GitPlace>
 }
 
 export class GraphPlaces extends Context.Service<

@@ -17,7 +17,7 @@ import {
   type LogseqSyntax,
 } from "@seqno/interop"
 import type { MirrorFile, MirrorStatus, MirrorWriter, PageTree } from "@seqno/rpc"
-import type { Storage } from "@seqno/vault"
+import type { Storage, StorageFailed } from "@seqno/vault"
 import type { OpenFile } from "./assets.ts"
 import type { FileRecord, KnownText, MirrorStore, MirrorVersion } from "./mirror-store.ts"
 import { storageFolder } from "./place.ts"
@@ -32,6 +32,7 @@ export interface Outside {
   readonly parse: (text: string) => Result.Result<FileTree, string>
   readonly render: (tree: PageTree) => string
   readonly faithful: (text: string) => boolean
+  readonly restored?: boolean
 }
 
 export type Merged =
@@ -54,6 +55,7 @@ export interface MirrorDeps {
   readonly writer: Effect.Effect<MirrorWriter | null>
   readonly outside: (change: Outside) => Effect.Effect<Merged>
   readonly baseVersion: Effect.Effect<Option.Option<MirrorVersion>>
+  readonly wrote?: (paths: ReadonlyArray<string>) => Effect.Effect<void>
 }
 
 export interface Mirror {
@@ -61,6 +63,8 @@ export interface Mirror {
   readonly touch: (pages: Iterable<PageId>) => Effect.Effect<void>
   readonly check: (paths?: Iterable<string>) => Effect.Effect<void>
   readonly version: Effect.Effect<Option.Option<MirrorVersion>>
+  readonly fileOf: (page: Page) => Effect.Effect<string>
+  readonly restore: (path: string, text: string) => Effect.Effect<void, StorageFailed>
 }
 
 type Done = "done" | "later"
@@ -84,7 +88,15 @@ const quietMs = 2000
 const maxBackoffMs = 30_000
 const keptTexts = 3
 const recycleDir = "logseq/.recycle"
-const ignoredLines = ["updates/", "snapshots/", "seen/", "edit-log/", "*.crswap"]
+const ignoredLines = [
+  "updates/",
+  "snapshots/",
+  "seen/",
+  "edit-log/",
+  "starter-version",
+  "*.crswap",
+  "*.seqno-tmp",
+]
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
@@ -99,6 +111,31 @@ const unfaithful =
 
 const idsWrittenIn = (text: string): ReadonlySet<string> =>
   new Set([...text.matchAll(writtenId)].map((match) => (match[1] ?? "").toLowerCase()))
+
+const ensureFile = (
+  storage: Storage["Service"],
+  path: string,
+  update: (text: string | null) => string | null,
+) =>
+  Effect.gen(function* () {
+    const read = yield* Effect.result(storage.read(path))
+    const current = Result.isSuccess(read) ? decoder.decode(read.success) : null
+    if (Result.isFailure(read) && read.failure._tag !== "FileUnavailable") return
+    if (Result.isFailure(read) && read.failure.reason === "not-downloaded") return
+    const next = update(current)
+    if (next !== null && next !== current)
+      yield* Effect.ignore(storage.write(path, encoder.encode(next)))
+  })
+
+export const ignoreSeqnoFiles = (storage: Storage["Service"]) =>
+  ensureFile(storage, ".gitignore", (current) => {
+    const lines = (current ?? "").split("\n").map((line) => line.trim())
+    const missing = ignoredLines.filter((line) => !lines.includes(line))
+    if (missing.length === 0) return null
+    const base =
+      current === null || current === "" ? "" : current.endsWith("\n") ? current : `${current}\n`
+    return `${base}${missing.join("\n")}\n`
+  })
 
 export const recyclePath = (path: string) => `${recycleDir}/${path.replaceAll("/", "_")}`
 
@@ -150,6 +187,7 @@ export const makeMirror = (deps: MirrorDeps) =>
     const observed = new Map<string, { size: number; modified: number; at: number }>()
     const backoff = new Map<string, { at: number; delay: number }>()
     const left = new Map<string, string>()
+    const restoring = new Set<string>()
     const failed = new Map<string, string>()
     const state: MirrorState = {
       started: false,
@@ -290,6 +328,7 @@ export const makeMirror = (deps: MirrorDeps) =>
         mapPath(path, record)
         observed.set(path, { size: file.size, modified: file.lastModified, at: 0 })
         settled(path)
+        if (deps.wrote !== undefined) yield* deps.wrote([path])
       })
 
     const writeFile = (path: string, tree: PageTree, text: string) =>
@@ -333,6 +372,7 @@ export const makeMirror = (deps: MirrorDeps) =>
           yield* store.drop(path)
           unmap(path)
           settled(path)
+          if (deps.wrote !== undefined) yield* deps.wrote([path, recyclePath(path)])
           return "done" as const
         }),
       )
@@ -449,7 +489,8 @@ export const makeMirror = (deps: MirrorDeps) =>
           left.set(path, unfaithful)
           return "done"
         }
-        const known = texts.some((one) => one.text === disk)
+        const restored = restoring.has(path)
+        const known = !restored && texts.some((one) => one.text === disk)
         if (!known) {
           const parsed = parse(path, disk)
           if (
@@ -464,6 +505,7 @@ export const makeMirror = (deps: MirrorDeps) =>
             return "done"
           }
           if (meansSame(path, disk, tree)) {
+            restoring.delete(path)
             yield* remember(path, tree, disk, file)
             return "done"
           }
@@ -474,15 +516,17 @@ export const makeMirror = (deps: MirrorDeps) =>
               return yield* writeFile(path, tree, rendered)
             }
           }
-          if (!(yield* quiet(path, file))) return "later"
+          if (!restored && !(yield* quiet(path, file))) return "later"
+          restoring.delete(path)
           return yield* handOutside(
             {
               path,
               tree,
               disk: Result.isSuccess(parsed) ? parsed.success : null,
               text: disk,
-              texts,
+              texts: restored ? texts.slice(0, 1) : texts,
               record,
+              restored,
             },
             file,
           )
@@ -628,32 +672,10 @@ export const makeMirror = (deps: MirrorDeps) =>
         ),
     )
 
-    const ensureFile = (path: string, update: (text: string | null) => string | null) =>
-      Effect.gen(function* () {
-        const read = yield* Effect.result(storage.read(path))
-        const current = Result.isSuccess(read) ? decoder.decode(read.success) : null
-        if (Result.isFailure(read) && read.failure._tag !== "FileUnavailable") return
-        if (Result.isFailure(read) && read.failure.reason === "not-downloaded") return
-        const next = update(current)
-        if (next !== null && next !== current)
-          yield* Effect.ignore(storage.write(path, encoder.encode(next)))
-      })
-
-    const prepareFolder = Effect.gen(function* () {
-      yield* ensureFile(configPath, (current) => (current === null ? printConfig(config) : null))
-      yield* ensureFile(".gitignore", (current) => {
-        const lines = (current ?? "").split("\n").map((line) => line.trim())
-        const missing = ignoredLines.filter((line) => !lines.includes(line))
-        if (missing.length === 0) return null
-        const base =
-          current === null || current === ""
-            ? ""
-            : current.endsWith("\n")
-              ? current
-              : `${current}\n`
-        return `${base}${missing.join("\n")}\n`
-      })
-    })
+    const prepareFolder = Effect.andThen(
+      ensureFile(storage, configPath, (current) => (current === null ? printConfig(config) : null)),
+      ignoreSeqnoFiles(storage),
+    )
 
     const start = Effect.gen(function* () {
       yield* deps.indexed
@@ -782,6 +804,16 @@ export const makeMirror = (deps: MirrorDeps) =>
           yield* wake.open
         }),
       version: store.version,
+      fileOf: (page) => Effect.sync(() => byPage.get(page.id) ?? mirrorPath(page, config)),
+      restore: (path, text) =>
+        Effect.gen(function* () {
+          restoring.add(path)
+          yield* Effect.tapError(storage.write(path, encoder.encode(text)), () =>
+            Effect.sync(() => restoring.delete(path)),
+          )
+          dirtyPaths.add(path)
+          yield* wake.open
+        }),
     }
     return { mirror, loop: Effect.andThen(wake.open, loop) }
   })

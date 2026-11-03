@@ -53,7 +53,7 @@ export const makeMergeBack =
     Effect.gen(function* () {
       const { graph } = deps
       const { tree, text, disk } = change
-      if (!deps.synced) {
+      if (!deps.synced && change.restored !== true) {
         if (tree === null) return leave("isn't a page in seqno")
         return text === null ? { _tag: "Rewrite" } : { _tag: "Overwrite" }
       }

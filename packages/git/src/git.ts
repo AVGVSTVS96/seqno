@@ -1,6 +1,6 @@
 import { Effect, Schema, Semaphore } from "effect"
 import { makeCli, type Result } from "./cli.ts"
-import { makeRepo, type Committed, type Identity, type RepoOptions, type Version } from "./repo.ts"
+import { makeRepo, type Committed, type RepoOptions, type Version } from "./repo.ts"
 
 export class GitFailed extends Schema.TaggedError<GitFailed>()("GitFailed", {
   reason: Schema.String,
@@ -8,12 +8,11 @@ export class GitFailed extends Schema.TaggedError<GitFailed>()("GitFailed", {
 
 export interface Git {
   readonly run: (args: ReadonlyArray<string>) => Effect.Effect<Result>
-  readonly status: Effect.Effect<string, GitFailed>
-  readonly commitAll: (message: string) => Effect.Effect<Committed, GitFailed>
+  readonly commitAll: (
+    message: string,
+    only?: ReadonlyArray<string>,
+  ) => Effect.Effect<Committed, GitFailed>
   readonly history: (path: string) => Effect.Effect<ReadonlyArray<Version>, GitFailed>
-  readonly show: (oid: string, path: string) => Effect.Effect<string | null, GitFailed>
-  readonly identity: Effect.Effect<Identity | null, GitFailed>
-  readonly setIdentity: (identity: Identity) => Effect.Effect<void, GitFailed>
 }
 
 export interface GitOptions extends RepoOptions {
@@ -43,18 +42,7 @@ export const makeGit = (options: GitOptions) =>
             })),
           ),
         ),
-      status: serial(async () => {
-        await repo.ensure()
-        return repo.porcelain()
-      }),
-      commitAll: (message) => serial(() => repo.commitAll(message)),
+      commitAll: (message, only) => serial(() => repo.commitAll(message, only)),
       history: (path) => serial(() => repo.history(path)),
-      show: (oid, path) => serial(() => repo.show(oid, path)),
-      identity: serial(() => repo.identity()),
-      setIdentity: ({ name, email }) =>
-        serial(async () => {
-          await repo.setGlobal("user.name", name)
-          await repo.setGlobal("user.email", email)
-        }),
     }
   })

@@ -86,6 +86,6 @@ export const dismissedHints = setting(
 
 export const settingsDialogId = "seqno-settings"
 
-export type SettingsTab = "general" | "keymap"
+export type SettingsTab = "general" | "keymap" | "version-control"
 
 export const settingsTab = Atom.make<SettingsTab>("general").pipe(Atom.keepAlive)

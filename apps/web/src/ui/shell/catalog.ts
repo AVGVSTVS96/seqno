@@ -163,6 +163,13 @@ export const shortcutGroups: ReadonlyArray<ShortcutGroup> = [
       app("Search themes", "SearchThemes"),
     ],
   },
+  {
+    title: "Others",
+    shortcuts: [
+      app("Run git command", "RunCommand"),
+      app("Create git commit with message", "GitCommit"),
+    ],
+  },
 ]
 
 export const matchingGroups = (query: string): ReadonlyArray<ShortcutGroup> => {

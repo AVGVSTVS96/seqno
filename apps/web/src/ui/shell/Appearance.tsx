@@ -63,6 +63,27 @@ export const ThemeChoices = ({ labelledBy }: { readonly labelledBy: string }) =>
   )
 }
 
+export const SwitchButton = ({
+  on,
+  labelledBy,
+  onToggle,
+}: {
+  readonly on: boolean
+  readonly labelledBy: string
+  readonly onToggle: () => void
+}) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={on}
+    aria-labelledby={labelledBy}
+    className="switch"
+    onClick={onToggle}
+  >
+    <span className="switch-thumb" />
+  </button>
+)
+
 export const SettingSwitch = ({
   setting,
   labelledBy,
@@ -71,18 +92,7 @@ export const SettingSwitch = ({
   readonly labelledBy: string
 }) => {
   const [on, setOn] = useAtom(setting)
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-labelledby={labelledBy}
-      className="switch"
-      onClick={() => setOn(!on)}
-    >
-      <span className="switch-thumb" />
-    </button>
-  )
+  return <SwitchButton on={on} labelledBy={labelledBy} onToggle={() => setOn(!on)} />
 }
 
 export const themeLabelOf = (resolved: "light" | "dark") =>

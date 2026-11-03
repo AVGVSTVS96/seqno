@@ -50,4 +50,4 @@ pnpm test --project @seqno/web
 ## Known gaps
 
 - Opening still merges the whole edit log into an empty graph, and reads every page root for the page list.
-- The markdown mirror isn't wired in: editing a picked Logseq folder writes its edit log, but its `.md` files don't change.
+- Git has no remotes: commits, history and Revert work on the graph's files, but push and pull need Logseq desktop or a terminal.

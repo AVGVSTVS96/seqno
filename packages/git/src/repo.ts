@@ -161,11 +161,12 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     }
   }
 
-  const commitAll = (message: string): Promise<Committed> =>
+  const commitAll = (message: string, only?: ReadonlyArray<string>): Promise<Committed> =>
     locked(
       async () => {
         await ensure()
-        await stageAll()
+        if (only === undefined || (await head()) === null) await stageAll()
+        else if (only.length > 0) await stage(await matrix(only))
         return commit(message.trim() === "" ? "Auto saved by Logseq" : message)
       },
       { _tag: "Busy" },

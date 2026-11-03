@@ -33,6 +33,8 @@ export type ShortcutAction =
   | "ToggleOpenBlocks"
   | "SelectGraph"
   | "RebuildIndex"
+  | "GitCommit"
+  | "RunCommand"
 
 const bindings: ReadonlyArray<readonly [string, ShortcutAction]> = [
   ["t t", "ToggleTheme"],
@@ -67,6 +69,8 @@ const bindings: ReadonlyArray<readonly [string, ShortcutAction]> = [
   ["alt shift g", "SelectGraph"],
   ["mod c then mod s", "RebuildIndex"],
   ["mod c then mod b", "ToggleBrackets"],
+  ["mod g then c", "GitCommit"],
+  ["mod shift 1", "RunCommand"],
 ]
 
 export const keysOf = (action: ShortcutAction): ReadonlyArray<string> =>
@@ -91,7 +95,11 @@ export interface KeyState {
 export const idle: KeyState = { pending: null, action: null }
 
 const letterOf = (press: KeyPress) =>
-  press.code.startsWith("Key") ? press.code.slice(3).toLowerCase() : press.key.toLowerCase()
+  press.code.startsWith("Key")
+    ? press.code.slice(3).toLowerCase()
+    : press.code.startsWith("Digit")
+      ? press.code.slice(5)
+      : press.key.toLowerCase()
 
 const modPressed = (press: KeyPress) => (onMac ? press.metaKey : press.ctrlKey)
 
@@ -113,7 +121,10 @@ export const nextKeyState = (state: KeyState, press: KeyPress): KeyState => {
     return { pending: null, action: actionFor(`alt ${press.shiftKey ? "shift " : ""}${letter}`) }
   }
   if (press.shiftKey || letter.length !== 1) return idle
-  const action = state.pending === null ? null : actionFor(`${state.pending} ${letter}`)
+  const action =
+    state.pending === null
+      ? null
+      : (actionFor(`${state.pending} ${letter}`) ?? actionFor(`${state.pending} then ${letter}`))
   if (action !== null) return { pending: null, action }
   const starts = bindings.some(([keys]) => keys.startsWith(`${letter} `))
   return { pending: starts ? letter : null, action: null }

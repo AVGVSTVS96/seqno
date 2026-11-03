@@ -226,6 +226,8 @@ export const builtInCommands = (
     ),
     plain("graph/re-index", "Re-index current graph", () => registry.set(rebuildIndex, undefined)),
     app("search/re-index", "Rebuild search index", "RebuildIndex"),
+    app("git/commit", "Create git commit with message", "GitCommit"),
+    app("command/run", "Run git command", "RunCommand"),
   ]
 }
 

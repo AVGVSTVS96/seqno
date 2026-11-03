@@ -16,6 +16,7 @@
     "@seqno/domain": "workspace:*",
     "@seqno/editor": "workspace:*",
     "@seqno/export": "workspace:*",
+    "@seqno/git": "workspace:*",
     "@seqno/graph": "workspace:*",
     "@seqno/index": "workspace:*",
     "@seqno/interop": "workspace:*",

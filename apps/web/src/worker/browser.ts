@@ -1,5 +1,6 @@
 import { Clock, Crypto, Effect, Layer, Option, Schema } from "effect"
 import { DeviceId, type JournalDay } from "@seqno/domain"
+import { handleFs, lockIndex } from "@seqno/git/browser"
 import { layerWasmMemory } from "@seqno/index/wasm"
 import { StorageFailed, directoryChanges, directoryFile, directoryStorage } from "@seqno/vault"
 import { demoGraph } from "./demo.ts"
@@ -30,6 +31,7 @@ interface Found {
   readonly layout: Layout
   readonly synced: boolean
   readonly starter: Starter | null
+  readonly ownGit: boolean
 }
 
 const opfsFolder = (path: ReadonlyArray<string>) =>
@@ -39,6 +41,19 @@ const opfsFolder = (path: ReadonlyArray<string>) =>
       navigator.storage.getDirectory(),
     ),
   )
+
+const gitPlace = (graph: string, work: FileSystemDirectoryHandle, ownGit: boolean) =>
+  Effect.gen(function* () {
+    const dotGit = ownGit
+      ? yield* Effect.promise(() => work.getDirectoryHandle(".git").catch(() => null))
+      : null
+    const gitdir = dotGit ?? (yield* opfsFolder(["git", encodeURIComponent(graph)]))
+    return {
+      fs: handleFs(work, gitdir),
+      lock: dotGit === null ? async () => async () => undefined : () => lockIndex(dotGit),
+      graphPath: graph,
+    }
+  })
 
 const indexName = (graph: string) => `${encodeURIComponent(graph)}.sqlite`
 
@@ -113,12 +128,19 @@ export const BrowserGraphPlaces = Layer.effect(
           Effect.map(
             GraphLocation.match(location, {
               FolderGraph: ({ handle }): Effect.Effect<Found> =>
-                Effect.succeed({ handle, layout: "OneTree", synced: true, starter: null }),
+                Effect.succeed({
+                  handle,
+                  layout: "OneTree",
+                  synced: true,
+                  starter: null,
+                  ownGit: true,
+                }),
               OpfsGraph: ({ name }): Effect.Effect<Found> =>
                 Effect.all({
                   handle: opfsFolder(["graphs", name]),
                   layout: Effect.succeed<Layout>("TreePerPage"),
                   synced: Effect.succeed(false),
+                  ownGit: Effect.succeed(false),
                   starter: Effect.map(Clock.currentTimeMillis, (now): Starter | null => {
                     const starter = starters.get(name)
                     return starter === undefined
@@ -127,7 +149,7 @@ export const BrowserGraphPlaces = Layer.effect(
                   }),
                 }),
             }),
-            ({ handle, layout, synced, starter }) => ({
+            ({ handle, layout, synced, starter, ownGit }) => ({
               storage: directoryStorage(handle),
               file: directoryFile(handle),
               changed: directoryChanges(handle),
@@ -137,6 +159,7 @@ export const BrowserGraphPlaces = Layer.effect(
               indexFile: indexFile(graph, locations.listed),
               mirrorStore: indexedDbMirrorStore(graph),
               starter,
+              git: gitPlace(graph, handle, ownGit),
             }),
           ),
         ),

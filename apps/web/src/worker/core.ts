@@ -15,7 +15,14 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect"
-import { BlockId, PageId, type Block, type Command, type Page } from "@seqno/domain"
+import {
+  BlockId,
+  PageId,
+  normalizePageName,
+  type Block,
+  type Command,
+  type Page,
+} from "@seqno/domain"
 import { isReadKey, type BlockHit, type GraphPage, type Row } from "@seqno/index"
 import { defaultConfig, mirrorPath } from "@seqno/interop"
 import {
@@ -31,6 +38,8 @@ import {
 } from "@seqno/query"
 import {
   AssetRpcs,
+  GitFailed,
+  GitRpcs,
   BlockNotFound,
   BlockRefNotFound,
   CommandRejected,
@@ -49,6 +58,7 @@ import {
 import { everyPage, pagesReached } from "./exporting.ts"
 import { journalDayOf, journalDayOfTitle, todayDeleted, withJournalDay } from "./journal.ts"
 import { GraphLocks } from "./lock.ts"
+import { GitDevice } from "./git.ts"
 import { Device, GraphPlaces } from "./place.ts"
 import { withReferenceEdits } from "./rename.ts"
 import { whiteboardDrafts } from "./whiteboard.ts"
@@ -200,6 +210,7 @@ const SessionsLive = Layer.effect(
     const places = yield* GraphPlaces
     const device = yield* Device
     const crypto = yield* Crypto.Crypto
+    const gitDevice = yield* GitDevice
     const locks = yield* GraphLocks
     const scope = yield* Effect.scope
     const mutex = yield* Semaphore.make(1)
@@ -270,6 +281,7 @@ const SessionsLive = Layer.effect(
           Scope.provide(shared.scope),
           Effect.provideService(Device, device),
           Effect.provideService(Crypto.Crypto, crypto),
+          Effect.provideService(GitDevice, gitDevice),
           Effect.mapError((error) => new GraphUnavailable({ graph, reason: reasonOf(error) })),
         )
         yield* Effect.forkIn(
@@ -605,6 +617,80 @@ const AssetHandlers = AssetRpcs.toLayer(
   }),
 )
 
-export const RealCore = Layer.mergeAll(CoreHandlers, PageHandlers, AssetHandlers).pipe(
+const noGit = new GitFailed({
+  reason: "fatal: not a git repository (or any of the parent directories): .git",
+})
+
+const pathOf = (session: Session, name: string) =>
+  Effect.map(session.graph.pages, (pages) => {
+    const wanted = normalizePageName(name)
+    const page = pages.find((one) => one.name === wanted)
+    return page
+  }).pipe(
+    Effect.flatMap((page) =>
+      page === undefined ? Effect.succeed(null) : session.mirror.fileOf(page),
+    ),
+  )
+
+const GitHandlers = GitRpcs.toLayer(
+  Effect.gen(function* () {
+    const { current } = yield* Sessions
+    const device = yield* GitDevice
+    const gitOf = (client: number) =>
+      Effect.flatMap(current(client), (session) =>
+        session.git === null ? Effect.fail(noGit) : Effect.succeed(session.git),
+      )
+    return GitRpcs.of({
+      GitRun: ({ args }, { client }) =>
+        Effect.flatMap(current(client.id), (session) =>
+          session.git === null
+            ? Effect.succeed({ stdout: "", stderr: `${noGit.reason}\n`, exitCode: 128 })
+            : session.git.git.run(args),
+        ),
+      GitCommit: ({ message }, { client }) =>
+        Effect.flatMap(gitOf(client.id), (graph) => graph.git.commitAll(message)),
+      GitHistory: ({ page }, { client }) =>
+        Effect.gen(function* () {
+          const session = yield* current(client.id)
+          const graph = yield* gitOf(client.id)
+          const path = yield* pathOf(session, page)
+          return { path, versions: path === null ? [] : yield* graph.git.history(path) }
+        }),
+      GitRevert: ({ oid, path }, { client }) =>
+        Effect.gen(function* () {
+          const session = yield* current(client.id)
+          const graph = yield* gitOf(client.id)
+          const text = yield* graph.version(path, oid)
+          yield* Effect.mapError(
+            session.mirror.restore(path, text),
+            (error) => new GitFailed({ reason: error.reason }),
+          )
+        }),
+      GitSetIdentity: ({ name, email }) =>
+        Effect.tryPromise({
+          try: async () => {
+            const config = {
+              ...(await device.globals.read()),
+              "user.name": name,
+              "user.email": email,
+            }
+            await device.globals.write(config)
+          },
+          catch: (cause) => new GitFailed({ reason: String(cause) }),
+        }),
+      GitLoadIgnore: (_, { client }) =>
+        Effect.flatMap(gitOf(client.id), (graph) => graph.loadIgnore),
+      GitSaveIgnore: ({ text }, { client }) =>
+        Effect.flatMap(gitOf(client.id), (graph) => graph.saveIgnore(text)),
+      WatchGitSettings: () => SubscriptionRef.changes(device.settings),
+      SetGitSettings: (settings) => device.setSettings(settings),
+      WatchGitNotices: () => Stream.fromPubSub(device.notices),
+      GitClosing: (_, { client }) =>
+        Effect.ignore(Effect.flatMap(gitOf(client.id), (graph) => graph.closing)),
+    })
+  }),
+)
+
+export const RealCore = Layer.mergeAll(CoreHandlers, PageHandlers, AssetHandlers, GitHandlers).pipe(
   Layer.provide(SessionsLive),
 )

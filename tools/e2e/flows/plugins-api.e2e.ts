@@ -311,21 +311,6 @@ test("Fenced code plus draws htmlmixed and mermaid code blocks with Logseq's Rea
   )
 })
 
-test("GitSeq reads seqno's graph as one without git: its toolbar shows a sync error, as on a folder git doesn't track", async ({
-  page,
-  seqno,
-}) => {
-  await seqno.openDemoGraph()
-  await install(page, "GitSeq")
-  await expect(page.locator('[title="Sync error — check logs"]')).toBeAttached()
-  const plugin = page.frame({ url: /gitseq/ })
-  expect(await plugin?.evaluate(`logseq.Git.execCommand(["status", "--porcelain"])`)).toEqual({
-    stdout: "",
-    stderr: "fatal: not a git repository: seqno keeps the graph's history in its own edit log",
-    exitCode: 128,
-  })
-})
-
 test("Random Note's Let's go opens a random page that isn't a journal, from its Datalog query", async ({
   page,
   seqno,

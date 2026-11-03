@@ -4,14 +4,15 @@ Real git over a graph's markdown files, in the browser, with isomorphic-git. It'
 
 ## What's inside
 
-| Export                          | What it does                                                                                                                                                              |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `makeGit(options)`              | The Effect API the core worker uses: `run(args)`, `status`, `commitAll(message)`, `history(path)`, `show(oid, path)`, `identity`, `setIdentity`. One operation at a time. |
-| `makeRepo(options)`             | The operations underneath: init, stage everything (`git add -A`), commit, `status --porcelain`, a file's log, a blob at a commit, and two-tree diffs.                     |
-| `makeCli(repo, graphPath)`      | Runs git's command line: `{ stdout, stderr, exitCode }` the way dugite returns them to Logseq.                                                                            |
-| `@seqno/git/browser` `handleFs` | isomorphic-git's file system over two File System Access folders: the graph folder is the work tree, and `/.git` maps to whichever folder holds the git directory.        |
-| `lockIndex(gitdir)`             | Takes `.git/index.lock` the way git does, so seqno and Logseq desktop's git never write one index at once. Returns `null` while someone else holds it.                    |
+| Export                          | What it does                                                                                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `makeGit(options)`              | The Effect API the core worker uses: `run(args)`, `commitAll(message, only?)` and `history(path)`, one operation at a time.                                        |
+| `makeRepo(options)`             | The operations underneath: init, stage everything (`git add -A`), commit, `status --porcelain`, a file's log, a blob at a commit, and two-tree diffs.              |
+| `makeCli(repo, graphPath)`      | Runs git's command line: `{ stdout, stderr, exitCode }` the way dugite returns them to Logseq.                                                                     |
+| `@seqno/git/browser` `handleFs` | isomorphic-git's file system over two File System Access folders: the graph folder is the work tree, and `/.git` maps to whichever folder holds the git directory. |
+| `lockIndex(gitdir)`             | Takes `.git/index.lock` the way git does, so seqno and Logseq desktop's git never write one index at once. Returns `null` while someone else holds it.             |
 
+- `commitAll(message)` stages everything first, as `git add -A`. `commitAll(message, only)` stages just those paths once the repo has a first commit, so an auto commit takes what seqno wrote and leaves other changes in the folder unstaged.
 - A commit with an empty message is "Auto saved by Logseq", as in Logseq. With nothing staged it's `NothingToCommit`, and with no `user.name`/`user.email` it's `NoIdentity` (git's "Author identity unknown").
 - `user.name` and `user.email` come from the repo's `.git/config`, then from `globals`, the device-wide stand-in for `~/.gitconfig` (`git config --global` writes there).
 - Commands: `init`, `status` (`--porcelain`, `-s`, long), `add` (`-A`, `.`, `./*`, `-u`, paths), `commit` (`-m`, `-a`, `--allow-empty`), `log` (`-n`, `--oneline`, `--pretty`/`--format` placeholders, `--date`, `-p`, `--name-only`, paths, `A..B`), `show` (`rev`, `rev:path`), `diff` (work tree, `--cached`, `A B`, `A..B`, `--name-only`, `--quiet`), `rev-parse`, `rev-list --count`, `update-ref`, `config`, `branch`, `ls-files`, plus `-C <graph>` and `-c key=value`.

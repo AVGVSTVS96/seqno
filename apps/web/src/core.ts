@@ -7,6 +7,8 @@ import {
   AssetRpcs,
   CoreClient,
   CoreRpcs,
+  GitClient,
+  GitRpcs,
   PageClient,
   PageRpcs,
   tabLock,
@@ -46,6 +48,11 @@ export const WorkerPages: Layer.Layer<PageClient, WorkerError> = Layer.effect(
 export const WorkerAssets: Layer.Layer<AssetClient, WorkerError> = Layer.effect(
   AssetClient,
   RpcClient.make(AssetRpcs),
+).pipe(Layer.provide(WorkerProtocol))
+
+export const WorkerGit: Layer.Layer<GitClient, WorkerError> = Layer.effect(
+  GitClient,
+  RpcClient.make(GitRpcs),
 ).pipe(Layer.provide(WorkerProtocol))
 
 const holdForThisTab = (name: string) =>

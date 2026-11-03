@@ -27,6 +27,7 @@ import { createWhiteboard } from "../pages/Whiteboards.tsx"
 import { openPlugins } from "../plugins/PluginsDialog.tsx"
 import { dayOf } from "../pages/model.ts"
 import { openPalette } from "../search/atoms.ts"
+import { gitDialog } from "./Git.tsx"
 import { graphSelect } from "./GraphSelect.tsx"
 import { rebuildIndex } from "./reindex.ts"
 import { openDialog, togglePopover } from "./popover.tsx"
@@ -174,6 +175,8 @@ export const perform = (
   ToggleOpenBlocks: () => toggleOpenBlocks(registry, router),
   SelectGraph: () => registry.set(graphSelect, "open"),
   RebuildIndex: () => registry.set(rebuildIndex, undefined),
+  GitCommit: () => registry.set(gitDialog, { _tag: "Commit" }),
+  RunCommand: () => registry.set(gitDialog, { _tag: "Run" }),
 })
 
 const recordVisit = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter) => {

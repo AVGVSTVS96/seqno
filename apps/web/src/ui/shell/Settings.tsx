@@ -1,6 +1,6 @@
 import { logseq } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
-import { IconAdjustmentsHorizontal, IconKeyboard, IconX } from "@tabler/icons-react"
+import { IconAdjustmentsHorizontal, IconHistory, IconKeyboard, IconX } from "@tabler/icons-react"
 import { Link } from "@tanstack/react-router"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
@@ -11,6 +11,7 @@ import { revision } from "../../version.ts"
 import { SettingSwitch, ThemeChoices, themeLabelOf } from "./Appearance.tsx"
 import { AccentColorList } from "./AccentColors.tsx"
 import { Keys } from "./Keys.tsx"
+import { VersionControl } from "./Git.tsx"
 import { closeDialogOf, Dialog } from "./popover.tsx"
 import { ShortcutList } from "./ShortcutList.tsx"
 import { keysOf } from "./shortcuts.ts"
@@ -19,6 +20,7 @@ import { settingsDialogId, settingsTab, vimMode, wideMode, type SettingsTab } fr
 const tabs: ReadonlyArray<readonly [SettingsTab, string, ReactNode]> = [
   ["general", "General", <IconAdjustmentsHorizontal key="general" size={16} aria-hidden />],
   ["keymap", "Keymap", <IconKeyboard key="keymap" size={16} aria-hidden />],
+  ["version-control", "Version control", <IconHistory key="git" size={16} aria-hidden />],
 ]
 
 const Row = ({
@@ -136,7 +138,7 @@ export const Settings = () => {
           <IconX size={18} aria-hidden />
         </button>
         <h2 className="settings-panel-title">{title}</h2>
-        {tab === "general" ? <General /> : <ShortcutList />}
+        {tab === "general" ? <General /> : tab === "keymap" ? <ShortcutList /> : <VersionControl />}
       </div>
     </Dialog>
   )

@@ -1,4 +1,5 @@
 import { Effect, Option, Schema } from "effect"
+import { GitClient } from "@seqno/rpc"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { BlockId, normalizePageName } from "@seqno/domain"
 import { editingBlock } from "@seqno/editor"
@@ -15,6 +16,7 @@ import {
 } from "../../atoms.ts"
 import type { router as appRouter } from "../../router.tsx"
 import { assetBridge } from "../assets.ts"
+import { runGit } from "../shell/Git.tsx"
 import { notify } from "../shell/Notices.tsx"
 
 const blockIdOf = Schema.decodeUnknownOption(BlockId)
@@ -39,6 +41,23 @@ export const makeBridge = (
   }
   return {
     assets: assetBridge(registry),
+    git: {
+      exec: (args) =>
+        runGit(
+          registry,
+          Effect.flatMap(GitClient, (git) => git.GitRun({ args })),
+        ),
+      loadIgnore: () =>
+        runGit(
+          registry,
+          Effect.flatMap(GitClient, (git) => git.GitLoadIgnore()),
+        ),
+      saveIgnore: (text) =>
+        runGit(
+          registry,
+          Effect.flatMap(GitClient, (git) => git.GitSaveIgnore({ text })),
+        ),
+    },
     run: (effect) =>
       Effect.runPromise(
         Effect.flatMap(AtomRegistry.getResult(registry, coreRuntime), (context) =>

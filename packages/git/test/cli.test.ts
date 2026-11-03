@@ -152,6 +152,26 @@ describe("commits Logseq's way", () => {
     expect(history.map((version) => version.subject)).toEqual(["from seqno", "from Logseq desktop"])
     expect(await repo.show(history[1]?.oid ?? "", "pages/a.md")).toBe("- one\n")
   })
+
+  it("auto commits only the paths seqno wrote once there is a first commit", async () => {
+    const root = folder({ "pages/a.md": "- one\n", "pages/b.md": "- b\n" })
+    const { repo } = seqno(root)
+    expect(await repo.commitAll("", ["pages/a.md"])).toMatchObject({ _tag: "Committed" })
+    rmSync(path.join(root, "pages/b.md"))
+    put(root, "logseq/.recycle/pages_b.md", "- b\n")
+    put(root, "pages/a.md", "- one\n- two\n")
+    put(root, "pages/outside.md", "- not seqno's\n")
+    expect(await repo.commitAll("", ["pages/b.md", "logseq/.recycle/pages_b.md"])).toMatchObject({
+      _tag: "Committed",
+    })
+    expect(
+      realGit(root, "show", "--no-renames", "--name-status", "--format=%s", "HEAD").stdout,
+    ).toBe("Auto saved by Logseq\n\nA\tlogseq/.recycle/pages_b.md\nD\tpages/b.md\n")
+    expect(realGit(root, "status", "--porcelain").stdout).toBe(
+      " M pages/a.md\n?? pages/outside.md\n",
+    )
+    expect(await repo.commitAll("", [])).toEqual({ _tag: "NothingToCommit" })
+  })
 })
 
 describe("answers plugins as git does", () => {

@@ -8,13 +8,14 @@ import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
 import {
   AssetClient,
   CoreClient,
+  GitClient,
   type AppFile,
   type AppFilePath,
   type Asset,
   type SkippedFile,
 } from "@seqno/rpc"
 import { assetKey, readConfigFlag, readPropertyConfig } from "@seqno/syntax"
-import { WorkerAssets, WorkerCore, attachTab } from "./core.ts"
+import { WorkerAssets, WorkerCore, WorkerGit, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
 
 export type AppServices = CoreClient | GraphLocations
@@ -156,6 +157,12 @@ export const assetLayer = Atom.make<Layer.Layer<AssetClient, WorkerError>>(Worke
 )
 
 export const assetRuntime = Atom.runtime((get) => get(assetLayer))
+
+export const gitLayer = Atom.make<Layer.Layer<GitClient, WorkerError>>(WorkerGit).pipe(
+  Atom.keepAlive,
+)
+
+export const gitRuntime = Atom.runtime((get) => get(gitLayer))
 
 const noAssets: ReadonlyArray<Asset> = []
 

@@ -35,6 +35,7 @@ import { SaveState, type SkippedFile } from "@seqno/rpc"
 import { Storage, type StorageFailed, Vault, layer as vaultLayer } from "@seqno/vault"
 import { makeAssetFiles, type AssetFiles } from "./assets.ts"
 import { makeAppFiles, type AppFiles } from "./files.ts"
+import { openGit, type GraphGit } from "./git.ts"
 import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { makeMergeBack } from "./merge-back.ts"
@@ -68,6 +69,7 @@ export interface Session {
   readonly setConfigFlag: (key: string, value: boolean) => Effect.Effect<void, StorageFailed>
   readonly mirror: Mirror
   readonly closing: Effect.Effect<void>
+  readonly git: GraphGit | null
 }
 
 const skippedFile = ImportIssue.match({
@@ -512,6 +514,9 @@ export const openSession = (place: GraphPlace) =>
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
     const assets = yield* makeAssetFiles(place.storage, place.file)
     const appFiles = yield* makeAppFiles(place.storage, place.changed)
+    const mayWrite = Effect.succeed(true)
+    const git =
+      place.git === undefined ? null : yield* openGit(yield* place.git, place.storage, mayWrite)
     const syncPass = place.synced
       ? Effect.andThen(logged(vault.sync(replica)), assets.refresh)
       : logged(vault.sync(replica))
@@ -558,14 +563,18 @@ export const openSession = (place: GraphPlace) =>
       config,
       syntax: yield* serviceOf(LogseqSyntax, LogseqSyntaxLive),
       indexed: indexed.await,
-      mayWrite: Effect.succeed(true),
+      mayWrite,
       writer: Effect.succeed(null),
       outside: (change) => Effect.provideService(mergeBack(change), Crypto.Crypto, crypto),
       baseVersion,
+      ...(git === null ? {} : { wrote: git.touched }),
     })
     yield* Effect.forkScoped(
       Stream.runForEach(place.changed, (paths) =>
-        mirrored.mirror.check(paths.includes("") ? undefined : paths),
+        Effect.andThen(
+          git === null ? Effect.void : git.touched(paths),
+          mirrored.mirror.check(paths.includes("") ? undefined : paths),
+        ),
       ),
     )
     const committed = yield* PubSub.subscribe(changes)
@@ -609,6 +618,7 @@ export const openSession = (place: GraphPlace) =>
         ),
       mirror: mirrored.mirror,
       closing: saveIndexNow,
+      git,
     }
     yield* opened.open
     return session

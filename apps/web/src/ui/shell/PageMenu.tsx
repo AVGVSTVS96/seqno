@@ -8,6 +8,7 @@ import { dispatch, favorites, rightSidebar, toggleFavorite } from "../../atoms.t
 import { placeAt } from "./BlockMenu.tsx"
 import { DeletePage } from "./DeletePage.tsx"
 import { exported } from "./Export.tsx"
+import { gitDialog } from "./Git.tsx"
 import { MenuItem, onMenuKeyDown } from "./popover.tsx"
 
 export const pageMenu = Atom.make<{
@@ -25,6 +26,7 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
   const starred = useAtomValue(favorites).some((favorite) => favorite.id === page.id)
   const setDeleting = useAtomSet(deleting)
   const setExported = useAtomSet(exported)
+  const setGitDialog = useAtomSet(gitDialog)
   const run = useAtomSet(dispatch)
   const router = useRouter()
   const host = useAtomValue(hostAtom)
@@ -43,6 +45,9 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
     <>
       <MenuItem onSelect={() => toggle(page.name)}>
         {starred ? "Unfavorite page" : "Add to Favorites"}
+      </MenuItem>
+      <MenuItem onSelect={() => setGitDialog({ _tag: "History", page: page.name })}>
+        View page history
       </MenuItem>
       <MenuItem onSelect={copyUrl}>Copy page URL</MenuItem>
       {page.name !== "contents" ? (

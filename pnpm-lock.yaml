@@ -47,6 +47,9 @@ importers:
       '@seqno/export':
         specifier: workspace:*
         version: link:../../packages/export
+      '@seqno/git':
+        specifier: workspace:*
+        version: link:../../packages/git
       '@seqno/graph':
         specifier: workspace:*
         version: link:../../packages/graph

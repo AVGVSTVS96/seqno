@@ -54,6 +54,7 @@ import { PageMenu } from "./shell/PageMenu.tsx"
 import { shellListeners } from "./shell/listeners.ts"
 import { RightSidebar } from "./shell/RightSidebar.tsx"
 import { Settings } from "./shell/Settings.tsx"
+import { GitDialogs } from "./shell/Git.tsx"
 import {
   accentColor,
   documentMode,
@@ -141,6 +142,7 @@ const Layout = ({
                   <WhiteboardWelcome />
                   <WhiteboardTour />
                   <Settings />
+                  <GitDialogs />
                   <Notices />
                   <PluginsDialog />
                   <PluginSettings />

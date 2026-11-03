@@ -63,6 +63,19 @@ export interface Bridge {
   readonly exitEditing: () => void
   readonly selectedBlocks: () => ReadonlyArray<BlockId>
   readonly assets: AssetBridge
+  readonly git: GitBridge
+}
+
+export interface GitResult {
+  readonly stdout: string
+  readonly stderr: string
+  readonly exitCode: number
+}
+
+export interface GitBridge {
+  readonly exec: (args: ReadonlyArray<string>) => Promise<GitResult>
+  readonly loadIgnore: () => Promise<string>
+  readonly saveIgnore: (text: string) => Promise<void>
 }
 
 export const logseqVersion = "0.10.9"
@@ -926,11 +939,11 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
         return page === null ? null : bridge.navigate({ _tag: "Page", name: page.name })
       },
       new_block_uuid: () => crypto.randomUUID(),
-      git_exec_command: () => ({
-        stdout: "",
-        stderr: "fatal: not a git repository: seqno keeps the graph's history in its own edit log",
-        exitCode: 128,
-      }),
+      git_exec_command: (_, [args]) =>
+        Array.isArray(args) && args.length > 0 ? bridge.git.exec(args.map(String)) : null,
+      git_load_ignore_file: () => bridge.git.loadIgnore(),
+      git_save_ignore_file: (_, [content]) =>
+        typeof content === "string" ? bridge.git.saveIgnore(content) : null,
       datascript_query: async (_, [query, ...inputs]) => {
         const datalogText = text(query)
         return datalogText === null ? null : datalog(datalogText, inputs)

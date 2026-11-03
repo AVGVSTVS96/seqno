@@ -12,6 +12,7 @@ import { AssetRpcs, CoreRpcs, PageRpcs } from "@seqno/rpc"
 import { Vault, layer as vaultLayer, type Storage } from "@seqno/vault"
 import { layerNode as nodeVault, nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
+import { layerGitDeviceMemory } from "../git.ts"
 import { layerWebLocks } from "../lock.ts"
 import type { Layout } from "../layout.ts"
 import { memoryMirrorStore, type MirrorStore } from "../mirror-store.ts"
@@ -71,6 +72,7 @@ const coreOn = (root: string, device = "laptop", storage = nodeStorage(root)) =>
           }),
         ),
         Layer.provide(Layer.succeed(Device, { device: DeviceId.make(device), formerPeers: [] })),
+        Layer.provide(layerGitDeviceMemory),
         Layer.provide(layerWebLocks),
         Layer.provide(WebCrypto),
       ),

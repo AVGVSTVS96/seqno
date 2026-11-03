@@ -35,6 +35,7 @@ import { AssetRpcs, CoreRpcs, PageRpcs, tabLock, type PageTree, type SaveState }
 import { StorageFailed, type Storage } from "@seqno/vault"
 import { nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
+import { layerGitDeviceMemory } from "../git.ts"
 import { demoGraph } from "../demo.ts"
 import { developerGraph } from "../developer.ts"
 import { journalDayOf, todaysJournal } from "../journal.ts"
@@ -144,6 +145,7 @@ const coreLayer = (
       }),
     ),
     Layer.provide(Layer.succeed(Device, { device: DeviceId.make(device), formerPeers: [] })),
+    Layer.provide(layerGitDeviceMemory),
     Layer.provide(locks),
     Layer.provide(WebCrypto),
   )
