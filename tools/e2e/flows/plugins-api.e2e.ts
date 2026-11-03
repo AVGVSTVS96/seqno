@@ -296,3 +296,19 @@ test("GitSeq reads seqno's graph as one without git: its toolbar shows a sync er
     exitCode: 128,
   })
 })
+
+test("Random Note's Let's go opens a random page that isn't a journal, from its Datalog query", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Random Note")
+  await page.keyboard.press("ControlOrMeta+Shift+KeyP")
+  const palette = page.getByRole("dialog", { name: "Search" })
+  await palette.getByRole("searchbox", { name: "Search" }).fill("let's go")
+  await palette.getByRole("option", { name: /Random note => Let's go/ }).click()
+  await expect(page).toHaveURL(/\/page\/[^/]+$/)
+  const title = page.getByRole("heading", { level: 1 }).first()
+  await expect(title).toBeVisible()
+  await expect(title).not.toHaveText(/^[A-Z][a-z]{2} \d{1,2}(st|nd|rd|th), \d{4}$/)
+})
