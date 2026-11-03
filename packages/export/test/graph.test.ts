@@ -33,47 +33,39 @@ describe("graph export", () => {
       [
         `{:version 1,`,
         ` :blocks`,
-        ` [{:block/id #uuid "${pageId(1)}",`,
+        ` ({:block/id #uuid "${pageId(1)}",`,
         `   :block/page-name "Ada",`,
-        `   :block/properties`,
-        `   {:alias "Countess"},`,
-        `   :block/format :markdown,`,
+        `   :block/properties {:alias #{"Countess"}},`,
         `   :block/children`,
-        `   [{:block/id #uuid "e1ec9c62-9b7c-47ca-8467-4745f4029093",`,
-        `     :block/properties`,
-        `     {:alias "Countess"},`,
+        `   ({:block/id #uuid "e1ec9c62-9b7c-47ca-8467-4745f4029093",`,
+        `     :block/properties {:alias #{"Countess"}},`,
         `     :block/format :markdown,`,
-        `     :block/content "",`,
-        `     :block/children`,
-        `     []}`,
+        `     :block/children [],`,
+        `     :block/content ""}`,
         `    {:block/id #uuid "61506710-484c-46d5-9983-3d1651ec02c8",`,
-        `     :block/properties`,
-        `     {:collapsed "true"},`,
+        `     :block/properties {},`,
         `     :block/format :markdown,`,
-        `     :block/content "DONE wrote the \\"notes\\"",`,
         `     :block/children`,
         `     [{:block/id #uuid "${block(2)}",`,
         `       :block/properties nil,`,
         `       :block/format :markdown,`,
-        `       :block/content "child",`,
-        `       :block/children`,
-        `       []}]}]}`,
+        `       :block/children [],`,
+        `       :block/content "child"}],`,
+        `     :block/content "DONE wrote the \\"notes\\"\\ncollapsed:: true"})}`,
         `  {:block/id #uuid "${pageId(2)}",`,
         `   :block/page-name "Babbage",`,
         `   :block/properties nil,`,
-        `   :block/format :markdown,`,
         `   :block/children`,
-        `   [{:block/id #uuid "${block(3)}",`,
+        `   ({:block/id #uuid "${block(3)}",`,
         `     :block/properties nil,`,
         `     :block/format :markdown,`,
-        `     :block/content "met ((61506710-484c-46d5-9983-3d1651ec02c8))",`,
         `     :block/children`,
         `     [{:block/id #uuid "${block(4)}",`,
         `       :block/properties nil,`,
         `       :block/format :markdown,`,
-        `       :block/content "{{embed [[Ada]]}}",`,
-        `       :block/children`,
-        `       []}]}]}]}`,
+        `       :block/children [],`,
+        `       :block/content "{{embed [[Ada]]}}"}],`,
+        `     :block/content "met ((61506710-484c-46d5-9983-3d1651ec02c8))"})})}`,
         ``,
       ].join("\n"),
     )
@@ -87,30 +79,29 @@ describe("graph export", () => {
         {
           id: pageId(1),
           "page-name": "Ada",
-          properties: { alias: "Countess" },
-          format: "markdown",
+          properties: { alias: ["Countess"] },
           children: [
             {
               id: "e1ec9c62-9b7c-47ca-8467-4745f4029093",
-              properties: { alias: "Countess" },
+              properties: { alias: ["Countess"] },
               format: "markdown",
-              content: "",
               children: [],
+              content: "",
             },
             {
               id: "61506710-484c-46d5-9983-3d1651ec02c8",
-              properties: { collapsed: "true" },
+              properties: {},
               format: "markdown",
-              content: 'DONE wrote the "notes"',
               children: [
                 {
                   id: block(2),
                   properties: null,
                   format: "markdown",
-                  content: "child",
                   children: [],
+                  content: "child",
                 },
               ],
+              content: 'DONE wrote the "notes"\ncollapsed:: true',
             },
           ],
         },
@@ -118,22 +109,21 @@ describe("graph export", () => {
           id: pageId(2),
           "page-name": "Babbage",
           properties: null,
-          format: "markdown",
           children: [
             {
               id: block(3),
               properties: null,
               format: "markdown",
-              content: "met ((61506710-484c-46d5-9983-3d1651ec02c8))",
               children: [
                 {
                   id: block(4),
                   properties: null,
                   format: "markdown",
-                  content: "{{embed [[Ada]]}}",
                   children: [],
+                  content: "{{embed [[Ada]]}}",
                 },
               ],
+              content: "met ((61506710-484c-46d5-9983-3d1651ec02c8))",
             },
           ],
         },
@@ -141,22 +131,62 @@ describe("graph export", () => {
     })
   })
 
-  it("writes Roam JSON with uids only on referenced blocks", () => {
+  it("types property values as Logseq parses them", () => {
+    const typed = pagesOf({
+      Kinds: [
+        "- values",
+        "  done:: true",
+        "  shown:: false",
+        "  count:: 007",
+        "  ratio:: 2.5",
+        "  tags:: foo, [[bar baz]], #qux",
+        "  note:: for the [[Garden Plan]] bed",
+        "  type2:: book, film",
+        "  title:: My [[Title]]",
+        '  quoted:: "x [[y]]"',
+        "- ## A heading",
+      ].join("\n"),
+    })
+    const blocks = JSON.parse(strFromU8(exportGraph(typed, "json", options).bytes)).blocks[0]
+      .children
+    expect(blocks.map((entry: { properties: unknown }) => entry.properties)).toEqual([
+      {
+        done: true,
+        shown: false,
+        count: 7,
+        ratio: "2.5",
+        tags: ["bar baz", "qux", "foo"],
+        note: ["Garden Plan"],
+        type2: "book, film",
+        title: "My [[Title]]",
+        quoted: '"x [[y]]"',
+      },
+      { heading: 2 },
+    ])
+  })
+
+  it("writes Roam JSON with uids on referenced blocks and linked pages", () => {
     expect(JSON.parse(text("roam-json"))).toEqual([
       {
         title: "Ada",
+        uid: "hCjtQr4uN",
         children: [
-          { string: "alias:: Countess" },
+          { string: "alias:: Countess", children: [] },
           {
-            string: '{{[[DONE]]}} wrote the "notes"',
+            string: '{{[[DONE]]}} wrote the "notes"\nid:: Z6Sc4cYrc\ncollapsed:: true',
             uid: "Z6Sc4cYrc",
-            children: [{ string: "child" }],
+            children: [{ string: "child", children: [] }],
           },
         ],
       },
       {
         title: "Babbage",
-        children: [{ string: "met ((Z6Sc4cYrc))", children: [{ string: "{{embed: [[Ada]]}}" }] }],
+        children: [
+          {
+            string: "met ((Z6Sc4cYrc))",
+            children: [{ string: "{{embed: [[Ada]]}}", children: [] }],
+          },
+        ],
       },
     ])
   })
