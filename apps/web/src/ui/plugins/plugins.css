@@ -146,6 +146,12 @@
   position: relative;
 }
 
+.plugin-toolbar-list {
+  flex-wrap: nowrap;
+  overflow-x: hidden;
+  transition: max-width var(--duration-base) var(--ease-standard);
+}
+
 .plugin-updates-point {
   display: inline-block;
   flex: none;

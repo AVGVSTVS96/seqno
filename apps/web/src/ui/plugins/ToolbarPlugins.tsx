@@ -8,6 +8,7 @@ import {
   IconPinned,
   IconPuzzle,
 } from "@tabler/icons-react"
+import type { AtomRegistry } from "effect/reactivity"
 import {
   hostAtom,
   installedPlugins,
@@ -23,6 +24,7 @@ import {
   type UIItem,
 } from "@seqno/plugins"
 import { useContext, type KeyboardEvent, type MouseEvent } from "react"
+import { leftSidebarOpen } from "../../atoms.ts"
 import { IconButton } from "../shell/IconButton.tsx"
 import { Menu, MenuItem, MenuSeparator, usePopover } from "../shell/popover.tsx"
 import { AutoCheckUpdates, openPluginUpdates } from "./PluginUpdates.tsx"
@@ -68,6 +70,29 @@ const Entry = ({
   </div>
 )
 
+const widthOf = (element: Element | null | undefined) =>
+  element instanceof HTMLElement ? element.offsetWidth : 0
+
+// Logseq's cap on the toolbar row: https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1080-L1106
+const capWidth = (registry: AtomRegistry.AtomRegistry) => (list: HTMLDivElement) => {
+  const header = list.closest("header")
+  const left = header?.querySelector(":scope > .head-left")
+  const right = header?.querySelector(":scope > .head-right")
+  const main = document.querySelector(".main-content-container")
+  if (header === null || right === null || right === undefined || main === null) return
+  const cap = () => {
+    const others = [...right.children]
+      .filter((child) => !child.contains(list) && !child.matches("[popover]"))
+      .reduce((sum, child) => sum + widthOf(child), 0)
+    const room = widthOf(main) - (registry.get(leftSidebarOpen) ? 0 : widthOf(left))
+    list.style.maxWidth = `${Math.max(room - others - 100, 76)}px`
+  }
+  const observer = new ResizeObserver(cap)
+  for (const watched of [main, left, right])
+    if (watched instanceof Element) observer.observe(watched)
+  return () => observer.disconnect()
+}
+
 export const ToolbarPlugins = () => {
   const registry = useContext(RegistryContext)
   const host = useAtomValue(hostAtom)
@@ -100,7 +125,7 @@ export const ToolbarPlugins = () => {
   }
   return (
     <div {...logseq("plugin-toolbar")} data-type="toolbar">
-      <div {...logseq("plugin-toolbar-list")}>
+      <div {...logseq("plugin-toolbar-list")} ref={capWidth(registry)}>
         {(pinned === null ? items : items.filter(isPinned)).map((item) => (
           <PluginItem key={pinKey(item)} host={host} item={item} />
         ))}

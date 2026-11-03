@@ -186,3 +186,53 @@ test("the auto check finds updates on start once 12 hours have passed, the puzzl
   await expect(auto).toHaveAttribute("aria-checked", "false")
   expect(checks).toEqual([])
 })
+
+const capOf = (page: Page) =>
+  page.evaluate(() => {
+    const [main, left, right, row] = [
+      ".main-content-container",
+      "header > .head-left",
+      "header > .head-right",
+      ".plugin-toolbar-list",
+    ].map((selector) => document.querySelector<HTMLElement>(selector))
+    const others = [...(right?.children ?? [])]
+      .filter((child) => !child.matches(".plugin-toolbar, [popover]"))
+      .reduce((sum, child) => sum + (child instanceof HTMLElement ? child.offsetWidth : 0), 0)
+    const leftOpen = localStorage.getItem("seqno.leftSidebar") === "true"
+    const room = (main?.offsetWidth ?? 0) - (leftOpen ? 0 : (left?.offsetWidth ?? 0))
+    return { expected: `${Math.max(room - others - 100, 76)}px`, actual: row?.style.maxWidth }
+  })
+
+test("a crowded header caps the plugin buttons' row as Logseq does, at the room beside the other buttons less 100px and never under 76px, through window and sidebar resizes", async ({
+  page,
+  seqno,
+}) => {
+  test.slow()
+  await page.setViewportSize({ width: 520, height: 800 })
+  await seqno.openDemoGraph()
+  for (const name of [
+    "Journals calendar",
+    "logseq-pomodoro-timer",
+    "Quick Capture",
+    "Random Note",
+    "GitSeq",
+    "Hypothesis",
+  ])
+    await install(page, name)
+  const row = page.getByRole("banner").locator(".plugin-toolbar-list")
+  await expect(row.locator("[data-injected-ui]")).toHaveCount(9)
+  const cap = () => capOf(page).then(({ actual }) => actual)
+  await expect.poll(cap).toBe("284px")
+  expect(await capOf(page)).toEqual({ expected: "284px", actual: "284px" })
+  expect(await row.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+
+  await page.setViewportSize({ width: 800, height: 800 })
+  await expect.poll(cap).toBe("564px")
+
+  await page.getByRole("button", { name: "Toggle right sidebar" }).click()
+  await expect.poll(cap).toBe("244px")
+  expect(await capOf(page)).toEqual({ expected: "244px", actual: "244px" })
+
+  await page.setViewportSize({ width: 360, height: 800 })
+  await expect.poll(cap).toBe("76px")
+})
