@@ -36,8 +36,9 @@ test("Export in the right-click menu saves a PNG of just the selected shapes, 8p
   expect(file.suggestedFilename()).toMatch(/^seqno_[0-9a-f-]{36}\.png$/)
   const png = await readFile((await file.path()) ?? "")
   expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
-  expect(png.readUInt32BE(16)).toBe(116)
-  expect(png.readUInt32BE(20)).toBe(116)
+  const box = await shapes(page, "box").boundingBox()
+  expect(png.readUInt32BE(16)).toBe(Math.round((box?.width ?? 0) + 16))
+  expect(png.readUInt32BE(20)).toBe(Math.round((box?.height ?? 0) + 16))
 })
 
 test("a click on the one selected shape starts editing it, and on an embed starts it", async ({

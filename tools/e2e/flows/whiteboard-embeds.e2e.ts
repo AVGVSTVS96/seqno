@@ -27,7 +27,7 @@ test("a pasted YouTube link becomes a YouTube embed you play after a double-clic
   await expect(bar(page).getByRole("textbox", { name: "YouTube url" })).toHaveValue(
     "https://www.youtube.com/watch?v=oBtKHwFBn0k&list=PLNnZ7rjaL84JjFpgDxRlAOKRa9ie25gtp",
   )
-  await page.mouse.click(100, 660)
+  await page.keyboard.press("Escape")
   await expect(bar(page)).toHaveCount(0)
   await page.mouse.dblclick(600, 300)
   await expect(video).toHaveAttribute("data-active", "true")
