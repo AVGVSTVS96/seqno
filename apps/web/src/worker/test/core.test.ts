@@ -217,6 +217,9 @@ const editWelcome = (root: string, starter: Starter) =>
     }),
   )
 
+const treeTitles = (trees: ReadonlyArray<{ readonly page: { readonly title: string } }>) =>
+  trees.map((tree) => tree.page.title).toSorted()
+
 const named = <A extends { readonly title: string }>(items: ReadonlyArray<A>, title: string) =>
   items.find((item) => item.title === title) ?? assert.fail(`no page titled ${title}`)
 
@@ -579,6 +582,37 @@ describe("the core worker on the real graph, vault and index", () => {
       assert.deepStrictEqual(yield* welcomeOn(root, null), ["old tour"])
       assert.deepStrictEqual(yield* welcomeOn(root, tour(1, "new tour")), ["new tour"])
     }),
+  )
+
+  it.effect("a page's export brings the pages it embeds and references, and no others", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const root = yield* emptyFolder
+        const ref = "01900000-0000-7000-8000-000000000001"
+        yield* Effect.promise(async () => {
+          await mkdir(join(root, "pages"))
+          await writeFile(join(root, "pages", "Plan.md"), `- {{embed [[Beds]]}}\n- see ((${ref}))`)
+          await writeFile(join(root, "pages", "Beds.md"), "- north to south")
+          await writeFile(join(root, "pages", "Seeds.md"), `- garlic\n  id:: ${ref}`)
+          await writeFile(join(root, "pages", "Elsewhere.md"), "- unrelated")
+        })
+        const core = yield* coreOn(root)
+        yield* core.OpenGraph({ graph: "og" })
+        const plan = named(yield* core.GetPages(), "Plan")
+        const reached = yield* core.ExportPages({ from: [plan.id] })
+        assert.deepStrictEqual(treeTitles(reached), ["Beds", "Plan", "Seeds"])
+        assert.deepStrictEqual(
+          reached.find((tree) => tree.page.title === "Seeds")?.path,
+          "pages/Seeds.md",
+        )
+        assert.includeMembers(treeTitles(yield* core.ExportPages({})), [
+          "Beds",
+          "Elsewhere",
+          "Plan",
+          "Seeds",
+        ])
+      }),
+    ),
   )
 
   it.effect("the open that imports a folder lists the files it left out, once", () =>

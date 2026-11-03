@@ -17,7 +17,6 @@ import {
 } from "effect"
 import { BlockId, PageId, type Block, type Command, type Page } from "@seqno/domain"
 import { isReadKey, type BlockHit, type GraphPage, type Row } from "@seqno/index"
-import { defaultConfig, mirrorPath } from "@seqno/interop"
 import {
   ALIASES_SQL,
   compileQuery,
@@ -41,6 +40,7 @@ import {
   type QueryResult,
   type Reference,
 } from "@seqno/rpc"
+import { everyPage, pagesReached } from "./exporting.ts"
 import { journalDayOf, journalDayOfTitle, withJournalDay } from "./journal.ts"
 import { GraphLocks } from "./lock.ts"
 import { Device, GraphPlaces } from "./place.ts"
@@ -410,21 +410,10 @@ const CoreHandlers = CoreRpcs.toLayer(
         Effect.flatMap(current(client.id), (session) => session.graph.pages),
       GetPage: ({ pageId }, { client }) =>
         Effect.flatMap(current(client.id), (session) => session.graph.page(pageId)),
-      ExportPages: (_, { client }) =>
-        Effect.gen(function* () {
-          const session = yield* current(client.id)
-          const pages = yield* session.graph.pages
-          return yield* Effect.forEach(pages, (page) =>
-            session.graph.page(page.id).pipe(
-              Effect.map((tree) => ({ ...tree, path: mirrorPath(tree.page, defaultConfig) })),
-              Effect.option,
-            ),
-          ).pipe(
-            Effect.map((trees) =>
-              trees.flatMap((tree) => (tree._tag === "Some" ? [tree.value] : [])),
-            ),
-          )
-        }),
+      ExportPages: ({ from }, { client }) =>
+        Effect.flatMap(current(client.id), (session) =>
+          from === undefined ? everyPage(session) : pagesReached(session, from),
+        ),
       GetBlock: ({ blockId }, { client }) =>
         Effect.flatMap(current(client.id), (session) =>
           Effect.flatMap(session.blocks([blockId]), ([found]) =>

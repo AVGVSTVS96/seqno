@@ -57,7 +57,11 @@ const MoreMenu = () => {
   const page = useCurrentPage()
   const setExported = useAtomSet(exported)
   const exportPage = (target: Page) =>
-    setExported({ name: target.title, target: { _tag: "Page", pageId: target.id } })
+    setExported({
+      name: target.title,
+      target: { _tag: "Page", pageId: target.id },
+      pages: [target.id],
+    })
   const navigate = useNavigate()
   const more = usePopover({ placement: { align: "start", gap: -2, inset: 11 }, kind: "menu" })
   const appearance = usePopover({

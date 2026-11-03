@@ -4,7 +4,7 @@ import { Clock, Effect, Option, Schema } from "effect"
 import { AsyncResult, Atom } from "effect/reactivity"
 import { domToBlob } from "modern-screenshot"
 import { useId, useRef, useState } from "react"
-import type { Block, BlockId, Page, Props } from "@seqno/domain"
+import type { Block, BlockId, Page, PageId, Props } from "@seqno/domain"
 import {
   exportBlocks,
   exportGraph,
@@ -23,6 +23,7 @@ import { closeDialogOf, Dialog, openDialog } from "./popover.tsx"
 export interface ExportRequest {
   readonly name: string
   readonly target: ExportTarget
+  readonly pages: ReadonlyArray<PageId>
 }
 
 export const exported = Atom.make<ExportRequest | null>(null).pipe(Atom.keepAlive)
@@ -84,11 +85,12 @@ const format = Atom.make<Format>("text").pipe(Atom.keepAlive)
 const newlineAfterBlock = Atom.make(false).pipe(Atom.keepAlive)
 const level = Atom.make<number | null>(null).pipe(Atom.keepAlive)
 
-const exportTrees = appRuntime.atom((get) =>
-  get(exported) === null
+const exportTrees = appRuntime.atom((get) => {
+  const request = get(exported)
+  return request === null
     ? Effect.succeed<ReadonlyArray<ExportedTree>>([])
-    : Effect.flatMap(CoreClient, (core) => core.ExportPages()),
-)
+    : Effect.flatMap(CoreClient, (core) => core.ExportPages({ from: request.pages }))
+})
 
 const fileName = (name: string, extension: string) =>
   `seqno_${name.replaceAll(/[\\/:*?"<>|]/g, "_")}.${extension}`
@@ -405,7 +407,7 @@ const exportGraphAs = appRuntime.fn((kind: GraphFormat, get) =>
       onNone: () => "graph",
       onSome: (opened) => opened.graph,
     })
-    const trees = yield* Effect.flatMap(CoreClient, (core) => core.ExportPages())
+    const trees = yield* Effect.flatMap(CoreClient, (core) => core.ExportPages({}))
     const paths = new Map(trees.map((tree) => [tree.page.id, tree.path]))
     const millis = yield* Clock.currentTimeMillis
     const file = exportGraph(trees, kind, {

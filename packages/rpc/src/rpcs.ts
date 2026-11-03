@@ -97,6 +97,7 @@ export const GetPage = Rpc.make("GetPage", {
 })
 
 export const ExportPages = Rpc.make("ExportPages", {
+  payload: { from: Schema.optionalKey(Schema.Array(PageId)) },
   success: Schema.Array(ExportedTree),
   error: GraphNotOpen,
 })

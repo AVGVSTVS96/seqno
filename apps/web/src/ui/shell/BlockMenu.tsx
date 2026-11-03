@@ -230,7 +230,11 @@ const MenuView = ({
       </MenuItem>
       <MenuItem
         onSelect={() =>
-          setExported({ name: "blocks", target: { _tag: "Blocks", blockIds: request.blockIds } })
+          setExported({
+            name: "blocks",
+            target: { _tag: "Blocks", blockIds: request.blockIds },
+            pages: [...new Set(chosen.map((block) => block.pageId))],
+          })
         }
       >
         Copy / Export as..
