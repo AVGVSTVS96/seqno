@@ -2047,6 +2047,23 @@
   margin: 0;
 }
 
+.notice-detail {
+  margin: 0;
+  font-weight: normal;
+  opacity: 0.6;
+}
+
+.notice-spin {
+  color: var(--fg-muted);
+  animation: notice-spin 1s linear infinite;
+}
+
+@keyframes notice-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
 .notice-list {
   max-height: 240px;
   margin: var(--space-2) 0 0;

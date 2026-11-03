@@ -1,6 +1,8 @@
-import { useAtom, useAtomMount, useAtomValue } from "@effect/atom-react"
+import { RegistryContext, useAtom, useAtomMount, useAtomValue } from "@effect/atom-react"
+import { cancelChecking, updatesChecking } from "@seqno/plugins"
 import { importReport, mirrorReportClosed, mirrorStatus, pagesMadeElsewhere } from "../../atoms.ts"
-import { IconAlertCircle, IconX } from "@tabler/icons-react"
+import { IconAlertCircle, IconLoader2, IconX } from "@tabler/icons-react"
+import { useContext } from "react"
 import { Option } from "effect"
 import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
 import { logseq, names } from "@seqno/dom"
@@ -107,6 +109,29 @@ const MirrorReport = () => {
   )
 }
 
+const CheckingUpdates = () => {
+  const registry = useContext(RegistryContext)
+  const checking = useAtomValue(updatesChecking)
+  if (checking === null || checking.auto) return null
+  return (
+    <div {...logseq("notice")} data-checking-updates>
+      <IconLoader2 className="notice-icon notice-spin" size={20} stroke={2} aria-hidden />
+      <div className="notice-message">
+        <p className="notice-title">Checking for plugin updates ...</p>
+        {checking.current === null ? null : <p className="notice-detail">{checking.current}...</p>}
+      </div>
+      <button
+        type="button"
+        className="notice-close"
+        aria-label="Close"
+        onClick={() => cancelChecking(registry)}
+      >
+        <IconX size={18} stroke={2} aria-hidden />
+      </button>
+    </div>
+  )
+}
+
 export const Notices = () => {
   useAtomMount(pagesMadeElsewhere)
   const [shown, setShown] = useAtom(notices)
@@ -114,6 +139,7 @@ export const Notices = () => {
     <div {...logseq("notices")} role="status" aria-live="polite">
       <ImportReport />
       <MirrorReport />
+      <CheckingUpdates />
       {shown.map((notice) => (
         <div key={notice.id} {...logseq("notice")}>
           <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />

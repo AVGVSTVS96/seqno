@@ -82,16 +82,19 @@ export const PluginMacroSlot = ({ args, blockId }: MacroSlotProps) => {
       contentEditable={false}
       ref={(element) => {
         if (element === null || host === null) return
-        const timer = setTimeout(
-          () =>
-            host.hook("app", "macro_renderer_slotted", {
-              type: "macro_renderer_slotted",
-              slot,
-              payload: { name: "renderer", arguments: macroArguments(args), uuid: blockId },
-            }),
-          slotted,
-        )
-        return () => clearTimeout(timer)
+        const payload = {
+          type: "macro_renderer_slotted",
+          slot,
+          payload: { name: "renderer", arguments: macroArguments(args), uuid: blockId },
+        }
+        const forget = { current: () => {} }
+        const timer = setTimeout(() => {
+          forget.current = host.slotted(slot, payload)
+        }, slotted)
+        return () => {
+          clearTimeout(timer)
+          forget.current()
+        }
       }}
     />
   )

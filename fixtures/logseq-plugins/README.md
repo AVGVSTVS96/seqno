@@ -6,7 +6,7 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 | Folder                                         | Plugin                | Version  |
 | ---------------------------------------------- | --------------------- | -------- |
 | `files/xyhp915/logseq-journals-calendar`       | Journals calendar     | v0.11.1  |
-| `files/benjypng/logseq-wordcount-plugin`       | Word count            | v2.4.3   |
+| `files/benjypng/logseq-wordcount-plugin`       | Word count            | v2.4.3, and v2.4.2 for the update flows |
 | `files/haydenull/logseq-plugin-markdown-table` | Markdown Table Editor | v1.9.0   |
 | `files/sawhney17/logseq-pomodoro-plugin`       | Pomodoro timer        | 1.0.3    |
 | `files/pengx17/logseq-dev-theme`               | Dev theme             | v1.26.17 |
@@ -30,6 +30,7 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 
 - `plugins.json` and `stats.json`: those entries from `logseq/marketplace`, including three desktop-only (`effect`) plugins, which Logseq's web marketplace hides and its desktop app lists.
 - `packages/<owner>__<repo>.json`: what `https://plugins.logseq.io/r2/<owner>/<repo>` answers.
+- `packages/<owner>__<repo>@<version>.json` and `files/<owner>/<repo>/<version>/`: an older version, so the update flows install it and then find the current one: Word count v2.4.2, the mirror's `package.json` for it with its version, as `plugins.logseq.io/r2` answered when it was the newest.
 - `files/<owner>/<repo>/<version>/`: what `https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/<owner>/<repo>/<version>/` serves.
 - `jsdelivr/npm/@logseq/libs`: what `https://cdn.jsdelivr.net/npm/@logseq/libs` serves (0.0.17), for packages like Catppuccin whose `index.html` loads the SDK from there.
 - `jsdelivr/gh/adobe-fonts/source-sans@3.046R/`: the stylesheet Dev theme imports from jsdelivr and its two WOFF2 files (SIL Open Font License, in `LICENSE.md`), so the theme's own font loads, offline too.

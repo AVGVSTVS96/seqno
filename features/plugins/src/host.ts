@@ -54,6 +54,7 @@ export interface Host {
   readonly unload: (pid: string) => Promise<void>
   readonly loaded: (pid: string) => boolean
   readonly hook: (ns: HookNamespace, type: string, payload: unknown, pid?: string) => void
+  readonly slotted: (slot: string, payload: unknown) => () => void
   readonly installHook: (pid: string, hook: string) => void
   readonly uninstallHook: (pid: string, hook: string) => void
   readonly wants: (hook: string) => boolean
@@ -111,6 +112,8 @@ export const createHost = (
   makeApi: (host: Host) => Api,
 ): Host => {
   const plugins = new Map<string, Loaded>()
+  const slots = new Map<string, unknown>()
+  const slottedHook = "hook:app:macro_renderer_slotted"
 
   const setRunning = (pid: string, update: (current: Running) => Running) => {
     const all = registry.get(running)
@@ -185,7 +188,16 @@ export const createHost = (
     unload: (pid) => unload(pid),
     loaded: (pid) => plugins.get(pid)?.connected === true,
     hook,
-    installHook: (pid, name) => void plugins.get(pid)?.hooks.add(name),
+    slotted: (slot, payload) => {
+      slots.set(slot, payload)
+      hook("app", "macro_renderer_slotted", payload)
+      return () => void slots.delete(slot)
+    },
+    installHook: (pid, name) => {
+      plugins.get(pid)?.hooks.add(name)
+      if (name === slottedHook)
+        for (const payload of slots.values()) hook("app", "macro_renderer_slotted", payload, pid)
+    },
     uninstallHook: (pid, name) => void plugins.get(pid)?.hooks.delete(name),
     wants: (name) =>
       [...plugins.values()].some(

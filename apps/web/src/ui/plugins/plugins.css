@@ -141,8 +141,44 @@
   align-items: center;
 }
 
-.plugin-toolbar-trigger {
+.plugin-toolbar-trigger,
+.plugin-toolbar-button {
   position: relative;
+}
+
+.plugin-updates-point {
+  display: inline-block;
+  flex: none;
+  width: 5px;
+  height: 5px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--fg-danger);
+}
+
+.plugin-updates-point[data-place="button"] {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 4px;
+  height: 4px;
+}
+
+.plugin-updates-point[data-place="menu"] {
+  margin-inline-start: var(--space-4);
+}
+
+.menu-item[data-auto-check] {
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.menu-item[data-auto-check][aria-checked="true"] .switch {
+  background: var(--bg-switch-on);
+}
+
+.menu-item[data-auto-check][aria-checked="true"] .switch-thumb {
+  transform: translateX(16px);
 }
 
 .plugin-toolbar-entry {
@@ -300,6 +336,7 @@
 
 .plugins-search {
   display: flex;
+  margin-inline-start: auto;
   gap: var(--space-2);
   align-items: center;
   width: 260px;
@@ -455,7 +492,7 @@
   align-items: center;
 }
 
-.plugin-action {
+.plugin-card-button {
   margin-inline-start: auto;
   padding: var(--space-1) var(--space-2);
   border: 0;
@@ -466,19 +503,107 @@
   cursor: pointer;
 }
 
-.plugin-action:hover:not(:disabled) {
+.plugin-card-button:hover:not(:disabled) {
   background: var(--bg-button-hover);
 }
 
-.plugin-action:disabled {
+.plugin-card-button:disabled {
   color: var(--fg-muted);
   cursor: default;
 }
 
-.plugin-version {
-  margin-inline-end: auto;
+.plugin-card-version {
+  padding: 0 var(--space-1);
   color: var(--fg-subtle);
   font-size: var(--text-xs);
+  font-weight: normal;
+}
+
+.plugin-card-updates {
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+
+.plugin-card:is(:hover, :focus-within, [data-update]) .plugin-card-updates {
+  opacity: 1;
+}
+
+.plugin-updates {
+  width: 480px;
+  max-height: calc(100vh - 64px);
+  padding: 28px 32px;
+  overflow-y: auto;
+}
+
+.icon-button.plugin-updates-close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+}
+
+.plugin-updates-title {
+  margin: 0 0 var(--space-4);
+  color: var(--fg-strong);
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.plugin-updates-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plugin-update-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  opacity: 0.9;
+  user-select: none;
+}
+
+.plugin-update-item:is(:hover, :has(input:checked)) {
+  opacity: 1;
+}
+
+.plugin-update-item label {
+  display: flex;
+  flex: 1;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.plugin-update-item sup {
+  padding-inline-start: var(--space-2);
+  font-weight: normal;
+}
+
+.plugin-updates-done {
+  margin: 0;
+  padding-block: var(--space-4);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-semibold);
+}
+
+.plugin-updates-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+}
+
+.plugin-updates-all {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.plugin-updates-all:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .plugin-problem {

@@ -40,6 +40,7 @@ import { Hints } from "./hints/Hints.tsx"
 import { PdfLayer } from "./PdfLayer.tsx"
 import { GraphChooser, OpenFailed } from "./OpenGraphScreen.tsx"
 import { PluginSettings } from "./plugins/PluginSettings.tsx"
+import { PluginUpdates } from "./plugins/PluginUpdates.tsx"
 import { PluginsDialog } from "./plugins/PluginsDialog.tsx"
 import { BlockMenu } from "./shell/BlockMenu.tsx"
 import { CustomCss } from "./shell/custom-css.tsx"
@@ -146,6 +147,7 @@ const Layout = ({
                   <Notices />
                   <PluginsDialog />
                   <PluginSettings />
+                  <PluginUpdates />
                   <PluginThemeLink mode={mode} />
                   <CustomCss />
                   {isDemoGraph(graph) ? <Hints /> : null}

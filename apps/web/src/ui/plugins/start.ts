@@ -6,6 +6,7 @@ import {
   installedPlugins,
   routePayload,
   startPlugins,
+  watchUpdates,
   type Host,
 } from "@seqno/plugins"
 import { openGraph, resolvedTheme } from "../../atoms.ts"
@@ -47,6 +48,7 @@ export const startPluginHost = (registry: AtomRegistry.AtomRegistry, router: typ
     )
     const bridge = makeBridge(registry, router)
     const host = startPlugins(registry, bridge)
+    watchUpdates(registry)
     router.subscribe("onResolved", () =>
       host.hook("app", "route_changed", routePayload(bridge.route())),
     )

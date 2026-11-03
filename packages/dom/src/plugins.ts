@@ -25,6 +25,14 @@ export interface PluginParts {
   readonly "plugin-toolbar-button": readonly []
   readonly "plugin-toolbar-entry": readonly []
   readonly "plugin-toolbar-pin": readonly [pinned: boolean]
+  readonly "plugin-updates-point": readonly []
+  readonly "plugin-updates": readonly []
+  readonly "plugin-updates-list": readonly [downloading: boolean]
+  readonly "plugin-update-item": readonly [checked: boolean]
+  readonly "plugin-card-version": readonly []
+  readonly "plugin-card-updates": readonly []
+  readonly "plugin-card-button": readonly [{ readonly disabled: boolean; readonly busy: boolean }]
+  readonly "plugins-more": readonly []
   readonly "seqno-fenced-code": readonly [active: boolean]
   readonly "seqno-fenced-code-source": readonly []
   readonly "seqno-fenced-code-result": readonly [edit: boolean]
@@ -102,6 +110,31 @@ export const pluginParts: Table<PluginParts> = {
   "plugin-toolbar-pin": (pinned) => ({
     className: names("pin flex items-center opacity-60", pinned && "pinned"),
   }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L1065-L1071
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1038
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1069
+  "plugin-updates-point": () => ({
+    className: "ui__point overflow-hidden rounded-full inline-block",
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L888
+  "plugin-updates": () => ({ className: "cp__plugins-waiting-updates" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L894-L895
+  "plugin-updates-list": (downloading) => ({ className: names(downloading && "downloading") }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L899-L901
+  "plugin-update-item": (checked) => ({
+    className: names("flex items-center", checked && "checked"),
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L320
+  "plugin-card-version": () => ({ className: "inline-block px-1 text-xs opacity-50" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L263
+  "plugin-card-updates": () => ({ className: "updates-actions" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L213-L215
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L264-L265
+  "plugin-card-button": ({ disabled, busy }) => ({
+    className: names("btn", disabled && "disabled", busy && "installing"),
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L583-L588
+  "plugins-more": () => ({ className: "more-do" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L3345
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1162
   "seqno-fenced-code": (active) => ({

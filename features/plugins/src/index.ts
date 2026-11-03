@@ -21,4 +21,24 @@ export {
   uninstall,
 } from "./runtime.ts"
 export * from "./state.ts"
+export {
+  autoCheckDue,
+  cancelChecking,
+  checkAllUpdates,
+  checkUpdate,
+  isNewer,
+  lastAutoCheck,
+  pluginBusy,
+  setAutoCheck,
+  updatePlugin,
+  updateSelected,
+  updatesChecking,
+  updatesDownloading,
+  updatesUnchecked,
+  watchUpdates,
+  type Checked,
+  type CheckedAll,
+  type CheckFailure,
+  type Updated,
+} from "./updates.ts"
 export { PluginCode, PluginItem, PluginItems, PluginMacroSlot, PluginThemeLink } from "./slots.tsx"

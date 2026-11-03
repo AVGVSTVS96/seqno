@@ -91,7 +91,10 @@ export interface ShellParts {
   readonly settings: readonly []
   readonly "plugins-dialog": readonly []
   readonly "plugins-tabs": readonly []
-  readonly "plugin-card": readonly ["market" | "installed"]
+  readonly "plugin-card": readonly [
+    "market" | "installed",
+    { readonly installed: boolean; readonly updating: boolean; readonly newVersion: boolean },
+  ]
   readonly "plugin-card-icon": readonly []
   readonly "plugin-card-body": readonly []
   readonly "plugin-card-title": readonly []
@@ -292,8 +295,16 @@ export const shellParts: Table<ShellParts> = {
   "plugins-dialog": () => ({ className: "cp__plugins-page" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1226
   "plugins-tabs": () => ({ className: "tabs" }),
-  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L297
-  "plugin-card": (kind) => ({ className: `cp__plugins-item-card ${kind}` }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L297-L303
+  "plugin-card": (kind, { installed, updating, newVersion }) => ({
+    className: names(
+      "cp__plugins-item-card",
+      kind === "market" && "market",
+      installed && "installed",
+      updating && "updating",
+      newVersion && "has-new-version",
+    ),
+  }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L305
   "plugin-card-icon": () => ({ className: "l link-block" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L314

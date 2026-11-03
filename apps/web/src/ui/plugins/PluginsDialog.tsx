@@ -3,8 +3,10 @@ import pluginsCss from "./plugins.css?inline"
 import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconCloudDownload,
+  IconDotsVertical,
   IconPalette,
   IconPuzzle,
+  IconRotateClockwise,
   IconSearch,
   IconSettings,
   IconStar,
@@ -15,25 +17,39 @@ import { Effect } from "effect"
 import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
 import { useContext, useState, type ReactNode } from "react"
 import {
+  checkUpdate,
   chosenThemes,
   install,
   installedPlugins,
   loadMarket,
   local,
+  pluginBusy,
   pluginSettings,
   running,
   runtimeThemes,
   setEnabled,
   settingsFor,
   uninstall,
+  updatePlugin,
+  updatesComing,
   type ChosenTheme,
   type MarketItem,
   type PluginInfo,
   type PluginTheme,
 } from "@seqno/plugins"
 import { theme } from "../../atoms.ts"
+import { IconButton } from "../shell/IconButton.tsx"
 import { notify } from "../shell/Notices.tsx"
-import { closeDialogOf, Dialog, openDialog } from "../shell/popover.tsx"
+import {
+  closeDialogOf,
+  Dialog,
+  Menu,
+  MenuItem,
+  MenuSeparator,
+  openDialog,
+  usePopover,
+} from "../shell/popover.tsx"
+import { AutoCheckUpdates, checkAll, notifyUpdated } from "./PluginUpdates.tsx"
 
 const dialogId = "seqno-plugins"
 
@@ -77,6 +93,8 @@ const Card = ({
   icon,
   theme: isTheme,
   kind,
+  flags,
+  version,
   footer,
 }: {
   readonly title: string
@@ -86,15 +104,28 @@ const Card = ({
   readonly icon: string | null
   readonly theme: boolean
   readonly kind: "market" | "installed"
+  readonly flags: {
+    readonly installed: boolean
+    readonly updating: boolean
+    readonly newVersion: boolean
+  }
+  readonly version: string | null
   readonly footer: ReactNode
 }) => (
-  <li {...logseq("plugin-card", kind)} aria-label={title}>
+  <li
+    {...logseq("plugin-card", kind, flags)}
+    data-update={flags.updating ? "updating" : flags.newVersion ? "new" : undefined}
+    aria-label={title}
+  >
     <div {...logseq("plugin-card-icon")}>
       <Icon src={icon} theme={isTheme} />
     </div>
     <div {...logseq("plugin-card-body")}>
       <div className="plugin-card-text">
-        <h3 {...logseq("plugin-card-title")}>{title}</h3>
+        <h3 {...logseq("plugin-card-title")}>
+          {title}
+          {version === null ? null : <sup {...logseq("plugin-card-version")}>{version}</sup>}
+        </h3>
         <div {...logseq("plugin-card-description")}>
           <p>{description}</p>
         </div>
@@ -127,6 +158,8 @@ const MarketCard = ({ item }: { readonly item: MarketItem }) => {
     <Card
       {...item}
       kind="market"
+      flags={{ installed, updating: busy, newVersion: false }}
+      version={null}
       footer={
         <>
           <ul {...logseq("plugin-card-left")}>
@@ -142,7 +175,7 @@ const MarketCard = ({ item }: { readonly item: MarketItem }) => {
           <div {...logseq("plugin-card-right")}>
             <button
               type="button"
-              className="plugin-action"
+              {...logseq("plugin-card-button", { disabled: installed || busy, busy })}
               disabled={installed || busy}
               onClick={add}
             >
@@ -165,12 +198,28 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
   const openSettings = useAtomSet(settingsFor)
   const isTheme = isThemePackage(plugin)
   const hasSettings = !isTheme || (state?.schema.length ?? 0) > 0
+  const busy = useAtomValue(pluginBusy)
+  const updating = busy === plugin.id
+  const coming = useAtomValue(updatesComing).find((one) => one.pid === plugin.id)
+  const update = () => {
+    if (busy !== null) return
+    if (coming !== undefined)
+      return void updatePlugin(registry, plugin.id).then((result) =>
+        notifyUpdated(registry, result),
+      )
+    void checkUpdate(registry, plugin.id).then((checked) => {
+      if (checked?._tag === "Current") notify(registry, `<${plugin.id}> It's up to date :)`)
+      if (checked?._tag === "Failed") notify(registry, `[Error]<${plugin.id}> ${checked.reason}`)
+    })
+  }
   return (
     <Card
       {...plugin}
       icon={plugin.icon === null ? null : local(plugin.icon)}
       theme={isTheme}
       kind="installed"
+      flags={{ installed: true, updating, newVersion: coming !== undefined }}
+      version={plugin.version}
       footer={
         <>
           <div {...logseq("plugin-card-left")}>
@@ -179,7 +228,6 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
                 Didn't load
               </span>
             ) : null}
-            <span className="plugin-version">{plugin.version}</span>
             <div {...logseq("plugin-card-menu")}>
               {hasSettings ? (
                 <button
@@ -201,8 +249,23 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
               </button>
             </div>
           </div>
-          {isTheme ? null : (
-            <div {...logseq("plugin-card-right")}>
+          <div {...logseq("plugin-card-right")}>
+            <div {...logseq("plugin-card-updates")}>
+              <button
+                type="button"
+                {...logseq("plugin-card-button", { disabled: updating, busy: false })}
+                aria-label={`${coming === undefined ? "Check update" : "Update"} ${plugin.title}`}
+                disabled={updating}
+                onClick={update}
+              >
+                {updating
+                  ? "Updating"
+                  : coming === undefined
+                    ? "Check update"
+                    : `Update 👉 ${coming.latest.version}`}
+              </button>
+            </div>
+            {isTheme ? null : (
               <button
                 type="button"
                 role="switch"
@@ -213,8 +276,8 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
               >
                 <span className="switch-thumb" />
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </>
       }
     />
@@ -361,6 +424,40 @@ const MarketKinds = (props: { readonly kind: Kind; readonly onKind: (kind: Kind)
   return <Kinds {...props} plugins={listed.length - themes} themes={themes} />
 }
 
+const PluginActions = ({ tab, kind }: { readonly tab: Tab; readonly kind: Kind }) => {
+  const registry = useContext(RegistryContext)
+  const menu = usePopover({ placement: { align: "end", gap: 4, inset: 0 }, kind: "menu" })
+  return (
+    <>
+      <IconButton
+        label="Plugin actions"
+        {...logseq("plugins-more")}
+        icon={<IconDotsVertical size={18} aria-hidden />}
+        {...menu.trigger}
+      />
+      <Menu handle={menu} label="Plugin actions" className="plugins-more-menu">
+        {tab === "installed" ? (
+          <MenuItem
+            icon={<IconRotateClockwise size={18} aria-hidden />}
+            onSelect={() => void checkAll(registry, kind === "themes")}
+          >
+            Check all updates
+          </MenuItem>
+        ) : (
+          <MenuItem
+            icon={<IconRotateClockwise size={18} aria-hidden />}
+            onSelect={() => registry.refresh(market)}
+          >
+            Refresh lists
+          </MenuItem>
+        )}
+        <MenuSeparator />
+        <AutoCheckUpdates />
+      </Menu>
+    </>
+  )
+}
+
 const Body = () => {
   const [tab, setTab] = useState<Tab>("installed")
   const [kind, setKind] = useState<Kind>("plugins")
@@ -411,6 +508,7 @@ const Body = () => {
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
+        <PluginActions tab={tab} kind={kind} />
       </div>
       <div className="plugins-body">
         {tab === "installed" ? (

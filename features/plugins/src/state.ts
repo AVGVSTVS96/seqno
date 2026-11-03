@@ -134,6 +134,16 @@ export interface Running {
   readonly mainUI: boolean
 }
 
+export interface ComingUpdate {
+  readonly pid: string
+  readonly title: string
+  readonly version: string
+  readonly latest: PluginInfo
+  readonly failed: string | null
+}
+
+export const updatesComing = Atom.make<ReadonlyArray<ComingUpdate>>([]).pipe(Atom.keepAlive)
+
 export const running = Atom.make<Readonly<Record<string, Running>>>({}).pipe(Atom.keepAlive)
 
 export const uiItems = Atom.make<ReadonlyArray<UIItem>>([]).pipe(Atom.keepAlive)

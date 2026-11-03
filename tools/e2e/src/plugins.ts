@@ -1,4 +1,4 @@
-import { expect, type BrowserContext, type Page } from "@playwright/test"
+import { expect, type BrowserContext, type Page, type Route } from "@playwright/test"
 import { existsSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
@@ -43,6 +43,14 @@ export const serveMarketplace = async (context: BrowserContext) => {
       ),
     ),
   )
+}
+
+export const serveOlderVersion = async (context: BrowserContext, repo: string, version: string) => {
+  const url = `https://plugins.logseq.io/r2/${repo}`
+  const older = (route: Route) =>
+    route.fulfill(fulfill(`${fixtures}packages/${repo.replace("/", "__")}@${version}.json`))
+  await context.route(url, older)
+  return () => context.unroute(url, older)
 }
 
 export const openPlugins = async (page: Page) => {

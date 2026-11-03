@@ -11,9 +11,12 @@ import { watchSelection } from "./selection.ts"
 import { record, text } from "./package.ts"
 import { changedBlock } from "./shapes.ts"
 import {
+  chosenThemes,
   installedPlugins,
   pluginCommands,
   pluginSettings,
+  updatesComing,
+  type ChosenTheme,
   type PluginCommand,
   type PluginInfo,
   type PluginSlashCommand,
@@ -178,16 +181,41 @@ export const changedPayload = (events: ReadonlyArray<GraphEvent>) => ({
   txMeta: { outlinerOp: "save-block" },
 })
 
+const movedThemes = (
+  registry: AtomRegistry.AtomRegistry,
+  before: PluginInfo,
+  after: PluginInfo,
+) => {
+  const move = (pick: ChosenTheme | null) => {
+    if (pick === null || pick.pid !== after.id) return pick
+    const at = before.themes.findIndex((theme) => theme.url === pick.url)
+    const theme =
+      after.themes[at] ?? after.themes.find((one) => one.name === before.themes[at]?.name)
+    return theme === undefined ? pick : { pid: after.id, url: theme.url }
+  }
+  const chosen = registry.get(chosenThemes)
+  registry.set(chosenThemes, { light: move(chosen.light), dark: move(chosen.dark) })
+}
+
+export const replacePlugin = async (registry: AtomRegistry.AtomRegistry, info: PluginInfo) => {
+  await keepCopy(info)
+  const installed = registry.get(installedPlugins)
+  const before = installed.find((other) => other.id === info.id)
+  if (before !== undefined) await registry.get(hostAtom)?.unload(info.id)
+  registry.set(
+    installedPlugins,
+    before === undefined
+      ? [...installed, info]
+      : installed.map((other) => (other.id === info.id ? info : other)),
+  )
+  if (before !== undefined) movedThemes(registry, before, info)
+  await loadPlugin(registry, info)
+  if (before !== undefined && before.root !== info.root) await dropCopy(before)
+}
+
 export const install = async (registry: AtomRegistry.AtomRegistry, item: MarketItem) => {
   const info = await fetchPlugin(item)
-  await keepCopy(info)
-  const before = registry.get(installedPlugins).find((other) => other.id === info.id)
-  if (before !== undefined && before.root !== info.root) void dropCopy(before)
-  registry.set(installedPlugins, [
-    ...registry.get(installedPlugins).filter((other) => other.id !== info.id),
-    info,
-  ])
-  await loadPlugin(registry, info)
+  await replacePlugin(registry, info)
   return info
 }
 
@@ -200,6 +228,10 @@ export const uninstall = async (registry: AtomRegistry.AtomRegistry, pid: string
     registry.get(installedPlugins).filter((other) => other.id !== pid),
   )
   registry.set(pluginSettings(pid), { disabled: false })
+  registry.set(
+    updatesComing,
+    registry.get(updatesComing).filter((coming) => coming.pid !== pid),
+  )
 }
 
 export const setEnabled = async (

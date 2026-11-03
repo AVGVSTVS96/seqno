@@ -1,6 +1,13 @@
 import { logseq } from "@seqno/dom"
 import { RegistryContext, useAtom, useAtomValue } from "@effect/atom-react"
-import { IconAdjustments, IconApps, IconPin, IconPinned, IconPuzzle } from "@tabler/icons-react"
+import {
+  IconAdjustments,
+  IconApps,
+  IconDownload,
+  IconPin,
+  IconPinned,
+  IconPuzzle,
+} from "@tabler/icons-react"
 import {
   hostAtom,
   installedPlugins,
@@ -10,12 +17,15 @@ import {
   running,
   settingsFor,
   uiItems,
+  updatesChecking,
+  updatesComing,
   type Host,
   type UIItem,
 } from "@seqno/plugins"
 import { useContext, type KeyboardEvent, type MouseEvent } from "react"
 import { IconButton } from "../shell/IconButton.tsx"
 import { Menu, MenuItem, MenuSeparator, usePopover } from "../shell/popover.tsx"
+import { AutoCheckUpdates, openPluginUpdates } from "./PluginUpdates.tsx"
 import { openPlugins } from "./PluginsDialog.tsx"
 
 const pinKey = (item: UIItem) => `${item.pid}:${item.key}`
@@ -65,6 +75,9 @@ export const ToolbarPlugins = () => {
     .filter((item) => item.type === "toolbar")
     .toSorted((left, right) => left.key.localeCompare(right.key))
   const [pinned, setPinned] = useAtom(pinnedToolbarItems)
+  const checking = useAtomValue(updatesChecking)
+  const coming = useAtomValue(updatesComing)
+  const found = checking?.auto !== true && coming.length > 0
   const menu = usePopover({ placement: { align: "end", gap: 4, inset: 0 }, kind: "menu" })
   if (host === null || items.length === 0) return null
   const isPinned = (item: UIItem) => pinned?.includes(pinKey(item)) ?? false
@@ -97,7 +110,12 @@ export const ToolbarPlugins = () => {
           <IconButton
             label="Plugin toolbar items"
             {...logseq("plugin-toolbar-button")}
-            icon={<IconPuzzle size={20} aria-hidden />}
+            icon={
+              <>
+                <IconPuzzle size={20} aria-hidden />
+                {found ? <span {...logseq("plugin-updates-point")} data-place="button" /> : null}
+              </>
+            }
             {...menu.trigger}
           />
         </div>
@@ -123,6 +141,17 @@ export const ToolbarPlugins = () => {
               >
                 Settings
               </MenuItem>
+              {found ? (
+                <MenuItem
+                  icon={<IconDownload size={18} aria-hidden />}
+                  onSelect={() => openPluginUpdates(registry)}
+                >
+                  New updates
+                  <span {...logseq("plugin-updates-point")} data-place="menu" />
+                </MenuItem>
+              ) : null}
+              <MenuSeparator />
+              <AutoCheckUpdates />
             </>
           ) : null}
         </Menu>
