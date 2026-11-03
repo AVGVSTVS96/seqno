@@ -113,6 +113,15 @@ export const VideoShape = Schema.Struct({
   isAspectRatioLocked: Schema.optionalKey(Schema.Boolean),
 })
 
+export const GroupShape = Schema.Struct({
+  type: Schema.Literal("group"),
+  point: Vec,
+  size: Schema.optionalKey(Vec),
+  rotation: Schema.optionalKey(Schema.Finite),
+  isLocked: Schema.optionalKey(Schema.Boolean),
+  children: Schema.Array(Schema.String),
+})
+
 export const OtherShape = Schema.Struct({
   type: Schema.String,
   point: Vec,
@@ -132,6 +141,7 @@ export const Shape = Schema.Union([
   PortalShape,
   ImageShape,
   VideoShape,
+  GroupShape,
 ])
 export type Shape = typeof Shape.Type
 

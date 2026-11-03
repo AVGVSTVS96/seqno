@@ -8,7 +8,7 @@ import {
   type Vec,
 } from "@seqno/domain"
 import { add, round, sub, type Bounds } from "./geometry.ts"
-import type { Item, Scene } from "./model.ts"
+import { isLocked, withMembers, type Item, type Scene } from "./model.ts"
 import { handlesOf, type Copied } from "./clipboard.ts"
 import { isGhost } from "./preview.ts"
 
@@ -189,10 +189,27 @@ export const scaleInto = (item: Item, from: Bounds, to: Bounds, own: Bounds): Ra
   }
 }
 
+const shrunk = (scene: Scene, gone: Set<BlockId>): ReadonlyArray<Command> =>
+  [...scene.members].flatMap(([group, members]) => {
+    if (gone.has(group)) return []
+    const left = members.filter((id) => !gone.has(id))
+    if (left.length === members.length) return []
+    const item = scene.byId.get(group)
+    if (left.length > 1 && item !== undefined) return [patch(item, { children: left })]
+    gone.add(group)
+    return []
+  })
+
 export const remove = (scene: Scene, ids: ReadonlyArray<BlockId>): ReadonlyArray<Command> => {
-  const [first, ...rest] = ids
+  const gone = new Set(
+    withMembers(scene, ids).filter((id) => {
+      const item = scene.byId.get(id)
+      return ids.includes(id) || (item !== undefined && !isLocked(item))
+    }),
+  )
+  const kept = shrunk(scene, gone)
+  const [first, ...rest] = [...gone]
   if (first === undefined) return []
-  const gone = new Set(ids)
   const freed = scene.items.flatMap((item) => {
     if (item.shape.type !== "line" || gone.has(item.block.id)) return []
     const { start, end } = item.shape.handles
@@ -205,7 +222,76 @@ export const remove = (scene: Scene, ids: ReadonlyArray<BlockId>): ReadonlyArray
       lost(handle) ? { point: roundVec(sub(at, point)) } : handleRaw(handle.point, handle.bindTo)
     return [patch(item, { handles: { start: free(start, ends[0]), end: free(end, ends[1]) } })]
   })
-  return [...freed, { _tag: "DeleteBlocks", blockIds: [first, ...rest] }]
+  return [...kept, ...freed, { _tag: "DeleteBlocks", blockIds: [first, ...rest] }]
+}
+
+const groupsIn = (scene: Scene, ids: ReadonlyArray<BlockId>) => [
+  ...new Set(
+    withMembers(scene, ids).flatMap((id) =>
+      scene.byId.get(id)?.shape.type === "group" ? [id] : (scene.groupOf.get(id) ?? []),
+    ),
+  ),
+]
+
+const raised = (order: ReadonlyArray<BlockId>, movers: ReadonlyArray<BlockId>, top: BlockId) => {
+  const stack = [...order, top]
+  const moves = movers
+    .toSorted((a, b) => stack.indexOf(b) - stack.indexOf(a))
+    .flatMap((id): ReadonlyArray<Command> => {
+      const index = stack.indexOf(id)
+      const next = stack[index + 1]
+      if (index === -1 || next === undefined || movers.includes(next)) return []
+      stack[index] = next
+      stack[index + 1] = id
+      return next === top
+        ? []
+        : [{ _tag: "MoveBlocks", blockIds: [id], parentId: null, after: next }]
+    })
+  return { moves, below: stack[stack.indexOf(top) - 1] }
+}
+
+export const group = (
+  pageId: PageId,
+  scene: Scene,
+  ids: ReadonlyArray<BlockId>,
+  groupId: BlockId,
+): ReadonlyArray<Command> => {
+  const groups = groupsIn(scene, ids)
+  const leaves = withMembers(scene, ids).filter((id) => scene.byId.get(id)?.shape.type !== "group")
+  const [first, ...rest] = groups
+  const removed: ReadonlyArray<Command> =
+    first === undefined ? [] : [{ _tag: "DeleteBlocks", blockIds: [first, ...rest] }]
+  if (leaves.length < 2) return removed
+  const order = scene.items
+    .map((item) => item.block.id)
+    .filter((id) => !groups.includes(id) && !isGhost(id))
+  const { moves, below } = raised(order, leaves, groupId)
+  const made: Command = {
+    _tag: "InsertBlocks",
+    pageId,
+    parentId: null,
+    ...(below === undefined ? {} : { after: below }),
+    blocks: [
+      draftOf({
+        id: groupId,
+        text: "",
+        raw: { type: "group", point: [0, 0], size: [0, 0], children: leaves },
+      }),
+    ],
+  }
+  return [...removed, ...moves, made]
+}
+
+export const ungroup = (
+  scene: Scene,
+  ids: ReadonlyArray<BlockId>,
+): { readonly commands: ReadonlyArray<Command>; readonly members: ReadonlyArray<BlockId> } => {
+  const [first, ...rest] = groupsIn(scene, ids)
+  if (first === undefined) return { commands: [], members: [] }
+  return {
+    commands: [{ _tag: "DeleteBlocks", blockIds: [first, ...rest] }],
+    members: [first, ...rest].flatMap((id) => scene.members.get(id) ?? []),
+  }
 }
 
 export type Order = "front" | "forward" | "backward" | "back"

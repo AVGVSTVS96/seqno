@@ -356,6 +356,19 @@
   background: color-mix(in srgb, var(--wb-selected) 10%, transparent);
 }
 
+.wb-group-frame {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+  fill: transparent;
+  stroke: var(--wb-selected);
+  stroke-width: 1.5px;
+}
+
+.wb-group-frame[data-kind="member"] {
+  stroke: color-mix(in srgb, var(--wb-selected) 10%, transparent);
+}
+
 .wb-handle {
   position: absolute;
   pointer-events: auto;
@@ -731,6 +744,17 @@
 .wb-menu-keys {
   opacity: 0.6;
   font-size: 12px;
+}
+
+.wb-menu-icon {
+  display: inline-flex;
+  width: 16px;
+  margin-right: -12px;
+  opacity: 0.7;
+}
+
+.wb-menu-label {
+  flex: 1;
 }
 
 .wb-menu-separator {

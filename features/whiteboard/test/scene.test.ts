@@ -2,6 +2,7 @@ import { assert, describe, it } from "vitest"
 import { BlockId, PageId, shapeProps, type Block } from "@seqno/domain"
 import {
   changesOf,
+  group,
   fitBounds,
   itemsOf,
   remove,
@@ -203,5 +204,40 @@ describe("commands", () => {
         },
       ],
     })
+  })
+})
+
+describe("groups", () => {
+  it("a group's bounds are its members', and grouping raises each member one step", () => {
+    const scene = sceneFrom([
+      box(1, [0, 0]),
+      box(2, [200, 0]),
+      block(3, { type: "group", point: [0, 0], size: [0, 0], children: [id(1), id(2)] }),
+    ])
+    assert.deepStrictEqual(scene.bounds.get(id(3)), { minX: 0, minY: 0, maxX: 300, maxY: 100 })
+    assert.strictEqual(scene.groupOf.get(id(2)), id(3))
+    const loose = sceneFrom([box(1, [0, 0]), box(4, [500, 0]), box(2, [200, 0])])
+    assert.deepStrictEqual(group(pageId, loose, [id(1), id(2)], id(9)), [
+      { _tag: "MoveBlocks", blockIds: [id(1)], parentId: null, after: id(4) },
+      {
+        _tag: "InsertBlocks",
+        pageId,
+        parentId: null,
+        after: id(1),
+        blocks: [
+          {
+            id: id(9),
+            text: "",
+            props: shapeProps({
+              type: "group",
+              point: [0, 0],
+              size: [0, 0],
+              children: [id(1), id(2)],
+            }),
+            children: [],
+          },
+        ],
+      },
+    ])
   })
 })

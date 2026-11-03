@@ -2,7 +2,16 @@ import type { BlockId, Command, PageId, Vec } from "@seqno/domain"
 import { copiedOf } from "./clipboard.ts"
 import { clones, create, patch, remove, scaleInto, translate, type Raw } from "./commands.ts"
 import { boundsOfPoints, overlaps, round, sub, union, type Bounds } from "./geometry.ts"
-import { hits, isLocked, itemsOf, sceneOf, type Item, type Scene } from "./model.ts"
+import {
+  hits,
+  isLocked,
+  itemsOf,
+  outermost,
+  sceneOf,
+  withMembers,
+  type Item,
+  type Scene,
+} from "./model.ts"
 import { applyLocally, isGhost } from "./preview.ts"
 import { newShape, type ShapeTool, type Styles } from "./tools.ts"
 
@@ -61,7 +70,7 @@ export const idle: Gesture = { _tag: "Idle" }
 export const DRAG_THRESHOLD = 3
 
 const picked = (scene: Scene, ids: ReadonlyArray<BlockId>) =>
-  ids.flatMap((id) => {
+  withMembers(scene, ids).flatMap((id) => {
     const item = scene.byId.get(id)
     return item === undefined || isLocked(item) ? [] : [item]
   })
@@ -117,9 +126,9 @@ export const brushed = (scene: Scene, gesture: Extract<Gesture, { _tag: "Brushin
   const inside = scene.items
     .filter((item) => {
       const own = scene.bounds.get(item.block.id)
-      return own !== undefined && overlaps(box, own)
+      return item.shape.type !== "group" && own !== undefined && overlaps(box, own)
     })
-    .map((item) => item.block.id)
+    .map((item) => outermost(scene, item.block.id))
   return [...new Set([...gesture.keep, ...inside])]
 }
 

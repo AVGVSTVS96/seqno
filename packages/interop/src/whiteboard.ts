@@ -249,6 +249,13 @@ const importShape = (
       }),
     )
   }
+  const children = shape["children"]
+  if (Array.isArray(children)) {
+    shape["children"] = children.map((child) => {
+      const written = textIn(child)
+      return written === undefined ? child : (resolve(written) ?? child)
+    })
+  }
   const assetId = textIn(shape["assetId"])
   const asset = board.assets.map(recordOf).find((item) => textIn(item["id"]) === assetId)
   const src = asset === undefined ? undefined : textIn(asset["src"])
@@ -439,6 +446,13 @@ export const renderWhiteboard = (page: Page, blocks: ReadonlyArray<Block>): stri
       )
     }
     assetOut(id, shape)
+    const children = raw["children"]
+    if (Array.isArray(children)) {
+      shape["children"] = children.map((child) => {
+        const member = shapeById.get(textIn(child) ?? "")
+        return member === undefined ? child : logseqIdOf(member)
+      })
+    }
     return sortedMap([
       ...timeFields(block.props),
       [

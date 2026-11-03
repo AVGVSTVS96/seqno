@@ -24,9 +24,11 @@ import {
   copiesAt,
   create,
   editText,
+  group,
   patch,
   remove,
   reorder,
+  ungroup,
   type Draft,
   type Raw,
 } from "./commands.ts"
@@ -65,10 +67,13 @@ import {
   type ResizeHandle,
 } from "./gestures.ts"
 import {
+  GROUP_PADDING,
   isInteractive,
   isLocked,
   itemsOf,
+  outermost,
   ratioLocked,
+  withMembers,
   sceneOf,
   topHit,
   type Item,
@@ -76,6 +81,7 @@ import {
   type Scene,
 } from "./model.ts"
 import type { OutlinerEnv } from "./Portal.tsx"
+import { IconGroup, IconUngroup } from "./icons.tsx"
 import { freshId } from "./ids.ts"
 import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
 import { applyLocally, isGhost } from "./preview.ts"
@@ -448,11 +454,6 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     return ids
   }
 
-  const selectCreatedAll = (events: ReadonlyArray<GraphEvent>) => {
-    const ids = createdIds(events)
-    if (ids.length > 0) setSelected(ids)
-  }
-
   const newBlockPortal = (point: Vec, text: string) => {
     const after = scene.items.findLast((item) => !isGhost(item.block.id))?.block.id
     const made: Command = {
@@ -546,7 +547,12 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           setSelected([pressed.hit])
         }
         void commit(changesOf(page.id, scene, done, styles)).then((events) => {
-          if (done.copy) selectCreatedAll(events)
+          const copies = done.copy
+          if (copies === null) return
+          const top = withMembers(scene, done.ids).flatMap((id, index) =>
+            done.ids.includes(id) ? (copies[index] ?? []) : [],
+          )
+          if (createdIds(events).length > 0) setSelected(top)
         })
         return
       case "Idle":
@@ -612,7 +618,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           })
           return
         }
-        const id = hit.block.id
+        const parent = scene.groupOf.get(hit.block.id)
+        const id = parent === undefined || selection.includes(hit.block.id) ? hit.block.id : parent
+        const entering = parent !== undefined && id === parent && selection.includes(parent)
+        if (entering) press.current = { ...press.current, hit: hit.block.id }
+        else press.current = { ...press.current, hit: id }
         const already = selection.includes(id)
         const next = event.shiftKey
           ? already
@@ -627,7 +637,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           from: world,
           to: world,
           ids: next,
-          copy: event.altKey ? next.map(() => freshId()) : null,
+          copy: event.altKey ? withMembers(scene, next).map(() => freshId()) : null,
         })
         return
       }
@@ -711,7 +721,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         setGesture({
           ...gesture,
           to: add(gesture.from, delta),
-          copy: event.altKey ? (gesture.copy ?? gesture.ids.map(() => freshId())) : null,
+          copy: event.altKey
+            ? (gesture.copy ?? withMembers(scene, gesture.ids).map(() => freshId()))
+            : null,
         })
         return
       }
@@ -830,7 +842,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       const lower = key.toLowerCase()
       if (lower === "a") {
         handled()
-        setSelected(scene.items.map((item) => item.block.id))
+        selectAll()
+      } else if (lower === "g") {
+        handled()
+        if (event.shiftKey) ungroupSelection()
+        else groupSelection()
       } else if (lower === "l") {
         handled()
         patchSelectionAll({ isLocked: !event.shiftKey })
@@ -900,6 +916,26 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       handled()
       chooseTool(chosen)
     }
+  }
+
+  const selectAll = () =>
+    setSelected(
+      scene.items.flatMap((item) => (scene.groupOf.has(item.block.id) ? [] : [item.block.id])),
+    )
+
+  const groupSelection = () => {
+    const id = freshId()
+    const commands = group(page.id, scene, selection, id)
+    if (commands.length === 0) return
+    void commit(commands)
+    if (commands.some((command) => command._tag === "InsertBlocks")) setSelected([id])
+  }
+
+  const ungroupSelection = () => {
+    const { commands, members } = ungroup(scene, selection)
+    if (commands.length === 0) return
+    void commit(commands)
+    setSelected(members)
   }
 
   const patchSelectionAll = (change: Raw) =>
@@ -1037,11 +1073,49 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   })()
 
   const overlay: ReactNode[] = []
+  const groupFrame = (id: BlockId, kind: "hover" | "selected" | "member") => {
+    const box = shown.bounds.get(id)
+    if (box === undefined) return
+    const pad = GROUP_PADDING
+    const frame = toBox({
+      minX: box.minX - pad,
+      minY: box.minY - pad,
+      maxX: box.maxX + pad,
+      maxY: box.maxY + pad,
+    })
+    overlay.push(
+      <svg
+        key={`group-${kind}-${id}`}
+        className="wb-group-frame"
+        data-kind={kind}
+        style={frame}
+        width={frame.width}
+        height={frame.height}
+      >
+        <rect
+          x={0.75}
+          y={0.75}
+          width={Math.max(0, frame.width - 1.5)}
+          height={Math.max(0, frame.height - 1.5)}
+          rx={4 * cam.zoom}
+          strokeDasharray="8 2"
+        />
+      </svg>,
+    )
+  }
   if (hover !== null && !selection.includes(hover) && quiet) {
     const box = shown.bounds.get(hover)
-    if (box !== undefined) {
+    const hovered = shown.byId.get(hover)
+    if (box !== undefined && hovered?.shape.type !== "group") {
       overlay.push(<div key="hover" className="wb-outline" data-hover style={toBox(box)} />)
     }
+    const parent = hovered?.shape.type === "group" ? hover : shown.groupOf.get(hover)
+    if (parent !== undefined && !selection.includes(parent)) groupFrame(parent, "hover")
+  }
+  for (const item of selectedItems) {
+    if (item.shape.type === "group") groupFrame(item.block.id, "selected")
+    const parent = shown.groupOf.get(item.block.id)
+    if (parent !== undefined && !selection.includes(parent)) groupFrame(parent, "member")
   }
   for (const item of selectedItems) {
     const box = shown.bounds.get(item.block.id)
@@ -1063,6 +1137,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   }
   if (
     single !== undefined &&
+    single.shape.type !== "group" &&
     !isLocked(single) &&
     editing === null &&
     gesture._tag !== "Translating"
@@ -1213,7 +1288,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const copyText = () =>
     selection.map((id) => portalText({ _tag: "BlockPortal", uuid: id })).join(" ")
 
-  const copyHtml = () => clipboardHtml(copiedOf(scene, selectedItems))
+  const copyHtml = () =>
+    clipboardHtml(
+      copiedOf(
+        scene,
+        withMembers(scene, selection).flatMap((id) => scene.byId.get(id) ?? []),
+      ),
+    )
 
   const writeClipboard = () =>
     navigator.clipboard.write([
@@ -1278,7 +1359,12 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       )
       const made = create(page.id, scene, drafts)
       if (made !== null) void commit([made])
-      setSelected(drafts.flatMap((copy) => copy.id ?? []))
+      const nested = new Set(
+        drafts.flatMap(({ raw }) => (Array.isArray(raw["children"]) ? raw["children"] : [])),
+      )
+      setSelected(
+        drafts.flatMap((copy) => (copy.id === undefined || nested.has(copy.id) ? [] : [copy.id])),
+      )
       return
     }
     if (text === "") return
@@ -1301,7 +1387,30 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       if (command !== null) void commit([command])
     }
     return [
-      some ? [{ label: "Zoom to fit", keys: "Shift+2", run: () => setZoom("selection") }] : [],
+      some ? [{ label: "Zoom to fit", keys: "Shift+1", run: () => setZoom("selection") }] : [],
+      unlocked.length > 0 &&
+      (selection.length > 1 ||
+        selectedItems.some(
+          (item) => item.shape.type === "group" || scene.groupOf.has(item.block.id),
+        ))
+        ? [
+            ...(selectedItems.some(
+              (item) => item.shape.type === "group" || scene.groupOf.has(item.block.id),
+            )
+              ? [
+                  {
+                    label: "Ungroup",
+                    keys: "Mod+Shift+G",
+                    icon: IconUngroup,
+                    run: ungroupSelection,
+                  },
+                ]
+              : []),
+            ...(selection.length > 1
+              ? [{ label: "Group", keys: "Mod+G", icon: IconGroup, run: groupSelection }]
+              : []),
+          ]
+        : [],
       [
         ...(unlocked.length > 0
           ? [
@@ -1326,7 +1435,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         {
           label: "Select all",
           keys: "Mod+A",
-          run: () => setSelected(scene.items.map((item) => item.block.id)),
+          run: selectAll,
         },
         ...(selection.length > 1 ? [{ label: "Deselect all", run: () => setSelected([]) }] : []),
       ],
@@ -1407,7 +1516,10 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         event.preventDefault()
         const at = screenOf(event)
         const hit = topHit(scene, toWorld(cam, at), cam.zoom)
-        if (hit !== null && !selection.includes(hit.block.id)) setSelected([hit.block.id])
+        if (hit !== null && !selection.includes(hit.block.id)) {
+          const target = outermost(scene, hit.block.id)
+          if (!selection.includes(target)) setSelected([target])
+        }
         if (hit === null && !event.shiftKey) setSelected([])
         setMenuAt(at)
       }}

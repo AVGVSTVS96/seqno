@@ -14,6 +14,7 @@ export { GraphEvent } from "./event.ts"
 export {
   BoxShape,
   EllipseShape,
+  GroupShape,
   ImageShape,
   LineShape,
   OtherShape,

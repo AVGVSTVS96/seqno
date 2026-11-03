@@ -428,6 +428,8 @@ export const ShapeView = ({
         </div>
       )
     }
+    case "group":
+      return null
     case "unsupported":
       return shape.kind === "group" ? null : (
         <div

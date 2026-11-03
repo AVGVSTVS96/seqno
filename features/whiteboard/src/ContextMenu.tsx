@@ -1,8 +1,9 @@
-import { Fragment } from "react"
+import { Fragment, type ComponentType } from "react"
 
 export interface MenuEntry {
   readonly label: string
   readonly keys?: string
+  readonly icon?: ComponentType<{ readonly size: number }>
   readonly run: () => void
 }
 
@@ -48,7 +49,10 @@ export const ContextMenu = ({
                 entry.run()
               }}
             >
-              {entry.label}
+              <span className="wb-menu-icon">
+                {entry.icon === undefined ? null : <entry.icon size={16} />}
+              </span>
+              <span className="wb-menu-label">{entry.label}</span>
               {entry.keys === undefined ? null : <span className="wb-menu-keys">{entry.keys}</span>}
             </button>
           ))}

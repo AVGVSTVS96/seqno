@@ -20,6 +20,7 @@ import {
   expand,
   rectEdge,
   toward,
+  union,
   type Bounds,
 } from "./geometry.ts"
 
@@ -50,6 +51,8 @@ export interface Scene {
   readonly bounds: ReadonlyMap<BlockId, Bounds>
   readonly ends: ReadonlyMap<BlockId, readonly [Vec, Vec]>
   readonly measured: Measured
+  readonly members: ReadonlyMap<BlockId, ReadonlyArray<BlockId>>
+  readonly groupOf: ReadonlyMap<BlockId, BlockId>
 }
 
 const unsupported = (block: Block): ReadonlyArray<Item> =>
@@ -148,12 +151,47 @@ const lineEnds = (
   return [clip(start, end), clip(end, start)]
 }
 
+const membership = (items: ReadonlyArray<Item>, byId: ReadonlyMap<BlockId, Item>) => {
+  const written = new Map<string, BlockId>()
+  for (const item of items) {
+    written.set(item.block.id, item.block.id)
+    const own = item.block.props["id"]
+    if (own !== undefined) written.set(own.toLowerCase(), item.block.id)
+  }
+  const members = new Map<BlockId, ReadonlyArray<BlockId>>()
+  const groupOf = new Map<BlockId, BlockId>()
+  for (const item of items) {
+    if (item.shape.type !== "group") continue
+    const ids = item.shape.children.flatMap((child) => {
+      const id = written.get(child.toLowerCase())
+      const member = id === undefined ? undefined : byId.get(id)
+      return member === undefined || member.shape.type === "group" || groupOf.has(member.block.id)
+        ? []
+        : [member.block.id]
+    })
+    members.set(item.block.id, ids)
+    for (const id of ids) groupOf.set(id, item.block.id)
+  }
+  return { members, groupOf }
+}
+
 export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene => {
   const byId = new Map(items.map((item) => [item.block.id, item]))
+  const { members, groupOf } = membership(items, byId)
   const bounds = new Map<BlockId, Bounds>()
   for (const item of items) {
-    if (item.shape.type !== "line") bounds.set(item.block.id, ownBounds(item, measured))
+    if (item.shape.type !== "line" && item.shape.type !== "group") {
+      bounds.set(item.block.id, ownBounds(item, measured))
+    }
   }
+  const groupBounds = () => {
+    for (const [group, ids] of members) {
+      const box = union(ids.flatMap((id) => bounds.get(id) ?? []))
+      if (box === null) bounds.delete(group)
+      else bounds.set(group, box)
+    }
+  }
+  groupBounds()
   const ends = new Map<BlockId, readonly [Vec, Vec]>()
   for (const item of items) {
     if (item.shape.type === "line") {
@@ -162,8 +200,17 @@ export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene =
       bounds.set(item.block.id, boundsOfPoints(both))
     }
   }
-  return { items, byId, bounds, ends, measured }
+  groupBounds()
+  return { items, byId, bounds, ends, measured, members, groupOf }
 }
+
+export const GROUP_PADDING = 8
+
+export const withMembers = (scene: Scene, ids: ReadonlyArray<BlockId>): ReadonlyArray<BlockId> => [
+  ...new Set(ids.flatMap((id) => [id, ...(scene.members.get(id) ?? [])])),
+]
+
+export const outermost = (scene: Scene, id: BlockId): BlockId => scene.groupOf.get(id) ?? id
 
 export const LINE_TOLERANCE = 8
 

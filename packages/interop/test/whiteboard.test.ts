@@ -126,6 +126,20 @@ describe("whiteboard import", () => {
     }).pipe(Effect.provide(Node)),
   )
 
+  it.effect("points each member of a Logseq group at the block it names", () =>
+    Effect.gen(function* () {
+      const board = boardNamed((yield* imported).pages, "colloquium 2")
+      const grouped = must(blockOf(board.blocks, "e7c68c10-f055-11ef-a173-dd256d1a9cd8"))
+      const children = shapeRaw(grouped)["children"]
+      const ids = Array.isArray(children) ? children : []
+      assert.strictEqual(ids.length, 13)
+      assert.deepStrictEqual(
+        ids.filter((child) => !board.blocks.some((block) => block.id === child)),
+        [],
+      )
+    }).pipe(Effect.provide(Node)),
+  )
+
   it.effect("points each bound connector handle at the block it is bound to", () =>
     Effect.gen(function* () {
       const board = boardNamed((yield* imported).pages, "test whiteboard")
