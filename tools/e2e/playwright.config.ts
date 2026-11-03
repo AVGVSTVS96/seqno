@@ -7,6 +7,7 @@ export default defineConfig({
   testDir: "flows",
   testMatch: "*.e2e.ts",
   workers: 1,
+  fullyParallel: true,
   forbidOnly: ci,
   reporter: ci ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
