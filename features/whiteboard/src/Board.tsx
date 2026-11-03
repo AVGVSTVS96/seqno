@@ -98,6 +98,7 @@ import {
 } from "./model.ts"
 import type { OutlinerEnv } from "./Portal.tsx"
 import { IconGroup, IconUngroup } from "./icons.tsx"
+import { BacklinksBadge, QuickLinks, type LinkEnv } from "./links.tsx"
 import { freshId } from "./ids.ts"
 import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
 import { applyLocally, isGhost } from "./preview.ts"
@@ -341,6 +342,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const [menuAt, setMenuAt] = useState<Vec | null>(null)
   const [penMode, setPenMode] = useState(false)
   const [active, setActive] = useState<BlockId | null>(null)
+  const shiftHeld = useRef(false)
 
   const blocks =
     pending !== null && pending.base === tree
@@ -703,6 +705,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     const world = toWorld(cam, at)
     pointer.current = world
     if (gesture._tag === "Idle") {
+      if (event.target instanceof Element && event.target.closest(".wb-quick-links") !== null) {
+        return
+      }
       if (tool === "select" && !insideLivePortal(event.target)) {
         const hit = topHit(scene, world, cam.zoom)?.block.id ?? null
         if (hit !== hover) setHover(hit)
@@ -812,6 +817,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   }
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    shiftHeld.current = event.shiftKey
     if (isEditableTarget(event.target) || insideLivePortal(event.target)) return
     const mod = event.metaKey || event.ctrlKey
     const handled = () => event.preventDefault()
@@ -1056,6 +1062,32 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     },
   }
 
+  const pasteAsLink = (text: string) => {
+    const only = selectedItems.length === 1 ? selectedItems[0] : undefined
+    if (only === undefined) return false
+    const block = /^\(\(([0-9a-f-]{36})\)\)$/i.exec(text)?.[1]
+    const name = /^\[\[(.*)\]\]$/s.exec(text)?.[1]
+    const link = block ?? (name === "" ? undefined : name)
+    if (link === undefined) return false
+    void commit([patch(only, { refs: [link] })])
+    return true
+  }
+
+  const focusShape = (id: BlockId) => {
+    const box = scene.bounds.get(id)
+    setSelected([id])
+    if (box !== undefined) setCamera(fitBounds(box, viewport, 1))
+  }
+
+  const links: LinkEnv = {
+    outliner: props.outliner,
+    openPage: props.openPage,
+    board: page,
+    focusShape,
+    createWhiteboard: (title) =>
+      void commit([{ _tag: "CreatePage", title, props: whiteboardProps }]),
+  }
+
   const toBox = (box: Bounds) => {
     const [left, top] = toScreen(cam, [box.minX, box.minY])
     const [right, bottom] = toScreen(cam, [box.maxX, box.maxY])
@@ -1253,6 +1285,38 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       }
     }
   }
+  if (hover !== null && quiet && hover !== single?.block.id) {
+    const box = shown.bounds.get(hover)
+    const hovered = shown.byId.get(hover)
+    if (box !== undefined && hovered !== undefined) {
+      const { left, top, height } = toBox(box)
+      overlay.push(
+        <QuickLinks
+          key={`links-${hover}`}
+          item={hovered}
+          env={links}
+          left={left}
+          top={top + height + 8}
+        />,
+      )
+    }
+  }
+  if (single !== undefined && quiet) {
+    const box = shown.bounds.get(single.block.id)
+    if (box !== undefined) {
+      const { left, top, width, height } = toBox(box)
+      overlay.push(
+        <BacklinksBadge
+          key={`backlinks-${single.block.id}`}
+          blockId={single.block.id}
+          env={links}
+          left={left + width}
+          top={top + 6}
+          rounded={height < 50 || single.shape.type === "line"}
+        />,
+      )
+    }
+  }
   if (brush !== null) overlay.push(<div key="brush" className="wb-brush" style={toBox(brush)} />)
   const boundItem = bindingTo === null ? undefined : scene.byId.get(bindingTo)
   if (bound !== undefined && boundItem?.shape.type !== "logseq-portal") {
@@ -1332,6 +1396,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     const text = event.clipboardData.getData("text/plain").trim()
     if (html === "" && text === "") return
     event.preventDefault()
+    if (shiftHeld.current && pasteAsLink(text)) return
     paste(html, text, pointer.current)
   }
 
@@ -1492,6 +1557,18 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             void readClipboardItems().then(({ html, text }) => paste(html, text.trim(), at))
           },
         },
+        ...(selection.length === 1
+          ? [
+              {
+                label: "Paste as link",
+                keys: "Mod+Shift+V",
+                run: () =>
+                  void readClipboardItems().then(({ html, text }) => {
+                    if (!pasteAsLink(text.trim())) paste(html, text.trim(), null)
+                  }),
+              },
+            ]
+          : []),
       ],
       [
         {
@@ -1571,6 +1648,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       onDoubleClick={onDoubleClick}
       onKeyDown={onKeyDown}
       onKeyUp={(event) => {
+        shiftHeld.current = event.shiftKey
         if (event.key === " ") setSpacePan(false)
       }}
       onCopy={(event) => onCopy(event, false)}
@@ -1633,12 +1711,12 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           left={contextAt.left}
           top={contextAt.top}
           onPatch={patchSelection}
+          links={links}
         />
       ) : null}
       {searchAt === null || searchScreen === null ? null : (
         <QuickSearch
-          left={searchScreen[0]}
-          top={searchScreen[1]}
+          place={{ left: searchScreen[0], top: searchScreen[1] }}
           onPick={(choice) => pick(searchAt, choice)}
           onCancel={() => setSearchAt(null)}
         />

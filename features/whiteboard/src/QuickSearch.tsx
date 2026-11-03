@@ -70,12 +70,15 @@ const optionsFor = (
   filter: Filter,
   pages: ReadonlyArray<Page>,
   blocks: ReadonlyArray<Block>,
+  addsBlocks: boolean,
 ): ReadonlyArray<Option> => {
   const text = query.trim()
   if (text === "") {
     if (filter !== null) return []
     return [
-      { _tag: "Pick", pick: { _tag: "NewBlock", text: "" } },
+      ...(addsBlocks
+        ? [{ _tag: "Pick", pick: { _tag: "NewBlock", text: "" } } satisfies Option]
+        : []),
       { _tag: "Filter", filter: "blocks" },
       { _tag: "Filter", filter: "pages" },
     ]
@@ -84,7 +87,9 @@ const optionsFor = (
   const creates: ReadonlyArray<Option> =
     filter === null
       ? [
-          { _tag: "Pick", pick: { _tag: "NewBlock", text } },
+          ...(addsBlocks
+            ? [{ _tag: "Pick", pick: { _tag: "NewBlock", text } } satisfies Option]
+            : []),
           ...(exact
             ? []
             : [
@@ -157,16 +162,15 @@ const Row = ({ option, query }: { readonly option: Option; readonly query: strin
 )
 
 export const QuickSearch = ({
-  left,
-  top,
+  place,
   onPick,
   onCancel,
 }: {
-  readonly left: number
-  readonly top: number
+  readonly place: { readonly left: number; readonly top: number } | null
   readonly onPick: (pick: Pick) => void
   readonly onCancel: () => void
 }) => {
+  const linking = place === null
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<Filter>(null)
   const [focused, setFocused] = useState(0)
@@ -180,12 +184,13 @@ export const QuickSearch = ({
   return (
     <Hits query={query.trim()} filter={filter}>
       {({ pages, blocks }) => {
-        const options = optionsFor(query, filter, pages, blocks)
+        const options = optionsFor(query, filter, pages, blocks, !linking)
         const at = Math.min(focused, Math.max(0, options.length - 1))
         return (
           <div
             className="wb-search"
-            style={{ left, top }}
+            data-mode={linking ? "link" : "portal"}
+            style={place ?? undefined}
             onPointerDown={(event) => event.stopPropagation()}
             onWheel={(event) => event.stopPropagation()}
           >
@@ -204,18 +209,22 @@ export const QuickSearch = ({
               )}
               <input
                 className="wb-search-input"
-                aria-label="Create or search your graph"
-                placeholder="Create or search your graph..."
+                aria-label={
+                  linking ? "Search for a page or block to link" : "Create or search your graph"
+                }
+                placeholder={
+                  linking ? "Start typing to search..." : "Create or search your graph..."
+                }
                 role="combobox"
                 aria-expanded={options.length > 0}
                 aria-controls="wb-search-results"
-                autoFocus
+                autoFocus={!linking}
                 value={query}
                 onChange={(event) => {
                   setQuery(event.currentTarget.value)
                   setFocused(0)
                 }}
-                onBlur={onCancel}
+                onBlur={linking ? undefined : onCancel}
                 onKeyDown={(event) => {
                   event.stopPropagation()
                   if (event.key === "Escape") onCancel()

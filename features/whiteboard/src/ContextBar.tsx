@@ -17,6 +17,7 @@ import {
 import { Fragment, type ComponentType, type ReactNode } from "react"
 import type { ScaleLevel } from "@seqno/domain"
 import type { Raw } from "./commands.ts"
+import { LinksAction, type LinkEnv } from "./links.tsx"
 import type { Item } from "./model.ts"
 import { colorVar, type ShapeTool } from "./tools.ts"
 import {
@@ -38,6 +39,7 @@ type Action =
   | "ScaleLevel"
   | "TextStyle"
   | "ArrowMode"
+  | "Links"
 
 const ORDER: ReadonlyArray<Action> = [
   "PortalViewMode",
@@ -49,6 +51,7 @@ const ORDER: ReadonlyArray<Action> = [
   "ScaleLevel",
   "TextStyle",
   "ArrowMode",
+  "Links",
 ]
 
 const actionsOf = (item: Item): ReadonlyArray<Action> => {
@@ -56,25 +59,33 @@ const actionsOf = (item: Item): ReadonlyArray<Action> => {
     case "box":
     case "ellipse":
     case "polygon":
-      return ["Geometry", "Swatch", "NoFill", "StrokeType", "ScaleLevel", "TextStyle"]
+      return ["Geometry", "Swatch", "NoFill", "StrokeType", "ScaleLevel", "TextStyle", "Links"]
     case "line":
-      return ["Swatch", "ScaleLevel", "TextStyle", "ArrowMode"]
+      return ["Swatch", "ScaleLevel", "TextStyle", "ArrowMode", "Links"]
     case "text":
-      return ["AutoResizing", "Swatch", "ScaleLevel", "TextStyle"]
+      return ["AutoResizing", "Swatch", "ScaleLevel", "TextStyle", "Links"]
     case "logseq-portal":
-      return ["PortalViewMode", "AutoResizing", "Swatch", "ScaleLevel"]
+      return ["PortalViewMode", "AutoResizing", "Swatch", "ScaleLevel", "Links"]
     case "pencil":
     case "highlighter":
-      return ["Swatch", "ScaleLevel"]
-    default:
+      return ["Swatch", "ScaleLevel", "Links"]
+    case "group":
       return []
+    default:
+      return ["Links"]
   }
 }
+
+const SINGLE_ONLY: ReadonlyArray<Action> = ["Links"]
 
 export const contextActions = (items: ReadonlyArray<Item>): ReadonlyArray<Action> =>
   items.length === 0
     ? []
-    : ORDER.filter((action) => items.every((item) => actionsOf(item).includes(action)))
+    : ORDER.filter(
+        (action) =>
+          (items.length === 1 || !SINGLE_ONLY.includes(action)) &&
+          items.every((item) => actionsOf(item).includes(action)),
+      )
 
 const field = <K extends string>(item: Item, key: K): unknown =>
   key in item.shape ? Object.entries(item.shape).find(([name]) => name === key)?.[1] : undefined
@@ -123,11 +134,13 @@ export const ContextBar = ({
   left,
   top,
   onPatch,
+  links,
 }: {
   readonly items: ReadonlyArray<Item>
   readonly left: number
   readonly top: number
   readonly onPatch: (change: (item: Item) => Raw) => void
+  readonly links: LinkEnv
 }) => {
   const actions = contextActions(items)
   if (actions.length === 0) return null
@@ -366,6 +379,10 @@ export const ContextBar = ({
               <IconArrowNarrowRight size={16} />
             </ToolButton>
           </>
+        )
+      case "Links":
+        return (
+          <LinksAction item={first} env={links} onLinks={(refs) => onPatch(() => ({ refs }))} />
         )
     }
   }

@@ -178,6 +178,26 @@ export const shapeProps = (raw: Readonly<Record<string, unknown>>): Props => ({
   [SHAPE_KEY]: shapeValue(raw),
 })
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export const isBlockLink = (link: string): boolean => UUID.test(link)
+
+export const shapeLinks = (block: Block): ReadonlyArray<string> => {
+  if (!isShapeBlock(block)) return []
+  const refs = shapeRaw(block)["refs"]
+  return Array.isArray(refs)
+    ? refs.filter((ref): ref is string => typeof ref === "string" && ref !== "")
+    : []
+}
+
+export const linkText = (link: string): string =>
+  isBlockLink(link) ? `((${link.toLowerCase()}))` : `[[${link}]]`
+
+export const indexedText = (block: Block): string => {
+  const links = shapeLinks(block)
+  return links.length === 0 ? block.text : `${block.text}\n${links.map(linkText).join(" ")}`
+}
+
 export const PortalTarget = Schema.TaggedUnion({
   PagePortal: { name: Schema.String },
   BlockPortal: { uuid: Schema.String },

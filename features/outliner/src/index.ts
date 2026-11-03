@@ -1,5 +1,8 @@
 export {
   blockAtom,
+  blockRefAtom,
+  blockRefCountsAtom,
+  blockReferencesAtom,
   coreLayer,
   coreRuntime,
   dispatchAllAtom,

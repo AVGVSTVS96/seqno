@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { GraphEvent, type BlockId, type PageId } from "@seqno/domain"
+import { GraphEvent, indexedText, type BlockId, type PageId } from "@seqno/domain"
 import type { PropertyConfig } from "@seqno/syntax"
 import {
   NO_FACETS,
@@ -286,17 +286,18 @@ export const indexer = (db: Statements, changes: Changes, properties: PropertyCo
       const page = pageRid(block.pageId)
       const parent = block.parentId === null ? null : blockRid(block.parentId)
       const org = db.all("SELECT 1 FROM pages WHERE rid = ? AND org = 1", [page]).length > 0
-      const after = blockFacets(block.text, block.props, properties, org ? "org" : "markdown")
+      const text = indexedText(block)
+      const after = blockFacets(text, block.props, properties, org ? "org" : "markdown")
       const old = readBlock(block.id)
       if (old === undefined) {
         const rid = ridOf(
           db.all(
             "INSERT INTO blocks (id, page, parent, content, created, updated) VALUES (?, ?, ?, ?, ?, ?) RETURNING rid",
-            [block.id, page, parent, block.text, createdAt, updatedAt],
+            [block.id, page, parent, text, createdAt, updatedAt],
           ),
           `block ${block.id} could not be inserted`,
         )
-        db.run("INSERT INTO fts (rowid, content) VALUES (?, ?)", [rid, block.text])
+        db.run("INSERT INTO fts (rowid, content) VALUES (?, ?)", [rid, text])
         syncFacets(rid, page, NO_FACETS, after)
         touchLifecycle()
         return
@@ -304,14 +305,14 @@ export const indexer = (db: Statements, changes: Changes, properties: PropertyCo
       const [rid, oldPage, oldParent, content, created, updated] = old
       db.run("UPDATE blocks SET parent = ?, content = ?, created = ?, updated = ? WHERE rid = ?", [
         parent,
-        block.text,
+        text,
         createdAt,
         updatedAt,
         rid,
       ])
-      if (content !== block.text) {
+      if (content !== text) {
         db.run("DELETE FROM fts WHERE rowid = ?", [rid])
-        db.run("INSERT INTO fts (rowid, content) VALUES (?, ?)", [rid, block.text])
+        db.run("INSERT INTO fts (rowid, content) VALUES (?, ?)", [rid, text])
         touch(changes, "text")
       }
       if (created !== createdAt) touch(changes, "created")

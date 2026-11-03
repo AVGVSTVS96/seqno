@@ -1,7 +1,7 @@
 import { SCHEMA as QUERY_SCHEMA } from "@seqno/query"
 import type { Statements } from "./sqlite.ts"
 
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 export const RELAXED = `
 PRAGMA journal_mode = memory;
