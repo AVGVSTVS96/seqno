@@ -32,8 +32,6 @@ export const makeTrash = (tree: LoroTree): LoroTreeNode => {
   return node
 }
 
-const EpochMillis = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
-
 const PropKeys = Schema.Array(Schema.String)
 
 const PageData = Schema.Struct({
@@ -51,8 +49,8 @@ const BlockData = Schema.Struct({
   collapsed: Schema.optionalKey(Schema.Boolean),
   props: Schema.optionalKey(Props),
   propKeys: Schema.optionalKey(PropKeys),
-  created: Schema.optionalKey(EpochMillis),
-  updated: Schema.optionalKey(EpochMillis),
+  created: Schema.optionalKey(Schema.Int),
+  updated: Schema.optionalKey(Schema.Int),
 })
 
 const decodePageData = Schema.decodeUnknownOption(PageData)
@@ -133,8 +131,8 @@ export const blockFromData = (json: unknown, at: Placement): Option.Option<Block
       collapsed: data.collapsed ?? false,
       props: inOrder(data.props, data.propKeys),
     },
-    createdAt: data.created ?? 0,
-    updatedAt: data.updated ?? data.created ?? 0,
+    createdAt: Math.max(0, data.created ?? 0),
+    updatedAt: Math.max(0, data.updated ?? data.created ?? 0),
   }))
 
 export const textOf = (data: LoroMap): LoroText => {

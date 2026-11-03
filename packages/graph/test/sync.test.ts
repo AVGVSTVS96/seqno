@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option } from "effect"
+import { LoroDoc } from "loro-crdt"
 import { GraphEvent } from "@seqno/domain"
 import type { LocalUpdate } from "@seqno/graph"
 import { createdBlock, nth, openGraph, outline, seedPage } from "./support.ts"
@@ -104,6 +105,32 @@ const sameNamePages = Effect.gen(function* () {
 
 const titles = (graph: Effect.Success<ReturnType<typeof openGraph>>) =>
   Effect.map(graph.pages, (pages) => pages.map((page) => `${page.title} ${page.id}`))
+
+describe("a block stamped before 1970 by a wrong clock", () => {
+  it.effect("still shows, with its children", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const graph = yield* openGraph("1")
+        const { pageId, ids } = yield* seedPage(graph, "Clock", ["a", "  a1"])
+        const other = new LoroDoc()
+        other.setPeerId(77n)
+        other.import(yield* graph.snapshot)
+        const from = other.oplogVersion()
+        const trees = Object.keys(other.getShallowValue()).filter((name) =>
+          name.startsWith("blocks"),
+        )
+        for (const name of trees) {
+          for (const node of other.getTree(name).getNodes()) {
+            if (node.data.get("uuid") === nth(ids, 0)) node.data.set("created", -5)
+          }
+        }
+        other.commit()
+        yield* graph.merge([other.export({ mode: "update", from })])
+        assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a", "  a1"])
+      }),
+    ),
+  )
+})
 
 describe("two pages with one name", () => {
   it.effect("merge into the older page on every device, blocks of both in order", () =>
