@@ -112,6 +112,7 @@ const FakeCore = CoreRpcs.toLayer(
       GetPages: () => Effect.succeed([inbox, older, today]),
       GetPage: () => SubscriptionRef.get(tree),
       ExportPages: () => Effect.succeed([]),
+      ReadWhiteboard: () => Effect.succeed([]),
       GetBlock: () => Effect.succeed(parentBlock),
       GetBlockByRef: () => Effect.succeed(parentBlock),
       WatchPage: () => SubscriptionRef.changes(tree),

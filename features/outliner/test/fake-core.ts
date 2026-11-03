@@ -112,6 +112,7 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
         GetPage: () => SubscriptionRef.get(state),
         ExportPages: () =>
           Effect.map(SubscriptionRef.get(state), (tree) => [{ ...tree, path: "pages/page.md" }]),
+        ReadWhiteboard: () => Effect.succeed([]),
         GetBlock: ({ blockId }) =>
           Effect.flatMap(SubscriptionRef.get(state), (tree) => {
             const found = tree.blocks.find((b) => b.id === blockId)

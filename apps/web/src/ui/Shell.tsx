@@ -21,6 +21,7 @@ import {
 import { blockColored } from "@seqno/pdf"
 import { PluginCode, PluginMacroSlot, PluginThemeLink } from "@seqno/plugins"
 import { BoardEmbed } from "./pages/Whiteboards.tsx"
+import { WhiteboardTour, WhiteboardWelcome } from "./shell/WhiteboardTour.tsx"
 import {
   attemptedGraph,
   lastGraph,
@@ -135,6 +136,8 @@ const Layout = ({
                   <AccentColors />
                   <ExportDialog />
                   <GraphExportDialog />
+                  <WhiteboardWelcome />
+                  <WhiteboardTour />
                   <Settings />
                   <Notices />
                   <PluginsDialog />

@@ -27,6 +27,7 @@ export {
 } from "./mirror.ts"
 export { LogseqSyntax, LogseqSyntaxLive, type Outline, type OutlineBlock } from "./outline.ts"
 export {
+  clonedWhiteboard,
   readWhiteboard,
   renderWhiteboard,
   whiteboardBlocks,

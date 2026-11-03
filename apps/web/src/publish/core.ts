@@ -100,6 +100,7 @@ export const publishedCore = (data: Published): Layer.Layer<CoreClient> => {
           Effect.map(current, (trees) =>
             [...trees.values()].map((tree) => ({ ...tree, path: "" })),
           ),
+        ReadWhiteboard: () => Effect.succeed([]),
         GetBlock: ({ blockId }) =>
           Effect.flatMap(current, (trees) => {
             const block = findBlock(trees, blockId)

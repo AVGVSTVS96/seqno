@@ -92,6 +92,11 @@ const lettering = (item: Item) => {
   }
 }
 
+const DIRECT = /^(?:data|blob|https?):/i
+
+const mediaUrl = (slots: ShapeSlots, src: string | undefined) =>
+  src === undefined ? undefined : DIRECT.test(src) ? src : slots.asset(src)
+
 const opacityOf = (item: Item) =>
   "opacity" in item.shape && item.shape.opacity !== undefined ? item.shape.opacity : 1
 
@@ -270,6 +275,7 @@ const StrokeView = ({ item, erasing }: { readonly item: Item; readonly erasing: 
     return (
       <div
         className="wb-shape"
+        data-type={item.shape.type}
         data-erasing={erasing}
         style={{ left: 0, top: 0, opacity: shape.opacity ?? 0.5 }}
       >
@@ -300,6 +306,7 @@ const StrokeView = ({ item, erasing }: { readonly item: Item; readonly erasing: 
   return (
     <div
       className="wb-shape"
+      data-type={item.shape.type}
       data-erasing={erasing}
       style={{ left: 0, top: 0, opacity: shape.opacity ?? 1 }}
     >
@@ -388,7 +395,7 @@ export const ShapeView = ({
         </div>
       )
     case "image": {
-      const src = shape.src === undefined ? undefined : slots.asset(shape.src)
+      const src = mediaUrl(slots, shape.src)
       return (
         <div
           className="wb-shape"
@@ -413,7 +420,7 @@ export const ShapeView = ({
       )
     }
     case "video": {
-      const src = shape.src === undefined ? undefined : slots.asset(shape.src)
+      const src = mediaUrl(slots, shape.src)
       const active = slots.active === item.block.id
       return (
         <div
@@ -467,7 +474,7 @@ export const ShapeView = ({
               />
             )
           case "pdf":
-            return <PdfView src={shape.src === undefined ? undefined : slots.asset(shape.src)} />
+            return <PdfView src={mediaUrl(slots, shape.src)} />
         }
       })()
       return (

@@ -11,11 +11,20 @@ import { BoardPreview, BoardStyle, boardTitle, isUntitled } from "@seqno/whitebo
 import { allPages, appRuntime, assetResolver, dispatchAll } from "../../atoms.ts"
 import { PagesStyle } from "../PageView.tsx"
 import { openedAt, pageStats } from "./atoms.ts"
+import { onboardedWhiteboard, onboardingBoard, populateOnboarding } from "./onboarding.ts"
 
-export const createWhiteboard = appRuntime.fn((title: string) =>
+export const createWhiteboard = appRuntime.fn((title: string, get) =>
   Effect.gen(function* () {
+    const onboard = !get(onboardedWhiteboard) && !get(allPages).some(isWhiteboard)
     const core = yield* CoreClient
-    yield* core.Dispatch({ command: { _tag: "CreatePage", title, props: whiteboardProps } })
+    const created = yield* core.Dispatch({
+      command: { _tag: "CreatePage", title, props: whiteboardProps },
+    })
+    const page = created.flatMap((event) => (event._tag === "PageUpserted" ? [event.page] : []))[0]
+    if (onboard && page !== undefined) {
+      get.set(onboardingBoard, page.id)
+      get.set(populateOnboarding, page.id)
+    }
     yield* Reactivity.invalidate(pageListKey)
     return title
   }),

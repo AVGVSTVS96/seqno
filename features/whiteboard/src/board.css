@@ -13,6 +13,29 @@
   height: 100%;
 }
 
+.seqno-board-onboarding {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.seqno-board-onboarding-spinner {
+  width: 20px;
+  height: 20px;
+  animation: seqno-spin 1s linear infinite;
+}
+
+@keyframes seqno-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
 .right-sidebar .seqno-board-view {
   height: 480px;
   overflow: hidden;
@@ -51,6 +74,11 @@
   --wb-stroke-gray: #6b7280;
 
   --wb-text-default: var(--ls-primary-text-color, light-dark(#433f38, #a4b5b6));
+  --tl-foreground: var(--wb-text-default);
+  --ls-primary-background-color: light-dark(#ffffff, #161616);
+  --ls-secondary-background-color: light-dark(hsl(0 0% 99%), hsl(0 0% 8.5%));
+  --ls-tertiary-background-color: light-dark(hsl(0 0% 95.1%), hsl(0 0% 13.6%));
+  --ls-quaternary-background-color: light-dark(hsl(0 0% 90.9%), hsl(0 0% 17.9%));
   --wb-text-yellow: light-dark(#ebbc00, #f9e68c);
   --wb-text-red: light-dark(#eb9091, #f9c6c6);
   --wb-text-pink: light-dark(#e38ec3, #f3c6e2);

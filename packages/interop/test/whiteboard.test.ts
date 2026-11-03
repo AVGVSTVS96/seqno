@@ -18,8 +18,11 @@ import {
   layerFileSystem,
   printEdn,
   readEdn,
+  clonedWhiteboard,
+  readWhiteboard,
   renderMirror,
   GraphFolder,
+  whiteboardBlocks,
   type Edn,
 } from "@seqno/interop"
 
@@ -528,6 +531,41 @@ describe("edn", () => {
     assert.strictEqual(
       printEdn(Result.getOrElse(readEdn("{:nonce ##NaN :a ##-Inf}"), () => null)),
       "\n{:nonce ##NaN\n:a ##-Inf}",
+    )
+  })
+
+  it("clones a board as Logseq's onboarding does: new ids, bindings kept only for the line that owns them", () => {
+    const edn = `{:blocks
+ ({:block/created-at 1 :block/updated-at 1 :block/properties {:ls-type :whiteboard-shape :logseq.tldraw.shape {:id "a1" :type "box" :index 0 :point [0 0] :size [100 100]}}}
+  {:block/properties {:ls-type :whiteboard-shape :logseq.tldraw.shape {:id "l1" :type "line" :index 1 :point [200 50] :handles {:start {:id "start" :point [0 0]} :end {:id "end" :point [-90 0] :bindingId "b1"}}}}}
+  {:block/properties {:ls-type :whiteboard-shape :logseq.tldraw.shape {:id "l2" :type "line" :index 2 :point [200 80] :handles {:start {:id "start" :point [0 0] :bindingId "gone"} :end {:id "end" :point [-90 0] :bindingId "b1"}}}}})
+ :pages ({:block/uuid #uuid "637239f2-9680-4c82-802c-8858d9835c80" :block/name "637239f2-9680-4c82-802c-8858d9835c80" :block/type "whiteboard" :block/properties {:ls-type :whiteboard-page :logseq.tldraw.page {:id "637239f2-9680-4c82-802c-8858d9835c80" :bindings {:b1 {:id "b1" :type "line" :fromId "l1" :toId "a1" :handleId "end" :point [0.5 0.5] :distance 4}} :assets []}}})}`
+    const board = Result.getOrThrow(readWhiteboard(edn))
+    const minted = [1, 2, 3, 4, 5, 6].map(id)
+    const fresh = minted.values()
+    const clone = clonedWhiteboard(board, () => fresh.next().value ?? "")
+    assert.deepStrictEqual(
+      clone.shapes.map((entry) => [entry.id, entry.shape["id"]]),
+      [
+        [id(1), id(1)],
+        [id(2), id(2)],
+        [id(3), id(3)],
+      ],
+    )
+    assert.deepStrictEqual(Object.keys(clone.bindings), [id(4)])
+    const blocks = whiteboardBlocks(clone, pageId, (written) => BlockId.make(written ?? ""))
+    const handles = blocks.map((block) => shapeRaw(block)["handles"])
+    assert.deepStrictEqual(handles[1], {
+      start: { id: "start", point: [0, 0] },
+      end: { id: "end", point: [-90, 0], bindingId: id(4), bindTo: id(1) },
+    })
+    assert.deepStrictEqual(handles[2], {
+      start: { id: "start", point: [0, 0], bindingId: "gone" },
+      end: { id: "end", point: [-90, 0], bindingId: "b1" },
+    })
+    assert.deepStrictEqual(
+      blocks.map((block) => Object.keys(block.props).toSorted()),
+      [0, 1, 2].map(() => ["logseq.tldraw.shape", "ls-type"]),
     )
   })
 })

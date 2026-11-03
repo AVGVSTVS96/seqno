@@ -47,9 +47,22 @@ const seqno = (page: Page) => ({
   saved: () => saved(page),
 })
 
-export const test = base.extend<{ seqno: ReturnType<typeof seqno>; hints: boolean }>({
+export const test = base.extend<{
+  seqno: ReturnType<typeof seqno>
+  hints: boolean
+  onboarded: boolean
+}>({
   hints: [false, { option: true }],
-  page: async ({ page, hints }, use) => {
+  onboarded: [true, { option: true }],
+  page: async ({ page, hints, onboarded }, use) => {
+    if (onboarded) {
+      await page.addInitScript(() => {
+        if (window.top !== window) return
+        for (const key of ["seqno.onboardingWhiteboard", "seqno.whiteboardTour"]) {
+          if (localStorage.getItem(key) === null) localStorage.setItem(key, "true")
+        }
+      })
+    }
     if (!hints) {
       await page.addInitScript((keys) => {
         if (window.top === window && localStorage.getItem("seqno.dismissedHints") === null) {

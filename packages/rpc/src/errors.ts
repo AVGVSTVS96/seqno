@@ -28,6 +28,11 @@ export class CommandRejected extends Schema.TaggedError<CommandRejected>()("Comm
   reason: Schema.String,
 }) {}
 
+export class WhiteboardUnreadable extends Schema.TaggedError<WhiteboardUnreadable>()(
+  "WhiteboardUnreadable",
+  { reason: Schema.String },
+) {}
+
 export class QueryInvalid extends Schema.TaggedError<QueryInvalid>()("QueryInvalid", {
   query: Schema.String,
   reason: Schema.String,

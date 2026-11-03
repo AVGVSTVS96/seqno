@@ -315,6 +315,46 @@ export const whiteboardBlocks = (
   return [...shapes, ...blocks]
 }
 
+export const clonedWhiteboard = (board: Whiteboard, freshId: () => string): Whiteboard => {
+  const ids = new Map(
+    board.shapes.flatMap((entry) =>
+      entry.id === undefined ? [] : [[entry.id, freshId()] as const],
+    ),
+  )
+  const bindings: Record<string, unknown> = {}
+  const rebound = (line: string | undefined, handle: unknown) => {
+    const raw = recordOf(handle)
+    const binding = recordOf(board.bindings[textIn(raw["bindingId"]) ?? ""])
+    const from = ids.get(textIn(binding["fromId"]) ?? "")
+    const to = ids.get(textIn(binding["toId"]) ?? "")
+    if (from === undefined || to === undefined || from !== line) return handle
+    const id = freshId()
+    bindings[id] = { ...binding, id, fromId: from, toId: to }
+    return { ...raw, bindingId: id }
+  }
+  const shapes = board.shapes.map((entry): ShapeEntry => {
+    const id = entry.id === undefined ? freshId() : (ids.get(entry.id) ?? freshId())
+    const handles = decodeRecord(entry.shape["handles"])
+    return {
+      ...entry,
+      id,
+      stamps: {},
+      shape: {
+        ...entry.shape,
+        id,
+        ...(Option.isSome(handles)
+          ? {
+              handles: Object.fromEntries(
+                Object.entries(handles.value).map(([name, handle]) => [name, rebound(id, handle)]),
+              ),
+            }
+          : {}),
+      },
+    }
+  })
+  return { ...board, uuid: undefined, bindings, shapes, normals: [] }
+}
+
 const derivedUuid = (seed: string) => {
   const hex = [0, 1, 2, 3]
     .map((salt) => (murmurChars(`${salt}:${seed}`) >>> 0).toString(16).padStart(8, "0"))

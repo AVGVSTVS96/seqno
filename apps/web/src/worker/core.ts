@@ -51,6 +51,7 @@ import { journalDayOf, journalDayOfTitle, todayDeleted, withJournalDay } from ".
 import { GraphLocks } from "./lock.ts"
 import { Device, GraphPlaces } from "./place.ts"
 import { withReferenceEdits } from "./rename.ts"
+import { whiteboardDrafts } from "./whiteboard.ts"
 import { openSession, type Session } from "./session.ts"
 
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
@@ -434,6 +435,7 @@ const CoreHandlers = CoreRpcs.toLayer(
         Effect.flatMap(current(client.id), (session) =>
           from === undefined ? everyPage(session) : pagesReached(session, from),
         ),
+      ReadWhiteboard: ({ pageId, edn }) => whiteboardDrafts(pageId, edn),
       GetBlock: ({ blockId }, { client }) =>
         Effect.flatMap(current(client.id), (session) =>
           Effect.flatMap(session.blocks([blockId]), ([found]) =>

@@ -1,4 +1,4 @@
-import type { BlockId, Command, PageId, Vec } from "@seqno/domain"
+import type { Block, BlockId, Command, PageId, Vec } from "@seqno/domain"
 import { copiedOf } from "./clipboard.ts"
 import { clones, create, patch, remove, scaleInto, translate, type Raw } from "./commands.ts"
 import { boundsOfPoints, overlaps, round, sub, union, type Bounds } from "./geometry.ts"
@@ -248,6 +248,28 @@ const blocksOf = (scene: Scene) => scene.items.map((item) => item.block)
 
 const sameHandles = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
+const rerouteLines = (after: Scene, moved: (line: Item) => boolean): ReadonlyArray<Command> =>
+  after.items.flatMap((item) => {
+    if (item.shape.type !== "line") return []
+    const { start, end } = item.shape.handles
+    const ends = after.ends.get(item.block.id)
+    if (!moved(item) || ends === undefined) return []
+    const local = (at: Vec): Vec => [
+      round(at[0] - item.shape.point[0]),
+      round(at[1] - item.shape.point[1]),
+    ]
+    const handle = (at: Vec, bindTo: BlockId | undefined) =>
+      bindTo === undefined ? { point: local(at) } : { point: local(at), bindTo }
+    const next = { start: handle(ends[0], start.bindTo), end: handle(ends[1], end.bindTo) }
+    return sameHandles(next, item.shape.handles) ? [] : [patch(item, { handles: next })]
+  })
+
+const boundTo = (line: Item, ids: (id: BlockId) => boolean) =>
+  line.shape.type === "line" &&
+  [line.shape.handles.start.bindTo, line.shape.handles.end.bindTo].some(
+    (id) => id !== undefined && ids(id),
+  )
+
 export const settle = (scene: Scene, commands: ReadonlyArray<Command>): ReadonlyArray<Command> => {
   if (commands.length === 0) return commands
   const touched = new Set(
@@ -258,23 +280,20 @@ export const settle = (scene: Scene, commands: ReadonlyArray<Command>): Readonly
     ),
   )
   const after = sceneOf(itemsOf(applyLocally(blocksOf(scene), commands)), scene.measured)
-  const fixes = after.items.flatMap((item) => {
-    if (item.shape.type !== "line") return []
-    const { start, end } = item.shape.handles
-    const bound = [start.bindTo, end.bindTo].some((id) => id !== undefined && touched.has(id))
-    const ends = after.ends.get(item.block.id)
-    if ((!bound && !touched.has(item.block.id)) || ends === undefined) return []
-    const local = (at: Vec): Vec => [
-      round(at[0] - item.shape.point[0]),
-      round(at[1] - item.shape.point[1]),
-    ]
-    const handle = (at: Vec, bindTo: BlockId | undefined) =>
-      bindTo === undefined ? { point: local(at) } : { point: local(at), bindTo }
-    const next = { start: handle(ends[0], start.bindTo), end: handle(ends[1], end.bindTo) }
-    return sameHandles(next, item.shape.handles) ? [] : [patch(item, { handles: next })]
-  })
-  return [...commands, ...fixes]
+  return [
+    ...commands,
+    ...rerouteLines(
+      after,
+      (line) => touched.has(line.block.id) || boundTo(line, (id) => touched.has(id)),
+    ),
+  ]
 }
+
+export const rerouted = (blocks: ReadonlyArray<Block>): ReadonlyArray<Block> =>
+  applyLocally(
+    blocks,
+    rerouteLines(sceneOf(itemsOf(blocks), new Map()), (line) => boundTo(line, () => true)),
+  )
 
 export const erasedAt = (scene: Scene, point: Vec, zoom: number): ReadonlyArray<BlockId> =>
   scene.items

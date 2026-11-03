@@ -40,6 +40,19 @@ export interface ShellParts {
   readonly "sidebar-group-header": readonly [boolean]
   readonly "seqno-sidebar-group-body": readonly []
   readonly "nav-item": readonly []
+  readonly "seqno-whiteboard-welcome": readonly []
+  readonly "seqno-whiteboard-welcome-hero": readonly []
+  readonly "seqno-whiteboard-welcome-skip": readonly []
+  readonly "seqno-tour-shade": readonly []
+  readonly "seqno-tour-step": readonly [string]
+  readonly "seqno-tour-arrow": readonly []
+  readonly "seqno-tour-content": readonly []
+  readonly "seqno-tour-text": readonly []
+  readonly "seqno-tour-steps": readonly []
+  readonly "seqno-tour-dot": readonly [boolean]
+  readonly "seqno-tour-footer": readonly []
+  readonly "seqno-tour-button": readonly [boolean]
+  readonly "seqno-tour-skip": readonly []
   readonly "seqno-nav-active": readonly []
   readonly "page-link": readonly [{ readonly kind: "favorite" | "recent"; readonly name: string }]
   readonly "page-link-icon": readonly []
@@ -142,6 +155,37 @@ export const shellParts: Table<ShellParts> = {
   "seqno-sidebar-group-body": () => ({ className: "bd" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L301-L310
   "nav-item": () => ({ className: "item" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/whiteboard.cljs#L300
+  "seqno-whiteboard-welcome": () => ({ className: "cp__whiteboard-welcome" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/whiteboard.cljs#L301
+  "seqno-whiteboard-welcome-hero": () => ({ className: "head-bg" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/whiteboard.cljs#L312
+  "seqno-whiteboard-welcome-skip": () => ({ className: "skip-welcome" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L248-L253
+  "seqno-tour-shade": () => ({
+    className: "shepherd-modal-overlay-container shepherd-modal-is-visible",
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L248-L253
+  "seqno-tour-step": (step) => ({
+    className: "shepherd-element cp__onboarding-quick-tour",
+    "data-shepherd-step-id": step,
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L248-L253
+  "seqno-tour-arrow": () => ({ className: "shepherd-arrow" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L248-L253
+  "seqno-tour-content": () => ({ className: "shepherd-content" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L248-L253
+  "seqno-tour-text": () => ({ className: "shepherd-text" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L38
+  "seqno-tour-steps": () => ({ className: "steps" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L34-L40
+  "seqno-tour-dot": (active) => ({ className: active ? "active" : "" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L248-L253
+  "seqno-tour-footer": () => ({ className: "shepherd-footer" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L181
+  "seqno-tour-button": (back) => ({ className: names("shepherd-button", back && "back") }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/onboarding/quick_tour.cljs#L20
+  "seqno-tour-skip": () => ({ className: "cp__onboarding-skip-quick-tour" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L301-L310
   "seqno-nav-active": () => ({ className: "active" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L177

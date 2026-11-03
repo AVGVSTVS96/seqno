@@ -11,6 +11,7 @@ import { blockMenu } from "../shell/BlockMenu.tsx"
 import { vimMode } from "../shell/state.ts"
 import { pageStats } from "./atoms.ts"
 import { useNavigateTo } from "./navigation.ts"
+import { onboardedWhiteboard, onboardingBoard } from "./onboarding.ts"
 import { PagesStyle } from "./PagesStyle.tsx"
 import { References } from "./References.tsx"
 
@@ -28,6 +29,7 @@ export const BoardPage = ({
   const vim = useAtomValue(vimMode)
   const updateSidebar = useAtomSet(rightSidebar)
   const registry = useContext(RegistryContext)
+  const onboarding = useAtomValue(onboardingBoard) === page.id
   const references = AsyncResult.getOrElse(
     AsyncResult.map(
       useAtomValue(pageStats),
@@ -41,8 +43,33 @@ export const BoardPage = ({
     else void navigate({ to: "/page/$name", params: { name } })
   }
   return (
-    <div className="seqno-board-view">
+    <div
+      className="seqno-board-view"
+      ref={(node) => {
+        if (node !== null && registry.get(onboardingBoard) === null) {
+          registry.set(onboardedWhiteboard, true)
+        }
+      }}
+    >
       <PagesStyle />
+      {onboarding ? (
+        <div className="seqno-board-onboarding" role="status">
+          <svg
+            className="seqno-board-onboarding-spinner"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+          >
+            <circle opacity="0.25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path
+              opacity="0.75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          <span>Loading onboarding whiteboard ...</span>
+        </div>
+      ) : null}
       <Board
         page={page}
         focus={zoom}

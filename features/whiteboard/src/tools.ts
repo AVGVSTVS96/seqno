@@ -26,10 +26,12 @@ export const defaultStyles: Styles = { color: "", scaleLevel: "md" }
 
 const isBuiltIn = (color: string): boolean => COLORS.some((name) => name === color)
 
+const LOGSEQ_TEXT = /var\(--ls-primary-text-color(?:,[^)]*)?\)/g
+
 export const colorVar = (kind: "stroke" | "background" | "text", color: string | undefined) =>
   color === undefined || isBuiltIn(color)
     ? `var(--wb-${kind}-${color === undefined || color === "" ? "default" : color})`
-    : color
+    : color.replaceAll(LOGSEQ_TEXT, "var(--wb-text-default)")
 
 const styled = (styles: Styles) => ({
   stroke: styles.color,

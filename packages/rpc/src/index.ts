@@ -18,6 +18,7 @@ export {
   GraphUnavailable,
   PageNotFound,
   QueryInvalid,
+  WhiteboardUnreadable,
 } from "./errors.ts"
 export {
   Ancestors,

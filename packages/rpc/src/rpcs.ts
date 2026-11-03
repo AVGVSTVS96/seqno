@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 import { Rpc, RpcGroup } from "effect/rpc"
-import { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
+import { Block, BlockDraft, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import {
   BlockNotFound,
   BlockRefNotFound,
@@ -10,6 +10,7 @@ import {
   GraphUnavailable,
   PageNotFound,
   QueryInvalid,
+  WhiteboardUnreadable,
 } from "./errors.ts"
 
 export const SkippedFile = Schema.Struct({ path: Schema.String, reason: Schema.String })
@@ -101,6 +102,12 @@ export const ExportPages = Rpc.make("ExportPages", {
   payload: { from: Schema.optionalKey(Schema.Array(PageId)) },
   success: Schema.Array(ExportedTree),
   error: GraphNotOpen,
+})
+
+export const ReadWhiteboard = Rpc.make("ReadWhiteboard", {
+  payload: { pageId: PageId, edn: Schema.String },
+  success: Schema.Array(BlockDraft),
+  error: WhiteboardUnreadable,
 })
 
 export const GetBlock = Rpc.make("GetBlock", {
@@ -196,6 +203,7 @@ export const CoreRpcs = RpcGroup.make(
   GetPages,
   GetPage,
   ExportPages,
+  ReadWhiteboard,
   GetBlock,
   GetBlockByRef,
   WatchPage,

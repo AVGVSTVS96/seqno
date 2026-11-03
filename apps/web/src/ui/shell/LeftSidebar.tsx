@@ -23,6 +23,7 @@ import { Keys } from "./Keys.tsx"
 import { keysOf } from "./shortcuts.ts"
 import { Menu, MenuItem, usePopover } from "./popover.tsx"
 import { Resizer } from "./Resizer.tsx"
+import { useWhiteboardWelcome } from "./WhiteboardTour.tsx"
 import {
   collapsedGroups,
   leftSidebarBounds,
@@ -89,15 +90,21 @@ const NavItem = ({
   icon,
   label,
   keys,
+  tour,
+  onClick,
 }: {
   readonly to: "/" | "/whiteboards" | "/all-pages" | "/graph"
   readonly icon: ReactNode
   readonly label: string
   readonly keys?: ReadonlyArray<string>
+  readonly tour?: string
+  readonly onClick?: () => void
 }) => (
   <Link
     to={to}
     {...logseq("nav-item")}
+    data-tour={tour}
+    onClick={onClick}
     activeOptions={{ exact: true }}
     activeProps={logseq("seqno-nav-active")}
   >
@@ -218,6 +225,7 @@ const Recent = ({ graph }: { readonly graph: string }) => {
 export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
   const open = useAtomValue(leftSidebarOpen)
   const [width, setWidth] = useAtom(leftSidebarWidth)
+  const welcome = useWhiteboardWelcome(graph)
   return (
     <aside
       {...logseq("left-sidebar")}
@@ -243,6 +251,8 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
                   icon={<IconChalkboard className="nav-item-icon" size={16} aria-hidden />}
                   label="Whiteboards"
                   keys={keysOf("GoWhiteboards")}
+                  tour="whiteboard-home"
+                  onClick={welcome}
                 />
                 <NavItem
                   to="/all-pages"
