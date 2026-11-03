@@ -12,7 +12,6 @@ const why = {
   tabler: "Logseq's Tabler icon font; seqno draws icons as SVG",
   tldraw: "Logseq's tldraw whiteboard; seqno's whiteboards draw on their own canvas",
   stale: "Logseq 0.10.9's stylesheets select it, but no 0.10.9 screen renders it",
-  radio: "a plugin setting with radio choices; no plugin the check installs has one",
   palette: "part of Logseq's command palette and document mode, which the palette build is adding",
   cards: "flashcard review, which comes with the flashcards build",
   gitDialogs:
@@ -79,7 +78,7 @@ export const gaps: Readonly<Record<string, string>> = Object.fromEntries(
       "[data-radix-popper-content-wrapper]",
     ]),
     ...each(why.wrapper, [".tippy-popper", ".ui__modal"]),
-    ...each(why.tabler, [".ti", ".tie", ".ui__icon"]),
+    ...each(why.tabler, [".tie", ".ui__icon"]),
     ...each(why.tldraw, [
       ".dashboard-card",
       ".dashboard-card-title",
@@ -89,7 +88,6 @@ export const gaps: Readonly<Record<string, string>> = Object.fromEntries(
       ".whiteboard-page",
     ]),
     ...each(why.stale, ["#main-content", ".add-button", ".pull", ".table-query-properties"]),
-    ...each(why.radio, [".form-radio"]),
     ...each(why.palette, [
       ".cp__palette-main",
       ".cp__select",
