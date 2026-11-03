@@ -117,6 +117,13 @@ export const edgeCases: ReadonlyArray<EdgeCase> = [
     source: committed("empty-files"),
   },
   {
+    name: "pdf-highlights",
+    upstreamCase: null,
+    issues: [],
+    expect: "a page linking a local PDF asset, its hls__ page and assets/*.edn highlight file as Logseq 0.10.9 wrote them (a green text highlight and a purple area highlight with its picture) open in the PDF viewer; the .edn file writes back byte for byte",
+    source: committed("pdf-highlights"),
+  },
+  {
     name: "og-syntax-mix",
     upstreamCase: null,
     issues: [],
