@@ -1,13 +1,22 @@
 import { assetParts, type AssetParts } from "./assets.ts"
 import { blockParts, type BlockParts } from "./block.ts"
 import { cmdkParts, type CmdkParts } from "./cmdk.ts"
+import { codeParts, type CodeParts } from "./code.ts"
 import { contentParts, type ContentParts } from "./content.ts"
+import { editorParts, type EditorParts } from "./editor.ts"
 import { names, type LogseqNames, type Table } from "./names.ts"
 import { pdfParts, type PdfParts } from "./pdf.ts"
+import { pageParts, type PageParts } from "./page.ts"
+import { pluginParts, type PluginParts } from "./plugins.ts"
+import { shellParts, type ShellParts } from "./shell.ts"
 import { slideParts, type SlideParts } from "./slide.ts"
 
-export { names, type LogseqNames, type Table } from "./names.ts"
-export { refsSelf } from "./refs.ts"
+export { logseqDocument, type DocumentState } from "./document.ts"
+export { gaps } from "./gaps.ts"
+export { attributesOf, names, type LogseqNames, type Table } from "./names.ts"
+export { refsOf, refsSelf, refsValue } from "./refs.ts"
+export { selectorNames, type SelectorNames } from "./selectors.ts"
+export type { SidebarItemType } from "./shell.ts"
 export {
   logseqAttributes,
   logseqClasses,
@@ -16,14 +25,29 @@ export {
   vocabularyVersion,
 } from "./vocabulary.ts"
 
-type Parts = AssetParts & BlockParts & CmdkParts & ContentParts & PdfParts & SlideParts
+type Parts = AssetParts &
+  BlockParts &
+  CmdkParts &
+  CodeParts &
+  ContentParts &
+  EditorParts &
+  PageParts &
+  PdfParts &
+  PluginParts &
+  ShellParts &
+  SlideParts
 
 const parts: Table<Parts> = {
   ...assetParts,
   ...blockParts,
   ...cmdkParts,
+  ...codeParts,
   ...contentParts,
+  ...editorParts,
+  ...pageParts,
   ...pdfParts,
+  ...pluginParts,
+  ...shellParts,
   ...slideParts,
 }
 

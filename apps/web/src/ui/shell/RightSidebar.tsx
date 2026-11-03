@@ -1,3 +1,4 @@
+import { logseq, type SidebarItemType } from "@seqno/dom"
 import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconCaretRightFilled,
@@ -92,7 +93,7 @@ const ItemTitle = ({ item }: { readonly item: SidebarItem }) =>
     Slides: ({ name }) => <PageTitle name={name} />,
   })
 
-const itemType = (item: SidebarItem) =>
+const itemType = (item: SidebarItem): SidebarItemType =>
   SidebarItem.match(item, {
     Page: ({ name }) => (name === contentsItem.name ? "contents" : "page"),
     Block: () => "block",
@@ -209,11 +210,11 @@ const Card = ({
   const groups = entries.filter((group) => group.length > 0)
   return (
     <section
-      className={`sidebar-item content color-level item-type-${itemType(item)}`}
+      {...logseq("sidebar-item", itemType(item))}
       data-first={first}
       aria-labelledby={headerId}
     >
-      <div className="sidebar-item-header color-level">
+      <div {...logseq("sidebar-item-header")}>
         <button
           id={headerId}
           type="button"
@@ -231,16 +232,16 @@ const Card = ({
             <ItemTitle item={item} />
           </span>
         </button>
-        <div className="sidebar-item-actions item-actions">
+        <div {...logseq("sidebar-item-actions")}>
           <IconButton
             label="More actions"
-            className="sidebar-item-action ui__button"
+            {...logseq("sidebar-item-action")}
             icon={<IconDots size={18} aria-hidden />}
             {...menu.trigger}
           />
           <IconButton
             label="Close"
-            className="sidebar-item-action ui__button"
+            {...logseq("sidebar-item-action")}
             icon={<IconX size={18} aria-hidden />}
             onClick={actions.close}
           />
@@ -288,7 +289,7 @@ const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
   const keys = shown.map(sidebarItemKey)
   const many = shown.length > 1
   return (
-    <div className="sidebar-item-list">
+    <div {...logseq("sidebar-item-list")}>
       <ScrollContent className="sidebar-item-stack">
         {shown.map((item, index) => {
           const key = sidebarItemKey(item)
@@ -344,15 +345,14 @@ export const RightSidebar = () => {
   const [width, setWidth] = useAtom(rightSidebarWidth)
   return (
     <aside
-      id="right-sidebar"
-      className="right-sidebar cp__right-sidebar"
+      {...logseq("right-sidebar")}
       aria-label="Right sidebar"
       data-open={sidebar.open}
       inert={!sidebar.open}
       aria-hidden={!sidebar.open}
     >
       <Resizer
-        className="right-sidebar-resizer"
+        className={logseq("right-sidebar-resizer").className}
         label="Resize the right sidebar"
         value={width}
         min={10}
@@ -383,11 +383,11 @@ export const RightSidebar = () => {
         }}
       />
       {sidebar.open ? (
-        <div id="right-sidebar-container" className="right-sidebar-inner cp__right-sidebar-inner">
-          <div className="right-sidebar-topbar cp__right-sidebar-topbar cp__right-sidebar-settings">
+        <div {...logseq("right-sidebar-inner")}>
+          <div {...logseq("right-sidebar-topbar")}>
             <button
               type="button"
-              className="sidebar-tab button cp__right-sidebar-settings-btn"
+              {...logseq("sidebar-tab")}
               data-hint-anchor="contents"
               onClick={() => updateSidebar({ _tag: "Open", item: contentsItem })}
             >
@@ -395,14 +395,14 @@ export const RightSidebar = () => {
             </button>
             <button
               type="button"
-              className="sidebar-tab button cp__right-sidebar-settings-btn"
+              {...logseq("sidebar-tab")}
               onClick={() => updateSidebar({ _tag: "Open", item: pageGraphItem })}
             >
               Page graph
             </button>
             <button
               type="button"
-              className="sidebar-tab button cp__right-sidebar-settings-btn"
+              {...logseq("sidebar-tab")}
               onClick={() => updateSidebar({ _tag: "Open", item: helpItem })}
             >
               Help

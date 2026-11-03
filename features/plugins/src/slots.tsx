@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtomValue } from "@effect/atom-react"
 import { useId } from "react"
 import type { MacroSlotProps } from "@seqno/outliner"
@@ -10,11 +11,11 @@ import { chosenThemes, uiItems, type ThemeMode, type UIItem } from "./state.ts"
 const slotted = 50
 
 const Item = ({ host, item }: { readonly host: Host; readonly item: UIItem }) => {
-  const id = `injected-ui-item-${item.key}-${item.pid}`
+  const names = logseq("seqno-plugin-item", item)
   return (
     <div
-      id={id}
-      className={`injected-ui-item-${item.type}`}
+      {...names}
+      data-place={item.type}
       data-injected-ui-item={item.pid}
       ref={(element) => {
         if (element === null) return
@@ -22,7 +23,7 @@ const Item = ({ host, item }: { readonly host: Host; readonly item: UIItem }) =>
           item.pid,
           {
             key: item.key,
-            slot: id,
+            slot: names.id ?? "",
             path: null,
             template: item.template,
             style: {},
@@ -58,7 +59,7 @@ export const PluginMacroSlot = ({ args, blockId }: MacroSlotProps) => {
   return (
     <span
       id={slot}
-      className="lsp-hook-ui-slot"
+      {...logseq("seqno-plugin-slot")}
       data-type={type}
       contentEditable={false}
       ref={(element) => {

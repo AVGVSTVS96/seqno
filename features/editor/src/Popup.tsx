@@ -1,3 +1,4 @@
+import { logseq, names } from "@seqno/dom"
 import { IconCalendar, IconFile, IconHash, IconPlus, IconPointFilled } from "@tabler/icons-react"
 import { useRef, type ReactNode } from "react"
 import { createPortal } from "react-dom"
@@ -116,7 +117,7 @@ const Row = ({
     <div
       role="option"
       aria-selected={active}
-      className={active ? "sq-popup-row menu-link chosen" : "sq-popup-row menu-link"}
+      {...logseq("sq-popup-row", active)}
       ref={active && !popup.pointer ? reveal : undefined}
       onPointerMove={(event) => {
         const at = `${event.clientX},${event.clientY}`
@@ -156,8 +157,8 @@ export const PopupView = ({ frame }: { readonly frame: PopupFrame }) => {
   return createPortal(
     <div
       key={`${popup.kind}:${popup.from}`}
-      id="ui__ac-inner"
-      className={`sq-popup sq-popup-${popup.kind.toLowerCase()}`}
+      {...logseq("sq-popup")}
+      className={names(logseq("sq-popup").className, `sq-popup-${popup.kind.toLowerCase()}`)}
       role="listbox"
       aria-label={labels[popup.kind]}
       onMouseDown={(event) => event.preventDefault()}
@@ -165,7 +166,7 @@ export const PopupView = ({ frame }: { readonly frame: PopupFrame }) => {
       {grouped
         ? groupsOf(popup).map((group) => (
             <div key={group.name} role="group" aria-label={group.name}>
-              <div className="sq-popup-group ui__ac-group-name" aria-hidden>
+              <div {...logseq("sq-popup-group")} aria-hidden>
                 {group.name}
               </div>
               {group.rows.map(row)}

@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { Option } from "effect"
 import type { AtomRegistry } from "effect/reactivity"
 import { applyStyle, injectStyle, injectUI, removeInjected, type UIOptions } from "./inject.ts"
@@ -123,7 +124,8 @@ export const createHost = (
   const showMainUI = (pid: string, visible: boolean, autoFocus: boolean) => {
     const plugin = plugins.get(pid)
     if (plugin === undefined) return
-    plugin.container.classList.toggle("visible", visible)
+    plugin.container.className = logseq("seqno-plugin-frames", visible).className
+    plugin.container.toggleAttribute("data-visible", visible)
     setRunning(pid, (current) => ({ ...current, mainUI: visible }))
     if (visible && autoFocus) plugin.frame.focus()
     if (!visible && document.activeElement === plugin.frame) plugin.frame.blur()
@@ -338,11 +340,11 @@ export const createHost = (
     entry.searchParams.set("__v__", info.version)
     const container = document.createElement("div")
     container.id = `${info.id}_lsp_main`
-    container.className = "lsp-iframe-sandbox-container"
+    container.className = logseq("seqno-plugin-frames", false).className
     container.dataset["pid"] = info.id
     const frame = document.createElement("iframe")
     frame.id = `${info.id}_iframe`
-    frame.className = "lsp-iframe-sandbox"
+    frame.className = logseq("seqno-plugin-frame").className
     frame.title = info.title
     const plugin: Loaded = {
       info,

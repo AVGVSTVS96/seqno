@@ -1,3 +1,4 @@
+import { attributesOf, logseq } from "@seqno/dom"
 import { defaultKeymap } from "@codemirror/commands"
 import { EditorSelection, EditorState } from "@codemirror/state"
 import { EditorView, keymap, tooltips } from "@codemirror/view"
@@ -129,8 +130,8 @@ export const mountBlockEditor = (
           autocapitalize: "sentences",
         }),
         editorTheme,
-        EditorView.editorAttributes.of({ class: "editor-inner block-editor" }),
-        EditorView.contentAttributes.of({ class: "normal-block", id: `edit-block-${block.id}` }),
+        EditorView.editorAttributes.of(attributesOf(logseq("seqno-editor"))),
+        EditorView.contentAttributes.of(attributesOf(logseq("seqno-editor-content", block.id))),
         headingClass,
         tooltips({ parent: parent.ownerDocument.body }),
         EditorView.updateListener.of((update) => {

@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import {
   IconArrowDown,
@@ -563,7 +564,7 @@ const NavItem = ({
 }) => (
   <a
     href={hrefOf(route)}
-    className="nav-item"
+    {...logseq("nav-item")}
     {...(route._tag === current._tag ? { "aria-current": "page" as const } : {})}
   >
     {icon}
@@ -623,7 +624,7 @@ export const SiteView = ({ data }: { readonly data: Published }) => {
           style={{ "--left-sidebar-width": "240px", "--right-sidebar-width": "0vw" }}
         >
           <div className="left-container">
-            <header className="head">
+            <header {...logseq("head")}>
               <div className="head-left">
                 <button
                   type="button"
@@ -653,7 +654,7 @@ export const SiteView = ({ data }: { readonly data: Published }) => {
                 inert={!open}
                 aria-hidden={!open}
               >
-                <div className="left-sidebar-inner">
+                <div {...logseq("left-sidebar-inner")}>
                   <div className="left-sidebar-wrap">
                     <div className="left-sidebar-header">
                       <div className="graph-switcher">

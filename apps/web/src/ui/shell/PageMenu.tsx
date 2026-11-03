@@ -1,7 +1,7 @@
 import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useMatchRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { Atom } from "effect/reactivity"
-import { logseq, names } from "@seqno/dom"
+import { logseq } from "@seqno/dom"
 import type { Page } from "@seqno/domain"
 import { hostAtom, pluginCommands, runPageCommand } from "@seqno/plugins"
 import { dispatch, favorites, rightSidebar, toggleFavorite } from "../../atoms.ts"
@@ -113,7 +113,7 @@ const TitleMenu = ({
     aria-label="Page actions"
     tabIndex={-1}
     {...titleMenuNames}
-    className={names("menu", titleMenuNames.className)}
+    className={titleMenuNames.className}
     ref={(menu) => {
       if (menu === null) return
       menu.showPopover()

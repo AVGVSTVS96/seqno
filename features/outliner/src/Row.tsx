@@ -36,6 +36,7 @@ export interface RowProps {
   readonly canToggle: boolean
   readonly references: number
   readonly referencesOpen: boolean
+  readonly childRefs: string
   readonly below: ReactNode
   readonly index: number
   readonly measure: Ref<HTMLDivElement>
@@ -69,6 +70,7 @@ export const RowView = ({
   canToggle,
   references,
   referencesOpen,
+  childRefs,
   below,
   index,
   measure,
@@ -89,6 +91,7 @@ export const RowView = ({
         block,
         level: depth + 1,
         hasChildren: row.hasChildren,
+        childRefs,
         folded,
         selected,
       })}
@@ -125,7 +128,7 @@ export const RowView = ({
       {row.path.map((ancestor, level) => (
         <span
           key={ancestor}
-          className="seqno-guide block-children-left-border"
+          {...logseq("seqno-guide")}
           aria-hidden
           data-first={level === depth - 1 && firstChild ? true : undefined}
           data-last={nextPath[level] === ancestor ? undefined : true}
@@ -141,69 +144,70 @@ export const RowView = ({
           }}
         />
       ))}
-      <div
-        {...logseq("seqno-control", { folded, numbered })}
-        style={offset === undefined ? undefined : { marginTop: offset }}
-      >
-        {canToggle ? (
+      <div {...logseq("seqno-row-main")}>
+        <div
+          {...logseq("seqno-control", { folded, numbered })}
+          style={offset === undefined ? undefined : { marginTop: offset }}
+        >
+          {canToggle ? (
+            <button
+              type="button"
+              {...logseq("seqno-toggle", block.id)}
+              aria-label={row.expanded ? "Collapse" : "Expand"}
+              data-expanded={row.expanded}
+              onClick={actions.toggle}
+            >
+              <span {...logseq("seqno-arrow", !row.expanded)}>
+                <IconCaretRightFilled size={16} aria-hidden />
+              </span>
+            </button>
+          ) : (
+            <span className="seqno-toggle-space" />
+          )}
+          <span {...logseq("seqno-bullet-wrap")}>
+            <button
+              type="button"
+              {...logseq("seqno-bullet", { blockId: block.id, folded, numbered })}
+              aria-label="Zoom into block"
+              data-numbered={numbered || undefined}
+              data-folded={folded || undefined}
+              draggable
+              onClick={actions.bullet}
+              onContextMenu={actions.menu}
+              onDragStart={actions.dragStart}
+              onDragEnd={actions.dragEnd}
+            >
+              {ordinal === null ? (
+                <span {...logseq("seqno-dot", { blockId: block.id, selected })} />
+              ) : (
+                `${ordinal}.`
+              )}
+            </button>
+          </span>
+        </div>
+        <div
+          {...logseq("seqno-content")}
+          onClick={actions.content}
+          onPointerDown={actions.press}
+          onContextMenu={(event) => {
+            if (selected) actions.menu(event)
+          }}
+        >
+          {children}
+        </div>
+        {references === 0 ? null : (
           <button
             type="button"
-            id={`control-${block.id}`}
-            className="seqno-toggle block-control"
-            aria-label={row.expanded ? "Collapse" : "Expand"}
-            data-expanded={row.expanded}
-            onClick={actions.toggle}
+            {...logseq("seqno-refs-count")}
+            title="Open block references"
+            aria-label={references === 1 ? "1 reference" : `${references} references`}
+            aria-expanded={referencesOpen}
+            onClick={actions.references}
           >
-            <span
-              className={row.expanded ? "rotating-arrow not-collapsed" : "rotating-arrow collapsed"}
-            >
-              <IconCaretRightFilled size={16} aria-hidden />
-            </span>
+            {references}
           </button>
-        ) : (
-          <span className="seqno-toggle-space" />
         )}
-        <button
-          type="button"
-          {...logseq("seqno-bullet", { blockId: block.id, folded, numbered })}
-          aria-label="Zoom into block"
-          data-numbered={numbered || undefined}
-          data-folded={folded || undefined}
-          draggable
-          onClick={actions.bullet}
-          onContextMenu={actions.menu}
-          onDragStart={actions.dragStart}
-          onDragEnd={actions.dragEnd}
-        >
-          {ordinal === null ? (
-            <span {...logseq("seqno-dot", { blockId: block.id, selected })} />
-          ) : (
-            `${ordinal}.`
-          )}
-        </button>
       </div>
-      <div
-        className="seqno-content block-content-wrapper"
-        onClick={actions.content}
-        onPointerDown={actions.press}
-        onContextMenu={(event) => {
-          if (selected) actions.menu(event)
-        }}
-      >
-        {children}
-      </div>
-      {references === 0 ? null : (
-        <button
-          type="button"
-          className="seqno-refs-count block-refs-count"
-          title="Open block references"
-          aria-label={references === 1 ? "1 reference" : `${references} references`}
-          aria-expanded={referencesOpen}
-          onClick={actions.references}
-        >
-          {references}
-        </button>
-      )}
       {below}
     </div>
   )

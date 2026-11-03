@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtomSet } from "@effect/atom-react"
 import { useMatchRoute, useNavigate } from "@tanstack/react-router"
 import { Cause, Exit } from "effect"
@@ -50,8 +51,8 @@ export const PageTitle = ({
 
   if (link) {
     return (
-      <h1 id={id} className="seqno-page-title page-title title" onContextMenu={onContextMenu}>
-        <PageLink page={page} className="seqno-page-title-link journal-title" />
+      <h1 id={id} {...logseq("seqno-page-title")} onContextMenu={onContextMenu}>
+        <PageLink page={page} className={logseq("seqno-page-title-link").className} />
       </h1>
     )
   }
@@ -78,7 +79,7 @@ export const PageTitle = ({
     return (
       <h1
         id={id}
-        className="seqno-page-title page-title title"
+        {...logseq("seqno-page-title")}
         data-editable={editable}
         tabIndex={editable ? 0 : undefined}
         onContextMenu={onContextMenu}
@@ -92,8 +93,8 @@ export const PageTitle = ({
           }
         }}
       >
-        <span className="page-title-sizer-wrapper">
-          <span className="seqno-page-title-text title" data-ref={page.name}>
+        <span {...logseq("seqno-page-title-sizer")}>
+          <span {...logseq("seqno-page-title-text", page.name)}>
             {hls ? <a className="seqno-asset">{assetPageName(page.title)}</a> : page.title}
           </span>
         </span>
@@ -103,7 +104,7 @@ export const PageTitle = ({
 
   return (
     <>
-      <h1 id={id} className="seqno-page-title page-title title" data-editable>
+      <h1 id={id} {...logseq("seqno-page-title")} data-editable>
         <textarea
           aria-label="Page title"
           className="seqno-page-title-input"

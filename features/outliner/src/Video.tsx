@@ -126,7 +126,8 @@ export const VideoFile = ({ url }: { readonly url: string }) => {
   }
   return (
     <span
-      className="seqno-video is-file"
+      className="seqno-video"
+      data-file
       data-video=""
       ref={seekable(seek)}
       onClick={stop}

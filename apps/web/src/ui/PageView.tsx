@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
@@ -36,19 +37,16 @@ export const PageView = ({
   const vim = useAtomValue(vimMode)
   const zoomed = zoom !== null
   return (
-    <div
-      className={inJournals === true ? "seqno-page journal page" : "seqno-page page"}
-      data-zoomed={zoomed}
-    >
+    <div {...logseq("seqno-page", inJournals === true)} data-zoomed={zoomed}>
       <PagesStyle />
       <article {...(zoomed ? { "aria-label": page.title } : { "aria-labelledby": heading })}>
         {zoomed || inJournals === true ? null : <PluginItems type="pagebar" />}
         {zoomed ? null : (
-          <div className="ls-page-title">
+          <div {...logseq("seqno-page-title-wrap")}>
             <PageTitle page={page} id={heading} link={inJournals ?? false} />
           </div>
         )}
-        <div className="seqno-page-blocks page-blocks-inner content">
+        <div {...logseq("seqno-page-blocks")}>
           {zoomed ? null : <PageProperties page={page} />}
           <Outliner
             pageId={page.id}
@@ -82,15 +80,15 @@ const MissingPage = ({ name }: { readonly name: string }) => {
   const create = useAtomSet(createPage)
   const title = useAtomValue(referencedOnly).find((page) => page.name === name)?.title ?? name
   return (
-    <div className="seqno-page page">
+    <div {...logseq("seqno-page", false)}>
       <PagesStyle />
       <article aria-labelledby={heading}>
-        <div className="ls-page-title">
-          <h1 id={heading} className="seqno-page-title page-title title" data-editable={false}>
+        <div {...logseq("seqno-page-title-wrap")}>
+          <h1 id={heading} {...logseq("seqno-page-title")} data-editable={false}>
             {title}
           </h1>
         </div>
-        <div className="seqno-page-blocks page-blocks-inner content">
+        <div {...logseq("seqno-page-blocks")}>
           <button
             type="button"
             className="seqno-page-create"

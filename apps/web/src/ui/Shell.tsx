@@ -4,7 +4,7 @@ import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useContext } from "react"
-import { logseq } from "@seqno/dom"
+import { logseq, names } from "@seqno/dom"
 import type { PageId } from "@seqno/domain"
 import {
   AssetActions,
@@ -55,17 +55,6 @@ const problemOf = (cause: Cause.Cause<unknown>) => {
   return error instanceof Error ? error.message : String(error)
 }
 
-const themeInner = (leftOpen: boolean, rightOpen: boolean, wide: boolean, colored: boolean) =>
-  [
-    "theme-inner",
-    leftOpen ? "ls-left-sidebar-open" : null,
-    rightOpen ? "ls-right-sidebar-open" : null,
-    wide ? "ls-wide-mode" : null,
-    colored ? logseq("seqno-hl-colored").className : null,
-  ]
-    .filter((name) => name !== null)
-    .join(" ")
-
 const content = (ready: boolean, problem: string | null) =>
   problem !== null ? <OpenFailed problem={problem} /> : ready ? <Outlet /> : null
 
@@ -87,6 +76,7 @@ const Layout = ({
   const mode = useAtomValue(resolvedTheme)
   const registry = useContext(RegistryContext)
   const colored = useAtomValue(blockColored)
+  const inner = logseq("seqno-theme-inner", { leftOpen, rightOpen, wide })
   const assets: AssetActions = {
     saveFiles: (files, dialect) => saveAssets(registry, files, dialect),
     openPdf: (url) => openPdf(registry, url),
@@ -96,11 +86,13 @@ const Layout = ({
     <AssetActions value={assets}>
       <MacroSlot value={pluginMacros}>
         <BoardSlot value={boards}>
-          <div className="theme-container">
-            <div className={themeInner(leftOpen, rightOpen, wide, colored)}>
+          <div {...logseq("seqno-theme-container")}>
+            <div
+              {...inner}
+              className={names(inner.className, colored && logseq("seqno-hl-colored").className)}
+            >
               <div
-                id="app-container"
-                className="app"
+                {...logseq("app")}
                 data-left-open={leftOpen}
                 data-right-open={rightOpen}
                 data-wide={wide}
@@ -109,12 +101,12 @@ const Layout = ({
                   "--right-sidebar-width": `${rightWidth}vw`,
                 }}
               >
-                <div id="left-container" className="left-container">
+                <div {...logseq("left-container")}>
                   <Header />
-                  <div id="main-container" className="main-container cp__sidebar-main-layout">
+                  <div {...logseq("main-container")}>
                     <LeftSidebar graph={graph} />
-                    <main id="main-content-container" className="main-content-container">
-                      <ScrollContent className="main-content cp__sidebar-main-content">
+                    <main {...logseq("main-content-container")}>
+                      <ScrollContent className={logseq("main-content").className}>
                         {content(ready ?? true, problem ?? null)}
                       </ScrollContent>
                     </main>

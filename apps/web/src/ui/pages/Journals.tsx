@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtomValue } from "@effect/atom-react"
 import { NestedLists, useVirtualList } from "@seqno/outliner"
 import { journals } from "../../atoms.ts"
@@ -22,18 +23,13 @@ export const Journals = () => {
     overscan: 2,
   })
   return (
-    <div ref={attach} id="journals" className="seqno-journals">
+    <div ref={attach} {...logseq("seqno-journals")}>
       <NestedLists>
         {placed.flatMap(({ index, gap }) => {
           const page = days[index]
           if (page === undefined) return []
           const day = (
-            <div
-              key={page.id}
-              ref={measure}
-              data-index={index}
-              className="seqno-journal journal-item content"
-            >
+            <div key={page.id} ref={measure} data-index={index} {...logseq("seqno-journal")}>
               <PageView page={page} zoom={null} inJournals />
             </div>
           )

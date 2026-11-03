@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconCalendar,
@@ -51,20 +52,16 @@ const Group = ({
           )
   return (
     <section
-      className={
-        group === null
-          ? "sidebar-group"
-          : `sidebar-group nav-content-item ${group} ${expanded ? "is-expand" : "is-collapsed"}`
-      }
+      {...logseq("sidebar-group", { group, expanded })}
       aria-label={title}
       data-group={group ?? "navigations"}
     >
       {toggle === undefined ? (
-        <h2 className="sidebar-group-header">
+        <h2 {...logseq("sidebar-group-header", false)}>
           <span className="sidebar-group-title">{title}</span>
         </h2>
       ) : (
-        <h2 className="sidebar-group-header header">
+        <h2 {...logseq("sidebar-group-header", true)}>
           <button
             type="button"
             className="sidebar-group-toggle"
@@ -76,7 +73,13 @@ const Group = ({
           </button>
         </h2>
       )}
-      {expanded ? group === null ? children : <div className="bd">{children}</div> : null}
+      {expanded ? (
+        group === null ? (
+          children
+        ) : (
+          <div {...logseq("seqno-sidebar-group-body")}>{children}</div>
+        )
+      ) : null}
     </section>
   )
 }
@@ -94,9 +97,9 @@ const NavItem = ({
 }) => (
   <Link
     to={to}
-    className="nav-item item"
+    {...logseq("nav-item")}
     activeOptions={{ exact: true }}
-    activeProps={{ className: "active" }}
+    activeProps={logseq("seqno-nav-active")}
   >
     {icon}
     <span className="nav-item-label">{label}</span>
@@ -125,7 +128,7 @@ const PageLink = ({
   const openInSidebar = () =>
     updateSidebar({ _tag: "Open", item: { _tag: "Page", name: page.name } })
   return (
-    <li className={`page-link ${kind}-item`} data-ref={page.name}>
+    <li {...logseq("page-link", { kind, name: page.name })}>
       <Link
         to="/page/$name"
         params={{ name: page.name }}
@@ -137,11 +140,11 @@ const PageLink = ({
         }}
       >
         {board === undefined ? (
-          <IconFile className="page-link-icon page-icon" size={16} aria-hidden />
+          <IconFile className={logseq("page-link-icon").className} size={16} aria-hidden />
         ) : (
-          <IconChalkboard className="page-link-icon page-icon" size={16} aria-hidden />
+          <IconChalkboard className={logseq("page-link-icon").className} size={16} aria-hidden />
         )}
-        <span className="page-link-title page-title">
+        <span {...logseq("page-link-title")}>
           {board === undefined ? assetPageName(page.title) : boardTitle(board)}
         </span>
       </Link>
@@ -217,15 +220,14 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
   const [width, setWidth] = useAtom(leftSidebarWidth)
   return (
     <aside
-      id="left-sidebar"
-      className="left-sidebar cp__sidebar-left-layout"
+      {...logseq("left-sidebar")}
       aria-label="Left sidebar"
       data-open={open}
       inert={!open}
       aria-hidden={!open}
     >
-      <div className="left-sidebar-inner">
-        <div className="left-sidebar-wrap wrap">
+      <div {...logseq("left-sidebar-inner")}>
+        <div {...logseq("left-sidebar-wrap")}>
           <div className="left-sidebar-header">
             <GraphSwitcher graph={graph} />
             <Group title="Navigations" group={null}>
@@ -256,13 +258,13 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
               </nav>
             </Group>
           </div>
-          <div className="left-sidebar-contents nav-contents-container">
+          <div {...logseq("left-sidebar-contents")}>
             <Favorites />
             <Recent graph={graph} />
           </div>
         </div>
         <Resizer
-          className="left-sidebar-resizer"
+          className={logseq("left-sidebar-resizer").className}
           label="Resize the left sidebar"
           value={width}
           min={leftSidebarBounds.min}

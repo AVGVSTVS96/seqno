@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { use, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { useAtomValue } from "@effect/atom-react"
@@ -43,7 +44,7 @@ const PagePreview = ({ name }: { readonly name: string }) => {
     onInitial: () => null,
     onFailure: () => null,
     onSuccess: ({ value }) => (
-      <div className="seqno-preview-page tippy-wrapper as-page">
+      <div {...logseq("seqno-preview-page", "page")}>
         <div className="seqno-preview-title">{value?.title ?? name}</div>
         {value === undefined ? null : (
           <div className="seqno-preview-blocks">
@@ -62,7 +63,7 @@ const BlockPreview = ({ blockId }: { readonly blockId: BlockId }) => {
     onInitial: () => null,
     onFailure: () => null,
     onSuccess: () => (
-      <div className="seqno-preview-page tippy-wrapper as-block">
+      <div {...logseq("seqno-preview-page", "block")}>
         <div className="seqno-preview-blocks">
           <Embed target={{ _tag: "Block", blockId }} bare />
         </div>
@@ -108,7 +109,7 @@ export const usePreview = (target: PreviewTarget) => {
       : createPortal(
           <div
             popover="manual"
-            className="seqno-preview tippy-tooltip customized-theme"
+            {...logseq("seqno-preview")}
             role="dialog"
             aria-label="Preview"
             onPointerEnter={keep}
@@ -119,7 +120,7 @@ export const usePreview = (target: PreviewTarget) => {
               place(element, anchor.box)
             }}
           >
-            <div className="tippy-tooltip-content">
+            <div {...logseq("seqno-preview-content")}>
               <RenderContext value={{ ...renderer, depth: renderer.depth + 1 }}>
                 {target._tag === "Page" ? (
                   <PagePreview name={target.name} />

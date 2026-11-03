@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
+    "@seqno/dom": "workspace:*",
     "@seqno/domain": "workspace:*",
     "@seqno/graph": "workspace:*",
     "@seqno/vault": "workspace:*",

@@ -26,10 +26,19 @@ describe("logseq", () => {
       props: {},
     }
     expect(
-      logseq("seqno-row", { block, level: 2, hasChildren: true, folded: true, selected: false }),
+      logseq("seqno-row", {
+        block,
+        level: 2,
+        hasChildren: true,
+        childRefs: '["ana"]',
+        folded: true,
+        selected: false,
+      }),
     ).toEqual({
       className: "seqno-row ls-block 01920000-0000-7000-8000-000000000001",
+      id: "ls-block-01920000-0000-7000-8000-000000000001",
       blockid: "01920000-0000-7000-8000-000000000001",
+      "data-refs": '["ana"]',
       level: 2,
       haschild: "true",
       "data-refs-self": '["todo", "projects/greenhouse", "projects", "design"]',

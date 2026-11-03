@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@effect/atom-react": "4.0.1",
+    "@seqno/dom": "workspace:*",
     "@seqno/domain": "workspace:*",
     "@seqno/outliner": "workspace:*",
     "@seqno/rpc": "workspace:*",

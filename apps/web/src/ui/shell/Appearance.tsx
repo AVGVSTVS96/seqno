@@ -1,3 +1,4 @@
+import { logseq, names } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import type { Atom } from "effect/reactivity"
 import { useId, type ReactNode } from "react"
@@ -98,7 +99,7 @@ export const Appearance = ({ handle }: { readonly handle: PopoverHandle }) => {
       role="dialog"
       aria-label="Appearance"
       tabIndex={-1}
-      className="menu appearance"
+      className={names(logseq("menu").className, "appearance")}
       onBeforeToggle={handle.onBeforeToggle}
       onToggle={handle.onToggle}
     >

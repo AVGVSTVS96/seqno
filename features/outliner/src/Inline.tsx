@@ -115,7 +115,7 @@ const PlainRef = ({
   const title = contentOf(block.text, use(PageDialects)(block.pageId)).title ?? []
   return (
     <span
-      className="seqno-blockref block-ref"
+      {...logseq("seqno-blockref")}
       {...preview.trigger}
       onClick={follow(
         renderer.navigate,
@@ -186,17 +186,11 @@ const PageLink = ({
   const renderer = use(RenderContext)
   const preview = usePreview({ _tag: "Page", name })
   return (
-    <span
-      className={
-        brackets ? "seqno-pageref has-brackets page-reference" : "seqno-pageref page-reference"
-      }
-      data-ref={name}
-    >
+    <span {...logseq("seqno-pageref", name)} data-brackets={brackets || undefined}>
       <a
         role="link"
         tabIndex={0}
-        className="seqno-pageref-link page-ref"
-        data-ref={name.toLowerCase()}
+        {...logseq("seqno-pageref-link", name)}
         data-from={span === undefined ? undefined : span.from + (brackets ? 2 : 0)}
         data-start={span?.from}
         data-end={span?.to}
@@ -225,13 +219,7 @@ const Link = ({
           <Inlines nodes={label} />
         </AssetFileLink>
       ) : safeUrl.test(url) ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="seqno-link external-link"
-          onClick={stop}
-        >
+        <a href={url} target="_blank" rel="noreferrer" {...logseq("seqno-link")} onClick={stop}>
           <Inlines nodes={label} />
         </a>
       ) : (
@@ -380,8 +368,7 @@ const TagLink = ({ name }: { readonly name: string }) => {
       <a
         role="link"
         tabIndex={0}
-        className="seqno-tag tag"
-        data-ref={name.toLowerCase()}
+        {...logseq("seqno-tag", name)}
         onClick={toPage(renderer.navigate, name)}
         onKeyDown={clickOnEnter}
         {...preview.trigger}
@@ -416,7 +403,7 @@ const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
       <a
         role="link"
         tabIndex={0}
-        className="seqno-priority priority"
+        {...logseq("seqno-priority")}
         onClick={toPage(renderer.navigate, priority)}
         onKeyDown={clickOnEnter}
       >

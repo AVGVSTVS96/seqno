@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import pluginsCss from "./plugins.css?inline"
 import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
@@ -85,7 +86,7 @@ const Card = ({
   readonly theme: boolean
   readonly footer: ReactNode
 }) => (
-  <li className="plugin-card cp__plugins-item-card" aria-label={title}>
+  <li {...logseq("plugin-card")} aria-label={title}>
     <div className="plugin-card-head">
       <Icon src={icon} theme={isTheme} />
       <div className="plugin-card-text">
@@ -254,7 +255,7 @@ const Installed = ({ kind, query }: { readonly kind: Kind; readonly query: strin
   return (
     <>
       {kind === "themes" ? (
-        <ul role="radiogroup" aria-label="Theme" className="plugin-themes cp__themes-installed">
+        <ul role="radiogroup" aria-label="Theme" {...logseq("plugin-themes")}>
           <ThemeRow entry={null} />
           {themes.map((entry) => (
             <ThemeRow key={entry.url} entry={entry} />
@@ -353,7 +354,7 @@ const Body = () => {
       </style>
       <div className="plugins-head">
         <h1 className="plugins-title">Plugins</h1>
-        <div role="tablist" aria-label="Plugins" className="plugins-tabs tabs">
+        <div role="tablist" aria-label="Plugins" {...logseq("plugins-tabs")}>
           {(["installed", "marketplace"] as const).map((one) => (
             <button
               key={one}
@@ -410,7 +411,7 @@ export const PluginsDialog = () => {
     <Dialog
       id={dialogId}
       label="Plugins"
-      className="plugins-dialog cp__plugins-page"
+      className={logseq("plugins-dialog").className}
       onClose={() => setOpened(opened + 1)}
     >
       <Body key={opened} />

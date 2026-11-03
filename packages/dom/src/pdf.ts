@@ -12,6 +12,7 @@ export interface PdfParts {
   readonly "seqno-pdf-viewer": Flag
   readonly "seqno-pdf-picking": readonly []
   readonly "seqno-pdf-holder": readonly []
+  readonly "seqno-pdf-pages": readonly []
   readonly "seqno-pdf-area-selection": readonly []
   readonly "seqno-pdf-shadow-rect": readonly []
   readonly "seqno-pdf-resizer": readonly []
@@ -106,6 +107,8 @@ export const pdfParts: Table<PdfParts> = {
   "seqno-pdf-picking": () => ({ className: "disabled-text-selection" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/pdf/core.cljs#L815
   "seqno-pdf-holder": () => ({ className: "pp-holder" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/pdf/core.cljs#L814
+  "seqno-pdf-pages": () => ({ className: "pdfViewer" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/pdf/core.cljs#L532
   "seqno-pdf-area-selection": () => ({ className: "extensions__pdf-area-selection" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/pdf/core.cljs#L535

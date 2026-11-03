@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Effect, Exit, Stream } from "effect"
 import { AtomRegistry } from "effect/reactivity"
@@ -84,15 +85,15 @@ export const PageProperties = ({ page }: { readonly page: Page }) => {
   const props = visibleProps(page.props)
   if (props.length === 0) return null
   return (
-    <div className="seqno-page-properties pre-block">
-      <div className="seqno-page-properties-control block-control-wrap" aria-hidden>
-        <span className="seqno-page-properties-bullet bullet" />
+    <div {...logseq("seqno-page-properties")}>
+      <div {...logseq("seqno-page-properties-control")} aria-hidden>
+        <span {...logseq("seqno-page-properties-bullet")} />
       </div>
       {editing ? (
         <PropertiesEditor page={page} onExit={() => setEditing(false)} />
       ) : (
         <dl
-          className="seqno-properties block-properties page-properties"
+          {...logseq("seqno-properties")}
           aria-label="Page properties"
           onClick={(event) => {
             if (event.target instanceof Element && event.target.closest("a") !== null) return
@@ -104,10 +105,10 @@ export const PageProperties = ({ page }: { readonly page: Page }) => {
               <dt>
                 <PageLink
                   page={{ name: normalizePageName(key), title: key }}
-                  className="seqno-property-key page-property-key"
+                  className={logseq("seqno-property-key").className}
                 />
               </dt>
-              <dd className="page-property-value">
+              <dd {...logseq("seqno-property-value")}>
                 <PropertyValue
                   name={key}
                   value={value}

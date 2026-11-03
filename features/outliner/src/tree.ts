@@ -1,4 +1,5 @@
 import type { Block, BlockId } from "@seqno/domain"
+import { refsOf, refsValue } from "@seqno/dom"
 import type { PageTree } from "@seqno/rpc"
 
 export interface Row {
@@ -15,6 +16,7 @@ export interface Outline {
   readonly trail: ReadonlyArray<Block>
   readonly children: (parentId: BlockId | null) => ReadonlyArray<Block>
   readonly parentOf: (blockId: BlockId) => BlockId | null
+  readonly childRefs: (blockId: BlockId) => string
 }
 
 const none: ReadonlyArray<Block> = []
@@ -58,11 +60,23 @@ export const outline = (tree: PageTree, zoom: BlockId | null, embedded = false):
   for (const top of root === undefined ? children(null) : [root]) {
     visit(top, [])
   }
+  const below = new Map<BlockId, ReadonlyArray<string>>()
+  const refsBelow = (blockId: BlockId): ReadonlyArray<string> => {
+    const known = below.get(blockId)
+    if (known !== undefined) return known
+    const found = children(blockId).flatMap((child) => [
+      ...refsOf(child.text),
+      ...refsBelow(child.id),
+    ])
+    below.set(blockId, found)
+    return found
+  }
   return {
     rows,
     trail,
     children,
     parentOf: (blockId) => byId.get(blockId)?.parentId ?? null,
+    childRefs: (blockId) => refsValue(refsBelow(blockId)),
   }
 }
 

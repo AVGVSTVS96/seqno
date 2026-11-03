@@ -1,3 +1,4 @@
+import { logseq, names } from "@seqno/dom"
 import {
   useId,
   useRef,
@@ -172,7 +173,7 @@ export const Menu = ({
     role="menu"
     aria-label={label}
     tabIndex={-1}
-    className={`menu dropdown-wrapper menu-links-wrapper${className === undefined ? "" : ` ${className}`}`}
+    className={names(logseq("menu").className, className)}
     onBeforeToggle={handle.onBeforeToggle}
     onToggle={handle.onToggle}
     onKeyDown={onMenuKeyDown}
@@ -200,7 +201,7 @@ export const MenuItem = ({
       ? { role: "menuitem" }
       : { role: "menuitemradio", "aria-checked": checked })}
     tabIndex={-1}
-    className="menu-item menu-link"
+    {...logseq("menu-item")}
     onPointerMove={(event) => {
       if (document.activeElement !== event.currentTarget) event.currentTarget.focus()
     }}
@@ -214,12 +215,12 @@ export const MenuItem = ({
     }}
   >
     {icon}
-    <span className="menu-item-label title-wrap">{children}</span>
+    <span {...logseq("menu-item-label")}>{children}</span>
     {hint === undefined ? null : <span className="menu-item-hint">{hint}</span>}
   </button>
 )
 
-export const MenuSeparator = () => <div role="separator" className="menu-separator" />
+export const MenuSeparator = () => <div role="separator" {...logseq("menu-separator")} />
 
 export interface TooltipContent {
   readonly label: string
@@ -253,18 +254,15 @@ export const useTooltip = (content: TooltipContent | undefined, placement: Place
               id={id}
               role="tooltip"
               popover="manual"
-              className={
-                content.keys === undefined
-                  ? "tooltip tooltip-plain tippy-tooltip"
-                  : "tooltip tippy-tooltip"
-              }
+              {...logseq("tooltip")}
+              data-plain={content.keys === undefined || undefined}
               ref={(element) => {
                 if (element === null) return
                 place(element, anchor, placement)
                 element.showPopover()
               }}
             >
-              <span className="tooltip-label tippy-tooltip-content">{content.label}</span>
+              <span {...logseq("tooltip-label")}>{content.label}</span>
               {content.keys === undefined ? null : <Keys keys={content.keys} framed />}
             </div>,
             document.body,
@@ -304,7 +302,7 @@ export const Dialog = ({
     onClose={onClose}
     aria-label={label}
     {...(focusSelf ? { tabIndex: -1, "data-focus-self": "" } : {})}
-    className={`dialog ui__modal-panel${className === undefined ? "" : ` ${className}`}`}
+    className={names(logseq("dialog").className, className)}
     onClick={(event) => {
       if (event.target === event.currentTarget) event.currentTarget.close()
     }}

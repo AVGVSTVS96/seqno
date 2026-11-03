@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtomValue } from "@effect/atom-react"
 import { IconLink, IconX } from "@tabler/icons-react"
 import { Effect, Option } from "effect"
@@ -161,7 +162,7 @@ const PageTarget = ({
       }}
     >
       <Label icon={board ? <IconLinkToWhiteboard size={16} /> : <IconLinkToPage size={16} />}>
-        <span className="page-ref">{page?.title ?? name}</span>
+        <span {...logseq("seqno-pageref-link", page?.name ?? name)}>{page?.title ?? name}</span>
       </Label>
     </button>
   )

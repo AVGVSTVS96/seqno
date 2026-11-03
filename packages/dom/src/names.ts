@@ -15,3 +15,12 @@ export interface LogseqNames {
 export type Table<P extends { readonly [K in keyof P]: ReadonlyArray<unknown> }> = {
   readonly [K in keyof P]: (...state: P[K]) => LogseqNames
 }
+
+export const attributesOf = (made: LogseqNames): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(made).flatMap(([name, value]) =>
+      value === undefined || value === false
+        ? []
+        : [[name === "className" ? "class" : name, value === true ? "" : String(value)]],
+    ),
+  )

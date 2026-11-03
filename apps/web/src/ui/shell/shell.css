@@ -773,6 +773,8 @@
 }
 
 .menu,
+.block-menu,
+.seqno-page-menu,
 .tooltip,
 .help-menu {
   position: fixed;
@@ -798,6 +800,8 @@
 }
 
 .menu:popover-open,
+.block-menu:popover-open,
+.seqno-page-menu:popover-open,
 .tooltip:popover-open,
 .help-menu:popover-open {
   opacity: 1;
@@ -806,6 +810,8 @@
 
 @starting-style {
   .menu:popover-open,
+  .block-menu:popover-open,
+  .seqno-page-menu:popover-open,
   .tooltip:popover-open,
   .help-menu:popover-open {
     opacity: 0;
@@ -815,6 +821,8 @@
 }
 
 .menu,
+.block-menu,
+.seqno-page-menu,
 .tooltip {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -825,7 +833,9 @@
   line-height: var(--leading-sm);
 }
 
-.menu {
+.menu,
+.block-menu,
+.seqno-page-menu {
   min-width: 128px;
   padding: var(--space-1);
   overflow: hidden auto;
@@ -924,7 +934,7 @@
   cursor: pointer;
 }
 
-.block-menu-color.is-clear {
+.block-menu-color[data-clear] {
   border: 1.5px solid var(--fg);
   background: transparent;
 }
@@ -1287,7 +1297,7 @@
   white-space: nowrap;
 }
 
-.tooltip-plain .tooltip-label {
+.tooltip[data-plain] .tooltip-label {
   font-size: var(--text-sm);
   line-height: var(--leading-sm);
   opacity: 1;

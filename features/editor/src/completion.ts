@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import {
   Prec,
   StateEffect,
@@ -121,7 +122,7 @@ const popupEdge = 8
 const popupTooltip = (store: PopupHost) => {
   const create = (view: EditorView): TooltipView => {
     const dom = document.createElement("div")
-    dom.className = "sq-popup-host absolute-modal"
+    dom.className = logseq("sq-popup-host").className
     store.attach(dom)
     let anchor: Rect | null = null
     return {

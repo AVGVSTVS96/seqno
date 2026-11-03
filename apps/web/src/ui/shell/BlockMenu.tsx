@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconH1,
@@ -142,9 +143,8 @@ const MenuView = ({
       popover="manual"
       role="menu"
       aria-label="Block actions"
-      id="custom-context-menu"
       tabIndex={-1}
-      className="menu block-menu menu-links-wrapper"
+      {...logseq("block-menu")}
       data-keeps-selection
       ref={(menu) => {
         if (menu === null) return
@@ -172,7 +172,7 @@ const MenuView = ({
           <button
             key={color}
             type="button"
-            className="block-menu-color heading-bg"
+            {...logseq("block-menu-color", false)}
             title={color[0]?.toUpperCase() + color.slice(1)}
             aria-label={`${color} background`}
             style={{ "--swatch": `var(--swatch-${color})` }}
@@ -184,7 +184,8 @@ const MenuView = ({
         ))}
         <button
           type="button"
-          className="block-menu-color is-clear heading-bg remove"
+          {...logseq("block-menu-color", true)}
+          data-clear
           title="Remove background"
           aria-label="Remove background"
           onClick={(event) => {
@@ -200,7 +201,7 @@ const MenuView = ({
           <button
             key={label}
             type="button"
-            className="block-menu-heading ui__button"
+            {...logseq("block-menu-heading")}
             title={label}
             aria-label={label}
             aria-pressed={heading === current}

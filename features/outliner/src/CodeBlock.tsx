@@ -1,8 +1,7 @@
+import { logseq } from "@seqno/dom"
 import { useState } from "react"
 import { CodeEditor } from "./CodeEditor.tsx"
-import { highlightLines } from "./highlight.ts"
-
-const logseqCode = "cp__fenced-code-block extensions__code CodeMirror cm-s-solarized"
+import { highlightLines, tokenClass } from "./highlight.ts"
 
 export const CodeBlock = ({
   language,
@@ -18,9 +17,9 @@ export const CodeBlock = ({
   if (editing !== null && onEdit !== undefined) {
     return (
       <div
-        className={`seqno-codeblock is-editing ${logseqCode}`}
+        {...logseq("seqno-codeblock", language)}
         data-language={language === "" ? undefined : language}
-        data-lang={language === "" ? undefined : language}
+        data-editing
       >
         <CodeEditor
           code={code}
@@ -31,39 +30,36 @@ export const CodeBlock = ({
             if (next !== code) onEdit(next)
           }}
         />
-        {language === "" ? null : (
-          <span className="seqno-code-lang extensions__code-lang">{language}</span>
-        )}
+        {language === "" ? null : <span {...logseq("seqno-code-lang")}>{language}</span>}
       </div>
     )
   }
   return (
     <div
-      className={`seqno-codeblock ${logseqCode}`}
+      {...logseq("seqno-codeblock", language)}
       data-language={language === "" ? undefined : language}
-      data-lang={language === "" ? undefined : language}
       onClick={(event) => {
         if (onEdit === undefined) return
         event.stopPropagation()
         setEditing({ x: event.clientX, y: event.clientY })
       }}
     >
-      <div className="seqno-code-gutter CodeMirror-gutters" aria-hidden>
+      <div {...logseq("seqno-code-gutter")} aria-hidden>
         {lines.map((_, index) => (
-          <div key={index} className="CodeMirror-linenumber">
+          <div key={index} {...logseq("seqno-code-number")}>
             {index + 1}
           </div>
         ))}
       </div>
       <pre className="seqno-code-body">
-        <code className="CodeMirror-code">
+        <code {...logseq("seqno-code-text")}>
           {lines.map((line, index) => (
-            <div key={index} className="seqno-code-line CodeMirror-line">
+            <div key={index} {...logseq("seqno-code-line")}>
               {line.map((token, at) =>
                 token.kind === "" ? (
                   token.text
                 ) : (
-                  <span key={at} className={`seqno-tok-${token.kind} cm-${token.kind}`}>
+                  <span key={at} className={tokenClass(token.kind)}>
                     {token.text}
                   </span>
                 ),
@@ -72,9 +68,7 @@ export const CodeBlock = ({
           ))}
         </code>
       </pre>
-      {language === "" ? null : (
-        <span className="seqno-code-lang extensions__code-lang">{language}</span>
-      )}
+      {language === "" ? null : <span {...logseq("seqno-code-lang")}>{language}</span>}
     </div>
   )
 }

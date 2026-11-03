@@ -1,3 +1,4 @@
+import { logseq, names } from "@seqno/dom"
 import { useState, useSyncExternalStore } from "react"
 import { createPopupStore } from "./completion.ts"
 import { DatePicker } from "./DatePicker.tsx"
@@ -13,10 +14,11 @@ export const BlockEditor = (options: BlockEditorOptions & { readonly className?:
   const picker = useSyncExternalStore(popups.subscribe, popups.picker)
   return (
     <div
-      className={
-        options.className === undefined ? "editor-wrapper" : `${options.className} editor-wrapper`
-      }
-      id={`editor-edit-block-${options.block.id}`}
+      {...logseq("seqno-editor-wrapper", options.block.id)}
+      className={names(
+        options.className,
+        logseq("seqno-editor-wrapper", options.block.id).className,
+      )}
       ref={mount}
     >
       {frame === null ? null : <PopupView frame={frame} />}

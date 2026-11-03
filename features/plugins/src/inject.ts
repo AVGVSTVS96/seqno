@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import DOMPurify from "dompurify"
 
 export interface UIOptions {
@@ -87,7 +88,7 @@ const listen = (wrapper: HTMLElement, callModel: CallModel) => {
 
 const floatContainer = (pid: string, id: string, title: string, onClose: () => void) => {
   const container = document.createElement("div")
-  container.className = "lsp-ui-float-container"
+  container.className = logseq("seqno-plugin-float").className
   container.dataset["ref"] = pid
   container.dataset["identity"] = id
   const head = document.createElement("div")
@@ -115,12 +116,12 @@ const targetOf = (pid: string, ui: UIOptions, id: string): HTMLElement | null =>
     return found instanceof HTMLElement ? found : null
   }
   return floatContainer(pid, id, ui.attrs["title"] ?? "", () =>
-    document.querySelector(`.lsp-ui-float-container[data-identity="${CSS.escape(id)}"]`)?.remove(),
+    document.querySelector(`.seqno-plugin-float[data-identity="${CSS.escape(id)}"]`)?.remove(),
   )
 }
 
 const boxOf = (wrapper: HTMLElement) => {
-  const float = wrapper.closest(".lsp-ui-float-container")
+  const float = wrapper.closest(".seqno-plugin-float")
   return float instanceof HTMLElement ? float : wrapper
 }
 
@@ -132,7 +133,7 @@ export const injectUI = (pid: string, ui: UIOptions, callModel: CallModel) => {
   const id = `${pid}--${ui.key ?? Math.random().toString(36).slice(2, 10)}`
   const existing = document.getElementById(id)
   if (ui.template === null || ui.template === "") {
-    const float = existing?.closest(".lsp-ui-float-container")
+    const float = existing?.closest(".seqno-plugin-float")
     ;(float ?? existing)?.remove()
     return
   }

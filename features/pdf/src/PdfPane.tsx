@@ -178,7 +178,7 @@ const Viewer = ({
           )
         }}
       >
-        <div className="pdfViewer" />
+        <div {...logseq("seqno-pdf-pages")} />
         <div {...logseq("seqno-pdf-holder")}>
           {snapshot.menu === null ? null : (
             <ContextMenu session={session} menu={snapshot.menu} host={host} />

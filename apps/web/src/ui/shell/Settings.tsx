@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import { IconAdjustmentsHorizontal, IconKeyboard, IconX } from "@tabler/icons-react"
 import { useId, type ReactNode } from "react"
@@ -67,7 +68,7 @@ export const Settings = () => {
     <Dialog
       id={settingsDialogId}
       label="Settings"
-      className="settings cp__settings-main cp__settings-inner settings-modal"
+      className={logseq("settings").className}
       focusSelf
     >
       <div className="settings-nav">

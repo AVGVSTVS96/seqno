@@ -29,21 +29,24 @@ const stop = (event: MouseEvent) => event.stopPropagation()
 
 const Heading = ({
   level,
-  className,
+  marker = null,
   children,
 }: {
   readonly level: number
-  readonly className?: string | undefined
+  readonly marker?: Marker | null
   readonly children: ReactNode
 }) => {
-  const classes = `seqno-heading seqno-h${Math.min(level, 6)}${className === undefined ? "" : ` ${className}`}`
+  const props = {
+    className: names(logseq("seqno-heading", marker).className, `seqno-h${Math.min(level, 6)}`),
+    "data-task": taskState(marker),
+  }
   return Match.value(level).pipe(
-    Match.when(1, () => <h1 className={classes}>{children}</h1>),
-    Match.when(2, () => <h2 className={classes}>{children}</h2>),
-    Match.when(3, () => <h3 className={classes}>{children}</h3>),
-    Match.when(4, () => <h4 className={classes}>{children}</h4>),
-    Match.when(5, () => <h5 className={classes}>{children}</h5>),
-    Match.orElse(() => <h6 className={classes}>{children}</h6>),
+    Match.when(1, () => <h1 {...props}>{children}</h1>),
+    Match.when(2, () => <h2 {...props}>{children}</h2>),
+    Match.when(3, () => <h3 {...props}>{children}</h3>),
+    Match.when(4, () => <h4 {...props}>{children}</h4>),
+    Match.when(5, () => <h5 {...props}>{children}</h5>),
+    Match.orElse(() => <h6 {...props}>{children}</h6>),
   )
 }
 
@@ -96,7 +99,7 @@ const TaskControls = ({
       {isCanceled(marker) ? null : (
         <input
           type="checkbox"
-          className={done ? "seqno-checkbox form-checkbox checked" : "seqno-checkbox form-checkbox"}
+          {...logseq("seqno-checkbox", done)}
           aria-label={done ? "Mark as not done" : "Mark as done"}
           checked={done}
           disabled={readOnly}
@@ -105,15 +108,14 @@ const TaskControls = ({
         />
       )}
       {done || isCanceled(marker) ? null : next === undefined ? (
-        <span className={`seqno-marker task-status block-marker ${marker.toLowerCase()}`}>
-          {marker}
-        </span>
+        <span {...logseq("seqno-marker", { marker, switchable: false })}>{marker}</span>
       ) : (
         <a
           role="link"
           tabIndex={0}
           onKeyDown={clickOnEnter}
-          className={`seqno-marker is-switch marker-switch block-marker ${marker}`}
+          {...logseq("seqno-marker", { marker, switchable: true })}
+          data-switch
           title={`Change ${marker} to ${next}`}
           onClick={(event) => {
             event.preventDefault()
@@ -169,17 +171,12 @@ const Title = ({
         {parts}
       </span>
     )
-  const state = taskState(content.marker)
-  const markerClass = content.marker === null ? "" : ` ${content.marker.toLowerCase()}`
   return content.heading === null ? (
-    <div className={`seqno-title inline${markerClass}`} data-task={state}>
+    <div {...logseq("seqno-title", content.marker)} data-task={taskState(content.marker)}>
       {inner}
     </div>
   ) : (
-    <Heading
-      level={content.heading}
-      className={state === undefined ? undefined : `is-${state}${markerClass}`}
-    >
+    <Heading level={content.heading} marker={content.marker}>
       {inner}
     </Heading>
   )
@@ -228,6 +225,8 @@ export const BlockView = ({
       : logseq("seqno-annotation-title", { area: isAreaAnnotation(annotation.props) })
   const renderer = use(RenderContext)
   const host = use(HostBlock)
+  const blockNames = logseq("seqno-block", host)
+  const rowNames = logseq("seqno-title-row")
   const [drawer, setDrawer] = useState(false)
   const logbook = content.logbook
   const clocked = logbook !== null && logbook.seconds > 0
@@ -240,14 +239,15 @@ export const BlockView = ({
   return (
     <BlockSource value={onCode ?? null}>
       <div
-        className={names("seqno-block block-content", marks?.className)}
-        {...(host === null ? {} : { id: `block-content-${host}`, blockid: host })}
+        {...blockNames}
         {...marks?.attributes}
+        className={names(blockNames.className, marks?.className)}
       >
         {title === null && !clocked && !empty ? null : (
           <div
             {...titleNames}
-            className={names("seqno-title-row block-content-inner", titleNames?.className)}
+            {...rowNames}
+            className={names(rowNames.className, titleNames?.className)}
           >
             {title === null ? (
               <div className="seqno-title" />
@@ -280,26 +280,26 @@ export const BlockView = ({
         )}
         {drawer && logbook !== null ? <Logbook entries={logbook.entries} /> : null}
         {content.planning.map((entry) => (
-          <div key={entry.span.from} className="seqno-planning">
+          <div key={entry.span.from} {...logseq("seqno-planning")}>
             <span className="seqno-planning-label">{entry.kind}: </span>
             <span className="seqno-planning-date">&lt;{entry.date}&gt;</span>
           </div>
         ))}
         {properties.length === 0 ? null : (
-          <div className="seqno-attrs block-properties">
+          <div {...logseq("seqno-attrs")}>
             {properties.map((property) => (
               <div key={property.key} className="seqno-attr">
                 <a
                   role="link"
                   tabIndex={0}
                   onKeyDown={clickOnEnter}
-                  className="seqno-attr-key page-property-key"
+                  {...logseq("seqno-attr-key")}
                   onClick={toPage(renderer.navigate, property.key)}
                 >
                   {property.key}
                 </a>
                 <span className="seqno-attr-colon">:</span>
-                <span className="seqno-attr-value page-property-value">
+                <span {...logseq("seqno-attr-value")}>
                   <Inlines nodes={property.value} />
                 </span>
               </div>
@@ -307,7 +307,7 @@ export const BlockView = ({
           </div>
         )}
         {content.body.length === 0 ? null : (
-          <div className="block-body">
+          <div {...logseq("seqno-body")}>
             {content.body.map((body) => (
               <BodyView
                 key={body.span.from}

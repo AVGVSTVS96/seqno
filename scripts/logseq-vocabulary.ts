@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import { selectorNames } from "../packages/dom/src/selectors.ts"
 
 const version = "0.10.9"
 const out = path.join(import.meta.dirname, "../packages/dom/src/vocabulary.ts")
@@ -18,13 +19,6 @@ const stylesheets = (root: string) => [
   ),
 ]
 
-const preludes = (css: string) =>
-  css
-    .replaceAll(/\/\*[\s\S]*?\*\//g, "")
-    .split(/[{};]/)
-    .map((part) => part.trim())
-    .filter((part) => part !== "" && !part.startsWith("@") && !/^[\w-]+\s*:[^:]/.test(part))
-
 const matches = (text: string, pattern: RegExp) =>
   [...text.matchAll(pattern)].map((hit) => hit[1] ?? "")
 
@@ -32,23 +26,21 @@ const sorted = (names: Iterable<string>) =>
   [...new Set(names)].filter((name) => name !== "").toSorted()
 
 const read = (root: string) => {
-  const selectors = stylesheets(root).flatMap((file) => preludes(readFileSync(file, "utf8")))
+  const selected = stylesheets(root).map((file) => selectorNames(readFileSync(file, "utf8")))
   const components = filesUnder(path.join(root, "src/main/frontend"), ".cljs").map((file) =>
     readFileSync(file, "utf8"),
   )
   return {
-    classes: sorted(
-      selectors.flatMap((selector) => matches(selector, /\.(-?[_a-zA-Z][\w-]*)(?![\w\\-])/g)),
-    ),
+    classes: sorted(selected.flatMap((names) => names.classes)),
     ids: sorted([
-      ...selectors.flatMap((selector) => matches(selector, /#(-?[_a-zA-Z][\w-]*)/g)),
+      ...selected.flatMap((names) => names.ids),
       ...components.flatMap((code) => matches(code, /:[a-z][\w.-]*#([a-zA-Z][\w-]*)/g)),
       ...components.flatMap((code) => matches(code, /:id "([a-zA-Z][\w-]*)"/g)),
     ]),
     idPrefixes: sorted(
       components.flatMap((code) => matches(code, /:id \(str "([a-zA-Z][\w-]*-)"/g)),
     ),
-    attributes: sorted(selectors.flatMap((selector) => matches(selector, /\[([a-zA-Z][\w-]*)/g))),
+    attributes: sorted(selected.flatMap((names) => names.attributes)),
   }
 }
 

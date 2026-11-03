@@ -1,3 +1,4 @@
+import { logseq, names } from "@seqno/dom"
 import {
   use,
   useContext,
@@ -179,7 +180,7 @@ const Breadcrumbs = ({
     )
   }
   return (
-    <nav className="seqno-crumbs breadcrumb block-parents" aria-label="Breadcrumbs">
+    <nav {...logseq("seqno-crumbs")} aria-label="Breadcrumbs">
       <a role="link" tabIndex={0} onKeyDown={clickOnEnter} onClick={go(null)}>
         {title}
       </a>
@@ -206,10 +207,15 @@ const AddBlock = ({
   readonly label: string
   readonly onAdd: () => void
 }) => (
-  <button type="button" className={className} aria-label={label} onClick={onAdd}>
+  <button
+    type="button"
+    className={names(className, logseq("seqno-add-block").className)}
+    aria-label={label}
+    onClick={onAdd}
+  >
     <span className="seqno-control">
       <span className="seqno-toggle-space" />
-      <span className="seqno-bullet">
+      <span className={names("seqno-bullet", logseq("seqno-add-block-link").className)}>
         <span className="seqno-dot" />
       </span>
     </span>
@@ -230,7 +236,7 @@ const Embed = ({
   readonly children: ReactNode
 }) => (
   <div
-    className={`seqno-embed color-level embed-${kind}`}
+    {...logseq("seqno-embed", kind)}
     onClick={stopEvent}
     onDragOver={stopEvent}
     onDrop={stopEvent}
@@ -285,7 +291,7 @@ const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boole
             role="link"
             tabIndex={0}
             onKeyDown={clickOnEnter}
-            className="seqno-embed-title embed-header"
+            {...logseq("seqno-embed-title")}
             onClick={(event) => {
               event.preventDefault()
               props.onNavigate(
@@ -963,6 +969,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         canToggle={row.hasChildren && !(block.id === zoom && !embedded)}
         references={references}
         referencesOpen={refsShown}
+        childRefs={view.childRefs(block.id)}
         below={refsShown ? <BlockRefs uuid={refId} /> : null}
         index={index}
         measure={measure}
@@ -1021,10 +1028,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
 
   return (
     <RenderContext value={renderer}>
-      <div
-        className={embedded ? "seqno-outliner" : "seqno-outliner content"}
-        data-embedded={embedded ? true : undefined}
-      >
+      <div {...logseq("seqno-outliner", embedded)} data-embedded={embedded ? true : undefined}>
         <style href="@seqno/outliner" precedence="default">
           {styles}
         </style>
@@ -1038,7 +1042,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         ) : null}
         <div
           ref={attach}
-          className="seqno-outline blocks-container"
+          {...logseq("seqno-outline")}
           role="tree"
           aria-label="Outline"
           aria-multiselectable

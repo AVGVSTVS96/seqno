@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { IconBook, IconBulb, IconCommand, IconHelpSmall, IconInfoCircle } from "@tabler/icons-react"
 import { Option } from "effect"
@@ -32,7 +33,7 @@ export const HelpButton = () => {
       <button
         type="button"
         aria-label="Help"
-        className="help-button cp__sidebar-help-btn"
+        {...logseq("help-button")}
         {...menu.trigger}
         {...(menu.open ? {} : hint.props)}
       >

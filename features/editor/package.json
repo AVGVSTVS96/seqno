@@ -13,6 +13,7 @@
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.13",
     "@replit/codemirror-vim": "6.4.0",
+    "@seqno/dom": "workspace:*",
     "@seqno/domain": "workspace:*",
     "@seqno/syntax": "workspace:*",
     "@tabler/icons-react": "3.49.0",

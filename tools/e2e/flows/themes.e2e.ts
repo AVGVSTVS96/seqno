@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs"
 import type { Page } from "@playwright/test"
+import { gaps, logseqAttributes, logseqClasses, logseqIds, selectorNames } from "@seqno/dom"
 import { appAvailable } from "../src/env.ts"
 import { openPlugins, serveMarketplace, useTheme } from "../src/plugins.ts"
-import { expect, test } from "../src/test.ts"
+import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
+import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
@@ -131,4 +134,129 @@ test("Catppuccin's accent setting, under its settings gear as in Logseq, recolor
   await expect(link).toHaveCSS("color", "rgb(243, 139, 168)")
   await page.reload()
   await expect(seqno.today.locator("a.page-ref").first()).toHaveCSS("color", "rgb(243, 139, 168)")
+})
+
+const themeFiles = [
+  "catppuccin/logseq/v0.6.4/ctp-latte.css",
+  "catppuccin/logseq/v0.6.4/ctp-mocha.css",
+  "pengx17/logseq-dev-theme/v1.26.17/custom.css",
+  "pengx17/logseq-laurel-theme/v1.8.8/custom.css",
+  "sethfair/logseq-atlas-theme/v0.3.5/custom.css",
+  "stdword/logseq-bujo-theme/1.4.6/src/base.css",
+  "stdword/logseq-bujo-theme/1.4.6/src/light-white.css",
+  "stdword/logseq-bujo-theme/1.4.6/src/dark-black.css",
+]
+
+const themesSelect = () => {
+  const selected = themeFiles.map((file) =>
+    selectorNames(
+      readFileSync(
+        new URL(`../../../fixtures/logseq-plugins/files/${file}`, import.meta.url),
+        "utf8",
+      ),
+    ),
+  )
+  return new Set([
+    ...selected
+      .flatMap((names) => names.classes.filter((name) => logseqClasses.has(name)))
+      .map((name) => `.${name}`),
+    ...selected
+      .flatMap((names) => names.ids.filter((name) => logseqIds.has(name)))
+      .map((name) => `#${name}`),
+    ...selected
+      .flatMap((names) => names.attributes.filter((name) => logseqAttributes.has(name)))
+      .map((name) => `[${name}]`),
+  ])
+}
+
+const renderedNames = (page: Page) =>
+  page.evaluate(() =>
+    [document.documentElement, ...document.querySelectorAll("*")].flatMap((element) => [
+      ...[...element.classList].map((name) => `.${name}`),
+      ...(element.id === "" ? [] : [`#${element.id}`]),
+      ...[...element.attributes].map((attribute) => `[${attribute.name}]`),
+    ]),
+  )
+
+test("seqno renders every Logseq name the fixture themes select, except the gaps it lists", async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const rendered = new Set<string>()
+  const collect = async () => {
+    for (const name of await renderedNames(page)) rendered.add(name)
+  }
+  const editAtEnd = async () => {
+    await page.getByRole("main").locator(".seqno-content").first().click()
+    await page.keyboard.press("End")
+  }
+  await page.setViewportSize({ width: 1440, height: 4000 })
+  await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
+  await page.evaluate(() => localStorage.setItem("seqno.leftSidebar", "true"))
+  await openDemo(page, "/page/showcase")
+  await expect(page.locator(".seqno-query").first()).toBeVisible()
+  await collect()
+  await page.getByRole("main").getByRole("link", { name: "Reading List" }).first().hover()
+  await expect(page.getByRole("dialog", { name: "Preview" })).toBeVisible({ timeout: 3000 })
+  await collect()
+  await page.mouse.move(0, 400)
+  await openPlugins(page)
+  await collect()
+  await page.keyboard.press("Escape")
+  await page.getByRole("button", { name: "More" }).click()
+  await page.getByRole("menuitem", { name: "Settings" }).click()
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible()
+  await collect()
+  await page.keyboard.press("Escape")
+  await page.getByRole("button", { name: "Toggle right sidebar" }).click()
+  await expect(page.getByRole("complementary", { name: "Right sidebar" })).toBeVisible()
+  await collect()
+  await page.getByRole("main").locator(".seqno-bullet").first().click({ button: "right" })
+  await expect(page.getByRole("menu")).toBeVisible()
+  await collect()
+  await page.keyboard.press("Escape")
+  await page.getByRole("button", { name: "Search", exact: true }).click()
+  await page.getByRole("searchbox", { name: "Search" }).fill("greenhouse")
+  await expect(
+    page.getByRole("listbox", { name: "Nodes" }).getByRole("option").first(),
+  ).toBeVisible()
+  await collect()
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await page.getByRole("main").locator(".seqno-codeblock").first().click()
+  await expect(page.getByRole("main").locator(".seqno-codeblock .cm-editor")).toBeVisible()
+  await collect()
+  await page.keyboard.press("Escape")
+  await editAtEnd()
+  await page.keyboard.type(" [[Gar")
+  await expect(page.getByRole("listbox").getByRole("option").first()).toBeVisible()
+  await collect()
+  await page.keyboard.press("Escape")
+  await editAtEnd()
+  await page.keyboard.type(" /")
+  await expect(page.getByRole("listbox").getByRole("option").first()).toBeVisible()
+  await collect()
+  await page.keyboard.press("Escape")
+  await editAtEnd()
+  await page.keyboard.press("Enter")
+  await page.keyboard.insertText("{{embed [[Reading List]]}}")
+  await page.keyboard.press("Escape")
+  await expect(page.locator(".seqno-embed-title").first()).toBeVisible()
+  await collect()
+  await page.goto("/page/projects%2Fgreenhouse")
+  await expect(page.locator(".seqno-references").first()).toBeVisible()
+  await collect()
+  await page.goto("/")
+  await expect(page.locator(".seqno-journal").first()).toBeVisible()
+  await collect()
+  await page.evaluate(() => localStorage.setItem("seqno.theme", JSON.stringify("dark")))
+  await page.reload()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await collect()
+  const platforms = new Set([".is-mac", ".is-win32", ".is-linux"])
+  expect([...platforms].filter((name) => rendered.has(name))).toHaveLength(1)
+  const missing = [...themesSelect()]
+    .filter((name) => !rendered.has(name) && !platforms.has(name))
+    .toSorted()
+  expect(missing).toEqual(Object.keys(gaps))
 })

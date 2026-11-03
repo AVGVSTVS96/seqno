@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { IconChevronDown, IconX } from "@tabler/icons-react"
 import { useState, type KeyboardEvent } from "react"
 import { createPortal } from "react-dom"
@@ -70,8 +71,7 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
   }
   return createPortal(
     <div
-      id="date-time-picker"
-      className="sq-date datepicker"
+      {...logseq("sq-date")}
       role="dialog"
       aria-label={kind === "SCHEDULED" ? "Scheduled date" : "Deadline date"}
       onMouseDown={keepFocus}

@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconAlertTriangle,
@@ -65,7 +66,7 @@ const MoreMenu = () => {
     <>
       <IconButton
         label="More"
-        className="button icon toolbar-dots-btn"
+        {...logseq("seqno-more-button")}
         icon={<IconDots size={20} aria-hidden />}
         {...more.trigger}
       />
@@ -144,8 +145,7 @@ const SearchButton = () => {
   return (
     <IconButton
       label="Search"
-      id="search-button"
-      className="button icon"
+      {...logseq("seqno-search-button")}
       data-hint-anchor="search"
       tooltip={{ label: "Search", keys: ["mod", "k"] }}
       icon={<IconSearch size={20} aria-hidden />}
@@ -161,12 +161,11 @@ export const Header = () => {
   const navigate = useNavigate()
   const home = matchRoute({ to: "/" }) !== false
   return (
-    <header id="head" className="head cp__header">
-      <div className="head-left l">
+    <header {...logseq("head")}>
+      <div {...logseq("head-left")}>
         <IconButton
           label="Toggle left sidebar"
-          id="left-menu"
-          className="button icon cp__header-left-menu"
+          {...logseq("seqno-left-menu")}
           data-hint-anchor="left-sidebar"
           tooltip={{ label: "Toggle left sidebar", keys: keysOf("ToggleLeftSidebar") }}
           icon={<IconMenu2 size={20} aria-hidden />}
@@ -175,13 +174,13 @@ export const Header = () => {
         />
         <SearchButton />
       </div>
-      <div className="head-right r">
+      <div {...logseq("head-right")}>
         <PluginItems type="toolbar" />
         <SaveStatus />
         {home ? null : (
           <IconButton
             label="Home"
-            className="button icon"
+            {...logseq("seqno-home-button")}
             tooltip={{ label: "Home", keys: keysOf("GoHome") }}
             icon={<IconHome size={20} aria-hidden />}
             onClick={() => void navigate({ to: "/" })}
@@ -190,7 +189,7 @@ export const Header = () => {
         <MoreMenu />
         <IconButton
           label="Toggle right sidebar"
-          className="button icon toggle-right-sidebar"
+          {...logseq("seqno-right-toggle")}
           tooltip={{ label: "Toggle right sidebar", keys: keysOf("ToggleRightSidebar") }}
           icon={<IconLayoutSidebarRight size={20} aria-hidden />}
           onClick={() => updateSidebar({ _tag: "Toggle" })}

@@ -1,3 +1,4 @@
+import { logseq, names } from "@seqno/dom"
 import type { Parser, SyntaxNodeRef, Tree } from "@lezer/common"
 import { parser as css } from "@lezer/css"
 import { highlightTree, tagHighlighter, tags, type Tag } from "@lezer/highlight"
@@ -113,10 +114,13 @@ const rules: ReadonlyArray<{ readonly tag: Tag | ReadonlyArray<Tag>; readonly cl
 
 const highlighter = tagHighlighter(rules)
 
+export const tokenClass = (kind: string) =>
+  names(`seqno-tok-${kind}`, logseq("seqno-tok", kind).className)
+
 export const editorHighlighter = tagHighlighter(
   rules.map(({ tag, class: kind }) => ({
     tag,
-    class: kind === "" ? "" : `seqno-tok-${kind} cm-${kind}`,
+    class: kind === "" ? "" : tokenClass(kind),
   })),
 )
 

@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { IconCaretRightFilled } from "@tabler/icons-react"
 import { AsyncResult } from "effect/reactivity"
@@ -25,13 +26,13 @@ import { PageLink } from "./PageLink.tsx"
 const Fold = ({ open, onToggle }: { readonly open: boolean; readonly onToggle: () => void }) => (
   <button
     type="button"
-    className="seqno-fold block-control"
+    {...logseq("seqno-fold")}
     data-open={open}
     tabIndex={-1}
     aria-hidden
     onClick={onToggle}
   >
-    <span className={open ? "rotating-arrow not-collapsed" : "rotating-arrow collapsed"}>
+    <span {...logseq("seqno-arrow", !open)}>
       <IconCaretRightFilled size={16} />
     </span>
   </button>
@@ -46,7 +47,7 @@ const Crumbs = ({
 }) => {
   const navigateTo = useNavigateTo()
   return trail.length === 0 ? null : (
-    <nav className="seqno-reference-crumbs breadcrumb block-parents" aria-label="Parent blocks">
+    <nav {...logseq("seqno-reference-crumbs")} aria-label="Parent blocks">
       {trail.map((parent, at) => (
         <Fragment key={parent.id}>
           {at === 0 ? null : (
@@ -112,8 +113,8 @@ const Group = ({ group, page }: { readonly group: ReferenceGroup; readonly page:
   )
   const trail = trailOf(blocks)
   return (
-    <section className="seqno-references-group references-blocks-item" aria-label={page.title}>
-      <div className="seqno-references-head foldable-title" data-open={open}>
+    <section {...logseq("seqno-references-group")} aria-label={page.title}>
+      <div {...logseq("seqno-references-head")} data-open={open}>
         <Fold open={open} onToggle={() => setOpen(!open)} />
         <PageLink page={page} className="seqno-references-page" />
       </div>
@@ -161,11 +162,11 @@ const Section = ({
   const toggle = () => setOpen(!open)
   return (
     <section
-      className={`seqno-references references page-${kind} content`}
+      {...logseq("seqno-references", kind)}
       aria-labelledby={title}
       ref={markMentions(mentions ?? [])}
     >
-      <div className="seqno-references-head foldable-title" data-open={open}>
+      <div {...logseq("seqno-references-head")} data-open={open}>
         <Fold open={open} onToggle={toggle} />
         <h2 className="seqno-references-title">
           <button id={title} type="button" aria-expanded={open} onClick={toggle}>
@@ -174,7 +175,7 @@ const Section = ({
           </button>
         </h2>
       </div>
-      {open ? <div className="seqno-references-body references-blocks">{children}</div> : null}
+      {open ? <div {...logseq("seqno-references-body")}>{children}</div> : null}
     </section>
   )
 }
