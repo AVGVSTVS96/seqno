@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { local, referencesIn } from "../src/files.ts"
+import { elsewhereIn, local, referencesIn } from "../src/files.ts"
 
 const root = `${location.origin}/lsp/xyhp915/logseq-journals-calendar/v0.11.1/`
 
@@ -46,5 +46,35 @@ describe("referencesIn", () => {
 
   it("reads nothing from images", () => {
     expect(referencesIn(`${root}dist/logo.png`, "url(./x.png)")).toEqual([])
+  })
+})
+
+describe("elsewhereIn", () => {
+  it("finds the scripts an entry page loads from another site, not its links", () => {
+    const html = `<link rel="icon" href="https://example.test/icon.png">
+      <script src="https://cdn.jsdelivr.net/npm/@logseq/libs"></script><script src="./index.js"></script>`
+    expect(elsewhereIn(`${root}index.html`, html)).toEqual([
+      "https://cdn.jsdelivr.net/npm/@logseq/libs",
+    ])
+  })
+
+  it("follows a theme's font stylesheets and keeps only the WOFF2 files Chrome loads", () => {
+    const css = `@import url("https://fonts.googleapis.com/css2?family=Fira+Code");
+      @font-face { src: url('WOFF2/A.woff2') format('woff2'), url('WOFF/A.woff') format('woff') }`
+    expect(elsewhereIn("https://cdn.jsdelivr.net/gh/adobe-fonts/source-sans/a.css", css)).toEqual([
+      "https://fonts.googleapis.com/css2?family=Fira+Code",
+      "https://cdn.jsdelivr.net/gh/adobe-fonts/source-sans/WOFF2/A.woff2",
+    ])
+  })
+
+  it("reads a stylesheet with no .css in its address by its content type", () => {
+    const css = "@font-face { src: url(https://fonts.gstatic.com/s/firacode/v22/a.woff2) }"
+    expect(
+      elsewhereIn(
+        "https://fonts.googleapis.com/css2?family=Fira+Code",
+        css,
+        "text/css; charset=utf-8",
+      ),
+    ).toEqual(["https://fonts.gstatic.com/s/firacode/v22/a.woff2"])
   })
 })

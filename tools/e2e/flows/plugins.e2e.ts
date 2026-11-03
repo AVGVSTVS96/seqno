@@ -292,7 +292,7 @@ test("installed plugins load again after a reload, and turning one off or uninst
   await expect.poll(keptCalendarFiles(page)).toBe(0)
 })
 
-test("installed plugins and themes keep working offline, after a reload", async ({
+test("installed plugins and themes keep working offline, with a theme's own font, after a reload", async ({
   page,
   context,
   seqno,
@@ -316,6 +316,9 @@ test("installed plugins and themes keep working offline, after a reload", async 
   await page.reload()
   const font = () => page.evaluate(() => getComputedStyle(document.body).fontFamily)
   await expect.poll(font).toMatch(/^"Only Emoji", "Source Sans 3 VF"/)
+  const themeFont = () =>
+    page.evaluate(async () => (await document.fonts.load('16px "Source Sans 3 VF"')).length)
+  await expect.poll(themeFont).toBeGreaterThan(0)
   const catppuccinSdk = () =>
     page
       .frame({ url: /\/lsp\/catppuccin\/logseq\// })

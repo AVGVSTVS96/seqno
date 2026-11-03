@@ -17,12 +17,24 @@ const patterns = {
   ],
 } as const
 
-const kindOf = (url: string) => {
+const elsewhere = {
+  html: [/<script\b[^>]*?\ssrc\s*=\s*["']?([^"'\s>]+)/g],
+  css: patterns.css,
+  js: [],
+} as const
+
+const kindOf = (url: string, type = "") => {
   const path = new URL(url).pathname
-  if (/\.html?$/.test(path)) return "html"
-  if (path.endsWith(".css")) return "css"
-  if (/\.m?js$/.test(path)) return "js"
+  if (/\.html?$/.test(path) || type.startsWith("text/html")) return "html"
+  if (path.endsWith(".css") || type.startsWith("text/css")) return "css"
+  if (/\.m?js$/.test(path) || type.includes("javascript")) return "js"
   return null
+}
+
+const unhashed = (url: string) => {
+  const parsed = new URL(url)
+  parsed.hash = ""
+  return parsed.href
 }
 
 const bare = (url: string) => {
@@ -32,16 +44,30 @@ const bare = (url: string) => {
   return parsed.href
 }
 
-export const referencesIn = (url: string, body: string): ReadonlyArray<string> => {
-  const kind = kindOf(url)
-  if (kind === null) return []
-  return patterns[kind].flatMap((pattern) =>
-    [...body.matchAll(pattern)].flatMap(([, found]) =>
-      found === undefined || /^(?:data|blob|javascript|mailto):/.test(found)
+const matches = (url: string, body: string, found: ReadonlyArray<RegExp>) =>
+  found.flatMap((pattern) =>
+    [...body.matchAll(pattern)].flatMap(([, match]) =>
+      match === undefined || /^(?:data|blob|javascript|mailto):/.test(match)
         ? []
-        : [bare(new URL(found, url).href)],
+        : [new URL(match, url).href],
     ),
   )
+
+export const referencesIn = (url: string, body: string, type = ""): ReadonlyArray<string> => {
+  const kind = kindOf(url, type)
+  return kind === null ? [] : matches(url, body, patterns[kind]).map(bare)
+}
+
+const fallbackFont = /\.(?:woff|ttf|otf|eot)(?:[?#]|$)/
+
+export const elsewhereIn = (url: string, body: string, type = ""): ReadonlyArray<string> => {
+  const kind = kindOf(url, type)
+  if (kind === null) return []
+  const found = matches(url, body, elsewhere[kind]).filter(
+    (ref) => new URL(ref).origin !== location.origin,
+  )
+  const woff2 = found.some((ref) => /\.woff2(?:[?#]|$)/.test(ref))
+  return found.filter((ref) => !(woff2 && fallbackFont.test(ref))).map(unhashed)
 }
 
 export const entryOf = (info: PluginInfo) =>
@@ -59,14 +85,27 @@ export const keepCopy = async (info: PluginInfo) => {
   const root = local(info.root)
   const cache = await caches.open(pluginFiles.cache)
   const seen = new Set<string>()
-  const visit = async (url: string): Promise<void> => {
-    if (!url.startsWith(root) || seen.has(url)) return
+  const store = async (url: string) => {
     seen.add(url)
     const response = await fetch(url)
-    if (!response.ok) return
+    if (!response.ok) return null
     await cache.put(url, response.clone())
-    const body = kindOf(url) === null ? "" : await response.text()
-    await Promise.all(referencesIn(url, body).map(visit))
+    const type = response.headers.get("content-type") ?? ""
+    return { type, body: kindOf(url, type) === null ? "" : await response.text() }
+  }
+  const away = async (url: string): Promise<void> => {
+    if (seen.has(url) || !/^https?:/.test(url)) return
+    const file = await store(url).catch(() => null)
+    if (file !== null) await Promise.all(elsewhereIn(url, file.body, file.type).map(away))
+  }
+  const visit = async (url: string): Promise<void> => {
+    if (!url.startsWith(root) || seen.has(url)) return
+    const file = await store(url)
+    if (file === null) return
+    await Promise.all([
+      ...referencesIn(url, file.body, file.type).map(visit),
+      ...elsewhereIn(url, file.body, file.type).map(away),
+    ])
   }
   await Promise.all(startsOf(info).map(visit))
 }

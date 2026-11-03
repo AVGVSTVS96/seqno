@@ -2,6 +2,8 @@ declare const build: { readonly revision: string; readonly files: ReadonlyArray<
 
 const shellPrefix = "seqno-app-"
 
+const copied = new Set(["script", "style", "font"])
+
 const bare = (url: string) => {
   const parsed = new URL(url)
   parsed.search = ""
@@ -38,7 +40,7 @@ const serve = (worker: ServiceWorkerGlobalScope) => {
     return pluginRoot !== null && client?.url.startsWith(pluginRoot) === true
   }
 
-  const pluginScript = async (request: Request, clientId: string) => {
+  const elsewhereFile = async (request: Request, clientId: string) => {
     const kept = await caches.match(request, { ignoreVary: true })
     if (kept !== undefined) return kept
     const response = await fetch(request)
@@ -87,8 +89,8 @@ const serve = (worker: ServiceWorkerGlobalScope) => {
     if (request.method !== "GET") return
     if (pluginRoot !== null && request.url.startsWith(pluginRoot))
       return event.respondWith(pluginFile(request))
-    if (request.destination === "script" && new URL(request.url).origin !== worker.location.origin)
-      return event.respondWith(pluginScript(request, event.clientId))
+    if (copied.has(request.destination) && new URL(request.url).origin !== worker.location.origin)
+      return event.respondWith(elsewhereFile(request, event.clientId))
     if (!request.url.startsWith(scope)) return
     if (request.mode === "navigate") return event.respondWith(navigation(request))
     if (files.has(bare(request.url))) return event.respondWith(shellFile(request))

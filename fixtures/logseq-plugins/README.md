@@ -28,5 +28,6 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 - `packages/<owner>__<repo>.json`: what `https://plugins.logseq.io/r2/<owner>/<repo>` answers.
 - `files/<owner>/<repo>/<version>/`: what `https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/<owner>/<repo>/<version>/` serves.
 - `jsdelivr/npm/@logseq/libs`: what `https://cdn.jsdelivr.net/npm/@logseq/libs` serves (0.0.17), for packages like Catppuccin whose `index.html` loads the SDK from there.
+- `jsdelivr/gh/adobe-fonts/source-sans@3.046R/`: the stylesheet Dev theme imports from jsdelivr and its two WOFF2 files (SIL Open Font License, in `LICENSE.md`), so the theme's own font loads, offline too.
 
 `tools/e2e/src/plugins.ts` routes those URLs, and seqno's own `lsp/<owner>/<repo>/<version>/` copy of the mirror, to these files.
