@@ -26,8 +26,8 @@ import {
   searchOpen,
 } from "../../atoms.ts"
 import { Appearance } from "./Appearance.tsx"
-import { PluginItems } from "@seqno/plugins"
 import { openPlugins } from "../plugins/PluginsDialog.tsx"
+import { ToolbarPlugins } from "../plugins/ToolbarPlugins.tsx"
 import { openGraphExport } from "./Export.tsx"
 import { IconButton } from "./IconButton.tsx"
 import { PageMenuItems } from "./PageMenu.tsx"
@@ -209,7 +209,7 @@ export const Header = () => {
         <SearchButton />
       </div>
       <div {...logseq("head-right")}>
-        <PluginItems type="toolbar" />
+        <ToolbarPlugins />
         <SaveStatus />
         {home ? null : (
           <IconButton

@@ -23,7 +23,6 @@ const why = {
   queryBuilder: "Logseq's query builder, which seqno doesn't have yet",
   handbooks: "search in Logseq's handbooks panel, which seqno doesn't have yet",
   tables: "Logseq's Markdown table rendering, which seqno doesn't have yet",
-  pluginsToolbar: "the plugins menu Logseq puts in the header, which seqno doesn't have yet",
   priority: "the picker Logseq shows on hovering a priority marker, which seqno doesn't have yet",
   embedEdit:
     "the edit button beside an embedded block and YouTube timestamps, which seqno doesn't have yet",
@@ -73,7 +72,6 @@ export const gaps: Readonly<Record<string, string>> = Object.fromEntries(
     ...each(why.shui, [
       ".ui__context-menu-content",
       ".ui__dropdown-menu-content",
-      ".ui__dropdown-trigger",
       ".ui__select-content",
       "[data-radix-popper-content-wrapper]",
     ]),
@@ -103,7 +101,6 @@ export const gaps: Readonly<Record<string, string>> = Object.fromEntries(
     ...each(why.queryBuilder, [".query-builder-picker"]),
     ...each(why.handbooks, [".search-results-wrap"]),
     ...each(why.tables, [".table-wrapper"]),
-    ...each(why.pluginsToolbar, [".toolbar-plugins-manager"]),
     ...each(why.priority, [".tooltip-priority"]),
     ...each(why.embedEdit, [".svg-small"]),
   ].toSorted(([a], [b]) => (a < b ? -1 : 1)),

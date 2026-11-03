@@ -43,9 +43,11 @@ const placeNear = (popover: HTMLElement, anchor: Element, placement: Placement) 
   place(popover, anchor.getBoundingClientRect(), placement)
 
 const items = (menu: HTMLElement) =>
-  [...menu.querySelectorAll<HTMLElement>("[role=menuitem], [role=menuitemradio]")].filter(
-    (item) => item.getAttribute("aria-disabled") !== "true",
-  )
+  [
+    ...menu.querySelectorAll<HTMLElement>(
+      "[role=menuitem], [role=menuitemradio], [role=menuitemcheckbox]",
+    ),
+  ].filter((item) => item.getAttribute("aria-disabled") !== "true")
 
 const moveFocus = (menu: HTMLElement, by: (index: number, count: number) => number) => {
   const all = items(menu)

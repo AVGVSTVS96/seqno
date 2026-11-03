@@ -213,6 +213,10 @@ const pluginScreens = async (page: Page, collect: Collect) => {
   await expect(settings).toBeHidden()
   await page.keyboard.press("Escape")
   await expect(plugins).toBeHidden()
+  await page.getByRole("button", { name: "Plugin toolbar items" }).click()
+  await expect(page.getByRole("menu", { name: "Plugin toolbar items" })).toBeVisible()
+  await collect()
+  await page.keyboard.press("Escape")
 }
 
 const listScreens = async (page: Page, collect: Collect) => {

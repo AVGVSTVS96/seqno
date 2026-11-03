@@ -15,6 +15,16 @@ export interface PluginParts {
   readonly "seqno-plugin-item": readonly [
     { readonly type: string; readonly key: string; readonly pid: string },
   ]
+  readonly "seqno-plugin-menu-item": readonly [
+    { readonly type: string; readonly key: string; readonly pid: string },
+  ]
+  readonly "plugin-toolbar": readonly []
+  readonly "plugin-toolbar-list": readonly []
+  readonly "plugin-toolbar-trigger": readonly []
+  readonly "plugin-toolbar-manager": readonly []
+  readonly "plugin-toolbar-button": readonly []
+  readonly "plugin-toolbar-entry": readonly []
+  readonly "plugin-toolbar-pin": readonly [pinned: boolean]
   readonly "seqno-fenced-code": readonly [active: boolean]
   readonly "seqno-fenced-code-source": readonly []
   readonly "seqno-fenced-code-result": readonly [edit: boolean]
@@ -66,6 +76,31 @@ export const pluginParts: Table<PluginParts> = {
   "seqno-plugin-item": ({ type, key, pid }) => ({
     className: `injected-ui-item-${type}`,
     id: `injected-ui-item-${key}-${pid}`,
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1006-L1024
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1043
+  "seqno-plugin-menu-item": ({ type, key, pid }) => ({
+    className: `pl-injected-ui-item-${type}`,
+    id: `pl-injected-ui-item-pl-${key}-${pid}`,
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1130-L1131
+  "plugin-toolbar": () => ({ className: "ui-items-container" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1106
+  "plugin-toolbar-list": () => ({ className: "list-wrap" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L163
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1077
+  "plugin-toolbar-trigger": () => ({
+    className: "relative ui__dropdown-trigger toolbar-plugins-manager-trigger",
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1033
+  "plugin-toolbar-manager": () => ({ className: "toolbar-plugins-manager" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1035
+  "plugin-toolbar-button": () => ({ className: "button relative" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1043
+  "plugin-toolbar-entry": () => ({ className: "flex items-center item-wrap" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1046-L1048
+  "plugin-toolbar-pin": (pinned) => ({
+    className: names("pin flex items-center opacity-60", pinned && "pinned"),
   }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L3345
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1162

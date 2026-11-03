@@ -90,6 +90,47 @@ test("Journals calendar's toolbar button opens its calendar, and a day opens tha
   await expect(calendar).not.toHaveClass(/visible/)
 })
 
+test("the puzzle menu lists every plugin's toolbar item with a pin: pinned ones stay in the header, the rest move into the menu", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Journals calendar")
+  await install(page, "logseq-pomodoro-timer")
+  const header = page.getByRole("banner").locator(".list-wrap")
+  await expect(header.locator("#open-calendar-button")).toBeVisible()
+  await expect(header.locator("#logseq-pomodoro-timer--pomodoro_timer")).toHaveText("25:00")
+  await page.getByRole("button", { name: "Plugin toolbar items" }).click()
+  const menu = page.getByRole("menu", { name: "Plugin toolbar items" })
+  const calendar = menu.getByRole("menuitemcheckbox", { name: "open-calendar" })
+  const timer = menu.getByRole("menuitemcheckbox", { name: "pomodoro_timer" })
+  await expect(calendar).toHaveAttribute("aria-checked", "false")
+  await expect(timer).toHaveAttribute("aria-checked", "false")
+  await expect(timer.locator("#logseq-pomodoro-timer--pl-pomodoro_timer")).toHaveText("25:00")
+  await calendar.click()
+  await expect(calendar).toHaveAttribute("aria-checked", "true")
+  await expect(menu).toBeVisible()
+  await expect(header.locator("#open-calendar-button")).toBeVisible()
+  await expect(header.locator("#logseq-pomodoro-timer--pomodoro_timer")).toHaveCount(0)
+  await timer.locator("[data-injected-ui]").click()
+  await expect(timer).toHaveAttribute("aria-checked", "false")
+  await page.keyboard.press("Escape")
+  await page.reload()
+  await expect(header.locator("#open-calendar-button")).toBeVisible()
+  await expect(header.locator("#logseq-pomodoro-timer--pomodoro_timer")).toHaveCount(0)
+  await page.getByRole("button", { name: "Plugin toolbar items" }).click()
+  await expect(calendar).toHaveAttribute("aria-checked", "true")
+  await calendar.press("Enter")
+  await expect(calendar).toHaveAttribute("aria-checked", "false")
+  await expect(header.locator("[data-injected-ui]")).toHaveCount(0)
+  await menu.getByRole("menuitem", { name: "Settings" }).click()
+  await expect(page.getByRole("dialog", { name: "Plugin settings" })).toBeVisible()
+  await page.keyboard.press("Escape")
+  await page.getByRole("button", { name: "Plugin toolbar items" }).click()
+  await menu.getByRole("menuitem", { name: "Plugins" }).click()
+  await expect(page.getByRole("dialog", { name: "Plugins" })).toBeVisible()
+})
+
 test("Word count's slash command puts a live count in the block, which follows edits below it", async ({
   page,
   seqno,

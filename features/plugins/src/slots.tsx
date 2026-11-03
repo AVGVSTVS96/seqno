@@ -19,8 +19,16 @@ import {
 
 const slotted = 50
 
-const Item = ({ host, item }: { readonly host: Host; readonly item: UIItem }) => {
-  const names = logseq("seqno-plugin-item", item)
+export const PluginItem = ({
+  host,
+  item,
+  inMenu = false,
+}: {
+  readonly host: Host
+  readonly item: UIItem
+  readonly inMenu?: boolean
+}) => {
+  const names = logseq(inMenu ? "seqno-plugin-menu-item" : "seqno-plugin-item", item)
   return (
     <div
       {...names}
@@ -31,7 +39,7 @@ const Item = ({ host, item }: { readonly host: Host; readonly item: UIItem }) =>
         injectUI(
           item.pid,
           {
-            key: item.key,
+            key: inMenu ? `pl-${item.key}` : item.key,
             slot: names.id ?? "",
             path: null,
             template: item.template,
@@ -56,7 +64,7 @@ export const PluginItems = ({ type }: { readonly type: UIItem["type"] }) => {
       {items
         .toSorted((left, right) => left.key.localeCompare(right.key))
         .map((item) => (
-          <Item key={`${item.pid} ${item.key}`} host={host} item={item} />
+          <PluginItem key={`${item.pid} ${item.key}`} host={host} item={item} />
         ))}
     </div>
   )

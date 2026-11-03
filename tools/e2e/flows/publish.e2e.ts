@@ -17,6 +17,7 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   await markPublic(join(graph, "pages", "Seed Inventory.md"))
   await markPublic(join(graph, "pages", "Showcase.md"))
   await writeFile(join(graph, "logseq", "custom.css"), ".seqno-page-title { letter-spacing: 1px }")
+  await writeFile(join(graph, "logseq", "export.css"), ".ls-block { outline: 3px solid red }")
   await writeFile(
     join(graph, "logseq", "config.edn"),
     "{:meta/version 1\n :file/name-format :triple-lowbar\n :property/separated-by-commas #{:crops}}\n",
@@ -32,6 +33,29 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
       (await navigator.storage.getDirectory()).getDirectoryHandle("published", { create: true })
   })
   await openDemo(page, "/page/garden%20plan")
+  await page.getByRole("button", { name: "More" }).click()
+  await page.getByRole("menuitem", { name: "Settings" }).click()
+  await page
+    .getByRole("dialog", { name: "Settings" })
+    .getByRole("link", { name: "Edit export.css" })
+    .click()
+  await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText(
+    "logseq/export.css",
+  )
+  await page.getByRole("main").getByRole("textbox").click()
+  await page.keyboard.press("ControlOrMeta+a")
+  await page.keyboard.insertText(".ls-block { outline: 3px solid rgb(1, 2, 3) }")
+  await page.getByRole("main").getByRole("heading", { level: 1 }).click()
+  await expect
+    .poll(() =>
+      opfsFiles(page, ["graphs", "demo", "logseq"]).then(
+        (files) => Buffer.from(files["export.css"] ?? new Uint8Array()).toString(),
+        () => "",
+      ),
+    )
+    .toBe(".ls-block { outline: 3px solid rgb(1, 2, 3) }\n")
+  await page.goBack()
+  await expect(page.getByRole("main").getByText("Broad beans under fleece")).toBeVisible()
 
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Export graph" }).click()
@@ -74,6 +98,7 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   const main = viewer.getByRole("main")
   await expect(main.getByText("Broad beans under fleece")).toBeVisible()
   await expect(main.getByRole("link", { name: "broad beans", exact: true })).toBeVisible()
+  await expect(main.locator(".ls-block").first()).toHaveCSS("outline-color", "rgb(1, 2, 3)")
   await expect(main.getByRole("region", { name: "Linked references" })).toContainText(
     "Seed Inventory",
   )
