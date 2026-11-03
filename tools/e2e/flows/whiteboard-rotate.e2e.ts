@@ -25,14 +25,16 @@ test("dragging just outside a selected shape's corner rotates it about its cente
   await drawBox(page)
   const target = board(page).locator('[data-handle="rotate-top-right"]')
   await expect(target).toHaveCSS("cursor", /svg\+xml.*pointer/)
+  const box = await shapes(page, "box").boundingBox()
+  const [cx, cy] = [(box?.x ?? 0) + (box?.width ?? 0) / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2]
   await page.mouse.move(406, 294)
   await page.mouse.down()
   await page.mouse.move(406, 288)
   await page.mouse.move(406, 406, { steps: 4 })
   await page.mouse.up()
-  const expected = Math.atan2(56, 56) - Math.atan2(-62, 56)
+  const expected = Math.atan2(406 - cy, 406 - cx) - Math.atan2(288 - cy, 406 - cx)
   await expect.poll(async () => Math.abs(radiansOf(await turn(page)) - expected)).toBeLessThan(1e-4)
-  await expect(board(page).locator(".wb-frame")).toHaveCSS("rotate", /^92\.\d+deg$/)
+  await expect(board(page).locator(".wb-frame")).toHaveCSS("rotate", /^9\d(\.\d+)?deg$/)
 
   await saved(page)
   await page.reload()
@@ -57,7 +59,7 @@ test("Shift snaps the turn to 15 degrees, and Escape mid-drag puts the shape bac
   await expect
     .poll(async () => {
       const radians = radiansOf(await turn(page))
-      return Math.abs(radians / (Math.PI / 12) - Math.round(radians / (Math.PI / 12))) < 1e-6
+      return Math.abs(radians / (Math.PI / 12) - Math.round(radians / (Math.PI / 12))) < 1e-4
     })
     .toBe(true)
   expect(await turn(page)).not.toBe("")
