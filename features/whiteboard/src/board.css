@@ -1080,3 +1080,40 @@
   contain: layout paint;
   background: transparent;
 }
+
+.wb-references {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--bg-sidebar, #f8f8f8);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.wb-references:hover {
+  background: var(--bg-hover, #ededed);
+}
+
+.wb-popover[data-side="below"] {
+  position-area: bottom span-right;
+  margin: 8px 0 0;
+}
+
+.wb-references-panel {
+  width: min(560px, 80vw);
+  max-height: 60vh;
+  overflow: auto;
+  padding: 8px 16px;
+  user-select: text;
+}
+
+.wb-references-panel .seqno-page-references {
+  margin: 0;
+}

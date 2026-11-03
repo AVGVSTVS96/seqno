@@ -12,17 +12,13 @@ import { referencedOnly } from "./pages/atoms.ts"
 import { listValues } from "./pages/model.ts"
 import { useNavigateTo } from "./pages/navigation.ts"
 import { PageProperties } from "./pages/PageProperties.tsx"
-import pagesCss from "./pages/pages.css?inline"
+import { PagesStyle } from "./pages/PagesStyle.tsx"
 import { PageTitle } from "./pages/PageTitle.tsx"
 import { PluginItems } from "@seqno/plugins"
 import { NameReferences, References } from "./pages/References.tsx"
 import { BoardPage } from "./pages/BoardPage.tsx"
 
-export const PagesStyle = () => (
-  <style href="seqno/pages" precedence="pages">
-    {pagesCss}
-  </style>
-)
+export { PagesStyle } from "./pages/PagesStyle.tsx"
 
 export const PageView = ({
   page,

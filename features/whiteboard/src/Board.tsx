@@ -1,5 +1,5 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { IconChalkboard, IconPlus } from "@tabler/icons-react"
+import { IconChalkboard, IconLink, IconPlus } from "@tabler/icons-react"
 import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useRef, useState, type CSSProperties, type ReactNode } from "react"
@@ -65,7 +65,7 @@ import type { OutlinerEnv } from "./Portal.tsx"
 import { applyLocally } from "./preview.ts"
 import { QuickSearch, type Pick } from "./QuickSearch.tsx"
 import { ShapeView, type ShapeSlots } from "./ShapeView.tsx"
-import { ActionBar, PrimaryTools, type ZoomAction } from "./Toolbar.tsx"
+import { ActionBar, PrimaryTools, usePopoverIds, type ZoomAction } from "./Toolbar.tsx"
 import {
   DEFAULT_SIZE,
   PORTAL_WIDTH,
@@ -89,6 +89,8 @@ export interface BoardProps {
   readonly resolveAsset: (path: string) => string | undefined
   readonly openPage: (name: string, sidebar: boolean) => void
   readonly onRenamed: (name: string) => void
+  readonly references: number
+  readonly referencesPanel: ReactNode
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -199,11 +201,16 @@ const isEditableShape = (item: Item) =>
 
 const TitleChip = ({
   page,
+  references,
+  referencesPanel,
   onRename,
 }: {
   readonly page: Page
+  readonly references: number
+  readonly referencesPanel: ReactNode
   readonly onRename: (title: string) => void
 }) => {
+  const panel = usePopoverIds()
   const commit = (input: HTMLInputElement) => {
     const title = input.value.trim()
     if (title === "" || title === boardTitle(page) || (isUntitled(page) && title === "")) {
@@ -231,6 +238,30 @@ const TitleChip = ({
           }
         }}
       />
+      {references === 0 ? null : (
+        <>
+          <button
+            type="button"
+            className="wb-references"
+            popoverTarget={panel.id}
+            style={panel.trigger}
+          >
+            <IconLink size={16} aria-hidden />
+            {references} {references === 1 ? "Reference" : "References"}
+          </button>
+          <div
+            id={panel.id}
+            popover="auto"
+            className="wb-popover wb-references-panel"
+            data-side="below"
+            style={panel.popover}
+            onKeyDown={(event) => event.stopPropagation()}
+            onWheel={(event) => event.stopPropagation()}
+          >
+            {referencesPanel}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -1322,6 +1353,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       )}
       <TitleChip
         page={page}
+        references={props.references}
+        referencesPanel={props.referencesPanel}
         onRename={(title) =>
           void commit([{ _tag: "RenamePage", pageId: page.id, title }]).then((events) => {
             if (events.length > 0) props.onRenamed(normalizePageName(title))

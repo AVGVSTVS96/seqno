@@ -144,7 +144,10 @@ test("the Whiteboards list shows each board as a card and deletes the ticked one
   await expect(page.getByRole("heading", { name: "All whiteboards · 0" })).toBeVisible()
 })
 
-test("a board embedded in a block shows its drawing", async ({ page, seqno }) => {
+test("a board embedded in a block shows its drawing, and the board counts the reference", async ({
+  page,
+  seqno,
+}) => {
   await newBoard(page)
   await rename(page, "Raised beds")
   await page.keyboard.press("9")
@@ -164,5 +167,8 @@ test("a board embedded in a block shows its drawing", async ({ page, seqno }) =>
   await page.keyboard.press("Escape")
   const embed = seqno.today.locator(".wb-embed")
   await expect(embed.locator('.wb-shape[data-type="box"]')).toHaveCount(1)
-  await expect(seqno.today.getByRole("link", { name: "Raised beds" })).toBeVisible()
+  await seqno.today.getByRole("link", { name: "Raised beds" }).click()
+  await expect(board(page)).toBeVisible()
+  await page.getByRole("button", { name: "1 Reference" }).click()
+  await expect(page.locator(".wb-references-panel")).toContainText("Raised beds")
 })
