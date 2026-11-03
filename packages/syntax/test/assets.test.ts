@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { assetFileName, assetKind, assetLink, assetPathOf, insertAsset } from "../src/index.ts"
+import {
+  assetFileName,
+  assetKind,
+  assetLink,
+  assetPathOf,
+  insertAsset,
+  parseInline,
+} from "../src/index.ts"
 
 const now = 1730611200000
 
@@ -35,6 +42,19 @@ describe("asset links, as Logseq inserts them", () => {
     ["a.tar.gz", "assets/a_1_0.tar.gz", "[a.tar.gz](../assets/a_1_0.tar.gz)"],
   ])("%s links as %s", (label, path, link) => {
     expect(assetLink(label, path)).toBe(link)
+  })
+
+  it("uses Org's link syntax on Org pages", () => {
+    expect(assetLink("a.png", "assets/a_1_0.png", "org")).toBe("[[../assets/a_1_0.png]]")
+    expect(assetLink("a.pdf", "assets/a_1_0.pdf", "org")).toBe("[[../assets/a_1_0.pdf][a.pdf]]")
+    expect(
+      parseInline("[[../assets/a.png]] [[../assets/b.pdf][b.pdf]]", 0, "org").flatMap((node) =>
+        node._tag === "Image" ? [[node.url, node.alt]] : [],
+      ),
+    ).toEqual([
+      ["../assets/a.png", ""],
+      ["../assets/b.pdf", "b.pdf"],
+    ])
   })
 
   it("goes at the caret with one space on each side, and drops blank text after it", () => {

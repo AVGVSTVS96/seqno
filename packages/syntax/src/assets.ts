@@ -1,3 +1,5 @@
+import type { Dialect } from "./inline.ts"
+
 export const assetsFolder = "assets"
 
 const set = (words: string) => new Set(words.split(" "))
@@ -77,8 +79,10 @@ export const assetFileName = (original: string, now: number, index: number): str
   return `${`${stem}_${now}_${index}`.replaceAll(/_+/g, "_")}${ext}`
 }
 
-export const assetLink = (label: string, path: string): string => {
+export const assetLink = (label: string, path: string, dialect: Dialect = "markdown"): string => {
   const ext = extensionOf(path)
+  if (dialect === "org")
+    return editorImages.has(ext) ? `[[../${path}]]` : `[[../${path}][${label}]]`
   const shown = editorImages.has(ext) || ext === "pdf" || html5Audio.has(ext) || html5Video.has(ext)
   return `${shown ? "!" : ""}[${label}](../${path})`
 }

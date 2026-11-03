@@ -72,7 +72,7 @@ const Layout = ({
   const mode = useAtomValue(resolvedTheme)
   const registry = useContext(RegistryContext)
   const assets: AssetActions = {
-    saveFiles: (files) => saveAssets(registry, files),
+    saveFiles: (files, dialect) => saveAssets(registry, files, dialect),
     openPdf: (url) => openPdf(registry, url),
   }
   return (

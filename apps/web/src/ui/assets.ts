@@ -2,7 +2,7 @@ import { Clock, Effect } from "effect"
 import { AtomRegistry } from "effect/reactivity"
 import { AssetClient, type Asset } from "@seqno/rpc"
 import type { AssetBridge } from "@seqno/plugins"
-import { assetFileName, assetLink } from "@seqno/syntax"
+import { assetFileName, assetLink, type Dialect } from "@seqno/syntax"
 import { assetFiles, assetResolver, assetRuntime } from "../atoms.ts"
 import { notify } from "./shell/Notices.tsx"
 
@@ -30,17 +30,21 @@ export const writeFile = (path: string, file: Blob) =>
 
 const labelOf = (file: File) => (file.name === "" ? "image" : file.name)
 
-export const linksOf = (files: ReadonlyArray<File>) =>
+export const linksOf = (files: ReadonlyArray<File>, dialect: Dialect = "markdown") =>
   Effect.flatMap(Clock.currentTimeMillis, (now) =>
     Effect.forEach(files, (file, index) =>
       Effect.map(saveFile(labelOf(file), file, now, index), (saved: Asset) =>
-        assetLink(labelOf(file), saved.path),
+        assetLink(labelOf(file), saved.path, dialect),
       ),
     ),
   )
 
-export const saveAssets = (registry: AtomRegistry.AtomRegistry, files: ReadonlyArray<File>) =>
-  runAssets(registry, linksOf(files)).catch((cause: unknown) => {
+export const saveAssets = (
+  registry: AtomRegistry.AtomRegistry,
+  files: ReadonlyArray<File>,
+  dialect: Dialect = "markdown",
+) =>
+  runAssets(registry, linksOf(files, dialect)).catch((cause: unknown) => {
     notify(
       registry,
       `Couldn't save the file: ${cause instanceof Error ? cause.message : String(cause)}`,

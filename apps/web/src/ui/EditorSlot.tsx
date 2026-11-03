@@ -54,6 +54,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
   const router = useRouter()
   const navigateTo = useNavigateTo()
   const vim = useAtomValue(vimMode)
+  const dialect = use(PageDialects)(block.pageId)
   const commands = editorCommands(
     useAtomValue(hostAtom),
     useAtomValue(pluginSlashCommands),
@@ -151,7 +152,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
         ),
         Effect.orElseSucceed(() => []),
       ),
-    saveAssets: (files) => saveAssets(registry, files),
+    saveAssets: (files) => saveAssets(registry, files, dialect),
   }
 
   const updates = AtomRegistry.toStreamResult(registry, pageTreeAtom(block.pageId)).pipe(
@@ -170,7 +171,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
       handoff={handoff}
       vim={vim}
       commands={commands}
-      propertyStyle={use(PageDialects)(block.pageId)}
+      propertyStyle={dialect}
     />
   )
 }

@@ -819,7 +819,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         event.preventDefault()
         const files = [...event.dataTransfer.files]
         if (dragged.length === 0 && files.length > 0 && !readOnly) {
-          void assets.saveFiles(files).then((links) => {
+          void assets.saveFiles(files, dialectOf(pageId)).then((links) => {
             if (links.length === 0) return
             const text = links.join(" ")
             dispatch(

@@ -45,7 +45,10 @@ export const PageDialects = createContext<(pageId: PageId) => Dialect>(() => "ma
 
 export interface AssetActions {
   readonly openPdf: (url: string) => void
-  readonly saveFiles: (files: ReadonlyArray<File>) => Promise<ReadonlyArray<string>>
+  readonly saveFiles: (
+    files: ReadonlyArray<File>,
+    dialect: Dialect,
+  ) => Promise<ReadonlyArray<string>>
 }
 
 export const AssetActions = createContext<AssetActions>({

@@ -68,6 +68,8 @@ const orgDelimiters: ReadonlyArray<readonly [string, Emphasis]> = [
 const ORG_LINK_AT = /\[\[([^\]\n]+)\](?:\[([^\]\n]*)\])?\]/y
 const ORG_PROTOCOL = /^([a-zA-Z][\w+.-]*):(.*)$/
 
+const LOCAL_ASSET = /^[./]*assets\//
+
 const orgLinkAt = (source: string, at: number, base: number): Token | null => {
   const link = matchAt(ORG_LINK_AT, source, at)
   if (link === null) return null
@@ -96,6 +98,12 @@ const orgLinkAt = (source: string, at: number, base: number): Token | null => {
   if (scheme === "file" && labelText !== undefined) {
     return {
       node: { _tag: "Link", label, target: { _tag: "Page", name: labelText.trim() }, span },
+      end,
+    }
+  }
+  if (LOCAL_ASSET.test(raw)) {
+    return {
+      node: { _tag: "Image", alt: labelText ?? "", url: raw, width: null, size: null, span },
       end,
     }
   }
