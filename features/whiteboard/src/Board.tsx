@@ -20,6 +20,7 @@ import type { PageTree } from "@seqno/rpc"
 import boardCss from "./board.css?inline"
 import { create, editText, patch, remove, reorder, type Raw } from "./commands.ts"
 import { ContextBar } from "./ContextBar.tsx"
+import { ContextMenu, type MenuGroup } from "./ContextMenu.tsx"
 import {
   add,
   boundsOfPoints,
@@ -243,6 +244,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const [spacePan, setSpacePan] = useState(false)
   const [chord, setChord] = useState<string | null>(null)
   const [hover, setHover] = useState<BlockId | null>(null)
+  const [menuAt, setMenuAt] = useState<Vec | null>(null)
+  const [penMode, setPenMode] = useState(false)
 
   const blocks =
     pending !== null && pending.base === tree
@@ -471,12 +474,18 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     if (event.button === 2 || insideLivePortal(event.target)) return
     if (editing !== null) finishEditing()
     if (searchAt !== null) setSearchAt(null)
+    if (menuAt !== null) setMenuAt(null)
     const at = screenOf(event)
     const world = toWorld(cam, at)
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     root.current?.focus()
-    if (event.button === 1 || spacePan || tool === "move") {
+    if (
+      event.button === 1 ||
+      spacePan ||
+      tool === "move" ||
+      (penMode && event.pointerType === "touch")
+    ) {
       setGesture({ _tag: "Panning", last: at })
       return
     }
@@ -894,7 +903,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           : tool === "select"
             ? "default"
             : "crosshair"
-  const fine = Math.max(0, Math.min(1, (cam.zoom - 0.5) / 1.5))
+  const fine = Math.max(0, Math.min(1, (cam.zoom - 0.5) * 0.34))
   const contextAt = (() => {
     if (selectedBox === null) return null
     const box = toBox(selectedBox)
@@ -1075,18 +1084,24 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     if (isEditableTarget(event.target) || insideLivePortal(event.target) || selection.length === 0)
       return
     event.preventDefault()
-    event.clipboardData.setData(
-      "text/plain",
-      selection.map((id) => portalText({ _tag: "BlockPortal", uuid: id })).join(" "),
-    )
+    event.clipboardData.setData("text/plain", copyText())
     if (cut) deleteSelection()
   }
+
+  const copyText = () =>
+    selection.map((id) => portalText({ _tag: "BlockPortal", uuid: id })).join(" ")
+
+  const writeClipboard = () => void navigator.clipboard.writeText(copyText())
 
   const onPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
     if (isEditableTarget(event.target) || insideLivePortal(event.target)) return
     const text = event.clipboardData.getData("text/plain").trim()
     if (text === "") return
     event.preventDefault()
+    pasteText(text)
+  }
+
+  const pasteText = (text: string) => {
     const at = toWorld(cam, center(viewport))
     const point: Vec = [at[0] - PORTAL_WIDTH / 2, at[1]]
     const refs = text.split(/\s+/).map(portalTarget)
@@ -1115,6 +1130,69 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       return
     }
     newBlockPortal(point, text)
+  }
+
+  const menuGroups = (): ReadonlyArray<MenuGroup> => {
+    const unlocked = selectedItems.filter((item) => !isLocked(item))
+    const some = selection.length > 0
+    const reorderTo = (order: "front" | "back") => {
+      const command = reorder(scene, selection, order)
+      if (command !== null) void commit([command])
+    }
+    return [
+      some ? [{ label: "Zoom to fit", keys: "Shift+2", run: () => setZoom("selection") }] : [],
+      [
+        ...(unlocked.length > 0
+          ? [
+              {
+                label: "Cut",
+                keys: "Mod+X",
+                run: () => {
+                  writeClipboard()
+                  deleteSelection()
+                },
+              },
+              { label: "Copy", keys: "Mod+C", run: writeClipboard },
+            ]
+          : []),
+        {
+          label: "Paste",
+          keys: "Mod+V",
+          run: () =>
+            void navigator.clipboard.readText().then((text) => {
+              if (text.trim() !== "") pasteText(text.trim())
+            }),
+        },
+      ],
+      [
+        {
+          label: "Select all",
+          keys: "Mod+A",
+          run: () => setSelected(scene.items.map((item) => item.block.id)),
+        },
+        ...(selection.length > 1 ? [{ label: "Deselect all", run: () => setSelected([]) }] : []),
+      ],
+      some
+        ? [
+            unlocked.length > 0
+              ? { label: "Lock", keys: "Mod+L", run: () => patchSelectionAll({ isLocked: true }) }
+              : {
+                  label: "Unlock",
+                  keys: "Mod+Shift+L",
+                  run: () => patchSelectionAll({ isLocked: false }),
+                },
+            ...(unlocked.length > 0
+              ? [{ label: "Delete", keys: "Del", run: deleteSelection }]
+              : []),
+          ]
+        : [],
+      some
+        ? [
+            { label: "Move to front", keys: "Shift+]", run: () => reorderTo("front") },
+            { label: "Move to back", keys: "Shift+[", run: () => reorderTo("back") },
+          ]
+        : [],
+    ]
   }
 
   const gridSize = 8 * cam.zoom
@@ -1156,7 +1234,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       onCut={(event) => onCopy(event, true)}
       onPaste={onPaste}
       onContextMenu={(event) => {
-        if (!insideLivePortal(event.target)) event.preventDefault()
+        if (insideLivePortal(event.target)) return
+        event.preventDefault()
+        const at = screenOf(event)
+        const hit = topHit(scene, toWorld(cam, at), cam.zoom)
+        if (hit !== null && !selection.includes(hit.block.id)) setSelected([hit.block.id])
+        if (hit === null && !event.shiftKey) setSelected([])
+        setMenuAt(at)
       }}
     >
       <div
@@ -1174,6 +1258,17 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         ))}
       </div>
       <div className="wb-overlay">{overlay}</div>
+      {menuAt === null ? null : (
+        <ContextMenu
+          left={menuAt[0]}
+          top={menuAt[1]}
+          groups={menuGroups()}
+          onClose={() => {
+            setMenuAt(null)
+            root.current?.focus()
+          }}
+        />
+      )}
       {quiet && contextAt !== null ? (
         <ContextBar
           items={selectedItems.filter((item) => !isLocked(item))}
@@ -1223,6 +1318,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         onZoom={setZoom}
         onGrid={() => setGrid(!grid)}
         onSnap={() => setSnap(!snap)}
+        pen={penMode}
+        onPen={() => setPenMode(!penMode)}
       />
     </div>
   )

@@ -11,10 +11,12 @@ import {
   IconHandStop,
   IconHighlight,
   IconLetterT,
-  IconLine,
+  IconArrowUpRight,
   IconMagnet,
   IconMagnetOff,
   IconMinus,
+  IconPencil,
+  IconPencilOff,
   IconPlus,
   IconPointer,
   IconSquare,
@@ -258,7 +260,7 @@ const DRAWING_TOOLS: ReadonlyArray<ToolEntry> = [
   ["pencil", "Draw", "4", IconBallpen],
   ["highlighter", "Highlight", "5", IconHighlight],
   ["eraser", "Eraser", "6", IconEraser],
-  ["line", "Connector", "7", IconLine],
+  ["line", "Connector", "7", IconArrowUpRight],
   ["text", "Text", "8", IconLetterT],
 ]
 
@@ -274,6 +276,8 @@ export const ActionBar = ({
   onZoom,
   onGrid,
   onSnap,
+  pen,
+  onPen,
 }: {
   readonly zoom: number
   readonly grid: boolean
@@ -284,6 +288,8 @@ export const ActionBar = ({
   readonly onZoom: (action: ZoomAction) => void
   readonly onGrid: () => void
   readonly onSnap: () => void
+  readonly pen: boolean
+  readonly onPen: () => void
 }) => {
   const menu = usePopoverIds()
   const item = (action: ZoomAction, label: string, keys: string, disabled = false) => (
@@ -349,6 +355,11 @@ export const ActionBar = ({
         </ToolButton>
         <ToolButton label="Snap to grid" pressed={snap} onClick={onSnap}>
           {snap ? <IconMagnet size={16} /> : <IconMagnetOff size={16} />}
+        </ToolButton>
+      </div>
+      <div className="wb-panel" role="toolbar" aria-label="Pen mode">
+        <ToolButton label="Pen mode" pressed={pen} onClick={onPen}>
+          {pen ? <IconPencil size={16} /> : <IconPencilOff size={16} />}
         </ToolButton>
       </div>
     </div>

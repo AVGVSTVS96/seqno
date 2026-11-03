@@ -457,6 +457,10 @@
 
 .wb-button[aria-pressed="true"],
 .wb-button[aria-checked="true"] {
+  background: var(--wb-button-hover);
+}
+
+.wb-primary .wb-button[aria-pressed="true"] {
   background: var(--wb-accent);
   color: white;
 }
@@ -1048,4 +1052,14 @@
 .wb-dashboard-confirm {
   display: flex;
   gap: 8px;
+}
+
+.wb-context-menu {
+  position: absolute;
+  z-index: 6;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--bg-popover, white);
+  box-shadow: var(--wb-panel-large);
+  color: var(--wb-icon);
 }
