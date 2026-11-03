@@ -1,6 +1,8 @@
 import { Clock, Effect } from "effect"
 import { AtomRegistry } from "effect/reactivity"
 import { AssetClient, type Asset } from "@seqno/rpc"
+import type { Block } from "@seqno/domain"
+import { openAnnotation, openPdf as openPdfViewer, type PdfFiles } from "@seqno/pdf"
 import type { AssetBridge } from "@seqno/plugins"
 import { assetFileName, assetLink, type Dialect } from "@seqno/syntax"
 import { assetFiles, assetResolver, assetRuntime } from "../atoms.ts"
@@ -64,10 +66,21 @@ export const saveAssetFiles = (
     ),
   ).catch(failed(registry))
 
-export const openPdf = (registry: AtomRegistry.AtomRegistry, path: string) => {
-  const source = registry.get(assetResolver)(path)
-  if (source !== undefined) window.open(source, "_blank", "noopener")
-}
+const removeFile = (path: string) =>
+  Effect.flatMap(Effect.service(AssetClient), (client) => client.RemoveAsset({ path }))
+
+export const pdfFiles = (registry: AtomRegistry.AtomRegistry): PdfFiles => ({
+  resolveAsset: (path) => registry.get(assetResolver)(path),
+  writeAsset: (path, data) => runAssets(registry, writeFile(path, data)).then(() => undefined),
+  removeAsset: (path) => runAssets(registry, removeFile(path)),
+  notify: (message) => notify(registry, message),
+})
+
+export const openPdf = (registry: AtomRegistry.AtomRegistry, path: string) =>
+  openPdfViewer(registry, pdfFiles(registry), path)
+
+export const openAnnotationBlock = (registry: AtomRegistry.AtomRegistry, block: Block) =>
+  void openAnnotation(registry, pdfFiles(registry), block)
 
 export const assetBridge = (registry: AtomRegistry.AtomRegistry): AssetBridge => ({
   listed: () => registry.get(assetFiles),
@@ -76,10 +89,6 @@ export const assetBridge = (registry: AtomRegistry.AtomRegistry): AssetBridge =>
       registry,
       Effect.flatMap(Effect.service(AssetClient), (client) => client.WriteAsset({ path, data })),
     ),
-  remove: (path) =>
-    runAssets(
-      registry,
-      Effect.flatMap(Effect.service(AssetClient), (client) => client.RemoveAsset({ path })),
-    ),
+  remove: (path) => runAssets(registry, removeFile(path)),
   openPdf: (path) => openPdf(registry, path),
 })

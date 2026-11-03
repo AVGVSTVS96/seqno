@@ -1,6 +1,6 @@
 import { use, useState, type MouseEvent, type ReactNode } from "react"
 import { Match } from "effect"
-import type { Props } from "@seqno/domain"
+import type { Block, Props } from "@seqno/domain"
 import {
   clockTotal,
   isHiddenProperty,
@@ -11,6 +11,12 @@ import {
   type Marker,
   type PropertyConfig,
 } from "@seqno/syntax"
+import {
+  AnnotationPrefix,
+  annotationAttributes,
+  isAnnotation,
+  isAreaAnnotation,
+} from "./Annotation.tsx"
 import { CodeBlock } from "./CodeBlock.tsx"
 import { Inlines } from "./Inline.tsx"
 import {
@@ -139,18 +145,24 @@ const Title = ({
   title,
   background,
   onMarker,
+  annotation,
 }: {
   readonly content: BlockContent
   readonly title: ReadonlyArray<Inline>
   readonly background: string | null
   readonly onMarker: (marker: Marker | null) => void
+  readonly annotation: Block | null
 }) => {
+  const area = annotation !== null && isAreaAnnotation(annotation.props)
+  const prefix = annotation === null ? null : <AnnotationPrefix block={annotation} />
   const parts = (
     <>
       {content.marker === null ? null : (
         <TaskControls marker={content.marker} onMarker={onMarker} />
       )}
+      {area ? null : prefix}
       <Inlines nodes={title} />
+      {area ? prefix : null}
     </>
   )
   const inner =
@@ -195,17 +207,24 @@ const shownProperties = (props: Props, content: BlockContent, config: PropertyCo
   ...content.properties,
 ]
 
+const blankAreaTitle = (block: Block) =>
+  isAreaAnnotation(block.props) && (block.text.split("\n")[0] ?? "").trim() === "[:span]"
+
 export const BlockView = ({
   content,
   props,
   onMarker,
   onCode,
+  block,
 }: {
   readonly content: BlockContent
   readonly props: Props
   readonly onMarker: (marker: Marker | null) => void
   readonly onCode?: CodeChange
+  readonly block?: Block
 }) => {
+  const annotation = block !== undefined && isAnnotation(block.props) ? block : null
+  const title = annotation !== null && blankAreaTitle(annotation) ? [] : content.title
   const renderer = use(RenderContext)
   const host = use(HostBlock)
   const [drawer, setDrawer] = useState(false)
@@ -222,17 +241,22 @@ export const BlockView = ({
       <div
         className="seqno-block block-content"
         {...(host === null ? {} : { id: `block-content-${host}`, blockid: host })}
+        {...annotationAttributes(props)}
       >
-        {content.title === null && !clocked && !empty ? null : (
-          <div className="seqno-title-row block-content-inner">
-            {content.title === null ? (
+        {title === null && !clocked && !empty ? null : (
+          <div
+            className="seqno-title-row block-content-inner"
+            data-hl-type={annotation?.props["hl-type"]}
+          >
+            {title === null ? (
               <div className="seqno-title" />
             ) : (
               <Title
                 content={content}
-                title={content.title}
+                title={title}
                 background={backgroundOf(props)}
                 onMarker={onMarker}
+                annotation={annotation}
               />
             )}
             {clocked ? (

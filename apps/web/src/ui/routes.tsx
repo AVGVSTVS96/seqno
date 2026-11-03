@@ -4,6 +4,7 @@ import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { BlockId } from "@seqno/domain"
 import { blockAtom } from "@seqno/outliner"
+import { assetPageName, hlsPagePrefix } from "@seqno/syntax"
 import { pageNamed } from "../atoms.ts"
 import { AllGraphs } from "./OpenGraphScreen.tsx"
 import { GraphView } from "./graph/GraphView.tsx"
@@ -33,7 +34,8 @@ const ZoomTitle = ({
 const TabTitle = ({ name, zoom }: { readonly name: string; readonly zoom: BlockId | null }) => {
   const title = Option.match(AsyncResult.getOrElse(useAtomValue(pageNamed(name)), Option.none), {
     onNone: () => name,
-    onSome: (page) => page.title,
+    onSome: (page) =>
+      page.title.startsWith(hlsPagePrefix) ? assetPageName(page.title) : page.title,
   })
   return zoom === null ? <title>{title}</title> : <ZoomTitle blockId={zoom} fallback={title} />
 }

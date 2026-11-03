@@ -34,6 +34,7 @@ The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.
 | `@seqno/editor`     | `features/editor`     | ui       | Focused-block CodeMirror editor, `[[ (( #` autocomplete, the `/` menu.                                                          |
 | `@seqno/plugins`    | `features/plugins`    | ui       | Runs Logseq plugins: the `@logseq/libs` host in iframes, the API on top of the core, marketplace, settings, slots, themes.      |
 | `@seqno/whiteboard` | `features/whiteboard` | ui       | Logseq whiteboards: the board list, the canvas, shapes, connectors and live page and block portals.                             |
+| `@seqno/pdf`        | `features/pdf`        | ui       | Logseq's PDF viewer: pdf.js, text and area highlights, the `hls__` page and its `.edn` file.                                    |
 | `@seqno/sync-sim`   | `tools/sync-sim`      | tool     | Multi-device fake-iCloud simulator for the sync protocol (stand-in graph; real vault optional).                                 |
 | `@seqno/e2e`        | `tools/e2e`           | tool     | Playwright flows, the feature map and the design harness.                                                                       |
 | `@seqno/lint`       | `tools/lint`          | tool     | The `seqno` oxlint plugin that enforces the rules below.                                                                        |

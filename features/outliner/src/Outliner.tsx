@@ -948,6 +948,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
             <BlockView
               content={content}
               props={block.props}
+              block={block}
               onMarker={(marker) => setTask(block, marker)}
               {...(readOnly
                 ? {}

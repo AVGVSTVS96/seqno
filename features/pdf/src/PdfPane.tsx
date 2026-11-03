@@ -1,0 +1,278 @@
+import { RegistryContext, useAtomValue } from "@effect/atom-react"
+import { IconLoader2 } from "@tabler/icons-react"
+import pdfViewerCss from "pdfjs-dist/web/pdf_viewer.css?inline"
+import { Suspense, use, useContext, useState, useSyncExternalStore, type PointerEvent } from "react"
+import type { PdfHost } from "./host.ts"
+import { colors } from "./model.ts"
+import { retryWithPassword } from "./open.ts"
+import pdfCss from "./pdf.css?inline"
+import { Regions } from "./Regions.tsx"
+import { Session, type Menu, type Snapshot } from "./session.ts"
+import { areaDashed, currentPdf, viewerTheme, type CurrentPdf } from "./state.ts"
+import { Toolbar } from "./Toolbar.tsx"
+
+const Loading = () => (
+  <div className="seqno-pdf-loading" role="status" aria-label="Loading PDF">
+    <IconLoader2 size={28} aria-hidden />
+  </div>
+)
+
+const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; host: PdfHost }) => {
+  const area = menu.highlight.content.image !== undefined
+  const saved = !menu.fresh
+  return (
+    <ul
+      className="seqno-pdf-menu"
+      style={{ top: menu.top, left: menu.left, visibility: menu.hidden ? "hidden" : "visible" }}
+      ref={(element) => {
+        const viewer = element?.closest(".seqno-pdf-viewer")
+        if (element === null || viewer === null || viewer === undefined) return
+        const box = element.getBoundingClientRect()
+        const frame = viewer.getBoundingClientRect()
+        const x = frame.right - box.right
+        const y = frame.bottom - box.bottom
+        element.style.transform = `translate3d(${x < 0 ? x - 5 : 0}px,${y < 0 ? y - 5 : 0}px,0)`
+      }}
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onMouseUp={(event) => event.stopPropagation()}
+    >
+      <li className="seqno-pdf-menu-colors">
+        {colors.map((color) => (
+          <a
+            key={color}
+            data-color={color}
+            data-action={color}
+            onClick={() => session.applyColor(color)}
+          >
+            {color}
+          </a>
+        ))}
+      </li>
+      {saved ? (
+        <li
+          className="seqno-pdf-item"
+          data-action="ref"
+          onClick={() => {
+            session.copyRef(menu.highlight)
+            session.closeMenuSoon()
+          }}
+        >
+          Copy ref
+        </li>
+      ) : null}
+      {area ? null : (
+        <li className="seqno-pdf-item" data-action="copy" onClick={() => session.copyText(menu)}>
+          Copy text
+        </li>
+      )}
+      {saved ? (
+        <li
+          className="seqno-pdf-item"
+          data-action="link"
+          onClick={() => session.linkedReferences(menu.highlight, host.navigate)}
+        >
+          Linked references
+        </li>
+      ) : null}
+      {saved ? (
+        <li
+          className="seqno-pdf-item"
+          data-action="del"
+          onClick={() => session.remove(menu.highlight)}
+        >
+          Delete
+        </li>
+      ) : null}
+      {area
+        ? null
+        : host.menuItems.map((item) => (
+            <li
+              key={item.key}
+              className="seqno-pdf-item"
+              data-action="hook"
+              onClick={() => session.runItem(item, menu)}
+            >
+              {item.label}
+            </li>
+          ))}
+    </ul>
+  )
+}
+
+const Resizer = ({ session }: { session: Session }) => {
+  const [dragging, setDragging] = useState(false)
+  const start = (event: PointerEvent<HTMLSpanElement>) => {
+    event.preventDefault()
+    const handle = event.currentTarget
+    const pane = handle.closest(".seqno-pdf")
+    if (!(pane instanceof HTMLElement)) return
+    handle.setPointerCapture(event.pointerId)
+    setDragging(true)
+    document.documentElement.classList.add("seqno-pdf-resizing")
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const move = (moved: globalThis.PointerEvent) => {
+      const ratio = moved.clientX / document.documentElement.clientWidth
+      const width = `${Math.min(Math.max(ratio * 100, 20), 80)}vw`
+      pane.style.setProperty("width", width)
+      if (timer !== null) clearTimeout(timer)
+      timer = setTimeout(() => {
+        document.documentElement.style.setProperty("--ph-view-container-width", width)
+        session.fitSoon()
+      }, 200)
+    }
+    const end = () => {
+      handle.removeEventListener("pointermove", move)
+      document.documentElement.classList.remove("seqno-pdf-resizing")
+      setDragging(false)
+    }
+    handle.addEventListener("pointermove", move)
+    handle.addEventListener("pointerup", end, { once: true })
+    handle.addEventListener("pointercancel", end, { once: true })
+  }
+  return (
+    <span
+      className="seqno-pdf-resizer"
+      data-dragging={dragging}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize the PDF"
+      onPointerDown={start}
+    />
+  )
+}
+
+const Viewer = ({
+  session,
+  attach,
+  host,
+}: {
+  session: Session
+  attach: (container: HTMLDivElement | null) => (() => void) | undefined
+  host: PdfHost
+}) => {
+  const snapshot: Snapshot = useSyncExternalStore(session.subscribe, session.snapshot)
+  const dashed = useAtomValue(areaDashed)
+  return (
+    <div className="seqno-pdf-scroller">
+      <div
+        className={dashed ? "seqno-pdf-viewer is-area-dashed" : "seqno-pdf-viewer"}
+        ref={attach}
+        onMouseDown={(event) => {
+          if (event.button !== 0 || session.startArea(event.nativeEvent)) return
+          let dirty = false
+          const changed = () => {
+            dirty = true
+          }
+          document.addEventListener("selectionchange", changed)
+          document.addEventListener(
+            "mouseup",
+            (up) => {
+              document.removeEventListener("selectionchange", changed)
+              if (dirty) session.selectionEnded({ x: up.clientX, y: up.clientY })
+            },
+            { once: true },
+          )
+        }}
+      >
+        <div className="pdfViewer" />
+        <div className="seqno-pdf-holder">
+          {snapshot.menu === null ? null : (
+            <ContextMenu session={session} menu={snapshot.menu} host={host} />
+          )}
+        </div>
+        {snapshot.area === null ? null : (
+          <div className="seqno-pdf-area-selection">
+            <div className="seqno-pdf-shadow-rect" style={{ ...snapshot.area }} />
+          </div>
+        )}
+      </div>
+      {snapshot.ready && !snapshot.broken ? (
+        <Regions session={session} snapshot={snapshot} />
+      ) : null}
+      {snapshot.ready ? <Resizer session={session} /> : null}
+      {snapshot.ready ? <Toolbar session={session} snapshot={snapshot} host={host} /> : null}
+    </div>
+  )
+}
+
+const PasswordPrompt = ({ onSubmit }: { onSubmit: (password: string) => void }) => {
+  const [password, setPassword] = useState("")
+  return (
+    <dialog
+      className="seqno-pdf-dialog"
+      ref={(dialog) => {
+        if (dialog !== null && !dialog.open) dialog.showModal()
+      }}
+    >
+      <h3>Password required</h3>
+      <p>This document is password protected. Please enter a password:</p>
+      <input
+        autoFocus
+        type="password"
+        value={password}
+        onChange={(event) => setPassword(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") onSubmit(password)
+        }}
+      />
+      <div className="seqno-pdf-actions">
+        <button type="button" onClick={() => onSubmit(password)}>
+          Submit
+        </button>
+      </div>
+    </dialog>
+  )
+}
+
+const Loader = ({ current, host }: { current: CurrentPdf; host: PdfHost }) => {
+  const registry = useContext(RegistryContext)
+  const loaded = use(current.loading)
+  const [session] = useState(() =>
+    loaded._tag === "Ready"
+      ? new Session(registry, host, current.asset, loaded.document, loaded.pdfjs, loaded.highlights)
+      : null,
+  )
+  if (loaded._tag === "Password") {
+    return (
+      <PasswordPrompt
+        onSubmit={(password) => retryWithPassword(registry, host, current, password)}
+      />
+    )
+  }
+  return session === null ? null : (
+    <div className="seqno-pdf-loader">
+      <Viewer session={session} attach={session.attach} host={host} />
+    </div>
+  )
+}
+
+export const PdfPane = ({ host }: { readonly host: PdfHost }) => {
+  const current = useAtomValue(currentPdf)
+  const theme = useAtomValue(viewerTheme)
+  return (
+    <>
+      <style href="@seqno/pdf/viewer" precedence="default">
+        {pdfViewerCss}
+      </style>
+      <style href="@seqno/pdf" precedence="default">
+        {pdfCss}
+      </style>
+      {current === null ? null : (
+        <div
+          className="seqno-pdf"
+          id={`seqno-pdf-pane-${current.asset.identity}`}
+          data-theme={theme}
+        >
+          <Suspense fallback={<Loading />}>
+            <Loader
+              key={`${current.asset.identity}:${current.attempt}`}
+              current={current}
+              host={host}
+            />
+          </Suspense>
+        </div>
+      )}
+    </>
+  )
+}

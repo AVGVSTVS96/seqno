@@ -20,6 +20,7 @@
     "@seqno/index": "workspace:*",
     "@seqno/interop": "workspace:*",
     "@seqno/outliner": "workspace:*",
+    "@seqno/pdf": "workspace:*",
     "@seqno/plugins": "workspace:*",
     "@seqno/query": "workspace:*",
     "@seqno/rpc": "workspace:*",

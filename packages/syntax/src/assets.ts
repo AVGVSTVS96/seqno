@@ -106,3 +106,16 @@ export const insertAsset = (
     caret: prefix.length,
   }
 }
+
+export const hlsPagePrefix = "hls__"
+
+export const assetPageName = (name: string): string => {
+  if (name.trim() === "") return name
+  const localAsset = /[0-9]{13}_\d$/.test(name)
+  if (!localAsset && !name.startsWith(hlsPagePrefix)) return name
+  return (localAsset ? name.slice(0, name.length - 15) : name)
+    .replace(/^hls__/, "")
+    .replace(/__[-\d]+$/, "")
+    .replaceAll("_", " ")
+    .trimEnd()
+}

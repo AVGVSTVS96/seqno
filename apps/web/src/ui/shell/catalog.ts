@@ -129,6 +129,15 @@ export const shortcutGroups: ReadonlyArray<ShortcutGroup> = [
     ],
   },
   {
+    title: "PDF",
+    shortcuts: [
+      keys("Pdf: Previous page of current pdf doc", "alt p"),
+      keys("Pdf: Next page of current pdf doc", "alt n"),
+      keys("Pdf: Close current pdf doc", "alt x"),
+      keys("Pdf: Search text of current pdf doc", "alt f"),
+    ],
+  },
+  {
     title: "Appearance",
     shortcuts: [
       app("Toggle dark and light theme", "ToggleTheme"),

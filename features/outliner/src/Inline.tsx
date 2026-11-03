@@ -1,5 +1,4 @@
 import { use, useRef, useState, type ReactNode } from "react"
-import { createPortal } from "react-dom"
 import { useAtomValue } from "@effect/atom-react"
 import { Match, Schema } from "effect"
 import { AsyncResult } from "effect/reactivity"
@@ -7,6 +6,8 @@ import { IconCopy, IconMaximize, IconPhoto, IconTrash } from "@tabler/icons-reac
 import { logseq } from "@seqno/dom"
 import { BlockId, type Block } from "@seqno/domain"
 import {
+  assetPageName,
+  hlsPagePrefix,
   parseInline,
   parseTimestamp,
   parseVideo,
@@ -16,10 +17,18 @@ import {
   type LinkTarget,
   type Span,
 } from "@seqno/syntax"
+import {
+  AnnotationPrefix,
+  annotationAttributes,
+  isAnnotation,
+  isAreaAnnotation,
+} from "./Annotation.tsx"
 import { AssetFileLink, AssetMedia } from "./Asset.tsx"
+import { copyImage, ImageViewer } from "./ImageViewer.tsx"
 import { blockRefAtom, pageTreeAtom } from "./core.ts"
 import { usePreview } from "./Preview.tsx"
 import {
+  AssetActions,
   HostBlock,
   MacroSlot,
   BlockSource,
@@ -42,7 +51,74 @@ const stop = (event: { stopPropagation: () => void }) => event.stopPropagation()
 export const Inlines = ({ nodes }: { readonly nodes: ReadonlyArray<Inline> }): ReactNode =>
   nodes.map((node) => <InlineNode key={node.span.from} node={node} />)
 
-const RefBody = ({ block, children }: { readonly block: Block; readonly children?: ReactNode }) => {
+const AnnotationRef = ({
+  block,
+  children,
+}: {
+  readonly block: Block
+  readonly children?: ReactNode
+}) => {
+  const renderer = use(RenderContext)
+  const { openAnnotation } = use(AssetActions)
+  const dialect = use(PageDialects)(block.pageId)
+  const area = isAreaAnnotation(block.props)
+  const blank = area && (block.text.split("\n")[0] ?? "").trim() === "[:span]"
+  const title = blank ? [] : (contentOf(block.text, dialect).title ?? [])
+  const prefix = <AnnotationPrefix block={block} />
+  return (
+    <span
+      className="seqno-annotation-ref"
+      data-hl-type={block.props["hl-type"]}
+      {...annotationAttributes(block.props)}
+    >
+      <span
+        className="seqno-blockref"
+        onMouseDown={(event) => {
+          if (event.button !== 0) return
+          if (
+            event.target instanceof Element &&
+            event.target.closest(".seqno-annotation-blank") !== null
+          )
+            return
+          event.preventDefault()
+          event.stopPropagation()
+          if (event.shiftKey) renderer.navigate({ _tag: "SidebarBlock", blockId: block.id })
+          else openAnnotation(block)
+        }}
+        onClick={stop}
+      >
+        {children ?? (
+          <>
+            {area ? null : prefix}
+            {renderer.depth >= maxDepth ? (
+              plainText(title)
+            ) : (
+              <RenderContext value={{ ...renderer, depth: renderer.depth + 1 }}>
+                <Inlines nodes={title} />
+              </RenderContext>
+            )}
+            {area ? prefix : null}
+          </>
+        )}
+      </span>
+    </span>
+  )
+}
+
+const RefBody = ({ block, children }: { readonly block: Block; readonly children?: ReactNode }) =>
+  isAnnotation(block.props) ? (
+    <AnnotationRef block={block}>{children}</AnnotationRef>
+  ) : (
+    <PlainRef block={block}>{children}</PlainRef>
+  )
+
+const PlainRef = ({
+  block,
+  children,
+}: {
+  readonly block: Block
+  readonly children?: ReactNode
+}) => {
   const renderer = use(RenderContext)
   const preview = usePreview({ _tag: "Block", blockId: block.id })
   const title = contentOf(block.text, use(PageDialects)(block.pageId)).title ?? []
@@ -183,39 +259,6 @@ const Link = ({
       </BlockRef>
     ),
   })
-
-const copyImage = async (image: HTMLImageElement) => {
-  const canvas = document.createElement("canvas")
-  canvas.width = image.naturalWidth || image.width
-  canvas.height = image.naturalHeight || image.height
-  canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height)
-  const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"))
-  if (png !== null) await navigator.clipboard.write([new ClipboardItem({ "image/png": png })])
-}
-
-const ImageViewer = ({
-  source,
-  alt,
-  onClose,
-}: {
-  readonly source: string
-  readonly alt: string
-  readonly onClose: () => void
-}) =>
-  createPortal(
-    <dialog
-      className="seqno-image-viewer"
-      aria-label={alt === "" ? "Image" : alt}
-      ref={(dialog) => {
-        if (dialog !== null && !dialog.open) dialog.showModal()
-      }}
-      onClose={onClose}
-      onClick={(event) => event.currentTarget.close()}
-    >
-      <img src={source} alt={alt} />
-    </dialog>,
-    document.body,
-  )
 
 const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Image" }> }) => {
   const renderer = use(RenderContext)
@@ -370,7 +413,7 @@ const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
     ),
     PageRef: ({ name, brackets, span }) => (
       <PageLink name={name} brackets={brackets} span={span}>
-        {name}
+        {name.startsWith(hlsPagePrefix) ? assetPageName(name) : name}
       </PageLink>
     ),
     Tag: ({ name }) => <TagLink name={name} />,

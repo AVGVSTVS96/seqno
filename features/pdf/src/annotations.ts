@@ -1,0 +1,139 @@
+import { Effect, Option, Schema } from "effect"
+import { AtomRegistry, Reactivity } from "effect/reactivity"
+import {
+  BlockId,
+  normalizePageName,
+  type Block,
+  type BlockDraft,
+  type Command,
+  type GraphEvent,
+  type Page,
+} from "@seqno/domain"
+import { coreRuntime, pageListKey } from "@seqno/outliner"
+import { CoreClient } from "@seqno/rpc"
+import { isArea, type Highlight } from "./highlights.ts"
+import { annotationProps, hlsPageProps, hlsPageTitle, type PdfAsset } from "./model.ts"
+
+const isBlockId = Schema.is(BlockId)
+
+let queue: Promise<unknown> = Promise.resolve()
+
+export const runCore = <A, E>(
+  registry: AtomRegistry.AtomRegistry,
+  effect: Effect.Effect<A, E, CoreClient>,
+): Promise<A> => {
+  const run = () =>
+    Effect.runPromise(
+      Effect.flatMap(AtomRegistry.getResult(registry, coreRuntime), (context) =>
+        Effect.provide(effect, context),
+      ),
+    )
+  const next = queue.then(run, run)
+  queue = next.catch(() => undefined)
+  return next
+}
+
+const dispatch = (commands: ReadonlyArray<Command>) =>
+  Effect.flatMap(CoreClient, (client) => client.DispatchAll({ commands })).pipe(
+    Effect.tap((events: ReadonlyArray<GraphEvent>) =>
+      events.some((event) => event._tag === "PageUpserted")
+        ? Effect.flatMap(Effect.serviceOption(Reactivity.Reactivity), (reactivity) =>
+            Option.isSome(reactivity) ? reactivity.value.invalidate(pageListKey) : Effect.void,
+          )
+        : Effect.void,
+    ),
+  )
+
+export const pageNamed = (name: string) =>
+  Effect.flatMap(CoreClient, (client) =>
+    Effect.map(client.GetPages(), (pages) =>
+      Option.fromNullishOr(pages.find((page) => page.name === normalizePageName(name))),
+    ),
+  )
+
+export const blockOf = (id: string) =>
+  Effect.flatMap(CoreClient, (client) =>
+    client.GetBlockByRef({ uuid: id }).pipe(
+      Effect.map(Option.some),
+      Effect.catchTag("BlockRefNotFound", () => Effect.succeed(Option.none<Block>())),
+    ),
+  )
+
+export const ensureRefPage = (asset: PdfAsset) =>
+  Effect.gen(function* () {
+    const found = yield* pageNamed(hlsPageTitle(asset.key))
+    if (Option.isSome(found)) {
+      const page = found.value
+      if (page.props["file-path"] === asset.originalPath) return page
+      yield* dispatch([
+        {
+          _tag: "SetProperty",
+          target: { _tag: "PageTarget", pageId: page.id },
+          key: "file-path",
+          value: asset.originalPath,
+        },
+      ])
+      return page
+    }
+    const events = yield* dispatch([
+      { _tag: "CreatePage", title: hlsPageTitle(asset.key), props: hlsPageProps(asset, false) },
+    ])
+    const made = events.flatMap((event): ReadonlyArray<Page> =>
+      event._tag === "PageUpserted" ? [event.page] : [],
+    )[0]
+    return (
+      made ?? (yield* Effect.die(new Error(`couldn't make the page ${hlsPageTitle(asset.key)}`)))
+    )
+  })
+
+export const ensureRefBlock = (asset: PdfAsset, highlight: Highlight) =>
+  Effect.gen(function* () {
+    const page = yield* ensureRefPage(asset)
+    const existing = yield* blockOf(highlight.id)
+    if (Option.isSome(existing)) return existing.value
+    const client = yield* CoreClient
+    const tree = yield* client.GetPage({ pageId: page.id })
+    const last = tree.blocks.filter((block) => block.parentId === null).at(-1)
+    const draft: BlockDraft = {
+      ...(isBlockId(highlight.id) ? { id: highlight.id } : {}),
+      text: highlight.content.text ?? "",
+      props: annotationProps(highlight),
+      children: [],
+    }
+    const events = yield* dispatch([
+      {
+        _tag: "InsertBlocks",
+        pageId: page.id,
+        parentId: null,
+        ...(last === undefined ? {} : { after: last.id }),
+        blocks: [draft],
+      },
+    ])
+    const made = events.flatMap((event): ReadonlyArray<Block> =>
+      event._tag === "BlockUpserted" ? [event.block] : [],
+    )[0]
+    return made ?? (yield* Effect.die(new Error("couldn't make the annotation block")))
+  })
+
+export const updateRefBlock = (highlight: Highlight, now: number) =>
+  Effect.gen(function* () {
+    const found = yield* blockOf(highlight.id)
+    if (Option.isNone(found)) return
+    const target = { _tag: "BlockTarget", blockId: found.value.id } as const
+    yield* dispatch([
+      {
+        _tag: "SetProperty",
+        target,
+        key: "hl-stamp",
+        value: String(isArea(highlight) ? (highlight.content.image ?? now) : now),
+      },
+      { _tag: "SetProperty", target, key: "hl-color", value: highlight.properties.color ?? "" },
+    ])
+  })
+
+export const deleteRefBlock = (highlight: Highlight) =>
+  Effect.gen(function* () {
+    const found = yield* blockOf(highlight.id)
+    if (Option.isSome(found))
+      yield* dispatch([{ _tag: "DeleteBlocks", blockIds: [found.value.id] }])
+  })

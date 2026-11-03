@@ -45,6 +45,7 @@ export const PageDialects = createContext<(pageId: PageId) => Dialect>(() => "ma
 
 export interface AssetActions {
   readonly openPdf: (url: string) => void
+  readonly openAnnotation: (block: Block) => void
   readonly saveFiles: (
     files: ReadonlyArray<File>,
     dialect: Dialect,
@@ -53,6 +54,7 @@ export interface AssetActions {
 
 export const AssetActions = createContext<AssetActions>({
   openPdf: () => undefined,
+  openAnnotation: () => undefined,
   saveFiles: () => Promise.resolve([]),
 })
 

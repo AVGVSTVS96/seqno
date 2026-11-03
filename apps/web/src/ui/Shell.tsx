@@ -13,6 +13,7 @@ import {
   PropertySettings,
   ScrollContent,
 } from "@seqno/outliner"
+import { blockColored } from "@seqno/pdf"
 import { PluginMacroSlot, PluginThemeLink } from "@seqno/plugins"
 import { BoardEmbed } from "./pages/Whiteboards.tsx"
 import {
@@ -25,9 +26,10 @@ import {
   resolvedTheme,
   rightSidebar,
 } from "../atoms.ts"
-import { openPdf, saveAssets } from "./assets.ts"
+import { openAnnotationBlock, openPdf, saveAssets } from "./assets.ts"
 import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
 import { Hints } from "./hints/Hints.tsx"
+import { PdfLayer } from "./PdfLayer.tsx"
 import { GraphChooser, OpenFailed } from "./OpenGraphScreen.tsx"
 import { PluginSettings } from "./plugins/PluginSettings.tsx"
 import { PluginsDialog } from "./plugins/PluginsDialog.tsx"
@@ -82,9 +84,11 @@ const Layout = ({
   const wide = useAtomValue(wideMode)
   const mode = useAtomValue(resolvedTheme)
   const registry = useContext(RegistryContext)
+  const colored = useAtomValue(blockColored)
   const assets: AssetActions = {
     saveFiles: (files, dialect) => saveAssets(registry, files, dialect),
     openPdf: (url) => openPdf(registry, url),
+    openAnnotation: (block) => openAnnotationBlock(registry, block),
   }
   return (
     <AssetActions value={assets}>
@@ -94,7 +98,7 @@ const Layout = ({
             <div className={themeInner(leftOpen, rightOpen, wide)}>
               <div
                 id="app-container"
-                className="app"
+                className={colored ? "app seqno-hl-colored" : "app"}
                 data-left-open={leftOpen}
                 data-right-open={rightOpen}
                 data-wide={wide}
@@ -115,6 +119,7 @@ const Layout = ({
                   </div>
                 </div>
                 <RightSidebar />
+                <PdfLayer />
                 <HelpButton />
                 <BlockMenu />
                 <PageMenu />

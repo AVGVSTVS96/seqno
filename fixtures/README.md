@@ -17,6 +17,7 @@ Test data for the other packages, not app code: a seeded 50k-block graph generat
 - `large-flat-file`, `og-generated-42` and `og-generated-8675309` are generated on demand rather than committed.
 - `download` fetches logseq/docs at a pinned commit into `downloads/` (gitignored) and checks that its license is still MIT.
 - `graphs/whiteboards/` holds two whiteboards Logseq wrote: `Test Whiteboard.edn` from logseq/docs at the pinned commit (MIT), with each asset's inline `data:` image replaced by an `../assets/<id>.png` path and reprinted the way Logseq prints, and `Colloquium 2.edn` unchanged from [arontaupe/thesis](https://github.com/arontaupe/thesis/blob/6b38eb9c3e55d234bbb5bc2fcc807e4092138855/logseq/whiteboards/Colloquium%202.edn) (MIT, Copyright (c) 2024 arontaupe).
+- `graphs/pdf-highlights/` was made by Logseq 0.10.9 itself, driven through its desktop app: a page linking a PDF, then a green text highlight and a purple area highlight made in its PDF viewer. It holds the `hls__` page, the `.edn` highlight file and the area picture exactly as Logseq wrote them.
 - `graphs/**` is `-text` in `.gitattributes`, so CRLF and empty files check out byte for byte.
 - Generated ids are UUID v4-shaped, not v7, so the digests stay stable.
 

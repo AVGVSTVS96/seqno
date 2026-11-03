@@ -13,6 +13,7 @@ import {
 import { Link } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import { isWhiteboard, type Page } from "@seqno/domain"
+import { assetPageName } from "@seqno/syntax"
 import { boardTitle } from "@seqno/whiteboard"
 import { allPages, favorites, leftSidebarOpen, rightSidebar, toggleFavorite } from "../../atoms.ts"
 import { pageNames, type PageName } from "../pages/atoms.ts"
@@ -141,7 +142,7 @@ const PageLink = ({
           <IconChalkboard className="page-link-icon page-icon" size={16} aria-hidden />
         )}
         <span className="page-link-title page-title">
-          {board === undefined ? page.title : boardTitle(board)}
+          {board === undefined ? assetPageName(page.title) : boardTitle(board)}
         </span>
       </Link>
       <button

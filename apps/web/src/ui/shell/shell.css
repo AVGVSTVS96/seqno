@@ -2176,3 +2176,16 @@
   font-size: var(--text-xs);
   line-height: var(--leading-xs);
 }
+
+body.seqno-pdf-open .app {
+  padding-inline-start: calc(var(--ph-view-container-width, 42vw) + 15px);
+}
+
+body.seqno-pdf-open .left-sidebar,
+body.seqno-pdf-open [data-hint-anchor="left-sidebar"] {
+  display: none;
+}
+
+body.seqno-pdf-open .app[data-left-open="true"] .main-container {
+  padding-inline-start: 0;
+}

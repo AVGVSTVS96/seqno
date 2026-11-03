@@ -3,6 +3,7 @@ import { useMatchRoute, useNavigate } from "@tanstack/react-router"
 import { Cause, Exit } from "effect"
 import { useState, type MouseEvent } from "react"
 import { normalizePageName, type Page } from "@seqno/domain"
+import { assetPageName, hlsPagePrefix } from "@seqno/syntax"
 import { dispatch } from "../../atoms.ts"
 import { pageMenu } from "../shell/PageMenu.tsx"
 import { PageLink } from "./PageLink.tsx"
@@ -40,7 +41,8 @@ export const PageTitle = ({
   const navigate = useNavigate()
   const matchRoute = useMatchRoute()
   const openMenu = useAtomSet(pageMenu)
-  const editable = page.journalDay === null
+  const hls = page.title.startsWith(hlsPagePrefix)
+  const editable = page.journalDay === null && !hls
   const onContextMenu = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault()
     openMenu({ page, x: event.clientX, y: event.clientY })
@@ -92,7 +94,7 @@ export const PageTitle = ({
       >
         <span className="page-title-sizer-wrapper">
           <span className="seqno-page-title-text title" data-ref={page.name}>
-            {page.title}
+            {hls ? <a className="seqno-asset">{assetPageName(page.title)}</a> : page.title}
           </span>
         </span>
       </h1>
