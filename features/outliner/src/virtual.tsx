@@ -1,6 +1,5 @@
 import {
   defaultRangeExtractor,
-  measureElement,
   useVirtualizer,
   type Range,
   type VirtualItem,
@@ -87,48 +86,82 @@ const scrollTo = (
   element.scrollTo(behavior === undefined ? { top } : { top, behavior })
 }
 
+interface Owner {
+  readonly list: List
+  readonly element: HTMLElement
+}
+
+const owners = new WeakMap<Element, Owner>()
+
+const holderOf = (list: HTMLElement) =>
+  list.parentElement?.closest<HTMLElement>("[data-index]") ?? undefined
+
+const placeOf = (holder: HTMLElement) => {
+  const owner = holder.parentElement === null ? undefined : owners.get(holder.parentElement)
+  const item = owner?.list.measurementsCache[owner.list.indexFromElement(holder)]
+  return owner === undefined || item === undefined ? undefined : { ...owner, item }
+}
+
+const listTop = (element: HTMLElement, scroller: HTMLElement): number => {
+  const holder = holderOf(element)
+  const place = holder === undefined ? undefined : placeOf(holder)
+  return holder === undefined || place === undefined
+    ? fromTop(element, scroller)
+    : laidOutTop(place.item, place.list, place.element, scroller) +
+        fromTop(element, scroller) -
+        fromTop(holder, scroller)
+}
+
+const laidOutTop = (item: VirtualItem, list: List, element: HTMLElement, scroller: HTMLElement) =>
+  listTop(element, scroller) + item.start - list.options.scrollMargin
+
 const wasAboveTheTop = (item: VirtualItem, list: List, element: HTMLElement | null) => {
   const scroller = list.scrollElement
   if (element === null || scroller === null) return false
-  const top = fromTop(element, scroller) + item.start - list.options.scrollMargin
+  const top = laidOutTop(item, list, element, scroller)
   return list.itemSizeCache.has(item.key) ? top + item.size <= 0 : top < 0
 }
 
-const holderOf = (list: HTMLElement | null) =>
-  list?.parentElement?.closest<HTMLElement>("[data-index]") ?? list
-
 const holdersAbove = new WeakMap<Element, boolean>()
 
-const handledInside = new WeakMap<Element, number>()
-
-let inObserverPass = false
-
-const measuredNoting = (
-  element: HTMLElement,
-  entry: ResizeObserverEntry | undefined,
-  list: List,
-) => {
-  inObserverPass = entry !== undefined
-  return measureElement(element, entry, list)
-}
-
-const judgeRow = (item: VirtualItem, delta: number, list: List, element: HTMLElement | null) => {
-  const holder = holderOf(element)
-  const verdict = inObserverPass && holder !== null ? holdersAbove.get(holder) : undefined
-  if (verdict !== undefined) return !verdict && wasAboveTheTop(item, list, element)
-  if (holder !== null) handledInside.set(holder, (handledInside.get(holder) ?? 0) + delta)
-  return wasAboveTheTop(item, list, element)
-}
-
-const judgeItem = (item: VirtualItem, delta: number, list: List, element: HTMLElement | null) => {
-  const holder = list.elementsCache.get(item.key)
-  const above = wasAboveTheTop(item, list, element)
-  if (holder === undefined) return above
-  const handled = handledInside.get(holder)
-  handledInside.delete(holder)
+const decide = (holder: HTMLElement, above: boolean) => {
   holdersAbove.set(holder, above)
   requestAnimationFrame(() => holdersAbove.delete(holder))
-  return above && handled !== delta
+  return above
+}
+
+const holderWasAbove = (holder: HTMLElement, judge: () => boolean) =>
+  holdersAbove.get(holder) ?? decide(holder, judge())
+
+const arrived = (element: HTMLElement, scroller: HTMLElement, held: number) => {
+  const holder = holderOf(element)
+  if (holder !== undefined) decide(holder, listTop(element, scroller) + held <= 0)
+}
+
+const judgeRow = (item: VirtualItem, list: List, element: HTMLElement | null) => {
+  const holder = element === null ? undefined : holderOf(element)
+  const place = holder === undefined ? undefined : placeOf(holder)
+  const holderAbove =
+    holder !== undefined &&
+    place !== undefined &&
+    holderWasAbove(holder, () => wasAboveTheTop(place.item, place.list, place.element))
+  return !holderAbove && wasAboveTheTop(item, list, element)
+}
+
+const judgeItem = (item: VirtualItem, list: List, element: HTMLElement | null) => {
+  const holder = list.elementsCache.get(item.key)
+  const judge = () => wasAboveTheTop(item, list, element)
+  return holder === undefined ? judge() : holderWasAbove(holder, judge)
+}
+
+const measureMounted = (list: List) => {
+  const mounted = [...list.elementsCache.values()]
+    .filter((element) => element.isConnected)
+    .map((element) => ({ element, index: list.indexFromElement(element) }))
+    .toSorted((a, b) => a.index - b.index)
+  for (const { element, index } of mounted) {
+    list.resizeItem(index, Math.round(element.getBoundingClientRect().height))
+  }
 }
 
 const useTanStack = (options: VirtualListOptions & Attached) => {
@@ -144,7 +177,6 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
     rangeExtractor: options.range,
     scrollMargin: margin ?? 0,
     initialMeasurementsCache: options.initial,
-    ...(options.nested ? { measureElement: measuredNoting } : {}),
     onChange: () => {
       if (scroll !== null) settle(scroll.element)
     },
@@ -162,13 +194,25 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
     return undefined
   })
   virtualizer.shouldAdjustScrollPositionOnItemSizeChange = options.nested
-    ? (item, delta, list) => judgeRow(item, delta, list, options.element.current)
-    : (item, delta, list) => judgeItem(item, delta, list, options.element.current)
+    ? (item, _delta, list) => judgeRow(item, list, options.element.current)
+    : (item, _delta, list) => judgeItem(item, list, options.element.current)
+  const [watch] = useState(() => (element: HTMLElement) => {
+    owners.set(element, { list: virtualizer, element })
+    const changes = new MutationObserver(() => measureMounted(virtualizer))
+    changes.observe(element, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+    })
+    return () => changes.disconnect()
+  })
   return {
     items: virtualizer.getVirtualItems(),
     total: virtualizer.getTotalSize(),
     measure: virtualizer.measureElement,
     reveal,
+    watch,
     snapshot: virtualizer.takeSnapshot,
     size: virtualizer.getTotalSize,
     locate,
@@ -236,7 +280,7 @@ export const useVirtualList = (options: VirtualListOptions): VirtualList => {
   const list = useRef<HTMLElement | null>(null)
   const keep = options.keep ?? []
   const held = remembered.recall(options.id)
-  const { items, total, measure, reveal, snapshot, size, locate } = useTanStack({
+  const { items, total, measure, reveal, watch, snapshot, size, locate } = useTanStack({
     ...options,
     scroll,
     margin,
@@ -253,8 +297,11 @@ export const useVirtualList = (options: VirtualListOptions): VirtualList => {
     const observer = new ResizeObserver(place)
     observer.observe(scroll.content)
     const unlocate = locateOn(scroll.element, locate)
+    const unwatch = watch(element)
+    if (nested) arrived(element, scroll.element, remembered.recall(options.id)?.height ?? 0)
     return () => {
       observer.disconnect()
+      unwatch()
       unlocate()
       remembered.remember(options.id, { items: snapshot(), height: size() })
     }
