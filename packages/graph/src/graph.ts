@@ -12,7 +12,16 @@ import {
   Stream,
 } from "effect"
 import { LoroDoc, VersionVector, type LoroTreeNode } from "loro-crdt"
-import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
+import {
+  importMessage,
+  type Block,
+  type BlockId,
+  type Command,
+  type GraphEvent,
+  type Page,
+  type PageId,
+  type Root,
+} from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
 import { inBackground } from "./background.ts"
 import { changedSince, loroVersion, type Changed } from "./changes.ts"
@@ -129,6 +138,8 @@ export class Graph extends Context.Service<
       wanted: (page: Page) => boolean,
     ) => Effect.Effect<ReadonlyArray<PageTree>>
     readonly origin: Effect.Effect<Option.Option<ReadonlyMap<string, number>>>
+    readonly roots: Effect.Effect<ReadonlyArray<Root>>
+    readonly rootsIn: (bytes: Uint8Array) => ReadonlyArray<Root>
     readonly loaded: Effect.Effect<void>
   }
 >()("@seqno/graph/Graph") {
@@ -164,6 +175,35 @@ export const atVersion = <A>(
     fork.free()
   }
 }
+
+export const rootsOf = (doc: LoroDoc): ReadonlyArray<Root> =>
+  [...doc.oplogVersion().toJSON().keys()].flatMap((peer) => {
+    const change = doc.getChangeAt({ peer, counter: 0 })
+    return change.deps.length === 0 ? [{ peer, imported: change.message === importMessage }] : []
+  })
+
+export const rootsInBlob = (
+  bytes: Uint8Array,
+  pagesOf: (doc: LoroDoc) => ReadonlyArray<Page>,
+): ReadonlyArray<Root> => {
+  const doc = new LoroDoc()
+  try {
+    doc.import(bytes)
+    const roots = rootsOf(doc)
+    const notes = pagesOf(doc).some((page) => page.journalDay === null)
+    return roots.map((root) => ({ ...root, imported: root.imported || notes }))
+  } catch {
+    return []
+  } finally {
+    doc.free()
+  }
+}
+
+const pagesOfTree = (doc: LoroDoc): ReadonlyArray<Page> =>
+  doc
+    .getTree(TREE)
+    .roots()
+    .flatMap((root) => Option.toArray(Option.flatMap(livePageIdOf(root), () => readPage(root))))
 
 export const originOf = (doc: LoroDoc): Option.Option<ReadonlyMap<string, number>> => {
   const version = doc.oplogVersion().toJSON()
@@ -467,10 +507,10 @@ const make = (source: GraphSource) =>
       serial(Effect.sync(() => [...registry.pages.keys()])),
     ).pipe(Stream.mapEffect(eventsOf))
 
-    const place = (loaded: ReadonlyArray<PageTree>, at: number) => {
+    const place = (loaded: ReadonlyArray<PageTree>, at: number, message?: string) => {
       listen()
       loaded.forEach((one) => loadPage(tree, one, at))
-      doc.commit({ origin: LOADED })
+      doc.commit(message === undefined ? { origin: LOADED } : { origin: LOADED, message })
     }
 
     const settled = Effect.andThen(repair, drain)
@@ -504,7 +544,7 @@ const make = (source: GraphSource) =>
             const update = yield* Effect.sync((): LocalUpdate => {
               doc.setPeerId(BigInt(writer))
               try {
-                place(seeded, seedTime(seeded))
+                place(seeded, seedTime(seeded), importMessage)
                 const end = doc.oplogVersion().get(doc.peerIdStr) ?? 0
                 return { peer: writer, start: 0, end, bytes: doc.export({ mode: "update" }) }
               } finally {
@@ -593,6 +633,8 @@ const make = (source: GraphSource) =>
           ),
         ),
       origin: serial(Effect.sync(() => originOf(doc))),
+      roots: serial(Effect.sync(() => rootsOf(doc))),
+      rootsIn: (bytes) => rootsInBlob(bytes, pagesOfTree),
       loaded: filled.await,
     })
   })

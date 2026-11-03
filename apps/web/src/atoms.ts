@@ -114,6 +114,10 @@ export const pagesMadeElsewhere = appRuntime
   )
   .pipe(Atom.keepAlive)
 
+export const writeFilesHere = appRuntime.fn(() =>
+  Effect.flatMap(Effect.service(CoreClient), (core) => core.WriteFilesHere()),
+)
+
 export const mirrorReportClosed = Atom.make("").pipe(Atom.keepAlive)
 
 export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)

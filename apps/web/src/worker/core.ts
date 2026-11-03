@@ -483,7 +483,8 @@ const CoreHandlers = CoreRpcs.toLayer(
         ),
       WatchMirror: (_, { client }) =>
         following(client.id, (session) => SubscriptionRef.changes(session.mirror.status)),
-      WriteFilesHere: (_, { client }) => Effect.asVoid(current(client.id)),
+      WriteFilesHere: (_, { client }) =>
+        Effect.flatMap(current(client.id), (session) => session.writeFilesHere),
       CheckFiles: (_, { client }) =>
         Effect.flatMap(current(client.id), (session) => session.mirror.check()),
       WatchBlockRefCounts: (_, { client }) =>

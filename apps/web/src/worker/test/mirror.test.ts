@@ -178,6 +178,15 @@ const onPhone = (root: string, edit: (graph: Graph["Service"]) => Effect.Effect<
     }),
   )
 
+const share = (from: string, to: string) =>
+  Effect.promise(async () => {
+    for (const dir of ["updates", "snapshots", "seen"]) {
+      await cp(join(from, dir), join(to, dir), { recursive: true, force: false }).catch(
+        () => undefined,
+      )
+    }
+  })
+
 const named = <A extends { readonly title: string }>(items: ReadonlyArray<A>, title: string) =>
   items.find((item) => item.title === title) ?? assert.fail(`no page titled ${title}`)
 
@@ -538,6 +547,121 @@ describe("the markdown mirror", () => {
         }),
       ),
     40_000,
+  )
+
+  it.live(
+    "a device that imports the files before the folder's history arrives never doubles a block",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const laptopRoot = yield* folderWith({ "pages/plans.md": "- a\n- b" })
+          const laptop = yield* coreOn(laptopRoot, "laptop")
+          yield* laptop.OpenGraph({ graph: "plans" })
+          yield* settled(laptopRoot, "laptop")
+          const plans = named(yield* laptop.GetPages(), "plans")
+          const first = (yield* laptop.GetPage({ pageId: plans.id })).blocks[0]
+          if (first === undefined) return assert.fail("plans has no block")
+          yield* laptop.Dispatch({
+            command: { _tag: "EditText", blockId: first.id, from: 1, to: 1, insert: " edited" },
+          })
+          yield* until(read(laptopRoot, "pages/plans.md"), (text) => text === "- a edited\n- b")
+          const phoneRoot = yield* tempFolder
+          yield* Effect.promise(() =>
+            cp(join(laptopRoot, "pages"), join(phoneRoot, "pages"), { recursive: true }),
+          )
+          const phone = yield* coreOn(phoneRoot, "phone")
+          yield* phone.OpenGraph({ graph: "plans on the phone" })
+          yield* settled(phoneRoot, "phone")
+          yield* share(laptopRoot, phoneRoot)
+          yield* share(phoneRoot, laptopRoot)
+          yield* Effect.sleep("12 seconds")
+          const outline = (core: typeof laptop) =>
+            Effect.gen(function* () {
+              const pages = (yield* core.GetPages()).filter((page) => page.title === "plans")
+              const trees = yield* Effect.forEach(pages, (page) =>
+                core.GetPage({ pageId: page.id }),
+              )
+              return trees.map((tree) => tree.blocks.map((block) => block.text))
+            })
+          assert.deepStrictEqual(
+            { laptop: yield* outline(laptop), phone: yield* outline(phone) },
+            { laptop: [["a edited", "b"]], phone: [["a edited", "b"]] },
+          )
+        }),
+      ),
+    60_000,
+  )
+
+  it.live(
+    "two devices on one folder settle on one writer, and writing moves when the other device asks",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const root = yield* folderWith({ "pages/plans.md": "- a\n- b" })
+          const laptop = yield* coreOn(root, "laptop")
+          const phone = yield* coreOn(root, "phone")
+          yield* Effect.all(
+            [
+              laptop.OpenGraph({ graph: "plans" }),
+              phone.OpenGraph({ graph: "plans on the phone" }),
+            ],
+            { concurrency: 2 },
+          )
+          const writerOn = (core: typeof laptop) =>
+            Effect.map(Effect.orDie(Stream.runHead(core.WatchMirror())), (status) =>
+              Option.getOrNull(Option.map(status, (found) => found.writer)),
+            )
+          const both = Effect.all({ laptop: writerOn(laptop), phone: writerOn(phone) })
+          const settledOn = yield* until(
+            both,
+            (found) => found.laptop?.device === "laptop" && found.phone?.device === "laptop",
+            20,
+          )
+          const edit = (core: typeof laptop, insert: string) =>
+            Effect.gen(function* () {
+              const plans = named(yield* core.GetPages(), "plans")
+              const first = (yield* core.GetPage({ pageId: plans.id })).blocks[0]
+              if (first === undefined) return yield* Effect.die("plans has no block")
+              yield* core.Dispatch({
+                command: { _tag: "EditText", blockId: first.id, from: 1, to: 1, insert },
+              })
+            })
+          yield* edit(phone, " from the phone")
+          const viaLaptop = yield* until(
+            read(root, "pages/plans.md"),
+            (text) => text === "- a from the phone\n- b",
+            20,
+          )
+          yield* phone.WriteFilesHere()
+          const movedTo = yield* until(
+            both,
+            (found) => found.laptop?.device === "phone" && found.phone?.device === "phone",
+            20,
+          )
+          yield* edit(laptop, " and the laptop")
+          const viaPhone = yield* until(
+            read(root, "pages/plans.md"),
+            (text) => text === "- a and the laptop from the phone\n- b",
+            25,
+          )
+          assert.deepStrictEqual(
+            { settledOn, viaLaptop, movedTo, viaPhone },
+            {
+              settledOn: {
+                laptop: { device: "laptop", here: true },
+                phone: { device: "laptop", here: false },
+              },
+              viaLaptop: "- a from the phone\n- b",
+              movedTo: {
+                laptop: { device: "phone", here: false },
+                phone: { device: "phone", here: true },
+              },
+              viaPhone: "- a and the laptop from the phone\n- b",
+            },
+          )
+        }),
+      ),
+    90_000,
   )
 
   it.live(

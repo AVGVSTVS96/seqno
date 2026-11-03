@@ -1,5 +1,6 @@
 import { Effect, Option } from "effect"
-import type { LoroDoc } from "loro-crdt"
+import { LoroDoc } from "loro-crdt"
+import { importMessage, type Root } from "@seqno/domain"
 import { fromLoro, type Version } from "./version.ts"
 
 export interface Replica {
@@ -7,6 +8,27 @@ export interface Replica {
   readonly merge: (blobs: ReadonlyArray<Uint8Array>) => Effect.Effect<ReadonlyArray<boolean>>
   readonly restore: (snapshot: Uint8Array) => Effect.Effect<Option.Option<Version>>
   readonly snapshot: Effect.Effect<Uint8Array>
+  readonly roots: Effect.Effect<ReadonlyArray<Root>>
+  readonly hasPages: Effect.Effect<boolean>
+  readonly rootsIn: (bytes: Uint8Array) => ReadonlyArray<Root>
+}
+
+export const rootsOfDoc = (doc: LoroDoc): ReadonlyArray<Root> =>
+  [...doc.oplogVersion().toJSON().keys()].flatMap((peer) => {
+    const change = doc.getChangeAt({ peer, counter: 0 })
+    return change.deps.length === 0 ? [{ peer, imported: change.message === importMessage }] : []
+  })
+
+export const rootsInBlob = (bytes: Uint8Array): ReadonlyArray<Root> => {
+  const doc = new LoroDoc()
+  try {
+    doc.import(bytes)
+    return rootsOfDoc(doc)
+  } catch {
+    return []
+  } finally {
+    doc.free()
+  }
 }
 
 const importOne = (doc: LoroDoc, blob: Uint8Array): boolean => {
@@ -34,4 +56,7 @@ export const loroReplica = (doc: LoroDoc): Replica => ({
       importOne(doc, snapshot) ? Option.some(fromLoro(doc.oplogVersion())) : Option.none(),
     ),
   snapshot: Effect.sync(() => doc.export({ mode: "snapshot" })),
+  roots: Effect.sync(() => rootsOfDoc(doc)),
+  hasPages: Effect.sync(() => doc.oplogVersion().length() > 0),
+  rootsIn: rootsInBlob,
 })

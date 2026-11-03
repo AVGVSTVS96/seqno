@@ -1,9 +1,11 @@
 export { Entry, FileUnavailable, Storage, StorageFailed } from "./storage.ts"
 export {
+  MirrorClaim,
   SeenFile,
   UpdateRejected,
   Vault,
   layer,
+  type SeenDevice,
   type SyncReport,
   type VaultConfig,
 } from "./vault.ts"

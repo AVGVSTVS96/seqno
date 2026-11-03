@@ -40,6 +40,7 @@ import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { makeMergeBack } from "./merge-back.ts"
 import { makeMirror, type Mirror } from "./mirror.ts"
+import { makeWriters, staleSince } from "./writer.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 
 export interface Committed {
@@ -68,6 +69,7 @@ export interface Session {
   readonly rebuildIndex: Effect.Effect<void>
   readonly setConfigFlag: (key: string, value: boolean) => Effect.Effect<void, StorageFailed>
   readonly mirror: Mirror
+  readonly writeFilesHere: Effect.Effect<void>
   readonly closing: Effect.Effect<void>
   readonly git: GraphGit | null
 }
@@ -488,7 +490,17 @@ export const openSession = (place: GraphPlace) =>
       }
     })
 
+    const writers = yield* makeWriters({
+      me: device,
+      synced: place.synced,
+      setMirror: vault.setMirror,
+    })
+    const lineage = Effect.map(graph.roots, (roots) => {
+      const [only, ...rest] = roots.filter((root) => root.imported)
+      return only !== undefined && rest.length === 0 ? only.peer : null
+    })
     const synced = yield* vault.sync(replica)
+    yield* writers.heard(synced, yield* lineage)
     const skipped: Array<SkippedFile> = []
     if (synced.merged.length === 0 && synced.waiting.length === 0) {
       const imported = yield* importGraph.pipe(
@@ -514,13 +526,9 @@ export const openSession = (place: GraphPlace) =>
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
     const assets = yield* makeAssetFiles(place.storage, place.file)
     const appFiles = yield* makeAppFiles(place.storage, place.changed)
-    const mayWrite = Effect.succeed(true)
+    const mayWrite = Effect.map(SubscriptionRef.get(writers.state), (state) => state.mayWrite)
     const git =
       place.git === undefined ? null : yield* openGit(yield* place.git, place.storage, mayWrite)
-    const syncPass = place.synced
-      ? Effect.andThen(logged(vault.sync(replica)), assets.refresh)
-      : logged(vault.sync(replica))
-    yield* Effect.forkScoped(Effect.forever(Effect.andThen(Effect.sleep("5 seconds"), syncPass)))
     yield* Effect.forkScoped(
       Effect.forever(
         Effect.gen(function* () {
@@ -551,6 +559,8 @@ export const openSession = (place: GraphPlace) =>
     const baseVersion = Effect.gen(function* () {
       const stored = yield* place.mirrorStore.version
       if (Option.isSome(stored)) return stored
+      const { previous } = yield* SubscriptionRef.get(writers.state)
+      if (Option.isSome(previous)) return previous
       return Option.map(yield* graph.origin, (origin) => Object.fromEntries(origin))
     })
     const mergeBack = makeMergeBack({ graph, record, blocks, synced: place.synced, baseVersion })
@@ -564,7 +574,7 @@ export const openSession = (place: GraphPlace) =>
       syntax: yield* serviceOf(LogseqSyntax, LogseqSyntaxLive),
       indexed: indexed.await,
       mayWrite,
-      writer: Effect.succeed(null),
+      writer: Effect.map(SubscriptionRef.get(writers.state), (state) => state.writer),
       outside: (change) => Effect.provideService(mergeBack(change), Crypto.Crypto, crypto),
       baseVersion,
       ...(git === null ? {} : { wrote: git.touched }),
@@ -593,6 +603,21 @@ export const openSession = (place: GraphPlace) =>
     )
     yield* Effect.forkScoped(mirrored.loop)
 
+    const syncOnce = Effect.gen(function* () {
+      yield* writers.mirrorVersion(yield* place.mirrorStore.version)
+      const report = yield* vault.sync(replica)
+      const became = yield* writers.heard(report, yield* lineage)
+      const { previous } = yield* SubscriptionRef.get(writers.state)
+      if (became && staleSince(yield* place.mirrorStore.version, previous)) {
+        yield* mirrored.mirror.forget
+      }
+      yield* mirrored.mirror.check([])
+    })
+    const syncPass = place.synced
+      ? Effect.andThen(logged(syncOnce), assets.refresh)
+      : logged(syncOnce)
+    yield* Effect.forkScoped(Effect.forever(Effect.andThen(Effect.sleep("5 seconds"), syncPass)))
+
     const session: Session = {
       graph,
       newPageFormat,
@@ -617,6 +642,7 @@ export const openSession = (place: GraphPlace) =>
           ),
         ),
       mirror: mirrored.mirror,
+      writeFilesHere: Effect.andThen(writers.takeOver, syncPass),
       closing: saveIndexNow,
       git,
     }

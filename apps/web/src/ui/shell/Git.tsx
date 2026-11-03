@@ -1,10 +1,16 @@
-import { RegistryContext, useAtom, useAtomMount, useAtomValue } from "@effect/atom-react"
-import { Effect, Stream } from "effect"
+import {
+  RegistryContext,
+  useAtom,
+  useAtomMount,
+  useAtomSet,
+  useAtomValue,
+} from "@effect/atom-react"
+import { Effect, Option, Stream } from "effect"
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity"
 import { useContext, useId, useState, type ReactNode } from "react"
 import { logseq } from "@seqno/dom"
 import { GitClient, type GitSettings } from "@seqno/rpc"
-import { gitRuntime } from "../../atoms.ts"
+import { gitRuntime, mirrorStatus, writeFilesHere } from "../../atoms.ts"
 import { SwitchButton } from "./Appearance.tsx"
 import { notify } from "./Notices.tsx"
 import { closeDialogOf, Dialog } from "./popover.tsx"
@@ -497,6 +503,36 @@ const Seconds = ({ settings }: { readonly settings: GitSettings }) => {
   )
 }
 
+const FilesWriter = () => {
+  const writer = Option.getOrNull(
+    Option.flatMap(AsyncResult.value(useAtomValue(mirrorStatus)), (status) =>
+      Option.fromNullishOr(status.writer),
+    ),
+  )
+  const writeHere = useAtomSet(writeFilesHere)
+  const labelId = useId()
+  if (writer === null) return null
+  return (
+    <Row label="Logseq's files" labelId={labelId}>
+      {writer.here ? (
+        <span aria-labelledby={labelId}>This device writes them</span>
+      ) : (
+        <>
+          <span aria-labelledby={labelId}>Another device writes them ({writer.device})</span>
+          <button
+            type="button"
+            className="button-secondary"
+            aria-describedby={labelId}
+            onClick={() => writeHere()}
+          >
+            Write them from this device
+          </button>
+        </>
+      )}
+    </Row>
+  )
+}
+
 export const VersionControl = () => {
   const registry = useContext(RegistryContext)
   const autoLabel = useId()
@@ -543,6 +579,7 @@ export const VersionControl = () => {
         />
       </Row>
       <Seconds settings={current} />
+      <FilesWriter />
     </div>
   )
 }

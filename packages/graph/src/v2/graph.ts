@@ -1,6 +1,13 @@
 import { Clock, Crypto, Effect, Latch, Layer, Option, PubSub, Semaphore, Stream } from "effect"
 import { LoroDoc, VersionVector } from "loro-crdt"
-import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
+import {
+  importMessage,
+  type Block,
+  type BlockId,
+  type Command,
+  type GraphEvent,
+  type PageId,
+} from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
 import { inBackground } from "../background.ts"
 import type { Unresolved } from "../commands.ts"
@@ -13,6 +20,8 @@ import {
   clientOrigin,
   importer,
   originOf,
+  rootsOf,
+  rootsInBlob,
   peerOf,
   seedTime,
   typedBlock,
@@ -326,15 +335,17 @@ const make = (source: GraphSource) =>
       serial(Effect.sync(() => livePages().map(({ id }) => id))),
     ).pipe(Stream.mapEffect(eventsOf))
 
-    const place = (pagesIn: ReadonlyArray<PageTree>, at: number) => {
+    const place = (pagesIn: ReadonlyArray<PageTree>, at: number, message?: string) => {
       listen()
-      for (const tree of pagesIn) {
+      pagesIn.forEach((tree, index) => {
         writePage(trees, tree.page.id, {
           page: tree.page,
           blocks: tree.blocks.map((one) => ({ block: one, createdAt: at, updatedAt: at })),
         })
-        doc.commit({ origin: LOADED })
-      }
+        doc.commit(
+          index === 0 && message !== undefined ? { origin: LOADED, message } : { origin: LOADED },
+        )
+      })
     }
 
     const settled = Effect.andThen(repair, drain)
@@ -368,7 +379,7 @@ const make = (source: GraphSource) =>
             const update = yield* Effect.sync((): LocalUpdate => {
               doc.setPeerId(BigInt(writer))
               try {
-                place(seeded, seedTime(seeded))
+                place(seeded, seedTime(seeded), importMessage)
                 const end = doc.oplogVersion().get(doc.peerIdStr) ?? 0
                 return { peer: writer, start: 0, end, bytes: doc.export({ mode: "update" }) }
               } finally {
@@ -444,6 +455,9 @@ const make = (source: GraphSource) =>
           ),
         ),
       origin: serial(Effect.sync(() => originOf(doc))),
+      roots: serial(Effect.sync(() => rootsOf(doc))),
+      rootsIn: (bytes) =>
+        rootsInBlob(bytes, (scratch) => [...makeTrees(scratch).listing().live.values()]),
       loaded: filled.await,
     })
   })

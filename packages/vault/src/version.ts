@@ -17,6 +17,7 @@ export type BlobKind = "update" | "snapshot"
 export interface BlobMeta {
   readonly kind: BlobKind
   readonly span: Span
+  readonly rooted: boolean
 }
 
 export const fromLoro = (version: VersionVector): Version => Object.fromEntries(version.toJSON())
@@ -45,6 +46,7 @@ export const inspectBlob = (bytes: Uint8Array): Option.Option<BlobMeta> =>
             start: fromLoro(meta.partialStartVersionVector),
             end: fromLoro(meta.partialEndVersionVector),
           },
+          rooted: meta.startFrontiers.length === 0,
         })
       : Option.none(),
   )

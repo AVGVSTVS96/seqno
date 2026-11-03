@@ -1,5 +1,5 @@
 import { Clock, Context, Duration, Effect, Layer, Option, Schema, Semaphore } from "effect"
-import type { DeviceId } from "@seqno/domain"
+import type { DeviceId, Root } from "@seqno/domain"
 import {
   deviceOfDir,
   deviceOfSeen,
@@ -20,10 +20,17 @@ import type { Replica } from "./replica.ts"
 import { Entry, Storage, type StorageFailed } from "./storage.ts"
 import { covers, inspectBlob, isEmpty, join, Version, type BlobKind, type Span } from "./version.ts"
 
+export const MirrorClaim = Schema.Struct({
+  claim: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  version: Version,
+})
+export type MirrorClaim = typeof MirrorClaim.Type
+
 export const SeenFile = Schema.Struct({
   vv: Version,
   verified: Schema.Array(Schema.String),
   snapshots: Schema.Array(Schema.Tuple([Schema.String, Version])),
+  mirror: Schema.optionalKey(MirrorClaim),
 })
 export type SeenFile = typeof SeenFile.Type
 
@@ -44,9 +51,18 @@ export interface VaultConfig {
   readonly compactEvery: Duration.Input
 }
 
+export interface SeenDevice {
+  readonly device: DeviceId
+  readonly vv: Version
+  readonly mirror: MirrorClaim | null
+}
+
 export interface SyncReport {
   readonly merged: ReadonlyArray<string>
   readonly waiting: ReadonlyArray<string>
+  readonly foreign: ReadonlyArray<string>
+  readonly devices: ReadonlyArray<SeenDevice>
+  readonly unread: number
   readonly behind: boolean
   readonly written: ReadonlyArray<string>
   readonly deleted: ReadonlyArray<string>
@@ -60,6 +76,7 @@ export class Vault extends Context.Service<
       bytes: Uint8Array,
     ) => Effect.Effect<string, UpdateRejected | StorageFailed>
     readonly sync: (replica: Replica) => Effect.Effect<SyncReport, StorageFailed>
+    readonly setMirror: (claim: MirrorClaim) => Effect.Effect<void>
   }
 >()("@seqno/vault/Vault") {}
 
@@ -84,6 +101,12 @@ const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 const byName = new Intl.Collator("en", { numeric: true })
 
+const lineageOf = (replica: Replica) =>
+  Effect.map(replica.roots, (roots) => {
+    const [only, ...rest] = roots.filter((root) => root.imported)
+    return only !== undefined && rest.length === 0 ? only.peer : null
+  })
+
 const make = (config: VaultConfig) =>
   Effect.gen(function* () {
     const storage = yield* Storage
@@ -97,7 +120,20 @@ const make = (config: VaultConfig) =>
     const checked = new Set<string>()
     const verified = new Set<string>()
     const mine = new Set<string>()
-    const state = { lastSeen: "", lastSnapshotAt: Option.none<number>(), merged: false }
+    const state = {
+      lastSeen: "",
+      lastSnapshotAt: Option.none<number>(),
+      merged: false,
+      mirror: Option.none<MirrorClaim>(),
+    }
+    const blobRoots = new Map<string, ReadonlyArray<Root>>()
+    const rootsOf = (replica: Replica, key: string, bytes: Uint8Array) => {
+      const known = blobRoots.get(key)
+      if (known !== undefined) return known
+      const found = replica.rootsIn(bytes)
+      blobRoots.set(key, found)
+      return found
+    }
 
     const filesIn = (dir: string, keyDir: string) =>
       Effect.map(storage.list(dir), (entries) =>
@@ -206,13 +242,35 @@ const make = (config: VaultConfig) =>
           const inHand = new Map<string, readonly [Listed, Uint8Array]>()
           const listedBy = new Map<string, DeviceId>()
 
+          const devices: Array<SeenDevice> = []
+          let unread = 0
           for (const file of seenFiles) {
             const device = deviceOfSeen(file.name)
             if (Option.isNone(device)) continue
             const seen = Option.flatMap(yield* readBytes(file), (bytes) =>
               decodeSeen(decoder.decode(bytes)),
             )
-            if (Option.isNone(seen)) continue
+            if (Option.isNone(seen)) {
+              unread++
+              continue
+            }
+            if (originalName(file.name) === file.name) {
+              if (
+                device.value === me &&
+                Option.isNone(state.mirror) &&
+                seen.value.mirror !== undefined
+              ) {
+                state.mirror = Option.some(seen.value.mirror)
+              }
+              devices.push({
+                device: device.value,
+                vv: seen.value.vv,
+                mirror:
+                  device.value === me
+                    ? Option.getOrNull(state.mirror)
+                    : (seen.value.mirror ?? null),
+              })
+            }
             const canonical = originalName(file.name) === file.name
             for (const [name, vv] of seen.value.snapshots) {
               snapshotVersions.set(name, join(snapshotVersions.get(name) ?? {}, vv))
@@ -281,23 +339,54 @@ const make = (config: VaultConfig) =>
             inHand.set(file.name, [file, blob.value.bytes])
           }
 
-          const mergeAll = (batch: ReadonlyArray<readonly [Listed, Uint8Array]>) =>
-            Effect.map(
-              Effect.suspend(() => {
-                state.merged = true
-                return replica.merge(batch.map(([, bytes]) => bytes))
-              }),
-              (results) =>
-                batch.filter(([file], index) => {
-                  if (results[index] !== true) {
-                    waiting.push(file.key)
-                    return true
-                  }
-                  consumed.add(file.key)
-                  merged.push(file.key)
-                  return false
-                }).length,
-            )
+          const foreign: Array<string> = []
+          const mergeAll = (offered: ReadonlyArray<readonly [Listed, Uint8Array]>) =>
+            Effect.gen(function* () {
+              const have = yield* replica.version
+              const rooted = offered.flatMap(([file, bytes]) =>
+                Option.isSome(Option.filter(inspectBlob(bytes), (meta) => meta.rooted))
+                  ? [[file.key, rootsOf(replica, file.key, bytes), bytes.length] as const]
+                  : [],
+              )
+              const roots = new Map(rooted.map(([key, found]) => [key, found]))
+              const lineage =
+                (yield* lineageOf(replica)) ??
+                (isEmpty(have)
+                  ? (rooted
+                      .flatMap(([, found, size]) =>
+                        found
+                          .filter((root) => root.imported)
+                          .map((root) => [root.peer, size] as const),
+                      )
+                      .toSorted((a, b) => b[1] - a[1])[0]?.[0] ?? null)
+                  : null)
+              const hasPages = yield* replica.hasPages
+              const batch = offered.filter(([file]) => {
+                const found = roots.get(file.key)
+                if (found === undefined) return true
+                const allowed = !found.some(
+                  (root) =>
+                    root.imported &&
+                    root.peer !== lineage &&
+                    (have[root.peer] ?? 0) === 0 &&
+                    (lineage !== null || hasPages),
+                )
+                if (!allowed) foreign.push(file.key)
+                return allowed
+              })
+              if (batch.length === 0) return 0
+              state.merged = true
+              const results = yield* replica.merge(batch.map(([, bytes]) => bytes))
+              return batch.filter(([file], index) => {
+                if (results[index] !== true) {
+                  waiting.push(file.key)
+                  return true
+                }
+                consumed.add(file.key)
+                merged.push(file.key)
+                return false
+              }).length
+            })
 
           if (isEmpty(yield* replica.version)) {
             const newest = [...inHand.values()].reduce<
@@ -366,6 +455,7 @@ const make = (config: VaultConfig) =>
               .filter((name) => mine.has(originalName(name)))
               .toSorted()
               .map((name) => [name, snapshotVersions.get(name) ?? {}] as const),
+            ...Option.match(state.mirror, { onNone: () => ({}), onSome: (mirror) => ({ mirror }) }),
           })
           if (seen !== state.lastSeen) {
             yield* storage.write(seenPath(me), encoder.encode(seen))
@@ -432,11 +522,16 @@ const make = (config: VaultConfig) =>
             if (isSeenConflictOf(me, file.name)) yield* remove(file)
           }
 
-          return { merged, waiting, behind, written, deleted }
+          return { merged, waiting, foreign, devices, unread, behind, written, deleted }
         }),
       )
 
-    return Vault.of({ device: me, writeUpdate, sync })
+    const setMirror = (claim: MirrorClaim) =>
+      Effect.sync(() => {
+        state.mirror = Option.some(claim)
+      })
+
+    return Vault.of({ device: me, writeUpdate, sync, setMirror })
   })
 
 export const layer = (config: VaultConfig): Layer.Layer<Vault, never, Storage> =>

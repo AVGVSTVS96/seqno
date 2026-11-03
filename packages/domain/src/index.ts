@@ -55,3 +55,4 @@ export {
   type Handle,
   type Vec,
 } from "./whiteboard.ts"
+export { importMessage, type Root } from "./lineage.ts"

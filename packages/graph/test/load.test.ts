@@ -70,6 +70,34 @@ describe("load", () => {
       ),
   )
 
+  it.effect(
+    "an import's first change says it is an import, and a device's own first edit doesn't",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const seeded = yield* openGraph("1")
+          const fromSeed = yield* seeded.seed([imported])
+          const fresh = yield* openGraph("2")
+          yield* fresh.load([imported])
+          assert.deepStrictEqual(
+            { seeded: yield* seeded.roots, fresh: yield* fresh.roots },
+            {
+              seeded: [
+                {
+                  peer: Option.getOrElse(
+                    Option.map(fromSeed.update, (one) => one.peer),
+                    () => "",
+                  ),
+                  imported: true,
+                },
+              ],
+              fresh: [{ peer: "2", imported: false }],
+            },
+          )
+        }),
+      ),
+  )
+
   it.effect("cannot be undone", () =>
     Effect.scoped(
       Effect.gen(function* () {

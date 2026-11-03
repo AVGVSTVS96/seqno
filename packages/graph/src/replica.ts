@@ -22,4 +22,7 @@ export const vaultReplica = (graph: Graph["Service"]) => ({
       Effect.orElseSucceed(() => Option.none()),
     ),
   snapshot: graph.snapshot,
+  roots: graph.roots,
+  rootsIn: graph.rootsIn,
+  hasPages: Effect.map(graph.pages, (pages) => pages.some((page) => page.journalDay === null)),
 })

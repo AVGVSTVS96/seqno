@@ -49,6 +49,9 @@ const vaultReplica = (replica: Replica): VaultReplica => ({
   merge: replica.importBlobs,
   restore: replica.restoreSnapshot,
   snapshot: replica.exportSnapshot,
+  roots: Effect.succeed([]),
+  hasPages: Effect.succeed(false),
+  rootsIn: () => [],
 })
 
 const RETRY_MS = 30_000

@@ -65,6 +65,7 @@ export interface Mirror {
   readonly version: Effect.Effect<Option.Option<MirrorVersion>>
   readonly fileOf: (page: Page) => Effect.Effect<string>
   readonly restore: (path: string, text: string) => Effect.Effect<void, StorageFailed>
+  readonly forget: Effect.Effect<void>
 }
 
 type Done = "done" | "later"
@@ -76,6 +77,7 @@ interface MirrorState {
   counts: Readonly<Record<string, number>>
   pages: ReadonlyMap<string, Page>
   listing: ReadonlySet<string> | null
+  forgetting: boolean
 }
 
 type Stat =
@@ -196,6 +198,7 @@ export const makeMirror = (deps: MirrorDeps) =>
       counts: {},
       pages: new Map(),
       listing: null,
+      forgetting: false,
     }
 
     const folder = storageFolder(storage)
@@ -718,6 +721,13 @@ export const makeMirror = (deps: MirrorDeps) =>
         yield* publish
         return false
       }
+      if (state.forgetting) {
+        state.forgetting = false
+        state.started = false
+        state.reconciled = false
+        for (const each of [byPath, byPage, observed, backoff, left, failed]) each.clear()
+        yield* store.clear
+      }
       if (!state.started) yield* start
       state.listing = null
       if (state.paused !== null) {
@@ -814,6 +824,10 @@ export const makeMirror = (deps: MirrorDeps) =>
           dirtyPaths.add(path)
           yield* wake.open
         }),
+      forget: Effect.suspend(() => {
+        state.forgetting = true
+        return wake.open
+      }),
     }
     return { mirror, loop: Effect.andThen(wake.open, loop) }
   })

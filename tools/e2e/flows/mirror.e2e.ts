@@ -57,6 +57,11 @@ const textOf = async (page: Page, path: string) =>
 
 const journal = "journals/2025_03_09.md"
 
+const seenName = async (page: Page) =>
+  Object.keys(await opfsFiles(page, ogFolder))
+    .map((path) => path.split("/"))
+    .find(([dir, name]) => dir === "seen" && name !== "web-phone.json")?.[1] ?? ""
+
 const ogJournal = [
   "- journal links to [[project/Alpha]] and [[Alpha Project]] (edited)",
   "- journal uses a namespaced tag #project/Alpha",
@@ -462,4 +467,39 @@ test("two tabs typing on one page write its file once per tick", async ({ page }
     a: text.includes("[[Alpha Project]] A\n"),
     b: text.includes("#project/Alpha B\n"),
   }).toEqual({ writes: 1, a: true, b: true })
+})
+
+test("a second device's higher claim stops this tab writing, and Write them from this device takes it back", async ({
+  page,
+}) => {
+  await openFolder(page, og)
+  const ownText = async () =>
+    (await opfsFile(page, ogFolder, `seen/${await seenName(page)}`))?.text ?? ""
+  await expect.poll(ownText, { timeout: 15_000 }).toContain('"mirror"')
+  const own = { text: await ownText() }
+  const vv = JSON.parse(own.text).vv
+  await writeOpfsFile(
+    page,
+    ogFolder,
+    "seen/web-phone.json",
+    JSON.stringify({ vv, verified: [], snapshots: [], mirror: { claim: 5, version: vv } }),
+  )
+  await page.getByRole("button", { name: "More" }).click()
+  await page.getByRole("menuitem", { name: "Settings" }).click()
+  const settings = page.getByRole("dialog", { name: "Settings" })
+  await settings.getByRole("tab", { name: "Version control" }).click()
+  await expect(settings).toContainText("Another device writes them (web-phone)", {
+    timeout: 10_000,
+  })
+  await page.keyboard.press("Escape")
+  await typeInJournal(page, " (edited)")
+  await page.keyboard.press("Escape")
+  await page.waitForTimeout(3000)
+  expect(await textOf(page, journal)).not.toBe(ogJournal)
+  await page.getByRole("button", { name: "More" }).click()
+  await page.getByRole("menuitem", { name: "Settings" }).click()
+  await settings.getByRole("tab", { name: "Version control" }).click()
+  await settings.getByRole("button", { name: "Write them from this device" }).click()
+  await expect(settings).toContainText("This device writes them", { timeout: 10_000 })
+  await expect.poll(() => textOf(page, journal), { timeout: 10_000 }).toBe(ogJournal)
 })
