@@ -23,6 +23,7 @@ The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.
 | `@seqno/rpc`      | `packages/rpc`      | contract | UI <-> core-worker contract (Effect RPC).                                                                                       |
 | `@seqno/syntax`   | `packages/syntax`   | pure     | Logseq markdown <-> block tree, exact round-trip. Pure.                                                                         |
 | `@seqno/query`    | `packages/query`    | pure     | Query text (Logseq-style and Dataview-style) -> AST -> SQL. Pure.                                                               |
+| `@seqno/export`   | `packages/export`   | pure     | Logseq's export formats: text, OPML, HTML for pages and blocks; EDN, JSON, Roam JSON and zips for a graph. Pure.                |
 | `@seqno/graph`    | `packages/graph`    | core     | Loro graph: lazy open, commands, undo/redo, GraphEvents.                                                                        |
 | `@seqno/index`    | `packages/index`    | core     | SQLite schema, indexer from GraphEvents, backlinks, FTS, live queries.                                                          |
 | `@seqno/vault`    | `packages/vault`    | core     | Edit-log files: File System Access, OPFS and node-fs adapters, compaction.                                                      |
@@ -46,7 +47,7 @@ A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added t
                  contract (rpc)   <- imports domain only
                  ^          ^
    ui side ------+          +------ core side
-   apps/web                         pure: syntax, query (domain + pure)
+   apps/web                         pure: syntax, query, export (domain + pure)
    features/*                       core: graph, index, vault, interop
    (domain, rpc, pure, ui)          worker: apps/web/src/worker/** (core packages, never ui)
 

@@ -1,0 +1,21 @@
+{
+  "name": "@seqno/export",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@seqno/domain": "workspace:*",
+    "@seqno/syntax": "workspace:*",
+    "effect": "4.0.1",
+    "fflate": "0.8.3"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}
