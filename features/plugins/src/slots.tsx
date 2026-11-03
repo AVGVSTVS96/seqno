@@ -80,11 +80,6 @@ export const PluginMacroSlot = ({ args, blockId }: MacroSlotProps) => {
 export const PluginThemeLink = ({ mode }: { readonly mode: ThemeMode }) => {
   const chosen = useAtomValue(chosenThemes)[mode]
   return chosen === null ? null : (
-    <link
-      rel="stylesheet"
-      href={chosen.url}
-      precedence="plugin-theme"
-      data-theme-pid={chosen.pid}
-    />
+    <link rel="stylesheet" href={chosen.url} data-theme-pid={chosen.pid} />
   )
 }
