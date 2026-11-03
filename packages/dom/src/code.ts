@@ -56,6 +56,7 @@ const codemirror = (look: CodeLook, ...parts: ReadonlyArray<string>) =>
 
 export interface CodeParts {
   readonly "seqno-codeblock": readonly [string, CodeLook, boolean]
+  readonly "seqno-file-code": readonly [string, CodeLook]
   readonly "seqno-code-lang": readonly [CodeLook]
   readonly "seqno-code-gutter": readonly [CodeLook]
   readonly "seqno-code-number": readonly [CodeLook]
@@ -88,6 +89,15 @@ export const codeParts: Table<CodeParts> = {
             `cm-s-${look.mode}`,
             focused && "CodeMirror-focused",
           ),
+    "data-lang": language === "" ? undefined : language,
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/code.cljs#L507-L516
+  "seqno-file-code": (language, look) => ({
+    className: names(
+      "extensions__code CodeMirror",
+      look.accent ? "cm-s-lsradix" : "cm-s-solarized",
+      `cm-s-${look.mode}`,
+    ),
     "data-lang": language === "" ? undefined : language,
   }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/code.cljs#L510

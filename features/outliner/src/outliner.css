@@ -1046,7 +1046,8 @@
   color: var(--fg-quote);
 }
 
-.seqno-codeblock {
+.seqno-codeblock,
+.seqno-file-code {
   --code-padding: 18px 0 var(--space-4);
   position: relative;
   display: flex;
@@ -1272,7 +1273,8 @@
   margin-left: calc(-1 * (var(--block-control-size) - 2px));
 }
 
-.seqno-codeblock {
+.seqno-codeblock,
+.seqno-file-code {
   --bg-code-active-line: light-dark(rgb(0 0 0 / 0.05), rgb(255 255 255 / 0.05));
 }
 

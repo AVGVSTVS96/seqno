@@ -42,6 +42,7 @@ import { GraphChooser, OpenFailed } from "./OpenGraphScreen.tsx"
 import { PluginSettings } from "./plugins/PluginSettings.tsx"
 import { PluginsDialog } from "./plugins/PluginsDialog.tsx"
 import { BlockMenu } from "./shell/BlockMenu.tsx"
+import { CustomCss } from "./shell/custom-css.tsx"
 import { ExportDialog, GraphExportDialog } from "./shell/Export.tsx"
 import { Header } from "./shell/Header.tsx"
 import { HelpButton } from "./shell/HelpButton.tsx"
@@ -144,6 +145,7 @@ const Layout = ({
                   <PluginsDialog />
                   <PluginSettings />
                   <PluginThemeLink mode={mode} />
+                  <CustomCss />
                   {isDemoGraph(graph) ? <Hints /> : null}
                 </div>
               </div>

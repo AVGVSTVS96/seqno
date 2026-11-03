@@ -145,6 +145,8 @@ export const publishedCore = (data: Published): Layer.Layer<CoreClient> => {
           }),
         RebuildIndex: () => Effect.void,
         ListPageFiles: () => Effect.succeed([]),
+        WatchAppFiles: () => Stream.empty,
+        WriteAppFile: () => Effect.void,
         SetConfigFlag: () => Effect.void,
         WatchBlockRefCounts: () => watch((trees) => refCounts(blocksOf(trees))),
         WatchBlockReferences: ({ uuid }) =>

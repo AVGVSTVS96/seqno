@@ -26,6 +26,7 @@ import { ImportIssue, LogseqSyntaxLive, importGraph, parseConfig } from "@seqno/
 import { SaveState, type SkippedFile } from "@seqno/rpc"
 import { Storage, type StorageFailed, Vault, layer as vaultLayer } from "@seqno/vault"
 import { makeAssetFiles, type AssetFiles } from "./assets.ts"
+import { makeAppFiles, type AppFiles } from "./files.ts"
 import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
@@ -44,6 +45,7 @@ export interface Session {
   readonly changes: PubSub.PubSub<Committed>
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
   readonly assets: AssetFiles
+  readonly appFiles: AppFiles
   readonly skipped: ReadonlyArray<SkippedFile>
   readonly newPageFormat: "org" | undefined
   readonly record: <E, R>(
@@ -491,6 +493,7 @@ export const openSession = (place: GraphPlace) =>
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
     const assets = yield* makeAssetFiles(place.storage, place.file)
+    const appFiles = yield* makeAppFiles(place.storage, place.changed)
     const syncPass = place.synced
       ? Effect.andThen(logged(vault.sync(replica)), assets.refresh)
       : logged(vault.sync(replica))
@@ -530,6 +533,7 @@ export const openSession = (place: GraphPlace) =>
       changes,
       saving,
       assets,
+      appFiles,
       skipped,
       record,
       indexed: indexed.await,
@@ -539,10 +543,7 @@ export const openSession = (place: GraphPlace) =>
           Effect.map((bytes) => decoder.decode(bytes)),
           Effect.orElseSucceed(() => ""),
           Effect.flatMap((text) =>
-            place.storage.write(
-              "logseq/config.edn",
-              encoder.encode(writeConfigFlag(text, key, value)),
-            ),
+            appFiles.write({ path: "logseq/config.edn", text: writeConfigFlag(text, key, value) }),
           ),
         ),
       closing: saveIndexNow,

@@ -156,6 +156,28 @@ export const ListPageFiles = Rpc.make("ListPageFiles", {
   error: GraphNotOpen,
 })
 
+export const AppFilePath = Schema.Literals([
+  "logseq/config.edn",
+  "logseq/custom.css",
+  "logseq/custom.js",
+  "logseq/export.css",
+])
+export type AppFilePath = typeof AppFilePath.Type
+
+export const AppFile = Schema.Struct({ path: AppFilePath, text: Schema.String })
+export type AppFile = typeof AppFile.Type
+
+export const WatchAppFiles = Rpc.make("WatchAppFiles", {
+  success: Schema.Array(AppFile),
+  error: GraphNotOpen,
+  stream: true,
+})
+
+export const WriteAppFile = Rpc.make("WriteAppFile", {
+  payload: AppFile,
+  error: Schema.Union([GraphNotOpen, CommandRejected]),
+})
+
 export const ConfigFlag = Schema.Literals([":ui/show-brackets?"])
 
 export const SetConfigFlag = Rpc.make("SetConfigFlag", {
@@ -211,6 +233,8 @@ export const CoreRpcs = RpcGroup.make(
   Search,
   RebuildIndex,
   ListPageFiles,
+  WatchAppFiles,
+  WriteAppFile,
   SetConfigFlag,
   WatchBlockRefCounts,
   WatchBlockReferences,

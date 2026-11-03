@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema, type Option } from "effect"
+import { Context, Effect, Layer, Schema, type Option, type Stream } from "effect"
 import { DeviceId } from "@seqno/domain"
 import type { IndexError, Sqlite } from "@seqno/index"
 import { FolderError, GraphFolder } from "@seqno/interop"
@@ -25,6 +25,7 @@ export interface IndexFile {
 export interface GraphPlace {
   readonly storage: Storage["Service"]
   readonly file: OpenFile
+  readonly changed: Stream.Stream<ReadonlyArray<string>>
   readonly layout: Layout
   readonly synced: boolean
   readonly sqlite: Layer.Layer<Sqlite, IndexError>

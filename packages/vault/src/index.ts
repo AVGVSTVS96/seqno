@@ -19,6 +19,7 @@ export {
 } from "./layout.ts"
 export {
   PermissionNeeded,
+  directoryChanges,
   directoryFile,
   directoryStorage,
   layerDirectoryHandle,

@@ -34,6 +34,7 @@ import { chosenThemes, pluginCommands, runtimeThemes, type PluginTheme } from "@
 import type { PageStat } from "@seqno/rpc"
 import {
   allPages,
+  appFiles,
   assetFiles,
   createPage,
   openGraph,
@@ -315,6 +316,10 @@ const Palette = ({
       path: file.path,
       target: { _tag: "Page", name: file.name },
     })),
+    ...useAtomValue(appFiles).map((file): GraphFile => ({
+      path: file.path,
+      target: { _tag: "Raw" },
+    })),
     ...useAtomValue(assetFiles).map((asset): GraphFile => ({
       path: asset.path,
       target: { _tag: "Asset", url: asset.url },
@@ -413,6 +418,8 @@ const Palette = ({
       return sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
     }
     onClose()
+    if (file.target._tag === "Raw")
+      return void router.navigate({ to: "/file/$path", params: { path: file.path } })
     if (file.path.toLowerCase().endsWith(".pdf")) openPdf(registry, `../${file.path}`)
     else window.open(file.target.url, "_blank", "noopener")
   }

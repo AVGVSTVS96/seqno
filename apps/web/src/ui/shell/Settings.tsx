@@ -1,8 +1,12 @@
 import { logseq } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import { IconAdjustmentsHorizontal, IconKeyboard, IconX } from "@tabler/icons-react"
+import { Link } from "@tanstack/react-router"
+import { Option } from "effect"
+import { AsyncResult } from "effect/reactivity"
 import { useId, type ReactNode } from "react"
-import { resolvedTheme } from "../../atoms.ts"
+import type { AppFilePath } from "@seqno/rpc"
+import { openGraph, resolvedTheme } from "../../atoms.ts"
 import { revision } from "../../version.ts"
 import { SettingSwitch, ThemeChoices, themeLabelOf } from "./Appearance.tsx"
 import { AccentColorList } from "./AccentColors.tsx"
@@ -34,7 +38,31 @@ const Row = ({
   </div>
 )
 
+const appFileRows: ReadonlyArray<readonly [string, AppFilePath]> = [
+  ["Custom configuration", "logseq/config.edn"],
+  ["Custom theme", "logseq/custom.css"],
+  ["Export theme", "logseq/export.css"],
+]
+
+const EditFile = ({ label, path }: { readonly label: string; readonly path: AppFilePath }) => {
+  const labelId = useId()
+  return (
+    <Row label={label} labelId={labelId}>
+      <Link
+        to="/file/$path"
+        params={{ path }}
+        className="button-secondary settings-link"
+        aria-describedby={labelId}
+        onClick={(event) => closeDialogOf(event.currentTarget)}
+      >
+        Edit {path.slice(path.indexOf("/") + 1)}
+      </Link>
+    </Row>
+  )
+}
+
 const General = () => {
+  const graphOpen = Option.isSome(AsyncResult.value(useAtomValue(openGraph)))
   const resolved = useAtomValue(resolvedTheme)
   const versionLabel = useId()
   const themeLabel = useId()
@@ -56,6 +84,9 @@ const General = () => {
         <AccentColorList />
         <Keys keys={keysOf("PickAccentColor")} />
       </Row>
+      {graphOpen
+        ? appFileRows.map(([label, path]) => <EditFile key={path} label={label} path={path} />)
+        : null}
       <Row label="Wide mode" labelId={wideLabel}>
         <SettingSwitch setting={wideMode} labelledBy={wideLabel} />
         <Keys keys={keysOf("ToggleWideMode")} />

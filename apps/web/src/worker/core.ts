@@ -486,6 +486,15 @@ const CoreHandlers = CoreRpcs.toLayer(
             pages.map((page) => ({ path: mirrorPath(page, defaultConfig), name: page.name })),
           ),
         ),
+      WatchAppFiles: (_, { client }) =>
+        following(client.id, (session) => SubscriptionRef.changes(session.appFiles.listed)),
+      WriteAppFile: (file, { client }) =>
+        Effect.flatMap(current(client.id), (session) =>
+          Effect.mapError(
+            session.appFiles.write(file),
+            (failed) => new CommandRejected({ reason: failed.reason }),
+          ),
+        ),
       SetConfigFlag: ({ key, value }, { client }) =>
         Effect.flatMap(current(client.id), (session) =>
           Effect.mapError(

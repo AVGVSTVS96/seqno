@@ -105,6 +105,7 @@ const coreLayer = (
           Effect.succeed({
             storage,
             file: fileOf(storage),
+            changed: Stream.empty,
             layout: placeLayout,
             synced: true,
             sqlite: layerNode(),

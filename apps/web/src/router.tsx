@@ -7,6 +7,7 @@ import { GraphInUse } from "./ui/pages/GraphInUse.tsx"
 import {
   AllGraphsRoute,
   AllPages,
+  FileRoute,
   GraphRoute,
   Journals,
   PageRoute,
@@ -41,6 +42,7 @@ const routeTree = rootRoute.addChildren([
     component: PageRoute,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/all-pages", component: AllPages }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/file/$path", component: FileRoute }),
   createRoute({ getParentRoute: () => rootRoute, path: "/graph", component: GraphRoute }),
   createRoute({
     getParentRoute: () => rootRoute,

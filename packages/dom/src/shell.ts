@@ -15,6 +15,7 @@ export type SidebarItemType =
   | "page-slide-view"
 
 export interface ShellParts {
+  readonly "seqno-custom-css": readonly []
   readonly "seqno-arrow": readonly [boolean]
   readonly "seqno-theme-container": readonly []
   readonly "seqno-theme-inner": readonly [Layout]
@@ -283,6 +284,8 @@ export const shellParts: Table<ShellParts> = {
   notices: () => ({ className: "notifications ui__notifications" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L263-L268
   notice: () => ({ className: "ui__notifications-content notification-area" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/util.cljc#L1049-L1067
+  "seqno-custom-css": () => ({ className: "", id: "logseq-custom-theme-id" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/settings.cljs#L1152
   settings: () => ({ className: "cp__settings-main cp__settings-inner settings-modal" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1218

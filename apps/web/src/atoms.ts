@@ -5,7 +5,14 @@ import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
 import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
-import { AssetClient, CoreClient, type Asset, type SkippedFile } from "@seqno/rpc"
+import {
+  AssetClient,
+  CoreClient,
+  type AppFile,
+  type AppFilePath,
+  type Asset,
+  type SkippedFile,
+} from "@seqno/rpc"
 import { assetKey, readConfigFlag, readPropertyConfig } from "@seqno/syntax"
 import { WorkerAssets, WorkerCore, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
@@ -117,20 +124,21 @@ export const graphAssets = assetRuntime
   .atom(Stream.unwrap(Effect.map(Effect.service(AssetClient), (client) => client.WatchAssets())))
   .pipe(Atom.keepAlive)
 
-const graphConfig = appRuntime.atom((get) =>
-  Option.match(AsyncResult.value(get(openGraph)), {
-    onNone: () => Effect.succeed(""),
-    onSome: ({ graph }) =>
-      Effect.map(
-        Effect.flatMap(Effect.service(GraphLocations), (locations) =>
-          locations.file(graph, "logseq/config.edn"),
-        ),
-        (bytes) => (bytes === null ? "" : new TextDecoder().decode(bytes)),
-      ),
-  }),
+export const appFilesWatch = appRuntime
+  .atom(Stream.unwrap(Effect.map(Effect.service(CoreClient), (core) => core.WatchAppFiles())))
+  .pipe(Atom.keepAlive)
+
+const noAppFiles: ReadonlyArray<AppFile> = []
+
+export const appFiles = Atom.make((get) =>
+  AsyncResult.getOrElse(get(appFilesWatch), () => noAppFiles),
 )
 
-const configText = Atom.make((get) => AsyncResult.getOrElse(get(graphConfig), () => ""))
+export const appFileText = Atom.family((path: AppFilePath) =>
+  Atom.make((get) => get(appFiles).find((file) => file.path === path)?.text ?? null),
+)
+
+const configText = Atom.make((get) => get(appFileText("logseq/config.edn")) ?? "")
 
 export const propertyConfig = Atom.make((get) => readPropertyConfig(get(configText)))
 
@@ -141,7 +149,11 @@ export const showBrackets = Atom.make((get) => readConfigFlag(get(configText), b
 export const toggleBrackets = appRuntime.fn((_: void, get) =>
   Effect.flatMap(Effect.service(CoreClient), (core) =>
     core.SetConfigFlag({ key: bracketsKey, value: !get(showBrackets) }),
-  ).pipe(Effect.tap(() => Effect.sync(() => get.refresh(graphConfig)))),
+  ),
+)
+
+export const writeAppFile = appRuntime.fn((file: AppFile) =>
+  Effect.flatMap(Effect.service(CoreClient), (core) => core.WriteAppFile(file)),
 )
 
 export const assetFiles = Atom.make((get) =>

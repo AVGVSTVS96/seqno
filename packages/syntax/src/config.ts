@@ -1,3 +1,6 @@
+import { Result } from "effect"
+import { readEdn } from "./edn.ts"
+
 export interface PropertyConfig {
   readonly listKeys: ReadonlySet<string>
   readonly unparsedKeys: ReadonlySet<string>
@@ -55,4 +58,17 @@ export const writeConfigFlag = (configEdn: string, key: string, value: boolean):
   return end === -1
     ? `{${key} ${value}}\n`
     : `${configEdn.slice(0, end)}\n ${key} ${value}${configEdn.slice(end)}`
+}
+
+export const readConfigString = (configEdn: string, key: string): string | null => {
+  const edn = Result.getOrElse(readEdn(configEdn), () => null)
+  if (edn === null || typeof edn !== "object" || edn._tag !== "Map") return null
+  const found = edn.entries.find(
+    ([name]) =>
+      name !== null &&
+      typeof name === "object" &&
+      name._tag === "Keyword" &&
+      `:${name.name}` === key,
+  )?.[1]
+  return typeof found === "string" ? found : null
 }

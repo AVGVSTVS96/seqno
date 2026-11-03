@@ -1,10 +1,24 @@
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Layer, Queue, Schema, Stream } from "effect"
 import { Entry, FileUnavailable, Storage, StorageFailed } from "./storage.ts"
 
 declare global {
   // https://wicg.github.io/file-system-access/#api-filesystemhandle-querypermission is Chrome-only and missing from lib.dom
   interface FileSystemHandle {
     queryPermission(descriptor: { mode: "read" | "readwrite" }): Promise<PermissionState>
+  }
+  // https://github.com/whatwg/fs/pull/165 adds FileSystemObserver, which lib.dom doesn't have yet
+  interface FileSystemChangeRecord {
+    readonly type: "appeared" | "disappeared" | "errored" | "modified" | "moved" | "unknown"
+    readonly relativePathComponents: ReadonlyArray<string>
+  }
+  interface FileSystemObserver {
+    observe(handle: FileSystemHandle, options?: { readonly recursive?: boolean }): Promise<void>
+    disconnect(): void
+  }
+  interface Window {
+    readonly FileSystemObserver?: new (
+      callback: (records: ReadonlyArray<FileSystemChangeRecord>) => void,
+    ) => FileSystemObserver
   }
 }
 
@@ -102,6 +116,33 @@ export const directoryFile =
   (root: FileSystemDirectoryHandle) =>
   (path: string): Effect.Effect<File, StorageFailed | FileUnavailable> =>
     Effect.tryPromise({ try: () => openFile(root, path), catch: unavailable(path) })
+
+export const directoryChanges = (
+  root: FileSystemDirectoryHandle,
+): Stream.Stream<ReadonlyArray<string>> => {
+  const Observer = self.FileSystemObserver
+  return Observer === undefined
+    ? Stream.empty
+    : Stream.callback<ReadonlyArray<string>>((queue) =>
+        Effect.acquireRelease(
+          Effect.promise(async () => {
+            const observer = new Observer((records) =>
+              Queue.offerUnsafe(
+                queue,
+                records.map((record) =>
+                  record.type === "unknown" || record.type === "errored"
+                    ? ""
+                    : record.relativePathComponents.join("/"),
+                ),
+              ),
+            )
+            await observer.observe(root, { recursive: true }).catch(() => undefined)
+            return observer
+          }),
+          (observer) => Effect.sync(() => observer.disconnect()),
+        ),
+      )
+}
 
 export const layerOpfs = (graph: string): Layer.Layer<Storage, StorageFailed> =>
   Layer.effect(

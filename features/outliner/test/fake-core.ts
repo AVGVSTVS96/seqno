@@ -132,6 +132,8 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
         Search: () => Effect.succeed({ pages: [], blocks: [] }),
         RebuildIndex: () => Effect.void,
         ListPageFiles: () => Effect.succeed([]),
+        WatchAppFiles: () => Stream.empty,
+        WriteAppFile: () => Effect.void,
         SetConfigFlag: () => Effect.void,
         WatchBlockRefCounts: () => Stream.empty,
         WatchBlockReferences: () => Stream.empty,

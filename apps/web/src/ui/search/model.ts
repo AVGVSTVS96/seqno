@@ -9,6 +9,7 @@ export type Filter = "current-page" | "nodes" | "codes" | "commands" | "files" |
 export type FileTarget =
   | { readonly _tag: "Page"; readonly name: string }
   | { readonly _tag: "Asset"; readonly url: string }
+  | { readonly _tag: "Raw" }
 
 export interface GraphFile {
   readonly path: string

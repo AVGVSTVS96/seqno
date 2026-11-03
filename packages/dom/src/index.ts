@@ -4,6 +4,7 @@ import { cmdkParts, type CmdkParts } from "./cmdk.ts"
 import { codeParts, type CodeParts } from "./code.ts"
 import { contentParts, type ContentParts } from "./content.ts"
 import { editorParts, type EditorParts } from "./editor.ts"
+import { fileParts, type FileParts } from "./file.ts"
 import { names, type LogseqNames, type Table } from "./names.ts"
 import { pdfParts, type PdfParts } from "./pdf.ts"
 import { pageParts, type PageParts } from "./page.ts"
@@ -40,6 +41,7 @@ type Parts = AssetParts &
   CodeParts &
   ContentParts &
   EditorParts &
+  FileParts &
   PageParts &
   PdfParts &
   PluginParts &
@@ -54,6 +56,7 @@ const parts: Table<Parts> = {
   ...codeParts,
   ...contentParts,
   ...editorParts,
+  ...fileParts,
   ...pageParts,
   ...pdfParts,
   ...pluginParts,

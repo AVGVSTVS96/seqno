@@ -11,12 +11,15 @@ import { AllGraphs } from "./OpenGraphScreen.tsx"
 import { GraphView } from "./graph/GraphView.tsx"
 import { PageByName } from "./PageView.tsx"
 import { AllPages as AllPagesView } from "./pages/AllPages.tsx"
+import { FilePage } from "./pages/FilePage.tsx"
 import { Journals as JournalsView } from "./pages/Journals.tsx"
 import { Whiteboards as WhiteboardsView } from "./pages/Whiteboards.tsx"
 
 export const appTitle = "seqno"
 
 const pageRoute = getRouteApi("/page/$name")
+
+const fileRoute = getRouteApi("/file/$path")
 
 const ZoomTitle = ({
   blockId,
@@ -88,3 +91,13 @@ export const AllGraphsRoute = () => (
     <AllGraphs problem={null} />
   </div>
 )
+
+export const FileRoute = () => {
+  const { path } = fileRoute.useParams()
+  return (
+    <>
+      <title>{path}</title>
+      <FilePage path={path} />
+    </>
+  )
+}

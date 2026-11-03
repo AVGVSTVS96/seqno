@@ -1247,6 +1247,12 @@
   font-size: var(--text-sm);
 }
 
+.settings-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .page-link-menu {
   width: 240px;
 }

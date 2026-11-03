@@ -38,6 +38,8 @@ export {
   WatchUnlinkedReferences,
 } from "./pages.ts"
 export {
+  AppFile,
+  AppFilePath,
   Attach,
   Change,
   CoreRpcs,
@@ -58,11 +60,13 @@ export {
   Search,
   SearchHits,
   SkippedFile,
+  WatchAppFiles,
   WatchBlockRefCounts,
   WatchChanges,
   WatchBlockReferences,
   WatchPage,
   WatchQuery,
   WatchSaveState,
+  WriteAppFile,
   tabLock,
 } from "./rpcs.ts"
