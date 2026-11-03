@@ -1,5 +1,5 @@
 import { createContext, type ComponentType, type KeyboardEvent } from "react"
-import type { Block, BlockId } from "@seqno/domain"
+import type { Block, BlockId, PageId } from "@seqno/domain"
 import {
   blockContent,
   defaultPropertyConfig,
@@ -53,6 +53,10 @@ export interface MacroSlotProps {
   readonly args: string
   readonly blockId: BlockId | null
 }
+
+export const BoardSlot = createContext<{
+  readonly Board: ComponentType<{ readonly pageId: PageId }>
+} | null>(null)
 
 export const MacroSlot = createContext<{ readonly Slot: ComponentType<MacroSlotProps> } | null>(
   null,

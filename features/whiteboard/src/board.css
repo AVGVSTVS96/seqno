@@ -1069,3 +1069,14 @@
   box-shadow: var(--wb-panel-large);
   color: var(--wb-icon);
 }
+
+.wb-embed {
+  position: relative;
+  height: 256px;
+  overflow: hidden;
+}
+
+.wb-embed .wb-root {
+  contain: layout paint;
+  background: transparent;
+}

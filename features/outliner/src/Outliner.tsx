@@ -16,10 +16,12 @@ import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import {
   isBlockRefTo,
+  isWhiteboard,
   type Block,
   type BlockId,
   type Command,
   type GraphEvent,
+  type Page,
   type PageId,
 } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
@@ -53,6 +55,7 @@ import { PlainTextEditor } from "./PlainTextEditor.tsx"
 import { isMoveChord } from "./platform.ts"
 import { QueryView } from "./Query.tsx"
 import {
+  BoardSlot,
   clickOnEnter,
   contentOf,
   HostBlock,
@@ -249,6 +252,13 @@ const BlockEmbed = ({ blockId, bare }: { readonly blockId: BlockId; readonly bar
 
 const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boolean }) => {
   const props = useEmbedProps()
+  const boards = use(BoardSlot)
+  const body = (page: Page) =>
+    boards !== null && isWhiteboard(page) ? (
+      <boards.Board pageId={page.id} />
+    ) : (
+      <Outliner {...props} pageId={page.id} zoom={null} embedded />
+    )
   return AsyncResult.match(useAtomValue(pageNamedAtom(name)), {
     onInitial: () => (bare ? null : <Embed>{null}</Embed>),
     onFailure: () => <span className="seqno-macro">{`{{embed [[${name}]]}}`}</span>,
@@ -256,7 +266,7 @@ const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boole
       value === undefined ? (
         <span className="seqno-macro">{`{{embed [[${name}]]}}`}</span>
       ) : bare ? (
-        <Outliner {...props} pageId={value.id} zoom={null} embedded />
+        body(value)
       ) : (
         <Embed>
           <a
@@ -275,7 +285,7 @@ const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boole
           >
             {value.title}
           </a>
-          <Outliner {...props} pageId={value.id} zoom={null} embedded />
+          {body(value)}
         </Embed>
       ),
   })

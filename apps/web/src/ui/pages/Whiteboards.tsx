@@ -176,3 +176,13 @@ export const Whiteboards = () => {
     </div>
   )
 }
+
+export const BoardEmbed = ({ pageId }: { readonly pageId: PageId }) => {
+  const resolveAsset = useAtomValue(assetResolver)
+  return (
+    <div className="wb-embed">
+      <BoardStyle />
+      <BoardPreview pageId={pageId} resolveAsset={resolveAsset} />
+    </div>
+  )
+}

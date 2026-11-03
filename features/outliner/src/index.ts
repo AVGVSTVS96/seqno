@@ -19,5 +19,11 @@ export { Outliner, PropertyValue, type OutlinerProps } from "./Outliner.tsx"
 export { PlainTextEditor } from "./PlainTextEditor.tsx"
 export { EditorIntent, type EditorSlotProps } from "./slot.ts"
 export { placeOf, restorePlace, type Place } from "./place.ts"
-export { clickOnEnter, MacroSlot, PropertySettings, type MacroSlotProps } from "./render.ts"
+export {
+  BoardSlot,
+  clickOnEnter,
+  MacroSlot,
+  PropertySettings,
+  type MacroSlotProps,
+} from "./render.ts"
 export { NestedLists, ScrollContent, useVirtualList, type VirtualList } from "./virtual.tsx"
