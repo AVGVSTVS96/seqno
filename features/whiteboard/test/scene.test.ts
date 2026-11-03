@@ -1,5 +1,6 @@
 import { assert, describe, it } from "vitest"
-import { BlockId, PageId, shapeProps, type Block } from "@seqno/domain"
+import { BlockId, PageId, shapeProps, type Block, type Command } from "@seqno/domain"
+import { align, distribute, flip } from "../src/arrange.ts"
 import {
   changesOf,
   group,
@@ -238,6 +239,40 @@ describe("groups", () => {
           },
         ],
       },
+    ])
+  })
+})
+
+const points = (commands: ReadonlyArray<Command>) =>
+  commands.flatMap((command) =>
+    command._tag === "SetProperty" && command.value !== null
+      ? [
+          [
+            command.target._tag === "BlockTarget" ? command.target.blockId : "",
+            JSON.parse(command.value).point,
+          ],
+        ]
+      : [],
+  )
+
+describe("arrange", () => {
+  it("distributes overlapping shapes by their centers, keeping the outer two in place", () => {
+    const scene = sceneFrom([box(1, [0, 0]), box(2, [60, 0]), box(3, [80, 0]), box(4, [200, 0])])
+    assert.deepStrictEqual(points(distribute(scene, [id(1), id(2), id(3), id(4)], "horizontal")), [
+      [id(2), [66.66666666666667, 0]],
+      [id(3), [133.33333333333334, 0]],
+    ])
+  })
+
+  it("aligns to the right edge and flips positions without mirroring the shapes", () => {
+    const scene = sceneFrom([
+      box(1, [0, 0]),
+      block(2, { type: "box", point: [300, 50], size: [50, 50] }),
+    ])
+    assert.deepStrictEqual(points(align(scene, [id(1), id(2)], "right")), [[id(1), [250, 0]]])
+    assert.deepStrictEqual(points(flip(scene, [id(1), id(2)], "horizontal")), [
+      [id(1), [250, 0]],
+      [id(2), [0, 50]],
     ])
   })
 })

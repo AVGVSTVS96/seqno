@@ -746,6 +746,43 @@
   font-size: 12px;
 }
 
+.wb-menu-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.wb-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 26px;
+  padding: 4px 8px;
+  opacity: 0.8;
+}
+
+.wb-menu-row:first-child {
+  padding-bottom: 0;
+}
+
+.wb-menu-row:last-child {
+  padding-top: 0;
+}
+
+.wb-menu-rows:hover .wb-menu-row {
+  opacity: 1;
+}
+
+.wb-menu-row .wb-button {
+  width: 32px;
+  height: 32px;
+}
+
+.wb-menu-row-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--wb-separator);
+}
+
 .wb-menu-icon {
   display: inline-flex;
   width: 16px;

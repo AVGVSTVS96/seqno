@@ -1,5 +1,6 @@
 import type { Vec } from "@seqno/domain"
 import type { Draft } from "./commands.ts"
+import { packed } from "./arrange.ts"
 import { round } from "./geometry.ts"
 import { freshId } from "./ids.ts"
 
@@ -55,23 +56,33 @@ const defaults = (media: Media) => {
   }
 }
 
-export const mediaDrafts = (saved: ReadonlyArray<Saved>, at: Vec): ReadonlyArray<Draft> =>
-  saved.map(({ media, path, size }, index) => {
-    const placed =
-      size === null
-        ? { point: [round(at[0]), round(at[1])], size: [100, 100] }
-        : {
-            point: [
-              round(at[0] - size[0] / 4 + index * 16),
-              round(at[1] - size[1] / 4 + index * 16),
-            ],
-            size: [round(size[0] / 2), round(size[1] / 2)],
-          }
+export const mediaDrafts = (saved: ReadonlyArray<Saved>, at: Vec): ReadonlyArray<Draft> => {
+  const boxes = saved.map(({ media, path, size }, index) => {
+    const point: Vec =
+      size === null ? at : [at[0] - size[0] / 4 + index * 16, at[1] - size[1] / 4 + index * 16]
+    const shown: Vec = size === null ? [100, 100] : [size[0] / 2, size[1] / 2]
+    return { id: freshId(), media, path, point, size: shown }
+  })
+  const spots = packed(
+    boxes.map(({ id, point, size }) => ({
+      id,
+      bounds: {
+        minX: point[0],
+        minY: point[1],
+        maxX: point[0] + size[0],
+        maxY: point[1] + size[1],
+      },
+    })),
+  )
+  return boxes.map(({ id, media, path, point, size }) => {
+    const [x, y] = spots.get(id) ?? point
     return {
+      id,
       text: "",
       raw: {
         type: media,
-        ...placed,
+        point: [round(x), round(y)],
+        size: [round(size[0]), round(size[1])],
         opacity: 1,
         assetId: freshId(),
         src: `../${path}`,
@@ -79,3 +90,4 @@ export const mediaDrafts = (saved: ReadonlyArray<Saved>, at: Vec): ReadonlyArray
       },
     }
   })
+}

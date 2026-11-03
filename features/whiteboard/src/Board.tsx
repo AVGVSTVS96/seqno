@@ -1,5 +1,20 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
-import { IconChalkboard, IconLink, IconPlus } from "@tabler/icons-react"
+import {
+  IconChalkboard,
+  IconFlipHorizontal,
+  IconFlipVertical,
+  IconLayoutAlignBottom,
+  IconLayoutAlignCenter,
+  IconLayoutAlignLeft,
+  IconLayoutAlignMiddle,
+  IconLayoutAlignRight,
+  IconLayoutAlignTop,
+  IconLayoutDistributeHorizontal,
+  IconLayoutDistributeVertical,
+  IconLayoutGrid,
+  IconLink,
+  IconPlus,
+} from "@tabler/icons-react"
 import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useRef, useState, type CSSProperties, type ReactNode } from "react"
@@ -33,7 +48,8 @@ import {
   type Raw,
 } from "./commands.ts"
 import { ContextBar } from "./ContextBar.tsx"
-import { ContextMenu, type MenuGroup } from "./ContextMenu.tsx"
+import { ContextMenu, type MenuGroup, type MenuRow } from "./ContextMenu.tsx"
+import { align, distribute, flip, pack, type Align } from "./arrange.ts"
 import {
   add,
   boundsOfPoints,
@@ -1336,7 +1352,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         ]
       }),
     )
-    const drafts = mediaDrafts(saved, at).map((made) => ({ ...made, id: freshId() }))
+    const drafts = mediaDrafts(saved, at)
     const ids = drafts.flatMap((made) => made.id ?? [])
     const [only] = ids
     const made =
@@ -1379,6 +1395,43 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     newBlockPortal(point, text)
   }
 
+  const arrange = (commands: ReadonlyArray<Command>) => void commit(commands)
+
+  const someUnlocked = () => selectedItems.some((item) => !isLocked(item))
+
+  const menuRows = (): ReadonlyArray<MenuRow> => {
+    if (selection.length < 2 || !someUnlocked()) return []
+    const aligned = (label: string, type: Align, icon: typeof IconLayoutAlignLeft) => ({
+      label,
+      icon,
+      run: () => arrange(align(scene, selection, type)),
+    })
+    return [
+      [
+        aligned("Align left", "left", IconLayoutAlignLeft),
+        aligned("Align center horizontally", "centerHorizontal", IconLayoutAlignCenter),
+        aligned("Align right", "right", IconLayoutAlignRight),
+        "divider",
+        {
+          label: "Distribute horizontally",
+          icon: IconLayoutDistributeVertical,
+          run: () => arrange(distribute(scene, selection, "horizontal")),
+        },
+      ],
+      [
+        aligned("Align top", "top", IconLayoutAlignTop),
+        aligned("Align center vertically", "centerVertical", IconLayoutAlignMiddle),
+        aligned("Align bottom", "bottom", IconLayoutAlignBottom),
+        "divider",
+        {
+          label: "Distribute vertically",
+          icon: IconLayoutDistributeHorizontal,
+          run: () => arrange(distribute(scene, selection, "vertical")),
+        },
+      ],
+    ]
+  }
+
   const menuGroups = (): ReadonlyArray<MenuGroup> => {
     const unlocked = selectedItems.filter((item) => !isLocked(item))
     const some = selection.length > 0
@@ -1387,6 +1440,15 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       if (command !== null) void commit([command])
     }
     return [
+      selection.length > 1 && someUnlocked()
+        ? [
+            {
+              label: "Pack into rectangle",
+              icon: IconLayoutGrid,
+              run: () => arrange(pack(scene, selection)),
+            },
+          ]
+        : [],
       some ? [{ label: "Zoom to fit", keys: "Shift+1", run: () => setZoom("selection") }] : [],
       unlocked.length > 0 &&
       (selection.length > 1 ||
@@ -1451,6 +1513,20 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             ...(unlocked.length > 0
               ? [{ label: "Delete", keys: "Del", run: deleteSelection }]
               : []),
+          ]
+        : [],
+      selection.length > 1 && unlocked.length > 0
+        ? [
+            {
+              label: "Flip horizontally",
+              icon: IconFlipHorizontal,
+              run: () => arrange(flip(scene, selection, "horizontal")),
+            },
+            {
+              label: "Flip vertically",
+              icon: IconFlipVertical,
+              run: () => arrange(flip(scene, selection, "vertical")),
+            },
           ]
         : [],
       some
@@ -1543,6 +1619,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         <ContextMenu
           left={menuAt[0]}
           top={menuAt[1]}
+          rows={menuRows()}
           groups={menuGroups()}
           onClose={() => {
             setMenuAt(null)
