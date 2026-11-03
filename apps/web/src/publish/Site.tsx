@@ -17,6 +17,7 @@ import type { Published, PublishedName, PublishedReference } from "@seqno/export
 import {
   NestedLists,
   Outliner,
+  PropertySettings,
   PropertyValue,
   ScrollContent,
   type Navigate,
@@ -584,12 +585,16 @@ const leftOpen = Atom.make(matchMedia("(min-width: 1024px)").matches).pipe(Atom.
 
 export const SiteView = ({ data }: { readonly data: Published }) => {
   const [site] = useState(() => siteOf(data))
+  const [properties] = useState(() => ({
+    listKeys: new Set(data.listKeys),
+    unparsedKeys: new Set<string>(),
+  }))
   const route = routeOf(useAtomValue(hash))
   const [open, setOpen] = useAtom(leftOpen)
   const [searching, setSearching] = useState(false)
   const journals = journalsOf(site).length > 0
   return (
-    <>
+    <PropertySettings value={properties}>
       <style href="seqno/theme" precedence="theme">
         {themeCss}
       </style>
@@ -684,6 +689,6 @@ export const SiteView = ({ data }: { readonly data: Published }) => {
         </div>
       </div>
       {searching ? <Search site={site} onClose={() => setSearching(false)} /> : null}
-    </>
+    </PropertySettings>
   )
 }

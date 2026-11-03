@@ -17,6 +17,12 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   await markPublic(join(graph, "pages", "Seed Inventory.md"))
   await markPublic(join(graph, "pages", "Showcase.md"))
   await writeFile(join(graph, "logseq", "custom.css"), ".seqno-page-title { letter-spacing: 1px }")
+  await writeFile(
+    join(graph, "logseq", "config.edn"),
+    "{:meta/version 1\n :file/name-format :triple-lowbar\n :property/separated-by-commas #{:crops}}\n",
+  )
+  const plan = join(graph, "pages", "Garden Plan.md")
+  await writeFile(plan, `${await readFile(plan, "utf8")}- Rotation\n  crops:: garlic, broad beans`)
   await seedOpfs(page, graph, ["graphs", "demo"])
   await page.addInitScript(() => {
     window.showDirectoryPicker = async () =>
@@ -64,6 +70,7 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   await expect(viewer).toHaveTitle("Garden Plan")
   const main = viewer.getByRole("main")
   await expect(main.getByText("Broad beans under fleece")).toBeVisible()
+  await expect(main.getByRole("link", { name: "broad beans", exact: true })).toBeVisible()
   await expect(main.getByRole("region", { name: "Linked references" })).toContainText(
     "Seed Inventory",
   )

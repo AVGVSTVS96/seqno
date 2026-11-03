@@ -88,6 +88,7 @@ describe("publicSite", () => {
     references: {},
     pages: publicPages(graph, false).map((entry) => ({ ...entry, created: 1, updated: 2 })),
     queries: {},
+    listKeys: ["tags", "alias"],
   }
 
   it("embeds the pages as JSON that survives a </script> in a block", () => {

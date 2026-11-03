@@ -14,6 +14,7 @@ import {
   type SiteFile,
 } from "@seqno/export"
 import { CoreClient, PageClient } from "@seqno/rpc"
+import { readPropertyConfig } from "@seqno/syntax"
 import { openGraph, resolvedTheme } from "../../atoms.ts"
 import { graphTitle, GraphLocations } from "../../graph-locations.ts"
 import { viewRuntime } from "../pages/atoms.ts"
@@ -114,7 +115,8 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
     const text = (path: string) =>
       Effect.map(locations.file(graph, path), (bytes) => (bytes === null ? "" : strFromU8(bytes)))
     const trees = yield* core.ExportPages({})
-    const chosen = publicPages(trees, allPagesPublic(yield* text("logseq/config.edn")))
+    const configEdn = yield* text("logseq/config.edn")
+    const chosen = publicPages(trees, allPagesPublic(configEdn))
     if (chosen.length === 0)
       return {
         _tag: "Nothing",
@@ -173,6 +175,7 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
       })),
       references: Object.fromEntries([...pageReferences, ...nameReferences]),
       queries: Object.fromEntries(queries.flatMap(Option.toArray)),
+      listKeys: [...readPropertyConfig(configEdn).listKeys],
     }
     const assets = yield* Effect.forEach(usedAssets(chosen), (path) =>
       Effect.map(locations.file(graph, path), (bytes): ReadonlyArray<SiteFile> =>

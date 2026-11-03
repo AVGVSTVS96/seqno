@@ -31,6 +31,7 @@ export const Published = Schema.Struct({
   referenced: Schema.Array(PublishedName),
   references: Schema.Record(Schema.String, Schema.Array(PublishedReference)),
   queries: Schema.Record(Schema.String, PublishedRows),
+  listKeys: Schema.Array(Schema.String),
 })
 export type Published = typeof Published.Type
 
