@@ -17,7 +17,7 @@ import {
 import { Outliner, PlainTextEditor } from "@seqno/outliner"
 import { CoreClient, type ExportedTree } from "@seqno/rpc"
 import { isHiddenProperty, joinProperties } from "@seqno/syntax"
-import { appRuntime, assetResolver, openGraph, settingsLayer } from "../../atoms.ts"
+import { appRuntime, assetResolver, openGraph, propertyConfig, settingsLayer } from "../../atoms.ts"
 import { notify } from "./Notices.tsx"
 import { closeDialogOf, Dialog, openDialog } from "./popover.tsx"
 import { publishPages } from "./publish.ts"
@@ -426,6 +426,7 @@ const exportGraphAs = appRuntime.fn((kind: GraphFormat, get) =>
       graph,
       seconds: Math.floor(millis / 1000),
       path: (page) => paths.get(page.id) ?? `pages/${page.name}.md`,
+      properties: get(propertyConfig),
     })
     yield* Effect.sync(() =>
       save(new Blob([new Uint8Array(file.bytes)], { type: file.type }), file.name),

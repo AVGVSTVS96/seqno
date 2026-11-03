@@ -1,4 +1,5 @@
 import { normalizePageName, type Page, type Props } from "@seqno/domain"
+import { defaultPropertyConfig, type PropertyConfig } from "@seqno/syntax"
 
 export interface Task {
   readonly status: string | null
@@ -35,7 +36,6 @@ const TAG = /(?:^|\s)#(?!\[\[|\+)([^\s#,[\]()]+)|#\[\[([^\]]+)\]\]/g
 const CODE = /`[^`\n]*`/g
 const FENCE = /^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]*\1[ \t]*$|(?![\s\S]))/gm
 const TAG_TRAILER = /[.:]+$/
-const LIST_KEYS = new Set(["tags", "alias"])
 
 const wikiNames = (text: string) =>
   [...text.matchAll(WIKI)].map((m) => normalizePageName(m[1] ?? ""))
@@ -69,8 +69,8 @@ const listItem = (part: string) =>
       .replace(/^#/, ""),
   )
 
-const propValues = (key: string, raw: string): ReadonlyArray<string> => {
-  if (LIST_KEYS.has(key))
+const propValues = (key: string, raw: string, config: PropertyConfig): ReadonlyArray<string> => {
+  if (config.listKeys.has(key))
     return raw
       .split(",")
       .map(listItem)
@@ -81,17 +81,17 @@ const propValues = (key: string, raw: string): ReadonlyArray<string> => {
 
 const isInternal = (key: string) => key === "ls-type" || key.startsWith("logseq.")
 
-const propsOf = (props: Props): ReadonlyArray<Prop> =>
+const propsOf = (props: Props, config: PropertyConfig): ReadonlyArray<Prop> =>
   Object.entries(props).flatMap(([rawKey, raw]) => {
     const key = rawKey.toLowerCase()
-    return isInternal(key) ? [] : propValues(key, raw).map((value): Prop => [key, value])
+    return isInternal(key) ? [] : propValues(key, raw, config).map((value): Prop => [key, value])
   })
 
-const linkedProps = (props: Props): ReadonlyArray<string> =>
+const linkedProps = (props: Props, config: PropertyConfig): ReadonlyArray<string> =>
   Object.entries(props).flatMap(([rawKey, raw]) => {
     const key = rawKey.toLowerCase()
     if (isInternal(key)) return []
-    return LIST_KEYS.has(key) || /\[\[|#/.test(raw) ? propValues(key, raw) : []
+    return config.listKeys.has(key) || /\[\[|#/.test(raw) ? propValues(key, raw, config) : []
   })
 
 const taskOf = (text: string): Task | null => {
@@ -116,11 +116,15 @@ const taskOf = (text: string): Task | null => {
 
 const withoutCode = (text: string) => text.replace(FENCE, "").replace(CODE, "")
 
-export const blockFacets = (text: string, props: Props): BlockFacets => {
+export const blockFacets = (
+  text: string,
+  props: Props,
+  config: PropertyConfig = defaultPropertyConfig,
+): BlockFacets => {
   const code = withoutCode(text)
   const tags = [...new Set(tagNames(code))]
-  const refs = [...new Set([...tags, ...linkedProps(props), ...wikiNames(code)])]
-  return { refs, tags, props: propsOf(props), task: taskOf(code) }
+  const refs = [...new Set([...tags, ...linkedProps(props, config), ...wikiNames(code)])]
+  return { refs, tags, props: propsOf(props, config), task: taskOf(code) }
 }
 
 export const namespacesOf = (name: string): ReadonlyArray<string> => {
@@ -128,8 +132,11 @@ export const namespacesOf = (name: string): ReadonlyArray<string> => {
   return parts.slice(1).map((_, i) => parts.slice(0, i + 1).join("/"))
 }
 
-export const pageFacets = (page: Page): PageFacets => {
-  const props = propsOf(page.props)
+export const pageFacets = (
+  page: Page,
+  config: PropertyConfig = defaultPropertyConfig,
+): PageFacets => {
+  const props = propsOf(page.props, config)
   const values = (key: string) => [...new Set(props.flatMap(([k, v]) => (k === key ? [v] : [])))]
   return {
     namespaces: namespacesOf(page.name),

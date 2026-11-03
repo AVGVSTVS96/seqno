@@ -1,6 +1,11 @@
 import { createContext, type ComponentType, type KeyboardEvent } from "react"
 import type { Block, BlockId } from "@seqno/domain"
-import { blockContent, type BlockContent } from "@seqno/syntax"
+import {
+  blockContent,
+  defaultPropertyConfig,
+  type BlockContent,
+  type PropertyConfig,
+} from "@seqno/syntax"
 import type { Navigate, NavigationTarget, OpenBlockMenu } from "./navigation.ts"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
 import type { EditorSlotProps } from "./slot.ts"
@@ -34,6 +39,8 @@ export const RenderContext = createContext<Renderer>({
   vim: false,
   readOnly: false,
 })
+
+export const PropertySettings = createContext<PropertyConfig>(defaultPropertyConfig)
 
 export type SourceEdit = (from: number, to: number, insert: string) => void
 

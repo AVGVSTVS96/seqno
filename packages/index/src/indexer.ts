@@ -1,5 +1,6 @@
 import { Schema } from "effect"
 import { GraphEvent, type BlockId, type PageId } from "@seqno/domain"
+import type { PropertyConfig } from "@seqno/syntax"
 import {
   NO_FACETS,
   blockFacets,
@@ -66,7 +67,7 @@ const ridOf = (rows: ReadonlyArray<Row>, missing: string): number => {
   return decodeRid(row)[0]
 }
 
-export const indexer = (db: Statements, changes: Changes) => {
+export const indexer = (db: Statements, changes: Changes, properties: PropertyConfig) => {
   const backlinks = new Map<number, number>()
   const relink = (page: number, by: number) => backlinks.set(page, (backlinks.get(page) ?? 0) + by)
 
@@ -232,7 +233,7 @@ export const indexer = (db: Statements, changes: Changes) => {
 
   const index = GraphEvent.match({
     PageUpserted: ({ page }) => {
-      const after = pageFacets(page)
+      const after = pageFacets(page, properties)
       const row = db.all("SELECT rid, name, name_lc, day FROM pages WHERE id = ?", [page.id])[0]
       if (row === undefined) {
         const rid = ridOf(
@@ -286,7 +287,7 @@ export const indexer = (db: Statements, changes: Changes) => {
     BlockUpserted: ({ block, createdAt, updatedAt }) => {
       const page = pageRid(block.pageId)
       const parent = block.parentId === null ? null : blockRid(block.parentId)
-      const after = blockFacets(block.text, block.props)
+      const after = blockFacets(block.text, block.props, properties)
       const old = readBlock(block.id)
       if (old === undefined) {
         const rid = ridOf(

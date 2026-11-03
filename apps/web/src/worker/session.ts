@@ -15,7 +15,8 @@ import {
 } from "effect"
 import { BlockId, GraphEvent, PageId, type Block } from "@seqno/domain"
 import { Graph, inBackground, newPeerId, vaultReplica } from "@seqno/graph"
-import { Index, type IndexError } from "@seqno/index"
+import { Index, PropertySettings, type IndexError } from "@seqno/index"
+import { defaultPropertyConfig, propertyConfigKey, readPropertyConfig } from "@seqno/syntax"
 import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { SaveState, type SkippedFile } from "@seqno/rpc"
 import { Storage, Vault, layer as vaultLayer } from "@seqno/vault"
@@ -94,7 +95,11 @@ const logged = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.asVoid(Effect.catchCause(effect, (cause) => Effect.logError(cause)))
 
 const IndexStamp = Schema.fromJsonString(
-  Schema.Struct({ version: Schema.Record(Schema.String, Schema.Int), pageMs: Schema.Number }),
+  Schema.Struct({
+    version: Schema.Record(Schema.String, Schema.Int),
+    pageMs: Schema.Number,
+    properties: Schema.optionalKey(Schema.String),
+  }),
 )
 const decodeIndexStamp = Schema.decodeUnknownOption(IndexStamp)
 const encodeIndexStamp = Schema.encodeSync(IndexStamp)
@@ -146,7 +151,19 @@ export const openSession = (place: GraphPlace) =>
     if (place.starter !== null) yield* layStarter(place.storage, place.starter)
     const log = yield* openEditLog(place.storage, place.layout, device)
     const graph = yield* serviceOf(Graph, log.graph({ peer, snapshot: Option.none(), updates: [] }))
-    const index = yield* serviceOf(Index, Index.layer.pipe(Layer.provide(place.sqlite)))
+    const configText = yield* place.storage.read("logseq/config.edn").pipe(
+      Effect.map((bytes) => decoder.decode(bytes)),
+      Effect.orElseSucceed(() => ""),
+    )
+    const properties = readPropertyConfig(configText)
+    const propertiesKey = propertyConfigKey(properties)
+    const index = yield* serviceOf(
+      Index,
+      Index.layer.pipe(
+        Layer.provide(place.sqlite),
+        Layer.provide(Layer.succeed(PropertySettings, properties)),
+      ),
+    )
     const storage = Layer.succeed(Storage, log.storage)
     const vault = yield* serviceOf(
       Vault,
@@ -242,7 +259,11 @@ export const openSession = (place: GraphPlace) =>
               const version = yield* graph.version
               const pageMs = Option.getOrElse(costs.pageMs, () => 0)
               const bytes = yield* index.image(
-                encodeIndexStamp({ version: Object.fromEntries(version), pageMs }),
+                encodeIndexStamp({
+                  version: Object.fromEntries(version),
+                  pageMs,
+                  properties: propertiesKey,
+                }),
               )
               sinceSave.pages.clear()
               sinceSave.rewritten = 0
@@ -279,6 +300,8 @@ export const openSession = (place: GraphPlace) =>
         Effect.gen(function* () {
           const stamp = Option.flatMap(yield* index.load(image.value), decodeIndexStamp)
           if (Option.isNone(stamp)) return false
+          const builtWith = stamp.value.properties ?? propertyConfigKey(defaultPropertyConfig)
+          if (builtWith !== propertiesKey) return false
           const changed = yield* graph.changedSince(new Map(Object.entries(stamp.value.version)))
           if (Option.isNone(changed)) return false
           const pages = new Set([

@@ -1,6 +1,7 @@
 import { Array as Arr, Context, Effect, Layer, Option, Schema, Semaphore, Stream } from "effect"
 import { Reactivity } from "effect/reactivity"
 import { BlockId, GraphEvent, PageId, normalizePageName, type Page } from "@seqno/domain"
+import { defaultPropertyConfig, type PropertyConfig } from "@seqno/syntax"
 import { titleIn } from "./facets.ts"
 import { indexer } from "./indexer.ts"
 import { REBUILT, toInvalidation, type Changes, type ReadKey } from "./keys.ts"
@@ -337,18 +338,27 @@ const refreshed = (
   ]
 }
 
-const applyAll = (db: Statements, events: Iterable<GraphEvent>): Changes => {
+export const PropertySettings = Context.Reference<PropertyConfig>("@seqno/index/PropertySettings", {
+  defaultValue: () => defaultPropertyConfig,
+})
+
+const applyAll = (
+  db: Statements,
+  events: Iterable<GraphEvent>,
+  properties: PropertyConfig,
+): Changes => {
   const changes: Changes = new Map()
-  const { index, settle } = indexer(db, changes)
+  const { index, settle } = indexer(db, changes, properties)
   for (const event of events) index(event)
   settle()
   return changes
 }
 
-const writeNames = (db: Statements, pages: ReadonlyArray<Page>) =>
+const writeNames = (db: Statements, pages: ReadonlyArray<Page>, properties: PropertyConfig) =>
   void applyAll(
     db,
     pages.map((page): GraphEvent => ({ _tag: "PageUpserted", page })),
+    properties,
   )
 
 const markUnwritten = (db: Statements, ids: ReadonlyArray<PageId>) => {
@@ -357,6 +367,7 @@ const markUnwritten = (db: Statements, ids: ReadonlyArray<PageId>) => {
 
 const make = Effect.gen(function* () {
   const sqlite = yield* Sqlite
+  const properties = yield* PropertySettings
   const reactivity = yield* Reactivity.make
   const writer = yield* Semaphore.make(1)
 
@@ -408,7 +419,7 @@ const make = Effect.gen(function* () {
 
     apply: (events: ReadonlyArray<GraphEvent>) =>
       sqlite
-        .transaction((db) => applyAll(db, events))
+        .transaction((db) => applyAll(db, events, properties))
         .pipe(
           Effect.flatMap((changes) => reactivity.invalidate(toInvalidation(changes))),
           writer.withPermits(1),
@@ -419,7 +430,7 @@ const make = Effect.gen(function* () {
         yield* sqlite.transaction(recreate)
         yield* events.pipe(
           Stream.grouped(REBUILD_BATCH),
-          Stream.runForEach((batch) => sqlite.transaction((db) => applyAll(db, batch))),
+          Stream.runForEach((batch) => sqlite.transaction((db) => applyAll(db, batch, properties))),
         )
       }).pipe(Effect.ensuring(reactivity.invalidate([REBUILT])), writer.withPermits(1)),
 
@@ -428,7 +439,7 @@ const make = Effect.gen(function* () {
         Effect.andThen(
           sqlite.transaction(recreate),
           inWrites(read, (db, step) => {
-            writeNames(db, step)
+            writeNames(db, step, properties)
             markUnwritten(
               db,
               step.map((page) => page.id),
@@ -439,7 +450,10 @@ const make = Effect.gen(function* () {
 
     owe: <E, R>(ids: ReadonlyArray<PageId>, pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
       naming(pages, (read) =>
-        Effect.andThen(inWrites(ids, markUnwritten), inWrites(read, writeNames)),
+        Effect.andThen(
+          inWrites(ids, markUnwritten),
+          inWrites(read, (db, step) => writeNames(db, step, properties)),
+        ),
       ),
 
     unwritten: sqlite.use((db) =>
@@ -454,7 +468,7 @@ const make = Effect.gen(function* () {
         Effect.andThen(
           writer.withPermits(1)(
             sqlite.transaction((db) => {
-              applyAll(db, refreshed(db, pageId, events))
+              applyAll(db, refreshed(db, pageId, events), properties)
               db.run("DELETE FROM unwritten WHERE page = ?", [pageId])
             }),
           ),

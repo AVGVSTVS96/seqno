@@ -1,5 +1,6 @@
 export {
   Index,
+  PropertySettings,
   BlockHit,
   GraphPage,
   PageHit,

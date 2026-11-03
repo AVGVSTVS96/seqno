@@ -1,5 +1,6 @@
 import { strFromU8, unzipSync } from "fflate"
 import { describe, expect, it } from "vitest"
+import { readPropertyConfig } from "@seqno/syntax"
 import { exportGraph } from "../src/index.ts"
 import { pageId, pagesOf } from "./graph.ts"
 
@@ -172,6 +173,44 @@ describe("graph export", () => {
         quoted: '"x [[y]]"',
       },
       { heading: 2 },
+    ])
+  })
+
+  it("types properties with config.edn's comma-separated and ignored keys as Logseq does", () => {
+    const books = pagesOf({
+      Books: [
+        "genre:: poetry, prose",
+        "",
+        "- Dune",
+        "  genre:: fiction, sci-fi",
+        "  author:: [[Frank Herbert]]",
+        "  website:: [[Wiki]]",
+        "  other:: a, b",
+        "  rating:: 5",
+        "- Plain author",
+        "  author:: Ursula, Le Guin",
+        "  genre:: [[Space Opera]], hard sf",
+      ].join("\n"),
+    })
+    const properties = readPropertyConfig(
+      '{:property/separated-by-commas #{:genre}\n :ignored-page-references-keywords #{:author "website"}}',
+    )
+    const page = JSON.parse(strFromU8(exportGraph(books, "json", { ...options, properties }).bytes))
+      .blocks[0]
+    expect([
+      page.properties,
+      ...page.children.map((entry: { properties: unknown }) => entry.properties),
+    ]).toEqual([
+      { genre: ["poetry", "prose"] },
+      { genre: ["poetry", "prose"] },
+      {
+        genre: ["fiction", "sci-fi"],
+        author: ["Frank Herbert"],
+        website: "[[Wiki]]",
+        other: "a, b",
+        rating: 5,
+      },
+      { author: "Ursula, Le Guin", genre: ["Space Opera", "hard sf"] },
     ])
   })
 

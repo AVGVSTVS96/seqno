@@ -58,6 +58,7 @@ import {
   HostBlock,
   RenderContext,
   type EmbedTarget,
+  PropertySettings,
   type Renderer,
 } from "./render.ts"
 import { RowView, type RowActions } from "./Row.tsx"
@@ -298,6 +299,7 @@ export const PropertyValue = ({
   readonly value: string
 }) => {
   const parent = use(RenderContext)
+  const properties = use(PropertySettings)
   return (
     <RenderContext
       value={{
@@ -312,7 +314,7 @@ export const PropertyValue = ({
       <style href="@seqno/outliner" precedence="default">
         {styles}
       </style>
-      <Inlines nodes={propertyValue(name, value)} />
+      <Inlines nodes={propertyValue(name, value, 0, properties)} />
     </RenderContext>
   )
 }

@@ -6,6 +6,7 @@ import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
 import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
 import { CoreClient, type SkippedFile } from "@seqno/rpc"
+import { defaultPropertyConfig, readPropertyConfig } from "@seqno/syntax"
 import { WorkerCore, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
 
@@ -115,6 +116,26 @@ const graphAssets = appRuntime.atom((get) =>
         (assets) => Effect.sync(() => assets.forEach((url) => URL.revokeObjectURL(url))),
       ),
   }),
+)
+
+const graphProperties = appRuntime.atom((get) =>
+  Option.match(AsyncResult.value(get(openGraph)), {
+    onNone: () => Effect.succeed(defaultPropertyConfig),
+    onSome: ({ graph }) =>
+      Effect.map(
+        Effect.flatMap(Effect.service(GraphLocations), (locations) =>
+          locations.file(graph, "logseq/config.edn"),
+        ),
+        (bytes) =>
+          bytes === null
+            ? defaultPropertyConfig
+            : readPropertyConfig(new TextDecoder().decode(bytes)),
+      ),
+  }),
+)
+
+export const propertyConfig = Atom.make((get) =>
+  AsyncResult.getOrElse(get(graphProperties), () => defaultPropertyConfig),
 )
 
 export const assetResolver = Atom.make((get) => {

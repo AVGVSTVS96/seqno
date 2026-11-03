@@ -3,13 +3,14 @@ import { useAtomMount, useAtomValue } from "@effect/atom-react"
 import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { MacroSlot, ScrollContent } from "@seqno/outliner"
+import { MacroSlot, PropertySettings, ScrollContent } from "@seqno/outliner"
 import { PluginMacroSlot, PluginThemeLink } from "@seqno/plugins"
 import {
   attemptedGraph,
   lastGraph,
   leftSidebarOpen,
   openGraph,
+  propertyConfig,
   resolvedTheme,
   rightSidebar,
 } from "../atoms.ts"
@@ -123,12 +124,12 @@ const Screen = () => {
 }
 
 export const Shell = () => (
-  <>
+  <PropertySettings value={useAtomValue(propertyConfig)}>
     <style href="seqno/shell" precedence="app">
       {shellCss}
     </style>
     <Screen />
-  </>
+  </PropertySettings>
 )
 
 declare module "react" {

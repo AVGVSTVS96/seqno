@@ -1,6 +1,7 @@
 import { analyzeBlock, type Marker, type Region, type Span, type TextEdit } from "./block.ts"
 import { parseInline, type Inline } from "./inline.ts"
-import { HEADING, LIST_KEYS, MARKER, PLANNING_LINE } from "./patterns.ts"
+import { defaultPropertyConfig, type PropertyConfig } from "./config.ts"
+import { HEADING, MARKER, PLANNING_LINE } from "./patterns.ts"
 
 export type Body =
   | { readonly _tag: "Paragraph"; readonly inline: ReadonlyArray<Inline>; readonly span: Span }
@@ -122,8 +123,13 @@ const listValue = (value: string, from: number): ReadonlyArray<Inline> => {
   return nodes
 }
 
-export const propertyValue = (key: string, value: string, from = 0): ReadonlyArray<Inline> =>
-  LIST_KEYS.has(key.toLowerCase()) ? listValue(value, from) : parseInline(value, from)
+export const propertyValue = (
+  key: string,
+  value: string,
+  from = 0,
+  config: PropertyConfig = defaultPropertyConfig,
+): ReadonlyArray<Inline> =>
+  config.listKeys.has(key.toLowerCase()) ? listValue(value, from) : parseInline(value, from)
 
 const durationOf = (entry: string): number => {
   const match = CLOCK_DURATION.exec(entry)

@@ -1,9 +1,12 @@
-import { assert, describe, it } from "vitest"
+import { assert, describe, expect, it } from "vitest"
 import {
+  defaultPropertyConfig,
   draftOffset,
   isSingleLine,
   joinProperties,
   pastedBlocks,
+  propertyValue,
+  readPropertyConfig,
   splitProperties,
   textOffset,
 } from "../src/index.ts"
@@ -98,5 +101,38 @@ describe("pasting an outline", () => {
     assert.strictEqual(pastedBlocks("intro\n- a\n- b"), null)
     assert.strictEqual(isSingleLine(pastedBlocks("- just this") ?? []), true)
     assert.strictEqual(isSingleLine(pastedBlocks("- a\n- b") ?? []), false)
+  })
+})
+
+const genreLinks = (config = defaultPropertyConfig) =>
+  propertyValue("genre", "fiction, sci-fi", 0, config).flatMap((node) =>
+    node._tag === "PageRef" ? [node.name] : [],
+  )
+
+describe("config.edn property settings", () => {
+  it("reads comma-separated keys from keywords and ignored keys from strings, as Logseq 0.10.9 matches them", () => {
+    const config = readPropertyConfig(
+      [
+        "{:meta/version 1",
+        " ;; :property/separated-by-commas #{:commented}",
+        ' :property/separated-by-commas #{:Genre :people "named"}',
+        ' :ignored-page-references-keywords #{:author "Website"}}',
+      ].join("\n"),
+    )
+    expect([[...config.listKeys], [...config.unparsedKeys]]).toStrictEqual([
+      ["tags", "alias", "genre", "people"],
+      ["website"],
+    ])
+    expect(readPropertyConfig("{:property/separated-by-commas [:a, :b]}").listKeys).toStrictEqual(
+      new Set(["tags", "alias", "a", "b"]),
+    )
+    expect(readPropertyConfig("")).toStrictEqual(defaultPropertyConfig)
+  })
+
+  it("shows each value of a comma-separated key as a page link", () => {
+    expect(genreLinks()).toStrictEqual([])
+    expect(
+      genreLinks(readPropertyConfig("{:property/separated-by-commas #{:genre}}")),
+    ).toStrictEqual(["fiction", "sci-fi"])
   })
 })

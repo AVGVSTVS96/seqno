@@ -1,4 +1,4 @@
-import { parseInline, type Inline } from "@seqno/syntax"
+import { defaultPropertyConfig, parseInline, type Inline, type PropertyConfig } from "@seqno/syntax"
 
 export type PropertyValue = string | number | boolean | ReadonlyArray<string>
 
@@ -47,29 +47,38 @@ const refOf = (node: Inline): string | null => {
   }
 }
 
-const refsOf = (key: string, nodes: ReadonlyArray<Inline>): ReadonlyArray<string> => {
+const refsOf = (
+  key: string,
+  nodes: ReadonlyArray<Inline>,
+  config: PropertyConfig,
+): ReadonlyArray<string> => {
   const refs = nodes.flatMap((node) => {
     const ref = refOf(node)
     return ref === null ? [] : [ref]
   })
-  const plains = linkable.has(key)
-    ? nodes.flatMap((node) =>
-        node._tag === "Text"
-          ? node.text
-              .split(/[,，]/)
-              .map((part) => part.trim())
-              .filter((part) => part !== "")
-          : [],
-      )
-    : []
+  const plains =
+    linkable.has(key) || config.listKeys.has(key)
+      ? nodes.flatMap((node) =>
+          node._tag === "Text"
+            ? node.text
+                .split(/[,，]/)
+                .map((part) => part.trim())
+                .filter((part) => part !== "")
+            : [],
+        )
+      : []
   return [...new Set([...refs, ...plains])]
 }
 
-export const propertyValue = (key: string, raw: string): PropertyValue => {
+export const propertyValue = (
+  key: string,
+  raw: string,
+  config: PropertyConfig = defaultPropertyConfig,
+): PropertyValue => {
   const value = raw.trim()
-  if (unparsed.has(key) || (value.length >= 2 && value.startsWith('"') && value.endsWith('"')))
-    return value
-  const refs = refsOf(key, parseInline(value))
+  const quoted = value.length >= 2 && value.startsWith('"') && value.endsWith('"')
+  if (unparsed.has(key) || config.unparsedKeys.has(key) || quoted) return value
+  const refs = refsOf(key, parseInline(value), config)
   if (refs.length > 0) return refs
   if (value === "true") return true
   if (value === "false") return false

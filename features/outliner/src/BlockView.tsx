@@ -9,10 +9,11 @@ import {
   type Body,
   type Inline,
   type Marker,
+  type PropertyConfig,
 } from "@seqno/syntax"
 import { CodeBlock } from "./CodeBlock.tsx"
 import { Inlines } from "./Inline.tsx"
-import { BlockSource, clickOnEnter, RenderContext, toPage } from "./render.ts"
+import { BlockSource, clickOnEnter, PropertySettings, RenderContext, toPage } from "./render.ts"
 import { isCanceled, switchable, taskState } from "./tasks.ts"
 
 const stop = (event: MouseEvent) => event.stopPropagation()
@@ -174,9 +175,9 @@ const Logbook = ({ entries }: { readonly entries: ReadonlyArray<string> }) => (
   </div>
 )
 
-const shownProperties = (props: Props, content: BlockContent) => [
+const shownProperties = (props: Props, content: BlockContent, config: PropertyConfig) => [
   ...Object.entries(props).flatMap(([key, value]) =>
-    isHiddenProperty(key) ? [] : [{ key, value: propertyValue(key, value) }],
+    isHiddenProperty(key) ? [] : [{ key, value: propertyValue(key, value, 0, config) }],
   ),
   ...content.properties,
 ]
@@ -196,7 +197,7 @@ export const BlockView = ({
   const [drawer, setDrawer] = useState(false)
   const logbook = content.logbook
   const clocked = logbook !== null && logbook.seconds > 0
-  const properties = shownProperties(props, content)
+  const properties = shownProperties(props, content, use(PropertySettings))
   const empty =
     content.title === null &&
     content.body.length === 0 &&

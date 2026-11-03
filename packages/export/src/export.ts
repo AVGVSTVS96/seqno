@@ -1,5 +1,6 @@
 import { strToU8, zipSync } from "fflate"
 import type { BlockId, Page, PageId } from "@seqno/domain"
+import { defaultPropertyConfig, type PropertyConfig } from "@seqno/syntax"
 import { ednOf, exportedPages, hasFile, jsonOf, roamJsonOf } from "./data.ts"
 import type { Inlines } from "./inline.ts"
 import { itemsOfBlocks, itemsOfPage, titleOf, type Item } from "./items.ts"
@@ -134,9 +135,15 @@ export const exportGraph = (
     graph,
     seconds,
     path,
-  }: { readonly graph: string; readonly seconds: number; readonly path: (page: Page) => string },
+    properties = defaultPropertyConfig,
+  }: {
+    readonly graph: string
+    readonly seconds: number
+    readonly path: (page: Page) => string
+    readonly properties?: PropertyConfig
+  },
 ): GraphFile => {
-  const library = { pages, referenced: referencedIds(pages) }
+  const library = { pages, referenced: referencedIds(pages), properties }
   switch (format) {
     case "edn":
       return {

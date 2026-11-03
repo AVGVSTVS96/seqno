@@ -1286,6 +1286,36 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
     ),
   )
 
+  it.effect(
+    "config.edn's comma-separated properties link each value, and a changed config.edn rebuilds the saved index",
+    () =>
+      Effect.gen(function* () {
+        const root = yield* tempFolder("seqno-config-")
+        const config = (edn: string) =>
+          Effect.promise(() => writeFile(join(root, "logseq", "config.edn"), edn))
+        yield* Effect.promise(async () => {
+          await mkdir(join(root, "pages"), { recursive: true })
+          await mkdir(join(root, "logseq"), { recursive: true })
+          await writeFile(
+            join(root, "pages", "books.md"),
+            "- Dune\n  genre:: fiction, [[Space Opera]]\n  other:: a, b",
+          )
+        })
+        yield* config("{:property/separated-by-commas #{:genre}}")
+        const referenced = Effect.scoped(
+          Effect.gen(function* () {
+            const core = yield* coreOn(root)
+            yield* core.OpenGraph({ graph: "og" })
+            const pages = yield* core.WatchReferencedPages().pipe(Stream.take(1), Stream.runCollect)
+            return pages.flat().map((page) => page.name)
+          }),
+        )
+        assert.deepStrictEqual(yield* referenced, ["fiction", "space opera"])
+        yield* config("{}")
+        assert.deepStrictEqual(yield* referenced, ["space opera"])
+      }),
+  )
+
   it.effect("names that are only referenced come back as pages, titled as written", () =>
     Effect.scoped(
       Effect.gen(function* () {

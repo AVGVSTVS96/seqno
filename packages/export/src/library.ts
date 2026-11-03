@@ -1,4 +1,5 @@
 import type { Block, BlockId, Page, PageId } from "@seqno/domain"
+import { defaultPropertyConfig, type PropertyConfig } from "@seqno/syntax"
 
 export interface PageBlocks {
   readonly page: Page
@@ -8,6 +9,7 @@ export interface PageBlocks {
 export interface Library {
   readonly pages: ReadonlyArray<PageBlocks>
   readonly referenced: ReadonlySet<string>
+  readonly properties?: PropertyConfig
 }
 
 export interface Shelf {
@@ -16,6 +18,7 @@ export interface Shelf {
   readonly page: (name: string) => PageBlocks | undefined
   readonly logseqId: (block: Block) => string
   readonly referenced: (block: Block) => boolean
+  readonly properties: PropertyConfig
 }
 
 const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
@@ -33,7 +36,7 @@ export const referencedIds = (pages: ReadonlyArray<PageBlocks>): ReadonlySet<str
 
 const logseqId = (block: Block) => (block.props["id"] ?? block.id).toLowerCase()
 
-export const shelve = ({ pages, referenced }: Library): Shelf => {
+export const shelve = ({ pages, referenced, properties }: Library): Shelf => {
   const byUuid = new Map<string, Block>()
   const byParent = new Map<string, Array<Block>>()
   const byName = new Map<string, PageBlocks>()
@@ -58,5 +61,6 @@ export const shelve = ({ pages, referenced }: Library): Shelf => {
     logseqId,
     referenced: (block) =>
       referenced.has(block.id.toLowerCase()) || referenced.has(logseqId(block)),
+    properties: properties ?? defaultPropertyConfig,
   }
 }

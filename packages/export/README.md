@@ -19,5 +19,4 @@ Every format matches Logseq 0.10.9's output for the same graph; `docs/decisions.
 
 ## Known gaps
 
-- Property values are typed with Logseq's default config; `:property/separated-by-commas` and `:ignored-page-references-keywords` from a graph's `config.edn` aren't read.
 - The public site is seqno's own viewer, not Logseq's bundle (see `docs/decisions.md`); its queries are frozen at export time.

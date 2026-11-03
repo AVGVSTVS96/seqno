@@ -1,5 +1,5 @@
 import { normalizePageName, type Block, type PageId } from "@seqno/domain"
-import { joinProperties, parseInline } from "@seqno/syntax"
+import { joinProperties, parseInline, type PropertyConfig } from "@seqno/syntax"
 import { propertyLines, type PropertyLine } from "./items.ts"
 import { shelve, type Library, type PageBlocks, type Shelf } from "./library.ts"
 import { propertyValue, type PropertyValue } from "./values.ts"
@@ -92,23 +92,26 @@ const VALID_KEY = /^[^\s"|^(){}#,][^\s"|^(){},]*$/u
 
 type Properties = ReadonlyArray<readonly [string, PropertyValue]> | null
 
-const typed = (lines: ReadonlyArray<readonly [string, string]>) =>
+const typed = (lines: ReadonlyArray<readonly [string, string]>, config: PropertyConfig) =>
   lines
     .filter(([key]) => key !== "id" && VALID_KEY.test(key))
-    .map(([key, value]) => [key, propertyValue(key, value)] as const)
+    .map(([key, value]) => [key, propertyValue(key, value, config)] as const)
 
-const pagePropertiesOf = (props: Readonly<Record<string, string>>): Properties => {
-  const kept = typed(Object.entries(props))
+const pagePropertiesOf = (
+  props: Readonly<Record<string, string>>,
+  config: PropertyConfig,
+): Properties => {
+  const kept = typed(Object.entries(props), config)
   return kept.length === 0 ? null : kept
 }
 
 const HEADING = /^(#{1,6})[ \t]/
 
-const blockPropertiesOf = (block: Block): Properties => {
+const blockPropertiesOf = (block: Block, config: PropertyConfig): Properties => {
   const level = HEADING.exec(block.text)?.[1]?.length
   const kept = [
     ...(level === undefined ? [] : [["heading", level] as const]),
-    ...typed(Object.entries(block.props)),
+    ...typed(Object.entries(block.props), config),
   ]
   return kept.length === 0 && Object.keys(block.props).length === 0 ? null : kept
 }
@@ -135,7 +138,7 @@ const blockOf = (shelf: Shelf, pageId: PageId, block: Block): ExportedBlock => (
   id: shelf.logseqId(block),
   content: contentOf(block),
   lines: propertyLines(block, false),
-  properties: blockPropertiesOf(block),
+  properties: blockPropertiesOf(block, shelf.properties),
   children: shelf.children(pageId, block.id).map((child) => blockOf(shelf, pageId, child)),
 })
 
@@ -173,7 +176,7 @@ export const exportedPages = (library: Library): ReadonlyArray<ExportedPage> => 
     .filter(hasFile)
     .toSorted((a, b) => (a.page.name < b.page.name ? -1 : a.page.name > b.page.name ? 1 : 0))
     .map(({ page }) => {
-      const properties = pagePropertiesOf(page.props)
+      const properties = pagePropertiesOf(page.props, shelf.properties)
       return {
         id: page.id,
         title: page.title,
