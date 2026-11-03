@@ -14,8 +14,10 @@ import {
 } from "./protocol.ts"
 import { entryOf, local } from "./files.ts"
 import { record, settingItems, strings, text, themesOf } from "./package.ts"
+import { makeDraggable, makeResizable, restoreLayout, type LayoutData } from "./layout.ts"
 import {
   fencedRenderers,
+  mainUILayout,
   pluginCommands,
   pluginSettings,
   running,
@@ -76,6 +78,7 @@ const uiOptions = (payload: unknown): UIOptions => {
     style: strings(ui["style"]),
     attrs: strings(ui["attrs"]),
     reset: ui["reset"] === true,
+    close: text(ui["close"]),
   }
 }
 
@@ -93,6 +96,8 @@ const merge = (base: Settings, patch: Readonly<Record<string, unknown>>): Settin
 
 const without = <A extends { readonly pid: string }>(items: ReadonlyArray<A>, pid: string) =>
   items.filter((item) => item.pid !== pid)
+
+const placeKeys = new Set(["left", "top", "bottom", "right", "width", "height"])
 
 const handshakeTries = 40
 const handshakeEvery = 250
@@ -256,11 +261,28 @@ export const createHost = (
         const options = record(payload)
         return showMainUI(pid, options["visible"] === true, options["autoFocus"] !== false)
       }
-      case "main-ui:style":
-        return applyStyle(plugin.container, record(payload))
+      case "main-ui:style": {
+        const style = record(payload)
+        const placed = plugin.container.dataset["inited_layout"] !== undefined
+        return applyStyle(
+          plugin.container,
+          placed
+            ? Object.fromEntries(Object.entries(style).filter(([key]) => !placeKeys.has(key)))
+            : style,
+        )
+      }
       case "main-ui:attrs": {
-        for (const [key, value] of Object.entries(strings(payload))) {
-          plugin.container.setAttribute(`data-${key}`, value)
+        const save = (layout: LayoutData) => registry.set(mainUILayout(pid), layout)
+        for (const [key, value] of Object.entries(record(payload))) {
+          plugin.container.setAttribute(key, String(value))
+          if (key === "draggable" && value === true) {
+            makeDraggable(plugin.container, {
+              title: plugin.info.title,
+              close: () => post(plugin, call("sys:ui:visible", { toggle: true })),
+              saved: save,
+            })
+          }
+          if (key === "resizable" && value === true) makeResizable(plugin.container, save)
         }
         return
       }
@@ -343,6 +365,8 @@ export const createHost = (
     container.id = `${info.id}_lsp_main`
     container.className = logseq("seqno-plugin-frames", false).className
     container.dataset["pid"] = info.id
+    const layout = registry.get(mainUILayout(info.id))
+    if (layout !== null) restoreLayout(container, layout)
     const frame = document.createElement("iframe")
     frame.id = `${info.id}_iframe`
     frame.className = logseq("seqno-plugin-frame").className

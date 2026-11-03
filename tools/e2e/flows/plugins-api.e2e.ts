@@ -56,10 +56,24 @@ test("Word count shows how many words are selected in a block, next to the selec
   await page.mouse.up()
   const float = page.locator("#logseq-wordcount-plugin--logseq-wordcount-plugin-countselection")
   await expect(float).toHaveText("Words: 3")
-  const box = await float
-    .locator("xpath=ancestor::*[contains(@class, 'lsp-ui-float-container')]")
-    .boundingBox()
-  expect(box === null ? null : [Math.round(box.x), Math.round(box.y)]).toEqual([point.x, point.y])
+  const container = float.locator("xpath=ancestor::*[contains(@class, 'lsp-ui-float-container')]")
+  const corner = async () => {
+    const box = await container.boundingBox()
+    return box === null ? null : [Math.round(box.x), Math.round(box.y)]
+  }
+  expect(await corner()).toEqual([point.x, point.y])
+  await expect(container).toHaveAttribute("draggable", "true")
+  const handle = container.locator(".draggable-handle")
+  const grip = await handle.boundingBox()
+  if (grip !== null) {
+    await page.mouse.move(grip.x + 20, grip.y + 10)
+    await page.mouse.down()
+    await page.mouse.move(grip.x + 60, grip.y + 40, { steps: 5 })
+    await page.mouse.up()
+  }
+  expect(await corner()).toEqual([point.x + 40, point.y + 30])
+  await container.getByRole("button", { name: "Close" }).click()
+  await expect(float).toHaveCount(0)
   await page.mouse.click(10, 10)
   await expect(page.locator("#logseq-wordcount-plugin_lsp_main")).not.toHaveClass(/visible/)
 })

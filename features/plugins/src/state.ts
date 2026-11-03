@@ -51,6 +51,19 @@ export const pluginSettings = Atom.family((pid: string) =>
   stored(`seqno.plugins.settings.${pid}`, Settings, { disabled: false } satisfies Settings),
 )
 
+export const MainUILayout = Schema.Struct({
+  left: Schema.Number,
+  top: Schema.Number,
+  width: Schema.Number,
+  height: Schema.Number,
+  vw: Schema.Number,
+  vh: Schema.Number,
+})
+
+export const mainUILayout = Atom.family((pid: string) =>
+  stored(`seqno.plugins.layouts.${pid}`, Schema.NullOr(MainUILayout), null),
+)
+
 export const ChosenTheme = Schema.Struct({ pid: Schema.String, url: Schema.String })
 export type ChosenTheme = typeof ChosenTheme.Type
 

@@ -1,15 +1,20 @@
-.seqno-plugin-frames {
-  position: fixed;
-  inset: 0 auto auto 0;
+.seqno-plugin-frames,
+.seqno-plugin-float {
+  position: absolute;
+  top: 0;
+  left: 0;
   z-index: -1;
   display: none;
   width: 0;
   height: 0;
+  margin: 0;
+  padding: 0;
   visibility: hidden;
 }
 
-.seqno-plugin-frames[data-visible] {
-  z-index: 50;
+.seqno-plugin-frames[data-visible],
+.seqno-plugin-float {
+  z-index: 99;
   display: block;
   width: 100%;
   height: 100%;
@@ -21,40 +26,102 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  margin: 0;
+  padding: 0;
   border: 0;
   color-scheme: light;
 }
 
-.seqno-plugin-float {
-  position: fixed;
-  top: 20vh;
-  left: 30%;
-  z-index: 60;
+.seqno-plugin-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 30px;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-popover);
-  box-shadow: var(--shadow-dialog);
+  cursor: move;
+  user-select: none;
 }
 
-.lsp-ui-float-head {
+.seqno-plugin-handle-bar {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-  border-bottom: 1px solid var(--border);
-  font-size: var(--text-sm);
+  height: 30px;
+  background-color: var(--bg-sidebar);
+  color: var(--fg);
+  user-select: none;
 }
 
-.lsp-ui-float-close {
+.seqno-plugin-handle-title {
+  flex-basis: 80%;
+}
+
+.seqno-plugin-handle-title h3 {
+  display: -webkit-box;
+  max-width: 60%;
+  padding: 0 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 1;
+}
+
+.seqno-plugin-handle-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.seqno-plugin-handle-close {
+  height: 30px;
+  padding: 0 8px;
   border: 0;
-  background: none;
+  background: transparent;
+  color: inherit;
   font-size: var(--text-lg);
   cursor: pointer;
 }
 
-.lsp-ui-float-body {
-  padding: var(--space-3);
+[data-inited_draggable] > .seqno-plugin-frame,
+.seqno-plugin-float-content {
+  width: 100%;
+  height: calc(100% - 30px);
+  margin-top: 30px;
+  overflow: auto;
+}
+
+.seqno-plugin-float-content {
+  user-select: text;
+}
+
+.seqno-plugin-frames.is-dragging,
+.seqno-plugin-float.is-dragging {
+  opacity: 0.7;
+}
+
+.is-dragging > .seqno-plugin-handle {
+  z-index: 3;
+  height: 100%;
+  background-color: rgb(0 0 0 / 10%);
+}
+
+.seqno-plugin-resize {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  z-index: 2;
+  width: 15px;
+  height: 15px;
+  opacity: 0;
+  cursor: nwse-resize;
+  user-select: none;
+}
+
+.is-resizing > .seqno-plugin-resize {
+  width: 90%;
+  height: 80%;
 }
 
 .seqno-plugin-slot,

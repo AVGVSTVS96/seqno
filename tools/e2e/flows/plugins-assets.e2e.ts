@@ -42,6 +42,7 @@ test("Assets plus lists the graph's assets through logseq.Assets and links the o
   await (await chooser).setFiles({ name: "harvest.png", mimeType: "image/png", buffer: png })
   await expect(seqno.editor).toHaveText(/!\[harvest\.png\]/)
   await page.keyboard.press("Enter")
+  await expect(seqno.editor).toHaveText("")
   await page.keyboard.type("/Insert a local asset file")
   await page.keyboard.press("Enter")
   const picker = page.frameLocator("#logseq-assets-plus_iframe")

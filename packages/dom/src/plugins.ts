@@ -5,6 +5,13 @@ export interface PluginParts {
   readonly "seqno-plugin-frame": readonly []
   readonly "seqno-plugin-float": readonly []
   readonly "seqno-plugin-slot": readonly []
+  readonly "seqno-plugin-float-content": readonly []
+  readonly "seqno-plugin-handle": readonly []
+  readonly "seqno-plugin-handle-bar": readonly []
+  readonly "seqno-plugin-handle-title": readonly []
+  readonly "seqno-plugin-handle-actions": readonly []
+  readonly "seqno-plugin-handle-close": readonly []
+  readonly "seqno-plugin-resize": readonly []
   readonly "seqno-plugin-item": readonly [
     { readonly type: string; readonly key: string; readonly pid: string },
   ]
@@ -24,6 +31,20 @@ export const pluginParts: Table<PluginParts> = {
   "seqno-plugin-frame": () => ({ className: "lsp-iframe-sandbox" }),
   // https://github.com/logseq/logseq/blob/0.10.9/libs/src/helpers.ts#L410
   "seqno-plugin-float": () => ({ className: "lsp-ui-float-container visible" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/libs/src/helpers.ts#L382
+  "seqno-plugin-float-content": () => ({ className: "ls-ui-float-content" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/libs/src/LSPlugin.core.ts#L720
+  "seqno-plugin-handle": () => ({ className: "draggable-handle" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/libs/src/LSPlugin.core.ts#L723
+  "seqno-plugin-handle-bar": () => ({ className: "th" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/libs/src/LSPlugin.core.ts#L724
+  "seqno-plugin-handle-title": () => ({ className: "l" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/libs/src/LSPlugin.core.ts#L725
+  "seqno-plugin-handle-actions": () => ({ className: "r" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/libs/src/LSPlugin.core.ts#L726
+  "seqno-plugin-handle-close": () => ({ className: "button x" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/libs/src/LSPlugin.core.ts#L806
+  "seqno-plugin-resize": () => ({ className: "resizable-handle" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L997
   "seqno-plugin-slot": () => ({ className: "lsp-hook-ui-slot" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1009

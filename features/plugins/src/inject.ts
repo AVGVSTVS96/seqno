@@ -1,5 +1,6 @@
 import { logseq } from "@seqno/dom"
 import DOMPurify from "dompurify"
+import { makeDraggable, makeResizable } from "./layout.ts"
 
 export interface UIOptions {
   readonly key: string | null
@@ -9,6 +10,7 @@ export interface UIOptions {
   readonly style: Readonly<Record<string, string>>
   readonly attrs: Readonly<Record<string, string>>
   readonly reset: boolean
+  readonly close: string | null
 }
 
 export interface ModelEvent {
@@ -86,27 +88,31 @@ const listen = (wrapper: HTMLElement, callModel: CallModel) => {
   }
 }
 
-const floatContainer = (pid: string, id: string, title: string, onClose: () => void) => {
+const floatContainer = (pid: string, id: string, ui: UIOptions) => {
   const container = document.createElement("div")
   container.className = logseq("seqno-plugin-float").className
   container.dataset["ref"] = pid
   container.dataset["identity"] = id
-  const head = document.createElement("div")
-  head.className = "lsp-ui-float-head"
-  const label = document.createElement("span")
-  label.textContent = title
-  const close = document.createElement("button")
-  close.type = "button"
-  close.className = "lsp-ui-float-close"
-  close.setAttribute("aria-label", "Close")
-  close.textContent = "×"
-  close.addEventListener("click", onClose)
-  head.append(label, close)
-  const body = document.createElement("div")
-  body.className = "lsp-ui-float-body"
-  container.append(head, body)
+  container.setAttribute("draggable", "true")
+  container.setAttribute("resizable", "true")
+  const content = document.createElement("div")
+  content.className = logseq("seqno-plugin-float-content").className
+  container.append(content)
+  const close = () => {
+    container.remove()
+    document.removeEventListener("click", outside)
+  }
+  const outside = (event: MouseEvent) => {
+    if (event.target instanceof Node && !container.contains(event.target)) close()
+  }
+  if (ui.close !== null) {
+    container.dataset["close"] = ui.close
+    if (ui.close === "outside") document.addEventListener("click", outside)
+  }
+  makeResizable(container)
+  makeDraggable(container, { title: ui.attrs["title"] ?? "", close })
   document.body.append(container)
-  return body
+  return content
 }
 
 const targetOf = (pid: string, ui: UIOptions, id: string): HTMLElement | null => {
@@ -115,9 +121,7 @@ const targetOf = (pid: string, ui: UIOptions, id: string): HTMLElement | null =>
     const found = document.querySelector(ui.path)
     return found instanceof HTMLElement ? found : null
   }
-  return floatContainer(pid, id, ui.attrs["title"] ?? "", () =>
-    document.querySelector(`.seqno-plugin-float[data-identity="${CSS.escape(id)}"]`)?.remove(),
-  )
+  return floatContainer(pid, id, ui)
 }
 
 const boxOf = (wrapper: HTMLElement) => {

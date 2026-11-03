@@ -38,6 +38,7 @@ const Item = ({ host, item }: { readonly host: Host; readonly item: UIItem }) =>
             style: {},
             attrs: {},
             reset: false,
+            close: null,
           },
           (name, event) => host.callModel(item.pid, name, event),
         )
