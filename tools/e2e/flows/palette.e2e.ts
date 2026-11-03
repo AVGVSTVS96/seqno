@@ -100,6 +100,7 @@ test("the page menu lives in More and on the page title, and makes a page public
   const more = page.getByRole("menu", { name: "More" })
   await expect(more.getByRole("menuitem")).toHaveText([
     "Add to Favorites",
+    "View page history",
     "Copy page URL",
     "Delete page",
     "View as slides",
