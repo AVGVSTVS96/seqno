@@ -3,20 +3,6 @@
 
 :root {
   color-scheme: light dark;
-
-  --font-sans: var(
-    --ls-font-family,
-    "Inter Variable",
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    sans-serif
-  );
   --font-mono: "Fira Code", Monaco, Menlo, Consolas, "Courier New", monospace;
 
   --text-xs: 12px;
@@ -115,6 +101,23 @@
   --duration-base: 150ms;
   --duration-medium: 200ms;
   --duration-slow: 300ms;
+}
+
+:root,
+body {
+  --font-sans: var(
+    --ls-font-family,
+    "Inter Variable",
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif
+  );
 
   --bg-app: var(--ls-primary-background-color, light-dark(#fcfcfc, #002b36));
   --bg-sidebar: var(--ls-secondary-background-color, light-dark(#f8f8f8, #023643));
@@ -135,7 +138,7 @@
   --bg-bullet-halo: var(--ls-block-bullet-border-color, light-dark(#dedede, #0f4958));
   --bg-properties: var(--ls-block-properties-background-color, light-dark(#f3f3f3, #06323e));
   --bg-quote: var(--ls-page-blockquote-bg-color, light-dark(#f3f3f3, #023643));
-  --bg-embed: light-dark(#f8f8f8, #023643);
+  --bg-embed: var(--color-level-1, light-dark(#f8f8f8, #023643));
   --bg-inline-code: var(--ls-page-inline-code-bg-color, light-dark(#e2e2e2, #01222a));
   --bg-mark: var(--ls-page-mark-bg-color, #fef3ac);
   --bg-kbd: light-dark(rgb(0 0 0 / 0.114), rgb(255 255 255 / 0.13));

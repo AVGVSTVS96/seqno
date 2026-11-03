@@ -83,7 +83,7 @@ const Card = ({
   readonly theme: boolean
   readonly footer: ReactNode
 }) => (
-  <li className="plugin-card" aria-label={title}>
+  <li className="plugin-card cp__plugins-item-card" aria-label={title}>
     <div className="plugin-card-head">
       <Icon src={icon} theme={isTheme} />
       <div className="plugin-card-text">
@@ -141,12 +141,14 @@ const MarketCard = ({ item }: { readonly item: MarketItem }) => {
   )
 }
 
+const isThemePackage = (plugin: PluginInfo) => plugin.themes.length > 0
+
 const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
   const registry = useContext(RegistryContext)
   const enabled = useAtomValue(pluginSettings(plugin.id))["disabled"] !== true
   const status = useAtomValue(running)[plugin.id]?.status
   const openSettings = useAtomSet(settingsFor)
-  const isTheme = plugin.main === null
+  const isTheme = isThemePackage(plugin)
   return (
     <Card
       {...plugin}
@@ -234,13 +236,13 @@ const Installed = ({ kind, query }: { readonly kind: Kind; readonly query: strin
   const themes = useAtomValue(runtimeThemes)
   const shown = plugins.filter(
     (plugin) =>
-      (kind === "themes") === (plugin.main === null) &&
+      (kind === "themes") === isThemePackage(plugin) &&
       matches(query, plugin.title, plugin.description, plugin.id),
   )
   return (
     <>
       {kind === "themes" ? (
-        <ul role="radiogroup" aria-label="Theme" className="plugin-themes">
+        <ul role="radiogroup" aria-label="Theme" className="plugin-themes cp__themes-installed">
           <ThemeRow entry={null} />
           {themes.map((entry) => (
             <ThemeRow key={entry.url} entry={entry} />
@@ -318,7 +320,7 @@ const Kinds = ({
 
 const InstalledKinds = (props: { readonly kind: Kind; readonly onKind: (kind: Kind) => void }) => {
   const installed = useAtomValue(installedPlugins)
-  const themes = installed.filter((plugin) => plugin.main === null).length
+  const themes = installed.filter(isThemePackage).length
   return <Kinds {...props} plugins={installed.length - themes} themes={themes} />
 }
 
@@ -339,7 +341,7 @@ const Body = () => {
       </style>
       <div className="plugins-head">
         <h1 className="plugins-title">Plugins</h1>
-        <div role="tablist" aria-label="Plugins" className="plugins-tabs">
+        <div role="tablist" aria-label="Plugins" className="plugins-tabs tabs">
           {(["installed", "marketplace"] as const).map((one) => (
             <button
               key={one}
@@ -396,7 +398,7 @@ export const PluginsDialog = () => {
     <Dialog
       id={dialogId}
       label="Plugins"
-      className="plugins-dialog"
+      className="plugins-dialog cp__plugins-page"
       onClose={() => setOpened(opened + 1)}
     >
       <Body key={opened} />

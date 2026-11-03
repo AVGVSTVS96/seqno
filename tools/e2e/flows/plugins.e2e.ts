@@ -42,7 +42,7 @@ test("the marketplace lists web plugins and themes, and Install adds one to Inst
   await expect(dialog.getByText("Nothing found.")).toBeVisible()
   await dialog.getByRole("tab", { name: "Marketplace" }).click()
   await expect(dialog.getByRole("radio", { name: "Plugins (5)" })).toBeVisible()
-  await expect(dialog.getByRole("radio", { name: "Themes (1)" })).toBeVisible()
+  await expect(dialog.getByRole("radio", { name: "Themes (5)" })).toBeVisible()
   await expect(dialog.getByRole("listitem")).toHaveCount(5)
   await expect(dialog.getByRole("listitem", { name: "Archivist" })).toHaveCount(0)
   await dialog.getByRole("searchbox", { name: "Search plugins" }).fill("calendar")

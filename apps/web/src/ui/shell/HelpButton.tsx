@@ -32,7 +32,7 @@ export const HelpButton = () => {
       <button
         type="button"
         aria-label="Help"
-        className="help-button"
+        className="help-button cp__sidebar-help-btn"
         {...menu.trigger}
         {...(menu.open ? {} : hint.props)}
       >

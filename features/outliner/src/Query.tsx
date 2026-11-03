@@ -76,7 +76,7 @@ export const queryClauses = (query: string): ReadonlyArray<Clause> =>
 
 const ClauseView = ({ clause }: { readonly clause: Clause }): ReactNode =>
   clause._tag === "Chip" ? (
-    <span className="seqno-query-clause">{clause.label}</span>
+    <span className="seqno-query-clause query-clause">{clause.label}</span>
   ) : (
     <span className="seqno-query-group-clause">
       <span className="seqno-query-bracket" aria-hidden>
@@ -214,7 +214,7 @@ const Table = ({
   readonly head: ReadonlyArray<string>
   readonly children: ReactNode
 }) => (
-  <table className="seqno-query-table">
+  <table className="seqno-query-table query-table">
     <thead>
       <tr>
         {head.map((name) => (
@@ -316,14 +316,14 @@ export const QueryView = ({ query }: { readonly query: string }) => {
   const result = AsyncResult.getOrElse(watched, () => null)
   const count = result === null ? 0 : countOf(result)
   return (
-    <section className="seqno-query" aria-label="Live query">
-      <div className="seqno-query-head">
-        <span className="seqno-query-title">
+    <section className="seqno-query dsl-query custom-query" aria-label="Live query">
+      <div className="seqno-query-head th">
+        <span className="seqno-query-title custom-query-title">
           <IconSearch size={14} stroke={2} aria-hidden />
           <span>{result?._tag === "PageRows" ? "Live query for pages" : "Live query"}</span>
         </span>
         <span className="seqno-query-actions">
-          {count === 0 ? null : <span>{results(count)}</span>}
+          {count === 0 ? null : <span className="results-count">{results(count)}</span>}
           <button
             type="button"
             className="seqno-query-action"
@@ -338,17 +338,17 @@ export const QueryView = ({ query }: { readonly query: string }) => {
           </button>
         </span>
       </div>
-      <div className="seqno-query-builder">
+      <div className="seqno-query-builder cp__query-builder">
         {clauses.map((clause, at) => (
           <ClauseView key={at} clause={clause} />
         ))}
-        <button type="button" className="seqno-query-add" aria-label="Edit the query">
+        <button type="button" className="seqno-query-add add-filter" aria-label="Edit the query">
           <IconPlus size={18} stroke={2} aria-hidden />
         </button>
       </div>
       {query === "" ? null : (
         <div
-          className="seqno-query-results"
+          className="seqno-query-results custom-query-results"
           onClick={stop}
           onDragOver={stop}
           onDrop={stop}

@@ -42,8 +42,8 @@ export const PageTitle = ({
 
   if (link) {
     return (
-      <h1 id={id} className="seqno-page-title">
-        <PageLink page={page} className="seqno-page-title-link" />
+      <h1 id={id} className="seqno-page-title page-title title">
+        <PageLink page={page} className="seqno-page-title-link journal-title" />
       </h1>
     )
   }
@@ -70,7 +70,7 @@ export const PageTitle = ({
     return (
       <h1
         id={id}
-        className="seqno-page-title"
+        className="seqno-page-title page-title title"
         data-editable={editable}
         tabIndex={editable ? 0 : undefined}
         onClick={(event) => {
@@ -83,14 +83,18 @@ export const PageTitle = ({
           }
         }}
       >
-        <span className="seqno-page-title-text">{page.title}</span>
+        <span className="page-title-sizer-wrapper">
+          <span className="seqno-page-title-text title" data-ref={page.name}>
+            {page.title}
+          </span>
+        </span>
       </h1>
     )
   }
 
   return (
     <>
-      <h1 id={id} className="seqno-page-title" data-editable>
+      <h1 id={id} className="seqno-page-title page-title title" data-editable>
         <textarea
           aria-label="Page title"
           className="seqno-page-title-input"

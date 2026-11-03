@@ -187,7 +187,7 @@ const Palette = ({
 
   return (
     <dialog
-      className="seqno-palette"
+      className="seqno-palette ui__modal-panel cp__cmdk"
       aria-label="Search"
       ref={(dialog) => {
         if (dialog !== null && !dialog.open) dialog.showModal()
@@ -219,7 +219,7 @@ const Palette = ({
           onKeyDown={onKeyDown}
         />
       </div>
-      <div className="seqno-palette-results" id={`${ids}-results`}>
+      <div className="seqno-palette-results search-results" id={`${ids}-results`}>
         {groups.map((group, position) => {
           const start = starts[position] ?? 0
           return (

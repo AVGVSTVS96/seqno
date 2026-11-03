@@ -39,7 +39,7 @@ export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
     onOpen: refreshRecent,
   })
   return (
-    <div className="graph-switcher">
+    <div className="graph-switcher cp__menubar-repos">
       <button
         type="button"
         className="graph-switcher-trigger"
@@ -49,7 +49,9 @@ export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
         <span className="graph-thumb" aria-hidden>
           <IconTopologyStar size={16} />
         </span>
-        <strong className="graph-name">{graphTitle(graph)}</strong>
+        <strong id="repo-name" className="graph-name">
+          {graphTitle(graph)}
+        </strong>
         <IconSelector className="graph-selector" size={16} aria-hidden />
       </button>
       <Menu handle={menu} label="Graphs" className="graphs-menu">

@@ -129,6 +129,8 @@ export const mountBlockEditor = (
           autocapitalize: "sentences",
         }),
         editorTheme,
+        EditorView.editorAttributes.of({ class: "editor-inner block-editor" }),
+        EditorView.contentAttributes.of({ class: "normal-block", id: `edit-block-${block.id}` }),
         headingClass,
         tooltips({ parent: parent.ownerDocument.body }),
         EditorView.updateListener.of((update) => {

@@ -114,7 +114,10 @@ const rules: ReadonlyArray<{ readonly tag: Tag | ReadonlyArray<Tag>; readonly cl
 const highlighter = tagHighlighter(rules)
 
 export const editorHighlighter = tagHighlighter(
-  rules.map(({ tag, class: kind }) => ({ tag, class: kind === "" ? "" : `seqno-tok-${kind}` })),
+  rules.map(({ tag, class: kind }) => ({
+    tag,
+    class: kind === "" ? "" : `seqno-tok-${kind} cm-${kind}`,
+  })),
 )
 
 export const parserFor = (language: string): Parser | undefined =>

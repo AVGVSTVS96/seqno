@@ -121,7 +121,7 @@ const popupEdge = 8
 const popupTooltip = (store: PopupHost) => {
   const create = (view: EditorView): TooltipView => {
     const dom = document.createElement("div")
-    dom.className = "sq-popup-host"
+    dom.className = "sq-popup-host absolute-modal"
     store.attach(dom)
     let anchor: Rect | null = null
     return {

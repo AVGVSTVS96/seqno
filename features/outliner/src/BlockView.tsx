@@ -13,7 +13,14 @@ import {
 } from "@seqno/syntax"
 import { CodeBlock } from "./CodeBlock.tsx"
 import { Inlines } from "./Inline.tsx"
-import { BlockSource, clickOnEnter, PropertySettings, RenderContext, toPage } from "./render.ts"
+import {
+  BlockSource,
+  clickOnEnter,
+  HostBlock,
+  PropertySettings,
+  RenderContext,
+  toPage,
+} from "./render.ts"
 import { isCanceled, switchable, taskState } from "./tasks.ts"
 
 const stop = (event: MouseEvent) => event.stopPropagation()
@@ -87,7 +94,7 @@ const TaskControls = ({
       {isCanceled(marker) ? null : (
         <input
           type="checkbox"
-          className="seqno-checkbox"
+          className={done ? "seqno-checkbox form-checkbox checked" : "seqno-checkbox form-checkbox"}
           aria-label={done ? "Mark as not done" : "Mark as done"}
           checked={done}
           disabled={readOnly}
@@ -96,13 +103,15 @@ const TaskControls = ({
         />
       )}
       {done || isCanceled(marker) ? null : next === undefined ? (
-        <span className="seqno-marker">{marker}</span>
+        <span className={`seqno-marker task-status block-marker ${marker.toLowerCase()}`}>
+          {marker}
+        </span>
       ) : (
         <a
           role="link"
           tabIndex={0}
           onKeyDown={clickOnEnter}
-          className="seqno-marker is-switch"
+          className={`seqno-marker is-switch marker-switch block-marker ${marker}`}
           title={`Change ${marker} to ${next}`}
           onClick={(event) => {
             event.preventDefault()
@@ -153,12 +162,16 @@ const Title = ({
       </span>
     )
   const state = taskState(content.marker)
+  const markerClass = content.marker === null ? "" : ` ${content.marker.toLowerCase()}`
   return content.heading === null ? (
-    <div className="seqno-title" data-task={state}>
+    <div className={`seqno-title inline${markerClass}`} data-task={state}>
       {inner}
     </div>
   ) : (
-    <Heading level={content.heading} className={state === undefined ? undefined : `is-${state}`}>
+    <Heading
+      level={content.heading}
+      className={state === undefined ? undefined : `is-${state}${markerClass}`}
+    >
       {inner}
     </Heading>
   )
@@ -194,6 +207,7 @@ export const BlockView = ({
   readonly onCode?: CodeChange
 }) => {
   const renderer = use(RenderContext)
+  const host = use(HostBlock)
   const [drawer, setDrawer] = useState(false)
   const logbook = content.logbook
   const clocked = logbook !== null && logbook.seconds > 0
@@ -205,9 +219,12 @@ export const BlockView = ({
     content.planning.length === 0
   return (
     <BlockSource value={onCode ?? null}>
-      <div className="seqno-block">
+      <div
+        className="seqno-block block-content"
+        {...(host === null ? {} : { id: `block-content-${host}`, blockid: host })}
+      >
         {content.title === null && !clocked && !empty ? null : (
-          <div className="seqno-title-row">
+          <div className="seqno-title-row block-content-inner">
             {content.title === null ? (
               <div className="seqno-title" />
             ) : (
@@ -244,33 +261,37 @@ export const BlockView = ({
           </div>
         ))}
         {properties.length === 0 ? null : (
-          <div className="seqno-attrs">
+          <div className="seqno-attrs block-properties">
             {properties.map((property) => (
               <div key={property.key} className="seqno-attr">
                 <a
                   role="link"
                   tabIndex={0}
                   onKeyDown={clickOnEnter}
-                  className="seqno-attr-key"
+                  className="seqno-attr-key page-property-key"
                   onClick={toPage(renderer.navigate, property.key)}
                 >
                   {property.key}
                 </a>
                 <span className="seqno-attr-colon">:</span>
-                <span className="seqno-attr-value">
+                <span className="seqno-attr-value page-property-value">
                   <Inlines nodes={property.value} />
                 </span>
               </div>
             ))}
           </div>
         )}
-        {content.body.map((body) => (
-          <BodyView
-            key={body.span.from}
-            body={body}
-            {...(onCode === undefined ? {} : { onCode })}
-          />
-        ))}
+        {content.body.length === 0 ? null : (
+          <div className="block-body">
+            {content.body.map((body) => (
+              <BodyView
+                key={body.span.from}
+                body={body}
+                {...(onCode === undefined ? {} : { onCode })}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </BlockSource>
   )

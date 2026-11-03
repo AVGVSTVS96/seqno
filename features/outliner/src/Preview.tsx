@@ -43,7 +43,7 @@ const PagePreview = ({ name }: { readonly name: string }) => {
     onInitial: () => null,
     onFailure: () => null,
     onSuccess: ({ value }) => (
-      <div className="seqno-preview-page">
+      <div className="seqno-preview-page tippy-wrapper as-page">
         <div className="seqno-preview-title">{value?.title ?? name}</div>
         {value === undefined ? null : (
           <div className="seqno-preview-blocks">
@@ -62,7 +62,7 @@ const BlockPreview = ({ blockId }: { readonly blockId: BlockId }) => {
     onInitial: () => null,
     onFailure: () => null,
     onSuccess: () => (
-      <div className="seqno-preview-page">
+      <div className="seqno-preview-page tippy-wrapper as-block">
         <div className="seqno-preview-blocks">
           <Embed target={{ _tag: "Block", blockId }} bare />
         </div>
@@ -108,7 +108,7 @@ export const usePreview = (target: PreviewTarget) => {
       : createPortal(
           <div
             popover="manual"
-            className="seqno-preview"
+            className="seqno-preview tippy-tooltip customized-theme"
             role="dialog"
             aria-label="Preview"
             onPointerEnter={keep}
@@ -119,13 +119,15 @@ export const usePreview = (target: PreviewTarget) => {
               place(element, anchor.box)
             }}
           >
-            <RenderContext value={{ ...renderer, depth: renderer.depth + 1 }}>
-              {target._tag === "Page" ? (
-                <PagePreview name={target.name} />
-              ) : (
-                <BlockPreview blockId={target.blockId} />
-              )}
-            </RenderContext>
+            <div className="tippy-tooltip-content">
+              <RenderContext value={{ ...renderer, depth: renderer.depth + 1 }}>
+                {target._tag === "Page" ? (
+                  <PagePreview name={target.name} />
+                ) : (
+                  <BlockPreview blockId={target.blockId} />
+                )}
+              </RenderContext>
+            </div>
           </div>,
           document.body,
         )

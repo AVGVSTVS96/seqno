@@ -351,12 +351,27 @@ test("code blocks render highlighted lines with line numbers", async () => {
       token.textContent,
     ]),
   ).toEqual([
-    ["seqno-tok-keyword", "const"],
-    ["seqno-tok-def", "ripe"],
-    ["seqno-tok-operator", "="],
-    ["seqno-tok-number", "1"],
-    ["seqno-tok-variable", "ripe"],
+    ["seqno-tok-keyword cm-keyword", "const"],
+    ["seqno-tok-def cm-def", "ripe"],
+    ["seqno-tok-operator cm-operator", "="],
+    ["seqno-tok-number cm-number", "1"],
+    ["seqno-tok-variable cm-variable", "ripe"],
   ])
+})
+
+test("rows carry Logseq's block names, so Logseq themes and plugins find them", async () => {
+  await mount([block(1, "TODO [[Projects/Greenhouse]] #design"), block(2, "child", 1)])
+  const [first] = page.getByRole("treeitem").elements()
+  expect(first?.classList.contains("ls-block")).toBe(true)
+  expect(first?.getAttribute("level")).toBe("1")
+  expect(first?.getAttribute("haschild")).toBe("true")
+  expect(first?.getAttribute("data-refs-self")).toBe(
+    '["todo", "projects/greenhouse", "projects", "design"]',
+  )
+  expect(first?.querySelector(".bullet-container .bullet")).not.toBeNull()
+  expect(first?.querySelector(".block-content-wrapper .block-content .page-ref")?.textContent).toBe(
+    "Projects/Greenhouse",
+  )
 })
 
 const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))

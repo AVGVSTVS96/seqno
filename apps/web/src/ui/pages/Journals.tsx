@@ -22,13 +22,18 @@ export const Journals = () => {
     overscan: 2,
   })
   return (
-    <div ref={attach} className="seqno-journals">
+    <div ref={attach} id="journals" className="seqno-journals">
       <NestedLists>
         {placed.flatMap(({ index, gap }) => {
           const page = days[index]
           if (page === undefined) return []
           const day = (
-            <div key={page.id} ref={measure} data-index={index} className="seqno-journal">
+            <div
+              key={page.id}
+              ref={measure}
+              data-index={index}
+              className="seqno-journal journal-item content"
+            >
               <PageView page={page} zoom={null} inJournals />
             </div>
           )

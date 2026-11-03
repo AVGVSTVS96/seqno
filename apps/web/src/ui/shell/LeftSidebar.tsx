@@ -49,13 +49,21 @@ const Group = ({
             expanded ? [...collapsed, group] : collapsed.filter((other) => other !== group),
           )
   return (
-    <section className="sidebar-group" aria-label={title} data-group={group ?? "navigations"}>
+    <section
+      className={
+        group === null
+          ? "sidebar-group"
+          : `sidebar-group nav-content-item ${group} ${expanded ? "is-expand" : "is-collapsed"}`
+      }
+      aria-label={title}
+      data-group={group ?? "navigations"}
+    >
       {toggle === undefined ? (
         <h2 className="sidebar-group-header">
           <span className="sidebar-group-title">{title}</span>
         </h2>
       ) : (
-        <h2 className="sidebar-group-header">
+        <h2 className="sidebar-group-header header">
           <button
             type="button"
             className="sidebar-group-toggle"
@@ -67,7 +75,7 @@ const Group = ({
           </button>
         </h2>
       )}
-      {expanded ? children : null}
+      {expanded ? group === null ? children : <div className="bd">{children}</div> : null}
     </section>
   )
 }
@@ -83,7 +91,12 @@ const NavItem = ({
   readonly label: string
   readonly keys?: ReadonlyArray<string>
 }) => (
-  <Link to={to} className="nav-item" activeOptions={{ exact: true }}>
+  <Link
+    to={to}
+    className="nav-item item"
+    activeOptions={{ exact: true }}
+    activeProps={{ className: "active" }}
+  >
     {icon}
     <span className="nav-item-label">{label}</span>
     {keys === undefined ? null : (
@@ -96,9 +109,11 @@ const NavItem = ({
 
 const PageLink = ({
   page,
+  kind,
   onUnfavorite,
 }: {
   readonly page: PageName
+  readonly kind: "favorite" | "recent"
   readonly onUnfavorite?: () => void
 }) => {
   const updateSidebar = useAtomSet(rightSidebar)
@@ -109,7 +124,7 @@ const PageLink = ({
   const openInSidebar = () =>
     updateSidebar({ _tag: "Open", item: { _tag: "Page", name: page.name } })
   return (
-    <li className="page-link">
+    <li className={`page-link ${kind}-item`} data-ref={page.name}>
       <Link
         to="/page/$name"
         params={{ name: page.name }}
@@ -121,11 +136,11 @@ const PageLink = ({
         }}
       >
         {board === undefined ? (
-          <IconFile className="page-link-icon" size={16} aria-hidden />
+          <IconFile className="page-link-icon page-icon" size={16} aria-hidden />
         ) : (
-          <IconChalkboard className="page-link-icon" size={16} aria-hidden />
+          <IconChalkboard className="page-link-icon page-icon" size={16} aria-hidden />
         )}
-        <span className="page-link-title">
+        <span className="page-link-title page-title">
           {board === undefined ? page.title : boardTitle(board)}
         </span>
       </Link>
@@ -167,7 +182,7 @@ const Favorites = () => {
       {starred.length === 0 ? null : (
         <ul className="page-links">
           {starred.map((page) => (
-            <PageLink key={page.id} page={page} onUnfavorite={unfavorite(page)} />
+            <PageLink key={page.id} page={page} kind="favorite" onUnfavorite={unfavorite(page)} />
           ))}
         </ul>
       )}
@@ -188,7 +203,7 @@ const Recent = ({ graph }: { readonly graph: string }) => {
       {visited.length === 0 ? null : (
         <ul className="page-links">
           {visited.map((page) => (
-            <PageLink key={page.name} page={page} />
+            <PageLink key={page.name} page={page} kind="recent" />
           ))}
         </ul>
       )}
@@ -201,14 +216,15 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
   const [width, setWidth] = useAtom(leftSidebarWidth)
   return (
     <aside
-      className="left-sidebar"
+      id="left-sidebar"
+      className="left-sidebar cp__sidebar-left-layout"
       aria-label="Left sidebar"
       data-open={open}
       inert={!open}
       aria-hidden={!open}
     >
       <div className="left-sidebar-inner">
-        <div className="left-sidebar-wrap">
+        <div className="left-sidebar-wrap wrap">
           <div className="left-sidebar-header">
             <GraphSwitcher graph={graph} />
             <Group title="Navigations" group={null}>
@@ -239,7 +255,7 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
               </nav>
             </Group>
           </div>
-          <div className="left-sidebar-contents">
+          <div className="left-sidebar-contents nav-contents-container">
             <Favorites />
             <Recent graph={graph} />
           </div>

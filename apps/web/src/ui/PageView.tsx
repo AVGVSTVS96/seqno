@@ -36,12 +36,19 @@ export const PageView = ({
   const vim = useAtomValue(vimMode)
   const zoomed = zoom !== null
   return (
-    <div className="seqno-page" data-zoomed={zoomed}>
+    <div
+      className={inJournals === true ? "seqno-page journal page" : "seqno-page page"}
+      data-zoomed={zoomed}
+    >
       <PagesStyle />
       <article {...(zoomed ? { "aria-label": page.title } : { "aria-labelledby": heading })}>
         {zoomed || inJournals === true ? null : <PluginItems type="pagebar" />}
-        {zoomed ? null : <PageTitle page={page} id={heading} link={inJournals ?? false} />}
-        <div className="seqno-page-blocks">
+        {zoomed ? null : (
+          <div className="ls-page-title">
+            <PageTitle page={page} id={heading} link={inJournals ?? false} />
+          </div>
+        )}
+        <div className="seqno-page-blocks page-blocks-inner content">
           {zoomed ? null : <PageProperties page={page} />}
           <Outliner
             pageId={page.id}
@@ -75,13 +82,15 @@ const MissingPage = ({ name }: { readonly name: string }) => {
   const create = useAtomSet(createPage)
   const title = useAtomValue(referencedOnly).find((page) => page.name === name)?.title ?? name
   return (
-    <div className="seqno-page">
+    <div className="seqno-page page">
       <PagesStyle />
       <article aria-labelledby={heading}>
-        <h1 id={heading} className="seqno-page-title" data-editable={false}>
-          {title}
-        </h1>
-        <div className="seqno-page-blocks">
+        <div className="ls-page-title">
+          <h1 id={heading} className="seqno-page-title page-title title" data-editable={false}>
+            {title}
+          </h1>
+        </div>
+        <div className="seqno-page-blocks page-blocks-inner content">
           <button
             type="button"
             className="seqno-page-create"

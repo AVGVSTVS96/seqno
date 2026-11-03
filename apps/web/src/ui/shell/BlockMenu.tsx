@@ -142,8 +142,9 @@ const MenuView = ({
       popover="manual"
       role="menu"
       aria-label="Block actions"
+      id="custom-context-menu"
       tabIndex={-1}
-      className="menu block-menu"
+      className="menu block-menu menu-links-wrapper"
       data-keeps-selection
       ref={(menu) => {
         if (menu === null) return
@@ -171,7 +172,7 @@ const MenuView = ({
           <button
             key={color}
             type="button"
-            className="block-menu-color"
+            className="block-menu-color heading-bg"
             title={color[0]?.toUpperCase() + color.slice(1)}
             aria-label={`${color} background`}
             style={{ "--swatch": `var(--swatch-${color})` }}
@@ -183,7 +184,7 @@ const MenuView = ({
         ))}
         <button
           type="button"
-          className="block-menu-color is-clear"
+          className="block-menu-color is-clear heading-bg remove"
           title="Remove background"
           aria-label="Remove background"
           onClick={(event) => {
@@ -199,7 +200,7 @@ const MenuView = ({
           <button
             key={label}
             type="button"
-            className="block-menu-heading"
+            className="block-menu-heading ui__button"
             title={label}
             aria-label={label}
             aria-pressed={heading === current}

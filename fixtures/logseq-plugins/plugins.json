@@ -77,6 +77,49 @@
    "icon": "icon.png",
    "id": "logseq-assets-plus",
    "addedAt": 1697553832000
+  },
+  {
+   "title": "Catppuccin",
+   "description": "🦫 Soothing pastel theme for Logseq",
+   "author": "Soumik (griimick)",
+   "repo": "catppuccin/logseq",
+   "icon": "icon.png",
+   "sponsors": [
+    "https://opencollective.com/catppuccin"
+   ],
+   "theme": true,
+   "id": "logseq-catppuccin",
+   "addedAt": 1675028902000
+  },
+  {
+   "title": "Atlas Theme",
+   "description": "Atlas theme provides a pure and distraction-free experience with always a dark sidebar.",
+   "author": "Seth Fair",
+   "repo": "sethfair/logseq-atlas-theme",
+   "icon": "icon.png",
+   "theme": true,
+   "id": "logseq-atlas-theme",
+   "addedAt": 1635888951000
+  },
+  {
+   "title": "Bullet Journal theme",
+   "description": "Sepia, Coffee, White, Black: 4 themes inspired by Bullet Journals",
+   "author": "PiotrSss & stdword",
+   "repo": "stdword/logseq-bujo-theme",
+   "icon": "icon.png",
+   "theme": true,
+   "id": "logseq-bujo-theme",
+   "addedAt": 1668223357000
+  },
+  {
+   "title": "Laurel theme",
+   "description": "A custom theme forked from logseq-clean-themes",
+   "author": "pengx17",
+   "repo": "pengx17/logseq-laurel-theme",
+   "icon": "laurel.png",
+   "theme": true,
+   "id": "logseq-laurel-theme",
+   "addedAt": 1632625009000
   }
  ]
 }

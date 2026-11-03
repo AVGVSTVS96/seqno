@@ -12,7 +12,13 @@ export const BlockEditor = (options: BlockEditorOptions & { readonly className?:
   const frame = useSyncExternalStore(popups.subscribe, popups.frame)
   const picker = useSyncExternalStore(popups.subscribe, popups.picker)
   return (
-    <div className={options.className} ref={mount}>
+    <div
+      className={
+        options.className === undefined ? "editor-wrapper" : `${options.className} editor-wrapper`
+      }
+      id={`editor-edit-block-${options.block.id}`}
+      ref={mount}
+    >
       {frame === null ? null : <PopupView frame={frame} />}
       {picker === null ? null : <DatePicker key={picker.kind} frame={picker} />}
     </div>

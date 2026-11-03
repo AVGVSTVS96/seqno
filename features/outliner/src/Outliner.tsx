@@ -179,7 +179,7 @@ const Breadcrumbs = ({
     )
   }
   return (
-    <nav className="seqno-crumbs" aria-label="Breadcrumbs">
+    <nav className="seqno-crumbs breadcrumb block-parents" aria-label="Breadcrumbs">
       <a role="link" tabIndex={0} onKeyDown={clickOnEnter} onClick={go(null)}>
         {title}
       </a>
@@ -222,9 +222,15 @@ const Gap = ({ height }: { readonly height: number }) => (
 
 const stopEvent = (event: { stopPropagation: () => void }) => event.stopPropagation()
 
-const Embed = ({ children }: { readonly children: ReactNode }) => (
+const Embed = ({
+  kind,
+  children,
+}: {
+  readonly kind: "block" | "page"
+  readonly children: ReactNode
+}) => (
   <div
-    className="seqno-embed"
+    className={`seqno-embed color-level embed-${kind}`}
     onClick={stopEvent}
     onDragOver={stopEvent}
     onDrop={stopEvent}
@@ -247,11 +253,11 @@ const useEmbedProps = () => {
 const BlockEmbed = ({ blockId, bare }: { readonly blockId: BlockId; readonly bare: boolean }) => {
   const props = useEmbedProps()
   return AsyncResult.match(useAtomValue(blockAtom(blockId)), {
-    onInitial: () => (bare ? null : <Embed>{null}</Embed>),
+    onInitial: () => (bare ? null : <Embed kind="block">{null}</Embed>),
     onFailure: () => <span className="seqno-blockref is-missing">(({blockId}))</span>,
     onSuccess: ({ value }) => {
       const embedded = <Outliner {...props} pageId={value.pageId} zoom={value.id} embedded />
-      return bare ? embedded : <Embed>{embedded}</Embed>
+      return bare ? embedded : <Embed kind="block">{embedded}</Embed>
     },
   })
 }
@@ -266,7 +272,7 @@ const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boole
       <Outliner {...props} pageId={page.id} zoom={null} embedded />
     )
   return AsyncResult.match(useAtomValue(pageNamedAtom(name)), {
-    onInitial: () => (bare ? null : <Embed>{null}</Embed>),
+    onInitial: () => (bare ? null : <Embed kind="page">{null}</Embed>),
     onFailure: () => <span className="seqno-macro">{`{{embed [[${name}]]}}`}</span>,
     onSuccess: ({ value }) =>
       value === undefined ? (
@@ -274,12 +280,12 @@ const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boole
       ) : bare ? (
         body(value)
       ) : (
-        <Embed>
+        <Embed kind="page">
           <a
             role="link"
             tabIndex={0}
             onKeyDown={clickOnEnter}
-            className="seqno-embed-title"
+            className="seqno-embed-title embed-header"
             onClick={(event) => {
               event.preventDefault()
               props.onNavigate(
@@ -981,7 +987,10 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
 
   return (
     <RenderContext value={renderer}>
-      <div className="seqno-outliner" data-embedded={embedded ? true : undefined}>
+      <div
+        className={embedded ? "seqno-outliner" : "seqno-outliner content"}
+        data-embedded={embedded ? true : undefined}
+      >
         <style href="@seqno/outliner" precedence="default">
           {styles}
         </style>
@@ -995,7 +1004,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         ) : null}
         <div
           ref={attach}
-          className="seqno-outline"
+          className="seqno-outline blocks-container"
           role="tree"
           aria-label="Outline"
           aria-multiselectable

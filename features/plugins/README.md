@@ -19,7 +19,7 @@ plugin iframe (its own origin)          seqno tab
 
 ## Testing
 
-`pnpm vitest run` here covers the protocol's names, package parsing and the block and page shapes. `tools/e2e/flows/plugins.e2e.ts` runs five real plugins from `fixtures/logseq-plugins` in Chrome, and `tools/e2e/flows/plugins-assets.e2e.ts` runs Assets plus on a graph's assets.
+`pnpm vitest run` here covers the protocol's names, package parsing and the block and page shapes. `tools/e2e/flows/plugins.e2e.ts` runs five real plugins from `fixtures/logseq-plugins` in Chrome, and `tools/e2e/flows/plugins-assets.e2e.ts` runs Assets plus on a graph's assets. `tools/e2e/flows/themes.e2e.ts` checks that real marketplace themes restyle seqno through Logseq's class names, which seqno's elements carry (decisions.md, "seqno's elements carry Logseq's names").
 
 ## Known gaps
 

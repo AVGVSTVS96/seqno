@@ -25,13 +25,15 @@ import { PageLink } from "./PageLink.tsx"
 const Fold = ({ open, onToggle }: { readonly open: boolean; readonly onToggle: () => void }) => (
   <button
     type="button"
-    className="seqno-fold"
+    className="seqno-fold block-control"
     data-open={open}
     tabIndex={-1}
     aria-hidden
     onClick={onToggle}
   >
-    <IconCaretRightFilled size={16} />
+    <span className={open ? "rotating-arrow not-collapsed" : "rotating-arrow collapsed"}>
+      <IconCaretRightFilled size={16} />
+    </span>
   </button>
 )
 
@@ -44,7 +46,7 @@ const Crumbs = ({
 }) => {
   const navigateTo = useNavigateTo()
   return trail.length === 0 ? null : (
-    <nav className="seqno-reference-crumbs" aria-label="Parent blocks">
+    <nav className="seqno-reference-crumbs breadcrumb block-parents" aria-label="Parent blocks">
       {trail.map((parent, at) => (
         <Fragment key={parent.id}>
           {at === 0 ? null : (
@@ -110,8 +112,8 @@ const Group = ({ group, page }: { readonly group: ReferenceGroup; readonly page:
   )
   const trail = trailOf(blocks)
   return (
-    <section className="seqno-references-group" aria-label={page.title}>
-      <div className="seqno-references-head" data-open={open}>
+    <section className="seqno-references-group references-blocks-item" aria-label={page.title}>
+      <div className="seqno-references-head foldable-title" data-open={open}>
         <Fold open={open} onToggle={() => setOpen(!open)} />
         <PageLink page={page} className="seqno-references-page" />
       </div>
@@ -140,12 +142,14 @@ const Groups = ({ references }: { readonly references: ReadonlyArray<Reference> 
 }
 
 const Section = ({
+  kind,
   label,
   count,
   initiallyOpen,
   mentions,
   children,
 }: {
+  readonly kind: "linked" | "unlinked"
   readonly label: string
   readonly count: number | null
   readonly initiallyOpen: boolean
@@ -157,11 +161,11 @@ const Section = ({
   const toggle = () => setOpen(!open)
   return (
     <section
-      className="seqno-references"
+      className={`seqno-references references page-${kind} content`}
       aria-labelledby={title}
       ref={markMentions(mentions ?? [])}
     >
-      <div className="seqno-references-head" data-open={open}>
+      <div className="seqno-references-head foldable-title" data-open={open}>
         <Fold open={open} onToggle={toggle} />
         <h2 className="seqno-references-title">
           <button id={title} type="button" aria-expanded={open} onClick={toggle}>
@@ -170,7 +174,7 @@ const Section = ({
           </button>
         </h2>
       </div>
-      {open ? <div className="seqno-references-body">{children}</div> : null}
+      {open ? <div className="seqno-references-body references-blocks">{children}</div> : null}
     </section>
   )
 }
@@ -179,7 +183,7 @@ const none: ReadonlyArray<Reference> = []
 
 const Linked = ({ references }: { readonly references: ReadonlyArray<Reference> }) =>
   references.length === 0 ? null : (
-    <Section label="Linked references" count={references.length} initiallyOpen>
+    <Section kind="linked" label="Linked references" count={references.length} initiallyOpen>
       <Groups references={references} />
     </Section>
   )
@@ -201,6 +205,7 @@ const UnlinkedReferences = ({ page }: { readonly page: Page }) => {
   const references = AsyncResult.getOrElse(useAtomValue(unlinkedReferences(page.id)), () => none)
   return references.length === 0 ? null : (
     <Section
+      kind="unlinked"
       label="Unlinked references"
       count={null}
       initiallyOpen={false}

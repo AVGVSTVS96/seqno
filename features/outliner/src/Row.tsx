@@ -4,6 +4,7 @@ import type { BlockId } from "@seqno/domain"
 import type { BlockContent } from "@seqno/syntax"
 import type { DropZone } from "./drop.ts"
 import type { Highlight } from "./selection.ts"
+import { refsSelf } from "./logseq.ts"
 import type { Row } from "./tree.ts"
 
 export interface RowActions {
@@ -55,6 +56,9 @@ const selectionEdge = (highlight: Highlight) =>
         ? "last"
         : "middle"
 
+const bulletClass = (numbered: boolean, folded: boolean) =>
+  `seqno-bullet bullet-container${numbered ? " is-numbered as-order-list typed-list" : ""}${folded ? " bullet-closed" : ""}`
+
 export const RowView = ({
   row,
   content,
@@ -84,11 +88,16 @@ export const RowView = ({
       ref={measure}
       data-index={index}
       data-block-id={block.id}
+      blockid={block.id}
+      level={depth + 1}
+      haschild={String(row.hasChildren)}
+      data-refs-self={refsSelf(block.text)}
+      data-collapsed={row.hasChildren && !row.expanded ? true : undefined}
       role="treeitem"
       aria-level={depth + 1}
       aria-selected={selected}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
-      className="seqno-row"
+      className={`ls-block ${block.id} seqno-row${selected ? " selected" : ""}`}
       style={{ paddingLeft: indent(depth) }}
       onPointerEnter={actions.sweep}
       onDragOver={actions.dragOver}
@@ -116,7 +125,7 @@ export const RowView = ({
       {row.path.map((ancestor, level) => (
         <span
           key={ancestor}
-          className="seqno-guide"
+          className="seqno-guide block-children-left-border"
           aria-hidden
           data-first={level === depth - 1 && firstChild ? true : undefined}
           data-last={nextPath[level] === ancestor ? undefined : true}
@@ -133,25 +142,32 @@ export const RowView = ({
         />
       ))}
       <div
-        className="seqno-control"
+        className="seqno-control block-control-wrap"
         style={offset === undefined ? undefined : { marginTop: offset }}
       >
         {canToggle ? (
           <button
             type="button"
-            className="seqno-toggle"
+            id={`control-${block.id}`}
+            className="seqno-toggle block-control"
             aria-label={row.expanded ? "Collapse" : "Expand"}
             data-expanded={row.expanded}
             onClick={actions.toggle}
           >
-            <IconCaretRightFilled size={16} aria-hidden />
+            <span
+              className={row.expanded ? "rotating-arrow not-collapsed" : "rotating-arrow collapsed"}
+            >
+              <IconCaretRightFilled size={16} aria-hidden />
+            </span>
           </button>
         ) : (
           <span className="seqno-toggle-space" />
         )}
         <button
           type="button"
-          className={ordinal === null ? "seqno-bullet" : "seqno-bullet is-numbered"}
+          id={`dot-${block.id}`}
+          blockid={block.id}
+          className={bulletClass(ordinal !== null, row.hasChildren && !row.expanded)}
           aria-label="Zoom into block"
           data-folded={row.hasChildren && !row.expanded ? true : undefined}
           draggable
@@ -160,11 +176,15 @@ export const RowView = ({
           onDragStart={actions.dragStart}
           onDragEnd={actions.dragEnd}
         >
-          {ordinal === null ? <span className="seqno-dot" /> : `${ordinal}.`}
+          {ordinal === null ? (
+            <span className="seqno-dot bullet" blockid={block.id} />
+          ) : (
+            `${ordinal}.`
+          )}
         </button>
       </div>
       <div
-        className="seqno-content"
+        className="seqno-content block-content-wrapper"
         onClick={actions.content}
         onPointerDown={actions.press}
         onContextMenu={(event) => {
@@ -176,7 +196,7 @@ export const RowView = ({
       {references === 0 ? null : (
         <button
           type="button"
-          className="seqno-refs-count"
+          className="seqno-refs-count block-refs-count"
           title="Open block references"
           aria-label={references === 1 ? "1 reference" : `${references} references`}
           aria-expanded={referencesOpen}

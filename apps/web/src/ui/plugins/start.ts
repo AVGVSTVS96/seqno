@@ -12,15 +12,7 @@ import { openGraph, resolvedTheme } from "../../atoms.ts"
 import type { router as appRouter } from "../../router.tsx"
 import { makeBridge } from "./bridge.ts"
 
-const themeClasses = (mode: "light" | "dark") => {
-  document.documentElement.classList.toggle("dark", mode === "dark")
-  document.body.classList.toggle("dark-theme", mode === "dark")
-  document.body.classList.toggle("white-theme", mode === "light")
-  document.body.classList.toggle("light-theme", mode === "light")
-}
-
 export const startPluginHost = (registry: AtomRegistry.AtomRegistry, router: typeof appRouter) => {
-  registry.subscribe(resolvedTheme, themeClasses, { immediate: true })
   const started: { host: Host | null } = { host: null }
 
   const start = () => {

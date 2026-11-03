@@ -64,7 +64,12 @@ export const Settings = () => {
   const [tab, setTab] = useAtom(settingsTab)
   const title = tabs.find(([id]) => id === tab)?.[1] ?? "General"
   return (
-    <Dialog id={settingsDialogId} label="Settings" className="settings" focusSelf>
+    <Dialog
+      id={settingsDialogId}
+      label="Settings"
+      className="settings cp__settings-main cp__settings-inner settings-modal"
+      focusSelf
+    >
       <div className="settings-nav">
         <h1 className="settings-title">Settings</h1>
         <div role="tablist" aria-orientation="vertical" className="settings-tabs">

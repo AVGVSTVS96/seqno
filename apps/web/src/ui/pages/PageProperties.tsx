@@ -84,15 +84,15 @@ export const PageProperties = ({ page }: { readonly page: Page }) => {
   const props = visibleProps(page.props)
   if (props.length === 0) return null
   return (
-    <div className="seqno-page-properties">
-      <div className="seqno-page-properties-control" aria-hidden>
-        <span className="seqno-page-properties-bullet" />
+    <div className="seqno-page-properties pre-block">
+      <div className="seqno-page-properties-control block-control-wrap" aria-hidden>
+        <span className="seqno-page-properties-bullet bullet" />
       </div>
       {editing ? (
         <PropertiesEditor page={page} onExit={() => setEditing(false)} />
       ) : (
         <dl
-          className="seqno-properties"
+          className="seqno-properties block-properties page-properties"
           aria-label="Page properties"
           onClick={(event) => {
             if (event.target instanceof Element && event.target.closest("a") !== null) return
@@ -104,10 +104,10 @@ export const PageProperties = ({ page }: { readonly page: Page }) => {
               <dt>
                 <PageLink
                   page={{ name: normalizePageName(key), title: key }}
-                  className="seqno-property-key"
+                  className="seqno-property-key page-property-key"
                 />
               </dt>
-              <dd>
+              <dd className="page-property-value">
                 <PropertyValue
                   name={key}
                   value={value}

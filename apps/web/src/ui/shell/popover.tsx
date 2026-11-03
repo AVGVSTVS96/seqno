@@ -172,7 +172,7 @@ export const Menu = ({
     role="menu"
     aria-label={label}
     tabIndex={-1}
-    className={className === undefined ? "menu" : `menu ${className}`}
+    className={`menu dropdown-wrapper menu-links-wrapper${className === undefined ? "" : ` ${className}`}`}
     onBeforeToggle={handle.onBeforeToggle}
     onToggle={handle.onToggle}
     onKeyDown={onMenuKeyDown}
@@ -200,7 +200,7 @@ export const MenuItem = ({
       ? { role: "menuitem" }
       : { role: "menuitemradio", "aria-checked": checked })}
     tabIndex={-1}
-    className="menu-item"
+    className="menu-item menu-link"
     onPointerMove={(event) => {
       if (document.activeElement !== event.currentTarget) event.currentTarget.focus()
     }}
@@ -214,7 +214,7 @@ export const MenuItem = ({
     }}
   >
     {icon}
-    <span className="menu-item-label">{children}</span>
+    <span className="menu-item-label title-wrap">{children}</span>
     {hint === undefined ? null : <span className="menu-item-hint">{hint}</span>}
   </button>
 )
@@ -253,14 +253,18 @@ export const useTooltip = (content: TooltipContent | undefined, placement: Place
               id={id}
               role="tooltip"
               popover="manual"
-              className={content.keys === undefined ? "tooltip tooltip-plain" : "tooltip"}
+              className={
+                content.keys === undefined
+                  ? "tooltip tooltip-plain tippy-tooltip"
+                  : "tooltip tippy-tooltip"
+              }
               ref={(element) => {
                 if (element === null) return
                 place(element, anchor, placement)
                 element.showPopover()
               }}
             >
-              <span className="tooltip-label">{content.label}</span>
+              <span className="tooltip-label tippy-tooltip-content">{content.label}</span>
               {content.keys === undefined ? null : <Keys keys={content.keys} framed />}
             </div>,
             document.body,
@@ -297,7 +301,7 @@ export const Dialog = ({
     onClose={onClose}
     aria-label={label}
     {...(focusSelf ? { tabIndex: -1, "data-focus-self": "" } : {})}
-    className={className === undefined ? "dialog" : `dialog ${className}`}
+    className={`dialog ui__modal-panel${className === undefined ? "" : ` ${className}`}`}
     onClick={(event) => {
       if (event.target === event.currentTarget) event.currentTarget.close()
     }}

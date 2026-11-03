@@ -90,6 +90,14 @@ const ItemTitle = ({ item }: { readonly item: SidebarItem }) =>
     PageGraph: () => <PageGraphTitle />,
   })
 
+const itemType = (item: SidebarItem) =>
+  SidebarItem.match(item, {
+    Page: ({ name }) => (name === contentsItem.name ? "contents" : "page"),
+    Block: () => "block",
+    Help: () => "help",
+    PageGraph: () => "page-graph",
+  })
+
 const SidebarBlock = ({ blockId }: { readonly blockId: BlockId }) => {
   const known = AsyncResult.getOrElse(useAtomValue(pages), () => [])
   return AsyncResult.match(useAtomValue(blockAtom(blockId)), {
@@ -196,8 +204,12 @@ const Card = ({
   ]
   const groups = entries.filter((group) => group.length > 0)
   return (
-    <section className="sidebar-item" data-first={first} aria-labelledby={headerId}>
-      <div className="sidebar-item-header">
+    <section
+      className={`sidebar-item content color-level item-type-${itemType(item)}`}
+      data-first={first}
+      aria-labelledby={headerId}
+    >
+      <div className="sidebar-item-header color-level">
         <button
           id={headerId}
           type="button"
@@ -215,16 +227,16 @@ const Card = ({
             <ItemTitle item={item} />
           </span>
         </button>
-        <div className="sidebar-item-actions">
+        <div className="sidebar-item-actions item-actions">
           <IconButton
             label="More actions"
-            className="sidebar-item-action"
+            className="sidebar-item-action ui__button"
             icon={<IconDots size={18} aria-hidden />}
             {...menu.trigger}
           />
           <IconButton
             label="Close"
-            className="sidebar-item-action"
+            className="sidebar-item-action ui__button"
             icon={<IconX size={18} aria-hidden />}
             onClick={actions.close}
           />
@@ -327,7 +339,8 @@ export const RightSidebar = () => {
   const [width, setWidth] = useAtom(rightSidebarWidth)
   return (
     <aside
-      className="right-sidebar"
+      id="right-sidebar"
+      className="right-sidebar cp__right-sidebar"
       aria-label="Right sidebar"
       data-open={sidebar.open}
       inert={!sidebar.open}
@@ -365,11 +378,11 @@ export const RightSidebar = () => {
         }}
       />
       {sidebar.open ? (
-        <div className="right-sidebar-inner">
-          <div className="right-sidebar-topbar">
+        <div id="right-sidebar-container" className="right-sidebar-inner cp__right-sidebar-inner">
+          <div className="right-sidebar-topbar cp__right-sidebar-topbar cp__right-sidebar-settings">
             <button
               type="button"
-              className="sidebar-tab"
+              className="sidebar-tab button cp__right-sidebar-settings-btn"
               data-hint-anchor="contents"
               onClick={() => updateSidebar({ _tag: "Open", item: contentsItem })}
             >
@@ -377,14 +390,14 @@ export const RightSidebar = () => {
             </button>
             <button
               type="button"
-              className="sidebar-tab"
+              className="sidebar-tab button cp__right-sidebar-settings-btn"
               onClick={() => updateSidebar({ _tag: "Open", item: pageGraphItem })}
             >
               Page graph
             </button>
             <button
               type="button"
-              className="sidebar-tab"
+              className="sidebar-tab button cp__right-sidebar-settings-btn"
               onClick={() => updateSidebar({ _tag: "Open", item: helpItem })}
             >
               Help

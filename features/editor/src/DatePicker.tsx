@@ -70,7 +70,8 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
   }
   return createPortal(
     <div
-      className="sq-date"
+      id="date-time-picker"
+      className="sq-date datepicker"
       role="dialog"
       aria-label={kind === "SCHEDULED" ? "Scheduled date" : "Deadline date"}
       onMouseDown={keepFocus}

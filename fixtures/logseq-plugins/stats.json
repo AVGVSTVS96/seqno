@@ -118,5 +118,85 @@
     56
    ]
   ]
+ },
+ "logseq-catppuccin": {
+  "stargazers_count": 195,
+  "releases": [
+   [
+    "v0.6.4",
+    false,
+    30130
+   ],
+   [
+    "v0.6.3",
+    false,
+    11310
+   ],
+   [
+    "v0.6.2",
+    false,
+    1139
+   ]
+  ]
+ },
+ "logseq-atlas-theme": {
+  "stargazers_count": 25,
+  "releases": [
+   [
+    "v0.3.5",
+    false,
+    40223
+   ],
+   [
+    "v0.3.4",
+    false,
+    17
+   ],
+   [
+    "v0.3.3",
+    false,
+    15
+   ]
+  ]
+ },
+ "logseq-bujo-theme": {
+  "stargazers_count": 70,
+  "releases": [
+   [
+    "1.4.6",
+    false,
+    10289
+   ],
+   [
+    "1.4.5",
+    false,
+    2310
+   ],
+   [
+    "1.4.4",
+    false,
+    914
+   ]
+  ]
+ },
+ "logseq-laurel-theme": {
+  "stargazers_count": 57,
+  "releases": [
+   [
+    "v1.8.8",
+    false,
+    25997
+   ],
+   [
+    "v1.8.7",
+    false,
+    255
+   ],
+   [
+    "v1.8.6",
+    false,
+    736
+   ]
+  ]
  }
 }

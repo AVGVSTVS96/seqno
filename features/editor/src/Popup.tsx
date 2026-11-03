@@ -116,7 +116,7 @@ const Row = ({
     <div
       role="option"
       aria-selected={active}
-      className="sq-popup-row"
+      className={active ? "sq-popup-row menu-link chosen" : "sq-popup-row menu-link"}
       ref={active && !popup.pointer ? reveal : undefined}
       onPointerMove={(event) => {
         const at = `${event.clientX},${event.clientY}`
@@ -156,6 +156,7 @@ export const PopupView = ({ frame }: { readonly frame: PopupFrame }) => {
   return createPortal(
     <div
       key={`${popup.kind}:${popup.from}`}
+      id="ui__ac-inner"
       className={`sq-popup sq-popup-${popup.kind.toLowerCase()}`}
       role="listbox"
       aria-label={labels[popup.kind]}
@@ -164,7 +165,7 @@ export const PopupView = ({ frame }: { readonly frame: PopupFrame }) => {
       {grouped
         ? groupsOf(popup).map((group) => (
             <div key={group.name} role="group" aria-label={group.name}>
-              <div className="sq-popup-group" aria-hidden>
+              <div className="sq-popup-group ui__ac-group-name" aria-hidden>
                 {group.name}
               </div>
               {group.rows.map(row)}

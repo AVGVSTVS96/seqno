@@ -77,7 +77,12 @@ const MoreMenu = () => {
   const starred = useAtomValue(favorites).some((favorite) => favorite.id === page?.id)
   return (
     <>
-      <IconButton label="More" icon={<IconDots size={20} aria-hidden />} {...more.trigger} />
+      <IconButton
+        label="More"
+        className="button icon toolbar-dots-btn"
+        icon={<IconDots size={20} aria-hidden />}
+        {...more.trigger}
+      />
       <Menu handle={more} label="More" className="more-menu">
         {page === undefined ? null : (
           <>
@@ -162,6 +167,8 @@ const SearchButton = () => {
   return (
     <IconButton
       label="Search"
+      id="search-button"
+      className="button icon"
       data-hint-anchor="search"
       tooltip={{ label: "Search", keys: ["mod", "k"] }}
       icon={<IconSearch size={20} aria-hidden />}
@@ -177,10 +184,12 @@ export const Header = () => {
   const navigate = useNavigate()
   const home = matchRoute({ to: "/" }) !== false
   return (
-    <header className="head">
-      <div className="head-left">
+    <header id="head" className="head cp__header">
+      <div className="head-left l">
         <IconButton
           label="Toggle left sidebar"
+          id="left-menu"
+          className="button icon cp__header-left-menu"
           data-hint-anchor="left-sidebar"
           tooltip={{ label: "Toggle left sidebar", keys: keysOf("ToggleLeftSidebar") }}
           icon={<IconMenu2 size={20} aria-hidden />}
@@ -189,12 +198,13 @@ export const Header = () => {
         />
         <SearchButton />
       </div>
-      <div className="head-right">
+      <div className="head-right r">
         <PluginItems type="toolbar" />
         <SaveStatus />
         {home ? null : (
           <IconButton
             label="Home"
+            className="button icon"
             tooltip={{ label: "Home", keys: keysOf("GoHome") }}
             icon={<IconHome size={20} aria-hidden />}
             onClick={() => void navigate({ to: "/" })}
@@ -203,6 +213,7 @@ export const Header = () => {
         <MoreMenu />
         <IconButton
           label="Toggle right sidebar"
+          className="button icon toggle-right-sidebar"
           tooltip={{ label: "Toggle right sidebar", keys: keysOf("ToggleRightSidebar") }}
           icon={<IconLayoutSidebarRight size={20} aria-hidden />}
           onClick={() => updateSidebar({ _tag: "Toggle" })}

@@ -12,13 +12,13 @@ import {
   openGraph,
   prefersDark,
   remembersGraph,
-  resolvedTheme,
   saveState,
   startingGraph,
 } from "./atoms.ts"
 import { WorkerCore } from "./core.ts"
 import { embedded, forwardEscape, toParent } from "./embed.ts"
 import { demoGraph } from "./graph-locations.ts"
+import { markLogseqDocument } from "./logseq-document.ts"
 import { router } from "./router.tsx"
 import { startPluginHost } from "./ui/plugins/start.ts"
 import { notify } from "./ui/shell/Notices.tsx"
@@ -36,13 +36,7 @@ const darkScheme = matchMedia("(prefers-color-scheme: dark)")
 registry.set(prefersDark, darkScheme.matches)
 darkScheme.addEventListener("change", (event) => registry.set(prefersDark, event.matches))
 
-registry.subscribe(
-  resolvedTheme,
-  (resolved) => {
-    document.documentElement.dataset["theme"] = resolved
-  },
-  { immediate: true },
-)
+markLogseqDocument(registry, router)
 
 registry.subscribe(
   graphMoves,

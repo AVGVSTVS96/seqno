@@ -51,6 +51,16 @@ const problemOf = (cause: Cause.Cause<unknown>) => {
   return error instanceof Error ? error.message : String(error)
 }
 
+const themeInner = (leftOpen: boolean, rightOpen: boolean, wide: boolean) =>
+  [
+    "theme-inner",
+    leftOpen ? "ls-left-sidebar-open" : null,
+    rightOpen ? "ls-right-sidebar-open" : null,
+    wide ? "ls-wide-mode" : null,
+  ]
+    .filter((name) => name !== null)
+    .join(" ")
+
 const content = (ready: boolean, problem: string | null) =>
   problem !== null ? <OpenFailed problem={problem} /> : ready ? <Outlet /> : null
 
@@ -79,38 +89,43 @@ const Layout = ({
     <AssetActions value={assets}>
       <MacroSlot value={pluginMacros}>
         <BoardSlot value={boards}>
-          <div
-            className="app"
-            data-left-open={leftOpen}
-            data-right-open={rightOpen}
-            data-wide={wide}
-            style={{
-              "--left-sidebar-width": `${leftWidth}px`,
-              "--right-sidebar-width": `${rightWidth}vw`,
-            }}
-          >
-            <div className="left-container">
-              <Header />
-              <div className="main-container">
-                <LeftSidebar graph={graph} />
-                <main className="main-content-container">
-                  <ScrollContent className="main-content">
-                    {content(ready ?? true, problem ?? null)}
-                  </ScrollContent>
-                </main>
+          <div className="theme-container">
+            <div className={themeInner(leftOpen, rightOpen, wide)}>
+              <div
+                id="app-container"
+                className="app"
+                data-left-open={leftOpen}
+                data-right-open={rightOpen}
+                data-wide={wide}
+                style={{
+                  "--left-sidebar-width": `${leftWidth}px`,
+                  "--right-sidebar-width": `${rightWidth}vw`,
+                }}
+              >
+                <div id="left-container" className="left-container">
+                  <Header />
+                  <div id="main-container" className="main-container cp__sidebar-main-layout">
+                    <LeftSidebar graph={graph} />
+                    <main id="main-content-container" className="main-content-container">
+                      <ScrollContent className="main-content cp__sidebar-main-content">
+                        {content(ready ?? true, problem ?? null)}
+                      </ScrollContent>
+                    </main>
+                  </div>
+                </div>
+                <RightSidebar />
+                <HelpButton />
+                <BlockMenu />
+                <ExportDialog />
+                <GraphExportDialog />
+                <Settings />
+                <Notices />
+                <PluginsDialog />
+                <PluginSettings />
+                <PluginThemeLink mode={mode} />
+                {isDemoGraph(graph) ? <Hints /> : null}
               </div>
             </div>
-            <RightSidebar />
-            <HelpButton />
-            <BlockMenu />
-            <ExportDialog />
-            <GraphExportDialog />
-            <Settings />
-            <Notices />
-            <PluginsDialog />
-            <PluginSettings />
-            <PluginThemeLink mode={mode} />
-            {isDemoGraph(graph) ? <Hints /> : null}
           </div>
         </BoardSlot>
       </MacroSlot>
