@@ -1,6 +1,7 @@
 import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useMatchRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { Atom } from "effect/reactivity"
+import { logseq, names } from "@seqno/dom"
 import type { Page } from "@seqno/domain"
 import { hostAtom, pluginCommands, runPageCommand } from "@seqno/plugins"
 import { dispatch, favorites, toggleFavorite } from "../../atoms.ts"
@@ -82,6 +83,8 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
   )
 }
 
+const titleMenuNames = logseq("seqno-page-menu")
+
 const TitleMenu = ({
   page,
   x,
@@ -98,7 +101,8 @@ const TitleMenu = ({
     role="menu"
     aria-label="Page actions"
     tabIndex={-1}
-    className="menu"
+    {...titleMenuNames}
+    className={names("menu", titleMenuNames.className)}
     ref={(menu) => {
       if (menu === null) return
       menu.showPopover()

@@ -27,6 +27,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react"
+import { logseq } from "@seqno/dom"
 import { blockRefId, type BlockId, type Page } from "@seqno/domain"
 import { chosenThemes, pluginCommands, runtimeThemes, type PluginTheme } from "@seqno/plugins"
 import type { PageStat } from "@seqno/rpc"
@@ -80,7 +81,13 @@ const noStats: ReadonlyArray<PageStat> = []
 
 const Marked = ({ text, query }: { readonly text: string; readonly query: string }) =>
   highlight(text, query).map((part, at) =>
-    part.mark ? <mark key={at}>{part.text}</mark> : <Fragment key={at}>{part.text}</Fragment>,
+    part.mark ? (
+      <mark key={at} {...logseq("seqno-palette-mark")}>
+        {part.text}
+      </mark>
+    ) : (
+      <Fragment key={at}>{part.text}</Fragment>
+    ),
   )
 
 const filterIcons: Readonly<Record<Filter, ReactNode>> = {
@@ -457,7 +464,7 @@ const Palette = ({
 
   return (
     <dialog
-      className="seqno-palette ui__modal-panel cp__cmdk"
+      {...logseq("seqno-palette")}
       aria-label="Search"
       data-keeps-selection
       ref={(element) => {
@@ -481,6 +488,7 @@ const Palette = ({
       <div className="seqno-palette-input">
         <input
           ref={input}
+          {...logseq("seqno-palette-search")}
           type="search"
           aria-label="Search"
           placeholder="What are you looking for?"
@@ -495,7 +503,7 @@ const Palette = ({
           onKeyDown={onKeyDown}
         />
       </div>
-      <div className="seqno-palette-results search-results" id={`${ids}-results`}>
+      <div className="seqno-palette-results" id={`${ids}-results`}>
         {filter === null ? null : (
           <div className="seqno-palette-filter">
             <span>Search only:</span>
@@ -523,7 +531,7 @@ const Palette = ({
                   (group.total > group.items.length || expanded.has(group.id)) ? (
                     <button
                       type="button"
-                      className="seqno-palette-more"
+                      {...logseq("seqno-palette-more")}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => toggleGroup(group.id)}
                     >
@@ -534,7 +542,11 @@ const Palette = ({
                   ) : null}
                 </div>
               )}
-              <div role="listbox" aria-label={group.title ?? "Create page"}>
+              <div
+                {...logseq("seqno-palette-list")}
+                role="listbox"
+                aria-label={group.title ?? "Create page"}
+              >
                 {group.items.map((item, at) => (
                   <div
                     key={itemKey(item)}
@@ -557,26 +569,43 @@ const Palette = ({
           )
         })}
       </div>
-      <div className="seqno-palette-footer">
+      <div {...logseq("seqno-palette-footer")}>
         <Tip filter={filter} />
         {current === undefined ? null : (
           <div className="seqno-palette-actions">
             {action !== null ? (
-              <button type="button" data-active onClick={() => void open(current, false)}>
+              <button
+                type="button"
+                {...logseq("seqno-palette-action")}
+                data-active
+                onClick={() => void open(current, false)}
+              >
                 <span>{action}</span>
                 <Keys keys={["enter"]} />
               </button>
             ) : (
               <>
-                <button type="button" onClick={() => void open(current, false)}>
+                <button
+                  type="button"
+                  {...logseq("seqno-palette-action")}
+                  onClick={() => void open(current, false)}
+                >
                   <span>Open</span>
                   <Keys keys={["enter"]} />
                 </button>
-                <button type="button" onClick={() => void open(current, true)}>
+                <button
+                  type="button"
+                  {...logseq("seqno-palette-action")}
+                  onClick={() => void open(current, true)}
+                >
                   <span>Open in sidebar</span>
                   <Keys keys={["shift", "enter"]} />
                 </button>
-                <button type="button" onClick={() => copyRef(current)}>
+                <button
+                  type="button"
+                  {...logseq("seqno-palette-action")}
+                  onClick={() => copyRef(current)}
+                >
                   <span>Copy ref</span>
                   <Keys keys={["mod", "c"]} />
                 </button>

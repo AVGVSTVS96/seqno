@@ -38,6 +38,22 @@ describe("logseq", () => {
   })
 })
 
+describe("palette and page menu", () => {
+  it("name the palette, its search box and the page title's menu as Logseq's cmdk and context menu", () => {
+    expect(logseq("seqno-palette").className).toBe(
+      "seqno-palette ui__modal-panel cp__cmdk__modal cp__cmdk",
+    )
+    expect(logseq("seqno-palette-search")).toEqual({
+      className: "seqno-palette-search",
+      id: "search",
+    })
+    expect(logseq("seqno-page-menu")).toEqual({
+      className: "seqno-page-menu menu-links-wrapper",
+      id: "custom-context-menu",
+    })
+  })
+})
+
 describe("names", () => {
   it("joins the tokens that are set", () => {
     expect(names("a", false, null, undefined, "", "b")).toBe("a b")

@@ -35,6 +35,9 @@ importers:
       '@fontsource-variable/inter':
         specifier: 5.3.0
         version: 5.3.0
+      '@seqno/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
       '@seqno/domain':
         specifier: workspace:*
         version: link:../../packages/domain
