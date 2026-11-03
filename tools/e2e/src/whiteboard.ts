@@ -100,3 +100,22 @@ export const fireFiles = (
       })),
     },
   )
+
+export const firePaste = (
+  page: Page,
+  at: readonly [number, number],
+  data: { readonly text?: string; readonly html?: string },
+) =>
+  page.evaluate(
+    (given) => {
+      const transfer = new DataTransfer()
+      if (given.text !== null) transfer.setData("text/plain", given.text)
+      if (given.html !== null) transfer.setData("text/html", given.html)
+      const [x, y] = given.at
+      const target = document.elementFromPoint(x, y) ?? document.body
+      target.dispatchEvent(
+        new ClipboardEvent("paste", { clipboardData: transfer, bubbles: true, cancelable: true }),
+      )
+    },
+    { at, text: data.text ?? null, html: data.html ?? null },
+  )

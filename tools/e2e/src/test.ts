@@ -52,7 +52,7 @@ export const test = base.extend<{ seqno: ReturnType<typeof seqno>; hints: boolea
   page: async ({ page, hints }, use) => {
     if (!hints) {
       await page.addInitScript((keys) => {
-        if (localStorage.getItem("seqno.dismissedHints") === null) {
+        if (window.top === window && localStorage.getItem("seqno.dismissedHints") === null) {
           localStorage.setItem("seqno.dismissedHints", JSON.stringify(keys))
         }
       }, hintKeys)

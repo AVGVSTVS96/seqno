@@ -17,8 +17,9 @@ import {
 } from "@tabler/icons-react"
 import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { use, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
+  isBlockLink,
   normalizePageName,
   portalTarget,
   portalText,
@@ -30,7 +31,13 @@ import {
   type Page,
   type Vec,
 } from "@seqno/domain"
-import { dispatchAllAtom, editRequest, historyAtom, pageTreeAtom } from "@seqno/outliner"
+import {
+  AssetActions,
+  dispatchAllAtom,
+  editRequest,
+  historyAtom,
+  pageTreeAtom,
+} from "@seqno/outliner"
 import type { Asset, PageTree } from "@seqno/rpc"
 import boardCss from "./board.css?inline"
 import { clipboardHtml, copiedOf, readClipboard } from "./clipboard.ts"
@@ -100,6 +107,7 @@ import type { OutlinerEnv } from "./Portal.tsx"
 import { IconGroup, IconUngroup } from "./icons.tsx"
 import { BacklinksBadge, QuickLinks, type LinkEnv } from "./links.tsx"
 import { freshId } from "./ids.ts"
+import { EMBED_SIZE, embedOf, isWebUrl } from "./Embeds.tsx"
 import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
 import { applyLocally, isGhost } from "./preview.ts"
 import { QuickSearch, type Pick } from "./QuickSearch.tsx"
@@ -192,6 +200,12 @@ const isEditableTarget = (target: EventTarget | null) =>
 const insideLivePortal = (target: EventTarget | null) =>
   target instanceof Element &&
   target.closest('[data-live="true"] .wb-portal-body, [data-active="true"]') !== null
+
+const onSelectedMedia = (target: EventTarget | null) =>
+  target instanceof Element &&
+  target.closest(
+    '.wb-shape[data-type="video"][data-selected="true"] video, .wb-shape[data-type="html"][data-selected="true"] .wb-html',
+  ) !== null
 
 const handleOf = (target: EventTarget | null) => {
   const element = target instanceof Element ? target.closest<HTMLElement>("[data-handle]") : null
@@ -319,6 +333,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const run = useAtomSet(dispatchAllAtom, { mode: "promiseExit" })
   const history = useAtomSet(historyAtom)
   const requestEdit = useAtomSet(editRequest)
+  const { openPdf } = use(AssetActions)
   const root = useRef<HTMLDivElement | null>(null)
   const press = useRef<Press | null>(null)
   const pointer = useRef<Vec | null>(null)
@@ -342,6 +357,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const [menuAt, setMenuAt] = useState<Vec | null>(null)
   const [penMode, setPenMode] = useState(false)
   const [active, setActive] = useState<BlockId | null>(null)
+  const [reloads, setReloads] = useState<ReadonlyMap<BlockId, number>>(() => new Map())
   const shiftHeld = useRef(false)
 
   const blocks =
@@ -588,9 +604,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     if (active !== null) setActive(null)
     const at = screenOf(event)
     const world = toWorld(cam, at)
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
-    root.current?.focus()
+    if (!onSelectedMedia(event.target)) {
+      event.preventDefault()
+      event.currentTarget.setPointerCapture(event.pointerId)
+      root.current?.focus()
+    }
     if (
       event.button === 1 ||
       spacePan ||
@@ -846,6 +864,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     if (key === "Enter") {
       const only = selection.length === 1 ? selection[0] : undefined
       if (only !== undefined && startEditing(only)) handled()
+      const item = only === undefined ? undefined : scene.byId.get(only)
+      if (item !== undefined && isInteractive(item) && !isLocked(item)) {
+        handled()
+        setActive(item.block.id)
+      }
       return
     }
     const direction = CLONE_KEYS[key]
@@ -1052,6 +1075,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     asset: props.resolveAsset,
     measure,
     active,
+    selected: selection,
+    reloads,
     editing:
       editing === null ? null : { id: editing, draft, onDraft: setDraft, onFinish: finishEditing },
     portals: {
@@ -1397,7 +1422,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     if (html === "" && text === "") return
     event.preventDefault()
     if (shiftHeld.current && pasteAsLink(text)) return
-    paste(html, text, pointer.current)
+    paste(html, text, pointer.current, { shift: shiftHeld.current })
   }
 
   const placeFiles = async (files: ReadonlyArray<File>, at: Vec, fromDrop: boolean) => {
@@ -1429,9 +1454,56 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     return true
   }
 
-  const paste = (html: string, text: string, at: Vec | null) => {
-    const copied = readClipboard(html)
+  const placeEmbeds = (drafts: ReadonlyArray<Draft>, fromDrop: boolean) => {
+    const linkFrom = fromDrop && selectedItems.length === 1 ? selectedItems[0] : undefined
+    const [only, ...rest] = drafts.flatMap((one) => one.id ?? [])
+    const made =
+      linkFrom === undefined || only === undefined || rest.length > 0
+        ? create(page.id, scene, drafts)
+        : createLinked(drafts, linkFrom.block.id, only)
+    if (made === null) return
+    void commit([made])
+    setSelected(only === undefined ? [] : [only, ...rest])
+  }
+
+  const paste = (
+    html: string,
+    text: string,
+    at: Vec | null,
+    { shift = false, drop = false }: { readonly shift?: boolean; readonly drop?: boolean } = {},
+  ) => {
     const where = at ?? toWorld(cam, center(viewport))
+    const point: Vec = [round(where[0]), round(where[1])]
+    if (text !== "" && !shift && isWebUrl(text)) {
+      const type = embedOf(text)
+      placeEmbeds(
+        [{ id: freshId(), text: "", raw: { type, point, size: EMBED_SIZE[type], url: text } }],
+        drop,
+      )
+      return
+    }
+    if (text.startsWith("<iframe")) {
+      placeEmbeds(
+        [
+          {
+            id: freshId(),
+            text: "",
+            raw: { type: "html", point, size: EMBED_SIZE.html, html: text },
+          },
+        ],
+        drop,
+      )
+      return
+    }
+    const skipsHtml = text !== "" && (shift || drop)
+    const copied = skipsHtml ? [] : readClipboard(html)
+    if (copied.length === 0 && html !== "" && !skipsHtml) {
+      placeEmbeds(
+        [{ id: freshId(), text: "", raw: { type: "html", point, size: EMBED_SIZE.html, html } }],
+        drop,
+      )
+      return
+    }
     if (copied.length > 0) {
       const drafts = clones(
         copied,
@@ -1449,16 +1521,55 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       return
     }
     if (text === "") return
-    const point: Vec = [where[0] - PORTAL_WIDTH / 2, where[1]]
+    const centered: Vec = [where[0] - PORTAL_WIDTH / 2, where[1]]
     const target = portalTarget(text)
     if (Option.isSome(target)) {
-      void placeShape(portalRaw(point, target.value._tag === "PagePortal" ? "P" : "B"), text).then(
-        selectCreated,
-      )
+      void placeShape(
+        portalRaw(centered, target.value._tag === "PagePortal" ? "P" : "B"),
+        text,
+      ).then(selectCreated)
       return
     }
-    newBlockPortal(point, text)
+    newBlockPortal(centered, text)
   }
+
+  const dropBlocks = (text: string, at: Vec) => {
+    const ids = text.split("\n").map((line) => line.trim())
+    if (ids.length === 0 || !ids.every((id) => isBlockLink(id))) return false
+    placeEmbeds(
+      ids.map((id, index) => ({
+        id: freshId(),
+        text: portalText({ _tag: "BlockPortal", uuid: id.toLowerCase() }),
+        raw: {
+          ...portalRaw([at[0] + (PORTAL_WIDTH + 16) * index, at[1]], "B"),
+          size: [PORTAL_WIDTH, 0],
+          compact: false,
+        },
+      })),
+      true,
+    )
+    return true
+  }
+
+  const dropPdfLink = (href: string, at: Vec) =>
+    placeEmbeds(
+      [
+        {
+          id: freshId(),
+          text: "",
+          raw: {
+            type: "pdf",
+            point: [at[0] - 148.75 + 16, at[1] - 210.5 + 16],
+            size: [297.5, 421],
+            assetId: freshId(),
+            src: href,
+            url: href,
+            opacity: 1,
+          },
+        },
+      ],
+      true,
+    )
 
   const arrange = (commands: ReadonlyArray<Command>) => void commit(commands)
 
@@ -1564,7 +1675,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
                 keys: "Mod+Shift+V",
                 run: () =>
                   void readClipboardItems().then(({ html, text }) => {
-                    if (!pasteAsLink(text.trim())) paste(html, text.trim(), null)
+                    if (!pasteAsLink(text.trim())) paste(html, text.trim(), null, { shift: true })
                   }),
               },
             ]
@@ -1636,6 +1747,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       data-grid={grid}
       data-cursor={cursor}
       data-tool={tool}
+      data-moving={gesture._tag === "Panning"}
       style={gridVars}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -1655,15 +1767,22 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       onCut={(event) => onCopy(event, true)}
       onPaste={onPaste}
       onDragOver={(event) => {
-        if (!event.dataTransfer.types.includes("Files") || insideLivePortal(event.target)) return
+        if (insideLivePortal(event.target)) return
         event.preventDefault()
         event.dataTransfer.dropEffect = "copy"
       }}
       onDrop={(event) => {
-        const files = [...event.dataTransfer.files]
-        if (files.length === 0 || insideLivePortal(event.target)) return
+        if (insideLivePortal(event.target)) return
         event.preventDefault()
-        void placeFiles(files, toWorld(cam, screenOf(event)), true)
+        const at = toWorld(cam, screenOf(event))
+        const data = event.dataTransfer
+        const href = data.getData("file")
+        if (href !== "") return dropPdfLink(href, at)
+        const files = [...data.files]
+        if (files.length > 0) return void placeFiles(files, at, true)
+        const text = data.getData("text/plain").trim()
+        if (dropBlocks(text, at)) return
+        paste(data.getData("text/html"), text, at, { drop: true })
       }}
       onContextMenu={(event) => {
         if (insideLivePortal(event.target) || isEditableTarget(event.target)) return
@@ -1712,6 +1831,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           top={contextAt.top}
           onPatch={patchSelection}
           links={links}
+          embeds={{
+            reload: (id) => setReloads(new Map(reloads).set(id, (reloads.get(id) ?? 0) + 1)),
+            openPdf: (src) => openPdf(src),
+            measured,
+          }}
         />
       ) : null}
       {searchAt === null || searchScreen === null ? null : (

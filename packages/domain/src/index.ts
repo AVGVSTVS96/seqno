@@ -14,10 +14,13 @@ export { GraphEvent } from "./event.ts"
 export {
   BoxShape,
   EllipseShape,
+  EmbedShape,
   GroupShape,
+  HtmlShape,
   ImageShape,
   LineShape,
   OtherShape,
+  PdfShape,
   PolygonShape,
   PortalShape,
   PortalTarget,

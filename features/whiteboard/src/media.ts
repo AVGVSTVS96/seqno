@@ -1,7 +1,6 @@
 import type { Vec } from "@seqno/domain"
 import type { Draft } from "./commands.ts"
 import { packed } from "./arrange.ts"
-import { round } from "./geometry.ts"
 import { freshId } from "./ids.ts"
 
 export type Media = "image" | "video" | "pdf"
@@ -81,8 +80,8 @@ export const mediaDrafts = (saved: ReadonlyArray<Saved>, at: Vec): ReadonlyArray
       text: "",
       raw: {
         type: media,
-        point: [round(x), round(y)],
-        size: [round(size[0]), round(size[1])],
+        point: [x, y],
+        size,
         opacity: 1,
         assetId: freshId(),
         src: `../${path}`,

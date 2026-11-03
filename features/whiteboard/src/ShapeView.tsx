@@ -1,6 +1,7 @@
 import { getStroke } from "perfect-freehand"
 import type { BlockId, Vec } from "@seqno/domain"
 import { sub } from "./geometry.ts"
+import { HtmlView, IFrameView, PdfView, TweetView, YouTubeView } from "./Embeds.tsx"
 import { PortalPreview, PortalView, type PortalEnv } from "./Portal.tsx"
 import { absolutePoints, type Item, type Scene } from "./model.ts"
 import { colorVar, fontSize, portalScale, strokeScale } from "./tools.ts"
@@ -25,6 +26,8 @@ export interface ShapeSlots {
   readonly editing: Editing | null
   readonly portals: Portals | null
   readonly active: BlockId | null
+  readonly selected: ReadonlyArray<BlockId>
+  readonly reloads: ReadonlyMap<BlockId, number>
 }
 
 const ShapeEditor = ({ item, editing }: { readonly item: Item; readonly editing: Editing }) => (
@@ -418,6 +421,7 @@ export const ShapeView = ({
           data-type="video"
           data-erasing={erasing}
           data-active={active}
+          data-selected={slots.selected.includes(item.block.id)}
           style={{ ...place, width: size[0], height: size[1] }}
         >
           <div className="wb-media" data-asset-loaded={src !== undefined}>
@@ -425,6 +429,57 @@ export const ShapeView = ({
               <video className="wb-video" src={src} controls aria-label="Video" />
             )}
           </div>
+        </div>
+      )
+    }
+    case "youtube":
+    case "tweet":
+    case "iframe":
+    case "html":
+    case "pdf": {
+      const active = slots.active === item.block.id
+      const still = slots.portals === null
+      const view = (() => {
+        if (still && shape.type !== "youtube" && shape.type !== "html") {
+          return <div className="wb-iframe" />
+        }
+        switch (shape.type) {
+          case "youtube":
+            return <YouTubeView url={shape.url ?? ""} still={still} />
+          case "tweet":
+            return (
+              <TweetView
+                url={shape.url ?? ""}
+                dark={document.documentElement.dataset["theme"] === "dark"}
+                measure={slots.measure(item.block.id)}
+              />
+            )
+          case "iframe":
+            return (
+              <IFrameView url={shape.url ?? ""} frameKey={slots.reloads.get(item.block.id) ?? 0} />
+            )
+          case "html":
+            return (
+              <HtmlView
+                html={shape.html ?? ""}
+                scale={portalScale[scaleOf(item)]}
+                measure={slots.measure(item.block.id)}
+              />
+            )
+          case "pdf":
+            return <PdfView src={shape.src === undefined ? undefined : slots.asset(shape.src)} />
+        }
+      })()
+      return (
+        <div
+          className="wb-shape wb-embed"
+          data-type={shape.type}
+          data-erasing={erasing}
+          data-active={active}
+          data-selected={slots.selected.includes(item.block.id)}
+          style={{ ...place, width: size[0], height: size[1] }}
+        >
+          {view}
         </div>
       )
     }

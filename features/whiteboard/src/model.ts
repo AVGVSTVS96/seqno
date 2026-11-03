@@ -8,6 +8,7 @@ import {
   type Shape,
   type Vec,
 } from "@seqno/domain"
+import { portalScale } from "./tools.ts"
 import {
   BINDING_GAP,
   add,
@@ -103,6 +104,13 @@ export const sizeOfItem = (item: Item, measured: Measured): Vec => {
     return [shape.size[0], Math.max(shape.size[1], PORTAL_HEADER)]
   }
   if (shape.type === "text" && shape.isSizeLocked !== false && seen !== undefined) return seen
+  if (shape.type === "tweet") {
+    const width = Math.min(Math.max(shape.size[0], 300), 550)
+    return [width, seen === undefined || seen[1] === 0 ? shape.size[1] : seen[1]]
+  }
+  if (shape.type === "html" && shape.size[1] === 0 && seen !== undefined) {
+    return [shape.size[0], seen[1] * portalScale[shape.scaleLevel ?? "md"]]
+  }
   return "size" in shape ? shape.size : [0, 0]
 }
 
@@ -234,14 +242,16 @@ export const topHit = (scene: Scene, point: Vec, zoom: number): Item | null =>
 
 export const isLocked = (item: Item) => item.shape.isLocked === true
 
-export const isInteractive = (item: Item) => item.shape.type === "video"
+const INTERACTIVE = new Set(["video", "youtube", "tweet", "iframe", "html", "pdf"])
+
+export const isInteractive = (item: Item) => INTERACTIVE.has(item.shape.type)
 
 export const ratioLocked = (scene: Scene, ids: ReadonlyArray<BlockId>) => {
   const [only, ...rest] = ids
   const item = only === undefined || rest.length > 0 ? undefined : scene.byId.get(only)
   return (
     item !== undefined &&
-    "isAspectRatioLocked" in item.shape &&
-    item.shape.isAspectRatioLocked === true
+    (item.shape.type === "youtube" ||
+      ("isAspectRatioLocked" in item.shape && item.shape.isAspectRatioLocked === true))
   )
 }

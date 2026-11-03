@@ -113,6 +113,26 @@ export const VideoShape = Schema.Struct({
   isAspectRatioLocked: Schema.optionalKey(Schema.Boolean),
 })
 
+export const EmbedShape = Schema.Struct({
+  type: Schema.Literals(["youtube", "tweet", "iframe"]),
+  ...sized,
+  url: Schema.optionalKey(Schema.String),
+})
+
+export const HtmlShape = Schema.Struct({
+  type: Schema.Literal("html"),
+  ...sized,
+  html: Schema.optionalKey(Schema.String),
+})
+
+export const PdfShape = Schema.Struct({
+  type: Schema.Literal("pdf"),
+  ...sized,
+  src: Schema.optionalKey(Schema.String),
+  assetId: Schema.optionalKey(Schema.String),
+  url: Schema.optionalKey(Schema.String),
+})
+
 export const GroupShape = Schema.Struct({
   type: Schema.Literal("group"),
   point: Vec,
@@ -141,6 +161,9 @@ export const Shape = Schema.Union([
   PortalShape,
   ImageShape,
   VideoShape,
+  EmbedShape,
+  HtmlShape,
+  PdfShape,
   GroupShape,
 ])
 export type Shape = typeof Shape.Type

@@ -1407,3 +1407,151 @@
   padding: 0 8px;
   user-select: text;
 }
+
+.wb-embed > * {
+  position: absolute;
+  inset: 0;
+}
+
+.wb-youtube,
+.wb-iframe {
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  user-select: none;
+}
+
+.wb-iframe {
+  background: var(--bg-sidebar, light-dark(#f7f7f7, rgb(2 54 67)));
+}
+
+.wb-youtube-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 16px;
+  background: var(--bg-app, light-dark(#fcfcfc, #002b36));
+}
+
+.wb-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+}
+
+.wb-tweet {
+  border-radius: 12px;
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  user-select: none;
+}
+
+.wb-embed[data-type="tweet"] > .wb-tweet {
+  bottom: auto;
+}
+
+.wb-tweet-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+
+.wb-tweet-loading {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+}
+
+.wb-html {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0;
+  transform-origin: top left;
+  user-select: text;
+}
+
+.wb-html-anchor {
+  width: fit-content;
+}
+
+.wb-html-anchor > iframe {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0;
+}
+
+.wb-pdf {
+  width: 100%;
+  height: 100%;
+}
+
+.wb-youtube iframe,
+.wb-iframe iframe,
+.wb-tweet,
+.wb-pdf,
+.wb-html {
+  pointer-events: none;
+}
+
+.wb-shape[data-type="html"][data-selected="true"] .wb-html,
+.wb-embed[data-active="true"] .wb-youtube iframe,
+.wb-embed[data-active="true"] .wb-iframe iframe,
+.wb-embed[data-active="true"] .wb-tweet,
+.wb-embed[data-active="true"] .wb-pdf,
+.wb-embed[data-active="true"] .wb-html,
+.wb-shape[data-type="video"][data-selected="true"] .wb-video {
+  pointer-events: auto;
+}
+
+.wb-embed[data-active="true"][data-type="html"] .wb-html {
+  overflow: auto;
+}
+
+.wb-root[data-moving="true"] .wb-video,
+.wb-root[data-moving="true"] .wb-html,
+.wb-root[data-moving="true"] .wb-pdf {
+  pointer-events: none;
+}
+
+.wb-url-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wb-url-field {
+  position: relative;
+  display: inline-grid;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--wb-separator);
+}
+
+.wb-url-sizer,
+.wb-url-input {
+  grid-area: 1 / 1;
+  min-width: 60px;
+  min-height: 24px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 14px;
+  white-space: pre;
+}
+
+.wb-url-sizer {
+  visibility: hidden;
+}
+
+.wb-url-input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  outline: none;
+}

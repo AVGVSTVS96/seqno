@@ -28,6 +28,8 @@ const Drawing = ({
     editing: null,
     portals: null,
     active: null,
+    selected: [],
+    reloads: new Map(),
   }
   const attach = (node: HTMLDivElement | null) => {
     if (node === null) return

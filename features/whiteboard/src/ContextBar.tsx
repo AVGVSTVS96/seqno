@@ -7,6 +7,9 @@ import {
   IconDimensions,
   IconDroplet,
   IconDropletOff,
+  IconEdit,
+  IconExternalLink,
+  IconRefresh,
   IconItalic,
   IconLayoutNavbarCollapse,
   IconLayoutNavbarExpand,
@@ -15,11 +18,12 @@ import {
   IconTriangleSquareCircle,
 } from "@tabler/icons-react"
 import { Fragment, type ComponentType, type ReactNode } from "react"
-import type { ScaleLevel } from "@seqno/domain"
+import type { BlockId, ScaleLevel } from "@seqno/domain"
 import type { Raw } from "./commands.ts"
+import { EMBED_SIZE, htmlBounds } from "./Embeds.tsx"
 import { LinksAction, type LinkEnv } from "./links.tsx"
-import type { Item } from "./model.ts"
-import { colorVar, type ShapeTool } from "./tools.ts"
+import type { Item, Measured } from "./model.ts"
+import { colorVar, portalScale, type ShapeTool } from "./tools.ts"
 import {
   SCALE_LABELS,
   SCALES,
@@ -30,6 +34,7 @@ import {
 } from "./Toolbar.tsx"
 
 type Action =
+  | "EditPdf"
   | "PortalViewMode"
   | "Geometry"
   | "AutoResizing"
@@ -38,10 +43,14 @@ type Action =
   | "StrokeType"
   | "ScaleLevel"
   | "TextStyle"
+  | "YoutubeLink"
+  | "TwitterLink"
+  | "IFrameSource"
   | "ArrowMode"
   | "Links"
 
 const ORDER: ReadonlyArray<Action> = [
+  "EditPdf",
   "PortalViewMode",
   "Geometry",
   "AutoResizing",
@@ -50,6 +59,9 @@ const ORDER: ReadonlyArray<Action> = [
   "StrokeType",
   "ScaleLevel",
   "TextStyle",
+  "YoutubeLink",
+  "TwitterLink",
+  "IFrameSource",
   "ArrowMode",
   "Links",
 ]
@@ -69,6 +81,16 @@ const actionsOf = (item: Item): ReadonlyArray<Action> => {
     case "pencil":
     case "highlighter":
       return ["Swatch", "ScaleLevel", "Links"]
+    case "youtube":
+      return ["YoutubeLink", "Links"]
+    case "tweet":
+      return ["TwitterLink", "Links"]
+    case "iframe":
+      return ["IFrameSource", "Links"]
+    case "pdf":
+      return ["EditPdf", "Links"]
+    case "html":
+      return ["AutoResizing", "ScaleLevel", "Links"]
     case "group":
       return []
     default:
@@ -76,7 +98,47 @@ const actionsOf = (item: Item): ReadonlyArray<Action> => {
   }
 }
 
-const SINGLE_ONLY: ReadonlyArray<Action> = ["Links"]
+const SINGLE_ONLY: ReadonlyArray<Action> = [
+  "Links",
+  "EditPdf",
+  "YoutubeLink",
+  "TwitterLink",
+  "IFrameSource",
+]
+
+export interface EmbedActions {
+  readonly reload: (blockId: BlockId) => void
+  readonly openPdf: (src: string) => void
+  readonly measured: Measured
+}
+
+const openExternal = (url: string) => {
+  if (/https?:\/\//.test(url)) window.open(url, "_blank", "noopener")
+}
+
+const UrlField = ({
+  label,
+  value,
+  onChange,
+}: {
+  readonly label: string
+  readonly value: string
+  readonly onChange: (value: string) => void
+}) => (
+  <span className="wb-url-field">
+    <span className="wb-url-sizer" aria-hidden>
+      {value}
+    </span>
+    <input
+      className="wb-url-input"
+      title={label}
+      aria-label={label}
+      value={value}
+      onChange={(event) => onChange(event.currentTarget.value)}
+      onKeyDown={(event) => event.stopPropagation()}
+    />
+  </span>
+)
 
 export const contextActions = (items: ReadonlyArray<Item>): ReadonlyArray<Action> =>
   items.length === 0
@@ -135,12 +197,14 @@ export const ContextBar = ({
   top,
   onPatch,
   links,
+  embeds,
 }: {
   readonly items: ReadonlyArray<Item>
   readonly left: number
   readonly top: number
   readonly onPatch: (change: (item: Item) => Raw) => void
   readonly links: LinkEnv
+  readonly embeds: EmbedActions
 }) => {
   const actions = contextActions(items)
   if (actions.length === 0) return null
@@ -226,11 +290,19 @@ export const ContextBar = ({
         return (
           <ToolButton
             label="Auto resize"
-            pressed={auto}
+            pressed={first.shape.type === "html" ? false : auto}
             onClick={() =>
-              onPatch((item) =>
-                item.shape.type === "text" ? { isSizeLocked: true } : { isAutoResizing: !auto },
-              )
+              onPatch((item) => {
+                if (item.shape.type === "html") {
+                  const seen = embeds.measured.get(item.block.id)
+                  return seen === undefined
+                    ? {}
+                    : { size: htmlBounds(seen, portalScale[item.shape.scaleLevel ?? "md"]) }
+                }
+                return item.shape.type === "text"
+                  ? { isSizeLocked: true }
+                  : { isAutoResizing: !auto }
+              })
             }
           >
             <IconDimensions size={16} />
@@ -332,7 +404,13 @@ export const ContextBar = ({
               const picked: ScaleLevel | undefined = SCALES.find(
                 (level) => level === event.currentTarget.value,
               )
-              if (picked !== undefined) onPatch(() => ({ scaleLevel: picked }))
+              if (picked !== undefined)
+                onPatch((item) => {
+                  if (item.shape.type !== "html") return { scaleLevel: picked }
+                  const ratio = portalScale[picked] / portalScale[item.shape.scaleLevel ?? "md"]
+                  const [w, h] = item.shape.size
+                  return { scaleLevel: picked, size: [w * ratio, h * ratio] }
+                })
             }}
           >
             {SCALES.map((level) => (
@@ -380,6 +458,64 @@ export const ContextBar = ({
             </ToolButton>
           </>
         )
+      case "EditPdf":
+        return (
+          <ToolButton
+            label="Edit PDF"
+            onClick={() => {
+              const src = first.shape.type === "pdf" ? first.shape.src : undefined
+              if (src !== undefined) embeds.openPdf(src)
+            }}
+          >
+            <IconEdit size={16} />
+          </ToolButton>
+        )
+      case "YoutubeLink":
+      case "TwitterLink": {
+        const url = String(field(first, "url") ?? "")
+        const youtube = action === "YoutubeLink"
+        return (
+          <span className="wb-url-row">
+            <UrlField
+              label={youtube ? "YouTube url" : "Twitter url"}
+              value={url}
+              onChange={(next) =>
+                onPatch(() => ({
+                  url: next,
+                  size: youtube ? EMBED_SIZE.youtube : EMBED_SIZE.tweet,
+                }))
+              }
+            />
+            <ToolButton
+              label={youtube ? "Open YouTube url" : "Open Twitter url"}
+              onClick={() => openExternal(url)}
+            >
+              <IconExternalLink size={16} />
+            </ToolButton>
+          </span>
+        )
+      }
+      case "IFrameSource": {
+        const url = String(field(first, "url") ?? "")
+        return (
+          <span className="wb-url-row">
+            <ToolButton label="Reload" onClick={() => embeds.reload(first.block.id)}>
+              <IconRefresh size={16} />
+            </ToolButton>
+            <UrlField
+              label="Website url"
+              value={url}
+              onChange={(next) => onPatch(() => ({ url: next.trim().toLowerCase() }))}
+            />
+            <ToolButton
+              label="Open website url"
+              onClick={() => window.open(url, "_blank", "noopener")}
+            >
+              <IconExternalLink size={16} />
+            </ToolButton>
+          </span>
+        )
+      }
       case "Links":
         return (
           <LinksAction item={first} env={links} onLinks={(refs) => onPatch(() => ({ refs }))} />

@@ -36,11 +36,11 @@ describe("whiteboard shapes", () => {
   })
 
   it("keeps shapes seqno doesn't draw readable as their box", () => {
-    const block = shapeBlock({ type: "tweet", point: [1, 2], size: [300, 200], url: "https://x" })
+    const block = shapeBlock({ type: "dot", point: [1, 2], size: [4, 4] })
     assert.isTrue(Option.isNone(shapeOf(block)))
     assert.deepStrictEqual(
       otherShapeOf(block),
-      Option.some({ type: "tweet", point: [1, 2], size: [300, 200], url: "https://x" }),
+      Option.some({ type: "dot", point: [1, 2], size: [4, 4] }),
     )
   })
 
