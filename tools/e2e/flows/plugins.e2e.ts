@@ -337,6 +337,7 @@ test("installed plugins and themes keep working offline, with a theme's own font
     .locator(`.id-${iso(yesterday)} .vc-day-content`)
     .click()
   await expect(page.getByRole("heading", { name: journalTitle(yesterday), level: 1 })).toBeVisible()
+  await expect(page).toHaveURL(/\/page\//)
   await page.goBack()
   await seqno.today.getByRole("treeitem").filter({ hasText: "Rain all morning" }).click()
   await page.keyboard.press("End")
