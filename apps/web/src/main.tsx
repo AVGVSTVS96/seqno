@@ -20,6 +20,7 @@ import { WorkerCore } from "./core.ts"
 import { embedded, forwardEscape, toParent } from "./embed.ts"
 import { demoGraph } from "./graph-locations.ts"
 import { router } from "./router.tsx"
+import { startPluginHost } from "./ui/plugins/start.ts"
 import { notify } from "./ui/shell/Notices.tsx"
 
 const registry = AtomRegistry.make({
@@ -71,6 +72,8 @@ const starting = embedded
   ? { _tag: "Demo" as const, name: demoGraph }
   : startingGraph(registry.get(lastGraph))
 if (starting !== null) registry.set(openGraph, starting)
+
+if (!embedded) startPluginHost(registry, router)
 
 if (embedded) {
   addEventListener("keydown", forwardEscape)

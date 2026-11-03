@@ -1,0 +1,73 @@
+{
+ "datetime": 1792409942094,
+ "packages": [
+  {
+   "title": "Dev theme",
+   "description": "A theme inspired by Dev.to & Figma.",
+   "author": "pengx17",
+   "repo": "pengx17/logseq-dev-theme",
+   "icon": "icon.png",
+   "theme": true,
+   "id": "logseq-dev-theme",
+   "addedAt": 1630664401000
+  },
+  {
+   "title": "Journals calendar",
+   "description": "A simple journals calendar plugin for Logseq.",
+   "repo": "xyhp915/logseq-journals-calendar",
+   "author": "xyhp915",
+   "icon": "icon.png",
+   "supportsDB": true,
+   "sponsors": [
+    "https://opencollective.com/logseq"
+   ],
+   "id": "logseq-journals-calendar",
+   "addedAt": 1630930098000
+  },
+  {
+   "title": "Markdown Table Editor",
+   "description": "Markdown Table Editor",
+   "author": "haydenull",
+   "repo": "haydenull/logseq-plugin-markdown-table",
+   "icon": "icon.png",
+   "supportsDB": false,
+   "id": "logseq-markdown-table",
+   "addedAt": 1634897315000
+  },
+  {
+   "title": "logseq-pomodoro-timer",
+   "description": "A quick, easy to use pomodoro timer for Logseq with support for system notifications.",
+   "author": "Aryan Sawhney",
+   "repo": "sawhney17/logseq-pomodoro-plugin",
+   "icon": "./icon.png",
+   "sponsors": [
+    "https://www.buymeacoffee.com/sawhney17"
+   ],
+   "supportsDB": true,
+   "id": "logseq-pomodoro-timer",
+   "addedAt": 1648457268000
+  },
+  {
+   "title": "logseq-wordcount-plugin",
+   "name": "logseq-wordcount-plugin",
+   "description": "Simple word counter that calculates the number of words across all nested blocks!",
+   "author": "benjypng",
+   "repo": "benjypng/logseq-wordcount-plugin",
+   "icon": "./icon.png",
+   "supportsDB": true,
+   "id": "logseq-wordcount-plugin",
+   "addedAt": 1637780918000
+  },
+  {
+   "title": "Archivist",
+   "description": "D&D 5e toolkit: parchment stat blocks, spells, magic items, inline dice tags, in-place editing, and full SRD compendium.",
+   "author": "Shinoobi",
+   "repo": "archivist-gg/archivist-logseq-plugin",
+   "icon": "icon.png",
+   "theme": false,
+   "effect": true,
+   "id": "archivist-gg",
+   "addedAt": 1776766208000
+  }
+ ]
+}

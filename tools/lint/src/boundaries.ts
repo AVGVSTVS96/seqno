@@ -21,6 +21,7 @@ export const repoMap: ReadonlyMap<string, Unit> = new Map([
   ["apps/web", { name: "@seqno/web", side: "ui" }],
   ["features/outliner", { name: "@seqno/outliner", side: "ui" }],
   ["features/editor", { name: "@seqno/editor", side: "ui" }],
+  ["features/plugins", { name: "@seqno/plugins", side: "ui" }],
   ["tools/sync-sim", { name: "@seqno/sync-sim", side: "tool" }],
   ["tools/e2e", { name: "@seqno/e2e", side: "tool" }],
   ["tools/lint", { name: "@seqno/lint", side: "tool" }],

@@ -18,6 +18,7 @@ import { blockContent } from "@seqno/syntax"
 import { dispatch, rightSidebar } from "../../atoms.ts"
 import { childrenOf, exported, markdownOf } from "./Export.tsx"
 import { Keys } from "./Keys.tsx"
+import { hostAtom, pluginCommands, runCommand } from "@seqno/plugins"
 import { MenuItem, MenuSeparator, onMenuKeyDown } from "./popover.tsx"
 
 export const blockMenu = Atom.make<BlockMenuRequest | null>(null).pipe(Atom.keepAlive)
@@ -97,6 +98,10 @@ const MenuView = ({
 }) => {
   const run = useAtomSet(dispatch)
   const updateSidebar = useAtomSet(rightSidebar)
+  const host = useAtomValue(hostAtom)
+  const pluginItems = useAtomValue(pluginCommands).filter(
+    (command) => command.type === "block-context-menu-item",
+  )
   const setExported = useAtomSet(exported)
   const byId = new Map(blocks.map((block) => [block.id, block]))
   const chosen = request.blockIds.flatMap((id) => {
@@ -262,6 +267,19 @@ const MenuView = ({
       <MenuItem hint={<Keys keys={["mod", "↑"]} />} onSelect={() => collapseAll(true)}>
         Collapse all
       </MenuItem>
+      {host === null || pluginItems.length === 0 ? null : (
+        <>
+          <MenuSeparator />
+          {pluginItems.map((command) => (
+            <MenuItem
+              key={`${command.pid} ${command.key}`}
+              onSelect={() => runCommand(host, command, request.blockIds[0])}
+            >
+              {command.label}
+            </MenuItem>
+          ))}
+        </>
+      )}
     </div>
   )
 }

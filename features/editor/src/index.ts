@@ -1,5 +1,14 @@
 export { BlockEditor } from "./BlockEditor.tsx"
-export { mountBlockEditor, type BlockEditorOptions, type MountedEditor } from "./editor.ts"
+export {
+  editingBlock,
+  mountBlockEditor,
+  type BlockEditorOptions,
+  type EditingBlock,
+  type MountedEditor,
+} from "./editor.ts"
+export type { Applied, SlashCommand } from "./commands.ts"
+export type { Draft } from "./format.ts"
+export type { CommandIcon } from "./icons.tsx"
 export { createHandoff, type Handoff } from "./handoff.ts"
 export {
   CursorPlacement,

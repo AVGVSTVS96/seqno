@@ -12,6 +12,7 @@ import {
   type EditorHost,
 } from "@seqno/editor"
 import { blockAtom, pageTreeAtom, type EditorIntent, type EditorSlotProps } from "@seqno/outliner"
+import { editorCommands, hostAtom, slashCommands as pluginSlashCommands } from "@seqno/plugins"
 import { pages } from "../atoms.ts"
 import { referencedOnly } from "./pages/atoms.ts"
 import { notify } from "./shell/Notices.tsx"
@@ -46,6 +47,11 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
   const router = useRouter()
   const navigateTo = useNavigateTo()
   const vim = useAtomValue(vimMode)
+  const commands = editorCommands(
+    useAtomValue(hostAtom),
+    useAtomValue(pluginSlashCommands),
+    block.id,
+  )
   const latest = () => AsyncResult.value(registry.get(pageTreeAtom(block.pageId)))
   const childrenOf = (parentId: BlockId | null) =>
     Option.match(latest(), {
@@ -155,6 +161,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
       host={host}
       handoff={handoff}
       vim={vim}
+      commands={commands}
     />
   )
 }

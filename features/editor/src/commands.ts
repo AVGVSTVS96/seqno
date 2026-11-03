@@ -61,6 +61,7 @@ export interface Applied {
   readonly open?: RefKind
   readonly pick?: Planning
   readonly notice?: string
+  readonly after?: () => void
 }
 
 export interface SlashCommand {

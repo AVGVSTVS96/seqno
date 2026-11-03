@@ -23,7 +23,9 @@ import {
   namesRead,
   parseDataviewQuery,
   parseLogseqQuery,
+  QueryError,
   readSet,
+  translateAdvancedQuery,
   type Query,
 } from "@seqno/query"
 import {
@@ -53,10 +55,19 @@ const decodePageId = Schema.decodeUnknownOption(PageId)
 const reasonOf = (error: { readonly _tag: string }) =>
   "reason" in error ? String(error.reason) : "message" in error ? String(error.message) : error._tag
 
+const parseAdvanced = (text: string): Result.Result<Query, QueryError> => {
+  const translated = translateAdvancedQuery(text)
+  return translated._tag === "Translated"
+    ? Result.succeed(translated.query)
+    : Result.fail(new QueryError({ message: translated.reason }))
+}
+
 const parseQuery = (text: string) =>
-  Result.orElse(parseLogseqQuery(text), (logseq) =>
-    Result.mapError(parseDataviewQuery(text), () => logseq),
-  )
+  text.trimStart().startsWith("#+BEGIN_QUERY")
+    ? parseAdvanced(text)
+    : Result.orElse(parseLogseqQuery(text), (logseq) =>
+        Result.mapError(parseDataviewQuery(text), () => logseq),
+      )
 
 const pagesOf = (session: Session, ids: ReadonlyArray<PageId>) =>
   Effect.map(session.graph.pages, (pages): ReadonlyArray<Page> => {
@@ -432,6 +443,8 @@ const CoreHandlers = CoreRpcs.toLayer(
         following(client.id, (session) => Stream.unwrap(watchQuery(session, query))),
       WatchSaveState: (_, { client }) =>
         following(client.id, (session) => SubscriptionRef.changes(session.saving)),
+      WatchChanges: (_, { client }) =>
+        following(client.id, (session) => Stream.fromPubSub(session.changes)),
       WatchBlockRefCounts: (_, { client }) =>
         following(client.id, (session) => Stream.orDie(session.index.watchBlockRefCounts)),
       WatchBlockReferences: ({ uuid }, { client }) =>

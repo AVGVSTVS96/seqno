@@ -56,6 +56,9 @@ importers:
       '@seqno/outliner':
         specifier: workspace:*
         version: link:../../features/outliner
+      '@seqno/plugins':
+        specifier: workspace:*
+        version: link:../../features/plugins
       '@seqno/query':
         specifier: workspace:*
         version: link:../../packages/query
@@ -71,6 +74,9 @@ importers:
       '@tabler/icons-react':
         specifier: 3.49.0
         version: 3.49.0(react@19.3.0)
+      '@tabler/icons-webfont':
+        specifier: 3.49.0
+        version: 3.49.0
       '@tanstack/react-router':
         specifier: 1.170.41
         version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -281,6 +287,70 @@ importers:
       vitest-browser-react:
         specifier: 2.3.0
         version: 2.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.3)
+
+  features/plugins:
+    dependencies:
+      '@codemirror/view':
+        specifier: 6.43.13
+        version: 6.43.13
+      '@effect/atom-react':
+        specifier: 4.0.1
+        version: 4.0.1(effect@4.0.1)(react@19.3.0)(scheduler@0.27.0)
+      '@effect/platform-browser':
+        specifier: 4.0.1
+        version: 4.0.1(effect@4.0.1)
+      '@seqno/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@seqno/editor':
+        specifier: workspace:*
+        version: link:../editor
+      '@seqno/outliner':
+        specifier: workspace:*
+        version: link:../outliner
+      '@seqno/rpc':
+        specifier: workspace:*
+        version: link:../../packages/rpc
+      '@seqno/syntax':
+        specifier: workspace:*
+        version: link:../../packages/syntax
+      '@tabler/icons-react':
+        specifier: 3.49.0
+        version: 3.49.0(react@19.3.0)
+      dompurify:
+        specifier: 3.4.17
+        version: 3.4.17
+      effect:
+        specifier: 4.0.1
+        version: 4.0.1
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.1
+        version: 4.0.1(effect@4.0.1)(vitest@5.0.3)
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      jsdom:
+        specifier: 30.1.2
+        version: 30.1.2
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vite:
+        specifier: 8.3.3
+        version: 8.3.3(@types/node@24.19.1)
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@24.19.1)(@vitest/browser-playwright@5.0.3)(@vitest/ui@5.0.3)(jsdom@30.1.2)(vite@8.3.3(@types/node@24.19.1))
 
   fixtures:
     dependencies:
@@ -1258,6 +1328,9 @@ packages:
     peerDependencies:
       react: '>= 16'
 
+  '@tabler/icons-webfont@3.49.0':
+    resolution: {integrity: sha512-kWgnmEzo17dzQyMqRmlfj+TiGV0clLMYfUtKp2WG7M+TH5418o6fsoaSlrOTK3lwESg0xS7jVfOozYrR02Ryxw==}
+
   '@tabler/icons@3.49.0':
     resolution: {integrity: sha512-l+GnSkFETx0U26icxv1VUFnxxiTqXfCcVRiRAnyMwibupM2S2L/hSaZ9gmSgz01rkrsH/93NvLsxykqdanc6lw==}
 
@@ -1322,6 +1395,9 @@ packages:
 
   '@types/react@19.3.0':
     resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@types/wicg-file-system-access@2023.10.7':
     resolution: {integrity: sha512-g49ijasEJvCd7ifmAY2D0wdEtt1xRjBbA33PJTiv8mKBr7DoMsPeISoJ8oQOTopSRi+FBWPpPW5ouDj2QPKtGA==}
@@ -1570,6 +1646,9 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  dompurify@3.4.17:
+    resolution: {integrity: sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==}
 
   effect@4.0.1:
     resolution: {integrity: sha512-b1VlQG9g8fwxE5QnIZuPoOP/0MsqHJSRKxUijjoM80E5q95FXrX5yWtY5XI8G+GJsBQAVSDbLS458z9a++uVvw==}
@@ -2617,6 +2696,10 @@ snapshots:
       '@tabler/icons': 3.49.0
       react: 19.3.0
 
+  '@tabler/icons-webfont@3.49.0':
+    dependencies:
+      '@tabler/icons': 3.49.0
+
   '@tabler/icons@3.49.0': {}
 
   '@tanstack/history@1.162.4': {}
@@ -2680,6 +2763,9 @@ snapshots:
   '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.3
+
+  '@types/trusted-types@2.0.7':
+    optional: true
 
   '@types/wicg-file-system-access@2023.10.7': {}
 
@@ -2918,6 +3004,10 @@ snapshots:
   decimal.js@10.6.0: {}
 
   detect-libc@2.1.2: {}
+
+  dompurify@3.4.17:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   effect@4.0.1: {}
 

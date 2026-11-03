@@ -39,6 +39,16 @@ export const BlockSource = createContext<SourceEdit | null>(null)
 
 export const HostBlock = createContext<BlockId | null>(null)
 
+export interface MacroSlotProps {
+  readonly name: string
+  readonly args: string
+  readonly blockId: BlockId | null
+}
+
+export const MacroSlot = createContext<{ readonly Slot: ComponentType<MacroSlotProps> } | null>(
+  null,
+)
+
 export const maxDepth = 3
 
 export interface Activation {

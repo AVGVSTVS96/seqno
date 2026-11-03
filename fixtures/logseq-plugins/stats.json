@@ -1,0 +1,102 @@
+{
+ "logseq-journals-calendar": {
+  "stargazers_count": 191,
+  "releases": [
+   [
+    "v0.11.1",
+    false,
+    28257
+   ],
+   [
+    "v0.11.0",
+    false,
+    56194
+   ],
+   [
+    "v0.10.12",
+    false,
+    47
+   ]
+  ]
+ },
+ "logseq-wordcount-plugin": {
+  "stargazers_count": 38,
+  "releases": [
+   [
+    "v2.4.3",
+    false,
+    460
+   ],
+   [
+    "v2.4.2",
+    false,
+    1163
+   ],
+   [
+    "v2.4.1",
+    false,
+    4
+   ]
+  ]
+ },
+ "logseq-markdown-table": {
+  "stargazers_count": 147,
+  "releases": [
+   [
+    "v1.9.0",
+    false,
+    11785
+   ],
+   [
+    "v1.8.1",
+    false,
+    41166
+   ],
+   [
+    "v1.8.0",
+    false,
+    24416
+   ]
+  ]
+ },
+ "logseq-pomodoro-timer": {
+  "stargazers_count": 24,
+  "releases": [
+   [
+    "1.0.3",
+    false,
+    5067
+   ],
+   [
+    "1.0.1",
+    false,
+    13631
+   ],
+   [
+    "1.0.0",
+    false,
+    142
+   ]
+  ]
+ },
+ "logseq-dev-theme": {
+  "stargazers_count": 404,
+  "releases": [
+   [
+    "v1.26.17",
+    false,
+    59536
+   ],
+   [
+    "v1.26.16",
+    false,
+    8592
+   ],
+   [
+    "v1.26.15",
+    false,
+    5491
+   ]
+  ]
+ }
+}

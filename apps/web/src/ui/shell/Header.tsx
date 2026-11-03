@@ -8,6 +8,7 @@ import {
   IconLayoutSidebarRight,
   IconMenu2,
   IconSearch,
+  IconPuzzle,
   IconSettings,
 } from "@tabler/icons-react"
 import { useMatchRoute, useNavigate } from "@tanstack/react-router"
@@ -27,6 +28,8 @@ import {
 } from "../../atoms.ts"
 import { Appearance } from "./Appearance.tsx"
 import { DeletePage } from "./DeletePage.tsx"
+import { PluginItems } from "@seqno/plugins"
+import { openPlugins } from "../plugins/PluginsDialog.tsx"
 import { exported, openGraphExport } from "./Export.tsx"
 import { IconButton } from "./IconButton.tsx"
 import {
@@ -96,6 +99,9 @@ const MoreMenu = () => {
           }}
         >
           Settings
+        </MenuItem>
+        <MenuItem icon={<IconPuzzle size={18} aria-hidden />} onSelect={openPlugins}>
+          Plugins
         </MenuItem>
         <MenuItem
           icon={<IconColorSwatch size={18} aria-hidden />}
@@ -184,6 +190,7 @@ export const Header = () => {
         <SearchButton />
       </div>
       <div className="head-right">
+        <PluginItems type="toolbar" />
         <SaveStatus />
         {home ? null : (
           <IconButton

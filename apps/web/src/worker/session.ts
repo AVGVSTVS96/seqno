@@ -7,6 +7,7 @@ import {
   Latch,
   Layer,
   Option,
+  PubSub,
   Schema,
   Semaphore,
   Stream,
@@ -27,6 +28,7 @@ export interface Session {
   readonly index: Index["Service"]
   readonly blocks: (ids: ReadonlyArray<BlockId>) => Effect.Effect<ReadonlyArray<Block>>
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
+  readonly changes: PubSub.PubSub<ReadonlyArray<GraphEvent>>
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
   readonly skipped: ReadonlyArray<SkippedFile>
   readonly record: <E, R>(
@@ -129,6 +131,7 @@ export const openSession = (place: GraphPlace) =>
     const { device, formerPeers } = yield* Device
     const peer = yield* newPeerId
     const touched = yield* SubscriptionRef.make<Touched>(new Set())
+    const changes = yield* PubSub.unbounded<ReadonlyArray<GraphEvent>>()
     const saving = yield* SubscriptionRef.make<SaveState>(SaveState.cases.Saved.make({}))
     const unsaved = yield* Latch.make(false)
     const edits = { count: 0 }
@@ -199,6 +202,7 @@ export const openSession = (place: GraphPlace) =>
               )
             pages.forEach((page) => sinceSave.pages.add(page))
             yield* SubscriptionRef.set(touched, pages)
+            yield* PubSub.publish(changes, events)
             edits.count += 1
             yield* SubscriptionRef.set(saving, SaveState.cases.Unsaved.make({}))
             yield* unsaved.open
@@ -447,6 +451,7 @@ export const openSession = (place: GraphPlace) =>
       index,
       blocks,
       touched,
+      changes,
       saving,
       skipped,
       record,

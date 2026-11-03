@@ -247,6 +247,7 @@ const runCommand = (view: EditorView, popup: Popup, command: SlashCommand, now: 
     scrollIntoView: true,
   })
   view.dispatch([removed, changed])
+  applied.after?.()
 }
 
 const notice = StateEffect.define<string>()

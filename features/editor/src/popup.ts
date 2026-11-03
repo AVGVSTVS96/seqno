@@ -1,4 +1,10 @@
-import { StateEffect, StateField, type EditorState, type Transaction } from "@codemirror/state"
+import {
+  Facet,
+  StateEffect,
+  StateField,
+  type EditorState,
+  type Transaction,
+} from "@codemirror/state"
 import { Data } from "effect"
 import { normalizePageName, type BlockId } from "@seqno/domain"
 import { slashCommands, type SlashCommand } from "./commands.ts"
@@ -59,10 +65,17 @@ const validQuery: Readonly<Record<PopupKind, (query: string) => boolean>> = {
 
 export const needsSearch = (popup: Popup) => popup.kind !== "Slash" && popup.query.trim() !== ""
 
-export const commandChoices = (query: string): ReadonlyArray<Choice> =>
+export const extraCommands = Facet.define<ReadonlyArray<SlashCommand>, ReadonlyArray<SlashCommand>>(
+  { combine: (lists) => lists.flat() },
+)
+
+export const commandChoices = (
+  query: string,
+  commands: ReadonlyArray<SlashCommand> = slashCommands,
+): ReadonlyArray<Choice> =>
   query.trim() === ""
-    ? slashCommands.map((command) => Choice.Command({ command, ranges: [] }))
-    : rankBy(slashCommands, (command) => command.label, query).map(({ item, match }) =>
+    ? commands.map((command) => Choice.Command({ command, ranges: [] }))
+    : rankBy(commands, (command) => command.label, query).map(({ item, match }) =>
         Choice.Command({ command: item, ranges: match.ranges }),
       )
 
@@ -82,15 +95,20 @@ const relativeDays: ReadonlyArray<readonly [string, (now: Date) => Date]> = [
 const journalChoices = (now: Date): ReadonlyArray<Choice> =>
   relativeDays.map(([label, day]) => Choice.Journal({ label, title: journalTitle(day(now)) }))
 
-const localChoices = (kind: PopupKind, query: string): ReadonlyArray<Choice> | null => {
-  if (kind === "Slash") return commandChoices(query)
+const localChoices = (
+  state: EditorState,
+  kind: PopupKind,
+  query: string,
+): ReadonlyArray<Choice> | null => {
+  if (kind === "Slash")
+    return commandChoices(query, [...slashCommands, ...state.facet(extraCommands)])
   if (query.trim() !== "") return null
   return kind === "Page" ? journalChoices(new Date()) : []
 }
 
 const opened = (state: EditorState, kind: PopupKind, from: number): Popup => {
   const query = state.sliceDoc(from, state.selection.main.head)
-  const local = localChoices(kind, query)
+  const local = localChoices(state, kind, query)
   return {
     kind,
     from,
@@ -114,7 +132,7 @@ const tracked = (popup: Popup, tr: Transaction): Popup | null => {
   const query = state.sliceDoc(from, caret.head)
   if (!validQuery[popup.kind](query)) return null
   if (query === popup.query) return from === popup.from ? popup : { ...popup, from }
-  const local = localChoices(popup.kind, query)
+  const local = localChoices(state, popup.kind, query)
   if (popup.kind === "Slash" && local !== null && local.length === 0) return null
   return {
     ...popup,

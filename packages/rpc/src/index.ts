@@ -45,6 +45,7 @@ export {
   SearchHits,
   SkippedFile,
   WatchBlockRefCounts,
+  WatchChanges,
   WatchBlockReferences,
   WatchPage,
   WatchQuery,

@@ -3,11 +3,21 @@ import { useAtomMount, useAtomValue } from "@effect/atom-react"
 import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { ScrollContent } from "@seqno/outliner"
-import { attemptedGraph, lastGraph, leftSidebarOpen, openGraph, rightSidebar } from "../atoms.ts"
+import { MacroSlot, ScrollContent } from "@seqno/outliner"
+import { PluginMacroSlot, PluginThemeLink } from "@seqno/plugins"
+import {
+  attemptedGraph,
+  lastGraph,
+  leftSidebarOpen,
+  openGraph,
+  resolvedTheme,
+  rightSidebar,
+} from "../atoms.ts"
 import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
 import { Hints } from "./hints/Hints.tsx"
 import { GraphChooser, OpenFailed } from "./OpenGraphScreen.tsx"
+import { PluginSettings } from "./plugins/PluginSettings.tsx"
+import { PluginsDialog } from "./plugins/PluginsDialog.tsx"
 import { BlockMenu } from "./shell/BlockMenu.tsx"
 import { ExportDialog, GraphExportDialog } from "./shell/Export.tsx"
 import { Header } from "./shell/Header.tsx"
@@ -18,6 +28,8 @@ import { shellListeners } from "./shell/listeners.ts"
 import { RightSidebar } from "./shell/RightSidebar.tsx"
 import { Settings } from "./shell/Settings.tsx"
 import { leftSidebarWidth, rightSidebarWidth, wideMode } from "./shell/state.ts"
+
+const pluginMacros = { Slot: PluginMacroSlot }
 
 const problemOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
@@ -42,37 +54,43 @@ const Layout = ({
   const rightWidth = useAtomValue(rightSidebarWidth)
   const rightOpen = useAtomValue(rightSidebar).open
   const wide = useAtomValue(wideMode)
+  const mode = useAtomValue(resolvedTheme)
   return (
-    <div
-      className="app"
-      data-left-open={leftOpen}
-      data-right-open={rightOpen}
-      data-wide={wide}
-      style={{
-        "--left-sidebar-width": `${leftWidth}px`,
-        "--right-sidebar-width": `${rightWidth}vw`,
-      }}
-    >
-      <div className="left-container">
-        <Header />
-        <div className="main-container">
-          <LeftSidebar graph={graph} />
-          <main className="main-content-container">
-            <ScrollContent className="main-content">
-              {content(ready ?? true, problem ?? null)}
-            </ScrollContent>
-          </main>
+    <MacroSlot value={pluginMacros}>
+      <div
+        className="app"
+        data-left-open={leftOpen}
+        data-right-open={rightOpen}
+        data-wide={wide}
+        style={{
+          "--left-sidebar-width": `${leftWidth}px`,
+          "--right-sidebar-width": `${rightWidth}vw`,
+        }}
+      >
+        <div className="left-container">
+          <Header />
+          <div className="main-container">
+            <LeftSidebar graph={graph} />
+            <main className="main-content-container">
+              <ScrollContent className="main-content">
+                {content(ready ?? true, problem ?? null)}
+              </ScrollContent>
+            </main>
+          </div>
         </div>
+        <RightSidebar />
+        <HelpButton />
+        <BlockMenu />
+        <ExportDialog />
+        <GraphExportDialog />
+        <Settings />
+        <Notices />
+        <PluginsDialog />
+        <PluginSettings />
+        <PluginThemeLink mode={mode} />
+        {isDemoGraph(graph) ? <Hints /> : null}
       </div>
-      <RightSidebar />
-      <HelpButton />
-      <BlockMenu />
-      <ExportDialog />
-      <GraphExportDialog />
-      <Settings />
-      <Notices />
-      {isDemoGraph(graph) ? <Hints /> : null}
-    </div>
+    </MacroSlot>
   )
 }
 

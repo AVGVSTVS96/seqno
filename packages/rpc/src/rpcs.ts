@@ -147,6 +147,12 @@ export const WatchSaveState = Rpc.make("WatchSaveState", {
   stream: true,
 })
 
+export const WatchChanges = Rpc.make("WatchChanges", {
+  success: Schema.Array(GraphEvent),
+  error: GraphNotOpen,
+  stream: true,
+})
+
 export const CoreRpcs = RpcGroup.make(
   Attach,
   OpenGraph,
@@ -163,4 +169,5 @@ export const CoreRpcs = RpcGroup.make(
   WatchBlockRefCounts,
   WatchBlockReferences,
   WatchSaveState,
+  WatchChanges,
 )

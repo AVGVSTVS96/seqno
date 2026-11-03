@@ -17,6 +17,8 @@ import {
 import { blockAtom, pageTreeAtom } from "./core.ts"
 import { usePreview } from "./Preview.tsx"
 import {
+  HostBlock,
+  MacroSlot,
   BlockSource,
   clickOnEnter,
   contentOf,
@@ -284,6 +286,12 @@ const Macro = ({
   readonly raw: string
 }) => {
   const renderer = use(RenderContext)
+  const macros = use(MacroSlot)
+  const host = use(HostBlock)
+  const Slot = macros?.Slot
+  if (Slot !== undefined && name === "renderer") {
+    return <Slot name={name} args={args} blockId={host} />
+  }
   const [target] = name === "embed" ? parseInline(args.trim()) : []
   const Embed = renderer.Embed
   const Query = renderer.Query

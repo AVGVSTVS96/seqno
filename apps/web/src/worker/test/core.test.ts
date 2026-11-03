@@ -1056,6 +1056,28 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
     ),
   )
 
+  it.effect("a Logseq advanced query runs through its translation", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const core = yield* coreOn(yield* copyOfFixture)
+        yield* core.OpenGraph({ graph: "og" })
+        const query = [
+          "#+BEGIN_QUERY",
+          "{:query [:find (pull ?p [*]) :where [?p :block/journal-day ?d]",
+          "  [(>= ?d 20250301)] [(<= ?d 20250331)]]}",
+          "#+END_QUERY",
+        ].join("\n")
+        const results = yield* core.WatchQuery({ query }).pipe(Stream.take(1), Stream.runCollect)
+        assert.deepStrictEqual(
+          results.map((result) =>
+            result._tag === "PageRows" ? result.pages.map((page) => page.title) : [],
+          ),
+          [["Mar 9th, 2025"]],
+        )
+      }),
+    ),
+  )
+
   it.effect("blocks moved while a reopened graph fills its index end up in the index", () =>
     Effect.scoped(
       Effect.gen(function* () {
@@ -1095,6 +1117,32 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
             Stream.runCollect,
           )
         assert.strictEqual(onTarget.length, 1)
+      }),
+    ),
+  )
+
+  it.live("WatchChanges streams the events of each committed edit", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const core = yield* coreOn(yield* copyOfFixture)
+        yield* core.OpenGraph({ graph: "og" })
+        const pages = yield* core.GetPages()
+        const tasks = yield* core.GetPage({ pageId: named(pages, "tasks").id })
+        const block = tasks.blocks[0] ?? assert.fail("tasks has no first block")
+        const changes = yield* core
+          .WatchChanges()
+          .pipe(Stream.take(1), Stream.runCollect, Effect.forkChild)
+        yield* Effect.sleep("100 millis")
+        yield* core.Dispatch({
+          command: { _tag: "EditText", blockId: block.id, from: 0, to: 0, insert: "Now " },
+        })
+        const [events] = yield* Fiber.join(changes)
+        assert.deepStrictEqual(
+          (events ?? []).map((event) =>
+            event._tag === "BlockUpserted" ? [event._tag, event.block.text] : [event._tag],
+          ),
+          [["BlockUpserted", `Now ${block.text}`]],
+        )
       }),
     ),
   )

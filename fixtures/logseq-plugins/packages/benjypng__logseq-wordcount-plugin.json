@@ -1,0 +1,52 @@
+{
+ "name": "logseq-wordcount-plugin",
+ "author": "benjypng",
+ "description": "Simple word and character counter that calculates the number of words across all nested blocks!",
+ "license": "MIT",
+ "logseq": {
+  "id": "logseq-wordcount-plugin",
+  "title": "logseq-wordcount-plugin",
+  "icon": "./icon.png",
+  "main": "dist/index.html"
+ },
+ "scripts": {
+  "dev": "bunx vite",
+  "build": "bunx vite build",
+  "prepare": "husky",
+  "lint:precommit": "echo \"Running biome\" && bunx biome check . --write && echo \"Running tsc\" && tsc --noEmit"
+ },
+ "release": {
+  "branches": [
+   "main"
+  ],
+  "plugins": [
+   [
+    "@semantic-release/github",
+    {
+     "assets": [
+      "logseq-wordcount-plugin.zip"
+     ]
+    }
+   ]
+  ]
+ },
+ "dependencies": {
+  "@logseq/libs": "^0.3.3",
+  "react": "^19.2.7",
+  "react-dom": "^19.2.7",
+  "rxjs": "^7.8.2",
+  "words-count": "^2.0.2"
+ },
+ "devDependencies": {
+  "@biomejs/biome": "2.4.16",
+  "@types/node": "^25.9.2",
+  "@types/react": "^19.2.17",
+  "@types/react-dom": "^19.2.3",
+  "husky": "^9.1.7",
+  "typescript": "^6.0.3",
+  "vite": "^8.0.16",
+  "vite-plugin-logseq": "^1.1.2",
+  "vite-tsconfig-paths": "^6.1.1"
+ },
+ "version": "v2.4.3"
+}

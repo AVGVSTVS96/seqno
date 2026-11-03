@@ -117,6 +117,7 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
         WatchBlockRefCounts: () => Stream.empty,
         WatchBlockReferences: () => Stream.empty,
         WatchSaveState: () => Stream.empty,
+        WatchChanges: () => Stream.empty,
         Dispatch: ({ command }) => run([command]),
         DispatchAll: ({ commands: batch }) => run(batch),
       })

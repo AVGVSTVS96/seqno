@@ -1,0 +1,32 @@
+{
+ "name": "logseq-journals-calendar",
+ "description": "A simple journals calendar plugin for Logseq.",
+ "version": "v0.11.1",
+ "main": "dist/index.html",
+ "author": "xyhp915",
+ "scripts": {
+  "dev": "vite",
+  "build": "vite build"
+ },
+ "dependencies": {
+  "@logseq/libs": "^0.2.11",
+  "dayjs": "1.11.7",
+  "lodash.kebabcase": "^4.1.1",
+  "v-calendar": "3.1.2",
+  "vue": "3.5.26"
+ },
+ "devDependencies": {
+  "@popperjs/core": "2.11.6",
+  "@vitejs/plugin-vue": "5.2.1",
+  "@vue/compiler-sfc": "3.5.13",
+  "vite": "5.4.6"
+ },
+ "logseq": {
+  "id": "_zsmbaoekb-journals-calendar",
+  "title": "Journals calendar",
+  "icon": "./icon.png"
+ },
+ "_objectExtra": {
+  "releaseNotes": "## What's Changed\r\n* feat: add keyboard shortcut to navigator journal by @CorrectRoadH in https://github.com/xyhp915/logseq-journals-calendar/pull/51\r\n\r\n## New Contributors\r\n* @CorrectRoadH made their first contribution in https://github.com/xyhp915/logseq-journals-calendar/pull/51\r\n\r\n**Full Changelog**: https://github.com/xyhp915/logseq-journals-calendar/compare/v0.11.0...v0.11.1"
+ }
+}

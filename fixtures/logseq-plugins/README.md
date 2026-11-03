@@ -1,0 +1,17 @@
+# Logseq plugins for the plugin flows
+
+Real Logseq marketplace plugins, exactly as the marketplace serves them, so `tools/e2e/flows/plugins.e2e.ts` runs them without the network. Each folder keeps its plugin's own `LICENSE` (all MIT).
+
+| Folder                                         | Plugin                | Version  |
+| ---------------------------------------------- | --------------------- | -------- |
+| `files/xyhp915/logseq-journals-calendar`       | Journals calendar     | v0.11.1  |
+| `files/benjypng/logseq-wordcount-plugin`       | Word count            | v2.4.3   |
+| `files/haydenull/logseq-plugin-markdown-table` | Markdown Table Editor | v1.9.0   |
+| `files/sawhney17/logseq-pomodoro-plugin`       | Pomodoro timer        | 1.0.3    |
+| `files/pengx17/logseq-dev-theme`               | Dev theme             | v1.26.17 |
+
+- `plugins.json` and `stats.json`: those entries from `logseq/marketplace`, plus one desktop-only (`effect`) plugin that the web marketplace hides.
+- `packages/<owner>__<repo>.json`: what `https://plugins.logseq.io/r2/<owner>/<repo>` answers.
+- `files/<owner>/<repo>/<version>/`: what `https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/<owner>/<repo>/<version>/` serves.
+
+`tools/e2e/src/plugins.ts` routes those URLs to these files.

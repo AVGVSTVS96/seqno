@@ -2,13 +2,15 @@ import { defaultKeymap } from "@codemirror/commands"
 import { EditorSelection, EditorState } from "@codemirror/state"
 import { EditorView, keymap, tooltips } from "@codemirror/view"
 import { Effect, Fiber, Stream } from "effect"
-import type { Block, Command, PropertyTarget } from "@seqno/domain"
+import type { Block, BlockId, Command, PropertyTarget } from "@seqno/domain"
 import { autopair } from "./autopair.ts"
+import type { SlashCommand } from "./commands.ts"
 import { completion, createPopupStore, type PopupStore } from "./completion.ts"
 import { fromGraph, minimalChange, placeCursor, textSync } from "./edits.ts"
 import { blockFields } from "./fields.ts"
 import { pasteOutline } from "./paste.ts"
 import { headingLevel } from "./format.ts"
+import { extraCommands } from "./popup.ts"
 import type { Handoff } from "./handoff.ts"
 import type { CursorPlacement, EditorHost } from "./host.ts"
 import { blockKeymap, propertiesKeymap } from "./keymap.ts"
@@ -24,12 +26,26 @@ export interface BlockEditorOptions {
   readonly properties?: PropertyTarget
   readonly hidden?: (key: string) => boolean
   readonly vim?: boolean
+  readonly commands?: ReadonlyArray<SlashCommand>
 }
 
 export interface MountedEditor {
   readonly view: EditorView
   readonly popups: PopupStore
   readonly destroy: () => void
+}
+
+export interface EditingBlock {
+  readonly view: EditorView
+  readonly blockId: BlockId
+}
+
+const editing = new Map<EditorView, BlockId>()
+
+export const editingBlock = (): EditingBlock | null => {
+  const all = [...editing]
+  const [view, blockId] = all.find(([candidate]) => candidate.hasFocus) ?? all.at(-1) ?? []
+  return view === undefined || blockId === undefined ? null : { view, blockId }
 }
 
 const headingClass = EditorView.editorAttributes.compute(["doc"], (state) => {
@@ -39,7 +55,17 @@ const headingClass = EditorView.editorAttributes.compute(["doc"], (state) => {
 
 export const mountBlockEditor = (
   parent: HTMLElement,
-  { block, cursor, updates, host, handoff, properties, hidden, vim = false }: BlockEditorOptions,
+  {
+    block,
+    cursor,
+    updates,
+    host,
+    handoff,
+    properties,
+    hidden,
+    vim = false,
+    commands: extra = [],
+  }: BlockEditorOptions,
   popups = createPopupStore(),
 ): MountedEditor => {
   const arrival = handoff.take()
@@ -87,6 +113,7 @@ export const mountBlockEditor = (
           ? blockKeymap(block.id, { ...host, dispatch }, handoff, whenConfirmed, fields.textOf)
           : propertiesKeymap(host),
         completion(block.id, host, popups),
+        extraCommands.of(extra),
         properties === undefined ? pasteOutline(block, () => parentId, host.dispatch) : [],
         autopair,
         keymap.of(defaultKeymap),
@@ -117,6 +144,7 @@ export const mountBlockEditor = (
     }),
   })
 
+  if (properties === undefined) editing.set(view, block.id)
   if (vim && !(arrival?._tag === "Caret" && arrival.vim === "Normal")) enterInsert(view)
   const placement =
     merged !== null
@@ -170,6 +198,7 @@ export const mountBlockEditor = (
     popups,
     destroy: () => {
       Effect.runFork(Fiber.interrupt(listening))
+      editing.delete(view)
       view.destroy()
     },
   }
