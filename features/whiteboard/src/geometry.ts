@@ -62,11 +62,7 @@ export const fitBounds = (
   const width = Math.max(1, bounds.maxX - bounds.minX)
   const height = Math.max(1, bounds.maxY - bounds.minY)
   const zoom = clampZoom(
-    Math.min(
-      most,
-      (viewport.width - padding * 2) / width,
-      (viewport.height - padding * 2) / height,
-    ),
+    Math.min(most, (viewport.width - padding) / width, (viewport.height - padding) / height),
   )
   return {
     x: viewport.width / 2 / zoom - (bounds.minX + width / 2),

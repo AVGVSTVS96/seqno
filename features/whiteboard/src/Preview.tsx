@@ -21,7 +21,7 @@ const Drawing = ({
   const scene = sceneOf(itemsOf(tree.blocks), new Map())
   const drawing = union([...scene.bounds.values()])
   const camera =
-    drawing === null || viewport.width === 0 ? null : fitBounds(drawing, viewport, 1, 8)
+    drawing === null || viewport.width === 0 ? null : fitBounds(drawing, viewport, 1, 16)
   const slots: ShapeSlots = {
     asset: resolveAsset,
     measure: noMeasure,

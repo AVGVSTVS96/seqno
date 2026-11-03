@@ -1,4 +1,4 @@
-import { useAtomSet, useAtomValue } from "@effect/atom-react"
+import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconChalkboard,
   IconFlipHorizontal,
@@ -60,6 +60,7 @@ import { align, distribute, flip, pack, type Align } from "./arrange.ts"
 import {
   add,
   boundsOfPoints,
+  boxBounds,
   center,
   clampZoom,
   fitBounds,
@@ -70,6 +71,7 @@ import {
   sub,
   toScreen,
   toWorld,
+  ZOOM_STEP,
   union,
   zoomAt,
   type Bounds,
@@ -107,6 +109,7 @@ import type { OutlinerEnv } from "./Portal.tsx"
 import { IconGroup, IconUngroup } from "./icons.tsx"
 import { BacklinksBadge, QuickLinks, type LinkEnv } from "./links.tsx"
 import { freshId } from "./ids.ts"
+import { glide, savedCamera } from "./camera.ts"
 import { EMBED_SIZE, embedOf, isWebUrl } from "./Embeds.tsx"
 import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
 import { applyLocally, isGhost } from "./preview.ts"
@@ -236,15 +239,16 @@ const snapAngle = (from: Vec, to: Vec): Vec => {
   return [from[0] + Math.cos(angle) * span, from[1] + Math.sin(angle) * span]
 }
 
-const initialCamera = (scene: Scene, viewport: Viewport, focus: BlockId | null): Camera => {
+const initialCamera = (
+  scene: Scene,
+  viewport: Viewport,
+  focus: BlockId | null,
+  restored: boolean,
+): Camera | null => {
   const focused = focus === null ? undefined : scene.bounds.get(focus)
   if (focused !== undefined) return fitBounds(focused, viewport, 1)
   const drawing = union([...scene.bounds.values()])
-  if (drawing === null) return origin
-  const visible = toWorld(origin, [viewport.width, viewport.height])
-  const onScreen =
-    drawing.minX < visible[0] && drawing.minY < visible[1] && drawing.maxX > 0 && drawing.maxY > 0
-  return onScreen ? origin : fitBounds(drawing, viewport, 1)
+  return restored || drawing === null ? null : fitBounds(drawing, viewport, 1)
 }
 
 const isEditableShape = (item: Item) =>
@@ -337,7 +341,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const root = useRef<HTMLDivElement | null>(null)
   const press = useRef<Press | null>(null)
   const pointer = useRef<Vec | null>(null)
-  const [camera, setCamera] = useState<Camera | null>(null)
+  const [camera, setCamera] = useAtom(savedCamera(page.id))
+  const flight = useRef(0)
   const [viewport, setViewport] = useState<Viewport>({ width: 0, height: 0 })
   const [tool, setTool] = useState<Tool>("select")
   const [geometry, setGeometry] = useState<ShapeTool>("box")
@@ -366,6 +371,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       : tree.blocks
   const scene = sceneOf(itemsOf(blocks), measured)
   const cam = camera ?? origin
+  const moveTo = (to: Camera) => glide(flight, setCamera, cam, to, viewport)
   const live =
     gesture._tag === "Erasing" || gesture._tag === "Brushing"
       ? []
@@ -401,18 +407,19 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     const at = center(viewport)
     switch (action) {
       case "in":
-        return setCamera(zoomAt(cam, at, cam.zoom * 1.25))
+        return moveTo(zoomAt(cam, at, cam.zoom / ZOOM_STEP))
       case "out":
-        return setCamera(zoomAt(cam, at, cam.zoom * 0.8))
+        return moveTo(zoomAt(cam, at, cam.zoom * ZOOM_STEP))
       case "reset":
-        return setCamera(zoomAt(cam, at, 1))
+        return moveTo(zoomAt(cam, at, 1))
       case "drawing": {
         const drawing = union([...scene.bounds.values()])
-        return setCamera(drawing === null ? origin : fitBounds(drawing, viewport, 1))
+        if (drawing !== null) moveTo(fitBounds(drawing, viewport, 1))
+        return
       }
       case "selection": {
         const box = selectionBounds(scene, selection)
-        if (box !== null) setCamera(fitBounds(box, viewport, cam.zoom > 1 ? cam.zoom : 1))
+        if (box !== null) moveTo(fitBounds(box, viewport, 1))
       }
     }
   }
@@ -809,11 +816,20 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     if (isEditableTarget(event.target) || insideLivePortal(event.target) || tool !== "select") {
       return
     }
-    const world = toWorld(cam, screenOf(event))
+    const screen = screenOf(event)
+    const world = toWorld(cam, screen)
     const hit = topHit(scene, world, cam.zoom)
     if (hit === null) {
       setSelected([])
       setSearchAt(world)
+      if (
+        screen[0] > viewport.width - 400 ||
+        screen[1] > viewport.height - 240 ||
+        cam.zoom > 1.5 ||
+        cam.zoom < 0.5
+      ) {
+        moveTo(fitBounds(boxBounds([world[0], world[1] + 75], [400, 50]), viewport, 1))
+      }
       return
     }
     if (startEditing(hit.block.id)) return
@@ -1002,11 +1018,17 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     root.current = node
     if (node === null) return
     node.focus({ preventScroll: true })
+    let placed = false
     const observer = new ResizeObserver(([entry]) => {
       if (entry === undefined) return
       const next = { width: entry.contentRect.width, height: entry.contentRect.height }
       setViewport(next)
-      setCamera((current) => current ?? initialCamera(scene, next, focus))
+      if (placed) return
+      placed = true
+      const from = camera ?? origin
+      const to = initialCamera(scene, next, focus, camera !== null)
+      setCamera(from)
+      if (to !== null) glide(flight, setCamera, from, to, next)
     })
     observer.observe(node)
     const onWheel = (event: WheelEvent) => {
@@ -1019,7 +1041,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       event.preventDefault()
       const rect = node.getBoundingClientRect()
       const at: Vec = [event.clientX - rect.left, event.clientY - rect.top]
-      if (event.ctrlKey || event.metaKey || event.altKey) {
+      if (event.altKey && !event.ctrlKey && !event.metaKey) return
+      if (event.ctrlKey || event.metaKey) {
         const step = Math.max(-10, Math.min(10, event.deltaY)) / 100
         setCamera((current) => {
           const now = current ?? origin
@@ -1030,7 +1053,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       const dx =
         event.shiftKey && !navigator.userAgent.includes("Mac") ? event.deltaY : event.deltaX
       const dy = event.shiftKey && !navigator.userAgent.includes("Mac") ? 0 : event.deltaY
-      setCamera((current) => panBy(current ?? origin, [-dx, -dy]))
+      setCamera((current) => panBy(current ?? origin, [-dx * 0.8, -dy * 0.8]))
     }
     node.addEventListener("wheel", onWheel, { passive: false })
     return () => {
@@ -1101,7 +1124,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const focusShape = (id: BlockId) => {
     const box = scene.bounds.get(id)
     setSelected([id])
-    if (box !== undefined) setCamera(fitBounds(box, viewport, 1))
+    if (box !== undefined) moveTo(fitBounds(box, viewport, 1))
   }
 
   const links: LinkEnv = {
