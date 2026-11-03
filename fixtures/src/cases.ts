@@ -124,6 +124,13 @@ export const edgeCases: ReadonlyArray<EdgeCase> = [
     source: committed("og-syntax-mix"),
   },
   {
+    name: "org-and-front-matter",
+    upstreamCase: null,
+    issues: [],
+    expect: "YAML front matter reads as page properties (title, tags, alias, typed values) and a YAML list front matter stays text; Org pages and journals read their #+ lines, * headings, :PROPERTIES: drawers, collapsed and Org inline syntax, and both write back byte for byte",
+    source: committed("org-and-front-matter"),
+  },
+  {
     name: "whiteboards",
     upstreamCase: null,
     issues: [],

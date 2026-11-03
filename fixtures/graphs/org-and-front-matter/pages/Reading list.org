@@ -1,0 +1,19 @@
+#+title: Reading list
+#+tags: books, org
+
+* TODO [#B] Finish /Dune/ by *Friday*
+SCHEDULED: <2026-11-05 Thu>
+** notes with =verbatim=, ~code~, _underline_, +strike+ and [[https://example.com][a link]]
+** see [[Garden Plan][the garden plan]] and #scifi
+* DONE Read [[Field Notes]]
+:PROPERTIES:
+:id: 6543b2d4-0000-4000-8000-000000000001
+:rating: 5
+:END:
+loved the ending
+* Shelved
+:PROPERTIES:
+:collapsed: true
+:END:
+** Neuromancer :cyberpunk:
+* last one
