@@ -13,6 +13,7 @@ import {
   setProp,
 } from "./tree.ts"
 import {
+  isWithin,
   lastPlacement,
   moveUnder,
   placeAll,
@@ -21,6 +22,7 @@ import {
   usable,
   wasOf,
   rounds,
+  seenPlacement,
   type Placing,
   type Spot,
   type Unseen,
@@ -200,7 +202,11 @@ const rescueOnce = (doc: LoroDoc, tree: LoroTree, unseen: Unseen): boolean => {
         if (!lifted.has(node.id)) {
           lifted.add(node.id)
           const path = chain.slice(at, -1).map((one) => one.fractionalIndex() ?? "")
-          placing(node, was.value, path.toReversed())
+          const inside =
+            was.value.parent !== undefined && isWithin(tree.getNodeByID(was.value.parent), node)
+          Option.map(inside ? seenPlacement(doc, tree, node, by) : Option.some(was.value), (spot) =>
+            placing(node, spot, path.toReversed()),
+          )
         }
         break
       }
@@ -209,8 +215,8 @@ const rescueOnce = (doc: LoroDoc, tree: LoroTree, unseen: Unseen): boolean => {
   return placeAll(tree, placings)
 }
 
-export const repairUnseen = (doc: LoroDoc, tree: LoroTree): boolean =>
+export const repairUnseen = (doc: LoroDoc, tree: LoroTree, commit: () => void): boolean =>
   Option.match(unseenSince(doc, new Set()), {
     onNone: () => false,
-    onSome: (unseen) => rounds(() => rescueOnce(doc, tree, unseen)),
+    onSome: (unseen) => rounds(() => rescueOnce(doc, tree, unseen), commit),
   })

@@ -213,7 +213,7 @@ const make = (source: GraphSource) =>
     }
 
     const repair = Effect.sync(() => {
-      if (repairUnseen(doc, tree)) doc.commit({ origin: REPAIRED })
+      repairUnseen(doc, tree, () => doc.commit({ origin: REPAIRED }))
       if (repairPages(tree, pending, listed)) doc.commit({ origin: REPAIRED })
     })
 
@@ -400,7 +400,7 @@ const make = (source: GraphSource) =>
             Effect.andThen((reached) =>
               Effect.sync(() => {
                 flushed = ownCounter()
-                if (repairUnseen(doc, tree)) doc.commit({ origin: REPAIRED })
+                repairUnseen(doc, tree, () => doc.commit({ origin: REPAIRED }))
                 if (repairAll(tree, listed)) doc.commit({ origin: REPAIRED })
                 pending = emptyPending()
                 registerPages()

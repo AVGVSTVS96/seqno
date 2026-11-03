@@ -187,6 +187,41 @@ export const lastPlacement = (
   return Option.flatMap(Option.fromUndefinedOr(best), (touch) => touch.to)
 }
 
+export const seenPlacement = (
+  doc: LoroDoc,
+  tree: LoroTree,
+  node: LoroTreeNode,
+  by: OpId,
+): Option.Option<Spot> => {
+  let found: Spot | undefined
+  let visits = 0
+  doc.travelChangeAncestors([by], (change) => {
+    visits++
+    const span = { peer: change.peer, counter: change.counter, length: change.length }
+    for (const one of doc.exportJsonInIdSpan(span).toReversed()) {
+      for (const op of one.ops.toReversed()) {
+        const content = op.content
+        if (op.container !== tree.id || !("target" in content) || content.type === "delete")
+          continue
+        if (content.target !== node.id) continue
+        if (change.peer === by.peer && op.counter > by.counter) continue
+        const spot = { parent: content.parent, index: content.fractional_index }
+        const above = spot.parent === undefined ? undefined : tree.getNodeByID(spot.parent)
+        if (
+          !usable(tree, spot) ||
+          (above !== undefined && (isTrash(above) || isWithin(above, node)))
+        ) {
+          continue
+        }
+        found = spot
+        return false
+      }
+    }
+    return visits < 2000
+  })
+  return Option.fromUndefinedOr(found)
+}
+
 export const usable = (tree: LoroTree, spot: Spot): boolean =>
   spot.parent === undefined ||
   (!tree.isNodeDeleted(spot.parent) && tree.getNodeByID(spot.parent) !== undefined)
@@ -219,9 +254,12 @@ const countUpTo = (sorted: ReadonlyArray<string>, index: string): number => {
   return low
 }
 
-export const rounds = (once: () => boolean): boolean => {
+export const rounds = (once: () => boolean, commit: () => void): boolean => {
   let repaired = false
-  for (let round = 0; round < 8 && once(); round++) repaired = true
+  for (let round = 0; round < 8 && once(); round++) {
+    commit()
+    repaired = true
+  }
   return repaired
 }
 

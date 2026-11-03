@@ -271,8 +271,8 @@ const rescueOnce = (trees: Trees, unseen: Unseen): boolean => {
   return repaired
 }
 
-export const repairUnseen = (trees: Trees): boolean =>
+export const repairUnseen = (trees: Trees, commit: () => void): boolean =>
   Option.match(unseenSince(trees.doc, new Set([TRASHED])), {
     onNone: () => false,
-    onSome: (unseen) => rounds(() => rescueOnce(trees, unseen)),
+    onSome: (unseen) => rounds(() => rescueOnce(trees, unseen), commit),
   })
