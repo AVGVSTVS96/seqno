@@ -475,7 +475,7 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
     void bridge
       .run(
         Effect.flatMap(CoreClient, (client) =>
-          Stream.runForEach(client.WatchChanges(), (events) =>
+          Stream.runForEach(client.WatchChanges(), ({ events }) =>
             Effect.sync(() => markChanged(events)),
           ),
         ),

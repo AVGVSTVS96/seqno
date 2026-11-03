@@ -1197,28 +1197,44 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
     ),
   )
 
-  it.live("WatchChanges streams the events of each committed edit", () =>
+  it.live("WatchChanges tells each tab which edits it made itself", () =>
     Effect.scoped(
       Effect.gen(function* () {
-        const core = yield* coreOn(yield* copyOfFixture)
-        yield* core.OpenGraph({ graph: "og" })
-        const pages = yield* core.GetPages()
-        const tasks = yield* core.GetPage({ pageId: named(pages, "tasks").id })
+        const tab = yield* tabsOn(yield* copyOfFixture)
+        const first = yield* tab(0)
+        const second = yield* tab(1)
+        yield* first.OpenGraph({ graph: "og-changes" })
+        yield* second.OpenGraph({ graph: "og-changes" })
+        const pages = yield* first.GetPages()
+        const tasks = yield* first.GetPage({ pageId: named(pages, "tasks").id })
         const block = tasks.blocks[0] ?? assert.fail("tasks has no first block")
-        const changes = yield* core
-          .WatchChanges()
-          .pipe(Stream.take(1), Stream.runCollect, Effect.forkChild)
+        const watch = (core: typeof first) =>
+          core.WatchChanges().pipe(
+            Stream.take(2),
+            Stream.map(({ events, madeIn }) => [
+              madeIn,
+              events.map((event) => (event._tag === "BlockUpserted" ? event.block.text : "")),
+            ]),
+            Stream.runCollect,
+            Effect.forkChild,
+          )
+        const firstSees = yield* watch(first)
+        const secondSees = yield* watch(second)
         yield* Effect.sleep("100 millis")
-        yield* core.Dispatch({
+        yield* first.Dispatch({
           command: { _tag: "EditText", blockId: block.id, from: 0, to: 0, insert: "Now " },
         })
-        const [events] = yield* Fiber.join(changes)
-        assert.deepStrictEqual(
-          (events ?? []).map((event) =>
-            event._tag === "BlockUpserted" ? [event._tag, event.block.text] : [event._tag],
-          ),
-          [["BlockUpserted", `Now ${block.text}`]],
-        )
+        yield* second.Dispatch({
+          command: { _tag: "EditText", blockId: block.id, from: 0, to: 0, insert: "And " },
+        })
+        assert.deepStrictEqual(yield* Fiber.join(firstSees), [
+          ["thisTab", [`Now ${block.text}`]],
+          ["otherTab", [`And Now ${block.text}`]],
+        ])
+        assert.deepStrictEqual(yield* Fiber.join(secondSees), [
+          ["otherTab", [`Now ${block.text}`]],
+          ["thisTab", [`And Now ${block.text}`]],
+        ])
       }),
     ),
   )

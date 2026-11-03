@@ -1,8 +1,8 @@
-import type { Page } from "@playwright/test"
+import type { BrowserContext, Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { journalTitle } from "../src/journal.ts"
 import { serveMarketplace } from "../src/plugins.ts"
-import { expect, test } from "../src/test.ts"
+import { expect, test, todayOn } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
@@ -49,9 +49,9 @@ test("the marketplace lists plugins, desktop-only ones too, and themes, and Inst
   )
   await expect(dialog.getByText("Nothing found.")).toBeVisible()
   await dialog.getByRole("tab", { name: "Marketplace" }).click()
-  await expect(dialog.getByRole("radio", { name: "Plugins (10)" })).toBeVisible()
+  await expect(dialog.getByRole("radio", { name: "Plugins (11)" })).toBeVisible()
   await expect(dialog.getByRole("radio", { name: "Themes (5)" })).toBeVisible()
-  await expect(dialog.getByRole("listitem")).toHaveCount(10)
+  await expect(dialog.getByRole("listitem")).toHaveCount(11)
   await expect(dialog.getByRole("listitem", { name: "Archivist" })).toHaveCount(1)
   await dialog.getByRole("searchbox", { name: "Search plugins" }).fill("calendar")
   await expect(dialog.getByRole("listitem")).toHaveCount(1)
@@ -251,4 +251,76 @@ test("installed plugins and themes keep working offline, after a reload", async 
   await expect(
     seqno.today.getByRole("treeitem").filter({ hasText: "Beds" }).locator(".wordcount-btn"),
   ).toHaveText("Words: 3")
+})
+
+const writeCalls = [
+  "update_block",
+  "upsert_block_property",
+  "remove_block_property",
+  "insert_block",
+]
+
+const countPluginWrites = (context: BrowserContext) =>
+  context.addInitScript((methods) => {
+    if (window !== window.top) return
+    const writes: Array<string> = []
+    Reflect.set(window, "pluginWrites", writes)
+    addEventListener("message", (event: MessageEvent<unknown>) => {
+      const call = Reflect.get(Object(Reflect.get(Object(event.data), "value")), "data")
+      const method = String(Reflect.get(Object(Reflect.get(Object(call), "payload")), "method"))
+      const name = method.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+      if (Reflect.get(Object(call), "type") === "api:call" && methods.includes(name)) {
+        writes.push(name)
+      }
+    })
+  }, writeCalls)
+
+const markDone = async (tab: Page, text: string) => {
+  const today = todayOn(tab)
+  await today.getByRole("treeitem").filter({ hasText: "Rain all morning" }).first().click()
+  await tab.keyboard.press("End")
+  await tab.keyboard.press("Enter")
+  await tab.keyboard.type(`TODO ${text}`)
+  await tab.keyboard.press("Escape")
+  await today
+    .getByRole("treeitem")
+    .filter({ hasText: text })
+    .getByRole("checkbox", { name: "Mark as done" })
+    .click()
+}
+const doneTime = (tab: Page, text: string) =>
+  todayOn(tab)
+    .getByRole("treeitem")
+    .filter({ hasText: text })
+    .getByText(/^done-ms/)
+
+const pluginWrites = (page: Page) => () => page.evaluate(() => Reflect.get(window, "pluginWrites"))
+
+test("with two tabs open, a plugin that writes on every change writes once per change", async ({
+  page,
+  context,
+  seqno,
+}) => {
+  await countPluginWrites(context)
+  await seqno.openDemoGraph()
+  await install(page, "DONE time")
+  await install(page, "Journals calendar")
+  const other = await context.newPage()
+  await other.goto("/")
+  const otherToday = todayOn(other)
+  await expect(otherToday).toBeVisible()
+  await expect(other.locator("#open-calendar-button")).toBeVisible()
+
+  await markDone(other, "Sow radishes")
+  await expect(doneTime(other, "Sow radishes")).toBeVisible()
+  await expect(doneTime(page, "Sow radishes")).toBeVisible()
+  await markDone(page, "Turn the compost")
+  await expect(doneTime(page, "Turn the compost")).toBeVisible()
+  await expect(doneTime(other, "Turn the compost")).toBeVisible()
+  await page.waitForTimeout(1000)
+  expect(await pluginWrites(page)()).toEqual(["upsert_block_property"])
+  expect(await pluginWrites(other)()).toEqual(["upsert_block_property"])
+
+  await other.locator("#open-calendar-button").click()
+  await expect(other.locator("#logseq-journals-calendar_lsp_main")).toHaveClass(/visible/)
 })

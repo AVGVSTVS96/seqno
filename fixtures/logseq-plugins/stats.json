@@ -396,5 +396,15 @@
     8
    ]
   ]
+ },
+ "logseq-done-time": {
+  "stargazers_count": 13,
+  "releases": [
+   [
+    "v1.0",
+    false,
+    661
+   ]
+  ]
  }
 }

@@ -154,8 +154,14 @@ export const WatchSaveState = Rpc.make("WatchSaveState", {
   stream: true,
 })
 
+export const Change = Schema.Struct({
+  events: Schema.Array(GraphEvent),
+  madeIn: Schema.Literals(["thisTab", "otherTab", "noTab"]),
+})
+export type Change = typeof Change.Type
+
 export const WatchChanges = Rpc.make("WatchChanges", {
-  success: Schema.Array(GraphEvent),
+  success: Change,
   error: GraphNotOpen,
   stream: true,
 })

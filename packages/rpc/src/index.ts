@@ -38,6 +38,7 @@ export {
 } from "./pages.ts"
 export {
   Attach,
+  Change,
   CoreRpcs,
   Dispatch,
   DispatchAll,

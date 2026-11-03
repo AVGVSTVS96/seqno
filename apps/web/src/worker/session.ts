@@ -25,19 +25,25 @@ import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 
+export interface Committed {
+  readonly events: ReadonlyArray<GraphEvent>
+  readonly client: number | null
+}
+
 export interface Session {
   readonly graph: Graph["Service"]
   readonly index: Index["Service"]
   readonly blocks: (ids: ReadonlyArray<BlockId>) => Effect.Effect<ReadonlyArray<Block>>
   readonly blocksByRef: (uuids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<Block>>
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
-  readonly changes: PubSub.PubSub<ReadonlyArray<GraphEvent>>
+  readonly changes: PubSub.PubSub<Committed>
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
   readonly assets: AssetFiles
   readonly skipped: ReadonlyArray<SkippedFile>
   readonly newPageFormat: "org" | undefined
   readonly record: <E, R>(
     change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>,
+    client?: number,
   ) => Effect.Effect<ReadonlyArray<GraphEvent>, E, R>
   readonly indexed: Effect.Effect<void>
   readonly closing: Effect.Effect<void>
@@ -146,7 +152,7 @@ export const openSession = (place: GraphPlace) =>
     const { device, formerPeers } = yield* Device
     const peer = yield* newPeerId
     const touched = yield* SubscriptionRef.make<Touched>(new Set())
-    const changes = yield* PubSub.unbounded<ReadonlyArray<GraphEvent>>()
+    const changes = yield* PubSub.unbounded<Committed>()
     const saving = yield* SubscriptionRef.make<SaveState>(SaveState.cases.Saved.make({}))
     const unsaved = yield* Latch.make(false)
     const edits = { count: 0 }
@@ -216,7 +222,7 @@ export const openSession = (place: GraphPlace) =>
     const sinceSave = { pages: new Set<PageId>(), rewritten: 0 }
     const costs = { pageMs: Option.none<number>(), saveMs: Option.none<number>() }
 
-    const indexEvents = (events: ReadonlyArray<GraphEvent>) =>
+    const indexEvents = (events: ReadonlyArray<GraphEvent>, client: number | null) =>
       events.length === 0
         ? Effect.void
         : Effect.gen(function* () {
@@ -230,16 +236,21 @@ export const openSession = (place: GraphPlace) =>
               )
             pages.forEach((page) => sinceSave.pages.add(page))
             yield* SubscriptionRef.set(touched, pages)
-            yield* PubSub.publish(changes, events)
+            yield* PubSub.publish(changes, { events, client })
             edits.count += 1
             yield* SubscriptionRef.set(saving, SaveState.cases.Unsaved.make({}))
             yield* unsaved.open
           }).pipe(Effect.orDie)
 
-    const record = <E, R>(change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>) =>
+    const record = <E, R>(
+      change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>,
+      client?: number,
+    ) =>
       Effect.suspend(() => {
         recording.pending += 1
-        return indexing.withPermits(1)(Effect.tap(change, indexEvents))
+        return indexing.withPermits(1)(
+          Effect.tap(change, (events) => indexEvents(events, client ?? null)),
+        )
       }).pipe(
         Effect.ensuring(
           Effect.suspend(() => {

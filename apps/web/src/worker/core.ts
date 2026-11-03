@@ -409,7 +409,7 @@ const CoreHandlers = CoreRpcs.toLayer(
           withReferenceEdits(session, withJournalDay(command, session.newPageFormat)),
         ).pipe(
           Effect.flatMap((expanded) =>
-            session.record(session.graph.dispatchAll(expanded.flat(), String(client))),
+            session.record(session.graph.dispatchAll(expanded.flat(), String(client)), client),
           ),
         ),
       )
@@ -454,7 +454,12 @@ const CoreHandlers = CoreRpcs.toLayer(
       WatchSaveState: (_, { client }) =>
         following(client.id, (session) => SubscriptionRef.changes(session.saving)),
       WatchChanges: (_, { client }) =>
-        following(client.id, (session) => Stream.fromPubSub(session.changes)),
+        following(client.id, (session) =>
+          Stream.map(Stream.fromPubSub(session.changes), ({ events, client: by }) => ({
+            events,
+            madeIn: by === client.id ? "thisTab" : by === null ? "noTab" : "otherTab",
+          })),
+        ),
       WatchBlockRefCounts: (_, { client }) =>
         following(client.id, (session) => Stream.orDie(session.index.watchBlockRefCounts)),
       WatchBlockReferences: ({ uuid }, { client }) =>

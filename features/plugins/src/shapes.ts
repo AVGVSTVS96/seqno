@@ -109,5 +109,20 @@ export const blockJson = (tree: Tree, block: Block, nested: boolean): BlockJson 
   }
 }
 
+export const changedBlock = (block: Block) => {
+  const syntax = analyzeBlock(block.text)
+  return {
+    id: numberOf(block.id),
+    uuid: blockRefId(block),
+    content: contentOf(block),
+    format: "markdown",
+    page: { id: numberOf(block.pageId) },
+    parent: { id: numberOf(block.parentId ?? block.pageId) },
+    properties: properties(block.props),
+    ...(syntax.marker === null ? {} : { marker: syntax.marker }),
+    ...(syntax.priority === null ? {} : { priority: syntax.priority }),
+  }
+}
+
 export const treeJson = (tree: Tree) =>
   childrenIn(tree, null).map((block) => blockJson(tree, block, true))

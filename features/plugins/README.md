@@ -16,7 +16,7 @@ plugin iframe (seqno's origin, lsp/…)   seqno tab
                                     selection.ts onInputSelectionEnd from the block editor
 ```
 
-- `startPlugins(registry, bridge)` loads every installed plugin. `apps/web` gives it a `Bridge` (navigation, sidebars, notices, the core) and forwards `route_changed`, `theme_mode_changed`, `current_graph_changed` and `WatchChanges` as hooks.
+- `startPlugins(registry, bridge)` loads every installed plugin. `apps/web` gives it a `Bridge` (navigation, sidebars, notices, the core) and forwards `route_changed`, `theme_mode_changed`, `current_graph_changed` and `WatchChanges` as hooks. Every tab runs every plugin, so toolbars, slash commands and settings work in each, but `DB.onChanged` reaches only the tab that made the edit; an edit no tab made (another device's, today's journal) goes to the one tab holding the graph's `seqno.plugins.<graph>` Web Lock. A plugin that writes on change writes once.
 - The editor takes plugin slash commands through `editorCommands`, the outliner draws `{{renderer …}}` through its `MacroSlot` context, and the block menu lists `block-context-menu-item` commands.
 - `logseq.Assets` (`assets.ts`) answers from the graph's `assets/` through the app's `AssetBridge`: `listFilesOfCurrentGraph` lists every file with Logseq's fields, paths written as `<graph>/assets/…`; `makeUrl` gives the file's blob URL for any relative or `<graph>/` form of its path; `builtInOpen` opens PDFs in seqno's viewer and returns `false` for anything else; `makeSandboxStorage` keeps a plugin's items in `assets/storages/<id>/`, so they travel with the graph. Its six storage calls are the ones `logseq.FileStorage` makes without the assets flag, which still answers "not supported yet".
 - Plugin files load from seqno's own origin: `<base>lsp/<owner>/<repo>/<version>/…` proxies Logseq's R2 mirror (the Vite dev and preview proxy in `apps/web/offline.ts`, a rewrite in `vercel.json`), which sends no CORS headers. Install gathers a copy into the `seqno-plugins` cache (`files.ts`): the entry page and what it references, followed through CSS `url()`/`@import` and JS relative imports, plus the icon and theme stylesheets. `apps/web`'s service worker serves that copy first and keeps anything else a plugin fetches under its root. Installs store the mirror URL and `local()` maps it at use, so plugins installed before the copy existed load the same way and get their copy on the next start. Uninstall deletes the copy.
@@ -32,7 +32,7 @@ plugin iframe (seqno's origin, lsp/…)   seqno tab
 
 ## Known gaps
 
-- Each tab runs its own copy.
+- A plugin's display in one tab doesn't follow `DB.onChanged` for edits made in another tab.
 - A plugin installed in a browser without the Cache API (an `http://` address other than localhost) loads from the mirror and doesn't work offline.
 - Not placed yet: page and highlight menu items, the command palette.
 - Not supported yet: Git, `Experiments`, and `datascriptQuery` inputs that are functions (Logseq takes those only through the host's own window).

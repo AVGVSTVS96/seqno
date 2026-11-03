@@ -1,6 +1,6 @@
 import { IconPuzzle } from "@tabler/icons-react"
 import { Atom, type AtomRegistry } from "effect/reactivity"
-import { blockRefId, type BlockId, type GraphEvent } from "@seqno/domain"
+import type { BlockId, GraphEvent } from "@seqno/domain"
 import { editingBlock, type SlashCommand } from "@seqno/editor"
 import { createApi, lastCursor, type Bridge } from "./api.ts"
 import { dropCopy, ensureCopy, keepCopy } from "./files.ts"
@@ -8,7 +8,7 @@ import { createHost, type Host } from "./host.ts"
 import { fetchPlugin, type MarketItem } from "./marketplace.ts"
 import { watchSelection } from "./selection.ts"
 import { record, text } from "./package.ts"
-import { contentOf, numberOf } from "./shapes.ts"
+import { changedBlock } from "./shapes.ts"
 import {
   installedPlugins,
   pluginCommands,
@@ -135,22 +135,13 @@ export const startPlugins = (registry: AtomRegistry.AtomRegistry, bridge: Bridge
   return host
 }
 
-export const changedPayload = (events: ReadonlyArray<GraphEvent>) => {
-  const blocks = events.flatMap((event) =>
-    event._tag === "BlockUpserted"
-      ? [
-          {
-            id: numberOf(event.block.id),
-            uuid: blockRefId(event.block),
-            content: contentOf(event.block),
-            page: { id: numberOf(event.block.pageId) },
-            parent: { id: numberOf(event.block.parentId ?? event.block.pageId) },
-          },
-        ]
-      : [],
-  )
-  return { blocks, txData: [], txMeta: { outlinerOp: "save-block" } }
-}
+export const changedPayload = (events: ReadonlyArray<GraphEvent>) => ({
+  blocks: events.flatMap((event) =>
+    event._tag === "BlockUpserted" ? [changedBlock(event.block)] : [],
+  ),
+  txData: [],
+  txMeta: { outlinerOp: "save-block" },
+})
 
 export const install = async (registry: AtomRegistry.AtomRegistry, item: MarketItem) => {
   const info = await fetchPlugin(item)

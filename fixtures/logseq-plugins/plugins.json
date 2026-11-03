@@ -158,6 +158,15 @@
    "icon": "./icon.svg",
    "id": "logseq-hypothesis",
    "addedAt": 1631638933000
+  },
+  {
+   "title": "DONE time",
+   "description": "Adds a timestamp property to a task when it's marked as DONE",
+   "author": "Menno Finlay-Smits",
+   "repo": "mjs/logseq-done-time",
+   "icon": "icon.png",
+   "id": "logseq-done-time",
+   "addedAt": 1710353393000
   }
  ]
 }
