@@ -35,6 +35,21 @@ const ESCAPES: Readonly<Record<string, string>> = {
   "\\": "\\",
 }
 
+const SYMBOLIC: Readonly<Record<string, number>> = {
+  NaN: Number.NaN,
+  Inf: Number.POSITIVE_INFINITY,
+  "-Inf": Number.NEGATIVE_INFINITY,
+}
+
+const printNumber = (value: number) =>
+  Number.isNaN(value)
+    ? "##NaN"
+    : value === Number.POSITIVE_INFINITY
+      ? "##Inf"
+      : value === Number.NEGATIVE_INFINITY
+        ? "##-Inf"
+        : String(value)
+
 class Reader {
   at = 0
   failure: string | null = null
@@ -133,6 +148,11 @@ class Reader {
         entries.push([items[index] ?? null, items[index + 1] ?? null])
       }
       return { _tag: "Map", entries }
+    }
+    if (char === "#" && this.text[this.at + 1] === "#") {
+      this.at += 2
+      const symbolic = SYMBOLIC[this.token()]
+      return symbolic ?? this.fail("unknown ## value")
     }
     if (char === "#" && this.text[this.at + 1] === "{") {
       this.at += 2
@@ -252,7 +272,8 @@ const quote = (text: string) => `"${text.replace(QUOTED, (char) => QUOTES[char] 
 export const printEdn = (value: Edn): string => {
   if (value === null) return "nil"
   if (typeof value === "string") return quote(value)
-  if (typeof value === "number" || typeof value === "boolean") return String(value)
+  if (typeof value === "number") return printNumber(value)
+  if (typeof value === "boolean") return String(value)
   switch (value._tag) {
     case "Keyword":
       return `:${value.name}`

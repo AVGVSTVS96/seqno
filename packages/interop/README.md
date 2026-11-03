@@ -28,9 +28,12 @@ A Logseq whiteboard is one EDN file, `{:blocks (...) :pages ({...})}`: one map p
 - Import orders shapes by their `index`, as Logseq does, and puts the board's plain blocks after them as an outline (`:block/parent` and `:block/left`).
 - A shape's words move into its block's text: a text shape's `text`, a box, ellipse, polygon or connector's `label`, a portal's `pageId` as `[[page]]` (`blockType` `P`) or `((uuid))` (`B`). The mirror puts them back.
 - A connector handle's `bindingId` is looked up in the page's `bindings`, and the handle gets `bindTo`: the seqno id of the shape it's bound to. Writing, a handle whose binding still points at that shape keeps its binding; a new or moved one gets a new binding (`point [0.5 0.5]`, `distance 4`, Logseq's defaults). Bindings between shapes that both still exist are kept, as Logseq keeps them.
+- A shape written without a `nonce` gets `nonce 1`: in Logseq a connector doesn't follow a shape that has none, and Logseq writes `##NaN` for it, which the reader and printer also handle.
 - An image's `assetId` is looked up in the page's `assets`, and the shape gets the asset's `src`. Writing moves `src` back into `assets`, adding an asset for an image drawn in seqno.
 - Shape and block ids follow the markdown rule (UUIDv7 kept, any other id in `props.id`); `created-at` and `updated-at` become props of the same name; `logseq.tldraw.page` keeps the tldraw page, and `logseq.whiteboard.fields` keeps page fields seqno has no place for (`:block/journal?`, `:block/format`, `:block/namespace`) as EDN.
 - The mirror prints the file as Logseq's `ugly-pr-str` does: maps of more than eight keys in ClojureScript's hash order, smaller ones in the order Logseq builds them, blocks' keys alphabetically as Datascript pulls them.
+
+Opened in Logseq 0.10.9's desktop app, boards seqno wrote (logseq/docs' board, the portal board, and one drawn in seqno with a box, an ellipse, text, a page portal, a block portal and a bound connector) load, render every shape and portal, and stay unchanged on disk; dragging the box moves the connector with it, and the file Logseq then writes imports back with the same ids and bindings.
 
 On 61 real boards (logseq/docs' Test Whiteboard and 60 from public GitHub graphs) import then mirror writes all 948 shapes and 58 of 61 page maps back byte for byte, and 211 of 324 plain blocks. The rest:
 

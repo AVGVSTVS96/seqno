@@ -280,6 +280,7 @@ describe("whiteboard mirror", () => {
           ":size [200 100]",
           ':id "01920000-0000-7000-8000-0000000000b1"',
           ":index 0",
+          ":nonce 1",
           ':label "Idea"}}} ',
           "{:block/properties ",
           "{:ls-type :whiteboard-shape",
@@ -289,6 +290,7 @@ describe("whiteboard mirror", () => {
           ":size [400 0]",
           ':id "01920000-0000-7000-8000-0000000000b2"',
           ":index 1",
+          ":nonce 1",
           ':blockType "P"',
           ':pageId "Project X"}}} ',
           "{:block/properties ",
@@ -311,6 +313,7 @@ describe("whiteboard mirror", () => {
           '{:end "arrow"}',
           ':id "01920000-0000-7000-8000-0000000000b3"',
           ":index 2",
+          ":nonce 1",
           ':label "leads to"}}} ',
           '{:block/content "Remember the **milk**"',
           ":block/format :markdown",
@@ -448,4 +451,35 @@ describe("whiteboard mirror", () => {
       })
     }).pipe(Effect.scoped, Effect.provide(Node)),
   )
+})
+
+describe("edn", () => {
+  it("prints a map of more than eight keys in ClojureScript's hash order, as Logseq wrote this group", () => {
+    const written = [
+      "{:children []",
+      ":index 76",
+      ":scale [1 1]",
+      ':type "group"',
+      ":size [0 0]",
+      ':id "e7c68c10-f055-11ef-a173-dd256d1a9cd8"',
+      ":point [-80 32]",
+      ':parentId "67b0c670-d163-45b2-867b-e630a151f914"',
+      ":nonce 1740143722403}",
+    ]
+    const reversed = `{${written
+      .map((line) => line.replace(/^\{|\}$/g, ""))
+      .toReversed()
+      .join(" ")}}`
+    assert.strictEqual(
+      printEdn(Result.getOrElse(readEdn(reversed), () => null)),
+      `\n${written.join("\n")}`,
+    )
+  })
+
+  it("reads and writes the ##NaN Logseq leaves on a shape it gave no nonce", () => {
+    assert.strictEqual(
+      printEdn(Result.getOrElse(readEdn("{:nonce ##NaN :a ##-Inf}"), () => null)),
+      "\n{:nonce ##NaN\n:a ##-Inf}",
+    )
+  })
 })

@@ -455,6 +455,7 @@ export const renderWhiteboard = (page: Page, blocks: ReadonlyArray<Block>): stri
     const type = textIn(raw["type"])
     const id = logseqIdOf(block)
     const shape: Record<string, unknown> = { ...raw, id, index }
+    if (Option.isNone(decodeNumber(raw["nonce"]))) shape["nonce"] = 1
     const words = wordsKey(type)
     if (words === "pageId") {
       Option.match(portalTarget(block.text), {
