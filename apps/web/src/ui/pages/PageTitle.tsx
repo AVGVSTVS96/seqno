@@ -105,30 +105,34 @@ export const PageTitle = ({
   return (
     <>
       <h1 id={id} {...logseq("seqno-page-title")} data-editable>
-        <textarea
-          aria-label="Page title"
-          className="seqno-page-title-input"
-          defaultValue={page.title}
-          rows={1}
-          autoFocus
-          spellCheck={false}
-          onFocus={(event) => event.currentTarget.setSelectionRange(draft.caret, draft.caret)}
-          onChange={() => {
-            if (draft.problem !== null) setDraft({ caret: draft.caret, problem: null })
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault()
-              event.currentTarget.blur()
-            }
-            if (event.key === "Escape") {
-              event.preventDefault()
-              event.currentTarget.value = page.title
-              event.currentTarget.blur()
-            }
-          }}
-          onBlur={(event) => void commit(event.currentTarget.value)}
-        />
+        <span {...logseq("seqno-page-title-sizer")}>
+          <span {...logseq("seqno-page-title-editor")}>
+            <textarea
+              aria-label="Page title"
+              {...logseq("seqno-page-title-input")}
+              defaultValue={page.title}
+              rows={1}
+              autoFocus
+              spellCheck={false}
+              onFocus={(event) => event.currentTarget.setSelectionRange(draft.caret, draft.caret)}
+              onChange={() => {
+                if (draft.problem !== null) setDraft({ caret: draft.caret, problem: null })
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  event.currentTarget.blur()
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault()
+                  event.currentTarget.value = page.title
+                  event.currentTarget.blur()
+                }
+              }}
+              onBlur={(event) => void commit(event.currentTarget.value)}
+            />
+          </span>
+        </span>
       </h1>
       {draft.problem === null ? null : (
         <p className="seqno-page-title-problem" role="alert">

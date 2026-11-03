@@ -317,17 +317,22 @@
 
 .plugin-card {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--bg-sidebar-item-header);
 }
 
-.plugin-card-head {
+.plugin-card-icon {
+  flex: none;
+}
+
+.plugin-card-body {
   display: flex;
-  gap: var(--space-3);
-  min-height: 72px;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .plugin-icon {
@@ -348,6 +353,7 @@
 
 .plugin-card-text {
   min-width: 0;
+  min-height: 60px;
 }
 
 .plugin-card-title {
@@ -361,7 +367,7 @@
   text-overflow: ellipsis;
 }
 
-.plugin-card-description {
+.plugin-card-description > p {
   display: -webkit-box;
   margin: var(--space-1) 0 0;
   overflow: hidden;
@@ -393,6 +399,26 @@
   align-items: center;
   min-height: var(--header-button-size);
   font-size: var(--text-sm);
+}
+
+.plugin-card-left,
+.plugin-card-right,
+.plugin-card-menu {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plugin-card-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.plugin-card-menu {
+  gap: var(--space-1);
 }
 
 .plugin-stat {
@@ -514,7 +540,8 @@
   font-size: var(--text-base);
 }
 
-.plugin-setting-input {
+.plugin-setting-input,
+.plugin-setting-select {
   max-width: 420px;
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--border-input);

@@ -27,12 +27,27 @@ const summary = (content: BlockContent) => ({
         return `code ${body.language}: ${body.code}`
       case "Quote":
         return `quote: ${body.lines.map(plainText).join(" / ")}`
+      case "Admonition":
+        return `${body.kind}: ${body.lines.map(plainText).join(" / ")}`
     }
   }),
   numbered: content.numbered,
 })
 
 describe("blockContent", () => {
+  it("reads Logseq's admonitions, in either case, and keeps other directives as code", () => {
+    expect(
+      summary(blockContent("Before planting\n#+BEGIN_TIP\nwater the **seedlings**\n#+end_tip"))
+        .body,
+    ).toEqual(["tip: water the seedlings"])
+    expect(summary(blockContent("#+BEGIN_WARNING\nfrost tonight\n#+END_WARNING")).body).toEqual([
+      "warning: frost tonight",
+    ])
+    expect(summary(blockContent("#+BEGIN_EXAMPLE\nraw\n#+END_EXAMPLE")).body).toEqual([
+      "code : raw",
+    ])
+  })
+
   it("splits a task into marker, title, planning and logbook", () => {
     expect(
       summary(

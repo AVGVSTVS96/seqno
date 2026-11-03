@@ -50,8 +50,10 @@ export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
         <span className="graph-thumb" aria-hidden>
           <IconTopologyStar size={16} />
         </span>
-        <strong {...logseq("graph-name")}>{graphTitle(graph)}</strong>
-        <IconSelector className="graph-selector" size={16} aria-hidden />
+        <span {...logseq("graph-switch")}>
+          <strong {...logseq("graph-name")}>{graphTitle(graph)}</strong>
+          <IconSelector className="graph-selector" size={16} aria-hidden />
+        </span>
       </button>
       <Menu handle={menu} label="Graphs" className="graphs-menu">
         {others.length === 0 ? null : (

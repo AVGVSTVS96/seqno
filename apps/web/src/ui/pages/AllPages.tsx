@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import {
   IconArrowDown,
@@ -61,8 +62,9 @@ const Filter = ({
       <IconSearch size={18} aria-hidden />
     </button>
   ) : (
-    <div className="seqno-view-filter">
+    <div {...logseq("seqno-view-filter")}>
       <input
+        {...logseq("seqno-view-filter-input")}
         type="search"
         aria-label="Search pages"
         placeholder="Type to search"
@@ -150,7 +152,7 @@ export const AllPages = () => {
       descending: sort.column === column ? !sort.descending : column !== "title",
     })
   return (
-    <div className="seqno-all-pages">
+    <div {...logseq("seqno-all-pages")}>
       <PagesStyle />
       <div className="seqno-view-head">
         <h1 className="seqno-view-title">
@@ -158,7 +160,7 @@ export const AllPages = () => {
           All
           <span className="seqno-view-count">{rows.length}</span>
         </h1>
-        <div className="seqno-view-actions">
+        <div {...logseq("seqno-view-actions")}>
           <Filter text={filter} onText={setFilter} />
           <button
             type="button"
@@ -177,7 +179,7 @@ export const AllPages = () => {
         </div>
       </div>
       <div className="seqno-table-scroll">
-        <table className="seqno-table" aria-label="All pages">
+        <table {...logseq("seqno-table")} aria-label="All pages">
           <thead>
             <tr>
               <th className="seqno-table-gutter" aria-hidden />

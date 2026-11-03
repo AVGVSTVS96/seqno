@@ -1,4 +1,4 @@
-import { logseq, names } from "@seqno/dom"
+import { logseq, names, type CodeStyle } from "@seqno/dom"
 import {
   use,
   useContext,
@@ -90,6 +90,7 @@ export interface OutlinerProps {
   readonly onBlockMenu?: OpenBlockMenu
   readonly vim?: boolean
   readonly readOnly?: boolean
+  readonly codeStyle?: CodeStyle
 }
 
 const listId = (pageId: PageId, zoom: BlockId | null) => `${pageId} ${zoom ?? ""}`
@@ -191,7 +192,9 @@ const Breadcrumbs = ({
             /
           </span>
           <a role="link" tabIndex={0} onKeyDown={clickOnEnter} onClick={go(block.id)}>
-            {labelOf(contentOf(block.text, dialectOf(block.pageId)).title ?? [])}
+            <span {...logseq("seqno-crumb-label")}>
+              {labelOf(contentOf(block.text, dialectOf(block.pageId)).title ?? [])}
+            </span>
           </a>
         </span>
       ))}
@@ -352,7 +355,10 @@ export const StaticBlock = ({
   block,
   onNavigate,
   resolveAsset,
-}: Pick<OutlinerProps, "onNavigate" | "resolveAsset"> & { readonly block: Block }) => {
+  codeStyle,
+}: Pick<OutlinerProps, "onNavigate" | "resolveAsset" | "codeStyle"> & {
+  readonly block: Block
+}) => {
   const parent = use(RenderContext)
   const dialectOf = use(PageDialects)
   return (
@@ -365,6 +371,7 @@ export const StaticBlock = ({
         editor: PlainTextEditor,
         resolveAsset: resolveAsset ?? parent.resolveAsset,
         readOnly: true,
+        codeStyle: codeStyle ?? parent.codeStyle,
       }}
     >
       <style href="@seqno/outliner" precedence="default">
@@ -975,6 +982,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     openMenu: onBlockMenu ?? parent.openMenu,
     vim,
     readOnly,
+    codeStyle: props.codeStyle ?? parent.codeStyle,
   }
 
   const renderRow = (row: Row, index: number) => {
@@ -998,6 +1006,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         firstChild={index > 0 && rows[index - 1]?.block.id === block.parentId}
         nextPath={rows[index + 1]?.path ?? []}
         selected={selectedSet.has(block.id)}
+        dragged={dragged.includes(block.id)}
         highlight={highlighted.get(index)}
         dropZone={drop?.blockId === block.id ? drop.zone : null}
         hoveredGuide={hoveredGuide}

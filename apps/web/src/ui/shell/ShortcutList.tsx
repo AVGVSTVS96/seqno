@@ -1,4 +1,5 @@
 import { IconChevronDown, IconSearch } from "@tabler/icons-react"
+import { logseq } from "@seqno/dom"
 import { useState } from "react"
 import { matchingGroups } from "./catalog.ts"
 import { Keys } from "./Keys.tsx"
@@ -13,7 +14,7 @@ export const ShortcutList = () => {
     setFolded(next)
   }
   return (
-    <div className="shortcut-list">
+    <div {...logseq("shortcut-list")}>
       <label className="shortcut-search">
         <IconSearch size={15} stroke={2} aria-hidden />
         <input
@@ -43,7 +44,7 @@ export const ShortcutList = () => {
                 {group.shortcuts.map((shortcut) => (
                   <li key={shortcut.label} className="shortcut-row">
                     <span className="shortcut-label">{shortcut.label}</span>
-                    <span className="shortcut-keys">
+                    <span {...logseq("shortcut-keys")}>
                       {shortcut.combos.map((combo) => (
                         <Keys key={combo.join(" ")} keys={combo} framed />
                       ))}

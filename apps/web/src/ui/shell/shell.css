@@ -297,6 +297,10 @@
   opacity: var(--opacity-graph-thumb);
 }
 
+.graph-switch {
+  display: contents;
+}
+
 .graph-name {
   display: block;
   min-width: 0;

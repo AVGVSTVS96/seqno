@@ -2,6 +2,7 @@ import { useAtom } from "@effect/atom-react"
 import { importReport } from "../../atoms.ts"
 import { IconAlertCircle, IconX } from "@tabler/icons-react"
 import { Atom, type AtomRegistry } from "effect/reactivity"
+import { logseq, names } from "@seqno/dom"
 
 interface Notice {
   readonly id: number
@@ -33,7 +34,7 @@ const ImportReport = () => {
   const [skipped, setSkipped] = useAtom(importReport)
   if (skipped.length === 0) return null
   return (
-    <div className="notice notice-report" role="alert">
+    <div className={names(logseq("notice").className, "notice-report")} role="alert">
       <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />
       <div className="notice-message">
         <p className="notice-title">
@@ -62,10 +63,10 @@ const ImportReport = () => {
 export const Notices = () => {
   const [shown, setShown] = useAtom(notices)
   return (
-    <div className="notices" role="status" aria-live="polite">
+    <div {...logseq("notices")} role="status" aria-live="polite">
       <ImportReport />
       {shown.map((notice) => (
-        <div key={notice.id} className="notice">
+        <div key={notice.id} {...logseq("notice")}>
           <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />
           <p className="notice-message">{notice.message}</p>
           <button

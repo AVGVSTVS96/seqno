@@ -11,6 +11,7 @@ import {
 import { useNavigate } from "@tanstack/react-router"
 import { Atom } from "effect/reactivity"
 import { useContext, useId, useRef, useState, type ReactNode } from "react"
+import { logseq } from "@seqno/dom"
 import { resolvedTheme, rightSidebar } from "../../atoms.ts"
 import {
   allPagesGraph,
@@ -122,7 +123,7 @@ const Surface = ({
     }
   })
   return (
-    <div className="graph-root">
+    <div {...logseq("graph-root")}>
       <canvas ref={attach} className="graph-canvas" role="application" aria-label={label} />
       {ready ? null : <div className="graph-loading">Preparing graph…</div>}
       <SelectionStatus picked={picked} onOpen={open} />
@@ -348,7 +349,7 @@ const Toolbar = ({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const scene = useAtomValue(allPagesGraph)
   return (
-    <div className="graph-toolbar">
+    <div {...logseq("graph-toolbar")}>
       <div className="graph-settings">
         {settingsOpen ? (
           <SettingsPanel scene={scene} picked={picked} onClose={() => setSettingsOpen(false)} />
@@ -385,7 +386,7 @@ const Toolbar = ({
 }
 
 export const GraphView = () => (
-  <div className="seqno-graph-view">
+  <div {...logseq("seqno-graph-view")}>
     <GraphStyle />
     <Surface scene={allPagesGraph} visibility={graphVisibility} label="Graph canvas">
       {(view, picked) => <Toolbar view={view} picked={picked} />}

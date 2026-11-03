@@ -12,7 +12,7 @@ import {
   IconStarOff,
 } from "@tabler/icons-react"
 import { Link } from "@tanstack/react-router"
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { isWhiteboard, type Page } from "@seqno/domain"
 import { assetPageName } from "@seqno/syntax"
 import { boardTitle } from "@seqno/whiteboard"
@@ -226,9 +226,10 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
   const open = useAtomValue(leftSidebarOpen)
   const [width, setWidth] = useAtom(leftSidebarWidth)
   const welcome = useWhiteboardWelcome(graph)
+  const [scrolled, setScrolled] = useState(false)
   return (
     <aside
-      {...logseq("left-sidebar")}
+      {...logseq("left-sidebar", open)}
       aria-label="Left sidebar"
       data-open={open}
       inert={!open}
@@ -268,7 +269,10 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
               </nav>
             </Group>
           </div>
-          <div {...logseq("left-sidebar-contents")}>
+          <div
+            {...logseq("left-sidebar-contents", scrolled)}
+            onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 2)}
+          >
             <Favorites />
             <Recent graph={graph} />
           </div>

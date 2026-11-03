@@ -76,6 +76,7 @@ const Card = ({
   id,
   icon,
   theme: isTheme,
+  kind,
   footer,
 }: {
   readonly title: string
@@ -84,21 +85,26 @@ const Card = ({
   readonly id: string
   readonly icon: string | null
   readonly theme: boolean
+  readonly kind: "market" | "installed"
   readonly footer: ReactNode
 }) => (
-  <li {...logseq("plugin-card")} aria-label={title}>
-    <div className="plugin-card-head">
+  <li {...logseq("plugin-card", kind)} aria-label={title}>
+    <div {...logseq("plugin-card-icon")}>
       <Icon src={icon} theme={isTheme} />
+    </div>
+    <div {...logseq("plugin-card-body")}>
       <div className="plugin-card-text">
-        <h3 className="plugin-card-title">{title}</h3>
-        <p className="plugin-card-description">{description}</p>
+        <h3 {...logseq("plugin-card-title")}>{title}</h3>
+        <div {...logseq("plugin-card-description")}>
+          <p>{description}</p>
+        </div>
       </div>
+      <div {...logseq("plugin-card-meta")}>
+        <span>{author}</span>
+        <span>ID: {id}</span>
+      </div>
+      <div {...logseq("plugin-card-footer")}>{footer}</div>
     </div>
-    <div className="plugin-card-meta">
-      <span>{author}</span>
-      <span>ID: {id}</span>
-    </div>
-    <div className="plugin-card-footer">{footer}</div>
   </li>
 )
 
@@ -120,24 +126,29 @@ const MarketCard = ({ item }: { readonly item: MarketItem }) => {
   return (
     <Card
       {...item}
+      kind="market"
       footer={
         <>
-          <span className="plugin-stat" title="Stars">
-            <IconStar size={16} aria-hidden />
-            {compact(item.stars)}
-          </span>
-          <span className="plugin-stat" title="Downloads">
-            <IconCloudDownload size={16} aria-hidden />
-            {compact(item.downloads)}
-          </span>
-          <button
-            type="button"
-            className="plugin-action"
-            disabled={installed || busy}
-            onClick={add}
-          >
-            {installed ? "Installed" : busy ? "Installing…" : "Install"}
-          </button>
+          <ul {...logseq("plugin-card-left")}>
+            <li className="plugin-stat" title="Stars">
+              <IconStar size={16} aria-hidden />
+              {compact(item.stars)}
+            </li>
+            <li className="plugin-stat" title="Downloads">
+              <IconCloudDownload size={16} aria-hidden />
+              {compact(item.downloads)}
+            </li>
+          </ul>
+          <div {...logseq("plugin-card-right")}>
+            <button
+              type="button"
+              className="plugin-action"
+              disabled={installed || busy}
+              onClick={add}
+            >
+              {installed ? "Installed" : busy ? "Installing…" : "Install"}
+            </button>
+          </div>
         </>
       }
     />
@@ -159,43 +170,50 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
       {...plugin}
       icon={plugin.icon === null ? null : local(plugin.icon)}
       theme={isTheme}
+      kind="installed"
       footer={
         <>
-          {status?._tag === "Failed" ? (
-            <span className="plugin-problem" role="status">
-              Didn't load
-            </span>
-          ) : null}
-          <span className="plugin-version">{plugin.version}</span>
-          {hasSettings ? (
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={`${plugin.title} settings`}
-              onClick={() => openSettings(plugin.id)}
-            >
-              <IconSettings size={18} aria-hidden />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={`Uninstall ${plugin.title}`}
-            onClick={() => void uninstall(registry, plugin.id)}
-          >
-            <IconTrash size={18} aria-hidden />
-          </button>
+          <div {...logseq("plugin-card-left")}>
+            {status?._tag === "Failed" ? (
+              <span className="plugin-problem" role="status">
+                Didn't load
+              </span>
+            ) : null}
+            <span className="plugin-version">{plugin.version}</span>
+            <div {...logseq("plugin-card-menu")}>
+              {hasSettings ? (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`${plugin.title} settings`}
+                  onClick={() => openSettings(plugin.id)}
+                >
+                  <IconSettings size={18} aria-hidden />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={`Uninstall ${plugin.title}`}
+                onClick={() => void uninstall(registry, plugin.id)}
+              >
+                <IconTrash size={18} aria-hidden />
+              </button>
+            </div>
+          </div>
           {isTheme ? null : (
-            <button
-              type="button"
-              role="switch"
-              aria-checked={enabled}
-              aria-label={`Enable ${plugin.title}`}
-              className="switch"
-              onClick={() => void setEnabled(registry, plugin.id, !enabled)}
-            >
-              <span className="switch-thumb" />
-            </button>
+            <div {...logseq("plugin-card-right")}>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={enabled}
+                aria-label={`Enable ${plugin.title}`}
+                className="switch"
+                onClick={() => void setEnabled(registry, plugin.id, !enabled)}
+              >
+                <span className="switch-thumb" />
+              </button>
+            </div>
           )}
         </>
       }
@@ -230,10 +248,10 @@ const ThemeRow = ({ entry }: { readonly entry: PluginTheme | null }) => {
         type="button"
         role="radio"
         aria-checked={active}
-        className="plugin-theme"
+        {...logseq("plugin-theme", active)}
         onClick={use}
       >
-        <span className="plugin-theme-name">
+        <span {...logseq("plugin-theme-name")}>
           {entry === null ? "Logseq default theme" : entry.name}
         </span>
         {entry?.mode === null || entry === null ? null : (

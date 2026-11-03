@@ -9,6 +9,7 @@ export interface BlockRow {
   readonly childRefs: string
   readonly folded: boolean
   readonly selected: boolean
+  readonly dragged: boolean
 }
 
 export interface Bullet {
@@ -47,6 +48,11 @@ export interface BlockParts {
   readonly "seqno-blockref": readonly []
   readonly "seqno-pageref": readonly [string]
   readonly "seqno-pageref-link": readonly [string]
+  readonly "seqno-bracket": readonly []
+  readonly "seqno-admonition": readonly [string]
+  readonly "seqno-admonition-icon": readonly []
+  readonly "seqno-admonition-svg": readonly [string]
+  readonly "seqno-admonition-body": readonly []
   readonly "seqno-tag": readonly [string]
   readonly "seqno-link": readonly []
   readonly "seqno-priority": readonly []
@@ -71,8 +77,9 @@ export interface BlockParts {
 
 export const blockParts: Table<BlockParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L2846-L2873
-  "seqno-row": ({ block: row, level, hasChildren, childRefs, folded, selected }) => ({
-    className: names("ls-block", row.id, selected && "selected"),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/handler/editor.cljs#L226-L230
+  "seqno-row": ({ block: row, level, hasChildren, childRefs, folded, selected, dragged }) => ({
+    className: names("ls-block", row.id, selected && "selected", dragged && "block-highlight"),
     id: `ls-block-${row.id}`,
     blockid: row.id,
     "data-refs": childRefs,
@@ -153,6 +160,16 @@ export const blockParts: Table<BlockParts> = {
   "seqno-pageref": (name) => ({ className: "page-reference", "data-ref": name }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L546-L548
   "seqno-pageref-link": (name) => ({ className: "page-ref", "data-ref": name.toLowerCase() }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L768-L780
+  "seqno-bracket": () => ({ className: "bracket" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L836
+  "seqno-admonition": (kind) => ({ className: `admonitionblock ${kind}` }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L837
+  "seqno-admonition-icon": () => ({ className: "admonition-icon" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/svg.cljs#L63-L124
+  "seqno-admonition-svg": (kind) => ({ className: kind }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L839
+  "seqno-admonition-body": () => ({ className: "" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L546-L548
   "seqno-tag": (name) => ({ className: "tag", "data-ref": name.toLowerCase() }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L1218

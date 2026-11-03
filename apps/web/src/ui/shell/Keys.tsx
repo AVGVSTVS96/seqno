@@ -1,3 +1,4 @@
+import { logseq, names } from "@seqno/dom"
 import { Fragment } from "react"
 import { onMac } from "./shortcuts.ts"
 
@@ -30,7 +31,7 @@ export const Keys = ({
   readonly combo?: boolean
 }) =>
   (combo ?? keys.some((key) => modifiers.has(key))) ? (
-    <span className={framed ? "keys-combo keys-framed" : "keys-combo"}>
+    <span className={names(logseq("seqno-keys").className, "keys-combo", framed && "keys-framed")}>
       {keys.map((key, index) => (
         <Fragment key={key}>
           {index === 0 ? null : <span className="keys-separator" />}
@@ -39,7 +40,9 @@ export const Keys = ({
       ))}
     </span>
   ) : (
-    <span className={framed ? "keys-sequence keys-framed" : "keys-sequence"}>
+    <span
+      className={names(logseq("seqno-keys").className, "keys-sequence", framed && "keys-framed")}
+    >
       {keys.map((key, index) => (
         <kbd key={`${index}-${key}`} className="key">
           {labelOf(key)}

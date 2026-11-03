@@ -59,7 +59,7 @@ describe("rendering one page at a time", () => {
           rendered += 1
         }
       }
-      assert.deepStrictEqual({ differing, rendered }, { differing: [], rendered: 65 })
+      assert.deepStrictEqual({ differing, rendered }, { differing: [], rendered: 66 })
     }).pipe(Effect.provide(Layer.merge(Node, LogseqSyntaxLive))),
   )
 

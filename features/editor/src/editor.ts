@@ -140,7 +140,11 @@ export const mountBlockEditor = (
         }),
         editorTheme,
         EditorView.editorAttributes.of(attributesOf(logseq("seqno-editor"))),
-        EditorView.contentAttributes.of(attributesOf(logseq("seqno-editor-content", block.id))),
+        EditorView.contentAttributes.compute(["doc"], (state) =>
+          attributesOf(
+            logseq("seqno-editor-content", block.id, state.doc.toString(), block.props["heading"]),
+          ),
+        ),
         headingClass,
         tooltips({ parent: parent.ownerDocument.body }),
         EditorView.updateListener.of((update) => {

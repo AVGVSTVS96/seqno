@@ -8,6 +8,7 @@ import { accentStyles, logseq, names } from "@seqno/dom"
 import type { PageId } from "@seqno/domain"
 import {
   Accent,
+  ColorMode,
   AssetActions,
   BoardSlot,
   CodeSlot,
@@ -198,7 +199,9 @@ export const Shell = () => {
         <DocumentMode value={useAtomValue(documentMode)}>
           <ShowBrackets value={useAtomValue(showBrackets)}>
             <Accent value={useAtomValue(accentColor)}>
-              <Screen />
+              <ColorMode value={useAtomValue(resolvedTheme)}>
+                <Screen />
+              </ColorMode>
             </Accent>
           </ShowBrackets>
         </DocumentMode>

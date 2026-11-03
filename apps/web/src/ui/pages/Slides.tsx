@@ -41,7 +41,12 @@ const Deck = ({ tree }: { readonly tree: PageTree }) => {
   const resolveAsset = useAtomValue(assetResolver)
   const slides = slidesOf(tree)
   const shown = (block: Block) => (
-    <StaticBlock block={block} onNavigate={onNavigate} resolveAsset={resolveAsset} />
+    <StaticBlock
+      block={block}
+      onNavigate={onNavigate}
+      resolveAsset={resolveAsset}
+      codeStyle="highlight.js"
+    />
   )
   return (
     <div

@@ -68,7 +68,7 @@ const Crumbs = ({
               )
             }}
           >
-            {crumbLabel(parent.text)}
+            <span {...logseq("seqno-crumb-label")}>{crumbLabel(parent.text)}</span>
           </a>
         </Fragment>
       ))}

@@ -1,14 +1,9 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands"
 import { defineLanguageFacet, Language, syntaxHighlighting } from "@codemirror/language"
 import { EditorSelection, EditorState } from "@codemirror/state"
-import {
-  EditorView,
-  highlightActiveLine,
-  highlightActiveLineGutter,
-  keymap,
-  lineNumbers,
-} from "@codemirror/view"
+import { EditorView, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view"
 import { useState } from "react"
+import { codeNames } from "./code-names.ts"
 import { editorHighlighter, parserFor } from "./highlight.ts"
 
 export interface CodeEdit {
@@ -45,7 +40,7 @@ const mountCode =
         extensions: [
           lineNumbers(),
           highlightActiveLineGutter(),
-          highlightActiveLine(),
+          codeNames(language),
           history(),
           keymap.of([
             {

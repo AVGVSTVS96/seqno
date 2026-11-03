@@ -24,7 +24,16 @@ const Outline = ({
   readonly env: PortalEnv
   readonly pageId: PageId
   readonly zoom: BlockId | null
-}) => <Outliner {...env.outliner} pageId={pageId} zoom={zoom} embedded takesEdits />
+}) => (
+  <Outliner
+    {...env.outliner}
+    pageId={pageId}
+    zoom={zoom}
+    embedded
+    takesEdits
+    codeStyle="highlight.js"
+  />
+)
 
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
 

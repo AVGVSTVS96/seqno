@@ -1,3 +1,4 @@
+import { logseq } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import { IconX } from "@tabler/icons-react"
 import { useId } from "react"
@@ -48,10 +49,15 @@ const Field = ({
       if (item.enumPicker === "checkbox" || item.enumPicker === "radio") {
         const many = item.enumPicker === "checkbox"
         return (
-          <div role="group" aria-labelledby={labelledBy} className="plugin-setting-choices">
+          <div
+            role="group"
+            aria-labelledby={labelledBy}
+            {...logseq("plugin-setting-choices", many)}
+          >
             {item.enumChoices.map((choice) => (
               <label key={choice} className="plugin-setting-choice">
                 <input
+                  {...logseq("plugin-setting-choice-input", many)}
                   type={many ? "checkbox" : "radio"}
                   name={item.key}
                   checked={picked.includes(choice)}
@@ -74,7 +80,7 @@ const Field = ({
       return (
         <select
           aria-labelledby={labelledBy}
-          className="plugin-setting-input"
+          {...logseq("plugin-setting-select")}
           value={picked[0] ?? ""}
           onChange={(event) => onChange(event.target.value)}
         >
@@ -101,14 +107,14 @@ const Field = ({
       return item.inputAs === "textarea" ? (
         <textarea
           aria-labelledby={labelledBy}
-          className="plugin-setting-input"
+          {...logseq("plugin-setting-input", "textarea")}
           value={textOf(value)}
           onChange={(event) => onChange(event.target.value)}
         />
       ) : (
         <input
           aria-labelledby={labelledBy}
-          className="plugin-setting-input"
+          {...logseq("plugin-setting-input", item.inputAs ?? item.type)}
           type={item.inputAs ?? (item.type === "number" ? "number" : "text")}
           value={textOf(value)}
           onChange={(event) => onChange(event.target.value)}
@@ -132,10 +138,14 @@ const Row = ({
 }) => {
   const labelId = useId()
   if (item.type === "heading") {
-    return <h3 className="plugin-setting-heading">{item.title}</h3>
+    return (
+      <div {...logseq("plugin-setting-heading-item")}>
+        <h3 className="plugin-setting-heading">{item.title}</h3>
+      </div>
+    )
   }
   return (
-    <div className="plugin-setting">
+    <div {...logseq("plugin-setting", item.type)}>
       <div className="plugin-setting-label" id={labelId}>
         <code>{item.key}</code>
         {item.title === "" ? null : <strong>{item.title}</strong>}
@@ -172,9 +182,11 @@ const Form = ({ pid }: { readonly pid: string }) => {
       {schema.length === 0 ? (
         <p className="plugins-empty">This plugin has no settings.</p>
       ) : (
-        schema.map((item) => (
-          <Row key={item.key} item={item} settings={settings} pid={pid} host={host} />
-        ))
+        <div {...logseq("plugin-settings-inner")}>
+          {schema.map((item) => (
+            <Row key={item.key} item={item} settings={settings} pid={pid} host={host} />
+          ))}
+        </div>
       )}
     </>
   )

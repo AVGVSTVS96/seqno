@@ -1,5 +1,5 @@
 import { createContext, type ComponentType, type KeyboardEvent, type ReactNode } from "react"
-import type { AccentChoice } from "@seqno/dom"
+import type { AccentChoice, CodeStyle } from "@seqno/dom"
 import type { Block, BlockId, PageId } from "@seqno/domain"
 import {
   blockContent,
@@ -27,6 +27,7 @@ export interface Renderer {
   readonly openMenu: OpenBlockMenu | undefined
   readonly vim: boolean
   readonly readOnly: boolean
+  readonly codeStyle: CodeStyle
 }
 
 export const RenderContext = createContext<Renderer>({
@@ -40,6 +41,7 @@ export const RenderContext = createContext<Renderer>({
   resolveAsset: () => undefined,
   vim: false,
   readOnly: false,
+  codeStyle: "codemirror",
 })
 
 export const DocumentMode = createContext(false)
@@ -47,6 +49,8 @@ export const DocumentMode = createContext(false)
 export const ShowBrackets = createContext(true)
 
 export const Accent = createContext<AccentChoice>("logseq")
+
+export const ColorMode = createContext<"light" | "dark">("light")
 
 export const PageDialects = createContext<(pageId: PageId) => Dialect>(() => "markdown")
 

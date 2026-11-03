@@ -20,6 +20,21 @@ export interface PluginParts {
   readonly "seqno-fenced-code-result": readonly [edit: boolean]
   readonly "seqno-fenced-code-actions": readonly []
   readonly "seqno-fenced-code-action": readonly []
+  readonly "plugin-settings-inner": readonly []
+  readonly "plugin-setting": readonly [string]
+  readonly "plugin-setting-heading-item": readonly []
+  readonly "plugin-setting-input": readonly [string]
+  readonly "plugin-setting-select": readonly []
+  readonly "plugin-setting-choices": readonly [boolean]
+  readonly "plugin-setting-choice-input": readonly [boolean]
+}
+
+const settingKinds: Readonly<Record<string, string>> = {
+  string: "as-input",
+  number: "as-input",
+  boolean: "as-toggle",
+  enum: "as-enum",
+  object: "as-object",
 }
 
 export const pluginParts: Table<PluginParts> = {
@@ -67,4 +82,22 @@ export const pluginParts: Table<PluginParts> = {
   "seqno-fenced-code-actions": () => ({ className: "actions" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1194
   "seqno-fenced-code-action": () => ({ className: "ui__button" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins_settings.cljs#L119
+  "plugin-settings-inner": () => ({ className: "cp__plugins-settings-inner" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins_settings.cljs#L31-L86
+  "plugin-setting": (type) => ({ className: names("desc-item", settingKinds[type]) }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins_settings.cljs#L97
+  "plugin-setting-heading-item": () => ({ className: "heading-item" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins_settings.cljs#L40-L41
+  "plugin-setting-input": (inputAs) => ({
+    className: names(inputAs !== "color" && inputAs !== "range" && "form-input"),
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L887
+  "plugin-setting-select": () => ({ className: "form-select" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L903-L940
+  "plugin-setting-choices": (many) => ({
+    className: many ? "ui__checkbox-list" : "ui__radio-list",
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L910
+  "plugin-setting-choice-input": (many) => ({ className: many ? "form-checkbox" : "form-radio" }),
 }

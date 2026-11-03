@@ -23,6 +23,23 @@ export type Body =
       readonly lines: ReadonlyArray<ReadonlyArray<Inline>>
       readonly span: Span
     }
+  | {
+      readonly _tag: "Admonition"
+      readonly kind: AdmonitionKind
+      readonly lines: ReadonlyArray<ReadonlyArray<Inline>>
+      readonly span: Span
+    }
+
+export type AdmonitionKind = "note" | "tip" | "important" | "caution" | "warning" | "pinned"
+
+const admonitions: ReadonlyMap<string, AdmonitionKind> = new Map([
+  ["NOTE", "note"],
+  ["TIP", "tip"],
+  ["IMPORTANT", "important"],
+  ["CAUTION", "caution"],
+  ["WARNING", "warning"],
+  ["PINNED", "pinned"],
+])
 
 export interface ShownProperty {
   readonly key: string
@@ -202,6 +219,13 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
       } else if (region.kind === "Directive" && region.name === "QUOTE") {
         body.push({
           _tag: "Quote",
+          lines: inner.map((entry) => parseInline(entry.text, entry.from, dialect)),
+          span,
+        })
+      } else if (region.kind === "Directive" && admonitions.has(region.name)) {
+        body.push({
+          _tag: "Admonition",
+          kind: admonitions.get(region.name) ?? "note",
           lines: inner.map((entry) => parseInline(entry.text, entry.from, dialect)),
           span,
         })

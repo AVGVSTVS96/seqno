@@ -50,6 +50,10 @@
   cursor: pointer;
 }
 
+.seqno-page-title-editor {
+  display: block;
+}
+
 .seqno-page-title-input {
   display: block;
   width: 100%;

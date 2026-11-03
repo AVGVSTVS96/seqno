@@ -40,7 +40,9 @@ export interface PdfParts {
   readonly "seqno-pdf-theme-picker": readonly []
   readonly "seqno-pdf-theme": readonly [string]
   readonly "seqno-pdf-toggle": Flag
-  readonly "seqno-pdf-switch": Flag
+  readonly "seqno-pdf-switch": readonly []
+  readonly "seqno-pdf-switch-track": Flag
+  readonly "seqno-pdf-switch-knob": readonly []
   readonly "seqno-pdf-metadata-link": readonly []
   readonly "seqno-pdf-docinfo": readonly []
   readonly "seqno-pdf-inner-text": readonly []
@@ -178,9 +180,13 @@ export const pdfParts: Table<PdfParts> = {
     className: names("extensions__pdf-settings-item toggle-input", between && "is-between"),
   }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L567-L571
-  "seqno-pdf-switch": (on) => ({
-    className: names("ui__toggle", on ? "ui__toggle-background-on" : "ui__toggle-background-off"),
+  "seqno-pdf-switch": () => ({ className: "ui__toggle" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L569-L571
+  "seqno-pdf-switch-track": (on) => ({
+    className: names("wrapper", on ? "ui__toggle-background-on" : "ui__toggle-background-off"),
   }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L572
+  "seqno-pdf-switch-knob": () => ({ className: "switcher" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/pdf/toolbar.cljs#L101
   "seqno-pdf-metadata-link": () => ({ className: "is-info w-full text-gray-500" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/pdf/toolbar.cljs#L112

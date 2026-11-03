@@ -188,7 +188,12 @@ const PageLink = ({
   const shown = use(ShowBrackets)
   const preview = usePreview({ _tag: "Page", name })
   return (
-    <span {...logseq("seqno-pageref", name)} data-brackets={(brackets && shown) || undefined}>
+    <span {...logseq("seqno-pageref", name)}>
+      {brackets && shown ? (
+        <span {...logseq("seqno-bracket")} data-from={span?.from}>
+          [[
+        </span>
+      ) : null}
       <a
         role="link"
         tabIndex={0}
@@ -202,6 +207,11 @@ const PageLink = ({
       >
         {children}
       </a>
+      {brackets && shown ? (
+        <span {...logseq("seqno-bracket")} data-from={span === undefined ? undefined : span.to - 2}>
+          ]]
+        </span>
+      ) : null}
       {preview.popup}
     </span>
   )

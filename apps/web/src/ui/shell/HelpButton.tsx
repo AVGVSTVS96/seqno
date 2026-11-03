@@ -29,7 +29,7 @@ export const HelpButton = () => {
     { align: "end", gap: 8, inset: 4, side: "top" },
   )
   return (
-    <div className="help">
+    <div {...logseq("help")}>
       <button
         type="button"
         aria-label="Help"

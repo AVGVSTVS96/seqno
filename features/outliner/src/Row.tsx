@@ -37,6 +37,7 @@ export interface RowProps {
   readonly firstChild: boolean
   readonly nextPath: ReadonlyArray<BlockId>
   readonly selected: boolean
+  readonly dragged: boolean
   readonly highlight: Highlight | undefined
   readonly dropZone: DropZone | null
   readonly hoveredGuide: BlockId | null
@@ -72,6 +73,7 @@ export const RowView = ({
   firstChild,
   nextPath,
   selected,
+  dragged,
   highlight,
   dropZone,
   hoveredGuide,
@@ -105,6 +107,7 @@ export const RowView = ({
         childRefs,
         folded,
         selected,
+        dragged,
       })}
       data-index={index}
       data-block-id={block.id}

@@ -31,11 +31,11 @@ export interface ShellParts {
   readonly "seqno-home-button": readonly []
   readonly "seqno-more-button": readonly []
   readonly "seqno-right-toggle": readonly []
-  readonly "left-sidebar": readonly []
+  readonly "left-sidebar": readonly [boolean]
   readonly "left-sidebar-inner": readonly []
   readonly "left-sidebar-resizer": readonly []
   readonly "left-sidebar-wrap": readonly []
-  readonly "left-sidebar-contents": readonly []
+  readonly "left-sidebar-contents": readonly [boolean]
   readonly "sidebar-group": readonly [{ readonly group: string | null; readonly expanded: boolean }]
   readonly "sidebar-group-header": readonly [boolean]
   readonly "seqno-sidebar-group-body": readonly []
@@ -58,6 +58,7 @@ export interface ShellParts {
   readonly "page-link-icon": readonly []
   readonly "page-link-title": readonly []
   readonly "graph-switcher": readonly []
+  readonly "graph-switch": readonly []
   readonly "graph-name": readonly []
   readonly "right-sidebar": readonly []
   readonly "right-sidebar-inner": readonly []
@@ -69,6 +70,7 @@ export interface ShellParts {
   readonly "sidebar-item-header": readonly []
   readonly "sidebar-item-actions": readonly []
   readonly "sidebar-item-action": readonly []
+  readonly help: readonly []
   readonly "help-button": readonly []
   readonly menu: readonly []
   readonly "menu-item": readonly []
@@ -80,11 +82,27 @@ export interface ShellParts {
   readonly "block-menu": readonly []
   readonly "block-menu-color": readonly [boolean]
   readonly "block-menu-heading": readonly []
+  readonly "shortcut-list": readonly []
+  readonly "shortcut-keys": readonly []
+  readonly "seqno-keys": readonly []
+  readonly notices: readonly []
+  readonly notice: readonly []
   readonly settings: readonly []
   readonly "plugins-dialog": readonly []
   readonly "plugins-tabs": readonly []
-  readonly "plugin-card": readonly []
+  readonly "plugin-card": readonly ["market" | "installed"]
+  readonly "plugin-card-icon": readonly []
+  readonly "plugin-card-body": readonly []
+  readonly "plugin-card-title": readonly []
+  readonly "plugin-card-description": readonly []
+  readonly "plugin-card-meta": readonly []
+  readonly "plugin-card-footer": readonly []
+  readonly "plugin-card-left": readonly []
+  readonly "plugin-card-right": readonly []
+  readonly "plugin-card-menu": readonly []
   readonly "plugin-themes": readonly []
+  readonly "plugin-theme": readonly [boolean]
+  readonly "plugin-theme-name": readonly []
 }
 
 export const shellParts: Table<ShellParts> = {
@@ -133,7 +151,10 @@ export const shellParts: Table<ShellParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/right_sidebar.cljs#L28
   "seqno-right-toggle": () => ({ className: "button icon toggle-right-sidebar" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L553
-  "left-sidebar": () => ({ className: "cp__sidebar-left-layout", id: "left-sidebar" }),
+  "left-sidebar": (open) => ({
+    className: names("cp__sidebar-left-layout", open && "is-open"),
+    id: "left-sidebar",
+  }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L386
   "left-sidebar-inner": () => ({ className: "" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.css#L441
@@ -141,7 +162,10 @@ export const shellParts: Table<ShellParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L388
   "left-sidebar-wrap": () => ({ className: "wrap" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L472
-  "left-sidebar-contents": () => ({ className: "nav-contents-container" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L343-L349
+  "left-sidebar-contents": (scrolled) => ({
+    className: names("nav-contents-container", scrolled && "is-scrolled"),
+  }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L58-L61
   "sidebar-group": ({ group, expanded }) => ({
     className:
@@ -198,6 +222,8 @@ export const shellParts: Table<ShellParts> = {
   "graph-switcher": () => ({ className: "cp__menubar-repos" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/repo.cljs#L218
   "graph-name": () => ({ className: "", id: "repo-name" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/repo.cljs#L217
+  "graph-switch": () => ({ className: "", id: "repo-switch" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/right_sidebar.cljs#L477
   "right-sidebar": () => ({ className: "cp__right-sidebar", id: "right-sidebar" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/right_sidebar.cljs#L428
@@ -224,7 +250,9 @@ export const shellParts: Table<ShellParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/right_sidebar.cljs#L285-L290
   "sidebar-item-action": () => ({ className: "ui__button" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L855
-  "help-button": () => ({ className: "cp__sidebar-help-btn" }),
+  help: () => ({ className: "cp__sidebar-help-btn" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/container.cljs#L856
+  "help-button": () => ({ className: "inner" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L145
   menu: () => ({ className: "dropdown-wrapper menu-links-wrapper" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L185-L187
@@ -243,8 +271,18 @@ export const shellParts: Table<ShellParts> = {
   "block-menu": () => ({ className: "menu-links-wrapper", id: "custom-context-menu" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L87-L91
   "block-menu-color": (clear) => ({ className: names("heading-bg", clear && "remove") }),
-  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/content.cljs#L60-L75
-  "block-menu-heading": () => ({ className: "ui__button" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L1174-L1210
+  "block-menu-heading": () => ({ className: "ui__button to-heading-button" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/shortcut.cljs#L391
+  "shortcut-list": () => ({ className: "cp__shortcut-page-x" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/shortcut.cljs#L458
+  "shortcut-keys": () => ({ className: "action-wrap" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L179
+  "seqno-keys": () => ({ className: "keyboard-shortcut" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L309
+  notices: () => ({ className: "notifications ui__notifications" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L263-L268
+  notice: () => ({ className: "ui__notifications-content notification-area" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/settings.cljs#L1152
   settings: () => ({ className: "cp__settings-main cp__settings-inner settings-modal" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1218
@@ -252,7 +290,32 @@ export const shellParts: Table<ShellParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L1226
   "plugins-tabs": () => ({ className: "tabs" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L297
-  "plugin-card": () => ({ className: "cp__plugins-item-card" }),
+  "plugin-card": (kind) => ({ className: `cp__plugins-item-card ${kind}` }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L305
+  "plugin-card-icon": () => ({ className: "l link-block" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L314
+  "plugin-card-body": () => ({ className: "r" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L315
+  "plugin-card-title": () => ({ className: "head" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L322
+  "plugin-card-description": () => ({ className: "desc" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L328
+  "plugin-card-meta": () => ({ className: "flag" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L199
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L228
+  "plugin-card-footer": () => ({ className: "ctl" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L200
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L229
+  "plugin-card-left": () => ({ className: "l" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L211
+  "plugin-card-right": () => ({ className: "r" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L230
+  "plugin-card-menu": () => ({ className: "de" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L90
   "plugin-themes": () => ({ className: "cp__themes-installed" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L54
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L101-L105
+  "plugin-theme": (chosen) => ({ className: names("it", chosen && "is-selected is-active") }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins.cljs#L108
+  "plugin-theme-name": () => ({ className: "name" }),
 }

@@ -77,11 +77,11 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
       onMouseDown={keepFocus}
       onKeyDown={onKeyDown}
     >
-      <div className="sq-date-calendar">
+      <div {...logseq("sq-date-calendar")}>
         <table role="grid" aria-label={monthTitle(month)}>
           <thead>
             <tr>
-              <th>
+              <th {...logseq("sq-date-turn-cell", "prev")}>
                 <button
                   type="button"
                   className="sq-date-turn"
@@ -91,10 +91,10 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
                   {"<"}
                 </button>
               </th>
-              <th colSpan={5} className="sq-date-month">
+              <th colSpan={5} {...logseq("sq-date-month")}>
                 {monthTitle(month)}
               </th>
-              <th>
+              <th {...logseq("sq-date-turn-cell", "next")}>
                 <button
                   type="button"
                   className="sq-date-turn"
@@ -107,7 +107,7 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
             </tr>
             <tr>
               {weekdays.map((day) => (
-                <th key={day} className="sq-date-weekday">
+                <th key={day} {...logseq("sq-date-weekday")}>
                   {day}
                 </th>
               ))}
@@ -122,7 +122,10 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
                     role="gridcell"
                     aria-selected={sameDay(day, chosen)}
                     data-off={day.getMonth() !== month.getMonth() || undefined}
-                    className="sq-date-day"
+                    {...logseq("sq-date-day", {
+                      inMonth: day.getMonth() === month.getMonth(),
+                      chosen: sameDay(day, chosen),
+                    })}
                     onClick={() => {
                       setChosen(day)
                       if (day.getMonth() !== month.getMonth()) {

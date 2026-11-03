@@ -1,3 +1,11 @@
+import {
+  IconAlertCircleFilled,
+  IconAlertTriangleFilled,
+  IconBulbFilled,
+  IconFlameFilled,
+  IconInfoCircleFilled,
+  IconPinnedFilled,
+} from "@tabler/icons-react"
 import { use, useState, type MouseEvent, type ReactNode } from "react"
 import { Match } from "effect"
 import { logseq, names } from "@seqno/dom"
@@ -6,6 +14,7 @@ import {
   clockTotal,
   isHiddenProperty,
   propertyValue,
+  type AdmonitionKind,
   type BlockContent,
   type Body,
   type Inline,
@@ -53,6 +62,39 @@ const Heading = ({
 
 type CodeChange = (from: number, to: number, insert: string) => void
 
+const admonitionIcons = {
+  note: IconInfoCircleFilled,
+  tip: IconBulbFilled,
+  important: IconAlertCircleFilled,
+  caution: IconFlameFilled,
+  warning: IconAlertTriangleFilled,
+  pinned: IconPinnedFilled,
+} satisfies Record<AdmonitionKind, unknown>
+
+const Admonition = ({
+  kind,
+  lines,
+}: {
+  readonly kind: AdmonitionKind
+  readonly lines: ReadonlyArray<ReadonlyArray<Inline>>
+}) => {
+  const Icon = admonitionIcons[kind]
+  return (
+    <div {...logseq("seqno-admonition", kind)} data-kind={kind}>
+      <div {...logseq("seqno-admonition-icon")} title={`${kind[0]?.toUpperCase()}${kind.slice(1)}`}>
+        <Icon {...logseq("seqno-admonition-svg", kind)} aria-hidden />
+      </div>
+      <div {...logseq("seqno-admonition-body")}>
+        {lines.map((line, index) => (
+          <div key={index} className="seqno-line">
+            <Inlines nodes={line} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: CodeChange }) => {
   const Rendered = use(CodeSlot)
   return Match.valueTags(body, {
@@ -84,6 +126,7 @@ const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: Cod
         </Rendered>
       )
     },
+    Admonition: ({ kind, lines }) => <Admonition kind={kind} lines={lines} />,
     Quote: ({ lines }) => (
       <blockquote className="seqno-quote">
         {lines.map((line, index) => (

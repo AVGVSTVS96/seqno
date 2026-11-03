@@ -443,8 +443,11 @@
   background-color: #037dba;
 }
 
-:is(.seqno-pdf-theme-picker, .seqno-pdf-toggle) .seqno-pdf-switch::after {
-  content: "";
+:is(.seqno-pdf-theme-picker, .seqno-pdf-toggle) .seqno-pdf-switch-track {
+  display: contents;
+}
+
+:is(.seqno-pdf-theme-picker, .seqno-pdf-toggle) .seqno-pdf-switch-knob {
   position: absolute;
   top: 2px;
   left: 2px;
@@ -455,7 +458,9 @@
   transition: transform 0.2s;
 }
 
-:is(.seqno-pdf-theme-picker, .seqno-pdf-toggle) .seqno-pdf-switch[aria-checked="true"]::after {
+:is(.seqno-pdf-theme-picker, .seqno-pdf-toggle)
+  .seqno-pdf-switch[aria-checked="true"]
+  .seqno-pdf-switch-knob {
   transform: translateX(14px);
 }
 

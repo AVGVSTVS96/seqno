@@ -1,6 +1,6 @@
 import { BlockId, PageId } from "@seqno/domain"
 import { describe, expect, it } from "vitest"
-import { logseq, names, refsSelf } from "../src/index.ts"
+import { logseq, names, refsSelf, type CodeLook } from "../src/index.ts"
 
 const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
 
@@ -14,6 +14,31 @@ describe("logseq", () => {
     expect(logseq("seqno-bullet", { blockId, folded: false, numbered: false }).className).toBe(
       "seqno-bullet bullet-container",
     )
+  })
+
+  it("names a code block as CodeMirror 5 in the outline and as highlight.js in slides", () => {
+    const light: CodeLook = { style: "codemirror", mode: "light", accent: false }
+    expect(logseq("seqno-codeblock", "ts", light, true)).toEqual({
+      className:
+        "seqno-codeblock cp__fenced-code-block extensions__code CodeMirror cm-s-solarized cm-s-light CodeMirror-focused",
+      "data-lang": "ts",
+    })
+    expect(
+      logseq("seqno-codeblock", "ts", { style: "codemirror", mode: "dark", accent: true }, false)
+        .className,
+    ).toBe(
+      "seqno-codeblock cp__fenced-code-block extensions__code CodeMirror cm-s-lsradix cm-s-dark",
+    )
+    const slide: CodeLook = { style: "highlight.js", mode: "light", accent: false }
+    expect(logseq("seqno-code-text", "ts", slide)).toEqual({
+      className: "seqno-code-text hljs language-ts",
+      "data-lang": "ts",
+    })
+    expect(logseq("seqno-tok", "tagBracket", "codemirror").className).toBe(
+      "seqno-tok cm-tag cm-bracket",
+    )
+    expect(logseq("seqno-tok", "regexp", "highlight.js").className).toBe("seqno-tok hljs-regexp")
+    expect(logseq("seqno-tok", "local", "highlight.js").className).toBe("seqno-tok")
   })
 
   it("names a block row as Logseq does", () => {
@@ -33,6 +58,7 @@ describe("logseq", () => {
         childRefs: '["ana"]',
         folded: true,
         selected: false,
+        dragged: false,
       }),
     ).toEqual({
       className: "seqno-row ls-block 01920000-0000-7000-8000-000000000001",

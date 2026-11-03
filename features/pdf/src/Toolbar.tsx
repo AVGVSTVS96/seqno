@@ -77,9 +77,13 @@ const Toggle = ({ on, onChange, label }: { on: boolean; onChange: () => void; la
     role="switch"
     aria-checked={on}
     aria-label={label}
-    {...logseq("seqno-pdf-switch", on)}
+    {...logseq("seqno-pdf-switch")}
     onClick={onChange}
-  />
+  >
+    <span {...logseq("seqno-pdf-switch-track", on)}>
+      <span {...logseq("seqno-pdf-switch-knob")} />
+    </span>
+  </button>
 )
 
 const closeOnOutside = (box: HTMLElement | null, close: () => void, keep: string) => {

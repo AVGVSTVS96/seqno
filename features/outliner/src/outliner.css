@@ -5,6 +5,7 @@
   --code-local: #b58900;
   --code-comment: #586e75;
   --code-tag: #93a1a1;
+  --code-error: #dc322f;
   position: relative;
   min-width: 0;
   color: var(--fg);
@@ -549,19 +550,13 @@
   margin-right: var(--space-1);
 }
 
-.seqno-pageref[data-brackets]::before,
-.seqno-pageref[data-brackets]::after {
+.seqno-bracket {
   color: var(--fg-bracket);
   opacity: var(--opacity-bracket);
 }
 
-.seqno-pageref[data-brackets]::before {
-  content: "[[";
+.seqno-bracket:first-child {
   margin-right: 1px;
-}
-
-.seqno-pageref[data-brackets]::after {
-  content: "]]";
 }
 
 .seqno-pageref-link,
@@ -1106,7 +1101,8 @@
   opacity: 0.8;
 }
 
-.seqno-tok-keyword {
+.seqno-tok-keyword,
+.seqno-tok-pyLiteral {
   color: var(--code-keyword);
 }
 
@@ -1115,11 +1111,13 @@
   color: var(--code-string);
 }
 
-.seqno-tok-def {
+.seqno-tok-def,
+.seqno-tok-attribute {
   color: var(--code-def);
 }
 
-.seqno-tok-property {
+.seqno-tok-property,
+.seqno-tok-cssProperty {
   color: var(--code-property);
 }
 
@@ -1128,25 +1126,45 @@
 }
 
 .seqno-tok-local,
-.seqno-tok-qualifier {
+.seqno-tok-qualifier,
+.seqno-tok-template,
+.seqno-tok-interpolation,
+.seqno-tok-regexp {
   color: var(--code-local);
 }
 
-.seqno-tok-number {
+.seqno-tok-number,
+.seqno-tok-atom,
+.seqno-tok-entity,
+.seqno-tok-color,
+.seqno-tok-id,
+.seqno-tok-builtin {
   color: var(--code-number);
 }
 
 .seqno-tok-operator,
-.seqno-tok-type {
+.seqno-tok-type,
+.seqno-tok-pseudo {
   color: var(--code-operator);
 }
 
-.seqno-tok-comment {
+.seqno-tok-comment,
+.seqno-tok-doctag,
+.seqno-tok-docType,
+.seqno-tok-docVariable {
   color: var(--code-comment);
 }
 
-.seqno-tok-tag {
+.seqno-tok-tag,
+.seqno-tok-tagBracket,
+.seqno-tok-selector,
+.seqno-tok-selectorAttr {
   color: var(--code-tag);
+}
+
+.seqno-tok-error {
+  border-bottom: 1px dotted var(--code-error);
+  color: var(--code-comment);
 }
 
 .seqno-plain-editor {
@@ -1307,7 +1325,7 @@
   padding: 0 5px;
 }
 
-.seqno-code-editor .cm-activeLine,
+.seqno-code-editor .seqno-code-active-line,
 .seqno-code-editor .cm-activeLineGutter {
   background: var(--bg-code-active-line);
 }
@@ -1506,4 +1524,36 @@
 
 .seqno-outliner[data-document-mode] :is(.seqno-h6, .sq-h6) {
   margin-block: 1.67em;
+}
+
+.seqno-admonition {
+  display: flex;
+  align-items: center;
+  margin: var(--space-4) 0;
+}
+
+.seqno-admonition-icon {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: var(--space-4);
+  border-right: 1px solid var(--border);
+}
+
+.seqno-admonition-svg {
+  width: 32px;
+  height: 32px;
+}
+
+.seqno-admonition[data-kind="important"] .seqno-admonition-svg {
+  color: #dc2626;
+}
+
+.seqno-admonition:is([data-kind="caution"], [data-kind="warning"]) .seqno-admonition-svg {
+  color: #ea580c;
+}
+
+.seqno-admonition-body {
+  margin-left: var(--space-4);
+  font-size: var(--text-lg);
 }

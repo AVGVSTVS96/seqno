@@ -19,6 +19,7 @@ export {
   type AccentChoice,
   type AccentColor,
 } from "./accents.ts"
+export type { CodeLook, CodeStyle, TokenKind } from "./code.ts"
 export { logseqDocument, type DocumentState } from "./document.ts"
 export { gaps } from "./gaps.ts"
 export { attributesOf, names, type LogseqNames, type Table } from "./names.ts"

@@ -402,7 +402,7 @@ const AllPages = ({ site }: { readonly site: Site }) => {
     { sort, filter, journals: true },
   )
   return (
-    <div className="seqno-all-pages">
+    <div {...logseq("seqno-all-pages")}>
       <title>All pages</title>
       <div className="seqno-view-head">
         <h1 className="seqno-view-title">
@@ -410,9 +410,10 @@ const AllPages = ({ site }: { readonly site: Site }) => {
           All
           <span className="seqno-view-count">{rows.length}</span>
         </h1>
-        <div className="seqno-view-actions">
-          <div className="seqno-view-filter">
+        <div {...logseq("seqno-view-actions")}>
+          <div {...logseq("seqno-view-filter")}>
             <input
+              {...logseq("seqno-view-filter-input")}
               type="search"
               aria-label="Search pages"
               placeholder="Type to search"
@@ -423,7 +424,7 @@ const AllPages = ({ site }: { readonly site: Site }) => {
         </div>
       </div>
       <div className="seqno-table-scroll">
-        <table className="seqno-table" aria-label="All pages">
+        <table {...logseq("seqno-table")} aria-label="All pages">
           <thead>
             <tr>
               <th className="seqno-table-gutter" aria-hidden />

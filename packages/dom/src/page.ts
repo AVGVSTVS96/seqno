@@ -22,6 +22,17 @@ export interface PageParts {
   readonly "seqno-references-head": readonly []
   readonly "seqno-references-body": readonly []
   readonly "seqno-references-group": readonly []
+  readonly "seqno-graph-view": readonly []
+  readonly "graph-root": readonly []
+  readonly "graph-toolbar": readonly []
+  readonly "seqno-all-pages": readonly []
+  readonly "seqno-view-actions": readonly []
+  readonly "seqno-view-filter": readonly []
+  readonly "seqno-view-filter-input": readonly []
+  readonly "seqno-table": readonly []
+  readonly "seqno-page-title-editor": readonly []
+  readonly "seqno-page-title-input": readonly []
+  readonly "seqno-crumb-label": readonly []
 }
 
 export const pageParts: Table<PageParts> = {
@@ -67,4 +78,26 @@ export const pageParts: Table<PageParts> = {
   "seqno-references-body": () => ({ className: "references-blocks" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L3529
   "seqno-references-group": () => ({ className: "references-blocks-item" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L809
+  "seqno-graph-view": () => ({ className: "", id: "global-graph" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/extensions/graph.cljs#L61
+  "graph-root": () => ({ className: "graph" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L603
+  "graph-toolbar": () => ({ className: "graph-filters" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L1067
+  "seqno-all-pages": () => ({ className: "cp__all_pages" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L1111
+  "seqno-view-actions": () => ({ className: "actions" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L1132
+  "seqno-view-filter": () => ({ className: "search-wrap" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L1146
+  "seqno-view-filter-input": () => ({ className: "form-input" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L1208
+  "seqno-table": () => ({ className: "cp__all_pages_table" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L291-L292
+  "seqno-page-title-editor": () => ({ className: "edit-input-wrapper editing" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L293
+  "seqno-page-title-input": () => ({ className: "edit-input" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L2600
+  "seqno-crumb-label": () => ({ className: "inline-wrap" }),
 }
