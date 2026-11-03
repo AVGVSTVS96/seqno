@@ -2,7 +2,7 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
-import { normalizePageName, type BlockId, type Page } from "@seqno/domain"
+import { isWhiteboard, normalizePageName, type BlockId, type Page } from "@seqno/domain"
 import { Outliner } from "@seqno/outliner"
 import { assetResolver, createPage, pages } from "../atoms.ts"
 import { EditorSlot } from "./EditorSlot.tsx"
@@ -16,6 +16,7 @@ import pagesCss from "./pages/pages.css?inline"
 import { PageTitle } from "./pages/PageTitle.tsx"
 import { PluginItems } from "@seqno/plugins"
 import { NameReferences, References } from "./pages/References.tsx"
+import { BoardPage } from "./pages/BoardPage.tsx"
 
 export const PagesStyle = () => (
   <style href="seqno/pages" precedence="pages">
@@ -113,6 +114,11 @@ export const PageByName = ({
     onSuccess: ({ value }) =>
       Option.match(named(value, name), {
         onNone: () => <MissingPage name={name} />,
-        onSome: (page) => <PageView page={page} zoom={zoom} />,
+        onSome: (page) =>
+          isWhiteboard(page) ? (
+            <BoardPage page={page} zoom={zoom} />
+          ) : (
+            <PageView page={page} zoom={zoom} />
+          ),
       }),
   })

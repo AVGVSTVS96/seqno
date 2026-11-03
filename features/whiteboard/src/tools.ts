@@ -14,7 +14,7 @@ export type Tool =
   | "text"
   | ShapeTool
 
-export const COLORS = ["", "gray", "red", "yellow", "green", "blue", "purple", "pink"] as const
+export const COLORS = ["yellow", "red", "pink", "green", "blue", "purple", "gray", ""] as const
 export type Color = (typeof COLORS)[number]
 
 export interface Styles {

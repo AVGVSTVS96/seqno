@@ -42,7 +42,7 @@ export interface Item {
 
 export type Line = typeof LineShape.Type
 
-export type Heights = ReadonlyMap<BlockId, number>
+export type Measured = ReadonlyMap<BlockId, Vec>
 
 export interface Scene {
   readonly items: ReadonlyArray<Item>
@@ -90,17 +90,19 @@ const strokePoints = (
 
 export const absolutePoints = strokePoints
 
-const heightOf = (item: Item, heights: Heights): number => {
+export const sizeOfItem = (item: Item, measured: Measured): Vec => {
   const { shape } = item
+  const seen = measured.get(item.block.id)
   if (shape.type === "logseq-portal") {
-    if (shape.collapsed === true) return shape.collapsedHeight ?? COLLAPSED_PORTAL
-    return heights.get(item.block.id) ?? Math.max(shape.size[1], PORTAL_HEADER)
+    if (shape.collapsed === true) return [shape.size[0], seen?.[1] ?? COLLAPSED_PORTAL]
+    if (seen !== undefined && shape.isAutoResizing !== false) return [shape.size[0], seen[1]]
+    return [shape.size[0], Math.max(shape.size[1], PORTAL_HEADER)]
   }
-  if (shape.type === "text") return heights.get(item.block.id) ?? shape.size[1]
-  return "size" in shape ? shape.size[1] : 0
+  if (shape.type === "text" && shape.isAutoResizing !== false && seen !== undefined) return seen
+  return "size" in shape ? shape.size : [0, 0]
 }
 
-const ownBounds = (item: Item, heights: Heights): Bounds => {
+const ownBounds = (item: Item, measured: Measured): Bounds => {
   const { shape } = item
   switch (shape.type) {
     case "line":
@@ -114,7 +116,7 @@ const ownBounds = (item: Item, heights: Heights): Bounds => {
         ? boxBounds(shape.point, [0, 0])
         : boundsOfPoints(strokePoints(shape))
     default:
-      return boxBounds(shape.point, [shape.size[0], heightOf(item, heights)])
+      return boxBounds(shape.point, sizeOfItem(item, measured))
   }
 }
 
@@ -145,11 +147,11 @@ const lineEnds = (
   return [clip(start, end), clip(end, start)]
 }
 
-export const sceneOf = (items: ReadonlyArray<Item>, heights: Heights): Scene => {
+export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene => {
   const byId = new Map(items.map((item) => [item.block.id, item]))
   const bounds = new Map<BlockId, Bounds>()
   for (const item of items) {
-    if (item.shape.type !== "line") bounds.set(item.block.id, ownBounds(item, heights))
+    if (item.shape.type !== "line") bounds.set(item.block.id, ownBounds(item, measured))
   }
   const ends = new Map<BlockId, readonly [Vec, Vec]>()
   for (const item of items) {

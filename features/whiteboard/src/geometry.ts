@@ -53,14 +53,19 @@ export const zoomAt = (camera: Camera, at: Vec, zoom: number): Camera => {
 
 export const center = (viewport: Viewport): Vec => [viewport.width / 2, viewport.height / 2]
 
-export const fitBounds = (bounds: Bounds, viewport: Viewport, most = 1): Camera => {
+export const fitBounds = (
+  bounds: Bounds,
+  viewport: Viewport,
+  most = 1,
+  padding = FIT_PADDING,
+): Camera => {
   const width = Math.max(1, bounds.maxX - bounds.minX)
   const height = Math.max(1, bounds.maxY - bounds.minY)
   const zoom = clampZoom(
     Math.min(
       most,
-      (viewport.width - FIT_PADDING * 2) / width,
-      (viewport.height - FIT_PADDING * 2) / height,
+      (viewport.width - padding * 2) / width,
+      (viewport.height - padding * 2) / height,
     ),
   )
   return {

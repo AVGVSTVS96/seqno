@@ -93,6 +93,7 @@ export const PortalShape = Schema.Struct({
   collapsed: Schema.optionalKey(Schema.Boolean),
   compact: Schema.optionalKey(Schema.Boolean),
   collapsedHeight: Schema.optionalKey(Schema.Finite),
+  isAutoResizing: Schema.optionalKey(Schema.Boolean),
 })
 
 export const ImageShape = Schema.Struct({

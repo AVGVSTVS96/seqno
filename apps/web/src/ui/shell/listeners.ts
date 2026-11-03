@@ -11,6 +11,7 @@ import {
   theme,
   type SidebarItem,
 } from "../../atoms.ts"
+import { createWhiteboard } from "../pages/Whiteboards.tsx"
 import { openDialog, togglePopover } from "./popover.tsx"
 import { idle, nextKeyState, type KeyState, type ShortcutAction } from "./shortcuts.ts"
 import { recentPages, remember, settingsDialogId, settingsTab, wideMode } from "./state.ts"
@@ -51,6 +52,16 @@ const perform = (
   GoHome: () => void router.navigate({ to: "/" }),
   GoAllPages: () => void router.navigate({ to: "/all-pages" }),
   GoGraphView: () => void router.navigate({ to: "/graph" }),
+  GoWhiteboards: () => void router.navigate({ to: "/whiteboards" }),
+  NewWhiteboard: () => {
+    const name = crypto.randomUUID()
+    const stop = registry.subscribe(createWhiteboard, (result) => {
+      if (!AsyncResult.isSuccess(result) || result.value !== name) return
+      stop()
+      void router.navigate({ to: "/page/$name", params: { name } })
+    })
+    registry.set(createWhiteboard, name)
+  },
   GoShortcuts: () => {
     registry.set(settingsTab, "keymap")
     openDialog(settingsDialogId)

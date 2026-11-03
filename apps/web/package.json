@@ -24,6 +24,7 @@
     "@seqno/rpc": "workspace:*",
     "@seqno/syntax": "workspace:*",
     "@seqno/vault": "workspace:*",
+    "@seqno/whiteboard": "workspace:*",
     "@tabler/icons-react": "3.49.0",
     "@tabler/icons-webfont": "3.49.0",
     "@tanstack/react-router": "1.170.41",

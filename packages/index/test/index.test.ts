@@ -321,6 +321,12 @@ FROM pages p ORDER BY p.id`
           upsertBlock(blockId(10), notes, "see [[Seed Inventory]] and #greenhouse."),
           upsertBlock(blockId(11), notes, "```css\na {\n  color: #3a7d44;\n}\n```"),
           upsertBlock(blockId(12), notes, "#+BEGIN_QUERY\n{}\n#+END_QUERY"),
+          upsertBlock(blockId(13), notes, "", {
+            props: {
+              "ls-type": "whiteboard-shape",
+              "logseq.tldraw.shape": '{"type":"box","fill":"#ff0000","label":"[[Not a link]]"}',
+            },
+          }),
         ])
         assert.deepStrictEqual(yield* index.referencedPages, [
           {

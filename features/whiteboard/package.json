@@ -15,6 +15,7 @@
     "@seqno/rpc": "workspace:*",
     "@tabler/icons-react": "3.49.0",
     "effect": "4.0.1",
+    "perfect-freehand": "1.2.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

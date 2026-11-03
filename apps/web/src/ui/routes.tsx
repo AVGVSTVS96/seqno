@@ -10,6 +10,7 @@ import { GraphView } from "./graph/GraphView.tsx"
 import { PageByName } from "./PageView.tsx"
 import { AllPages as AllPagesView } from "./pages/AllPages.tsx"
 import { Journals as JournalsView } from "./pages/Journals.tsx"
+import { Whiteboards as WhiteboardsView } from "./pages/Whiteboards.tsx"
 
 export const appTitle = "seqno"
 
@@ -59,6 +60,13 @@ export const AllPages = () => (
   <>
     <title>All pages</title>
     <AllPagesView />
+  </>
+)
+
+export const WhiteboardsRoute = () => (
+  <>
+    <title>Whiteboards</title>
+    <WhiteboardsView />
   </>
 )
 

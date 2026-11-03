@@ -79,15 +79,18 @@ const propValues = (key: string, raw: string): ReadonlyArray<string> => {
   return linked.length > 0 ? linked : [normalizePageName(raw)]
 }
 
+const isInternal = (key: string) => key === "ls-type" || key.startsWith("logseq.")
+
 const propsOf = (props: Props): ReadonlyArray<Prop> =>
   Object.entries(props).flatMap(([rawKey, raw]) => {
     const key = rawKey.toLowerCase()
-    return propValues(key, raw).map((value): Prop => [key, value])
+    return isInternal(key) ? [] : propValues(key, raw).map((value): Prop => [key, value])
   })
 
 const linkedProps = (props: Props): ReadonlyArray<string> =>
   Object.entries(props).flatMap(([rawKey, raw]) => {
     const key = rawKey.toLowerCase()
+    if (isInternal(key)) return []
     return LIST_KEYS.has(key) || /\[\[|#/.test(raw) ? propValues(key, raw) : []
   })
 

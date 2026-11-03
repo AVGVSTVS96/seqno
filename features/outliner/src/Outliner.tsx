@@ -75,6 +75,7 @@ export interface OutlinerProps {
   readonly onNavigate: Navigate
   readonly editor?: ComponentType<EditorSlotProps>
   readonly embedded?: boolean
+  readonly takesEdits?: boolean
   readonly addable?: boolean
   readonly windowed?: boolean
   readonly resolveAsset?: (path: string) => string | undefined
@@ -362,7 +363,9 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const { view } = laid
   const rows = view.rows
   const requested =
-    request !== null && !embedded && laid.positions.has(request.blockId) ? request : null
+    request !== null && (props.takesEdits ?? !embedded) && laid.positions.has(request.blockId)
+      ? request
+      : null
   const editing = requested ?? localEditing
   const indexOf = (blockId: BlockId) => laid.positions.get(blockId) ?? -1
   const {

@@ -1,6 +1,7 @@
 import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconCalendar,
+  IconChalkboard,
   IconChevronRight,
   IconDots,
   IconFile,
@@ -76,7 +77,7 @@ const NavItem = ({
   label,
   keys,
 }: {
-  readonly to: "/" | "/all-pages" | "/graph"
+  readonly to: "/" | "/whiteboards" | "/all-pages" | "/graph"
   readonly icon: ReactNode
   readonly label: string
   readonly keys?: ReadonlyArray<string>
@@ -207,6 +208,12 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
                   icon={<IconCalendar className="nav-item-icon" size={16} aria-hidden />}
                   label="Journals"
                   keys={keysOf("GoJournals")}
+                />
+                <NavItem
+                  to="/whiteboards"
+                  icon={<IconChalkboard className="nav-item-icon" size={16} aria-hidden />}
+                  label="Whiteboards"
+                  keys={keysOf("GoWhiteboards")}
                 />
                 <NavItem
                   to="/all-pages"

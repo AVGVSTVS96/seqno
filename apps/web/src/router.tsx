@@ -4,7 +4,14 @@ import { Option, Schema } from "effect"
 import { BlockId } from "@seqno/domain"
 import { graphLocked } from "./atoms.ts"
 import { GraphInUse } from "./ui/pages/GraphInUse.tsx"
-import { AllGraphsRoute, AllPages, GraphRoute, Journals, PageRoute } from "./ui/routes.tsx"
+import {
+  AllGraphsRoute,
+  AllPages,
+  GraphRoute,
+  Journals,
+  PageRoute,
+  WhiteboardsRoute,
+} from "./ui/routes.tsx"
 import { SearchPalette } from "./ui/search/SearchPalette.tsx"
 import { Shell } from "./ui/Shell.tsx"
 
@@ -35,6 +42,11 @@ const routeTree = rootRoute.addChildren([
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/all-pages", component: AllPages }),
   createRoute({ getParentRoute: () => rootRoute, path: "/graph", component: GraphRoute }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/whiteboards",
+    component: WhiteboardsRoute,
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: "/graphs", component: AllGraphsRoute }),
   createRoute({
     getParentRoute: () => rootRoute,

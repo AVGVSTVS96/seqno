@@ -8,6 +8,8 @@ export type ShortcutAction =
   | "GoHome"
   | "GoAllPages"
   | "GoGraphView"
+  | "GoWhiteboards"
+  | "NewWhiteboard"
   | "GoShortcuts"
   | "CloseTopSidebarItem"
   | "ToggleContents"
@@ -23,6 +25,8 @@ const bindings: ReadonlyArray<readonly [string, ShortcutAction]> = [
   ["g h", "GoHome"],
   ["g a", "GoAllPages"],
   ["g g", "GoGraphView"],
+  ["g w", "GoWhiteboards"],
+  ["n w", "NewWhiteboard"],
   ["g s", "GoShortcuts"],
   ["c t", "CloseTopSidebarItem"],
   ["alt shift c", "ToggleContents"],

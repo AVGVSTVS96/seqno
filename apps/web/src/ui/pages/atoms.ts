@@ -47,6 +47,8 @@ export const pageNames = Atom.make((get): ReadonlyArray<PageName> => [
 
 export const today = Atom.make(() => dayOf(new Date()))
 
+export const openedAt = Atom.make(() => Date.now())
+
 const settingsRuntime = Atom.runtime((get) => get(settingsLayer))
 
 export const allPagesSort = Atom.kvs({
