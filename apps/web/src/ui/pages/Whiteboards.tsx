@@ -47,6 +47,15 @@ export const ago = (millis: number, now: number) => {
   return unit === undefined ? "just now" : relative.format(Math.round(seconds / unit[1]), unit[0])
 }
 
+const newestFirst = (
+  boards: ReadonlyArray<Page>,
+  times: ReadonlyMap<PageId, number | null>,
+): ReadonlyArray<Page> =>
+  boards.toSorted((left, right) => {
+    const by = (times.get(right.id) ?? 0) - (times.get(left.id) ?? 0)
+    return by === 0 ? right.id.localeCompare(left.id) : by
+  })
+
 const Card = ({
   page,
   edited,
@@ -106,10 +115,7 @@ export const Whiteboards = () => {
   const [confirming, setConfirming] = useState(false)
   const times = new Map(stats.map((stat) => [stat.pageId, stat.updated ?? stat.created]))
   const now = useAtomValue(openedAt)
-  const sorted = boards.toSorted(
-    (left, right) =>
-      (times.get(right.id) ?? 0) - (times.get(left.id) ?? 0) || right.id.localeCompare(left.id),
-  )
+  const sorted = newestFirst(boards, times)
   const chosen = sorted.filter((page) => checked.has(page.id))
   const toggle = (id: PageId) => {
     const next = new Set(checked)
@@ -162,7 +168,7 @@ export const Whiteboards = () => {
             <Card
               key={page.id}
               page={page}
-              edited={at === undefined || at === null ? "" : `Edited ${ago(at, now)}`}
+              edited={typeof at === "number" ? `Edited ${ago(at, now)}` : ""}
               checked={checked.has(page.id)}
               selecting={chosen.length > 0}
               onToggle={() => toggle(page.id)}
