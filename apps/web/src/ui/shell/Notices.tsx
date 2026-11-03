@@ -1,7 +1,8 @@
-import { useAtom } from "@effect/atom-react"
-import { importReport } from "../../atoms.ts"
+import { useAtom, useAtomMount, useAtomValue } from "@effect/atom-react"
+import { importReport, mirrorReportClosed, mirrorStatus, pagesMadeElsewhere } from "../../atoms.ts"
 import { IconAlertCircle, IconX } from "@tabler/icons-react"
-import { Atom, type AtomRegistry } from "effect/reactivity"
+import { Option } from "effect"
+import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
 import { logseq, names } from "@seqno/dom"
 
 interface Notice {
@@ -60,11 +61,59 @@ const ImportReport = () => {
   )
 }
 
+const MirrorReport = () => {
+  const status = Option.getOrNull(AsyncResult.value(useAtomValue(mirrorStatus)))
+  const [closed, setClosed] = useAtom(mirrorReportClosed)
+  if (status === null) return null
+  const { left, failed, paused } = status
+  const key = JSON.stringify({ left, failed, paused })
+  if ((left.length === 0 && failed.length === 0 && paused === null) || closed === key) return null
+  return (
+    <div className="notice notice-report" role="alert" data-mirror-report>
+      <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />
+      <div className="notice-message">
+        {paused === null ? null : <p className="notice-title">{paused}</p>}
+        {failed.length === 0 ? null : (
+          <ul className="notice-list">
+            {failed.map((file) => (
+              <li key={file.path}>
+                Write to the file <code>{file.path}</code> failed, {file.reason}
+              </li>
+            ))}
+          </ul>
+        )}
+        {left.length === 0 ? null : (
+          <>
+            <p className="notice-title">seqno didn't write {files(left.length)}</p>
+            <ul className="notice-list">
+              {left.map((file) => (
+                <li key={file.path}>
+                  <code>{file.path}</code> {file.reason}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+      <button
+        type="button"
+        className="notice-close"
+        aria-label="Close"
+        onClick={() => setClosed(key)}
+      >
+        <IconX size={18} stroke={2} aria-hidden />
+      </button>
+    </div>
+  )
+}
+
 export const Notices = () => {
+  useAtomMount(pagesMadeElsewhere)
   const [shown, setShown] = useAtom(notices)
   return (
     <div {...logseq("notices")} role="status" aria-live="polite">
       <ImportReport />
+      <MirrorReport />
       {shown.map((notice) => (
         <div key={notice.id} {...logseq("notice")}>
           <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />

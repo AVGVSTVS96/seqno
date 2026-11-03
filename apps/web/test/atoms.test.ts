@@ -126,6 +126,9 @@ const FakeCore = CoreRpcs.toLayer(
       WatchBlockRefCounts: () => Stream.empty,
       WatchBlockReferences: () => Stream.empty,
       WatchSaveState: () => Stream.empty,
+      WatchMirror: () => Stream.empty,
+      WriteFilesHere: () => Effect.void,
+      CheckFiles: () => Effect.void,
       WatchChanges: () => Stream.empty,
     })
   }),

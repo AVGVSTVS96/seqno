@@ -703,9 +703,15 @@ importers:
       '@effect/vitest':
         specifier: 4.0.1
         version: 4.0.1(effect@4.0.1)(vitest@5.0.3)
+      '@seqno/graph':
+        specifier: workspace:*
+        version: link:../graph
       '@types/node':
         specifier: 24.19.1
         version: 24.19.1
+      fast-check:
+        specifier: 4.10.2
+        version: 4.10.2
       typescript:
         specifier: 7.0.2
         version: 7.0.2

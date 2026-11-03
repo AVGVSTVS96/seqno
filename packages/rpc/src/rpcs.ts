@@ -204,6 +204,30 @@ export const WatchSaveState = Rpc.make("WatchSaveState", {
   stream: true,
 })
 
+export const MirrorFile = Schema.Struct({ path: Schema.String, reason: Schema.String })
+export type MirrorFile = typeof MirrorFile.Type
+
+export const MirrorWriter = Schema.Struct({ device: Schema.String, here: Schema.Boolean })
+export type MirrorWriter = typeof MirrorWriter.Type
+
+export const MirrorStatus = Schema.Struct({
+  left: Schema.Array(MirrorFile),
+  failed: Schema.Array(MirrorFile),
+  paused: Schema.NullOr(Schema.String),
+  writer: Schema.NullOr(MirrorWriter),
+})
+export type MirrorStatus = typeof MirrorStatus.Type
+
+export const WatchMirror = Rpc.make("WatchMirror", {
+  success: MirrorStatus,
+  error: GraphNotOpen,
+  stream: true,
+})
+
+export const WriteFilesHere = Rpc.make("WriteFilesHere", { error: GraphNotOpen })
+
+export const CheckFiles = Rpc.make("CheckFiles", { error: GraphNotOpen })
+
 export const Change = Schema.Struct({
   events: Schema.Array(GraphEvent),
   madeIn: Schema.Literals(["thisTab", "otherTab", "noTab"]),
@@ -240,4 +264,7 @@ export const CoreRpcs = RpcGroup.make(
   WatchBlockReferences,
   WatchSaveState,
   WatchChanges,
+  WatchMirror,
+  WriteFilesHere,
+  CheckFiles,
 )

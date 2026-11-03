@@ -15,7 +15,7 @@ import { LoroDoc, VersionVector, type LoroTreeNode } from "loro-crdt"
 import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
 import { inBackground } from "./background.ts"
-import { changedSince, type Changed } from "./changes.ts"
+import { changedSince, loroVersion, type Changed } from "./changes.ts"
 import { applyCommand, mergeTargetOf, trashOf, type Unresolved } from "./commands.ts"
 import { collectChanges, emptyPending, translate } from "./events.ts"
 import { histories, type Place } from "./history.ts"
@@ -124,6 +124,11 @@ export class Graph extends Context.Service<
     readonly changedSince: (
       version: ReadonlyMap<string, number>,
     ) => Effect.Effect<Option.Option<Changed>>
+    readonly pagesAt: (
+      version: ReadonlyMap<string, number>,
+      wanted: (page: Page) => boolean,
+    ) => Effect.Effect<ReadonlyArray<PageTree>>
+    readonly origin: Effect.Effect<Option.Option<ReadonlyMap<string, number>>>
     readonly loaded: Effect.Effect<void>
   }
 >()("@seqno/graph/Graph") {
@@ -145,6 +150,28 @@ export const typedBlock = (command: Command): BlockId | null =>
 export const typedInOneBlock = (commands: ReadonlyArray<Command>): BlockId | null => {
   const [first = null, ...rest] = commands.map(typedBlock)
   return rest.every((block) => block === first) ? first : null
+}
+
+export const atVersion = <A>(
+  doc: LoroDoc,
+  version: ReadonlyMap<string, number>,
+  read: (fork: LoroDoc) => A,
+): A => {
+  const fork = doc.forkAt(doc.vvToFrontiers(loroVersion(version)))
+  try {
+    return read(fork)
+  } finally {
+    fork.free()
+  }
+}
+
+export const originOf = (doc: LoroDoc): Option.Option<ReadonlyMap<string, number>> => {
+  const version = doc.oplogVersion().toJSON()
+  const roots = [...version].filter(
+    ([peer]) => doc.getChangeAt({ peer, counter: 0 }).deps.length === 0,
+  )
+  const [only, ...rest] = roots
+  return only === undefined || rest.length > 0 ? Option.none() : Option.some(new Map([only]))
 }
 
 export const importer = (doc: LoroDoc) => {
@@ -539,6 +566,33 @@ const make = (source: GraphSource) =>
       snapshot: serial(Effect.sync(() => doc.export({ mode: "snapshot" }))),
       version: serial(Effect.sync(versionNow)),
       changedSince: (version) => serial(Effect.sync(() => changedSince(doc, tree, version))),
+      pagesAt: (version, wanted) =>
+        serial(
+          Effect.sync(() =>
+            atVersion(doc, version, (fork) =>
+              fork
+                .getTree(TREE)
+                .roots()
+                .flatMap((root) =>
+                  Option.toArray(
+                    Option.flatMap(livePageIdOf(root), (id) =>
+                      Option.map(Option.filter(readPage(root), wanted), (found): PageTree => {
+                        const blocks: Array<Block> = []
+                        walkBlocks(root, { pageId: id, parentId: null }, (child, at) =>
+                          Option.map(readBlock(child, at), (state) => {
+                            blocks.push(state.block)
+                            return state.block.id
+                          }),
+                        )
+                        return { page: found, blocks }
+                      }),
+                    ),
+                  ),
+                ),
+            ),
+          ),
+        ),
+      origin: serial(Effect.sync(() => originOf(doc))),
       loaded: filled.await,
     })
   })

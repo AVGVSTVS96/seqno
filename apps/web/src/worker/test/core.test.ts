@@ -1,4 +1,13 @@
-import { cp, mkdir, mkdtemp, readdir, rename, rm, writeFile } from "node:fs/promises"
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readdir,
+  rename,
+  rm,
+  stat as statFile,
+  writeFile,
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { DatabaseSync } from "node:sqlite"
@@ -31,6 +40,7 @@ import { developerGraph } from "../developer.ts"
 import { journalDayOf, todaysJournal } from "../journal.ts"
 import { GraphLocks, layerWebLocks } from "../lock.ts"
 import type { Layout } from "../layout.ts"
+import { memoryMirrorStore, type MirrorStore } from "../mirror-store.ts"
 import { Device, GraphPlaces, type IndexFile, type Starter } from "../place.ts"
 
 const fixture = fileURLToPath(
@@ -84,10 +94,27 @@ DELETE FROM props WHERE block IN (${HEADINGS_BLOCKS});
 DELETE FROM tasks WHERE block IN (${HEADINGS_BLOCKS});
 DELETE FROM blocks WHERE rid IN (${HEADINGS_BLOCKS});`
 
-const fileOf = (storage: Storage["Service"]) => (path: string) =>
+const mirrorStores = new Map<string, MirrorStore>()
+
+const mirrorStoreOf = (key: string): MirrorStore => {
+  const found = mirrorStores.get(key) ?? memoryMirrorStore()
+  mirrorStores.set(key, found)
+  return found
+}
+
+const modifiedAt = (root: string, path: string) =>
   Effect.map(
-    storage.read(path),
-    (bytes) => new File([new Uint8Array(bytes)], path.split("/").at(-1) ?? path),
+    Effect.option(Effect.promise(() => statFile(join(root, ...path.split("/"))))),
+    (found) => Option.match(found, { onNone: () => 0, onSome: (info) => info.mtimeMs }),
+  )
+
+const fileOf = (storage: Storage["Service"], root: string) => (path: string) =>
+  Effect.flatMap(storage.read(path), (bytes) =>
+    Effect.map(
+      modifiedAt(root, path),
+      (lastModified) =>
+        new File([new Uint8Array(bytes)], path.split("/").at(-1) ?? path, { lastModified }),
+    ),
   )
 
 const coreLayer = (
@@ -104,12 +131,13 @@ const coreLayer = (
         open: () =>
           Effect.succeed({
             storage,
-            file: fileOf(storage),
+            file: fileOf(storage, root),
             changed: Stream.empty,
             layout: placeLayout,
             synced: true,
             sqlite: layerNode(),
             indexFile: indexFileOf(`${device}:${root}`),
+            mirrorStore: mirrorStoreOf(`${device}:${root}`),
             starter,
           }),
         forget: () => Effect.sync(() => void savedIndexes.delete(`${device}:${root}`)),

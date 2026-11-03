@@ -2,6 +2,7 @@ import {
   Cause,
   Clock,
   Context,
+  Crypto,
   Effect,
   Exit,
   Latch,
@@ -22,18 +23,28 @@ import {
   readPropertyConfig,
   writeConfigFlag,
 } from "@seqno/syntax"
-import { ImportIssue, LogseqSyntaxLive, importGraph, parseConfig } from "@seqno/interop"
+import {
+  ImportIssue,
+  LogseqSyntax,
+  LogseqSyntaxLive,
+  importGraph,
+  parseConfig,
+  refsIn,
+} from "@seqno/interop"
 import { SaveState, type SkippedFile } from "@seqno/rpc"
 import { Storage, type StorageFailed, Vault, layer as vaultLayer } from "@seqno/vault"
 import { makeAssetFiles, type AssetFiles } from "./assets.ts"
 import { makeAppFiles, type AppFiles } from "./files.ts"
 import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
+import { makeMergeBack } from "./merge-back.ts"
+import { makeMirror, type Mirror } from "./mirror.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 
 export interface Committed {
   readonly events: ReadonlyArray<GraphEvent>
   readonly client: number | null
+  readonly pages: ReadonlySet<PageId>
 }
 
 export interface Session {
@@ -55,6 +66,7 @@ export interface Session {
   readonly indexed: Effect.Effect<void>
   readonly rebuildIndex: Effect.Effect<void>
   readonly setConfigFlag: (key: string, value: boolean) => Effect.Effect<void, StorageFailed>
+  readonly mirror: Mirror
   readonly closing: Effect.Effect<void>
 }
 
@@ -71,6 +83,11 @@ const skippedFile = ImportIssue.match({
     reason: `repeats the block id ${id}, so that block got a new one`,
   }),
 })
+
+const refsOf = (event: GraphEvent): ReadonlyArray<string> =>
+  event._tag === "BlockUpserted"
+    ? [event.block.text, ...Object.values(event.block.props)].flatMap(refsIn)
+    : []
 
 const reasonOf = (error: unknown): string =>
   typeof error === "object" && error !== null && "reason" in error
@@ -245,7 +262,7 @@ export const openSession = (place: GraphPlace) =>
               )
             pages.forEach((page) => sinceSave.pages.add(page))
             yield* SubscriptionRef.set(touched, pages)
-            yield* PubSub.publish(changes, { events, client })
+            yield* PubSub.publish(changes, { events, client, pages })
             edits.count += 1
             yield* SubscriptionRef.set(saving, SaveState.cases.Unsaved.make({}))
             yield* unsaved.open
@@ -480,6 +497,7 @@ export const openSession = (place: GraphPlace) =>
           .map(skippedFile)
           .toSorted((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
       )
+      yield* place.mirrorStore.clear
       const seeded = yield* graph.seed(log.incoming(imported.pages))
       if (Option.isSome(seeded.update)) yield* vault.writeUpdate(seeded.update.value.bytes)
       yield* record(Effect.succeed(seeded.events))
@@ -523,6 +541,49 @@ export const openSession = (place: GraphPlace) =>
         return [...direct, ...written]
       })
 
+    const config = parseConfig(configText)
+    const crypto = yield* Crypto.Crypto
+    const baseVersion = Effect.gen(function* () {
+      const stored = yield* place.mirrorStore.version
+      if (Option.isSome(stored)) return stored
+      return Option.map(yield* graph.origin, (origin) => Object.fromEntries(origin))
+    })
+    const mergeBack = makeMergeBack({ graph, record, blocks, synced: place.synced, baseVersion })
+    const mirrored = yield* makeMirror({
+      graph,
+      index,
+      storage: place.storage,
+      file: place.file,
+      store: place.mirrorStore,
+      config,
+      syntax: yield* serviceOf(LogseqSyntax, LogseqSyntaxLive),
+      indexed: indexed.await,
+      mayWrite: Effect.succeed(true),
+      writer: Effect.succeed(null),
+      outside: (change) => Effect.provideService(mergeBack(change), Crypto.Crypto, crypto),
+      baseVersion,
+    })
+    yield* Effect.forkScoped(
+      Stream.runForEach(place.changed, (paths) =>
+        mirrored.mirror.check(paths.includes("") ? undefined : paths),
+      ),
+    )
+    const committed = yield* PubSub.subscribe(changes)
+    yield* Effect.forkScoped(
+      Effect.forever(
+        Effect.gen(function* () {
+          const batch = yield* PubSub.takeAll(committed)
+          yield* mirrored.mirror.touch(batch.flatMap((one) => [...one.pages]))
+          const refs = batch.flatMap((one) => one.events.flatMap(refsOf))
+          if (refs.length > 0) {
+            const targets = yield* blocksByRef(refs)
+            yield* mirrored.mirror.touch(targets.map((block) => block.pageId))
+          }
+        }),
+      ),
+    )
+    yield* Effect.forkScoped(mirrored.loop)
+
     const session: Session = {
       graph,
       newPageFormat,
@@ -546,6 +607,7 @@ export const openSession = (place: GraphPlace) =>
             appFiles.write({ path: "logseq/config.edn", text: writeConfigFlag(text, key, value) }),
           ),
         ),
+      mirror: mirrored.mirror,
       closing: saveIndexNow,
     }
     yield* opened.open

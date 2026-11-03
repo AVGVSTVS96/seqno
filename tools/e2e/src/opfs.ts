@@ -104,3 +104,67 @@ export const loadGraphFolder = async (page: Page, from: string) => {
       )
   }, folder)
 }
+
+export const pickedFolder = (from: string) => [pickedFolders, basename(from)]
+
+export const opfsText = async (page: Page, root: ReadonlyArray<string>) =>
+  Object.fromEntries(
+    Object.entries(await opfsFiles(page, root)).map(([path, bytes]) => [
+      path,
+      new TextDecoder().decode(bytes),
+    ]),
+  )
+
+export const opfsFile = (page: Page, root: ReadonlyArray<string>, path: string) =>
+  page.evaluate(
+    async ({ dirs, file: at }) => {
+      const parts = [...dirs, ...at.split("/")]
+      const name = parts.pop() ?? ""
+      try {
+        const dir = await parts.reduce(
+          async (handle, part) => (await handle).getDirectoryHandle(part),
+          navigator.storage.getDirectory(),
+        )
+        const found = await (await dir.getFileHandle(name)).getFile()
+        return { text: await found.text(), modified: found.lastModified }
+      } catch {
+        return null
+      }
+    },
+    { dirs: root, file: path },
+  )
+
+export const writeOpfsFile = (
+  page: Page,
+  root: ReadonlyArray<string>,
+  path: string,
+  text: string,
+) =>
+  page.evaluate(
+    async ({ dirs, file: at, text: body }) => {
+      const parts = [...dirs, ...at.split("/")]
+      const name = parts.pop() ?? ""
+      const dir = await parts.reduce(
+        async (handle, part) => (await handle).getDirectoryHandle(part, { create: true }),
+        navigator.storage.getDirectory(),
+      )
+      const writable = await (await dir.getFileHandle(name, { create: true })).createWritable()
+      await writable.write(body)
+      await writable.close()
+    },
+    { dirs: root, file: path, text },
+  )
+
+export const removeOpfsEntry = (page: Page, root: ReadonlyArray<string>, path: string) =>
+  page.evaluate(
+    async ({ dirs, file: at }) => {
+      const parts = [...dirs, ...at.split("/")]
+      const name = parts.pop() ?? ""
+      const dir = await parts.reduce(
+        async (handle, part) => (await handle).getDirectoryHandle(part),
+        navigator.storage.getDirectory(),
+      )
+      await dir.removeEntry(name, { recursive: true })
+    },
+    { dirs: root, file: path },
+  )

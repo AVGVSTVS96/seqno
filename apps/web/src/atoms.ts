@@ -76,6 +76,45 @@ export const saveState = appRuntime
   .atom(Stream.unwrap(Effect.map(Effect.service(CoreClient), (core) => core.WatchSaveState())))
   .pipe(Atom.keepAlive)
 
+export const mirrorStatus = appRuntime
+  .atom(
+    Stream.unwrap(
+      Effect.map(Effect.service(CoreClient), (core) =>
+        Stream.merge(
+          core.WatchMirror(),
+          Stream.drain(
+            Stream.mapEffect(Stream.fromEventListener(window, "focus"), () =>
+              Effect.ignore(core.CheckFiles()),
+            ),
+          ),
+        ),
+      ),
+    ),
+  )
+  .pipe(Atom.keepAlive)
+
+export const pagesMadeElsewhere = appRuntime
+  .atom(
+    Stream.unwrap(
+      Effect.map(Effect.service(CoreClient), (core) =>
+        Stream.mapEffect(
+          Stream.filter(
+            core.WatchChanges(),
+            (change) =>
+              change.madeIn !== "thisTab" &&
+              change.events.some(
+                (event) => event._tag === "PageUpserted" || event._tag === "PageDeleted",
+              ),
+          ),
+          () => Reactivity.invalidate(pagesKey),
+        ),
+      ),
+    ),
+  )
+  .pipe(Atom.keepAlive)
+
+export const mirrorReportClosed = Atom.make("").pipe(Atom.keepAlive)
+
 export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)
 
 export const importReport = Atom.make<ReadonlyArray<SkippedFile>>([]).pipe(Atom.keepAlive)

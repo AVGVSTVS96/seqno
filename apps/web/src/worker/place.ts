@@ -6,6 +6,7 @@ import { Entry, editLogDir, type Storage, type StorageFailed } from "@seqno/vaul
 import type { GraphUnavailable } from "@seqno/rpc"
 import type { OpenFile } from "./assets.ts"
 import type { Layout } from "./layout.ts"
+import type { MirrorStore } from "./mirror-store.ts"
 
 export interface StarterFile {
   readonly path: string
@@ -30,6 +31,7 @@ export interface GraphPlace {
   readonly synced: boolean
   readonly sqlite: Layer.Layer<Sqlite, IndexError>
   readonly indexFile: IndexFile
+  readonly mirrorStore: MirrorStore
   readonly starter: Starter | null
 }
 

@@ -124,6 +124,9 @@ const InMemoryCore = CoreRpcs.toLayer(
       WatchBlockReferences: () => Stream.empty,
       WatchSaveState: () => Stream.empty,
       WatchChanges: () => Stream.empty,
+      WatchMirror: () => Stream.empty,
+      WriteFilesHere: () => Effect.void,
+      CheckFiles: () => Effect.void,
     })
   }),
 )

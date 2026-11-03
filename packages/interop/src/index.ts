@@ -33,3 +33,13 @@ export {
   whiteboardBlocks,
   type Whiteboard,
 } from "./whiteboard.ts"
+export {
+  explicitId,
+  preorder,
+  readFileTree,
+  sameMeaning,
+  writtenIds,
+  type FileTree,
+} from "./meaning.ts"
+export { diff, merge3Text, textEdit, type Edit } from "./diff.ts"
+export { draftsOf, merge3Props, mergePage, type MergeBase, type MergeInput } from "./merge.ts"

@@ -9,8 +9,10 @@ import {
   LOADED,
   REPAIRED,
   SEED_FORMAT,
+  atVersion,
   clientOrigin,
   importer,
+  originOf,
   peerOf,
   seedTime,
   typedBlock,
@@ -428,6 +430,20 @@ const make = (source: GraphSource) =>
       snapshot: serial(Effect.sync(() => doc.export({ mode: "snapshot" }))),
       version: serial(Effect.sync(() => new Map(doc.oplogVersion().toJSON()))),
       changedSince: (version) => serial(Effect.sync(() => changedSince(trees, version))),
+      pagesAt: (version, wanted) =>
+        serial(
+          Effect.sync(() =>
+            atVersion(doc, version, (fork) => {
+              const then = makeTrees(fork)
+              return [...then.listing().live.entries()].flatMap(([id, found]) =>
+                wanted(found)
+                  ? [{ page: found, blocks: readView(then, id).map((read) => read.block) }]
+                  : [],
+              )
+            }),
+          ),
+        ),
+      origin: serial(Effect.sync(() => originOf(doc))),
       loaded: filled.await,
     })
   })

@@ -6,6 +6,7 @@ import { demoGraph } from "./demo.ts"
 import { developerGraph } from "./developer.ts"
 import { journalDayOf } from "./journal.ts"
 import type { Layout } from "./layout.ts"
+import { indexedDbMirrorStore } from "./mirror-store.ts"
 import { GraphLocation, GraphLocations } from "./locations.ts"
 import {
   Device,
@@ -134,6 +135,7 @@ export const BrowserGraphPlaces = Layer.effect(
               synced,
               sqlite: layerWasmMemory,
               indexFile: indexFile(graph, locations.listed),
+              mirrorStore: indexedDbMirrorStore(graph),
               starter,
             }),
           ),

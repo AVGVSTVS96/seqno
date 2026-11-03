@@ -156,6 +156,9 @@ export const publishedCore = (data: Published): Layer.Layer<CoreClient> => {
             ),
           ),
         WatchSaveState: () => Stream.make({ _tag: "Saved" }),
+        WatchMirror: () => Stream.empty,
+        WriteFilesHere: () => Effect.void,
+        CheckFiles: () => Effect.void,
         WatchChanges: () => Stream.never,
       })
     }),

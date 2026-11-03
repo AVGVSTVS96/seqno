@@ -469,6 +469,11 @@ const CoreHandlers = CoreRpcs.toLayer(
             madeIn: by === client.id ? "thisTab" : by === null ? "noTab" : "otherTab",
           })),
         ),
+      WatchMirror: (_, { client }) =>
+        following(client.id, (session) => SubscriptionRef.changes(session.mirror.status)),
+      WriteFilesHere: (_, { client }) => Effect.asVoid(current(client.id)),
+      CheckFiles: (_, { client }) =>
+        Effect.flatMap(current(client.id), (session) => session.mirror.check()),
       WatchBlockRefCounts: (_, { client }) =>
         following(client.id, (session) => Stream.orDie(session.index.watchBlockRefCounts)),
       WatchBlockReferences: ({ uuid }, { client }) =>
