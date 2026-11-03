@@ -1318,25 +1318,25 @@
   text-decoration: underline;
 }
 
-.seqno-asset.is-doc {
+.seqno-asset[data-kind="file"] {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-.seqno-asset.is-missing {
+.seqno-asset[data-missing] {
   color: var(--fg-muted);
   cursor: default;
   text-decoration: line-through;
 }
 
-.seqno-asset.is-pdf::before {
+.seqno-asset[data-kind="pdf"]::before {
   content: "[[📚";
   opacity: 0.7;
   margin-right: 4px;
 }
 
-.seqno-asset.is-pdf::after {
+.seqno-asset[data-kind="pdf"]::after {
   content: "]]";
   opacity: 0.7;
 }

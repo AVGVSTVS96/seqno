@@ -1,3 +1,4 @@
+import { assetParts, type AssetParts } from "./assets.ts"
 import { blockParts, type BlockParts } from "./block.ts"
 import { cmdkParts, type CmdkParts } from "./cmdk.ts"
 import { contentParts, type ContentParts } from "./content.ts"
@@ -13,9 +14,9 @@ export {
   vocabularyVersion,
 } from "./vocabulary.ts"
 
-type Parts = BlockParts & CmdkParts & ContentParts
+type Parts = AssetParts & BlockParts & CmdkParts & ContentParts
 
-const parts: Table<Parts> = { ...blockParts, ...cmdkParts, ...contentParts }
+const parts: Table<Parts> = { ...assetParts, ...blockParts, ...cmdkParts, ...contentParts }
 
 export const logseq = <K extends keyof Parts>(part: K, ...state: Parts[K]): LogseqNames => {
   const made = parts[part](...state)

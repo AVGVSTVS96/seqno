@@ -4,6 +4,7 @@ import { useAtomValue } from "@effect/atom-react"
 import { Match, Schema } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { IconCopy, IconMaximize, IconPhoto, IconTrash } from "@tabler/icons-react"
+import { logseq } from "@seqno/dom"
 import { BlockId, type Block } from "@seqno/domain"
 import {
   parseInline,
@@ -247,22 +248,23 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
   }
   return (
     <span
-      className="seqno-image-frame"
+      {...logseq("seqno-image-frame")}
       style={width === null ? undefined : { width }}
       onPointerDown={(event) => keepWidth(event.currentTarget)}
     >
       <img
         ref={picture}
-        className="seqno-image"
+        {...logseq("seqno-image")}
         src={source}
         alt={alt}
         loading="lazy"
         draggable={false}
       />
-      <span className="seqno-image-overlay" aria-hidden />
-      <span className="seqno-image-actions" onClick={stop} onPointerDown={stop}>
+      <span {...logseq("seqno-image-overlay")} aria-hidden />
+      <span {...logseq("seqno-image-actions")} onClick={stop} onPointerDown={stop}>
         {edit === null ? null : (
           <button
+            {...logseq("seqno-image-action")}
             type="button"
             title="Delete image"
             aria-label="Delete image"
@@ -272,6 +274,7 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
           </button>
         )}
         <button
+          {...logseq("seqno-image-action")}
           type="button"
           title="Copy image"
           aria-label="Copy image"
@@ -282,6 +285,7 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
           <IconCopy size={18} stroke={2} aria-hidden />
         </button>
         <button
+          {...logseq("seqno-image-action")}
           type="button"
           title="Maximize image"
           aria-label="Maximize image"

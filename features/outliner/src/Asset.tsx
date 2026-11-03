@@ -1,5 +1,6 @@
 import { use, type ReactNode } from "react"
 import { IconFile, IconMusic } from "@tabler/icons-react"
+import { logseq } from "@seqno/dom"
 import { assetKind, isLocalAsset, type AssetKind } from "@seqno/syntax"
 import { AssetActions, RenderContext } from "./render.ts"
 import { VideoFile } from "./Video.tsx"
@@ -33,13 +34,19 @@ export const AssetFileLink = ({ url, children }: { url: string; children: ReactN
   const source = useSource(url)
   if (source === undefined) {
     return (
-      <span className="seqno-asset is-doc is-missing" title={url}>
+      <span {...logseq("seqno-asset", { kind: "doc", url })} data-missing title={url}>
         {children}
       </span>
     )
   }
   return (
-    <a className="seqno-asset is-doc" href={source} download={fileName(url)} onClick={stop}>
+    <a
+      {...logseq("seqno-asset", { kind: "doc", url })}
+      data-kind="file"
+      href={source}
+      download={fileName(url)}
+      onClick={stop}
+    >
       {children}
     </a>
   )
@@ -57,7 +64,8 @@ const PdfLink = ({ url, label }: { url: string; label: string }) => {
     <a
       role="link"
       tabIndex={0}
-      className="seqno-asset is-pdf"
+      {...logseq("seqno-asset", { kind: "pdf", url })}
+      data-kind="pdf"
       draggable
       onDragStart={(event) => event.dataTransfer.setData("file", url)}
       onClick={(event) => {
@@ -113,7 +121,7 @@ export const AssetMedia = ({
       return <AudioFile url={url} label={label} />
     case "Video":
       return (
-        <span className="seqno-asset-video">
+        <span {...logseq("seqno-asset-video", { ext: url.split(".").at(-1)?.toLowerCase() ?? "" })}>
           <VideoFile url={url} />
         </span>
       )

@@ -22,6 +22,7 @@ A component names its element once, by its own seqno class, and spreads what `lo
 | Module          | Exports                                                                                                                                                   |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `index.ts`      | `logseq(part, ...state)`, `names(...tokens)`, `LogseqNames`                                                                                               |
+| `assets.ts`     | what Logseq's `block.cljs` renders for assets: images, PDF and file links, videos                                                                         |
 | `block.ts`      | what Logseq's `block.cljs` renders: block rows and bullets                                                                                                |
 | `cmdk.ts`       | what Logseq's `cmdk.cljs` renders: the search and command palette                                                                                         |
 | `content.ts`    | what Logseq's `content.cljs` renders: the page title's right-click menu                                                                                   |
