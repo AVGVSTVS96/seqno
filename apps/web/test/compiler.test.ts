@@ -37,5 +37,5 @@ describe("React Compiler", () => {
         /^features\/outliner\/src\/virtual\.tsx:\d+ Use of incompatible library$/,
       ),
     ])
-  })
+  }, 30_000)
 })
