@@ -4,7 +4,7 @@ import { Atom } from "effect/reactivity"
 import { logseq, names } from "@seqno/dom"
 import type { Page } from "@seqno/domain"
 import { hostAtom, pluginCommands, runPageCommand } from "@seqno/plugins"
-import { dispatch, favorites, toggleFavorite } from "../../atoms.ts"
+import { dispatch, favorites, rightSidebar, toggleFavorite } from "../../atoms.ts"
 import { placeAt } from "./BlockMenu.tsx"
 import { DeletePage } from "./DeletePage.tsx"
 import { exported } from "./Export.tsx"
@@ -28,6 +28,8 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
   const run = useAtomSet(dispatch)
   const router = useRouter()
   const host = useAtomValue(hostAtom)
+  const updateSidebar = useAtomSet(rightSidebar)
+  const onPage = useMatchRoute()({ to: "/page/$name" })
   const plugins = useAtomValue(pluginCommands).filter(
     (command) => command.type === "page-menu-item",
   )
@@ -46,6 +48,15 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
       {page.journalDay === null && page.name !== "contents" ? (
         <MenuItem onSelect={() => setDeleting(page)}>Delete page</MenuItem>
       ) : null}
+      {onPage === false ? null : (
+        <MenuItem
+          onSelect={() =>
+            updateSidebar({ _tag: "Open", item: { _tag: "Slides", name: page.name } })
+          }
+        >
+          View as slides
+        </MenuItem>
+      )}
       <MenuItem
         onSelect={() =>
           setExported({

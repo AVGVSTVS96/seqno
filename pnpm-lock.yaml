@@ -107,6 +107,9 @@ importers:
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
+      reveal.js:
+        specifier: 6.0.2
+        version: 6.0.2
     devDependencies:
       '@babel/core':
         specifier: 8.0.6
@@ -2185,6 +2188,9 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
+  reveal.js@6.0.2:
+    resolution: {integrity: sha512-JYIg5D9aoxoaLeb84O+OvAwsKWdIavVgEDScxtYEXFCT6t6TQrhNtSgogcjdCpdLsWglhJn3zyE3fUOwiH5KEg==}
+
   rolldown@1.2.12:
     resolution: {integrity: sha512-8wafseiaG80xmXSfqidUNqZcylTlhmPZZt+za2m+js2sFZ8dTNlhIOV2WcbIPx2hgwPBJpEUGFAMZ9bgBBLTSQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -3560,6 +3566,8 @@ snapshots:
       - '@opentelemetry/api'
 
   require-from-string@2.0.2: {}
+
+  reveal.js@6.0.2: {}
 
   rolldown@1.2.12:
     dependencies:

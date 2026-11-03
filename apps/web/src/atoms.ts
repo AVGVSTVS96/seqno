@@ -291,6 +291,7 @@ export const SidebarItem = Schema.TaggedUnion({
   Block: { blockId: BlockId },
   Help: {},
   PageGraph: {},
+  Slides: { name: Schema.String },
 })
 export type SidebarItem = typeof SidebarItem.Type
 
@@ -313,6 +314,7 @@ export const sidebarItemKey = (item: SidebarItem) =>
     Block: ({ blockId }) => `block:${blockId}`,
     Help: () => "help",
     PageGraph: () => "page-graph",
+    Slides: ({ name }) => `slides:${normalizePageName(name)}`,
   })
 
 const without = (items: ReadonlyArray<SidebarItem>, item: SidebarItem) =>

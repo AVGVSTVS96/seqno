@@ -35,7 +35,8 @@
     "loro-crdt": "1.16.4",
     "modern-screenshot": "4.7.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "reveal.js": "6.0.2"
   },
   "devDependencies": {
     "@babel/core": "8.0.6",

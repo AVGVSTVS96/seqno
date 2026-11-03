@@ -25,6 +25,7 @@ import {
   sidebarItemKey,
 } from "../../atoms.ts"
 import { PageGraph } from "../graph/GraphView.tsx"
+import { Slides } from "../pages/Slides.tsx"
 import { today } from "../pages/atoms.ts"
 import { PageByName, PageView } from "../PageView.tsx"
 import { IconButton } from "./IconButton.tsx"
@@ -88,6 +89,7 @@ const ItemTitle = ({ item }: { readonly item: SidebarItem }) =>
     Block: ({ blockId }) => <BlockTitle blockId={blockId} />,
     Help: () => <HelpTitle />,
     PageGraph: () => <PageGraphTitle />,
+    Slides: ({ name }) => <PageTitle name={name} />,
   })
 
 const itemType = (item: SidebarItem) =>
@@ -96,6 +98,7 @@ const itemType = (item: SidebarItem) =>
     Block: () => "block",
     Help: () => "help",
     PageGraph: () => "page-graph",
+    Slides: () => "page-slide-view",
   })
 
 const SidebarBlock = ({ blockId }: { readonly blockId: BlockId }) => {
@@ -152,6 +155,7 @@ const ItemBody = ({ item }: { readonly item: SidebarItem }) =>
       </div>
     ),
     PageGraph: () => <CurrentPageGraph />,
+    Slides: ({ name }) => <Slides name={name} />,
   })
 
 interface CardActions {
@@ -316,6 +320,7 @@ const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
               Block: () => null,
               Help: () => null,
               PageGraph: () => null,
+              Slides: () => null,
             }),
           }
           return (

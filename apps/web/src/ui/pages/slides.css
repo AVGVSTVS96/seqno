@@ -1,0 +1,11 @@
+.seqno-slides-tip {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.seqno-slides-deck {
+  height: 400px;
+  color: var(--fg);
+  background: transparent;
+}

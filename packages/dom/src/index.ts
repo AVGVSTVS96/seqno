@@ -4,6 +4,7 @@ import { cmdkParts, type CmdkParts } from "./cmdk.ts"
 import { contentParts, type ContentParts } from "./content.ts"
 import { names, type LogseqNames, type Table } from "./names.ts"
 import { pdfParts, type PdfParts } from "./pdf.ts"
+import { slideParts, type SlideParts } from "./slide.ts"
 
 export { names, type LogseqNames, type Table } from "./names.ts"
 export { refsSelf } from "./refs.ts"
@@ -15,7 +16,7 @@ export {
   vocabularyVersion,
 } from "./vocabulary.ts"
 
-type Parts = AssetParts & BlockParts & CmdkParts & ContentParts & PdfParts
+type Parts = AssetParts & BlockParts & CmdkParts & ContentParts & PdfParts & SlideParts
 
 const parts: Table<Parts> = {
   ...assetParts,
@@ -23,6 +24,7 @@ const parts: Table<Parts> = {
   ...cmdkParts,
   ...contentParts,
   ...pdfParts,
+  ...slideParts,
 }
 
 export const logseq = <K extends keyof Parts>(part: K, ...state: Parts[K]): LogseqNames => {

@@ -102,6 +102,7 @@ test("the page menu lives in More and on the page title, and makes a page public
     "Add to Favorites",
     "Copy page URL",
     "Delete page",
+    "View as slides",
     "Export page",
     "Make it public for publishing",
     "Settings",
@@ -119,4 +120,25 @@ test("the page menu lives in More and on the page title, and makes a page public
   await menu.getByRole("menuitem", { name: "Add to Favorites" }).click()
   await page.getByRole("button", { name: "More" }).click()
   await expect(more.getByRole("menuitem", { name: "Unfavorite page" })).toBeVisible()
+})
+
+test("View as slides shows the page's top blocks as slides in the right sidebar", async ({
+  page,
+}) => {
+  await openDemo(page, "/page/ideas")
+  await page.getByRole("button", { name: "More" }).click()
+  await page
+    .getByRole("menu", { name: "More" })
+    .getByRole("menuitem", { name: "View as slides" })
+    .click()
+  const sidebar = page.getByRole("complementary")
+  await expect(sidebar.getByText("Tip: press f to go fullscreen")).toBeVisible()
+  const slide = sidebar.locator(".seqno-slides-deck section.present")
+  await expect(slide).toContainText("Loose thoughts go here.")
+  await sidebar.locator(".seqno-slides-deck").click({ position: { x: 4, y: 4 } })
+  await page.keyboard.press("ArrowRight")
+  await expect(slide).toContainText("Plant tomatoes along the south fence")
+  await page.screenshot({ path: test.info().outputPath("slides-light.png") })
+  await page.emulateMedia({ colorScheme: "dark" })
+  await page.screenshot({ path: test.info().outputPath("slides-dark.png") })
 })

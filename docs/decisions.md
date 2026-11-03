@@ -622,6 +622,14 @@ New pages and today's journal follow `config.edn`'s `:preferred-format`, as in L
 
 **Cost.** A command whose feature seqno lacks isn't listed, so the list is shorter than Logseq's (see the roadmap). A replayed command does nothing when nothing is selected, as in Logseq.
 
+## View as slides runs reveal.js on the page's blocks, as Logseq 0.10.9 does
+
+**Decision.** The page menu's View as slides opens the page in the right sidebar as a reveal.js deck (black theme, embedded, 400px tall), built as Logseq's `slide.cljs` builds it: each top-level block is a slide, and a block with children becomes a vertical stack of itself and then every block under it, flattened, since reveal.js nests only one level. A block's properties become `data-` attributes on its slide (`data-background-color:: #333` sets reveal.js's background), and a journal page skips its first block. Blocks render read-only through the outliner's `StaticBlock`.
+
+**Why.** It's Logseq's own feature with its own library, so decks built for Logseq look and move the same, and reveal.js's keys (arrows, `f` for fullscreen, `o` for the overview) work once the deck has focus.
+
+**Cost.** reveal.js 6 replaces Logseq's 4.x; the deck options and markup are the same, and its scroll view, which 6 switches to below 435px wide, stays off as 4.x had none. The deck restarts when the page's text changes.
+
 ## PDFs open in Logseq's viewer, with highlights in Logseq's own files
 
 **Decision.** Clicking a PDF link opens Logseq 0.10.9's desktop viewer, rebuilt in `@seqno/pdf` on pdf.js 6.5.438 (`PDFViewer`, `EventBus`, `PDFLinkService` and `PDFFindController`, the classes Logseq uses from pdf.js 3.11): a pane on the left at 42vw that resizes from 20 to 80vw, Logseq's toolbar, its highlight menu and its five colors. A highlight is stored as Logseq stores it, in two places. `assets/<key>.edn` holds the list in viewer pixels with the page size they were measured at, and is written 4 s after a change with fipp's 70-column layout, byte for byte (`printFipp` in `@seqno/syntax`, checked against fipp 0.6.26 itself and against a file Logseq wrote). The page `hls__<key>` gets one block per highlight with `ls-type`, `hl-page`, `hl-color` and `id` in Logseq's order, plus `hl-type` and `hl-stamp` for areas, whose picture goes to `assets/<key>/<page>_<id>_<stamp>.png`. A new highlight's id is a UUIDv7, so its block's id and its `id::` are the same and `((ref))`s reach it either way. The EDN reader moved from `@seqno/interop` to `@seqno/syntax`, next to the printer, so the viewer reads and writes the file in the tab through `AssetRpcs` without a new RPC.

@@ -341,6 +341,39 @@ export const PropertyValue = ({
   )
 }
 
+export const StaticBlock = ({
+  block,
+  onNavigate,
+  resolveAsset,
+}: Pick<OutlinerProps, "onNavigate" | "resolveAsset"> & { readonly block: Block }) => {
+  const parent = use(RenderContext)
+  const dialectOf = use(PageDialects)
+  return (
+    <RenderContext
+      value={{
+        ...parent,
+        navigate: onNavigate,
+        Embed: EmbedView,
+        Query: QueryView,
+        editor: PlainTextEditor,
+        resolveAsset: resolveAsset ?? parent.resolveAsset,
+        readOnly: true,
+      }}
+    >
+      <style href="@seqno/outliner" precedence="default">
+        {styles}
+      </style>
+      <HostBlock value={block.id}>
+        <BlockView
+          content={contentOf(block.text, dialectOf(block.pageId))}
+          props={block.props}
+          onMarker={() => undefined}
+        />
+      </HostBlock>
+    </RenderContext>
+  )
+}
+
 const dropZone = (event: DragEvent<HTMLDivElement>, row: Row): DropTarget => {
   const box = event.currentTarget.getBoundingClientRect()
   const lower = event.clientY - box.top >= box.height / 2
