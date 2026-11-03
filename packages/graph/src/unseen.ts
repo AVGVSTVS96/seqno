@@ -153,9 +153,19 @@ export const unseenBy = (
     (unseen.nodes.get(node.id)?.touches ?? []).some((touch) => !seenBy(doc, touch.id, by)),
   )
 
-const isWithin = (target: LoroTreeNode | undefined, node: LoroTreeNode): boolean => {
+export const isWithin = (target: LoroTreeNode | undefined, node: LoroTreeNode): boolean => {
   for (let at = target; at !== undefined; at = at.parent()) if (at.id === node.id) return true
   return false
+}
+
+export const moveUnder = (
+  tree: LoroTree,
+  node: LoroTreeNode,
+  parent: TreeID | undefined,
+  index: number,
+): void => {
+  if (parent !== undefined && isWithin(tree.getNodeByID(parent), node)) return
+  tree.move(node.id, parent, index)
 }
 
 export const lastPlacement = (

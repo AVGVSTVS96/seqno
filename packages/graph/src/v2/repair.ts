@@ -2,7 +2,9 @@ import { Option, Schema } from "effect"
 import { PageId, type Page } from "@seqno/domain"
 import { setProp } from "../tree.ts"
 import {
+  isWithin,
   lastPlacement,
+  moveUnder,
   placeAll,
   rounds,
   unseenBy,
@@ -143,6 +145,7 @@ const placeAt = (trees: Trees, unit: Unit, page: PageId, spot: Place, index: num
   const { home, at } = unit
   const tree = trees.tree(page)
   if (home.page === page) {
+    if (spot.parent !== undefined && isWithin(tree.getNodeByID(spot.parent), home.node)) return
     tree.move(home.node.id, spot.parent, index)
     if (!sameSpot(home, at)) {
       trees.tree(at.page).move(at.node.id, trees.trash(at.page).id, 0)
@@ -151,7 +154,7 @@ const placeAt = (trees: Trees, unit: Unit, page: PageId, spot: Place, index: num
     return
   }
   if (at.page === page) {
-    tree.move(at.node.id, spot.parent, index)
+    moveUnder(tree, at.node, spot.parent, index)
     return
   }
   const node = tree.createNode(spot.parent, index)
@@ -183,7 +186,7 @@ const rescue = (
             node: k.node,
             spot,
             path: [],
-            put: (index: number) => tree.move(k.node.id, spot.parent, index),
+            put: (index: number) => moveUnder(tree, k.node, spot.parent, index),
           },
         ],
       },

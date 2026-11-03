@@ -14,6 +14,7 @@ import {
 } from "./tree.ts"
 import {
   lastPlacement,
+  moveUnder,
   placeAll,
   unseenBy,
   unseenSince,
@@ -170,7 +171,7 @@ const rescueOnce = (doc: LoroDoc, tree: LoroTree, unseen: Unseen): boolean => {
   }
   const placings: Array<Placing> = []
   const placing = (node: LoroTreeNode, spot: Spot, path: ReadonlyArray<string>) =>
-    placings.push({ node, spot, path, put: (index) => tree.move(node.id, spot.parent, index) })
+    placings.push({ node, spot, path, put: (index) => moveUnder(tree, node, spot.parent, index) })
   for (const chains of killed.values()) {
     const k = chains[0]?.at(-1)
     const by = k?.getLastMoveId()
