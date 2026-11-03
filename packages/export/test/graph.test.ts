@@ -26,6 +26,16 @@ const text = (format: "edn" | "json" | "roam-json") =>
 
 const block = (n: number) => `01901000-0000-7000-8000-${String(n).padStart(12, "0")}`
 
+const zippedWithBoard = (format: "markdown" | "opml") =>
+  Object.keys(
+    unzipSync(
+      exportGraph(pages, format, {
+        ...options,
+        path: (page) => (page.title === "Ada" ? "whiteboards/Ada.edn" : `pages/${page.title}.md`),
+      }).bytes,
+    ),
+  )
+
 describe("graph export", () => {
   it("writes EDN in Logseq's shape, which its EDN import reads", () => {
     expect(exportGraph(pages, "edn", options).name).toBe("demo_1761120000.edn")
@@ -228,6 +238,11 @@ describe("graph export", () => {
       作者: "Ada",
       état: "done",
     })
+  })
+
+  it("leaves pages kept in other files, like whiteboards, out of the Markdown and OPML zips", () => {
+    expect(zippedWithBoard("markdown")).toEqual(["demo_markdown_1761120000/pages/Babbage.md"])
+    expect(zippedWithBoard("opml")).toEqual(["demo_opml_1761120000/pages/Babbage.opml"])
   })
 
   it("zips one OPML file per page", () => {

@@ -107,14 +107,17 @@ export const pageFiles = (
   path: (page: Page) => string,
 ): ReadonlyArray<readonly [path: string, text: string]> => {
   const shelf = shelve(library)
-  return library.pages.filter(hasFile).map(({ page }) => {
+  return library.pages.filter(hasFile).flatMap(({ page }) => {
     const file = path(page)
-    return format === "markdown"
-      ? [file, render(itemsOfPage(shelf, page.id), shelf, page, "text", standard)]
-      : [
-          file.replace(/\.md$/, ".opml"),
-          render(itemsOfPage(shelf, page.id), shelf, page, "opml", standard),
-        ]
+    if (!file.endsWith(".md")) return []
+    return [
+      format === "markdown"
+        ? ([file, render(itemsOfPage(shelf, page.id), shelf, page, "text", standard)] as const)
+        : ([
+            file.replace(/\.md$/, ".opml"),
+            render(itemsOfPage(shelf, page.id), shelf, page, "opml", standard),
+          ] as const),
+    ]
   })
 }
 
