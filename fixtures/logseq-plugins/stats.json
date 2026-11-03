@@ -98,5 +98,25 @@
     5491
    ]
   ]
+ },
+ "logseq-assets-plus": {
+  "stargazers_count": 30,
+  "releases": [
+   [
+    "v0.0.5",
+    false,
+    1477
+   ],
+   [
+    "v0.0.4",
+    false,
+    40
+   ],
+   [
+    "v0.0.3",
+    false,
+    56
+   ]
+  ]
  }
 }

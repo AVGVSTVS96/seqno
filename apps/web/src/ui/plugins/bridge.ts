@@ -13,6 +13,7 @@ import {
   rightSidebar,
 } from "../../atoms.ts"
 import type { router as appRouter } from "../../router.tsx"
+import { assetBridge } from "../assets.ts"
 import { notify } from "../shell/Notices.tsx"
 
 const blockIdOf = Schema.decodeUnknownOption(BlockId)
@@ -36,6 +37,7 @@ export const makeBridge = (
     return full.startsWith(base) ? full.slice(base.length) || "/" : full
   }
   return {
+    assets: assetBridge(registry),
     run: (effect) =>
       Effect.runPromise(
         Effect.flatMap(AtomRegistry.getResult(registry, coreRuntime), (context) =>

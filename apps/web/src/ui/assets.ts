@@ -1,8 +1,9 @@
 import { Clock, Effect } from "effect"
 import { AtomRegistry } from "effect/reactivity"
 import { AssetClient, type Asset } from "@seqno/rpc"
+import type { AssetBridge } from "@seqno/plugins"
 import { assetFileName, assetLink } from "@seqno/syntax"
-import { assetRuntime } from "../atoms.ts"
+import { assetFiles, assetResolver, assetRuntime } from "../atoms.ts"
 import { notify } from "./shell/Notices.tsx"
 
 export const runAssets = <A, E>(
@@ -46,3 +47,23 @@ export const saveAssets = (registry: AtomRegistry.AtomRegistry, files: ReadonlyA
     )
     return []
   })
+
+export const openPdf = (registry: AtomRegistry.AtomRegistry, path: string) => {
+  const source = registry.get(assetResolver)(path)
+  if (source !== undefined) window.open(source, "_blank", "noopener")
+}
+
+export const assetBridge = (registry: AtomRegistry.AtomRegistry): AssetBridge => ({
+  listed: () => registry.get(assetFiles),
+  write: (path, data) =>
+    runAssets(
+      registry,
+      Effect.flatMap(Effect.service(AssetClient), (client) => client.WriteAsset({ path, data })),
+    ),
+  remove: (path) =>
+    runAssets(
+      registry,
+      Effect.flatMap(Effect.service(AssetClient), (client) => client.RemoveAsset({ path })),
+    ),
+  openPdf: (path) => openPdf(registry, path),
+})

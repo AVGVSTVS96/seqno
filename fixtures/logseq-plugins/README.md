@@ -9,6 +9,7 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 | `files/haydenull/logseq-plugin-markdown-table` | Markdown Table Editor | v1.9.0   |
 | `files/sawhney17/logseq-pomodoro-plugin`       | Pomodoro timer        | 1.0.3    |
 | `files/pengx17/logseq-dev-theme`               | Dev theme             | v1.26.17 |
+| `files/xyhp915/logseq-assets-plus`             | Assets plus           | v0.0.5   |
 
 - `plugins.json` and `stats.json`: those entries from `logseq/marketplace`, plus one desktop-only (`effect`) plugin that the web marketplace hides.
 - `packages/<owner>__<repo>.json`: what `https://plugins.logseq.io/r2/<owner>/<repo>` answers.

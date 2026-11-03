@@ -1,0 +1,42 @@
+{
+ "name": "logseq-assets-plus",
+ "version": "v0.0.5",
+ "description": "A Logseq plugin to enhance the assets features.",
+ "repository": "https://github.com/xyhp915/logseq-assets-plus.git",
+ "author": "charlie",
+ "scripts": {
+  "dev": "parcel ./index.html",
+  "build": "parcel build ./index.html --public-url=./"
+ },
+ "logseq": {
+  "id": "logseq-assets-plus",
+  "title": "Assets plus",
+  "main": "dist/index.html",
+  "icon": "icon.png"
+ },
+ "license": "MIT",
+ "devDependencies": {
+  "@types/normalize-path": "^3.0.1",
+  "@types/react-virtualized": "^9.21.26",
+  "parcel": "^2.10.0"
+ },
+ "alias": {
+  "react": "preact/compat",
+  "react-dom/test-utils": "preact/test-utils",
+  "react-dom": "preact/compat",
+  "react/jsx-runtime": "preact/jsx-runtime"
+ },
+ "dependencies": {
+  "@logseq/libs": "^0.0.15",
+  "@phosphor-icons/react": "^2.0.13",
+  "classnames": "^2.3.2",
+  "logseq-l10n": "^0.2.0",
+  "normalize-path": "^3.0.0",
+  "preact": "^10.18.1",
+  "react-spinners": "^0.13.8",
+  "react-virtualized": "^9.22.5"
+ },
+ "_objectExtra": {
+  "releaseNotes": "enhance(ux): virtual list for the result items\r\nenhance(ui): translations & ui details"
+ }
+}

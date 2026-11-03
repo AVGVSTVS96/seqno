@@ -24,9 +24,8 @@ import {
   propertyConfig,
   resolvedTheme,
   rightSidebar,
-  assetResolver,
 } from "../atoms.ts"
-import { saveAssets } from "./assets.ts"
+import { openPdf, saveAssets } from "./assets.ts"
 import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
 import { Hints } from "./hints/Hints.tsx"
 import { GraphChooser, OpenFailed } from "./OpenGraphScreen.tsx"
@@ -72,13 +71,9 @@ const Layout = ({
   const wide = useAtomValue(wideMode)
   const mode = useAtomValue(resolvedTheme)
   const registry = useContext(RegistryContext)
-  const resolveAsset = useAtomValue(assetResolver)
   const assets: AssetActions = {
     saveFiles: (files) => saveAssets(registry, files),
-    openPdf: (url) => {
-      const source = resolveAsset(url)
-      if (source !== undefined) window.open(source, "_blank", "noopener")
-    },
+    openPdf: (url) => openPdf(registry, url),
   }
   return (
     <AssetActions value={assets}>

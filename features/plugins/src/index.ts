@@ -1,3 +1,4 @@
+export type { AssetBridge } from "./assets.ts"
 export { logseqVersion, routePayload, type Bridge, type Route } from "./api.ts"
 export type { Host, HookNamespace } from "./host.ts"
 export { injectUI, sanitizeHtml, type ModelEvent } from "./inject.ts"

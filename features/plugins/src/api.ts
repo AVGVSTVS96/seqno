@@ -14,6 +14,7 @@ import { editingBlock } from "@seqno/editor"
 import type { NavigationTarget } from "@seqno/outliner"
 import { CoreClient, type QueryResult } from "@seqno/rpc"
 import { splitProperties } from "@seqno/syntax"
+import { assetsApi, type AssetBridge } from "./assets.ts"
 import type { Api, Host } from "./host.ts"
 import { snakeCase } from "./protocol.ts"
 import { cursorPosition } from "./selection.ts"
@@ -59,6 +60,7 @@ export interface Bridge {
   readonly editBlock: (blockId: BlockId, caret: number | null) => void
   readonly exitEditing: () => void
   readonly selectedBlocks: () => ReadonlyArray<BlockId>
+  readonly assets: AssetBridge
 }
 
 export const logseqVersion = "0.10.9"
@@ -478,6 +480,7 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
       string,
       (pid: string, args: ReadonlyArray<unknown>) => unknown | Promise<unknown>
     > = {
+      ...assetsApi(bridge.assets, bridge.graphName),
       set_sdk_metadata: (pid, [meta]) =>
         void host.setSdk(pid, text(record(meta)["version"]) ?? "0.0.0"),
       install_plugin_hook: (_, [pid, hook]) =>
