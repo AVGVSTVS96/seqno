@@ -59,5 +59,7 @@ export const Page = Schema.Struct({
   title: Schema.String,
   journalDay: Schema.NullOr(JournalDay),
   props: Props,
+  format: Schema.optionalKey(Schema.Literal("org")),
+  frontMatter: Schema.optionalKey(Schema.Literal(true)),
 })
 export type Page = typeof Page.Type

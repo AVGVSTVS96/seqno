@@ -141,4 +141,58 @@ describe("outline syntax", () => {
       ],
     })
   })
+
+  it("reads YAML front matter as page properties and writes it back as Logseq does", () => {
+    const source =
+      '---\ntitle: FM Title\ntags: [alpha, beta]\nAuthor_Name: Jane Doe\nquoted: "a: b"\nb:c\n---\n- one\n\t- two'
+    assert.deepStrictEqual(parse(source), {
+      props: {
+        title: "FM Title",
+        tags: "[alpha, beta]",
+        Author_Name: "Jane Doe",
+        quoted: '"a: b"',
+        b: "c",
+      },
+      blocks: [
+        {
+          text: "one",
+          props: {},
+          collapsed: false,
+          children: [{ text: "two", props: {}, collapsed: false, children: [] }],
+        },
+      ],
+      frontMatter: true,
+    })
+    assert.strictEqual(
+      roundTrip(source),
+      '---\ntitle: FM Title\ntags: [alpha, beta]\nAuthor_Name: Jane Doe\nquoted: "a: b"\nb: c\n---\n\n- one\n\t- two',
+    )
+    assert.strictEqual(roundTrip("---\na: x\n---"), "---\na: x\n---")
+  })
+
+  it("keeps front matter Logseq can't read as the first block's text", () => {
+    for (const source of [
+      "---\ntags:\n  - a\n---\n- one",
+      "---\n\na: x\n---\n- one",
+      "\n---\na: x\n---\n- one",
+      "+++\na = 1\n+++\n- one",
+    ]) {
+      const outline = parse(source)
+      assert.deepStrictEqual(
+        [outline.props, outline.frontMatter, outline.blocks.length],
+        [{}, undefined, 2],
+      )
+    }
+  })
+
+  it("lets front matter win over key:: lines below it, keeping those lines as a block", () => {
+    assert.deepStrictEqual(parse("---\nfoo: bar\n---\ntype:: book\n\n- b"), {
+      props: { foo: "bar" },
+      blocks: [
+        { text: "", props: { type: "book" }, collapsed: false, children: [] },
+        { text: "b", props: {}, collapsed: false, children: [] },
+      ],
+      frontMatter: true,
+    })
+  })
 })

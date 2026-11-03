@@ -1,5 +1,5 @@
 import { normalizePageName, type Page, type Props } from "@seqno/domain"
-import { defaultPropertyConfig, type PropertyConfig } from "@seqno/syntax"
+import { defaultPropertyConfig, propertyKey, type PropertyConfig } from "@seqno/syntax"
 
 export interface Task {
   readonly status: string | null
@@ -83,13 +83,13 @@ const isInternal = (key: string) => key === "ls-type" || key.startsWith("logseq.
 
 const propsOf = (props: Props, config: PropertyConfig): ReadonlyArray<Prop> =>
   Object.entries(props).flatMap(([rawKey, raw]) => {
-    const key = rawKey.toLowerCase()
+    const key = propertyKey(rawKey)
     return isInternal(key) ? [] : propValues(key, raw, config).map((value): Prop => [key, value])
   })
 
 const linkedProps = (props: Props, config: PropertyConfig): ReadonlyArray<string> =>
   Object.entries(props).flatMap(([rawKey, raw]) => {
-    const key = rawKey.toLowerCase()
+    const key = propertyKey(rawKey)
     if (isInternal(key)) return []
     return config.listKeys.has(key) || /\[\[|#/.test(raw) ? propValues(key, raw, config) : []
   })

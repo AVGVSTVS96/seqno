@@ -67,8 +67,8 @@ const freeze = (open: Open): Node => ({
 })
 
 const frontMatterEnd = (lines: ReadonlyArray<string>): number => {
-  if (lines[0]?.trimEnd() !== "---") return 0
-  const close = lines.findIndex((line, index) => index > 0 && line.trimEnd() === "---")
+  if (lines[0] !== "---" && lines[0] !== "---\r") return 0
+  const close = lines.findIndex((line, index) => index > 0 && line.startsWith("---"))
   return close === -1 ? 0 : close + 1
 }
 

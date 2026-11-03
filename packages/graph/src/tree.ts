@@ -41,6 +41,8 @@ const PageData = Schema.Struct({
   props: Schema.optionalKey(Props),
   propKeys: Schema.optionalKey(PropKeys),
   mergedInto: Schema.optionalKey(PageId),
+  format: Schema.optionalKey(Schema.Literal("org")),
+  frontMatter: Schema.optionalKey(Schema.Literal(true)),
 })
 
 const BlockData = Schema.Struct({
@@ -92,6 +94,19 @@ export const inOrder = (props: Props = {}, keys: ReadonlyArray<string> = []): Pr
   return Object.fromEntries([...listed, ...rest].map((key) => [key, props[key] ?? ""]))
 }
 
+export const fileShape = (data: unknown): Pick<Page, "format" | "frontMatter"> =>
+  typeof data === "object" && data !== null
+    ? {
+        ...(Reflect.get(data, "format") === "org" ? { format: "org" } : {}),
+        ...(Reflect.get(data, "frontMatter") === true ? { frontMatter: true } : {}),
+      }
+    : {}
+
+export const writeFileShape = (data: LoroMap, page: Page): void => {
+  if (page.format !== undefined) data.set("format", page.format)
+  if (page.frontMatter !== undefined) data.set("frontMatter", page.frontMatter)
+}
+
 export const readPage = (node: LoroTreeNode): Option.Option<Page> =>
   Option.flatMap(
     Option.filter(decodePageData(node.data.toJSON()), (data) => data.mergedInto === undefined),
@@ -105,6 +120,7 @@ export const readPage = (node: LoroTreeNode): Option.Option<Page> =>
             title: data.title,
             journalDay: data.journalDay ?? null,
             props: inOrder(data.props, data.propKeys),
+            ...fileShape(data),
           })
     },
   )
@@ -224,6 +240,7 @@ export const loadPage = (tree: LoroTree, { page, blocks }: PageTree, now: number
   const root = tree.createNode()
   writePage(root, page.id, page.title)
   if (page.journalDay !== null) root.data.set("journalDay", page.journalDay)
+  writeFileShape(root.data, page)
   writeProps(root.data, page.props)
   const nodes = new Map<BlockId, LoroTreeNode>()
   for (const block of blocks) {

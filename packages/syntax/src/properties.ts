@@ -1,3 +1,5 @@
+export const propertyKey = (key: string): string => key.toLowerCase().replaceAll(/[ _]/g, "-")
+
 export type PropertyLine = readonly [key: string, value: string]
 
 export interface PropertyDraft {

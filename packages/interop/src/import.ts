@@ -192,7 +192,14 @@ export const importGraph = Effect.gen(function* () {
     if (Option.isNone(claimed)) continue
     const { id, name } = claimed.value
     pages.push({
-      page: { id, name, title, journalDay: Option.getOrNull(journalDay), props: outline.props },
+      page: {
+        id,
+        name,
+        title,
+        journalDay: Option.getOrNull(journalDay),
+        props: outline.props,
+        ...(outline.frontMatter === true ? { frontMatter: true } : {}),
+      },
       blocks: flatten(outline.blocks, id, null, path),
     })
   }

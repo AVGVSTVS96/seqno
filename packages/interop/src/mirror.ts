@@ -70,7 +70,11 @@ export const renderMirror = (pages: ReadonlyArray<PageTree>, config: LogseqConfi
           mirrorPath(page, config),
           isWhiteboard(page)
             ? renderWhiteboard(page, blocks)
-            : syntax.print({ props: pageProps(page), blocks: outlineOf(blocks, referenced) }),
+            : syntax.print({
+                props: pageProps(page),
+                blocks: outlineOf(blocks, referenced),
+                ...(page.frontMatter === true ? { frontMatter: true } : {}),
+              }),
         ]),
     )
   })

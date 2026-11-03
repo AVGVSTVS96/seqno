@@ -1,5 +1,5 @@
 import { normalizePageName, type Block, type PageId } from "@seqno/domain"
-import { joinProperties, parseInline, type PropertyConfig } from "@seqno/syntax"
+import { joinProperties, parseInline, propertyKey, type PropertyConfig } from "@seqno/syntax"
 import { propertyLines, type PropertyLine } from "./items.ts"
 import { shelve, type Library, type PageBlocks, type Shelf } from "./library.ts"
 import { propertyValue, type PropertyValue } from "./values.ts"
@@ -94,6 +94,7 @@ type Properties = ReadonlyArray<readonly [string, PropertyValue]> | null
 
 const typed = (lines: ReadonlyArray<readonly [string, string]>, config: PropertyConfig) =>
   lines
+    .map(([key, value]) => [propertyKey(key), value] as const)
     .filter(([key]) => key !== "id" && VALID_KEY.test(key))
     .map(([key, value]) => [key, propertyValue(key, value, config)] as const)
 
@@ -163,8 +164,15 @@ const propertiesBlock = (page: PageBlocks["page"], properties: Properties) =>
     : [
         {
           id: derivedUuid(page.id),
-          content: "",
-          lines: Object.entries(page.props),
+          content:
+            page.frontMatter === true
+              ? [
+                  "---",
+                  ...Object.entries(page.props).map(([key, value]) => `${key}: ${value}`),
+                  "---",
+                ].join("\n")
+              : "",
+          lines: page.frontMatter === true ? [] : Object.entries(page.props),
           properties,
           children: [],
         },

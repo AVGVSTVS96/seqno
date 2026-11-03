@@ -2,7 +2,7 @@ import { Option, Schema } from "effect"
 import { LoroMap, type LoroDoc, type LoroTreeNode, type TreeID } from "loro-crdt"
 import { JournalDay, PageId, Props, normalizePageName, type Page } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
-import { inOrder, isTreeId, readProps } from "../tree.ts"
+import { fileShape, inOrder, isTreeId, readProps } from "../tree.ts"
 
 export const TITLES = "titles"
 export const DAYS = "days"
@@ -154,6 +154,7 @@ export const listPages = (dir: Directory): Listing => {
       title,
       journalDay: Option.getOrNull(decodeDay(days.get(id))),
       props,
+      ...fileShape(own),
     })
   }
   return { live, merged, trashed, titled }

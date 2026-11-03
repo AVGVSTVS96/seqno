@@ -1,6 +1,6 @@
 import type { LoroTreeNode } from "loro-crdt"
 import type { BlockId, Page, PageId } from "@seqno/domain"
-import { writeProps, type BlockState } from "../tree.ts"
+import { writeFileShape, writeProps, type BlockState } from "../tree.ts"
 import { ensurePageData } from "./layout.ts"
 import type { Trees } from "./outline.ts"
 
@@ -23,6 +23,8 @@ export const writePage = (trees: Trees, id: PageId, { page, blocks }: PageState)
   trees.dir.titles.set(id, page.title)
   if (page.journalDay !== null) trees.dir.days.set(id, page.journalDay)
   if (Object.keys(page.props).length > 0) writeProps(ensurePageData(trees.dir, id), page.props)
+  if (page.format !== undefined || page.frontMatter !== undefined)
+    writeFileShape(ensurePageData(trees.dir, id), page)
   const tree = trees.tree(id)
   const nodes = new Map<BlockId, LoroTreeNode>()
   for (const state of blocks) {

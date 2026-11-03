@@ -12,6 +12,7 @@ export interface OutlineBlock {
 export interface Outline {
   readonly props: Props
   readonly blocks: ReadonlyArray<OutlineBlock>
+  readonly frontMatter?: true
 }
 
 export class LogseqSyntax extends Context.Service<
@@ -68,13 +69,38 @@ const fromLines = (
 const fromSyntax = (block: Syntax.Block): OutlineBlock =>
   fromLines(block.text.split("\n"), block.children.map(fromSyntax))
 
+const filled = (line: string) => line.trim() !== ""
+
+const frontMatterLine = /^([^:]+):(.*)$/
+
+const frontMatterOf = (preamble: ReadonlyArray<string>) => {
+  const close = preamble.findIndex((line, index) => index > 0 && line.startsWith("---"))
+  if (preamble[0] !== "---" || close < 2) return null
+  const props: Record<string, string> = {}
+  for (const line of preamble.slice(1, close)) {
+    const match = frontMatterLine.exec(line)
+    if (match === null) return null
+    props[match[1] ?? ""] = (match[2] ?? "").trim()
+  }
+  return { props, rest: preamble.slice(close + 1) }
+}
+
 const parse = (source: string): Outline => {
   const outline = Syntax.toOutline(Syntax.parse(source.replaceAll("\r\n", "\n")))
   const preamble = outline.preamble === "" ? [] : outline.preamble.split("\n")
   if (preamble.at(-1) === "") preamble.pop()
+  const blocks = outline.blocks.map(fromSyntax)
+  const front = frontMatterOf(preamble)
+  if (front !== null) {
+    const body = front.rest.slice(
+      front.rest.findIndex(filled),
+      front.rest.findLastIndex(filled) + 1,
+    )
+    const extra = body.length === 0 ? [] : [fromLines(body, [])]
+    return { props: front.props, blocks: [...extra, ...blocks], frontMatter: true }
+  }
   const pageRun = propertyRun(preamble)
   const rest = preamble.slice(pageRun.length)
-  const blocks = outline.blocks.map(fromSyntax)
   return rest.every((line) => line.trim() === "")
     ? { props: pageRun.props, blocks }
     : { props: {}, blocks: [fromLines(preamble, []), ...blocks] }
@@ -107,8 +133,16 @@ const topHeading = (block: Syntax.Block): Syntax.Block => {
   return heading.test(first) && plain ? { ...block, bare: true } : block
 }
 
+const frontMatterLines = (props: Props) =>
+  Object.keys(props).length === 0
+    ? []
+    : ["---", ...Object.entries(props).map(([key, value]) => `${key}: ${value}`), "---"]
+
 const print = (outline: Outline): string => {
-  const props = propertyLines(outline.props, false)
+  const props =
+    outline.frontMatter === true
+      ? frontMatterLines(outline.props)
+      : propertyLines(outline.props, false)
   const preamble = [...props, ...(props.length > 0 && outline.blocks.length > 0 ? ["", ""] : [])]
   const [first, ...rest] = outline.blocks.map(toSyntax)
   const blocks =
