@@ -137,6 +137,7 @@ const DemoLocations = Layer.succeed(GraphLocations, {
   reopen: (name) => Effect.succeed(inBrowser(name)),
   resume: (name) => Effect.succeed(inBrowser(name)),
   assets: () => Effect.succeed(new Map()),
+  file: () => Effect.succeed(null),
 })
 
 const testRegistry = (entries = new Map<string, string>()) =>

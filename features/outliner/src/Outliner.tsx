@@ -73,6 +73,7 @@ export interface OutlinerProps {
   readonly resolveAsset?: (path: string) => string | undefined
   readonly onBlockMenu?: OpenBlockMenu
   readonly vim?: boolean
+  readonly readOnly?: boolean
 }
 
 const listId = (pageId: PageId, zoom: BlockId | null) => `${pageId} ${zoom ?? ""}`
@@ -325,6 +326,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const embedded = props.embedded ?? false
   const addable = props.addable ?? false
   const parent = use(RenderContext)
+  const readOnly = props.readOnly ?? parent.readOnly
   const counts = AsyncResult.getOrElse(useAtomValue(blockRefCountsAtom), () => noCounts)
   const registry = useContext(RegistryContext)
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
@@ -745,6 +747,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
             : { _tag: "Zoom", pageId, blockId: block.id },
         ),
       content: (event) => {
+        if (readOnly) return
         if (event.shiftKey) {
           event.preventDefault()
           window.getSelection()?.removeAllRanges()
@@ -755,6 +758,10 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         edit(block, caretFromPoint(event.clientX, event.clientY) ?? block.text.length)
       },
       dragStart: (event) => {
+        if (readOnly) {
+          event.preventDefault()
+          return
+        }
         const ids = selectedSet.has(block.id) ? selected : [block.id]
         event.dataTransfer.effectAllowed = "move"
         event.dataTransfer.setData("text/plain", ids.join("\n"))
@@ -780,7 +787,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         setDrop(null)
       },
       press: (event) => {
-        if (event.button !== 0 || event.shiftKey) return
+        if (readOnly || event.button !== 0 || event.shiftKey) return
         pressed.current = block.id
         swept.current = false
         window.addEventListener(
@@ -826,6 +833,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     resolveAsset: resolveAsset ?? parent.resolveAsset,
     openMenu: onBlockMenu ?? parent.openMenu,
     vim,
+    readOnly,
   }
 
   const renderRow = (row: Row, index: number) => {
@@ -874,9 +882,18 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
               content={content}
               props={block.props}
               onMarker={(marker) => setTask(block, marker)}
-              onCode={(start, end, insert) =>
-                dispatch({ _tag: "EditText", blockId: block.id, from: start, to: end, insert })
-              }
+              {...(readOnly
+                ? {}
+                : {
+                    onCode: (start: number, end: number, insert: string) =>
+                      dispatch({
+                        _tag: "EditText",
+                        blockId: block.id,
+                        from: start,
+                        to: end,
+                        insert,
+                      }),
+                  })}
             />
           </HostBlock>
         )}
@@ -922,13 +939,13 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
           aria-label="Outline"
           aria-multiselectable
           tabIndex={0}
-          onKeyDown={onKeyDown}
-          onPaste={onPaste}
+          onKeyDown={readOnly ? undefined : onKeyDown}
+          onPaste={readOnly ? undefined : onPaste}
           onBlur={onBlur}
         >
           {body}
           {trailing === 0 ? null : <Gap key="gap-end" height={trailing} />}
-          {embedded ? null : rows.length === 0 ? (
+          {embedded || readOnly ? null : rows.length === 0 ? (
             <AddBlock
               className="seqno-add-first"
               label="Click here to start writing"

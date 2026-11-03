@@ -1,9 +1,9 @@
-import { useAtom, useAtomValue } from "@effect/atom-react"
+import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { IconX } from "@tabler/icons-react"
-import { Clock, Effect, Option, Schema } from "effect"
+import { Cause, Clock, Effect, Exit, Option, Schema } from "effect"
 import { AsyncResult, Atom } from "effect/reactivity"
 import { domToBlob } from "modern-screenshot"
-import { useId, useRef, useState } from "react"
+import { useContext, useId, useRef, useState } from "react"
 import type { Block, BlockId, Page, PageId, Props } from "@seqno/domain"
 import {
   exportBlocks,
@@ -18,7 +18,9 @@ import { Outliner, PlainTextEditor } from "@seqno/outliner"
 import { CoreClient, type ExportedTree } from "@seqno/rpc"
 import { isHiddenProperty, joinProperties } from "@seqno/syntax"
 import { appRuntime, assetResolver, openGraph, settingsLayer } from "../../atoms.ts"
+import { notify } from "./Notices.tsx"
 import { closeDialogOf, Dialog, openDialog } from "./popover.tsx"
+import { publishPages } from "./publish.ts"
 
 export interface ExportRequest {
   readonly name: string
@@ -393,13 +395,23 @@ export const ExportDialog = () => {
 
 export const graphExportDialogId = "seqno-export-graph"
 
-const graphChoices: ReadonlyArray<readonly [GraphFormat, string]> = [
+type GraphChoice = GraphFormat | "public-pages"
+
+const graphChoices: ReadonlyArray<readonly [GraphChoice, string]> = [
   ["edn", "Export as EDN"],
   ["json", "Export as JSON"],
   ["markdown", "Export as standard Markdown (no block properties)"],
   ["opml", "Export as OPML"],
+  ["public-pages", "Export public pages"],
   ["roam-json", "Export as Roam JSON"],
 ]
+
+const reasonOf = (cause: Cause.Cause<unknown>) => {
+  const error = Cause.squash(cause)
+  return typeof error === "object" && error !== null && "reason" in error
+    ? String(error.reason)
+    : String(error)
+}
 
 const exportGraphAs = appRuntime.fn((kind: GraphFormat, get) =>
   Effect.gen(function* () {
@@ -423,7 +435,27 @@ const exportGraphAs = appRuntime.fn((kind: GraphFormat, get) =>
 
 export const GraphExportDialog = () => {
   const [running, run] = useAtom(exportGraphAs)
-  const busy = AsyncResult.isWaiting(running)
+  const publishing = useAtomValue(publishPages)
+  const publish = useAtomSet(publishPages, { mode: "promiseExit" })
+  const registry = useContext(RegistryContext)
+  const busy = AsyncResult.isWaiting(running) || AsyncResult.isWaiting(publishing)
+  const choose = (kind: GraphChoice) => {
+    if (kind !== "public-pages") return run(kind)
+    void publish().then(
+      Exit.match({
+        onFailure: (cause) => notify(registry, `Export public pages failed: ${reasonOf(cause)}`),
+        onSuccess: (delivered) => {
+          if (delivered._tag === "Folder")
+            notify(
+              registry,
+              `Export public pages and publish assets to ${delivered.name} successfully`,
+            )
+          if (delivered._tag === "Nothing" && delivered.reason !== "")
+            notify(registry, delivered.reason)
+        },
+      }),
+    )
+  }
   return (
     <Dialog id={graphExportDialogId} label="Export graph" className="export-graph-dialog">
       <div className="export-dialog-head">
@@ -444,7 +476,7 @@ export const GraphExportDialog = () => {
               type="button"
               className="export-graph-choice"
               disabled={busy}
-              onClick={() => run(kind)}
+              onClick={() => choose(kind)}
             >
               {label}
             </button>

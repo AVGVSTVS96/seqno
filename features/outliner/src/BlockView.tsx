@@ -78,7 +78,8 @@ const TaskControls = ({
   readonly marker: Marker
   readonly onMarker: (marker: Marker | null) => void
 }) => {
-  const next = switchable[marker]
+  const { readOnly } = use(RenderContext)
+  const next = readOnly ? undefined : switchable[marker]
   const done = marker === "DONE"
   return (
     <>
@@ -88,6 +89,7 @@ const TaskControls = ({
           className="seqno-checkbox"
           aria-label={done ? "Mark as not done" : "Mark as done"}
           checked={done}
+          disabled={readOnly}
           onClick={stop}
           onChange={(event) => onMarker(event.currentTarget.checked ? "DONE" : "TODO")}
         />

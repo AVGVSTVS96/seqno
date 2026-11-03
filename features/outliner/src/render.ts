@@ -19,6 +19,7 @@ export interface Renderer {
   readonly resolveAsset: (path: string) => string | undefined
   readonly openMenu: OpenBlockMenu | undefined
   readonly vim: boolean
+  readonly readOnly: boolean
 }
 
 export const RenderContext = createContext<Renderer>({
@@ -31,6 +32,7 @@ export const RenderContext = createContext<Renderer>({
   editor: PlainTextEditor,
   resolveAsset: () => undefined,
   vim: false,
+  readOnly: false,
 })
 
 export type SourceEdit = (from: number, to: number, insert: string) => void

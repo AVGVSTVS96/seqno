@@ -45,6 +45,7 @@ export class GraphLocations extends Context.Service<
     readonly reopen: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly resume: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly assets: (name: string) => Effect.Effect<ReadonlyMap<string, string>>
+    readonly file: (name: string, path: string) => Effect.Effect<Uint8Array | null>
   }
 >()("@seqno/web/GraphLocations") {}
 
@@ -126,6 +127,16 @@ const filesUnder = async (
   return (await Promise.all(found)).flat()
 }
 
+const readFile = async (folder: FileSystemDirectoryHandle, path: string) => {
+  const parts = path.split("/").filter((part) => part !== "" && part !== ".")
+  const name = parts.pop()
+  if (name === undefined || parts.includes("..")) return null
+  let at = folder
+  for (const part of parts) at = await at.getDirectoryHandle(part)
+  const file = await (await at.getFileHandle(name)).getFile()
+  return new Uint8Array(await file.arrayBuffer())
+}
+
 const stored = (name: string) =>
   Effect.flatMap(graphs("readonly"), (store) => request(() => store.get(name))).pipe(
     Effect.flatMap((found) => Effect.mapError(decodeLocation(found), notPicked)),
@@ -169,5 +180,15 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
         }),
       ),
       Effect.orElseSucceed(() => new Map<string, string>()),
+    ),
+  file: (name, path) =>
+    stored(name).pipe(
+      Effect.flatMap((location) =>
+        Effect.tryPromise({
+          try: async () => readFile(await folderOf(location), path),
+          catch: notPicked,
+        }),
+      ),
+      Effect.orElseSucceed(() => null),
     ),
 })
