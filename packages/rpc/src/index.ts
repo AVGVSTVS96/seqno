@@ -1,6 +1,7 @@
 export { CoreClient } from "./client.ts"
 export {
   BlockNotFound,
+  BlockRefNotFound,
   CommandRejected,
   GraphLocked,
   GraphNotOpen,
@@ -33,6 +34,7 @@ export {
   ExportedTree,
   ExportPages,
   GetBlock,
+  GetBlockByRef,
   GetPage,
   GetPages,
   GraphMoved,

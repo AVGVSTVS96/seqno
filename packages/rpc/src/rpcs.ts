@@ -3,6 +3,7 @@ import { Rpc, RpcGroup } from "effect/rpc"
 import { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import {
   BlockNotFound,
+  BlockRefNotFound,
   CommandRejected,
   GraphLocked,
   GraphNotOpen,
@@ -108,6 +109,12 @@ export const GetBlock = Rpc.make("GetBlock", {
   error: Schema.Union([GraphNotOpen, BlockNotFound]),
 })
 
+export const GetBlockByRef = Rpc.make("GetBlockByRef", {
+  payload: { uuid: Schema.String },
+  success: Block,
+  error: Schema.Union([GraphNotOpen, BlockRefNotFound]),
+})
+
 export const WatchPage = Rpc.make("WatchPage", {
   payload: { pageId: PageId },
   success: PageTree,
@@ -163,6 +170,7 @@ export const CoreRpcs = RpcGroup.make(
   GetPage,
   ExportPages,
   GetBlock,
+  GetBlockByRef,
   WatchPage,
   WatchQuery,
   Search,

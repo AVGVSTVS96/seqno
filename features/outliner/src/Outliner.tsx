@@ -14,7 +14,14 @@ import {
 import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
+import {
+  isBlockRefTo,
+  type Block,
+  type BlockId,
+  type Command,
+  type GraphEvent,
+  type PageId,
+} from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
 import {
   pastedBlocks,
@@ -826,7 +833,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const renderer: Renderer = {
     navigate: onNavigate,
     depth: parent.depth + (embedded ? 1 : 0),
-    localBlock: (blockId) => tree.blocks.find((block) => block.id === blockId),
+    localBlock: (uuid) => tree.blocks.find((block) => isBlockRefTo(block, uuid)),
     Embed: EmbedView,
     Query: QueryView,
     editor: Editor,

@@ -41,6 +41,18 @@ export const Block = Schema.Struct({
 })
 export type Block = typeof Block.Type
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export const blockRefId = (block: Block): string => {
+  const written = block.props["id"]
+  return written !== undefined && UUID.test(written) ? written.toLowerCase() : block.id
+}
+
+export const isBlockRefTo = (block: Block, uuid: string): boolean => {
+  const wanted = uuid.toLowerCase()
+  return block.id === wanted || block.props["id"]?.toLowerCase() === wanted
+}
+
 export const Page = Schema.Struct({
   id: PageId,
   name: PageName,

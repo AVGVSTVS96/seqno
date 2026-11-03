@@ -20,5 +20,4 @@ Every format matches Logseq 0.10.9's output for the same graph; `docs/decisions.
 ## Known gaps
 
 - Property values are typed with Logseq's default config; `:property/separated-by-commas` and `:ignored-page-references-keywords` from a graph's `config.edn` aren't read.
-- A ref to a block on another page that still has its Logseq-era (non-v7) `id::` isn't loaded for Export page, so it stays `((uuid))`; the outliner can't show those refs either.
 - The public site is seqno's own viewer, not Logseq's bundle (see `docs/decisions.md`); its queries are frozen at export time.

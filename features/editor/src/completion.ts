@@ -14,7 +14,7 @@ import {
   type TooltipView,
 } from "@codemirror/view"
 import { Effect, Fiber } from "effect"
-import type { BlockId } from "@seqno/domain"
+import { blockRefId, type BlockId } from "@seqno/domain"
 import type { SlashCommand } from "./commands.ts"
 import {
   datePicker,
@@ -269,7 +269,7 @@ export const accept = (view: EditorView, index: number, now = new Date()): boole
     Journal: ({ title }) => insertRef(view, popup, title),
     Page: ({ title }) => insertRef(view, popup, title),
     NewPage: ({ title }) => insertRef(view, popup, title),
-    Block: ({ hit }) => insertRef(view, popup, hit.block.id),
+    Block: ({ hit }) => insertRef(view, popup, blockRefId(hit.block)),
     Command: ({ command }) => runCommand(view, popup, command, now),
   })
   return true

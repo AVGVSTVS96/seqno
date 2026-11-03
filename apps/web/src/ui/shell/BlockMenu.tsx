@@ -12,7 +12,7 @@ import {
 } from "@tabler/icons-react"
 import { AsyncResult, Atom } from "effect/reactivity"
 import type { ComponentType } from "react"
-import type { Block, Command } from "@seqno/domain"
+import { blockRefId, type Block, type Command } from "@seqno/domain"
 import { pageTreeAtom, type BlockMenuRequest } from "@seqno/outliner"
 import { blockContent } from "@seqno/syntax"
 import { dispatch, rightSidebar } from "../../atoms.ts"
@@ -225,11 +225,13 @@ const MenuView = ({
         Open in sidebar
       </MenuItem>
       <MenuSeparator />
-      <MenuItem onSelect={() => copy(request.blockIds.map((id) => `((${id}))`).join("\n"))}>
+      <MenuItem onSelect={() => copy(chosen.map((block) => `((${blockRefId(block)}))`).join("\n"))}>
         Copy block ref
       </MenuItem>
       <MenuItem
-        onSelect={() => copy(request.blockIds.map((id) => `{{embed ((${id}))}}`).join("\n"))}
+        onSelect={() =>
+          copy(chosen.map((block) => `{{embed ((${blockRefId(block)}))}}`).join("\n"))
+        }
       >
         Copy block embed
       </MenuItem>

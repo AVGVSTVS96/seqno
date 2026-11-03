@@ -1,7 +1,15 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect"
 import { RpcTest } from "effect/rpc"
-import { Block, BlockId, Command, PageId, type GraphEvent, type Page } from "@seqno/domain"
-import { BlockNotFound, CoreClient, CoreRpcs, type PageTree } from "@seqno/rpc"
+import {
+  Block,
+  BlockId,
+  Command,
+  PageId,
+  isBlockRefTo,
+  type GraphEvent,
+  type Page,
+} from "@seqno/domain"
+import { BlockNotFound, BlockRefNotFound, CoreClient, CoreRpcs, type PageTree } from "@seqno/rpc"
 
 export const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
 
@@ -109,6 +117,13 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
             const found = tree.blocks.find((b) => b.id === blockId)
             return found === undefined
               ? Effect.fail(new BlockNotFound({ blockId }))
+              : Effect.succeed(found)
+          }),
+        GetBlockByRef: ({ uuid }) =>
+          Effect.flatMap(SubscriptionRef.get(state), (tree) => {
+            const found = tree.blocks.find((b) => isBlockRefTo(b, uuid))
+            return found === undefined
+              ? Effect.fail(new BlockRefNotFound({ uuid }))
               : Effect.succeed(found)
           }),
         WatchPage: () => SubscriptionRef.changes(state),

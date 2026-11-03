@@ -27,5 +27,5 @@ pnpm test --project @seqno/domain
 
 ## Known gaps
 
-- `BlockId` accepts UUIDv7 only. Logseq's `id::` values are v4, so imported blocks get new v7 ids and keep the original in `props.id`.
+- `BlockId` accepts UUIDv7 only. Logseq's `id::` values are v4, so imported blocks get new v7 ids and keep the original in `props.id`. `blockRefId` gives the id a `((ref))` to the block uses (its Logseq id when it has one, as Logseq's files expect), and `isBlockRefTo` matches a ref by either id.
 - `MoveBlocks` has no `pageId`. With `parentId: null` the target page comes from `after` or the blocks' current page, so blocks can't move to the top level of an empty page.

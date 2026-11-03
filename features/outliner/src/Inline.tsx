@@ -14,7 +14,7 @@ import {
   type LinkTarget,
   type Span,
 } from "@seqno/syntax"
-import { blockAtom, pageTreeAtom } from "./core.ts"
+import { blockRefAtom, pageTreeAtom } from "./core.ts"
 import { usePreview } from "./Preview.tsx"
 import {
   HostBlock,
@@ -75,25 +75,27 @@ const LiveRef = ({ block, children }: { readonly block: Block; readonly children
   return <RefBody block={latest ?? block}>{children}</RefBody>
 }
 
-const RemoteRef = ({
-  blockId,
-  children,
-}: {
-  readonly blockId: BlockId
-  readonly children?: ReactNode
-}) =>
-  AsyncResult.match(useAtomValue(blockAtom(blockId)), {
+const RemoteRef = ({ uuid, children }: { readonly uuid: string; readonly children?: ReactNode }) =>
+  AsyncResult.match(useAtomValue(blockRefAtom(uuid)), {
     onInitial: () => <span className="seqno-blockref is-pending">{children}</span>,
-    onFailure: () => <span className="seqno-blockref is-missing">(({blockId}))</span>,
+    onFailure: () => <span className="seqno-blockref is-missing">(({uuid}))</span>,
     onSuccess: ({ value }) => <LiveRef block={value}>{children}</LiveRef>,
   })
 
+const BlockRefEmbed = ({ uuid, raw }: { readonly uuid: string; readonly raw: string }) => {
+  const { Embed } = use(RenderContext)
+  return AsyncResult.match(useAtomValue(blockRefAtom(uuid)), {
+    onInitial: () => null,
+    onFailure: () => <span className="seqno-macro">{raw}</span>,
+    onSuccess: ({ value }) => <Embed target={{ _tag: "Block", blockId: value.id }} />,
+  })
+}
+
 const BlockRef = ({ uuid, children }: { readonly uuid: string; readonly children?: ReactNode }) => {
   const renderer = use(RenderContext)
-  if (!isBlockId(uuid)) return <span className="seqno-blockref is-missing">(({uuid}))</span>
   const local = renderer.localBlock(uuid)
   return local === undefined ? (
-    <RemoteRef blockId={uuid}>{children}</RemoteRef>
+    <RemoteRef uuid={uuid}>{children}</RemoteRef>
   ) : (
     <RefBody block={local}>{children}</RefBody>
   )
@@ -300,8 +302,12 @@ const Macro = ({
   if (video !== null) return <VideoEmbed video={video} />
   const seconds = name === "youtube-timestamp" ? parseTimestamp(args) : null
   if (seconds !== null) return <Timestamp seconds={seconds} />
-  if (renderer.depth < maxDepth && target?._tag === "BlockRef" && isBlockId(target.uuid)) {
-    return <Embed target={{ _tag: "Block", blockId: target.uuid }} />
+  if (renderer.depth < maxDepth && target?._tag === "BlockRef") {
+    return isBlockId(target.uuid) ? (
+      <Embed target={{ _tag: "Block", blockId: target.uuid }} />
+    ) : (
+      <BlockRefEmbed uuid={target.uuid} raw={raw} />
+    )
   }
   if (renderer.depth < maxDepth && target?._tag === "PageRef") {
     return <Embed target={{ _tag: "Page", name: target.name }} />

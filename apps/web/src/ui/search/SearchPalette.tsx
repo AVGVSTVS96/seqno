@@ -4,7 +4,7 @@ import { useMatchRoute, useRouter } from "@tanstack/react-router"
 import { Exit } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { Fragment, useId, useState, type KeyboardEvent, type ReactNode } from "react"
-import type { BlockId } from "@seqno/domain"
+import { blockRefId, type BlockId } from "@seqno/domain"
 import type { PageStat } from "@seqno/rpc"
 import {
   allPages,
@@ -75,7 +75,7 @@ const Row = ({ item, query }: { readonly item: Item; readonly query: string }) =
 
 const refOf = (item: Item) =>
   item._tag === "Block"
-    ? `((${item.block.id}))`
+    ? `((${blockRefId(item.block)}))`
     : `[[${item._tag === "Page" ? item.page.title : item.title}]]`
 
 const copyRef = (item: Item) =>

@@ -20,6 +20,10 @@ export class BlockNotFound extends Schema.TaggedError<BlockNotFound>()("BlockNot
   blockId: BlockId,
 }) {}
 
+export class BlockRefNotFound extends Schema.TaggedError<BlockRefNotFound>()("BlockRefNotFound", {
+  uuid: Schema.String,
+}) {}
+
 export class CommandRejected extends Schema.TaggedError<CommandRejected>()("CommandRejected", {
   reason: Schema.String,
 }) {}

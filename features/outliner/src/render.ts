@@ -12,7 +12,7 @@ export type EmbedTarget =
 export interface Renderer {
   readonly navigate: Navigate
   readonly depth: number
-  readonly localBlock: (blockId: BlockId) => Block | undefined
+  readonly localBlock: (uuid: string) => Block | undefined
   readonly Embed: ComponentType<{ readonly target: EmbedTarget; readonly bare?: boolean }>
   readonly Query: ComponentType<{ readonly query: string }>
   readonly editor: ComponentType<EditorSlotProps>

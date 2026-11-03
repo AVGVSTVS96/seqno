@@ -1,10 +1,9 @@
-import { Effect, Option, Schema } from "effect"
-import { BlockId, normalizePageName, type PageId } from "@seqno/domain"
+import { Effect, Option } from "effect"
+import { normalizePageName, type PageId } from "@seqno/domain"
 import { defaultConfig, mirrorPath } from "@seqno/interop"
 import type { ExportedTree, PageTree } from "@seqno/rpc"
 import type { Session } from "./session.ts"
 
-const decodeBlockId = Schema.decodeUnknownOption(BlockId)
 const BLOCK_REF = /\(\(([0-9a-f-]{36})\)\)/gi
 const PAGE_EMBED = /\{\{embed\s+\[\[([^\]]+)\]\]\s*\}\}/g
 const maxDepth = 5
@@ -42,7 +41,7 @@ export const pagesReached = (session: Session, from: ReadonlyArray<PageId>) =>
         return tree.blocks.flatMap((block) => [block.text, ...Object.values(block.props)])
       })
       const refs = texts.flatMap((text) =>
-        [...text.matchAll(BLOCK_REF)].flatMap((match) => Option.toArray(decodeBlockId(match[1]))),
+        [...text.matchAll(BLOCK_REF)].map((match) => match[1] ?? ""),
       )
       const embedded = texts.flatMap((text) =>
         [...text.matchAll(PAGE_EMBED)].flatMap((match) => {
@@ -50,7 +49,7 @@ export const pagesReached = (session: Session, from: ReadonlyArray<PageId>) =>
           return id === undefined ? [] : [id]
         }),
       )
-      const referenced = (yield* session.blocks(refs)).map((block) => block.pageId)
+      const referenced = (yield* session.blocksByRef(refs)).map((block) => block.pageId)
       frontier = [...new Set([...embedded, ...referenced])].filter((id) => !reached.has(id))
     }
     return [...reached.values()].map(exportedOf)

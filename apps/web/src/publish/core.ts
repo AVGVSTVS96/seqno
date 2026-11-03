@@ -1,9 +1,10 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect"
 import { RpcTest } from "effect/rpc"
-import type { Block, PageId } from "@seqno/domain"
+import { isBlockRefTo, type Block, type PageId } from "@seqno/domain"
 import type { Published, PublishedRows } from "@seqno/export"
 import {
   BlockNotFound,
+  BlockRefNotFound,
   CommandRejected,
   CoreClient,
   CoreRpcs,
@@ -51,12 +52,8 @@ const answer = (trees: Trees, rows: PublishedRows): QueryResult => {
   }
 }
 
-const findBlock = (trees: Trees, uuid: string) => {
-  const wanted = uuid.toLowerCase()
-  return blocksOf(trees).find(
-    (block) => block.id === wanted || block.props["id"]?.toLowerCase() === wanted,
-  )
-}
+const findBlock = (trees: Trees, uuid: string) =>
+  blocksOf(trees).find((block) => isBlockRefTo(block, uuid))
 
 export const publishedCore = (data: Published): Layer.Layer<CoreClient> => {
   const handlers = CoreRpcs.toLayer(
@@ -108,6 +105,13 @@ export const publishedCore = (data: Published): Layer.Layer<CoreClient> => {
             const block = findBlock(trees, blockId)
             return block === undefined
               ? Effect.fail(new BlockNotFound({ blockId }))
+              : Effect.succeed(block)
+          }),
+        GetBlockByRef: ({ uuid }) =>
+          Effect.flatMap(current, (trees) => {
+            const block = findBlock(trees, uuid)
+            return block === undefined
+              ? Effect.fail(new BlockRefNotFound({ uuid }))
               : Effect.succeed(block)
           }),
         WatchPage: ({ pageId }) =>

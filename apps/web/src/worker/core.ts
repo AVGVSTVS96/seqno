@@ -30,6 +30,7 @@ import {
 } from "@seqno/query"
 import {
   BlockNotFound,
+  BlockRefNotFound,
   CoreRpcs,
   GraphLocked,
   GraphNotOpen,
@@ -430,6 +431,14 @@ const CoreHandlers = CoreRpcs.toLayer(
           Effect.flatMap(session.blocks([blockId]), ([found]) =>
             found === undefined
               ? Effect.fail(new BlockNotFound({ blockId }))
+              : Effect.succeed(found),
+          ),
+        ),
+      GetBlockByRef: ({ uuid }, { client }) =>
+        Effect.flatMap(current(client.id), (session) =>
+          Effect.flatMap(session.blocksByRef([uuid]), ([found]) =>
+            found === undefined
+              ? Effect.fail(new BlockRefNotFound({ uuid }))
               : Effect.succeed(found),
           ),
         ),

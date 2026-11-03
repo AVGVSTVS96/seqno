@@ -40,6 +40,10 @@ export const blockAtom = Atom.family((blockId: BlockId) =>
   coreRuntime.atom(Effect.flatMap(CoreClient, (client) => client.GetBlock({ blockId }))),
 )
 
+export const blockRefAtom = Atom.family((uuid: string) =>
+  coreRuntime.atom(Effect.flatMap(CoreClient, (client) => client.GetBlockByRef({ uuid }))),
+)
+
 export const pageNamedAtom = Atom.family((name: string) =>
   coreRuntime.atom(
     Effect.flatMap(CoreClient, (client) =>

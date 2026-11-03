@@ -66,7 +66,6 @@ export const lastCursor: { current: { blockId: BlockId; caret: number } | null }
   current: null,
 }
 
-const decodeBlockId = Schema.decodeUnknownOption(BlockId)
 const decodePageId = Schema.decodeUnknownOption(PageId)
 
 const uuidIn = (value: unknown): string | null => {
@@ -227,9 +226,9 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
   const treeOf = (pageId: PageId): Promise<Tree> => core((client) => client.GetPage({ pageId }))
 
   const findBlock = async (target: unknown): Promise<{ block: Block; tree: Tree } | null> => {
-    const id = decodeBlockId(uuidIn(target))
-    if (Option.isNone(id)) return null
-    const block = await core((client) => client.GetBlock({ blockId: id.value })).catch(() => null)
+    const uuid = uuidIn(target)
+    if (uuid === null) return null
+    const block = await core((client) => client.GetBlockByRef({ uuid })).catch(() => null)
     if (block === null) return null
     const tree = await treeOf(block.pageId)
     const fresh = tree.blocks.find((candidate) => candidate.id === block.id) ?? block

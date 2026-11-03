@@ -113,6 +113,7 @@ const FakeCore = CoreRpcs.toLayer(
       GetPage: () => SubscriptionRef.get(tree),
       ExportPages: () => Effect.succeed([]),
       GetBlock: () => Effect.succeed(parentBlock),
+      GetBlockByRef: () => Effect.succeed(parentBlock),
       WatchPage: () => SubscriptionRef.changes(tree),
       WatchQuery: () => Stream.empty,
       Search: () => Effect.succeed({ pages: [], blocks: [] }),

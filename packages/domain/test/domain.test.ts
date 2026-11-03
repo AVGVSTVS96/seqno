@@ -1,12 +1,15 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Crypto, Effect, Layer, Result, Schema } from "effect"
 import {
+  Block,
   BlockId,
   Command,
   DeviceId,
   GraphEvent,
   JournalDay,
   Page,
+  blockRefId,
+  isBlockRefTo,
   newBlockId,
   newPageId,
   normalizePageName,
@@ -149,5 +152,32 @@ describe("graph events", () => {
 
   it("rejects a moved block without its new page", () => {
     assert.isFalse(accepts(GraphEvent, { _tag: "BlockMoved", blockId: blockA, parentId: null }))
+  })
+})
+
+const block = (props: Record<string, string>) =>
+  Schema.decodeUnknownSync(Block)({
+    id: blockA,
+    pageId: pageA,
+    parentId: null,
+    text: "x",
+    collapsed: false,
+    props,
+  })
+
+describe("block refs", () => {
+  it("refers to a block by its Logseq id:: when it has one, and by its own id otherwise", () => {
+    const logseq = block({ id: "6512A0C4-1111-4222-8333-444455556666" })
+    assert.strictEqual(blockRefId(logseq), "6512a0c4-1111-4222-8333-444455556666")
+    assert.strictEqual(blockRefId(block({})), blockA)
+    assert.strictEqual(blockRefId(block({ id: "not a uuid" })), blockA)
+    assert.deepStrictEqual(
+      [
+        isBlockRefTo(logseq, "6512a0c4-1111-4222-8333-444455556666"),
+        isBlockRefTo(logseq, blockA.toUpperCase()),
+        isBlockRefTo(logseq, blockB),
+      ],
+      [true, true, false],
+    )
   })
 })

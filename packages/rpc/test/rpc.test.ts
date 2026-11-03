@@ -99,6 +99,7 @@ const InMemoryCore = CoreRpcs.toLayer(
       GetPage: ({ pageId: id }) => whenOpen(findPage(id)),
       ExportPages: () => whenOpen(Effect.succeed([])),
       GetBlock: () => Effect.fail(new GraphNotOpen()),
+      GetBlockByRef: () => Effect.fail(new GraphNotOpen()),
       WatchPage: ({ pageId: id }) =>
         Stream.unwrap(
           whenOpen(

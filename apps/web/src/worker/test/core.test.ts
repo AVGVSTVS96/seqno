@@ -185,6 +185,10 @@ const copyOfFixture = Effect.tap(tempFolder("seqno-core-"), (root) =>
 
 const emptyFolder = tempFolder("seqno-starter-")
 
+const forwardRefs = fileURLToPath(
+  new URL("../../../../../fixtures/graphs/forward-block-refs/", import.meta.url),
+)
+
 const tour = (version: number, line: string): Starter => ({
   version,
   files: [{ path: "pages/Welcome.md", text: `- ${line}` }],
@@ -584,6 +588,40 @@ describe("the core worker on the real graph, vault and index", () => {
           )
         }),
       ),
+  )
+
+  it.effect("a ref to a block by its Logseq id:: reaches that block on another page", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const root = yield* tempFolder("seqno-refs-")
+        yield* Effect.promise(() => cp(forwardRefs, root, { recursive: true }))
+        const core = yield* coreOn(root)
+        yield* core.OpenGraph({ graph: "og" })
+        const pages = yield* core.GetPages()
+        const target = yield* core.GetBlockByRef({ uuid: "66666666-6666-4666-8666-666666666602" })
+        assert.deepStrictEqual(
+          [target.text, target.pageId],
+          ["forward target nested", named(pages, "z target").id],
+        )
+        const upper = yield* core.GetBlockByRef({
+          uuid: "66666666-6666-4666-8666-666666666601".toUpperCase(),
+        })
+        assert.strictEqual(upper.text, "forward target top level")
+        assert.strictEqual(
+          yield* core.GetBlockByRef({ uuid: upper.id }).pipe(Effect.map((block) => block.text)),
+          "forward target top level",
+        )
+        const missing = yield* Effect.flip(
+          core.GetBlockByRef({ uuid: "66666666-6666-4666-8666-000000000000" }),
+        )
+        assert.strictEqual(missing._tag, "BlockRefNotFound")
+        const exported = yield* core.ExportPages({ from: [named(pages, "a source").id] })
+        assert.deepStrictEqual(exported.map((tree) => tree.page.title).toSorted(), [
+          "a source",
+          "z target",
+        ])
+      }),
+    ),
   )
 
   it.effect(

@@ -13,7 +13,7 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect"
-import { GraphEvent, PageId, type Block, type BlockId } from "@seqno/domain"
+import { BlockId, GraphEvent, PageId, type Block } from "@seqno/domain"
 import { Graph, inBackground, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index, type IndexError } from "@seqno/index"
 import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
@@ -27,6 +27,7 @@ export interface Session {
   readonly graph: Graph["Service"]
   readonly index: Index["Service"]
   readonly blocks: (ids: ReadonlyArray<BlockId>) => Effect.Effect<ReadonlyArray<Block>>
+  readonly blocksByRef: (uuids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<Block>>
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
   readonly changes: PubSub.PubSub<ReadonlyArray<GraphEvent>>
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
@@ -82,6 +83,12 @@ WHERE b.id IN (SELECT value FROM json_each(?))`
 const BLOCK_PAGES = `
 SELECT b.id, p.id FROM blocks b JOIN pages p ON p.rid = b.page
 WHERE b.id IN (SELECT value FROM json_each(?))`
+
+const decodeBlockId = Schema.decodeUnknownOption(BlockId)
+
+const BLOCKS_WITH_ID_PROPERTY = `
+SELECT b.id FROM props p JOIN blocks b ON b.rid = p.block
+WHERE p.key = 'id' AND p.value IN (SELECT value FROM json_each(?))`
 
 const logged = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.asVoid(Effect.catchCause(effect, (cause) => Effect.logError(cause)))
@@ -446,10 +453,25 @@ export const openSession = (place: GraphPlace) =>
     )
     yield* Effect.addFinalizer(() => Effect.andThen(logged(save), saveIndexNow))
 
+    const blocksByRef = (uuids: ReadonlyArray<string>) =>
+      Effect.gen(function* () {
+        const wanted = [...new Set(uuids.map((uuid) => uuid.toLowerCase()))]
+        const direct = yield* blocks(wanted.flatMap((uuid) => Option.toArray(decodeBlockId(uuid))))
+        const missing = wanted.filter((uuid) => !direct.some((block) => block.id === uuid))
+        if (missing.length === 0) return direct
+        yield* indexed.await
+        const rows = yield* index
+          .query(BLOCKS_WITH_ID_PROPERTY, [JSON.stringify(missing)])
+          .pipe(Effect.orElseSucceed(() => []))
+        const written = yield* blocks(rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))))
+        return [...direct, ...written]
+      })
+
     const session: Session = {
       graph,
       index,
       blocks,
+      blocksByRef,
       touched,
       changes,
       saving,

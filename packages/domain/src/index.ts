@@ -1,5 +1,14 @@
 export { BlockId, DeviceId, PageId, newBlockId, newPageId } from "./ids.ts"
-export { Block, JournalDay, Page, PageName, Props, normalizePageName } from "./model.ts"
+export {
+  Block,
+  JournalDay,
+  Page,
+  PageName,
+  Props,
+  blockRefId,
+  isBlockRefTo,
+  normalizePageName,
+} from "./model.ts"
 export { BlockDraft, Command, PropertyTarget } from "./command.ts"
 export { GraphEvent } from "./event.ts"
 export {
