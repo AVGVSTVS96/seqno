@@ -326,7 +326,7 @@ describe("the markdown mirror", () => {
             {
               moved,
               recycled,
-              old: yield* read(root, "pages/queries.md"),
+              old: yield* until(read(root, "pages/queries.md"), (text) => text === null),
             },
             {
               moved: (before["pages/queries.md"] ?? "").trimEnd(),
