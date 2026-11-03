@@ -206,3 +206,25 @@ describe("text export options", () => {
     )
   })
 })
+
+describe("a front matter page", () => {
+  const base = libraryOf({ notes: "- Pressed three ferns\n\t- the third one" })
+  const front = {
+    ...base,
+    pages: base.pages.map((entry) => ({
+      ...entry,
+      page: { ...entry.page, props: { title: "Notes", rating: "4" }, frontMatter: true as const },
+    })),
+  }
+  const page = (format: "text" | "opml" | "html", indent: BlockOptions["indent"] = "dashes") =>
+    exportBlocks(front, { _tag: "Page", pageId: pageId(1) }, format, { ...defaults, indent })
+
+  it("leaves its front matter out, as Logseq does, keeping the two breaks it leaves", () => {
+    expect(page("text")).toBe("  \n  \n- Pressed three ferns\n\t- the third one\n")
+    expect(page("text", "no-indent")).toBe("\n\nPressed three ferns\nthe third one\n")
+    expect(page("opml")).toContain(`<body>\n    <outline text=" "/>\n    <outline text="Pressed`)
+    expect(page("html")).toBe(
+      "<ul>\n  <li>Pressed three ferns</li>\n  <ul>\n    <li>the third one</li>\n  </ul>\n</ul>",
+    )
+  })
+})

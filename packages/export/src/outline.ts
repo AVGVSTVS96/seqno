@@ -14,7 +14,10 @@ interface Outline {
   readonly children: Array<Outline>
 }
 
-const tidy = (value: string) => value.replace(/\s+/g, " ").trim()
+const tidy = (value: string) => {
+  const spaced = value.replace(/\s+/g, " ")
+  return spaced === " " ? spaced : spaced.trim()
+}
 
 const outlineOf = (node: Outline, pad: string): string => {
   const label = escapeHtml(tidy(node.parts.join(" ")))

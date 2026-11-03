@@ -3,7 +3,7 @@ import type { BlockId, Page, PageId } from "@seqno/domain"
 import { defaultPropertyConfig, type PropertyConfig } from "@seqno/syntax"
 import { ednOf, exportedPages, hasFile, jsonOf, roamJsonOf } from "./data.ts"
 import type { Inlines } from "./inline.ts"
-import { itemsOfBlocks, itemsOfPage, titleOf, type Item } from "./items.ts"
+import { itemsOfBlocks, itemsOfPage, lineRun, titleOf, type Item } from "./items.ts"
 import { referencedIds, shelve, type Library, type Shelf } from "./library.ts"
 import { htmlOfItems, opmlOf } from "./outline.ts"
 import { pagePreamble, textOf, type IndentStyle } from "./text.ts"
@@ -44,10 +44,16 @@ const render = (
   options: BlockOptions,
 ) => {
   const inlines = inlinesOf(shelf, options)
+  const front = page?.frontMatter === true
+  const gap = format === "text" ? [lineRun(""), lineRun("")] : [lineRun(" ")]
+  const shown: ReadonlyArray<Item> =
+    front && items.length > 0 && format !== "html"
+      ? [{ _tag: "Paragraph", level: 1, lines: gap }, ...items]
+      : items
   switch (format) {
     case "text":
       return textOf(
-        items,
+        shown,
         inlines,
         {
           indent: options.indent,
@@ -55,7 +61,7 @@ const render = (
           newlineAfterBlock: options.newlineAfterBlock,
           level: options.level,
         },
-        page === null
+        page === null || front
           ? []
           : pagePreamble(Object.entries(page.props), {
               indent: options.indent,
@@ -65,9 +71,9 @@ const render = (
             }),
       )
     case "opml":
-      return opmlOf(items, inlines, page?.name ?? "untitled", options.level)
+      return opmlOf(shown, inlines, page?.name ?? "untitled", options.level)
     case "html":
-      return htmlOfItems(items, inlines, options.level)
+      return htmlOfItems(shown, inlines, options.level)
   }
 }
 
