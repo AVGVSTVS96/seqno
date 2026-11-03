@@ -62,6 +62,7 @@ import {
   boundsOfPoints,
   boxBounds,
   center,
+  centerOf,
   clampZoom,
   fitBounds,
   origin,
@@ -82,12 +83,16 @@ import {
   DRAG_THRESHOLD,
   bindTarget,
   brushOf,
+  canRotate,
   brushed,
   changesOf,
   erasedAt,
   idle,
   lineRaw,
+  rotationStarted,
   selectionBounds,
+  turnOf,
+  type Corner,
   type Gesture,
   type ResizeHandle,
 } from "./gestures.ts"
@@ -98,6 +103,7 @@ import {
   itemsOf,
   outermost,
   ratioLocked,
+  rotationOf,
   withMembers,
   sceneOf,
   topHit,
@@ -110,6 +116,7 @@ import { IconGroup, IconUngroup } from "./icons.tsx"
 import { BacklinksBadge, QuickLinks, type LinkEnv } from "./links.tsx"
 import { freshId } from "./ids.ts"
 import { glide, savedCamera } from "./camera.ts"
+import { RotateTargets, resizeCursor, rotateCursor } from "./Rotate.tsx"
 import { EMBED_SIZE, embedOf, isWebUrl } from "./Embeds.tsx"
 import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
 import { applyLocally, isGhost } from "./preview.ts"
@@ -227,6 +234,16 @@ const RESIZE_HANDLES: ReadonlyArray<ResizeHandle> = [
 ]
 
 const resizeHandleOf = (name: string | null) => RESIZE_HANDLES.find((handle) => handle === name)
+
+const ROTATE_CORNERS: ReadonlyArray<Corner> = [
+  "top-left",
+  "top-right",
+  "bottom-right",
+  "bottom-left",
+]
+
+const rotateCornerOf = (name: string | null) =>
+  ROTATE_CORNERS.find((corner) => `rotate-${corner}` === name)
 
 const createdIds = (events: ReadonlyArray<GraphEvent>) =>
   events.flatMap((event) => (event._tag === "BlockUpserted" ? [event.block.id] : []))
@@ -627,6 +644,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     }
     const handle = handleOf(event.target)
     const resize = resizeHandleOf(handle)
+    const [first, ...others] = selection
+    const only = first !== undefined && others.length === 0 ? scene.byId.get(first) : undefined
     if (resize !== undefined) {
       const box = selectionBounds(scene, selection)
       if (box !== null) {
@@ -637,6 +656,24 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           to: world,
           ids: selection,
           keepRatio: event.shiftKey || ratioLocked(scene, selection),
+          rotation: only === undefined ? 0 : rotationOf(only),
+        })
+      }
+      return
+    }
+    const corner = rotateCornerOf(handle)
+    if (corner !== undefined) {
+      const box = selectionBounds(scene, selection)
+      if (box !== null) {
+        setGesture({
+          _tag: "Rotating",
+          corner,
+          ids: selection,
+          pivot: centerOf(box),
+          from: world,
+          start: null,
+          to: world,
+          snap: event.shiftKey,
         })
       }
       return
@@ -773,10 +810,18 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         })
         return
       }
+      case "Rotating":
+        setGesture({
+          ...gesture,
+          start: rotationStarted(gesture, world),
+          to: world,
+          snap: event.shiftKey,
+        })
+        return
       case "Resizing":
         setGesture({
           ...gesture,
-          to: snap && !event.shiftKey ? snapped(world) : world,
+          to: snap && !event.shiftKey && gesture.rotation === 0 ? snapped(world) : world,
           keepRatio: event.shiftKey || ratioLocked(scene, gesture.ids),
         })
         return
@@ -1221,14 +1266,28 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           key={`outline-${item.block.id}`}
           className="wb-outline"
           data-locked={isLocked(item)}
-          style={toBox(box)}
+          style={{ ...toBox(box), rotate: `${rotationOf(item)}rad` }}
         />,
       )
     }
   }
-  if (selectedBox !== null && selectedItems.length > 1) {
+  const rotating = gesture._tag === "Rotating"
+  const rotatable = !rotating && editing === null && canRotate(shown, selection)
+  if (selectedBox !== null && selectedItems.length > 1 && !rotating) {
     overlay.push(
       <div key="selection" className="wb-outline wb-selection" style={toBox(selectedBox)} />,
+    )
+  }
+  if (
+    selectedBox !== null &&
+    rotatable &&
+    (selectedItems.length > 1 || single?.shape.type === "group")
+  ) {
+    const frame = toBox(selectedBox)
+    overlay.push(
+      <div key="rotate" className="wb-frame" style={frame}>
+        <RotateTargets width={frame.width} height={frame.height} rotation={0} />
+      </div>,
     )
   }
   if (
@@ -1236,7 +1295,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     single.shape.type !== "group" &&
     !isLocked(single) &&
     editing === null &&
-    gesture._tag !== "Translating"
+    gesture._tag !== "Translating" &&
+    !rotating
   ) {
     const box = shown.bounds.get(single.block.id)
     if (single.shape.type === "line") {
@@ -1256,41 +1316,79 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         })
       }
     } else if (box !== undefined) {
-      const { left, top, width, height } = toBox(box)
+      const frame = toBox(box)
+      const { width, height } = frame
+      const left = 0
+      const top = 0
+      const handles: Array<ReactNode> = []
+      if (rotatable) {
+        handles.push(
+          <RotateTargets
+            key="rotate"
+            width={width}
+            height={height}
+            rotation={rotationOf(single)}
+          />,
+        )
+      }
       const corners: ReadonlyArray<readonly [ResizeHandle, number, number]> = [
         ["top-left", left, top],
         ["top-right", left + width, top],
         ["bottom-right", left + width, top + height],
         ["bottom-left", left, top + height],
       ]
-      overlay.push(
+      handles.push(
         <div
           key="edge-top"
           className="wb-handle"
           data-kind="edge"
           data-handle="top"
-          style={{ left, top: top - 6, width, height: 12 }}
+          style={{
+            cursor: resizeCursor("top", rotationOf(single)),
+            left,
+            top: top - 6,
+            width,
+            height: 12,
+          }}
         />,
         <div
           key="edge-bottom"
           className="wb-handle"
           data-kind="edge"
           data-handle="bottom"
-          style={{ left, top: top + height - 6, width, height: 12 }}
+          style={{
+            cursor: resizeCursor("bottom", rotationOf(single)),
+            left,
+            top: top + height - 6,
+            width,
+            height: 12,
+          }}
         />,
         <div
           key="edge-left"
           className="wb-handle"
           data-kind="edge"
           data-handle="left"
-          style={{ left: left - 6, top, width: 12, height }}
+          style={{
+            cursor: resizeCursor("left", rotationOf(single)),
+            left: left - 6,
+            top,
+            width: 12,
+            height,
+          }}
         />,
         <div
           key="edge-right"
           className="wb-handle"
           data-kind="edge"
           data-handle="right"
-          style={{ left: left + width - 6, top, width: 12, height }}
+          style={{
+            cursor: resizeCursor("right", rotationOf(single)),
+            left: left + width - 6,
+            top,
+            width: 12,
+            height,
+          }}
         />,
         ...corners.map(([name, x, y]) => (
           <div
@@ -1298,7 +1396,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             className="wb-handle"
             data-kind="corner"
             data-handle={name}
-            style={{ left: x, top: y }}
+            style={{ left: x, top: y, cursor: resizeCursor(name, rotationOf(single)) }}
           />
         )),
       )
@@ -1307,13 +1405,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         single.shape.type === "ellipse" ||
         single.shape.type === "polygon"
       ) {
-        const handles: ReadonlyArray<readonly [string, number, number, Vec]> = [
+        const cloneHandles: ReadonlyArray<readonly [string, number, number, Vec]> = [
           ["left", left - 30 - 16, top + height / 2, [-1, 0]],
           ["right", left + width + 30 + 16, top + height / 2, [1, 0]],
           ["bottom", left + width / 2, top + height + 30 + 16, [0, 1]],
         ]
-        overlay.push(
-          ...handles.map(([name, x, y, direction]) => (
+        handles.push(
+          ...cloneHandles.map(([name, x, y, direction]) => (
             <button
               key={`clone-${name}`}
               type="button"
@@ -1331,6 +1429,15 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           )),
         )
       }
+      overlay.push(
+        <div
+          key="frame"
+          className="wb-frame"
+          style={{ ...frame, rotate: `${rotationOf(single)}rad` }}
+        >
+          {handles}
+        </div>,
+      )
     }
   }
   if (hover !== null && quiet && hover !== single?.block.id) {
@@ -1760,6 +1867,12 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     "--wb-grid-y": `${gridY - gridSize / 2}px`,
   }
 
+  const turningCursor = (turning: Extract<Gesture, { _tag: "Rotating" }>) => {
+    const [first, ...others] = turning.ids
+    const own = first === undefined || others.length > 0 ? undefined : scene.byId.get(first)
+    return rotateCursor(turning.corner, (own === undefined ? 0 : rotationOf(own)) + turnOf(turning))
+  }
+
   return (
     <div
       ref={attach}
@@ -1771,7 +1884,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       data-cursor={cursor}
       data-tool={tool}
       data-moving={gesture._tag === "Panning"}
-      style={gridVars}
+      style={
+        gesture._tag === "Rotating" ? { ...gridVars, cursor: turningCursor(gesture) } : gridVars
+      }
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={finishGesture}

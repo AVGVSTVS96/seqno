@@ -1,11 +1,28 @@
 import type { Block, BlockId, Command, PageId, Vec } from "@seqno/domain"
 import { copiedOf } from "./clipboard.ts"
 import { clones, create, patch, remove, scaleInto, translate, type Raw } from "./commands.ts"
-import { boundsOfPoints, overlaps, round, sub, union, type Bounds } from "./geometry.ts"
+import {
+  angleOf,
+  boundsOfPoints,
+  centerOf,
+  clampRadians,
+  cornersOf,
+  encloses,
+  length,
+  overlaps,
+  polygonsOverlap,
+  rotateAround,
+  round,
+  snapRadians,
+  sub,
+  union,
+  type Bounds,
+} from "./geometry.ts"
 import {
   hits,
   isLocked,
   itemsOf,
+  rotationOf,
   outermost,
   sceneOf,
   withMembers,
@@ -42,6 +59,17 @@ export type Gesture =
       readonly to: Vec
       readonly ids: ReadonlyArray<BlockId>
       readonly keepRatio: boolean
+      readonly rotation: number
+    }
+  | {
+      readonly _tag: "Rotating"
+      readonly corner: Corner
+      readonly ids: ReadonlyArray<BlockId>
+      readonly pivot: Vec
+      readonly from: Vec
+      readonly start: Vec | null
+      readonly to: Vec
+      readonly snap: boolean
     }
   | { readonly _tag: "Creating"; readonly tool: ShapeTool; readonly from: Vec; readonly to: Vec }
   | {
@@ -75,11 +103,55 @@ const picked = (scene: Scene, ids: ReadonlyArray<BlockId>) =>
     return item === undefined || isLocked(item) ? [] : [item]
   })
 
-export const selectionBounds = (scene: Scene, ids: ReadonlyArray<BlockId>): Bounds | null =>
-  union(ids.flatMap((id) => scene.bounds.get(id) ?? []))
+export const selectionBounds = (scene: Scene, ids: ReadonlyArray<BlockId>): Bounds | null => {
+  const [only, ...rest] = ids
+  return only !== undefined && rest.length === 0
+    ? (scene.bounds.get(only) ?? null)
+    : union(ids.flatMap((id) => scene.turned.get(id) ?? []))
+}
+
+export const ROTATE_THRESHOLD = 5
+
+export const canRotate = (scene: Scene, ids: ReadonlyArray<BlockId>) => {
+  const items = ids.flatMap((id) => scene.byId.get(id) ?? [])
+  return (
+    items.some((item) => !isLocked(item)) &&
+    items.every((item) => item.shape.type !== "line" && item.shape.type !== "logseq-portal")
+  )
+}
+
+const anchorOf = (box: Bounds, handle: ResizeHandle): Vec => {
+  const [cx, cy] = centerOf(box)
+  return [
+    handle.endsWith("left") ? box.maxX : handle.endsWith("right") ? box.minX : cx,
+    handle.startsWith("top") ? box.maxY : handle.startsWith("bottom") ? box.minY : cy,
+  ]
+}
 
 const resized = (gesture: Extract<Gesture, { _tag: "Resizing" }>): Bounds => {
-  const { from, to, handle, keepRatio } = gesture
+  const { from, handle, rotation } = gesture
+  if (rotation === 0) return resizedBox({ ...gesture, to: gesture.to })
+  const pivot = centerOf(from)
+  const next = resizedBox({ ...gesture, to: rotateAround(gesture.to, pivot, -rotation) })
+  const anchor = anchorOf(from, handle)
+  const [dx, dy] = sub(
+    rotateAround(anchor, centerOf(next), rotation),
+    rotateAround(anchor, pivot, rotation),
+  )
+  return { minX: next.minX - dx, minY: next.minY - dy, maxX: next.maxX - dx, maxY: next.maxY - dy }
+}
+
+const resizedBox = ({
+  from,
+  to,
+  handle,
+  keepRatio,
+}: {
+  readonly from: Bounds
+  readonly to: Vec
+  readonly handle: ResizeHandle
+  readonly keepRatio: boolean
+}): Bounds => {
   const box = { ...from }
   const [x, y] = to
   const west = handle === "left" || handle === "top-left" || handle === "bottom-left"
@@ -119,6 +191,36 @@ const resized = (gesture: Extract<Gesture, { _tag: "Resizing" }>): Bounds => {
   return { minX, minY, maxX, maxY }
 }
 
+const rotated = (
+  scene: Scene,
+  items: ReadonlyArray<Item>,
+  pivot: Vec,
+  turn: number,
+  snap: boolean,
+): ReadonlyArray<Command> =>
+  items.flatMap((item) => {
+    const box = scene.bounds.get(item.block.id)
+    if (box === undefined || item.shape.type === "group" || item.shape.type === "line") return []
+    const start = rotationOf(item)
+    const middle = centerOf(box)
+    const [dx, dy] = sub(rotateAround(middle, pivot, turn), middle)
+    return [
+      patch(item, {
+        point: [round(item.shape.point[0] + dx), round(item.shape.point[1] + dy)],
+        rotation: clampRadians(start + turn + (snap ? snapRadians(start) - start : 0)),
+      }),
+    ]
+  })
+
+export const turnOf = (gesture: Extract<Gesture, { _tag: "Rotating" }>) => {
+  if (gesture.start === null) return 0
+  const turn = angleOf(gesture.pivot, gesture.to) - angleOf(gesture.pivot, gesture.start)
+  return gesture.snap ? snapRadians(turn) : turn
+}
+
+export const rotationStarted = (gesture: Extract<Gesture, { _tag: "Rotating" }>, at: Vec) =>
+  gesture.start ?? (length(sub(at, gesture.from)) > ROTATE_THRESHOLD ? at : null)
+
 const brushBox = (from: Vec, to: Vec) => boundsOfPoints([from, to])
 
 export const brushed = (scene: Scene, gesture: Extract<Gesture, { _tag: "Brushing" }>) => {
@@ -126,7 +228,12 @@ export const brushed = (scene: Scene, gesture: Extract<Gesture, { _tag: "Brushin
   const inside = scene.items
     .filter((item) => {
       const own = scene.bounds.get(item.block.id)
-      return item.shape.type !== "group" && own !== undefined && overlaps(box, own)
+      const turned = scene.turned.get(item.block.id)
+      if (item.shape.type === "group" || own === undefined || turned === undefined) return false
+      const r = rotationOf(item)
+      return r === 0
+        ? overlaps(box, own)
+        : encloses(box, turned) || polygonsOverlap(cornersOf(box, 0), cornersOf(own, r))
     })
     .map((item) => outermost(scene, item.block.id))
   return [...new Set([...gesture.keep, ...inside])]
@@ -178,6 +285,19 @@ export const changesOf = (
       }
       return settle(scene, translate(scene, picked(scene, gesture.ids), delta))
     }
+    case "Rotating":
+      return gesture.start === null
+        ? []
+        : settle(
+            scene,
+            rotated(
+              scene,
+              picked(scene, gesture.ids),
+              gesture.pivot,
+              turnOf(gesture),
+              gesture.snap,
+            ),
+          )
     case "Resizing": {
       const to = resized(gesture)
       return settle(

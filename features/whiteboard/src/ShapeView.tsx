@@ -1,6 +1,6 @@
 import { getStroke } from "perfect-freehand"
 import type { BlockId, Vec } from "@seqno/domain"
-import { sub } from "./geometry.ts"
+import { boundsOfPoints, centerOf, sub } from "./geometry.ts"
 import { HtmlView, IFrameView, PdfView, TweetView, YouTubeView } from "./Embeds.tsx"
 import { PortalPreview, PortalView, type PortalEnv } from "./Portal.tsx"
 import { absolutePoints, type Item, type Scene } from "./model.ts"
@@ -271,13 +271,18 @@ const StrokeView = ({ item, erasing }: { readonly item: Item; readonly erasing: 
   if (shape.type !== "pencil" && shape.type !== "highlighter") return null
   const width = strokeScale[scaleOf(item)]
   const points = absolutePoints(shape)
+  const [cx, cy] = centerOf(boundsOfPoints(points))
+  const turn =
+    shape.rotation === undefined || shape.rotation === 0
+      ? {}
+      : { rotate: `${shape.rotation}rad`, transformOrigin: `${cx}px ${cy}px` }
   if (shape.type === "highlighter") {
     return (
       <div
         className="wb-shape"
         data-type={item.shape.type}
         data-erasing={erasing}
-        style={{ left: 0, top: 0, opacity: shape.opacity ?? 0.5 }}
+        style={{ left: 0, top: 0, opacity: shape.opacity ?? 0.5, ...turn }}
       >
         <svg className="wb-svg" width={1} height={1}>
           <polyline
@@ -308,7 +313,7 @@ const StrokeView = ({ item, erasing }: { readonly item: Item; readonly erasing: 
       className="wb-shape"
       data-type={item.shape.type}
       data-erasing={erasing}
-      style={{ left: 0, top: 0, opacity: shape.opacity ?? 1 }}
+      style={{ left: 0, top: 0, opacity: shape.opacity ?? 1, ...turn }}
     >
       <svg className="wb-svg" width={1} height={1}>
         <path d={svgPath(outline)} fill={colorVar("text", shape.stroke)} />

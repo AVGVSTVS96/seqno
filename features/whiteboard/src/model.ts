@@ -14,12 +14,15 @@ import {
   add,
   boundsOfPoints,
   boxBounds,
+  centerOf,
   contains,
   distanceToPolyline,
   distanceToSegment,
   ellipseEdge,
   expand,
   rectEdge,
+  rotateAround,
+  rotatedBox,
   toward,
   union,
   type Bounds,
@@ -50,6 +53,7 @@ export interface Scene {
   readonly items: ReadonlyArray<Item>
   readonly byId: ReadonlyMap<BlockId, Item>
   readonly bounds: ReadonlyMap<BlockId, Bounds>
+  readonly turned: ReadonlyMap<BlockId, Bounds>
   readonly ends: ReadonlyMap<BlockId, readonly [Vec, Vec]>
   readonly measured: Measured
   readonly members: ReadonlyMap<BlockId, ReadonlyArray<BlockId>>
@@ -132,8 +136,40 @@ const ownBounds = (item: Item, measured: Measured): Bounds => {
   }
 }
 
-const edgeOf = (item: Item, box: Bounds, from: Vec): Vec =>
-  item.shape.type === "ellipse" ? ellipseEdge(box, from) : rectEdge(box, from)
+export const rotationOf = (item: Item) =>
+  item.shape.type === "line" || item.shape.type === "group" ? 0 : (item.shape.rotation ?? 0)
+
+const edgeOf = (item: Item, box: Bounds, from: Vec): Vec => {
+  const r = rotationOf(item)
+  const middle = centerOf(box)
+  const local = rotateAround(from, middle, -r)
+  const edge = item.shape.type === "ellipse" ? ellipseEdge(box, local) : rectEdge(box, local)
+  return rotateAround(edge, middle, r)
+}
+
+const turnedBounds = (item: Item, box: Bounds): Bounds => {
+  const r = rotationOf(item)
+  if (r === 0) return box
+  const { shape } = item
+  if (shape.type === "pencil" || shape.type === "highlighter") {
+    const middle = centerOf(box)
+    return boundsOfPoints(strokePoints(shape).map((point) => rotateAround(point, middle, r)))
+  }
+  if (shape.type === "ellipse") {
+    const [cx, cy] = centerOf(box)
+    const rx = (box.maxX - box.minX) / 2
+    const ry = (box.maxY - box.minY) / 2
+    const halfWidth = Math.hypot(rx * Math.cos(r), ry * Math.sin(r))
+    const halfHeight = Math.hypot(rx * Math.sin(r), ry * Math.cos(r))
+    return {
+      minX: cx - halfWidth,
+      minY: cy - halfHeight,
+      maxX: cx + halfWidth,
+      maxY: cy + halfHeight,
+    }
+  }
+  return rotatedBox(box, r)
+}
 
 const lineEnds = (
   line: Line,
@@ -187,16 +223,24 @@ export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene =
   const byId = new Map(items.map((item) => [item.block.id, item]))
   const { members, groupOf } = membership(items, byId)
   const bounds = new Map<BlockId, Bounds>()
+  const turned = new Map<BlockId, Bounds>()
   for (const item of items) {
     if (item.shape.type !== "line" && item.shape.type !== "group") {
-      bounds.set(item.block.id, ownBounds(item, measured))
+      const box = ownBounds(item, measured)
+      bounds.set(item.block.id, box)
+      turned.set(item.block.id, turnedBounds(item, box))
     }
   }
   const groupBounds = () => {
     for (const [group, ids] of members) {
-      const box = union(ids.flatMap((id) => bounds.get(id) ?? []))
-      if (box === null) bounds.delete(group)
-      else bounds.set(group, box)
+      const box = union(ids.flatMap((id) => turned.get(id) ?? []))
+      if (box === null) {
+        bounds.delete(group)
+        turned.delete(group)
+      } else {
+        bounds.set(group, box)
+        turned.set(group, box)
+      }
     }
   }
   groupBounds()
@@ -206,10 +250,11 @@ export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene =
       const both = lineEnds(item.shape, byId, bounds)
       ends.set(item.block.id, both)
       bounds.set(item.block.id, boundsOfPoints(both))
+      turned.set(item.block.id, boundsOfPoints(both))
     }
   }
   groupBounds()
-  return { items, byId, bounds, ends, measured, members, groupOf }
+  return { items, byId, bounds, turned, ends, measured, members, groupOf }
 }
 
 export const GROUP_PADDING = 8
@@ -229,12 +274,14 @@ export const hits = (scene: Scene, item: Item, point: Vec, zoom: number): boolea
     const both = scene.ends.get(item.block.id)
     return both !== undefined && distanceToSegment(point, both[0], both[1]) <= tolerance
   }
+  const box = scene.bounds.get(item.block.id)
+  if (box === undefined) return false
+  const local = rotateAround(point, centerOf(box), -rotationOf(item))
   if (shape.type === "pencil" || shape.type === "highlighter") {
     const width = shape.strokeWidth ?? 2
-    return distanceToPolyline(point, strokePoints(shape)) <= Math.max(tolerance, width * 2)
+    return distanceToPolyline(local, strokePoints(shape)) <= Math.max(tolerance, width * 2)
   }
-  const box = scene.bounds.get(item.block.id)
-  return box !== undefined && contains(expand(box, 1 / zoom), point)
+  return contains(expand(box, 1 / zoom), local)
 }
 
 export const topHit = (scene: Scene, point: Vec, zoom: number): Item | null =>

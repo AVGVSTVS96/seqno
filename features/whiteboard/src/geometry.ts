@@ -189,3 +189,53 @@ export const ellipseEdge = (box: Bounds, from: Vec): Vec => {
 export const snapToGrid = (value: number) => Math.round(value / GRID_SIZE) * GRID_SIZE
 
 export const round = (value: number) => Math.round(value * 100) / 100
+
+const TAU = Math.PI * 2
+
+export const rotateAround = ([x, y]: Vec, [cx, cy]: Vec, r: number): Vec => {
+  if (r === 0) return [x, y]
+  const sin = Math.sin(r)
+  const cos = Math.cos(r)
+  return [(x - cx) * cos - (y - cy) * sin + cx, (x - cx) * sin + (y - cy) * cos + cy]
+}
+
+export const angleOf = (from: Vec, to: Vec) => Math.atan2(to[1] - from[1], to[0] - from[0])
+
+export const clampRadians = (r: number) => (TAU + r) % TAU
+
+export const snapRadians = (r: number, segments = 24) => {
+  const segment = TAU / segments
+  const snapped = (Math.floor((clampRadians(r) + segment / 2) / segment) * segment) % TAU
+  const up = snapped < Math.PI ? snapped + TAU : snapped
+  return up > Math.PI ? up - TAU : up
+}
+
+export const cornersOf = (box: Bounds, r: number): ReadonlyArray<Vec> => {
+  const middle = centerOf(box)
+  const corners: ReadonlyArray<Vec> = [
+    [box.minX, box.minY],
+    [box.maxX, box.minY],
+    [box.maxX, box.maxY],
+    [box.minX, box.maxY],
+  ]
+  return corners.map((corner) => rotateAround(corner, middle, r))
+}
+
+export const rotatedBox = (box: Bounds, r: number): Bounds =>
+  r === 0 ? box : boundsOfPoints(cornersOf(box, r))
+
+const projected = (points: ReadonlyArray<Vec>, axis: Vec) => {
+  const dots = points.map(([x, y]) => x * axis[0] + y * axis[1])
+  return [Math.min(...dots), Math.max(...dots)] as const
+}
+
+export const polygonsOverlap = (a: ReadonlyArray<Vec>, b: ReadonlyArray<Vec>) =>
+  [a, b].every((shape) =>
+    shape.every((point, index) => {
+      const next = shape[(index + 1) % shape.length] ?? point
+      const axis: Vec = [point[1] - next[1], next[0] - point[0]]
+      const [aMin, aMax] = projected(a, axis)
+      const [bMin, bMax] = projected(b, axis)
+      return aMax >= bMin && bMax >= aMin
+    }),
+  )

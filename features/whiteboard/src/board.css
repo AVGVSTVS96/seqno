@@ -402,6 +402,15 @@
   pointer-events: auto;
 }
 
+.wb-frame {
+  position: absolute;
+  pointer-events: none;
+}
+
+.wb-handle[data-kind="rotate"] {
+  background: transparent;
+}
+
 .wb-handle[data-kind="corner"] {
   width: 15px;
   height: 15px;
