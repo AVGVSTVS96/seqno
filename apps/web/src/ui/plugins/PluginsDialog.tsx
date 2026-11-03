@@ -129,12 +129,12 @@ const MarketCard = ({ item }: { readonly item: MarketItem }) => {
       kind="market"
       footer={
         <>
-          <ul role="none" {...logseq("plugin-card-left")}>
-            <li role="none" className="plugin-stat" title="Stars">
+          <ul {...logseq("plugin-card-left")}>
+            <li className="plugin-stat" title="Stars">
               <IconStar size={16} aria-hidden />
               {compact(item.stars)}
             </li>
-            <li role="none" className="plugin-stat" title="Downloads">
+            <li className="plugin-stat" title="Downloads">
               <IconCloudDownload size={16} aria-hidden />
               {compact(item.downloads)}
             </li>

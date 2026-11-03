@@ -1,4 +1,4 @@
-import type { BrowserContext, Page } from "@playwright/test"
+import type { BrowserContext, Locator, Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { journalTitle } from "../src/journal.ts"
 import { serveMarketplace } from "../src/plugins.ts"
@@ -15,6 +15,9 @@ const openPlugins = async (page: Page) => {
   await page.getByRole("menuitem", { name: "Plugins" }).click()
   return page.getByRole("dialog", { name: "Plugins" })
 }
+
+const cardsOf = (dialog: Locator) =>
+  dialog.getByRole("listitem").filter({ has: dialog.page().getByRole("heading") })
 
 const install = async (page: Page, name: string, kind: "Plugins" | "Themes" = "Plugins") => {
   const dialog = await openPlugins(page)
@@ -51,16 +54,16 @@ test("the marketplace lists plugins, desktop-only ones too, and themes, and Inst
   await dialog.getByRole("tab", { name: "Marketplace" }).click()
   await expect(dialog.getByRole("radio", { name: "Plugins (16)" })).toBeVisible()
   await expect(dialog.getByRole("radio", { name: "Themes (5)" })).toBeVisible()
-  await expect(dialog.getByRole("listitem")).toHaveCount(16)
+  await expect(cardsOf(dialog)).toHaveCount(16)
   await expect(dialog.getByRole("listitem", { name: "Archivist" })).toHaveCount(1)
   await dialog.getByRole("searchbox", { name: "Search plugins" }).fill("calendar")
-  await expect(dialog.getByRole("listitem")).toHaveCount(1)
+  await expect(cardsOf(dialog)).toHaveCount(1)
   const card = dialog.getByRole("listitem", { name: "Journals calendar" })
   await card.getByRole("button", { name: "Install" }).click()
   await expect(card.getByRole("button", { name: "Installed" })).toBeDisabled()
   await dialog.getByRole("tab", { name: "Installed" }).click()
   await dialog.getByRole("searchbox", { name: "Search plugins" }).fill("")
-  await expect(dialog.getByRole("listitem")).toHaveCount(1)
+  await expect(cardsOf(dialog)).toHaveCount(1)
   await expect(dialog.getByRole("switch", { name: "Enable Journals calendar" })).toHaveAttribute(
     "aria-checked",
     "true",
@@ -288,7 +291,7 @@ test("installed plugins load again after a reload, and turning one off or uninst
   await expect(button).toBeVisible()
   await expect.poll(keptCalendarFiles(page)).toBeGreaterThan(0)
   await dialog.getByRole("button", { name: "Uninstall Journals calendar" }).click()
-  await expect(dialog.getByRole("listitem")).toHaveCount(0)
+  await expect(cardsOf(dialog)).toHaveCount(0)
   await expect(button).toHaveCount(0)
   await expect(page.locator("#logseq-journals-calendar_lsp_main")).toHaveCount(0)
   await expect.poll(keptCalendarFiles(page)).toBe(0)
