@@ -5,9 +5,9 @@ import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
 import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
-import { CoreClient, type SkippedFile } from "@seqno/rpc"
-import { defaultPropertyConfig, readPropertyConfig } from "@seqno/syntax"
-import { WorkerCore, attachTab } from "./core.ts"
+import { AssetClient, CoreClient, type Asset, type SkippedFile } from "@seqno/rpc"
+import { assetKey, defaultPropertyConfig, readPropertyConfig } from "@seqno/syntax"
+import { WorkerAssets, WorkerCore, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
 
 export type AppServices = CoreClient | GraphLocations
@@ -105,18 +105,17 @@ export const openGraph = appRuntime
   )
   .pipe(Atom.keepAlive)
 
-const noAssets: ReadonlyMap<string, string> = new Map()
-
-const graphAssets = appRuntime.atom((get) =>
-  Option.match(AsyncResult.value(get(openGraph)), {
-    onNone: () => Effect.succeed(noAssets),
-    onSome: ({ graph }) =>
-      Effect.acquireRelease(
-        Effect.flatMap(Effect.service(GraphLocations), (locations) => locations.assets(graph)),
-        (assets) => Effect.sync(() => assets.forEach((url) => URL.revokeObjectURL(url))),
-      ),
-  }),
+export const assetLayer = Atom.make<Layer.Layer<AssetClient, WorkerError>>(WorkerAssets).pipe(
+  Atom.keepAlive,
 )
+
+export const assetRuntime = Atom.runtime((get) => get(assetLayer))
+
+const noAssets: ReadonlyArray<Asset> = []
+
+export const graphAssets = assetRuntime
+  .atom(Stream.unwrap(Effect.map(Effect.service(AssetClient), (client) => client.WatchAssets())))
+  .pipe(Atom.keepAlive)
 
 const graphProperties = appRuntime.atom((get) =>
   Option.match(AsyncResult.value(get(openGraph)), {
@@ -138,9 +137,13 @@ export const propertyConfig = Atom.make((get) =>
   AsyncResult.getOrElse(get(graphProperties), () => defaultPropertyConfig),
 )
 
+export const assetFiles = Atom.make((get) =>
+  AsyncResult.getOrElse(get(graphAssets), () => noAssets),
+)
+
 export const assetResolver = Atom.make((get) => {
-  const assets = AsyncResult.getOrElse(get(graphAssets), () => noAssets)
-  return (path: string) => assets.get(path.replace(/^(?:\.{1,2}\/|\/)+/, ""))
+  const byPath = new Map(get(assetFiles).map((asset) => [asset.path.normalize("NFC"), asset.url]))
+  return (path: string) => byPath.get(assetKey(path))
 })
 
 const invalidatePages = (events: ReadonlyArray<GraphEvent>) =>

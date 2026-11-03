@@ -22,7 +22,7 @@ import { TestClock } from "effect/testing"
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, graphV2Layer, journalPageId, journalsByDay } from "@seqno/graph"
 import { layerNode } from "@seqno/index/node"
-import { CoreRpcs, PageRpcs, tabLock, type PageTree, type SaveState } from "@seqno/rpc"
+import { AssetRpcs, CoreRpcs, PageRpcs, tabLock, type PageTree, type SaveState } from "@seqno/rpc"
 import { StorageFailed, type Storage } from "@seqno/vault"
 import { nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
@@ -84,6 +84,12 @@ DELETE FROM props WHERE block IN (${HEADINGS_BLOCKS});
 DELETE FROM tasks WHERE block IN (${HEADINGS_BLOCKS});
 DELETE FROM blocks WHERE rid IN (${HEADINGS_BLOCKS});`
 
+const fileOf = (storage: Storage["Service"]) => (path: string) =>
+  Effect.map(
+    storage.read(path),
+    (bytes) => new File([new Uint8Array(bytes)], path.split("/").at(-1) ?? path),
+  )
+
 const coreLayer = (
   root: string,
   starter: Starter | null,
@@ -98,6 +104,7 @@ const coreLayer = (
         open: () =>
           Effect.succeed({
             storage,
+            file: fileOf(storage),
             layout: placeLayout,
             synced: true,
             sqlite: layerNode(),
@@ -112,7 +119,7 @@ const coreLayer = (
     Layer.provide(WebCrypto),
   )
 
-const AllRpcs = CoreRpcs.merge(PageRpcs)
+const AllRpcs = CoreRpcs.merge(PageRpcs, AssetRpcs)
 
 const coreOn = (
   root: string,

@@ -1307,3 +1307,46 @@
 .seqno-code-editor .cm-activeLineGutter {
   background: var(--bg-code-active-line);
 }
+
+.asset-ref {
+  color: var(--fg-link);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.asset-ref:hover {
+  text-decoration: underline;
+}
+
+.asset-ref.is-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.asset-ref.is-missing {
+  color: var(--fg-muted);
+  cursor: default;
+  text-decoration: line-through;
+}
+
+.asset-ref.is-pdf::before {
+  content: "[[📚";
+  opacity: 0.7;
+  margin-right: 4px;
+}
+
+.asset-ref.is-pdf::after {
+  content: "]]";
+  opacity: 0.7;
+}
+
+.asset-ref-wrap {
+  display: block;
+}
+
+.seqno-audio {
+  display: block;
+  max-width: 100%;
+  margin: 4px 0;
+}

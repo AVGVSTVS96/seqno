@@ -109,6 +109,8 @@ export const mount = (
           within.searches.push(`block:${query}`)
           return [hit]
         }),
+      saveAssets: (files) =>
+        Promise.resolve(files.map((file) => `![${file.name}](../assets/${file.name})`)),
     },
   })
   mounted.push(editor.destroy)

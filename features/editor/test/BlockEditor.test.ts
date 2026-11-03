@@ -30,6 +30,7 @@ const render = async (text: string) => {
           act: () => undefined,
           searchPages: () => Effect.succeed([page("Garden Plan")]),
           searchBlocks: () => Effect.succeed([]),
+          saveAssets: () => Promise.resolve([]),
         },
       }),
     )

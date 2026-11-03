@@ -43,6 +43,16 @@ export const RenderContext = createContext<Renderer>({
 
 export const PageDialects = createContext<(pageId: PageId) => Dialect>(() => "markdown")
 
+export interface AssetActions {
+  readonly openPdf: (url: string) => void
+  readonly saveFiles: (files: ReadonlyArray<File>) => Promise<ReadonlyArray<string>>
+}
+
+export const AssetActions = createContext<AssetActions>({
+  openPdf: () => undefined,
+  saveFiles: () => Promise.resolve([]),
+})
+
 export const PropertySettings = createContext<PropertyConfig>(defaultPropertyConfig)
 
 export type SourceEdit = (from: number, to: number, insert: string) => void

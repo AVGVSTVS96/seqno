@@ -10,6 +10,7 @@ import { fromGraph, minimalChange, placeCursor, textSync } from "./edits.ts"
 import { blockFields } from "./fields.ts"
 import { pasteOutline } from "./paste.ts"
 import { headingLevel } from "./format.ts"
+import { assetDrops } from "./assets.ts"
 import { extraCommands } from "./popup.ts"
 import type { Handoff } from "./handoff.ts"
 import type { CursorPlacement, EditorHost } from "./host.ts"
@@ -114,6 +115,7 @@ export const mountBlockEditor = (
           : propertiesKeymap(host),
         completion(block.id, host, popups),
         extraCommands.of(extra),
+        assetDrops(host),
         properties === undefined ? pasteOutline(block, () => parentId, host.dispatch) : [],
         autopair,
         keymap.of(defaultKeymap),

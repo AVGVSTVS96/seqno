@@ -1,10 +1,12 @@
 import shellCss from "./shell/shell.css?inline"
-import { useAtomMount, useAtomValue } from "@effect/atom-react"
+import { RegistryContext, useAtomMount, useAtomValue } from "@effect/atom-react"
 import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
+import { useContext } from "react"
 import type { PageId } from "@seqno/domain"
 import {
+  AssetActions,
   BoardSlot,
   MacroSlot,
   PageDialects,
@@ -22,7 +24,9 @@ import {
   propertyConfig,
   resolvedTheme,
   rightSidebar,
+  assetResolver,
 } from "../atoms.ts"
+import { saveAssets } from "./assets.ts"
 import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
 import { Hints } from "./hints/Hints.tsx"
 import { GraphChooser, OpenFailed } from "./OpenGraphScreen.tsx"
@@ -67,44 +71,55 @@ const Layout = ({
   const rightOpen = useAtomValue(rightSidebar).open
   const wide = useAtomValue(wideMode)
   const mode = useAtomValue(resolvedTheme)
+  const registry = useContext(RegistryContext)
+  const resolveAsset = useAtomValue(assetResolver)
+  const assets: AssetActions = {
+    saveFiles: (files) => saveAssets(registry, files),
+    openPdf: (url) => {
+      const source = resolveAsset(url)
+      if (source !== undefined) window.open(source, "_blank", "noopener")
+    },
+  }
   return (
-    <MacroSlot value={pluginMacros}>
-      <BoardSlot value={boards}>
-        <div
-          className="app"
-          data-left-open={leftOpen}
-          data-right-open={rightOpen}
-          data-wide={wide}
-          style={{
-            "--left-sidebar-width": `${leftWidth}px`,
-            "--right-sidebar-width": `${rightWidth}vw`,
-          }}
-        >
-          <div className="left-container">
-            <Header />
-            <div className="main-container">
-              <LeftSidebar graph={graph} />
-              <main className="main-content-container">
-                <ScrollContent className="main-content">
-                  {content(ready ?? true, problem ?? null)}
-                </ScrollContent>
-              </main>
+    <AssetActions value={assets}>
+      <MacroSlot value={pluginMacros}>
+        <BoardSlot value={boards}>
+          <div
+            className="app"
+            data-left-open={leftOpen}
+            data-right-open={rightOpen}
+            data-wide={wide}
+            style={{
+              "--left-sidebar-width": `${leftWidth}px`,
+              "--right-sidebar-width": `${rightWidth}vw`,
+            }}
+          >
+            <div className="left-container">
+              <Header />
+              <div className="main-container">
+                <LeftSidebar graph={graph} />
+                <main className="main-content-container">
+                  <ScrollContent className="main-content">
+                    {content(ready ?? true, problem ?? null)}
+                  </ScrollContent>
+                </main>
+              </div>
             </div>
+            <RightSidebar />
+            <HelpButton />
+            <BlockMenu />
+            <ExportDialog />
+            <GraphExportDialog />
+            <Settings />
+            <Notices />
+            <PluginsDialog />
+            <PluginSettings />
+            <PluginThemeLink mode={mode} />
+            {isDemoGraph(graph) ? <Hints /> : null}
           </div>
-          <RightSidebar />
-          <HelpButton />
-          <BlockMenu />
-          <ExportDialog />
-          <GraphExportDialog />
-          <Settings />
-          <Notices />
-          <PluginsDialog />
-          <PluginSettings />
-          <PluginThemeLink mode={mode} />
-          {isDemoGraph(graph) ? <Hints /> : null}
-        </div>
-      </BoardSlot>
-    </MacroSlot>
+        </BoardSlot>
+      </MacroSlot>
+    </AssetActions>
   )
 }
 

@@ -2,7 +2,15 @@ import { BrowserWorker } from "@effect/platform-browser"
 import { Effect, Layer, Stream } from "effect"
 import { RpcClient } from "effect/rpc"
 import type { WorkerError } from "effect/workers/WorkerError"
-import { CoreClient, CoreRpcs, PageClient, PageRpcs, tabLock } from "@seqno/rpc"
+import {
+  AssetClient,
+  AssetRpcs,
+  CoreClient,
+  CoreRpcs,
+  PageClient,
+  PageRpcs,
+  tabLock,
+} from "@seqno/rpc"
 
 declare global {
   // TypeScript's DOM types don't have this option yet: https://github.com/whatwg/html/pull/11600
@@ -33,6 +41,11 @@ export const WorkerCore: Layer.Layer<CoreClient, WorkerError> = Layer.effect(
 export const WorkerPages: Layer.Layer<PageClient, WorkerError> = Layer.effect(
   PageClient,
   RpcClient.make(PageRpcs),
+).pipe(Layer.provide(WorkerProtocol))
+
+export const WorkerAssets: Layer.Layer<AssetClient, WorkerError> = Layer.effect(
+  AssetClient,
+  RpcClient.make(AssetRpcs),
 ).pipe(Layer.provide(WorkerProtocol))
 
 const holdForThisTab = (name: string) =>

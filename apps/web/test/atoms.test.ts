@@ -137,7 +137,6 @@ const DemoLocations = Layer.succeed(GraphLocations, {
   demo: (name) => Effect.succeed(inBrowser(name)),
   reopen: (name) => Effect.succeed(inBrowser(name)),
   resume: (name) => Effect.succeed(inBrowser(name)),
-  assets: () => Effect.succeed(new Map()),
   file: () => Effect.succeed(null),
 })
 

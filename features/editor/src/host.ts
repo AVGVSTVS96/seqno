@@ -53,4 +53,5 @@ export interface EditorHost {
   readonly act: (action: EditorAction) => void
   readonly searchPages: (query: string) => Effect.Effect<ReadonlyArray<PageName>>
   readonly searchBlocks: (query: string) => Effect.Effect<ReadonlyArray<BlockHit>>
+  readonly saveAssets: (files: ReadonlyArray<File>) => Promise<ReadonlyArray<string>>
 }

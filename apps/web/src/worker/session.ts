@@ -20,6 +20,7 @@ import { defaultPropertyConfig, propertyConfigKey, readPropertyConfig } from "@s
 import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
 import { SaveState, type SkippedFile } from "@seqno/rpc"
 import { Storage, Vault, layer as vaultLayer } from "@seqno/vault"
+import { makeAssetFiles, type AssetFiles } from "./assets.ts"
 import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
@@ -32,6 +33,7 @@ export interface Session {
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
   readonly changes: PubSub.PubSub<ReadonlyArray<GraphEvent>>
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
+  readonly assets: AssetFiles
   readonly skipped: ReadonlyArray<SkippedFile>
   readonly record: <E, R>(
     change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>,
@@ -462,9 +464,11 @@ export const openSession = (place: GraphPlace) =>
     yield* save
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
-    yield* Effect.forkScoped(
-      Effect.forever(Effect.andThen(Effect.sleep("5 seconds"), logged(vault.sync(replica)))),
-    )
+    const assets = yield* makeAssetFiles(place.storage, place.file)
+    const syncPass = place.synced
+      ? Effect.andThen(logged(vault.sync(replica)), assets.refresh)
+      : logged(vault.sync(replica))
+    yield* Effect.forkScoped(Effect.forever(Effect.andThen(Effect.sleep("5 seconds"), syncPass)))
     yield* Effect.forkScoped(
       Effect.forever(
         Effect.gen(function* () {
@@ -498,6 +502,7 @@ export const openSession = (place: GraphPlace) =>
       touched,
       changes,
       saving,
+      assets,
       skipped,
       record,
       indexed: indexed.await,

@@ -36,6 +36,7 @@ import {
   IconSourceCode,
   IconSquareRoundedX,
   IconUnderline,
+  IconUpload,
   IconZoomCode,
 } from "@tabler/icons-react"
 import type { Marker, Priority } from "@seqno/syntax"
@@ -61,6 +62,7 @@ export interface Applied {
   readonly open?: RefKind
   readonly pick?: Planning
   readonly notice?: string
+  readonly upload?: true
   readonly after?: () => void
 }
 
@@ -122,6 +124,7 @@ export const slashCommands: ReadonlyArray<SlashCommand> = [
   command("FORMAT", "Link", IconLink, (draft) => ({ draft: insertLink(draft) })),
   command("FORMAT", "Image link", IconPhotoShare, text("![]()", 3)),
   command("FORMAT", "Underline", IconUnderline, text("<ins></ins>", 6)),
+  command("FORMAT", "Upload an asset", IconUpload, (draft) => ({ draft, upload: true })),
   command("FORMAT", "Code block", IconCode, fenced("")),
   command("FORMAT", "Quote", IconQuote, (draft) => ({ draft: quoteLine(draft) })),
   command("FORMAT", "Math block", IconMath, text("$$$$", 2)),

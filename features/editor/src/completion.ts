@@ -15,6 +15,7 @@ import {
 } from "@codemirror/view"
 import { Effect, Fiber } from "effect"
 import { blockRefId, type BlockId } from "@seqno/domain"
+import { pickAssets } from "./assets.ts"
 import type { SlashCommand } from "./commands.ts"
 import {
   datePicker,
@@ -242,6 +243,7 @@ const runCommand = (view: EditorView, popup: Popup, command: SlashCommand, now: 
         : [openPopup.of({ kind: applied.open, from: draft.from })]),
       ...(applied.pick === undefined ? [] : [openDatePicker.of(applied.pick)]),
       ...(applied.notice === undefined ? [] : [notice.of(applied.notice)]),
+      ...(applied.upload === true ? [upload.of(null)] : []),
     ],
     userEvent: "input.complete",
     scrollIntoView: true,
@@ -252,11 +254,14 @@ const runCommand = (view: EditorView, popup: Popup, command: SlashCommand, now: 
 
 const notice = StateEffect.define<string>()
 
+const upload = StateEffect.define<null>()
+
 const notices = (host: EditorHost) =>
   EditorView.updateListener.of((update) => {
     for (const transaction of update.transactions) {
       for (const effect of transaction.effects) {
         if (effect.is(notice)) host.act({ _tag: "Notify", message: effect.value })
+        if (effect.is(upload)) pickAssets(update.view, host)
       }
     }
   })

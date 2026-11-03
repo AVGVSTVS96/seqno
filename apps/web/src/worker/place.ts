@@ -4,6 +4,7 @@ import type { IndexError, Sqlite } from "@seqno/index"
 import { FolderError, GraphFolder } from "@seqno/interop"
 import { Entry, editLogDir, type Storage, type StorageFailed } from "@seqno/vault"
 import type { GraphUnavailable } from "@seqno/rpc"
+import type { OpenFile } from "./assets.ts"
 import type { Layout } from "./layout.ts"
 
 export interface StarterFile {
@@ -23,6 +24,7 @@ export interface IndexFile {
 
 export interface GraphPlace {
   readonly storage: Storage["Service"]
+  readonly file: OpenFile
   readonly layout: Layout
   readonly synced: boolean
   readonly sqlite: Layer.Layer<Sqlite, IndexError>

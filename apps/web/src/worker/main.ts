@@ -4,7 +4,7 @@ import { RpcServer } from "effect/rpc"
 import { initSync } from "loro-crdt/web/loro_wasm.js"
 import loroWasm from "loro-crdt/web/loro_wasm_bg.wasm?url"
 import { Background } from "@seqno/graph"
-import { CoreRpcs, PageRpcs } from "@seqno/rpc"
+import { AssetRpcs, CoreRpcs, PageRpcs } from "@seqno/rpc"
 import { BrowserDevice, BrowserGraphPlaces } from "./browser.ts"
 import { RealCore } from "./core.ts"
 import { BrowserGraphLocations } from "./locations.ts"
@@ -27,7 +27,7 @@ const Handlers = RealCore.pipe(
 
 const Protocol = RpcServer.layerProtocolWorkerRunner.pipe(Layer.provide(BrowserWorkerRunner.layer))
 
-const Server = RpcServer.layer(CoreRpcs.merge(PageRpcs)).pipe(
+const Server = RpcServer.layer(CoreRpcs.merge(PageRpcs, AssetRpcs)).pipe(
   Layer.provide(Handlers),
   Layer.provide(Protocol),
 )

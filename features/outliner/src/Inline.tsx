@@ -9,11 +9,13 @@ import {
   parseInline,
   parseTimestamp,
   parseVideo,
+  isLocalAsset,
   plainText,
   type Inline,
   type LinkTarget,
   type Span,
 } from "@seqno/syntax"
+import { AssetFileLink, AssetMedia } from "./Asset.tsx"
 import { blockRefAtom, pageTreeAtom } from "./core.ts"
 import { usePreview } from "./Preview.tsx"
 import {
@@ -144,7 +146,11 @@ const Link = ({
 }) =>
   Match.valueTags(target, {
     Url: ({ url }) =>
-      safeUrl.test(url) ? (
+      isLocalAsset(url) ? (
+        <AssetFileLink url={url}>
+          <Inlines nodes={label} />
+        </AssetFileLink>
+      ) : safeUrl.test(url) ? (
         <a href={url} target="_blank" rel="noreferrer" className="seqno-link" onClick={stop}>
           <Inlines nodes={label} />
         </a>
@@ -392,6 +398,8 @@ const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
       </mark>
     ),
     Link: ({ target, label }) => <Link target={target} label={label} />,
-    Image: (image) => <Image node={image} />,
+    Image: (image) => (
+      <AssetMedia url={image.url} label={image.alt} image={<Image node={image} />} />
+    ),
   })
 }

@@ -44,7 +44,6 @@ export class GraphLocations extends Context.Service<
     readonly demo: (name: DemoGraph) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly reopen: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly resume: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
-    readonly assets: (name: string) => Effect.Effect<ReadonlyMap<string, string>>
     readonly file: (name: string, path: string) => Effect.Effect<Uint8Array | null>
   }
 >()("@seqno/web/GraphLocations") {}
@@ -110,23 +109,6 @@ const folderOf = (location: GraphLocation) =>
     },
   })
 
-type Asset = readonly [path: string, url: string]
-
-const filesUnder = async (
-  folder: FileSystemDirectoryHandle,
-  prefix: string,
-): Promise<ReadonlyArray<Asset>> => {
-  const found: Array<Promise<ReadonlyArray<Asset>>> = []
-  for await (const [name, entry] of folder.entries()) {
-    if (entry instanceof FileSystemFileHandle) {
-      found.push(entry.getFile().then((file) => [[`${prefix}${name}`, URL.createObjectURL(file)]]))
-    } else if (entry instanceof FileSystemDirectoryHandle) {
-      found.push(filesUnder(entry, `${prefix}${name}/`))
-    }
-  }
-  return (await Promise.all(found)).flat()
-}
-
 const readFile = async (folder: FileSystemDirectoryHandle, path: string) => {
   const parts = path.split("/").filter((part) => part !== "" && part !== ".")
   const name = parts.pop()
@@ -167,19 +149,6 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
   resume: (name) =>
     Effect.flatMap(stored(name), (location) =>
       permitted(location, (handle) => handle.queryPermission({ mode: "readwrite" })),
-    ),
-  assets: (name) =>
-    stored(name).pipe(
-      Effect.flatMap((location) =>
-        Effect.tryPromise({
-          try: async () => {
-            const assets = await (await folderOf(location)).getDirectoryHandle("assets")
-            return new Map(await filesUnder(assets, "assets/"))
-          },
-          catch: notPicked,
-        }),
-      ),
-      Effect.orElseSucceed(() => new Map<string, string>()),
     ),
   file: (name, path) =>
     stored(name).pipe(

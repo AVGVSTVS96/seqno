@@ -55,6 +55,7 @@ import { PlainTextEditor } from "./PlainTextEditor.tsx"
 import { isMoveChord } from "./platform.ts"
 import { QueryView } from "./Query.tsx"
 import {
+  AssetActions,
   BoardSlot,
   clickOnEnter,
   contentOf,
@@ -90,6 +91,9 @@ export interface OutlinerProps {
 }
 
 const listId = (pageId: PageId, zoom: BlockId | null) => `${pageId} ${zoom ?? ""}`
+
+const carriesFiles = (transfer: DataTransfer) =>
+  transfer.types.includes("Files") && !transfer.types.includes("text/plain")
 
 export const Outliner = (props: OutlinerProps) => {
   const held = useHeldHeight(listId(props.pageId, props.zoom), props.windowed ?? false)
@@ -349,6 +353,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const addable = props.addable ?? false
   const dialectOf = use(PageDialects)
   const parent = use(RenderContext)
+  const assets = use(AssetActions)
   const readOnly = props.readOnly ?? parent.readOnly
   const counts = AsyncResult.getOrElse(useAtomValue(blockRefCountsAtom), () => noCounts)
   const registry = useContext(RegistryContext)
@@ -799,6 +804,11 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         setDrop(null)
       },
       dragOver: (event) => {
+        if (dragged.length === 0 && carriesFiles(event.dataTransfer) && !readOnly) {
+          event.preventDefault()
+          event.dataTransfer.dropEffect = "copy"
+          return
+        }
         const target = dropZone(event, row)
         if (moveCommand(view, dragged, target) === null) return
         event.preventDefault()
@@ -807,6 +817,31 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       },
       drop: (event) => {
         event.preventDefault()
+        const files = [...event.dataTransfer.files]
+        if (dragged.length === 0 && files.length > 0 && !readOnly) {
+          void assets.saveFiles(files).then((links) => {
+            if (links.length === 0) return
+            const text = links.join(" ")
+            dispatch(
+              block.text.trim() === ""
+                ? {
+                    _tag: "EditText",
+                    blockId: block.id,
+                    from: 0,
+                    to: block.text.length,
+                    insert: text,
+                  }
+                : {
+                    _tag: "InsertBlocks",
+                    pageId,
+                    parentId: block.parentId,
+                    after: block.id,
+                    blocks: [{ text, props: {}, children: [] }],
+                  },
+            )
+          })
+          return
+        }
         const command = moveCommand(view, dragged, dropZone(event, row))
         if (command !== null) dispatch(command)
         setDragged([])

@@ -14,6 +14,7 @@ import {
 import { blockAtom, pageTreeAtom, type EditorIntent, type EditorSlotProps } from "@seqno/outliner"
 import { editorCommands, hostAtom, slashCommands as pluginSlashCommands } from "@seqno/plugins"
 import { pages } from "../atoms.ts"
+import { saveAssets } from "./assets.ts"
 import { referencedOnly } from "./pages/atoms.ts"
 import { notify } from "./shell/Notices.tsx"
 import { vimMode } from "./shell/state.ts"
@@ -144,6 +145,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
         ),
         Effect.orElseSucceed(() => []),
       ),
+    saveAssets: (files) => saveAssets(registry, files),
   }
 
   const updates = AtomRegistry.toStreamResult(registry, pageTreeAtom(block.pageId)).pipe(

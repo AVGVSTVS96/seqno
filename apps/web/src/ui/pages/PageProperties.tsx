@@ -6,6 +6,7 @@ import { BlockId, normalizePageName, type Page } from "@seqno/domain"
 import { BlockEditor, createHandoff, type EditorHost } from "@seqno/editor"
 import { PropertyValue } from "@seqno/outliner"
 import { assetResolver, dispatch, dispatchAll, pages } from "../../atoms.ts"
+import { saveAssets } from "../assets.ts"
 import { EditorSlot } from "../EditorSlot.tsx"
 import { referencedOnly } from "./atoms.ts"
 import { isHiddenPageProp, visibleProps } from "./model.ts"
@@ -39,6 +40,7 @@ const PropertiesEditor = ({
         Effect.map((real) => [...real, ...registry.get(referencedOnly)]),
       ),
     searchBlocks: () => Effect.succeed([]),
+    saveAssets: (files) => saveAssets(registry, files),
   }
   return (
     <div

@@ -1,3 +1,13 @@
+export {
+  Asset,
+  AssetClient,
+  AssetFailed,
+  AssetRpcs,
+  RemoveAsset,
+  SaveAsset,
+  WatchAssets,
+  WriteAsset,
+} from "./assets.ts"
 export { CoreClient } from "./client.ts"
 export {
   BlockNotFound,

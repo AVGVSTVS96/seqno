@@ -1,7 +1,7 @@
 import { Clock, Crypto, Effect, Layer, Option, Schema } from "effect"
 import { DeviceId, type JournalDay } from "@seqno/domain"
 import { layerWasmMemory } from "@seqno/index/wasm"
-import { StorageFailed, directoryStorage } from "@seqno/vault"
+import { StorageFailed, directoryFile, directoryStorage } from "@seqno/vault"
 import { demoGraph } from "./demo.ts"
 import { developerGraph } from "./developer.ts"
 import { journalDayOf } from "./journal.ts"
@@ -128,6 +128,7 @@ export const BrowserGraphPlaces = Layer.effect(
             }),
             ({ handle, layout, synced, starter }) => ({
               storage: directoryStorage(handle),
+              file: directoryFile(handle),
               layout,
               synced,
               sqlite: layerWasmMemory,

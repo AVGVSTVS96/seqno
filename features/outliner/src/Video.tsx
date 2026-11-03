@@ -107,7 +107,7 @@ const Vimeo = ({ id, hash }: { readonly id: string; readonly hash: string | null
   )
 }
 
-const VideoFile = ({ url }: { readonly url: string }) => {
+export const VideoFile = ({ url }: { readonly url: string }) => {
   const renderer = use(RenderContext)
   const player = useRef<HTMLVideoElement>(null)
   const source = renderer.resolveAsset(url) ?? (playableUrl.test(url) ? url : undefined)

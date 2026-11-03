@@ -51,12 +51,21 @@ const listDir = async (root: FileSystemDirectoryHandle, path: string) => {
   return entries
 }
 
-const readFile = async (root: FileSystemDirectoryHandle, path: string) => {
+const openFile = async (root: FileSystemDirectoryHandle, path: string) => {
   const { dirs, name } = split(path)
   const dir = await walk(root, dirs, false)
-  const file = await (await dir.getFileHandle(name)).getFile()
-  return new Uint8Array(await file.arrayBuffer())
+  return (await dir.getFileHandle(name)).getFile()
 }
+
+const readFile = async (root: FileSystemDirectoryHandle, path: string) =>
+  new Uint8Array(await (await openFile(root, path)).arrayBuffer())
+
+const unavailable = (path: string) => (cause: unknown) =>
+  nameOf(cause) === "NotFoundError"
+    ? new FileUnavailable({ path, reason: "missing" })
+    : nameOf(cause) === "NotReadableError"
+      ? new FileUnavailable({ path, reason: "not-downloaded" })
+      : failed(path)(cause)
 
 const writeFile = async (root: FileSystemDirectoryHandle, path: string, bytes: Uint8Array) => {
   const { dirs, name } = split(path)
@@ -82,21 +91,17 @@ const removeFile = async (root: FileSystemDirectoryHandle, path: string) => {
 
 export const directoryStorage = (root: FileSystemDirectoryHandle): Storage["Service"] => ({
   list: (dir) => Effect.tryPromise({ try: () => listDir(root, dir), catch: failed(dir) }),
-  read: (path) =>
-    Effect.tryPromise({
-      try: () => readFile(root, path),
-      catch: (cause) =>
-        nameOf(cause) === "NotFoundError"
-          ? new FileUnavailable({ path, reason: "missing" })
-          : nameOf(cause) === "NotReadableError"
-            ? new FileUnavailable({ path, reason: "not-downloaded" })
-            : failed(path)(cause),
-    }),
+  read: (path) => Effect.tryPromise({ try: () => readFile(root, path), catch: unavailable(path) }),
   write: (path, bytes) =>
     Effect.tryPromise({ try: () => writeFile(root, path, bytes), catch: failed(path) }),
   remove: (path) => Effect.tryPromise({ try: () => removeFile(root, path), catch: failed(path) }),
   download: () => Effect.void,
 })
+
+export const directoryFile =
+  (root: FileSystemDirectoryHandle) =>
+  (path: string): Effect.Effect<File, StorageFailed | FileUnavailable> =>
+    Effect.tryPromise({ try: () => openFile(root, path), catch: unavailable(path) })
 
 export const layerOpfs = (graph: string): Layer.Layer<Storage, StorageFailed> =>
   Layer.effect(

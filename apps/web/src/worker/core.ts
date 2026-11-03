@@ -29,6 +29,7 @@ import {
   type Query,
 } from "@seqno/query"
 import {
+  AssetRpcs,
   BlockNotFound,
   BlockRefNotFound,
   CoreRpcs,
@@ -535,4 +536,23 @@ const PageHandlers = PageRpcs.toLayer(
   }),
 )
 
-export const RealCore = Layer.mergeAll(CoreHandlers, PageHandlers).pipe(Layer.provide(SessionsLive))
+const AssetHandlers = AssetRpcs.toLayer(
+  Effect.gen(function* () {
+    const { current, following } = yield* Sessions
+    const assetsOf = (client: number) => Effect.map(current(client), (session) => session.assets)
+    return AssetRpcs.of({
+      WatchAssets: (_, { client }) =>
+        following(client.id, (session) => SubscriptionRef.changes(session.assets.listed)),
+      SaveAsset: ({ name, data }, { client }) =>
+        Effect.flatMap(assetsOf(client.id), (assets) => assets.save(name, data)),
+      WriteAsset: ({ path, data }, { client }) =>
+        Effect.flatMap(assetsOf(client.id), (assets) => assets.write(path, data)),
+      RemoveAsset: ({ path }, { client }) =>
+        Effect.flatMap(assetsOf(client.id), (assets) => assets.remove(path)),
+    })
+  }),
+)
+
+export const RealCore = Layer.mergeAll(CoreHandlers, PageHandlers, AssetHandlers).pipe(
+  Layer.provide(SessionsLive),
+)

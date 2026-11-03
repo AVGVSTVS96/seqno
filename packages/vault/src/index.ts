@@ -17,7 +17,13 @@ export {
   treePerPageMarker,
   updatePath,
 } from "./layout.ts"
-export { PermissionNeeded, directoryStorage, layerDirectoryHandle, layerOpfs } from "./browser.ts"
+export {
+  PermissionNeeded,
+  directoryFile,
+  directoryStorage,
+  layerDirectoryHandle,
+  layerOpfs,
+} from "./browser.ts"
 export {
   makeFakeCloud,
   type FakeCloud,
