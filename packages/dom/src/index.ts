@@ -3,6 +3,13 @@ import { names, type LogseqNames, type Table } from "./names.ts"
 
 export { names, type LogseqNames, type Table } from "./names.ts"
 export { refsSelf } from "./refs.ts"
+export {
+  logseqAttributes,
+  logseqClasses,
+  logseqIdPrefixes,
+  logseqIds,
+  vocabularyVersion,
+} from "./vocabulary.ts"
 
 type Parts = BlockParts
 
