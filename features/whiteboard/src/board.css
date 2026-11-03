@@ -13,6 +13,12 @@
   height: 100%;
 }
 
+.right-sidebar .seqno-board-view {
+  height: 480px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
 .wb-root {
   --wb-accent: light-dark(rgb(3 125 186), rgb(5 120 160));
   --wb-selected: light-dark(rgb(2 118 177), rgb(56 170 220));

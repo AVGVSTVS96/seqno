@@ -119,6 +119,41 @@ describe("commands", () => {
     })
   })
 
+  it("copies the dragged shapes when Alt is held, freeing a connector's ends where they were", () => {
+    const scene = sceneFrom([box(1, [0, 0]), box(2, [300, 0]), arrow(3, 1, 2)])
+    const [made] = changesOf(
+      pageId,
+      scene,
+      { _tag: "Translating", from: [0, 0], to: [0, 200], ids: [id(1), id(3)], copy: true },
+      defaultStyles,
+    )
+    assert.deepStrictEqual(made, {
+      _tag: "InsertBlocks",
+      pageId,
+      parentId: null,
+      after: id(3),
+      blocks: [
+        {
+          text: "",
+          props: {
+            "ls-type": "whiteboard-shape",
+            "logseq.tldraw.shape": '{"type":"box","point":[0,200],"size":[100,100]}',
+          },
+          children: [],
+        },
+        {
+          text: "",
+          props: {
+            "ls-type": "whiteboard-shape",
+            "logseq.tldraw.shape":
+              '{"type":"line","point":[0,200],"handles":{"start":{"point":[104,50]},"end":{"point":[296,50]}}}',
+          },
+          children: [],
+        },
+      ],
+    })
+  })
+
   it("creates a dragged rectangle as a block after the topmost shape", () => {
     const scene = sceneFrom([box(1, [0, 0])])
     const [made] = changesOf(

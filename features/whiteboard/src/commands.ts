@@ -1,6 +1,7 @@
 import {
   SHAPE_KEY,
   patchShape,
+  shapeRaw,
   shapeProps,
   type BlockId,
   type Command,
@@ -72,6 +73,31 @@ export const translate = (items: ReadonlyArray<Item>, delta: Vec): ReadonlyArray
     patch(item, { point: roundVec(add(item.shape.point, delta)), ...movedHandles(item, moving) }),
   )
 }
+
+export const duplicate = (
+  pageId: PageId,
+  scene: Scene,
+  items: ReadonlyArray<Item>,
+  delta: Vec,
+): Command | null =>
+  create(
+    pageId,
+    scene,
+    items.map((item) => {
+      const point = roundVec(add(item.shape.point, delta))
+      const ends = scene.ends.get(item.block.id)
+      const handles =
+        item.shape.type === "line" && ends !== undefined
+          ? {
+              handles: {
+                start: { point: roundVec(sub(add(ends[0], delta), point)) },
+                end: { point: roundVec(sub(add(ends[1], delta), point)) },
+              },
+            }
+          : {}
+      return { raw: { ...shapeRaw(item.block), point, ...handles }, text: item.block.text }
+    }),
+  )
 
 export const scaleInto = (item: Item, from: Bounds, to: Bounds, own: Bounds): Raw => {
   const sx = (to.maxX - to.minX) / Math.max(1, from.maxX - from.minX)

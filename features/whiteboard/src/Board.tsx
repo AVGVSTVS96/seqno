@@ -135,6 +135,13 @@ const CHORD_KEYS: Record<string, Tool> = {
   o: "ellipse",
 }
 
+const CLONE_KEYS: Record<string, Vec> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+}
+
 const isEditableTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable ||
@@ -163,6 +170,14 @@ const resizeHandleOf = (name: string | null) => RESIZE_HANDLES.find((handle) => 
 
 const createdIds = (events: ReadonlyArray<GraphEvent>) =>
   events.flatMap((event) => (event._tag === "BlockUpserted" ? [event.block.id] : []))
+
+const snapAngle = (from: Vec, to: Vec): Vec => {
+  const [dx, dy] = sub(to, from)
+  const step = Math.PI / 12
+  const angle = Math.round(Math.atan2(dy, dx) / step) * step
+  const span = Math.hypot(dx, dy)
+  return [from[0] + Math.cos(angle) * span, from[1] + Math.sin(angle) * span]
+}
 
 const initialCamera = (scene: Scene, viewport: Viewport, focus: BlockId | null): Camera => {
   const focused = focus === null ? undefined : scene.bounds.get(focus)
@@ -368,6 +383,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     return ids
   }
 
+  const selectCreatedAll = (events: ReadonlyArray<GraphEvent>) => {
+    const ids = createdIds(events)
+    if (ids.length > 0) setSelected(ids)
+  }
+
   const newBlockPortal = (point: Vec, text: string) => {
     const after = scene.items.at(-1)?.block.id
     const made: Command = {
@@ -460,7 +480,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         if (pressed !== null && !pressed.moved && !pressed.shift && pressed.hit !== null) {
           setSelected([pressed.hit])
         }
-        void commit(changesOf(page.id, scene, done, styles))
+        void commit(changesOf(page.id, scene, done, styles)).then((events) => {
+          if (done.copy) selectCreatedAll(events)
+        })
         return
       case "Idle":
       case "Panning":
@@ -535,7 +557,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             ? selection
             : [id]
         setSelected(next)
-        setGesture({ _tag: "Translating", from: world, to: world, ids: next, snap })
+        setGesture({ _tag: "Translating", from: world, to: world, ids: next, copy: event.altKey })
         return
       }
       case "box":
@@ -614,7 +636,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           box === null || !snap
             ? locked
             : sub(snapped(add([box.minX, box.minY], locked)), [box.minX, box.minY])
-        setGesture({ ...gesture, to: add(gesture.from, delta) })
+        setGesture({ ...gesture, to: add(gesture.from, delta), copy: event.altKey })
         return
       }
       case "Resizing":
@@ -630,7 +652,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       case "Connecting": {
         const end =
           event.metaKey || event.ctrlKey ? null : bindTarget(scene, world, cam.zoom, gesture.start)
-        setGesture({ ...gesture, to: world, end: end?.block.id ?? null })
+        const to = event.shiftKey ? snapAngle(gesture.from, world) : world
+        setGesture({ ...gesture, to, end: end?.block.id ?? null })
         return
       }
       case "MovingEnd": {
@@ -702,6 +725,18 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     if (key === "Enter") {
       const only = selection.length === 1 ? selection[0] : undefined
       if (only !== undefined && startEditing(only)) handled()
+      return
+    }
+    const direction = CLONE_KEYS[key]
+    const cloneChord = navigator.userAgent.includes("Mac")
+      ? event.ctrlKey && event.shiftKey && !event.metaKey
+      : event.altKey && !event.ctrlKey && !event.metaKey
+    if (direction !== undefined && cloneChord) {
+      const only = selectedItems.length === 1 ? selectedItems[0] : undefined
+      if (only !== undefined && !isLocked(only)) {
+        handled()
+        cloneTo(only, direction)
+      }
       return
     }
     if (mod) {

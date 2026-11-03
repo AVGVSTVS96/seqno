@@ -1,5 +1,5 @@
 import type { BlockId, Command, PageId, Vec } from "@seqno/domain"
-import { create, patch, remove, scaleInto, translate, type Raw } from "./commands.ts"
+import { create, duplicate, patch, remove, scaleInto, translate, type Raw } from "./commands.ts"
 import { boundsOfPoints, overlaps, round, sub, union, type Bounds } from "./geometry.ts"
 import { hits, isLocked, type Item, type Scene } from "./model.ts"
 import { newShape, type ShapeTool, type Styles } from "./tools.ts"
@@ -22,7 +22,7 @@ export type Gesture =
       readonly from: Vec
       readonly to: Vec
       readonly ids: ReadonlyArray<BlockId>
-      readonly snap: boolean
+      readonly copy: boolean
     }
   | {
       readonly _tag: "Resizing"
@@ -148,6 +148,10 @@ export const changesOf = (
     case "Translating": {
       const delta = sub(gesture.to, gesture.from)
       if (delta[0] === 0 && delta[1] === 0) return []
+      if (gesture.copy) {
+        const made = duplicate(pageId, scene, picked(scene, gesture.ids), delta)
+        return made === null ? [] : [made]
+      }
       return translate(picked(scene, gesture.ids), delta)
     }
     case "Resizing": {
