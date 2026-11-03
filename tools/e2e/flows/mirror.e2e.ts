@@ -138,8 +138,8 @@ test("a rename moves the old file to logseq/.recycle and writes the new one", as
   await expect
     .poll(() => textOf(page, "pages/queries saved.md"))
     .toBe((before["pages/queries.md"] ?? "").trimEnd())
+  await expect.poll(() => textOf(page, "pages/queries.md")).toBeNull()
   expect(await textOf(page, "logseq/.recycle/pages_queries.md")).toBe(before["pages/queries.md"])
-  expect(await textOf(page, "pages/queries.md")).toBeNull()
 })
 
 const uuidsIn = (text: string) =>

@@ -19,6 +19,7 @@ const same = (left: ReadonlyArray<AppFile>, right: ReadonlyArray<AppFile>) =>
 export const makeAppFiles = (
   storage: Storage["Service"],
   changed: Stream.Stream<ReadonlyArray<string>>,
+  wrote: (paths: ReadonlyArray<string>) => Effect.Effect<void> = () => Effect.void,
 ) =>
   Effect.gen(function* () {
     const read = Effect.map(
@@ -47,7 +48,10 @@ export const makeAppFiles = (
     )
     const files: AppFiles = {
       listed,
-      write: ({ path, text }) => Effect.andThen(storage.write(path, encoder.encode(text)), refresh),
+      write: ({ path, text }) =>
+        storage
+          .write(path, encoder.encode(text))
+          .pipe(Effect.andThen(refresh), Effect.andThen(wrote([path]))),
     }
     return files
   })

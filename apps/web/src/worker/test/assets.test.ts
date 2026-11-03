@@ -19,10 +19,12 @@ const graphFolder = Effect.acquireRelease(
   (root) => Effect.promise(() => rm(root, { recursive: true, force: true })),
 )
 
-const filesOf = (root: string) => {
+const filesOf = (root: string, wrote?: (paths: ReadonlyArray<string>) => Effect.Effect<void>) => {
   const storage = nodeStorage(root)
-  return makeAssetFiles(storage, (path) =>
-    Effect.map(storage.read(path), (bytes) => new File([new Uint8Array(bytes)], path)),
+  return makeAssetFiles(
+    storage,
+    (path) => Effect.map(storage.read(path), (bytes) => new File([new Uint8Array(bytes)], path)),
+    wrote,
   )
 }
 
@@ -43,6 +45,25 @@ describe("a graph's assets", () => {
         ],
       )
       assert.strictEqual(yield* text(listed[0]?.url ?? ""), "png")
+    }).pipe(Effect.scoped),
+  )
+
+  it.effect("tells git about every file it saves, writes or removes, as page writes do", () =>
+    Effect.gen(function* () {
+      const told: Array<ReadonlyArray<string>> = []
+      const assets = yield* filesOf(yield* graphFolder, (paths) =>
+        Effect.sync(() => {
+          told.push(paths)
+        }),
+      )
+      const saved = yield* assets.save("seed tray.png", bytes("png"))
+      yield* assets.write("assets/storages/plugin/notes.json", bytes("{}"))
+      yield* assets.remove(saved.path)
+      assert.deepStrictEqual(told, [
+        ["assets/seed tray.png"],
+        ["assets/storages/plugin/notes.json"],
+        ["assets/seed tray.png"],
+      ])
     }).pipe(Effect.scoped),
   )
 

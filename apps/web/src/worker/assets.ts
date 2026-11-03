@@ -51,7 +51,11 @@ const freeName = (name: string, taken: (path: string) => boolean) => {
   return path
 }
 
-export const makeAssetFiles = (storage: Storage["Service"], open: OpenFile) =>
+export const makeAssetFiles = (
+  storage: Storage["Service"],
+  open: OpenFile,
+  wrote: (paths: ReadonlyArray<string>) => Effect.Effect<void> = () => Effect.void,
+) =>
   Effect.gen(function* () {
     const known = new Map<string, Asset>()
     const listed = yield* SubscriptionRef.make<ReadonlyArray<Asset>>([])
@@ -93,7 +97,7 @@ export const makeAssetFiles = (storage: Storage["Service"], open: OpenFile) =>
     const put = (path: string, data: Uint8Array) =>
       Effect.mapError(storage.write(path, data), failed(path)).pipe(
         Effect.andThen(Effect.mapError(remember(path), failed(path))),
-        Effect.tap(() => publish),
+        Effect.tap(() => Effect.andThen(publish, wrote([path]))),
       )
 
     const files: AssetFiles = {
@@ -122,6 +126,7 @@ export const makeAssetFiles = (storage: Storage["Service"], open: OpenFile) =>
               Effect.mapError(storage.remove(safe), failed(safe)).pipe(
                 Effect.andThen(Effect.sync(() => forget(safe))),
                 Effect.andThen(publish),
+                Effect.andThen(wrote([safe])),
               ),
             )
       },

@@ -528,11 +528,11 @@ export const openSession = (place: GraphPlace) =>
     yield* save
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
-    const assets = yield* makeAssetFiles(place.storage, place.file)
-    const appFiles = yield* makeAppFiles(place.storage, place.changed)
     const mayWrite = Effect.map(SubscriptionRef.get(writers.state), (state) => state.mayWrite)
     const git =
       place.git === undefined ? null : yield* openGit(yield* place.git, place.storage, mayWrite)
+    const assets = yield* makeAssetFiles(place.storage, place.file, git?.touched)
+    const appFiles = yield* makeAppFiles(place.storage, place.changed, git?.touched)
     yield* Effect.forkScoped(
       Effect.forever(
         Effect.gen(function* () {
