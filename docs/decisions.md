@@ -453,6 +453,14 @@ Two things the trace also showed. Playwright retries a locator's wait after 0, 2
 
 On the Mac the open's rows showed 185 to 410 ms after the click, against 480 to 745 ms before. The budgets went from 5 s to 2 s for the open and the reopen, 4 s to 3 s for the reopen's index, and 5 s to 3 s for the picked folder's open.
 
+## Vim mode is CodeMirror's vim inside a block, and block keys outside it
+
+**Decision.** Vim mode is a switch in Settings › General, off by default, kept in the browser like wide mode. Inside a block the editor runs `@replit/codemirror-vim`, so normal, insert and visual mode, motions, operators, counts, text objects, registers and `.` work as in vim. A block opens in insert mode, so clicking a block and typing writes text as it does with vim off. Between blocks the block is the line: `j` and `k` in normal mode on the block's last or first line move to the next or previous block and keep the column and normal mode, `o` and `O` on the last or first line open a new block, and Escape from normal mode leaves the editor with the block selected, as Logseq's Escape does. With blocks selected, single keys act on whole blocks: `j` `k` `gg` `G` move, `i` `a` edit, `o` `O` add, `dd` `yy` `p` `P` cut, copy and paste, `>>` `<<` indent, `zc` `zo` `za` fold, `V` starts a block range that `j` and `k` grow, and `u` and Ctrl+R undo and redo and leave the restored block selected. `u` and Ctrl+R inside a block run seqno's undo, not CodeMirror's, so one history covers typing and block commands. Logseq's own keys keep working with vim on; selected blocks take `g g` as "top block", where Logseq goes to the graph view.
+
+**Why.** Logseq has no vim mode of its own; its users install logseq-plugin-vim-shortcuts, which adds the same split (vim keys in the block, `j`/`k` and friends over blocks). CodeMirror's vim is the one Replit, Obsidian and CodeMirror users already type in daily, so it gets vim's details right without seqno owning a vim. Block keys only run when the tree has focus and nothing is being edited, so they can't take a key from the editor or from a text box.
+
+**Cost.** Ex commands (`:s`, `:w`) are CodeMirror vim's, and a few of them mean nothing in a block. Turning the switch on or off applies to the next block you open, not one already open. Undo or redo pressed quickly one after another now wait for each other, with vim on or off, so each sees the rows the last one left.
+
 ## Smaller decisions
 
 | Question                                     | Answer                                                                                                  | Why                                                                                                                                                                                                    |

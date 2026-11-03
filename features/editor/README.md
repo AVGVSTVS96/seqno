@@ -6,12 +6,14 @@ The UI-side editor for the one block being edited: a CodeMirror 6 view in the bl
 
 | Export                                          | What it does                                                                                                                         |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `BlockEditor`                                   | React component: `<BlockEditor block cursor updates host handoff properties? hidden? />`.                                            |
+| `BlockEditor`                                   | React component: `<BlockEditor block cursor updates host handoff properties? hidden? vim? />`.                                       |
 | `mountBlockEditor`                              | The same without React; returns `{ view, popups, destroy }`.                                                                         |
 | `EditorHost`                                    | What the app provides: `dispatch(command)`, `dispatchAll(commands)` (one commit), `act(action)`, `searchPages`, `searchBlocks`.      |
 | `EditorAction`, `CursorPlacement`, `LinkTarget` | What the editor asks the app to do (focus, select, move, collapse, zoom, open a link), and where the caret lands.                    |
 | `createHandoff`                                 | One per app. Holds keys typed right after Enter until the new block's editor mounts, and carries the caret's column between editors. |
 | `editorBindings`                                | The editing shortcuts with labels, for the app's keymap list.                                                                        |
+
+`vim` runs `@replit/codemirror-vim` in the block (`src/vim.ts`): it opens in insert mode, `j`/`k` past the first or last line ask the app for the next or previous block and carry normal mode and the column through the handoff, `o`/`O` there ask for a new block, Escape from normal mode exits, and `u`/Ctrl+R go to the app's history.
 
 `updates` is a `Stream<Block>` of this block from the page tree. The editor applies text that comes back from the graph and skips echoes of its own typing.
 

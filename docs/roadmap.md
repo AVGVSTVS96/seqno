@@ -15,6 +15,7 @@ The web app runs in Chrome and Edge on the real core: a Loro edit log, a SQLite 
 - **Pages.** Journals with today on top, every day back to the first, of which only the days near the screen are mounted, pages, aliases, tag pages, the All pages table, Mod+K full-text search, the right sidebar, favorites and recent pages. Renaming a page rewrites every reference to it. A height change above the screen doesn't move what you're reading, scrolling up or down, and Back puts the row you were reading back where it was.
 - **Outlining.** Enter, Tab and Shift+Tab, drag, multi-block selection, collapse, zoom, moving blocks with keys, and undo and redo one command at a time. Pasting a markdown outline makes blocks.
 - **Blocks.** Tasks and priorities, SCHEDULED and DEADLINE with a date picker, properties as `key:: value` lines, headings, code blocks edited in place, images with resizing, embeds, block references with counts, hover previews, and linked and unlinked references.
+- **Vim mode.** A switch in Settings: vim inside each block (normal, insert, visual), and `j` `k` `dd` `yy` `p` `o` `>>` `zc` `V` `u` over blocks, next to Logseq's own keys.
 - **Queries.** Live `{{query}}` blocks drawn like Logseq's. They take Logseq syntax, or Dataview-style text.
 - **Tests.** About 490 unit and component tests and 56 Playwright flows against a production build. A design harness puts 12 screens next to Logseq in light and dark.
 
