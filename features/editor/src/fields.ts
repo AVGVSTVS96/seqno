@@ -4,9 +4,11 @@ import {
   draftOffset,
   isHiddenProperty,
   joinProperties,
+  propertyLineOf,
   splitProperties,
   textOffset,
   type PropertyLine,
+  type PropertyStyle,
 } from "@seqno/syntax"
 import { editTextCommands, minimalChange } from "./edits.ts"
 
@@ -24,17 +26,11 @@ export interface BlockFields {
   readonly commit: (transaction: Transaction) => ReadonlyArray<Command>
 }
 
-const propertyLine = /^([^\s:]+):: (.*)$/
-
-const pageFields = (draft: string): Fields => {
+const pageFields = (draft: string, style: PropertyStyle): Fields => {
   const props: Array<PropertyLine> = []
   for (const line of draft.split("\n")) {
-    const match = propertyLine.exec(line)
-    const key = match?.[1]
-    const value = match?.[2]
-    if (key !== undefined && value !== undefined && !props.some(([seen]) => seen === key)) {
-      props.push([key, value])
-    }
+    const found = propertyLineOf(line, style)
+    if (found !== null && !props.some(([seen]) => seen === found[0])) props.push(found)
   }
   return { text: "", props }
 }
@@ -48,6 +44,7 @@ export const blockFields = (
   block: Pick<Block, "text" | "props">,
   target: PropertyTarget = { _tag: "BlockTarget", blockId },
   hidden: (key: string) => boolean = isHiddenProperty,
+  style: PropertyStyle = "markdown",
 ): BlockFields => {
   let order: ReadonlyArray<string> = []
 
@@ -79,17 +76,18 @@ export const blockFields = (
   return {
     draftOf: (source) => {
       const fields = fieldsOf(source)
-      return joinProperties(fields.text, fields.props)
+      return joinProperties(fields.text, fields.props, style)
     },
-    draftCaret: (source, offset) => draftOffset(source.text, linesOf(source.props), offset),
-    textCaret: (draft, offset) => textOffset(splitProperties(draft), offset),
-    textOf: (draft) => splitProperties(draft).text,
+    draftCaret: (source, offset) => draftOffset(source.text, linesOf(source.props), offset, style),
+    textCaret: (draft, offset) => textOffset(splitProperties(draft, style), offset),
+    textOf: (draft) => splitProperties(draft, style).text,
     reset: (source) => {
       committed = fieldsOf(source)
     },
     commit: (transaction) => {
       const draft = transaction.newDoc.toString()
-      const next = target._tag === "PageTarget" ? pageFields(draft) : splitProperties(draft)
+      const next =
+        target._tag === "PageTarget" ? pageFields(draft, style) : splitProperties(draft, style)
       order = next.props.map(([key]) => key)
       const before = committed
       committed = { text: next.text, props: next.props }

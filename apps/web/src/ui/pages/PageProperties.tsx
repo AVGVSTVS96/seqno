@@ -65,6 +65,13 @@ const PropertiesEditor = ({
         handoff={handoff}
         properties={{ _tag: "PageTarget", pageId: page.id }}
         hidden={isHiddenPageProp}
+        propertyStyle={
+          page.frontMatter === true
+            ? "frontMatter"
+            : page.format === "org"
+              ? "directives"
+              : "markdown"
+        }
       />
     </div>
   )

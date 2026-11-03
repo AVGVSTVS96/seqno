@@ -12,7 +12,7 @@ import { printConfig, type LogseqConfig } from "./config.ts"
 import { formatJournalDay } from "./dates.ts"
 import { fileBodyFromTitle } from "./filenames.ts"
 import { GraphFolder } from "./folder.ts"
-import { LogseqSyntax, type OutlineBlock } from "./outline.ts"
+import { LogseqSyntax, titleKey, type OutlineBlock } from "./outline.ts"
 import { renderWhiteboard } from "./whiteboard.ts"
 
 const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
@@ -49,8 +49,10 @@ const outlineOf = (
   return build(null)
 }
 
-const pageProps = (page: Page): Props =>
-  page.props["title"] === undefined ? page.props : { ...page.props, title: page.title }
+const pageProps = (page: Page): Props => {
+  const key = titleKey(page.props)
+  return key === undefined ? page.props : { ...page.props, [key]: page.title }
+}
 
 export const mirrorPath = (page: Page, config: LogseqConfig): string => {
   const extension = page.format === "org" ? "org" : "md"

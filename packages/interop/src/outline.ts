@@ -25,6 +25,9 @@ export class LogseqSyntax extends Context.Service<
   }
 >()("@seqno/interop/LogseqSyntax") {}
 
+export const titleKey = (props: Props): string | undefined =>
+  Object.keys(props).find((key) => key.toLowerCase() === "title")
+
 const property = /^([^\s:]+):: (.*)$/
 const opensVerbatim = /^\s*(```|~~~|#\+BEGIN_)/i
 

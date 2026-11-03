@@ -3,6 +3,7 @@ import { EditorSelection, EditorState } from "@codemirror/state"
 import { EditorView, keymap, tooltips } from "@codemirror/view"
 import { Effect, Fiber, Stream } from "effect"
 import type { Block, BlockId, Command, PropertyTarget } from "@seqno/domain"
+import type { PropertyStyle } from "@seqno/syntax"
 import { autopair } from "./autopair.ts"
 import type { SlashCommand } from "./commands.ts"
 import { completion, createPopupStore, type PopupStore } from "./completion.ts"
@@ -26,6 +27,7 @@ export interface BlockEditorOptions {
   readonly handoff: Handoff
   readonly properties?: PropertyTarget
   readonly hidden?: (key: string) => boolean
+  readonly propertyStyle?: PropertyStyle
   readonly vim?: boolean
   readonly commands?: ReadonlyArray<SlashCommand>
 }
@@ -64,13 +66,14 @@ export const mountBlockEditor = (
     handoff,
     properties,
     hidden,
+    propertyStyle,
     vim = false,
     commands: extra = [],
   }: BlockEditorOptions,
   popups = createPopupStore(),
 ): MountedEditor => {
   const arrival = handoff.take()
-  const fields = blockFields(block.id, block, properties, hidden)
+  const fields = blockFields(block.id, block, properties, hidden, propertyStyle)
   const draft = fields.draftOf(block)
   const merged =
     arrival?._tag === "Merged"

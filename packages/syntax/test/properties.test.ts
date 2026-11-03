@@ -144,3 +144,39 @@ describe("config.edn property settings", () => {
     ).toStrictEqual(["fiction", "sci-fi"])
   })
 })
+
+describe("property lines in Org blocks and front matter", () => {
+  const org = "TODO Tomato bed\nstaked on the south side"
+  const props = [
+    ["variety", "San Marzano"],
+    ["plants", "6"],
+  ] as const
+
+  it("shows an Org block's properties as the drawer Logseq writes, and reads it back", () => {
+    const draft = joinProperties(org, props, "org")
+    assert.strictEqual(
+      draft,
+      "TODO Tomato bed\n:PROPERTIES:\n:variety: San Marzano\n:plants: 6\n:END:\nstaked on the south side",
+    )
+    assert.deepStrictEqual(splitProperties(draft, "org"), {
+      text: org,
+      props,
+      runFrom: 15,
+      runTo: 67,
+    })
+    assert.strictEqual(draftOffset(org, props, 18, "org"), draft.indexOf("aked"))
+    assert.strictEqual(textOffset(splitProperties(draft, "org"), draft.indexOf("aked")), 18)
+    assert.deepStrictEqual(splitProperties("a\nvariety:: x", "org").props, [])
+  })
+
+  it("shows page properties as YAML front matter or #+ lines", () => {
+    assert.strictEqual(
+      joinProperties("", props, "frontMatter"),
+      "---\nvariety: San Marzano\nplants: 6\n---",
+    )
+    assert.strictEqual(
+      joinProperties("", props, "directives"),
+      "#+variety: San Marzano\n#+plants: 6",
+    )
+  })
+})

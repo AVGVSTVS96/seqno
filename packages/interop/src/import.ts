@@ -6,7 +6,7 @@ import { formatJournalDay, parseJournalDay } from "./dates.ts"
 import { titleFromFileBody } from "./filenames.ts"
 import { GraphFolder } from "./folder.ts"
 import { contentSeed, seededIds } from "./ids.ts"
-import { LogseqSyntax, type OutlineBlock } from "./outline.ts"
+import { LogseqSyntax, titleKey, type OutlineBlock } from "./outline.ts"
 import { readWhiteboard, whiteboardBlocks } from "./whiteboard.ts"
 
 export const ImportIssue = Schema.TaggedUnion({
@@ -188,7 +188,7 @@ export const importGraph = Effect.gen(function* () {
     const outline = syntax.parse(text, source.format)
     const journalDay = journalDayOf(source, config)
     const title =
-      outline.props["title"]?.trim() ||
+      outline.props[titleKey(outline.props) ?? "title"]?.trim() ||
       Option.match(journalDay, {
         onNone: () => fileTitle,
         onSome: (day) => formatJournalDay(day, config.journalTitleFormat),

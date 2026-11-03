@@ -2,7 +2,7 @@ import { RegistryContext, useAtomValue } from "@effect/atom-react"
 import { useRouter } from "@tanstack/react-router"
 import { Effect, Equal, Match, Option, Schema, Stream } from "effect"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
-import { useContext } from "react"
+import { use, useContext } from "react"
 import { BlockId, type Block, type Command } from "@seqno/domain"
 import {
   BlockEditor,
@@ -11,7 +11,13 @@ import {
   LinkTarget,
   type EditorHost,
 } from "@seqno/editor"
-import { blockAtom, pageTreeAtom, type EditorIntent, type EditorSlotProps } from "@seqno/outliner"
+import {
+  blockAtom,
+  PageDialects,
+  pageTreeAtom,
+  type EditorIntent,
+  type EditorSlotProps,
+} from "@seqno/outliner"
 import { editorCommands, hostAtom, slashCommands as pluginSlashCommands } from "@seqno/plugins"
 import { pages } from "../atoms.ts"
 import { saveAssets } from "./assets.ts"
@@ -164,6 +170,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
       handoff={handoff}
       vim={vim}
       commands={commands}
+      propertyStyle={use(PageDialects)(block.pageId)}
     />
   )
 }
