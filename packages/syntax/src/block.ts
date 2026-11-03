@@ -1,4 +1,5 @@
 import { Option, Schema } from "effect"
+import { parseInline, type Dialect, type Inline } from "./inline.ts"
 import {
   BLOCK_REF,
   HEADING,
@@ -253,7 +254,58 @@ const spanOf = (match: RegExpMatchArray): Span => {
   return { from, to: from + match[0].length }
 }
 
-export const analyzeBlock = (text: string): BlockSyntax => {
+const ORG_HEADING_TAGS = /[ \t]+:((?:[^\s:]+:)+)[ \t]*$/
+
+const inlineRefs = (nodes: ReadonlyArray<Inline>): ReadonlyArray<Ref> =>
+  nodes.flatMap((node): ReadonlyArray<Ref> => {
+    switch (node._tag) {
+      case "PageRef":
+        return [{ _tag: "PageRef", name: node.name, span: node.span }]
+      case "Tag":
+        return [{ _tag: "Tag", name: node.name, span: node.span }]
+      case "BlockRef":
+        return [{ _tag: "BlockRef", uuid: node.uuid, span: node.span }]
+      case "Link":
+        return node.target._tag === "Page"
+          ? [{ _tag: "PageRef", name: node.target.name, span: node.span }]
+          : node.target._tag === "Block"
+            ? [{ _tag: "BlockRef", uuid: node.target.uuid, span: node.span }]
+            : []
+      case "Bold":
+      case "Italic":
+      case "Strike":
+      case "Underline":
+      case "Highlight":
+        return inlineRefs(node.children)
+      default:
+        return []
+    }
+  })
+
+const orgRefs = (lines: ReadonlyArray<Line>, excluded: ReadonlyArray<Span>): ReadonlyArray<Ref> =>
+  lines.flatMap((line, index) => {
+    if (inside(excluded, line.from)) return []
+    const tags = index === 0 ? ORG_HEADING_TAGS.exec(line.text) : null
+    const own = tags === null ? line.text : line.text.slice(0, tags.index)
+    const headingTags: ReadonlyArray<Ref> =
+      tags === null
+        ? []
+        : (tags[1] ?? "")
+            .split(":")
+            .filter((name) => name !== "")
+            .map((name) => {
+              const from = line.from + line.text.indexOf(`:${name}:`, tags.index) + 1
+              return { _tag: "Tag", name, span: { from, to: from + name.length } }
+            })
+    return [
+      ...inlineRefs(parseInline(own, line.from, "org")).filter(
+        (ref) => !inside(excluded, ref.span.from),
+      ),
+      ...headingTags,
+    ]
+  })
+
+export const analyzeBlock = (text: string, dialect: Dialect = "markdown"): BlockSyntax => {
   const lines = linesOf(text)
   const title = lines[0]?.text ?? ""
   const regions = regionsOf(lines)
@@ -261,7 +313,7 @@ export const analyzeBlock = (text: string): BlockSyntax => {
     ...regions
       .filter((region) => region.kind !== "Directive" || VERBATIM.has(region.name))
       .map((region) => region.span),
-    ...[...text.matchAll(INLINE_CODE)].map(spanOf),
+    ...(dialect === "org" ? [] : [...text.matchAll(INLINE_CODE)].map(spanOf)),
   ]
   const macros = [...text.matchAll(MACRO)]
     .filter((match) => !inside(code, match.index ?? 0))
@@ -287,18 +339,20 @@ export const analyzeBlock = (text: string): BlockSyntax => {
       ? []
       : [{ _tag: "Tag", name, span: { from, to: from + 1 + name.length } }]
   })
-  const properties = propertiesOf(lines, regions)
+  const properties = dialect === "org" ? [] : propertiesOf(lines, regions)
   const listed = properties.filter((property) => LIST_KEYS.has(property.key)).flatMap(listRefs)
-  const refs = [...pageRefsOf(text, excluded), ...tags, ...blockRefs, ...listed].toSorted(
-    (a, b) => a.span.from - b.span.from,
-  )
+  const refs = (
+    dialect === "org"
+      ? orgRefs(lines, excluded)
+      : [...pageRefsOf(text, excluded), ...tags, ...blockRefs, ...listed]
+  ).toSorted((a, b) => a.span.from - b.span.from)
 
   const props = Object.fromEntries(properties.map((property) => [property.key, property.value]))
   const id = properties.find((property) => property.key === "id")?.value ?? ""
   return {
     marker: Option.getOrNull(decodeMarker(MARKER.exec(title)?.[1])),
     priority: Option.getOrNull(decodePriority(PRIORITY.exec(title)?.[1])),
-    heading: HEADING.exec(title)?.[1]?.length ?? null,
+    heading: dialect === "org" ? null : (HEADING.exec(title)?.[1]?.length ?? null),
     properties,
     props,
     id: UUID.test(id) ? id.toLowerCase() : null,

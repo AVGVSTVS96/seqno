@@ -52,12 +52,14 @@ const outlineOf = (
 const pageProps = (page: Page): Props =>
   page.props["title"] === undefined ? page.props : { ...page.props, title: page.title }
 
-export const mirrorPath = (page: Page, config: LogseqConfig): string =>
-  page.journalDay !== null
-    ? `${config.journalsDirectory}/${formatJournalDay(page.journalDay, config.journalFileFormat)}.md`
+export const mirrorPath = (page: Page, config: LogseqConfig): string => {
+  const extension = page.format === "org" ? "org" : "md"
+  return page.journalDay !== null
+    ? `${config.journalsDirectory}/${formatJournalDay(page.journalDay, config.journalFileFormat)}.${extension}`
     : isWhiteboard(page)
       ? `${config.whiteboardsDirectory}/${fileBodyFromTitle(page.title)}.edn`
-      : `${config.pagesDirectory}/${fileBodyFromTitle(page.title)}.md`
+      : `${config.pagesDirectory}/${fileBodyFromTitle(page.title)}.${extension}`
+}
 
 export const renderMirror = (pages: ReadonlyArray<PageTree>, config: LogseqConfig) =>
   Effect.gen(function* () {
@@ -74,6 +76,7 @@ export const renderMirror = (pages: ReadonlyArray<PageTree>, config: LogseqConfi
                 props: pageProps(page),
                 blocks: outlineOf(blocks, referenced),
                 ...(page.frontMatter === true ? { frontMatter: true } : {}),
+                ...(page.format === undefined ? {} : { format: page.format }),
               }),
         ]),
     )
@@ -92,7 +95,7 @@ const isMirrorPage = (path: string, config: LogseqConfig): boolean => {
     ? path.endsWith(".edn")
     : (path.startsWith(`${config.journalsDirectory}/`) ||
         path.startsWith(`${config.pagesDirectory}/`)) &&
-        path.endsWith(".md")
+        (path.endsWith(".md") || path.endsWith(".org"))
 }
 
 export interface MirrorRequest {

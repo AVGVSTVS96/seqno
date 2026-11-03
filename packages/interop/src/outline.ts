@@ -1,6 +1,7 @@
 import { Context, Layer } from "effect"
 import type { Props } from "@seqno/domain"
 import * as Syntax from "@seqno/syntax"
+import { parseOrg, printOrg } from "./org.ts"
 
 export interface OutlineBlock {
   readonly text: string
@@ -13,12 +14,13 @@ export interface Outline {
   readonly props: Props
   readonly blocks: ReadonlyArray<OutlineBlock>
   readonly frontMatter?: true
+  readonly format?: "org"
 }
 
 export class LogseqSyntax extends Context.Service<
   LogseqSyntax,
   {
-    readonly parse: (source: string) => Outline
+    readonly parse: (source: string, format?: "org") => Outline
     readonly print: (outline: Outline) => string
   }
 >()("@seqno/interop/LogseqSyntax") {}
@@ -85,7 +87,19 @@ const frontMatterOf = (preamble: ReadonlyArray<string>) => {
   return { props, rest: preamble.slice(close + 1) }
 }
 
-const parse = (source: string): Outline => {
+const frontMatterOutline = (preamble: ReadonlyArray<string>): Outline | null => {
+  const front = frontMatterOf(preamble)
+  if (front === null) return null
+  const body = front.rest.slice(front.rest.findIndex(filled), front.rest.findLastIndex(filled) + 1)
+  return {
+    props: front.props,
+    blocks: body.length === 0 ? [] : [fromLines(body, [])],
+    frontMatter: true,
+  }
+}
+
+const parse = (source: string, format?: "org"): Outline => {
+  if (format === "org") return { ...parseOrg(source, frontMatterOutline), format }
   const outline = Syntax.toOutline(Syntax.parse(source.replaceAll("\r\n", "\n")))
   const preamble = outline.preamble === "" ? [] : outline.preamble.split("\n")
   if (preamble.at(-1) === "") preamble.pop()
@@ -139,6 +153,7 @@ const frontMatterLines = (props: Props) =>
     : ["---", ...Object.entries(props).map(([key, value]) => `${key}: ${value}`), "---"]
 
 const print = (outline: Outline): string => {
+  if (outline.format === "org") return printOrg(outline, frontMatterLines)
   const props =
     outline.frontMatter === true
       ? frontMatterLines(outline.props)

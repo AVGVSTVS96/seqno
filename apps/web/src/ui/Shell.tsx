@@ -3,7 +3,14 @@ import { useAtomMount, useAtomValue } from "@effect/atom-react"
 import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { BoardSlot, MacroSlot, PropertySettings, ScrollContent } from "@seqno/outliner"
+import type { PageId } from "@seqno/domain"
+import {
+  BoardSlot,
+  MacroSlot,
+  PageDialects,
+  PropertySettings,
+  ScrollContent,
+} from "@seqno/outliner"
 import { PluginMacroSlot, PluginThemeLink } from "@seqno/plugins"
 import { BoardEmbed } from "./pages/Whiteboards.tsx"
 import {
@@ -11,6 +18,7 @@ import {
   lastGraph,
   leftSidebarOpen,
   openGraph,
+  orgPages,
   propertyConfig,
   resolvedTheme,
   rightSidebar,
@@ -128,14 +136,21 @@ const Screen = () => {
   })
 }
 
-export const Shell = () => (
-  <PropertySettings value={useAtomValue(propertyConfig)}>
-    <style href="seqno/shell" precedence="app">
-      {shellCss}
-    </style>
-    <Screen />
-  </PropertySettings>
-)
+export const Shell = () => {
+  const org = useAtomValue(orgPages)
+  const dialectOf = (pageId: PageId) =>
+    org.some((page) => page.id === pageId) ? "org" : "markdown"
+  return (
+    <PropertySettings value={useAtomValue(propertyConfig)}>
+      <PageDialects value={dialectOf}>
+        <style href="seqno/shell" precedence="app">
+          {shellCss}
+        </style>
+        <Screen />
+      </PageDialects>
+    </PropertySettings>
+  )
+}
 
 declare module "react" {
   interface CSSProperties {

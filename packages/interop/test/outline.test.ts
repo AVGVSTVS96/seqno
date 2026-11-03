@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect } from "effect"
-import { LogseqSyntax, LogseqSyntaxLive } from "@seqno/interop"
+import { LogseqSyntax, LogseqSyntaxLive, type OutlineBlock } from "@seqno/interop"
 
 const syntax = Effect.runSync(
   Effect.provide(
@@ -14,6 +14,17 @@ const syntax = Effect.runSync(
 const parse = (source: string) => syntax.parse(source)
 
 const roundTrip = (source: string) => syntax.print(syntax.parse(source))
+
+const orgBlock = (
+  text: string,
+  children: ReadonlyArray<OutlineBlock> = [],
+  props = {},
+): OutlineBlock => ({
+  text,
+  props,
+  collapsed: false,
+  children,
+})
 
 describe("outline syntax", () => {
   it("splits page properties, block properties, collapsed and children", () => {
@@ -193,6 +204,74 @@ describe("outline syntax", () => {
         { text: "b", props: {}, collapsed: false, children: [] },
       ],
       frontMatter: true,
+    })
+  })
+
+  it("reads an Org file's headings, drawers and #+ lines as Logseq does, and writes it back", () => {
+    const source = [
+      "#+TITLE: Org Page",
+      "#+TAGS: orgtag",
+      "",
+      "* TODO first [#A] heading",
+      ":PROPERTIES:",
+      ":id: 6512a0c4-1111-4222-8333-444455556666",
+      ":custom: val",
+      ":END:",
+      "body *bold* /it/",
+      "** child",
+      "**** skipped",
+      "* second",
+      "SCHEDULED: <2026-11-03 Tue>",
+      ":PROPERTIES:",
+      ":fresh: prop",
+      ":END:",
+      "#+BEGIN_SRC js",
+      "* not a heading",
+      "#+END_SRC",
+      "* collapsed one",
+      ":PROPERTIES:",
+      ":collapsed: true",
+      ":END:",
+      "** hidden kid",
+      "*",
+    ].join("\n")
+    assert.deepStrictEqual(syntax.parse(source, "org"), {
+      props: { TITLE: "Org Page", TAGS: "orgtag" },
+      blocks: [
+        orgBlock(
+          "TODO first [#A] heading\nbody *bold* /it/",
+          [orgBlock("child", [orgBlock("skipped")])],
+          {
+            id: "6512a0c4-1111-4222-8333-444455556666",
+            custom: "val",
+          },
+        ),
+        orgBlock(
+          "second\nSCHEDULED: <2026-11-03 Tue>\n#+BEGIN_SRC js\n* not a heading\n#+END_SRC",
+          [],
+          { fresh: "prop" },
+        ),
+        { ...orgBlock("collapsed one", [orgBlock("hidden kid")]), collapsed: true },
+        orgBlock(""),
+      ],
+      format: "org",
+    })
+    assert.strictEqual(
+      syntax.print(syntax.parse(source, "org")),
+      source.replace("**** skipped", "*** skipped"),
+    )
+  })
+
+  it("reads text before the first Org heading as a first block, and front matter in Org", () => {
+    assert.deepStrictEqual(
+      syntax.parse("before text\n* a", "org").blocks.map((block) => block.text),
+      ["before text", "a"],
+    )
+    const front = syntax.parse("---\ntitle: Y\n---\n* a", "org")
+    assert.deepStrictEqual([front.props, front.frontMatter], [{ title: "Y" }, true])
+    assert.strictEqual(syntax.print(front), "---\ntitle: Y\n---\n\n* a")
+    assert.deepStrictEqual(syntax.parse(":PROPERTIES:\n:title: X\n:END:\n* a", "org").props, {
+      title: "X",
     })
   })
 })

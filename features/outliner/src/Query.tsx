@@ -14,7 +14,14 @@ import type { QueryResult } from "@seqno/rpc"
 import { plainText } from "@seqno/syntax"
 import { pageTreeAtom, queryAtom } from "./core.ts"
 import { Inlines } from "./Inline.tsx"
-import { clickOnEnter, contentOf, HostBlock, RenderContext, toPage } from "./render.ts"
+import {
+  clickOnEnter,
+  contentOf,
+  HostBlock,
+  PageDialects,
+  RenderContext,
+  toPage,
+} from "./render.ts"
 
 type Sexp = string | ReadonlyArray<Sexp>
 
@@ -116,6 +123,7 @@ const trailOf = (byId: ReadonlyMap<string, Block>, block: Block): ReadonlyArray<
 
 const Crumbs = ({ trail }: { readonly trail: ReadonlyArray<Block> }) => {
   const renderer = use(RenderContext)
+  const dialectOf = use(PageDialects)
   return trail.length === 0 ? null : (
     <nav className="seqno-query-crumbs" aria-label="Parent blocks">
       {trail.map((parent) => (
@@ -134,7 +142,7 @@ const Crumbs = ({ trail }: { readonly trail: ReadonlyArray<Block> }) => {
               )
             }}
           >
-            {plainText(contentOf(parent.text).title ?? [])}
+            {plainText(contentOf(parent.text, dialectOf(parent.pageId)).title ?? [])}
           </a>
         </span>
       ))}
@@ -241,6 +249,7 @@ const countOf = (result: QueryResult) =>
   result._tag === "BlockRows" ? result.blocks.length : result.pages.length
 
 const Results = ({ result, table }: { readonly result: QueryResult; readonly table: boolean }) => {
+  const dialectOf = use(PageDialects)
   if (countOf(result) === 0) return <div className="seqno-query-empty">No matched result</div>
   if (result._tag === "PageRows") {
     return (
@@ -260,7 +269,7 @@ const Results = ({ result, table }: { readonly result: QueryResult; readonly tab
       {result.blocks.map((block) => (
         <tr key={block.id}>
           <td>
-            <Inlines nodes={contentOf(block.text).title ?? []} />
+            <Inlines nodes={contentOf(block.text, dialectOf(block.pageId)).title ?? []} />
           </td>
           <td>
             <PageCell pageId={block.pageId} />

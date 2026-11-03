@@ -43,7 +43,7 @@ export interface Session {
 const skippedFile = ImportIssue.match({
   NotDownloaded: ({ path }) => ({ path, reason: "isn't downloaded from iCloud yet" }),
   Unreadable: ({ path, reason }) => ({ path, reason: `couldn't be read: ${reason}` }),
-  Unsupported: ({ path }) => ({ path, reason: "isn't a Markdown page" }),
+  Unsupported: ({ path }) => ({ path, reason: "isn't a Markdown or Org page" }),
   DuplicatePage: ({ path, name }) => ({
     path,
     reason: `has the same page name as an earlier file: ${name}`,

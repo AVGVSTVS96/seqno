@@ -1,5 +1,5 @@
 import { analyzeBlock, type Marker, type Region, type Span, type TextEdit } from "./block.ts"
-import { parseInline, type Inline } from "./inline.ts"
+import { parseInline, type Dialect, type Inline } from "./inline.ts"
 import { defaultPropertyConfig, type PropertyConfig } from "./config.ts"
 import { HEADING, MARKER, PLANNING_LINE } from "./patterns.ts"
 
@@ -75,16 +75,20 @@ const FENCE_INFO = /^[ \t]*(?:`{3,}|~{3,})[ \t]*([^\s`]*)/
 
 const LEADING_PRIORITY = /^\[#([ABC])\][ \t]*/
 
-const titleOf = (line: string, start: number): ReadonlyArray<Inline> => {
-  const leading = LEADING_PRIORITY.exec(line.slice(start))
+const ORG_HEADING_TAGS = /[ \t]+:(?:[^\s:]+:)+[ \t]*$/
+const ORG_HIDDEN = /^[ \t]*(?:#\+(?!BEGIN_|END_)\S*:|#(?:[ \t]|$))/i
+
+const titleOf = (line: string, start: number, dialect: Dialect): ReadonlyArray<Inline> => {
+  const own = dialect === "org" ? line.replace(ORG_HEADING_TAGS, "") : line
+  const leading = LEADING_PRIORITY.exec(own.slice(start))
   const priority = leading?.[1]
   if (leading === null || (priority !== "A" && priority !== "B" && priority !== "C")) {
-    return parseInline(line.slice(start), start)
+    return parseInline(own.slice(start), start, dialect)
   }
   const rest = start + leading[0].length
   return [
     { _tag: "Priority", priority, span: { from: start, to: start + 4 } },
-    ...parseInline(line.slice(rest), rest),
+    ...parseInline(own.slice(rest), rest, dialect),
   ]
 }
 
@@ -155,14 +159,15 @@ const regionAt = (regions: ReadonlyArray<Region>, line: Line) =>
 
 const within = (span: Span, line: Line) => line.from >= span.from && line.from < span.to
 
-export const blockContent = (text: string): BlockContent => {
-  const syntax = analyzeBlock(text)
+export const blockContent = (text: string, dialect: Dialect = "markdown"): BlockContent => {
+  const org = dialect === "org"
+  const syntax = analyzeBlock(text, dialect)
   const lines = linesOf(text)
   const first = lines[0] ?? { text: "", from: 0 }
   const opensRegion = regionAt(syntax.regions, first) !== undefined
   const isProperty = syntax.properties.some((property) => within(property.span, first))
-  const hasTitle = !opensRegion && !isProperty && !QUOTE.test(first.text)
-  const heading = hasTitle ? (HEADING.exec(first.text)?.[0] ?? "") : ""
+  const hasTitle = !opensRegion && !isProperty && (org || !QUOTE.test(first.text))
+  const heading = hasTitle && !org ? (HEADING.exec(first.text)?.[0] ?? "") : ""
   const marker = hasTitle && heading === "" ? (MARKER.exec(first.text)?.[0] ?? "") : ""
   const titleFrom = heading.length + marker.length
   const titleText = first.text.slice(titleFrom)
@@ -197,7 +202,7 @@ export const blockContent = (text: string): BlockContent => {
       } else if (region.kind === "Directive" && region.name === "QUOTE") {
         body.push({
           _tag: "Quote",
-          lines: inner.map((entry) => parseInline(entry.text, entry.from)),
+          lines: inner.map((entry) => parseInline(entry.text, entry.from, dialect)),
           span,
         })
       } else {
@@ -227,7 +232,8 @@ export const blockContent = (text: string): BlockContent => {
       }
       continue
     }
-    const quote = QUOTE.exec(line.text)
+    if (org && ORG_HIDDEN.test(line.text)) continue
+    const quote = org ? null : QUOTE.exec(line.text)
     if (quote !== null) {
       const run = [line]
       while (QUOTE.test(rest[index + 1]?.text ?? "")) {
@@ -246,11 +252,11 @@ export const blockContent = (text: string): BlockContent => {
       })
       continue
     }
-    const hashes = HEADING.exec(line.text)?.[0]
+    const hashes = org ? undefined : HEADING.exec(line.text)?.[0]
     const span = { from: line.from, to: line.from + line.text.length }
     body.push(
       hashes === undefined
-        ? { _tag: "Paragraph", inline: parseInline(line.text, line.from), span }
+        ? { _tag: "Paragraph", inline: parseInline(line.text, line.from, dialect), span }
         : {
             _tag: "Heading",
             level: hashes.trim().length,
@@ -262,7 +268,7 @@ export const blockContent = (text: string): BlockContent => {
   return {
     marker: hasTitle ? syntax.marker : null,
     heading: heading === "" ? null : heading.trim().length,
-    title: hasTitle ? titleOf(first.text, titleStart) : null,
+    title: hasTitle ? titleOf(first.text, titleStart, dialect) : null,
     properties: syntax.properties
       .filter((property) => !isHiddenProperty(property.key))
       .map((property) => {

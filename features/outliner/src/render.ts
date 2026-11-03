@@ -4,6 +4,7 @@ import {
   blockContent,
   defaultPropertyConfig,
   type BlockContent,
+  type Dialect,
   type PropertyConfig,
 } from "@seqno/syntax"
 import type { Navigate, NavigationTarget, OpenBlockMenu } from "./navigation.ts"
@@ -39,6 +40,8 @@ export const RenderContext = createContext<Renderer>({
   vim: false,
   readOnly: false,
 })
+
+export const PageDialects = createContext<(pageId: PageId) => Dialect>(() => "markdown")
 
 export const PropertySettings = createContext<PropertyConfig>(defaultPropertyConfig)
 
@@ -88,14 +91,15 @@ export const toPage = (navigate: Navigate, name: string) =>
 const parsed = new Map<string, BlockContent>()
 const cacheLimit = 4000
 
-export const contentOf = (text: string): BlockContent => {
-  const hit = parsed.get(text)
+export const contentOf = (text: string, dialect: Dialect = "markdown"): BlockContent => {
+  const key = dialect === "markdown" ? text : `${dialect}\u0000${text}`
+  const hit = parsed.get(key)
   if (hit !== undefined) return hit
-  const content = blockContent(text)
+  const content = blockContent(text, dialect)
   if (parsed.size >= cacheLimit) {
     const oldest = parsed.keys().next().value
     if (oldest !== undefined) parsed.delete(oldest)
   }
-  parsed.set(text, content)
+  parsed.set(key, content)
   return content
 }

@@ -31,11 +31,13 @@ interface Source {
   readonly path: string
   readonly body: string
   readonly kind: Kind
+  readonly format?: "org"
 }
 
 const configPath = "logseq/config.edn"
 const placeholder = /^\.(.+)\.icloud$/
 const markdown = /\.(md|markdown)$/i
+const org = /\.org$/i
 const edn = /\.edn$/i
 
 const within = (path: string, directory: string) =>
@@ -66,6 +68,9 @@ const classify = (
     )
   }
   if (name.startsWith(".")) return Option.none()
+  if (kind !== "whiteboard" && org.test(name)) {
+    return Option.some(Result.succeed({ path, body: name.replace(org, ""), kind, format: "org" }))
+  }
   const extension = kind === "whiteboard" ? edn : markdown
   if (!extension.test(name))
     return Option.some(Result.fail(ImportIssue.cases.Unsupported.make({ path })))
@@ -180,7 +185,7 @@ export const importGraph = Effect.gen(function* () {
       })
       continue
     }
-    const outline = syntax.parse(text)
+    const outline = syntax.parse(text, source.format)
     const journalDay = journalDayOf(source, config)
     const title =
       outline.props["title"]?.trim() ||
@@ -199,6 +204,7 @@ export const importGraph = Effect.gen(function* () {
         journalDay: Option.getOrNull(journalDay),
         props: outline.props,
         ...(outline.frontMatter === true ? { frontMatter: true } : {}),
+        ...(source.format === undefined ? {} : { format: source.format }),
       },
       blocks: flatten(outline.blocks, id, null, path),
     })

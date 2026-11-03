@@ -24,6 +24,7 @@ import {
   contentOf,
   follow,
   maxDepth,
+  PageDialects,
   RenderContext,
   toPage,
 } from "./render.ts"
@@ -41,7 +42,7 @@ export const Inlines = ({ nodes }: { readonly nodes: ReadonlyArray<Inline> }): R
 const RefBody = ({ block, children }: { readonly block: Block; readonly children?: ReactNode }) => {
   const renderer = use(RenderContext)
   const preview = usePreview({ _tag: "Block", blockId: block.id })
-  const title = contentOf(block.text).title ?? []
+  const title = contentOf(block.text, use(PageDialects)(block.pageId)).title ?? []
   return (
     <span
       className="seqno-blockref"
@@ -379,6 +380,11 @@ const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
       <del>
         <Inlines nodes={children} />
       </del>
+    ),
+    Underline: ({ children }) => (
+      <ins>
+        <Inlines nodes={children} />
+      </ins>
     ),
     Highlight: ({ children }) => (
       <mark className="seqno-mark">

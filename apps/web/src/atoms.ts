@@ -209,6 +209,8 @@ export const allPages = pageList((all) =>
   all.toSorted((left, right) => left.name.localeCompare(right.name)),
 )
 
+export const orgPages = pageList((all) => all.filter((page) => page.format === "org"))
+
 export const favoriteNames = Atom.kvs({
   runtime: settingsRuntime,
   key: "seqno.favorites",

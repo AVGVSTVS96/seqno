@@ -23,6 +23,7 @@ export type Inline =
   | { readonly _tag: "Bold"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
   | { readonly _tag: "Italic"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
   | { readonly _tag: "Strike"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
+  | { readonly _tag: "Underline"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
   | { readonly _tag: "Highlight"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
   | {
       readonly _tag: "Link"
@@ -39,7 +40,9 @@ export type Inline =
       readonly span: Span
     }
 
-type Emphasis = "Bold" | "Italic" | "Strike" | "Highlight"
+export type Dialect = "markdown" | "org"
+
+type Emphasis = "Bold" | "Italic" | "Strike" | "Highlight" | "Underline"
 
 const sticky = (pattern: RegExp) => new RegExp(pattern.source, `${pattern.flags.replace("g", "")}y`)
 
@@ -53,6 +56,73 @@ const URL_TRAILER = /[.,;:!?]+$/
 const UUID_REF = /^\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)$/i
 const PAGE_TARGET = /^\[\[(.+)\]\]$/
 const WORD = /[\p{L}\p{N}]/u
+
+const orgDelimiters: ReadonlyArray<readonly [string, Emphasis]> = [
+  ["^^", "Highlight"],
+  ["*", "Bold"],
+  ["/", "Italic"],
+  ["_", "Underline"],
+  ["+", "Strike"],
+]
+
+const ORG_LINK_AT = /\[\[([^\]\n]+)\](?:\[([^\]\n]*)\])?\]/y
+const ORG_PROTOCOL = /^([a-zA-Z][\w+.-]*):(.*)$/
+
+const orgLinkAt = (source: string, at: number, base: number): Token | null => {
+  const link = matchAt(ORG_LINK_AT, source, at)
+  if (link === null) return null
+  const raw = (link[1] ?? "").trim()
+  const labelText = link[2]
+  const end = at + link[0].length
+  const span = { from: base + at, to: base + end }
+  const labelFrom = at + 2 + (link[1] ?? "").length + 2
+  const label =
+    labelText === undefined
+      ? [{ _tag: "Text" as const, text: raw, span }]
+      : parseInline(labelText, base + labelFrom, "org")
+  const protocol = ORG_PROTOCOL.exec(raw)
+  const scheme = protocol?.[1]?.toLowerCase()
+  if (scheme === "id" && UUID_REF.test(`((${protocol?.[2] ?? ""}))`)) {
+    return {
+      node: {
+        _tag: "Link",
+        label,
+        target: { _tag: "Block", uuid: (protocol?.[2] ?? "").toLowerCase() },
+        span,
+      },
+      end,
+    }
+  }
+  if (scheme === "file" && labelText !== undefined) {
+    return {
+      node: { _tag: "Link", label, target: { _tag: "Page", name: labelText.trim() }, span },
+      end,
+    }
+  }
+  if (protocol !== null)
+    return { node: { _tag: "Link", label, target: { _tag: "Url", url: raw }, span }, end }
+  if (raw === "") return null
+  return labelText === undefined
+    ? { node: { _tag: "PageRef", name: raw, brackets: true, span }, end }
+    : { node: { _tag: "Link", label, target: { _tag: "Page", name: raw }, span }, end }
+}
+
+const verbatimAt = (source: string, at: number, base: number): Token | null => {
+  const char = source[at]
+  if (char !== "=" && char !== "~") return null
+  if (isSpace(source[at + 1]) || source[at + 1] === char) return null
+  const close = source.indexOf(char, at + 2)
+  if (close === -1 || isSpace(source[close - 1]) || source.slice(at, close).includes("\n"))
+    return null
+  return {
+    node: {
+      _tag: "Code",
+      code: source.slice(at + 1, close),
+      span: { from: base + at, to: base + close + 1 },
+    },
+    end: close + 1,
+  }
+}
 
 const delimiters: ReadonlyArray<readonly [string, Emphasis]> = [
   ["**", "Bold"],
@@ -125,9 +195,20 @@ const targetOf = (raw: string): LinkTarget => {
   return { _tag: "Url", url: target.split(/\s+/)[0] ?? "" }
 }
 
-const atomAt = (source: string, at: number, base: number): Token | null => {
+const atomAt = (
+  source: string,
+  at: number,
+  base: number,
+  dialect: Dialect = "markdown",
+): Token | null => {
   const char = source[at]
   const span = (end: number) => ({ from: base + at, to: base + end })
+  if (dialect === "org") {
+    if (source.startsWith("[[", at)) return orgLinkAt(source, at, base)
+    const verbatim = verbatimAt(source, at, base)
+    if (verbatim !== null) return verbatim
+    if (char === "`" || (char === "[" && source[at + 1] !== "#") || char === "!") return null
+  }
   if (char === "`") {
     const close = source.indexOf("`", at + 1)
     return close === -1
@@ -241,16 +322,16 @@ const atomAt = (source: string, at: number, base: number): Token | null => {
   return null
 }
 
-const closingAt = (source: string, from: number, delimiter: string): number => {
+const closingAt = (source: string, from: number, delimiter: string, dialect: Dialect): number => {
   for (let at = from; at < source.length; at++) {
-    const atom = atomAt(source, at, 0)
+    const atom = atomAt(source, at, 0, dialect)
     if (atom !== null) {
       at = atom.end - 1
       continue
     }
     if (!source.startsWith(delimiter, at) || isSpace(source[at - 1])) continue
     const after = source[at + delimiter.length]
-    if (delimiter.length === 1 && after === delimiter) {
+    if (dialect === "markdown" && delimiter.length === 1 && after === delimiter) {
       at++
       continue
     }
@@ -263,7 +344,7 @@ const closingAt = (source: string, from: number, delimiter: string): number => {
 const boldItalicAt = (source: string, at: number, base: number): Token | null => {
   const inner = at + 3
   if (!source.startsWith("***", at) || isSpace(source[inner]) || source[inner] === "*") return null
-  const close = closingAt(source, inner, "***")
+  const close = closingAt(source, inner, "***", "markdown")
   if (close === -1) return null
   const end = close + 3
   return {
@@ -282,21 +363,21 @@ const boldItalicAt = (source: string, at: number, base: number): Token | null =>
   }
 }
 
-const emphasisAt = (source: string, at: number, base: number): Token | null => {
-  const both = boldItalicAt(source, at, base)
+const emphasisAt = (source: string, at: number, base: number, dialect: Dialect): Token | null => {
+  const both = dialect === "markdown" ? boldItalicAt(source, at, base) : null
   if (both !== null) return both
-  for (const [delimiter, tag] of delimiters) {
+  for (const [delimiter, tag] of dialect === "org" ? orgDelimiters : delimiters) {
     if (!source.startsWith(delimiter, at)) continue
     const inner = at + delimiter.length
     if (isSpace(source[inner]) || source.startsWith(delimiter[0] ?? "", inner)) continue
     if (delimiter.startsWith("_") && isWord(source[at - 1])) continue
-    const close = closingAt(source, inner, delimiter)
+    const close = closingAt(source, inner, delimiter, dialect)
     if (close === -1) continue
     const end = close + delimiter.length
     return {
       node: {
         _tag: tag,
-        children: parseInline(source.slice(inner, close), base + inner),
+        children: parseInline(source.slice(inner, close), base + inner, dialect),
         span: { from: base + at, to: base + end },
       },
       end,
@@ -305,12 +386,16 @@ const emphasisAt = (source: string, at: number, base: number): Token | null => {
   return null
 }
 
-export const parseInline = (source: string, base = 0): ReadonlyArray<Inline> => {
+export const parseInline = (
+  source: string,
+  base = 0,
+  dialect: Dialect = "markdown",
+): ReadonlyArray<Inline> => {
   const nodes: Array<Inline> = []
   let text = 0
   let at = 0
   while (at < source.length) {
-    const token = atomAt(source, at, base) ?? emphasisAt(source, at, base)
+    const token = atomAt(source, at, base, dialect) ?? emphasisAt(source, at, base, dialect)
     if (token === null) {
       at++
       continue
@@ -350,6 +435,7 @@ export const plainText = (nodes: ReadonlyArray<Inline>): string =>
         Bold: ({ children }) => plainText(children),
         Italic: ({ children }) => plainText(children),
         Strike: ({ children }) => plainText(children),
+        Underline: ({ children }) => plainText(children),
         Highlight: ({ children }) => plainText(children),
         Link: ({ label }) => plainText(label),
         Image: ({ alt }) => alt,

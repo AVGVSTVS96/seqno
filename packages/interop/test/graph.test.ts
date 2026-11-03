@@ -135,10 +135,16 @@ describe("import", () => {
           props: {},
           blocks: [{ parent: -1, text: "child of a namespace", collapsed: false, props: {} }],
         },
+        {
+          title: "notes",
+          name: "notes",
+          journalDay: null,
+          props: {},
+          blocks: [{ parent: -1, text: "org", collapsed: false, props: {} }],
+        },
       ])
       assert.deepStrictEqual(graph.issues, [
         { _tag: "NotDownloaded", path: "pages/Later.md" },
-        { _tag: "Unsupported", path: "pages/notes.org" },
         { _tag: "DuplicatePage", path: "pages/project x.md", name: "project x" },
       ])
     }),
@@ -173,6 +179,7 @@ describe("mirror", () => {
         "journals/2026_10_06.md": journal,
         "pages/Project X.md": projectX,
         "pages/a___b%3F.md": namespaced,
+        "pages/notes.org": "* org",
       })
     }).pipe(Effect.provide(LogseqSyntaxLive)),
   )
@@ -225,12 +232,13 @@ describe("mirror", () => {
             "journals/2026_10_06.md",
             "pages/Project X.md",
             "pages/a___b%3F.md",
+            "pages/notes.org",
             "logseq/config.edn",
           ],
           removed: ["pages/Caf\u00e9.md"],
         },
         second: { _tag: "Mirrored", written: [], removed: [] },
-        third: { _tag: "Mirrored", written: [], removed: ["pages/a___b%3F.md"] },
+        third: { _tag: "Mirrored", written: [], removed: ["pages/a___b%3F.md", "pages/notes.org"] },
         other: { _tag: "NotWriter", writer },
         files: ["journals/2026_10_06.md", "logseq/config.edn", "pages/Project X.md"],
       })

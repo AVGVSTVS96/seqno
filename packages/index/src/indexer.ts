@@ -237,12 +237,10 @@ export const indexer = (db: Statements, changes: Changes, properties: PropertyCo
       const row = db.all("SELECT rid, name, name_lc, day FROM pages WHERE id = ?", [page.id])[0]
       if (row === undefined) {
         const rid = ridOf(
-          db.all("INSERT INTO pages (id, name, name_lc, day) VALUES (?, ?, ?, ?) RETURNING rid", [
-            page.id,
-            page.title,
-            page.name,
-            page.journalDay,
-          ]),
+          db.all(
+            "INSERT INTO pages (id, name, name_lc, day, org) VALUES (?, ?, ?, ?, ?) RETURNING rid",
+            [page.id, page.title, page.name, page.journalDay, page.format === "org" ? 1 : 0],
+          ),
           `page ${page.id} could not be inserted`,
         )
         db.run("INSERT INTO page_names VALUES (?, ?, 0)", [page.name, rid])
@@ -287,7 +285,8 @@ export const indexer = (db: Statements, changes: Changes, properties: PropertyCo
     BlockUpserted: ({ block, createdAt, updatedAt }) => {
       const page = pageRid(block.pageId)
       const parent = block.parentId === null ? null : blockRid(block.parentId)
-      const after = blockFacets(block.text, block.props, properties)
+      const org = db.all("SELECT 1 FROM pages WHERE rid = ? AND org = 1", [page]).length > 0
+      const after = blockFacets(block.text, block.props, properties, org ? "org" : "markdown")
       const old = readBlock(block.id)
       if (old === undefined) {
         const rid = ridOf(

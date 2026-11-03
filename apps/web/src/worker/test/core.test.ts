@@ -687,13 +687,13 @@ describe("the core worker on the real graph, vault and index", () => {
           await mkdir(join(root, "pages"))
           await writeFile(join(root, "pages", "Garden.md"), "- beds")
           await writeFile(join(root, "pages", "garden.md"), "- same name")
-          await writeFile(join(root, "pages", "notes.org"), "* org")
+          await writeFile(join(root, "pages", "notes.txt"), "plain text")
         })
         const first = yield* coreOn(root)
         const opened = yield* first.OpenGraph({ graph: "og" })
         assert.deepStrictEqual(opened.skipped, [
           { path: "pages/garden.md", reason: "has the same page name as an earlier file: garden" },
-          { path: "pages/notes.org", reason: "isn't a Markdown page" },
+          { path: "pages/notes.txt", reason: "isn't a Markdown or Org page" },
         ])
         assert.deepStrictEqual((yield* first.OpenGraph({ graph: "og" })).skipped, [])
       }),

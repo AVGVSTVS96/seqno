@@ -1,5 +1,11 @@
 import { normalizePageName, type Page, type Props } from "@seqno/domain"
-import { defaultPropertyConfig, propertyKey, type PropertyConfig } from "@seqno/syntax"
+import {
+  analyzeBlock,
+  defaultPropertyConfig,
+  propertyKey,
+  type Dialect,
+  type PropertyConfig,
+} from "@seqno/syntax"
 
 export interface Task {
   readonly status: string | null
@@ -116,11 +122,26 @@ const taskOf = (text: string): Task | null => {
 
 const withoutCode = (text: string) => text.replace(FENCE, "").replace(CODE, "")
 
+const orgFacets = (text: string, props: Props, config: PropertyConfig): BlockFacets => {
+  const refs = analyzeBlock(text, "org").refs
+  const names = (tag: "Tag" | "PageRef") =>
+    refs.flatMap((ref) => (ref._tag === tag ? [normalizePageName(ref.name)] : []))
+  const tags = [...new Set(names("Tag"))]
+  return {
+    refs: [...new Set([...tags, ...linkedProps(props, config), ...names("PageRef")])],
+    tags,
+    props: propsOf(props, config),
+    task: taskOf(text),
+  }
+}
+
 export const blockFacets = (
   text: string,
   props: Props,
   config: PropertyConfig = defaultPropertyConfig,
+  dialect: Dialect = "markdown",
 ): BlockFacets => {
+  if (dialect === "org") return orgFacets(text, props, config)
   const code = withoutCode(text)
   const tags = [...new Set(tagNames(code))]
   const refs = [...new Set([...tags, ...linkedProps(props, config), ...wikiNames(code)])]

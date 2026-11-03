@@ -63,6 +63,7 @@ import {
   type EmbedTarget,
   PropertySettings,
   type Renderer,
+  PageDialects,
 } from "./render.ts"
 import { RowView, type RowActions } from "./Row.tsx"
 import { highlights, selectedRange, type Selection } from "./selection.ts"
@@ -164,6 +165,7 @@ const Breadcrumbs = ({
   readonly onNavigate: Navigate
   readonly pageId: PageId
 }) => {
+  const dialectOf = use(PageDialects)
   const go = (blockId: BlockId | null) => (event: MouseEvent) => {
     event.preventDefault()
     onNavigate(
@@ -183,7 +185,7 @@ const Breadcrumbs = ({
             /
           </span>
           <a role="link" tabIndex={0} onKeyDown={clickOnEnter} onClick={go(block.id)}>
-            {labelOf(contentOf(block.text).title ?? [])}
+            {labelOf(contentOf(block.text, dialectOf(block.pageId)).title ?? [])}
           </a>
         </span>
       ))}
@@ -345,6 +347,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const vim = props.vim ?? false
   const embedded = props.embedded ?? false
   const addable = props.addable ?? false
+  const dialectOf = use(PageDialects)
   const parent = use(RenderContext)
   const readOnly = props.readOnly ?? parent.readOnly
   const counts = AsyncResult.getOrElse(useAtomValue(blockRefCountsAtom), () => noCounts)
@@ -711,7 +714,8 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     } else if (key === "Enter" && mod && chosen !== null) {
       for (const id of chosen) {
         const block = rows[indexOf(id)]?.block
-        if (block !== undefined) setTask(block, nextMarker(contentOf(block.text).marker))
+        if (block !== undefined)
+          setTask(block, nextMarker(contentOf(block.text, dialectOf(block.pageId)).marker))
       }
     } else if (key === "Enter" && event.shiftKey && selection !== null) {
       onNavigate({ _tag: "SidebarBlock", blockId: selection.head })
@@ -861,7 +865,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const renderRow = (row: Row, index: number) => {
     const block = row.block
     const isEditing = editing?.blockId === block.id
-    const parsed = contentOf(block.text)
+    const parsed = contentOf(block.text, dialectOf(block.pageId))
     const content =
       parsed.heading === null && parsed.title !== null && block.props["heading"] === "true"
         ? { ...parsed, heading: Math.min(row.depth + 1, 6) }

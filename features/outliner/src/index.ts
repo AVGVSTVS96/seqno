@@ -23,6 +23,7 @@ export {
   BoardSlot,
   clickOnEnter,
   MacroSlot,
+  PageDialects,
   PropertySettings,
   type MacroSlotProps,
 } from "./render.ts"

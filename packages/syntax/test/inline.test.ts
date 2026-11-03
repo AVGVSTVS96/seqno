@@ -25,6 +25,7 @@ const show = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
       case "Bold":
       case "Italic":
       case "Strike":
+      case "Underline":
       case "Highlight":
         return `${node._tag}[${show(node.children).join(" ")}]${at}`
       case "Link":
@@ -48,6 +49,7 @@ const refsOf = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
       case "Bold":
       case "Italic":
       case "Strike":
+      case "Underline":
       case "Highlight":
         return refsOf(node.children)
       case "Link":
@@ -197,5 +199,49 @@ describe("parseInline", () => {
       }),
       { numRuns: 1000 },
     )
+  })
+})
+
+const org = (source: string) => show(parseInline(source, 0, "org"))
+
+describe("org inline syntax", () => {
+  it("reads Org emphasis, verbatim and code as Logseq's mldoc does", () => {
+    expect(org("x *b* /i/ _u_ +s+ =v= ~c~ ^^h^^")).toStrictEqual([
+      "Text(x )@0-2",
+      "Bold[Text(b)@3-4]@2-5",
+      "Text( )@5-6",
+      "Italic[Text(i)@7-8]@6-9",
+      "Text( )@9-10",
+      "Underline[Text(u)@11-12]@10-13",
+      "Text( )@13-14",
+      "Strike[Text(s)@15-16]@14-17",
+      "Text( )@17-18",
+      "Code(v)@18-21",
+      "Text( )@21-22",
+      "Code(c)@22-25",
+      "Text( )@25-26",
+      "Highlight[Text(h)@28-29]@26-31",
+    ])
+  })
+
+  it("reads Org bracket links as links, page refs and block refs", () => {
+    expect(
+      org(
+        `[[https://x.com][label]] [[Page]] [[Page][Lbl]] [[file:../pages/foo.org][Foo]] [[id:${uuid}][x]] **b** \`c\``,
+      ),
+    ).toStrictEqual([
+      "Link(Url:https://x.com)[Text(label)@17-22]@0-24",
+      "Text( )@24-25",
+      "PageRef(Page)@25-33",
+      "Text( )@33-34",
+      "Link(Page:Page)[Text(Lbl)@42-45]@34-47",
+      "Text( )@47-48",
+      "Link(Page:Foo)[Text(Foo)@73-76]@48-78",
+      "Text( )@78-79",
+      `Link(Block:${uuid})[Text(x)@122-123]@79-125`,
+      "Text( *)@125-127",
+      "Bold[Text(b)@128-129]@127-130",
+      "Text(* `c`)@130-135",
+    ])
   })
 })

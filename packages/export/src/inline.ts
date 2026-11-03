@@ -72,6 +72,7 @@ const emphasisOf = (node: Inline) =>
   node._tag === "Bold" ||
   node._tag === "Italic" ||
   node._tag === "Strike" ||
+  node._tag === "Underline" ||
   node._tag === "Highlight"
     ? node
     : null
@@ -116,6 +117,8 @@ const markdownNode = (
         return `~~${children(emphasis.children, starred)}~~`
       case "Highlight":
         return `^^${children(emphasis.children, starred)}^^`
+      case "Underline":
+        return children(emphasis.children, starred)
     }
   }
   if (node._tag === "PageRef" && node.brackets && inlines.removals.brackets) return node.name
@@ -138,7 +141,13 @@ export const escapeHtml = (text: string) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
 
-const tagOf = { Bold: "b", Italic: "i", Strike: "del", Highlight: "mark" } as const
+const tagOf = {
+  Bold: "b",
+  Italic: "i",
+  Strike: "del",
+  Underline: "ins",
+  Highlight: "mark",
+} as const
 
 const FOOTNOTE_OR_MATH = /\[\^([^\]\s]+)\]|\$\$(.+?)\$\$/g
 
@@ -186,6 +195,7 @@ export const htmlOf = (run: Run, inlines: Inlines, depth = 0): ReadonlyArray<Htm
       case "Bold":
       case "Italic":
       case "Strike":
+      case "Underline":
       case "Highlight":
         return inlines.removals.emphasis
           ? children(node.children)
