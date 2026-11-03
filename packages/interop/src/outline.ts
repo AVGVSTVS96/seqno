@@ -51,7 +51,10 @@ const propertyRun = (lines: ReadonlyArray<string>): PropertyRun => {
   return { props, collapsed, length }
 }
 
-const fromLines = (lines: ReadonlyArray<string>, children: ReadonlyArray<OutlineBlock>) => {
+const fromLines = (
+  lines: ReadonlyArray<string>,
+  children: ReadonlyArray<OutlineBlock>,
+): OutlineBlock => {
   const head = lines[0] ?? ""
   const whole = propertyRun(lines)
   if (head !== "" && whole.length === lines.length) {
@@ -82,14 +85,19 @@ const propertyLines = (props: Props, collapsed: boolean): Array<string> => [
   ...(collapsed ? ["collapsed:: true"] : []),
 ]
 
-const toSyntax = (block: OutlineBlock): Syntax.Block => {
+export const blockContent = (block: Omit<OutlineBlock, "children">): string => {
   const [head = "", ...rest] = block.text === "" ? [] : block.text.split("\n")
   const props = propertyLines(block.props, block.collapsed)
-  return {
-    text: (block.text === "" ? props : [head, ...props, ...rest]).join("\n"),
-    children: block.children.map(toSyntax),
-  }
+  return (block.text === "" ? props : [head, ...props, ...rest]).join("\n")
 }
+
+export const contentBlock = (content: string): OutlineBlock =>
+  fromLines(content.replaceAll("\r\n", "\n").split("\n"), [])
+
+const toSyntax = (block: OutlineBlock): Syntax.Block => ({
+  text: blockContent(block),
+  children: block.children.map(toSyntax),
+})
 
 const heading = /^#+[ \t]/
 

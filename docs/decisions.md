@@ -528,6 +528,14 @@ Each format writes what Logseq 0.10.9 writes for the same graph, checked against
 
 **Cost.** Opened after November 3 2026, today's journal is empty and the newest entries sit just below it. Queries with `today` as an end still work; "decisions this fall" starts on a fixed day.
 
+## Whiteboards round-trip through Logseq's own EDN files
+
+**Decision.** `@seqno/interop` reads `whiteboards/*.edn` with its own EDN reader and writes boards back with a printer that copies Logseq's `ugly-pr-str` layout, including ClojureScript's map order: a map of more than eight keys prints in the order its keys' `hash` puts them (Murmur3 on the keyword, walked five bits at a time, as `PersistentHashMap` does), a smaller one in the order Logseq built it. A shape's words move into its block's text and back; connector bindings become `bindTo` block ids and back, reusing Logseq's binding when it still fits; asset images get their `src` and give it back.
+
+**Why.** Logseq reads only its own files, and Bassim asked for Logseq's behavior as the target, so a board seqno writes should be the file Logseq would write. Printing in Logseq's order keeps a mirrored board's git diff to what changed: re-read and reprinted, logseq/docs' 2.7 MB Test Whiteboard comes out byte for byte, and on 61 real boards every one of 948 shapes does (the rest is in the package README). Words in block text are what the outliner, search and linked references already read, so a board's links show up like any block's.
+
+**Cost.** Plain blocks on a board come back without a few things Logseq sometimes writes (a missing `:block/properties`, a broken `:block/left` chain, an `id::` line), and the file lists shapes first. seqno has no edit times on blocks, so shapes drawn in seqno have no `:block/created-at`.
+
 ## Smaller decisions
 
 | Question                                     | Answer                                                                                                  | Why                                                                                                                                                                                                    |

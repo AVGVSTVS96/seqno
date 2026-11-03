@@ -12,6 +12,7 @@ export {
 } from "./export.ts"
 export { referencedIds, type Library, type PageBlocks } from "./library.ts"
 export type { IndentStyle } from "./text.ts"
+export { propertyValue, type PropertyValue } from "./values.ts"
 export {
   allPagesPublic,
   indexHtml,

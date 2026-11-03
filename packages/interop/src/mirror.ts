@@ -1,11 +1,19 @@
 import { Effect, Schema } from "effect"
-import { DeviceId, type Block, type BlockId, type Page, type Props } from "@seqno/domain"
+import {
+  DeviceId,
+  isWhiteboard,
+  type Block,
+  type BlockId,
+  type Page,
+  type Props,
+} from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
 import { printConfig, type LogseqConfig } from "./config.ts"
 import { formatJournalDay } from "./dates.ts"
 import { fileBodyFromTitle } from "./filenames.ts"
 import { GraphFolder } from "./folder.ts"
 import { LogseqSyntax, type OutlineBlock } from "./outline.ts"
+import { renderWhiteboard } from "./whiteboard.ts"
 
 const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
 
@@ -45,9 +53,11 @@ const pageProps = (page: Page): Props =>
   page.props["title"] === undefined ? page.props : { ...page.props, title: page.title }
 
 export const mirrorPath = (page: Page, config: LogseqConfig): string =>
-  page.journalDay === null
-    ? `${config.pagesDirectory}/${fileBodyFromTitle(page.title)}.md`
-    : `${config.journalsDirectory}/${formatJournalDay(page.journalDay, config.journalFileFormat)}.md`
+  page.journalDay !== null
+    ? `${config.journalsDirectory}/${formatJournalDay(page.journalDay, config.journalFileFormat)}.md`
+    : isWhiteboard(page)
+      ? `${config.whiteboardsDirectory}/${fileBodyFromTitle(page.title)}.edn`
+      : `${config.pagesDirectory}/${fileBodyFromTitle(page.title)}.md`
 
 export const renderMirror = (pages: ReadonlyArray<PageTree>, config: LogseqConfig) =>
   Effect.gen(function* () {
@@ -58,7 +68,9 @@ export const renderMirror = (pages: ReadonlyArray<PageTree>, config: LogseqConfi
         .filter(({ page, blocks }) => blocks.length > 0 || Object.keys(page.props).length > 0)
         .map(({ page, blocks }) => [
           mirrorPath(page, config),
-          syntax.print({ props: pageProps(page), blocks: outlineOf(blocks, referenced) }),
+          isWhiteboard(page)
+            ? renderWhiteboard(page, blocks)
+            : syntax.print({ props: pageProps(page), blocks: outlineOf(blocks, referenced) }),
         ]),
     )
   })
@@ -71,12 +83,12 @@ export type MirrorOutcome = typeof MirrorOutcome.Type
 
 const isMirrorPage = (path: string, config: LogseqConfig): boolean => {
   const name = path.slice(path.lastIndexOf("/") + 1)
-  return (
-    (path.startsWith(`${config.journalsDirectory}/`) ||
-      path.startsWith(`${config.pagesDirectory}/`)) &&
-    path.endsWith(".md") &&
-    !name.startsWith(".")
-  )
+  if (name.startsWith(".")) return false
+  return path.startsWith(`${config.whiteboardsDirectory}/`)
+    ? path.endsWith(".edn")
+    : (path.startsWith(`${config.journalsDirectory}/`) ||
+        path.startsWith(`${config.pagesDirectory}/`)) &&
+        path.endsWith(".md")
 }
 
 export interface MirrorRequest {

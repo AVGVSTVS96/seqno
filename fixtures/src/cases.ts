@@ -124,6 +124,13 @@ export const edgeCases: ReadonlyArray<EdgeCase> = [
     source: committed("og-syntax-mix"),
   },
   {
+    name: "whiteboards",
+    upstreamCase: null,
+    issues: [],
+    expect: "two Logseq-written whiteboards import as whiteboard pages: logseq/docs' Test Whiteboard (asset images cut to file paths) and a portal board from arontaupe/thesis; every shape and both page records write back byte for byte",
+    source: committed("whiteboards"),
+  },
+  {
     name: "showcase",
     upstreamCase: null,
     issues: [],

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@seqno/domain": "workspace:*",
+    "@seqno/export": "workspace:*",
     "@seqno/rpc": "workspace:*",
     "@seqno/syntax": "workspace:*",
     "effect": "4.0.1"

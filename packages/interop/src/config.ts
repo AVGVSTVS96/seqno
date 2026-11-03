@@ -6,6 +6,7 @@ export const LogseqConfig = Schema.Struct({
   fileNameFormat: Schema.Literals(["triple-lowbar", "legacy"]),
   pagesDirectory: Schema.String,
   journalsDirectory: Schema.String,
+  whiteboardsDirectory: Schema.String,
   hidden: Schema.Array(Schema.String),
 })
 export type LogseqConfig = typeof LogseqConfig.Type
@@ -16,6 +17,7 @@ export const defaultConfig: LogseqConfig = {
   fileNameFormat: "triple-lowbar",
   pagesDirectory: "pages",
   journalsDirectory: "journals",
+  whiteboardsDirectory: "whiteboards",
   hidden: [],
 }
 
@@ -68,6 +70,9 @@ export const parseConfig = (source: string): LogseqConfig => {
       entries.get(":file/name-format") === ":triple-lowbar" ? "triple-lowbar" : "legacy",
     pagesDirectory: directory(text(":pages-directory", defaultConfig.pagesDirectory)),
     journalsDirectory: directory(text(":journals-directory", defaultConfig.journalsDirectory)),
+    whiteboardsDirectory: directory(
+      text(":whiteboards-directory", defaultConfig.whiteboardsDirectory),
+    ),
     hidden: Option.getOrElse(decodeStrings(entries.get(":hidden")), () => []).map(directory),
   }
 }

@@ -525,6 +525,9 @@ importers:
       '@seqno/domain':
         specifier: workspace:*
         version: link:../domain
+      '@seqno/export':
+        specifier: workspace:*
+        version: link:../export
       '@seqno/rpc':
         specifier: workspace:*
         version: link:../rpc

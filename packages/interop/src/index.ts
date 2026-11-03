@@ -1,4 +1,5 @@
 export { LogseqConfig, defaultConfig, parseConfig, printConfig } from "./config.ts"
+export { printEdn, readEdn, type Edn } from "./edn.ts"
 export { formatJournalDay, parseJournalDay } from "./dates.ts"
 export { fileBodyFromTitle, titleFromFileBody, type FileNameFormat } from "./filenames.ts"
 export { FolderError, GraphFolder, layerFileSystem } from "./folder.ts"
@@ -11,3 +12,9 @@ export {
   type MirrorRequest,
 } from "./mirror.ts"
 export { LogseqSyntax, LogseqSyntaxLive, type Outline, type OutlineBlock } from "./outline.ts"
+export {
+  readWhiteboard,
+  renderWhiteboard,
+  whiteboardBlocks,
+  type Whiteboard,
+} from "./whiteboard.ts"

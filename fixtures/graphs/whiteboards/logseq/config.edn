@@ -1,0 +1,4 @@
+{:meta/version 1
+ :preferred-format "Markdown"
+ :file/name-format :triple-lowbar
+ :feature/enable-whiteboards? true}

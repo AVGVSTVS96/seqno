@@ -100,6 +100,7 @@ describe("config.edn", () => {
       fileNameFormat: "triple-lowbar",
       pagesDirectory: "notes",
       journalsDirectory: "journals",
+      whiteboardsDirectory: "whiteboards",
       hidden: ["archive", "drafts"],
     })
   })
