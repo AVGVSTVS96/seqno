@@ -542,6 +542,8 @@ Each format writes what Logseq 0.10.9 writes for the same graph, checked against
 
 **Why.** Today's tldraw (5.x) is under the tldraw license, which forbids production use without a paid license key, and seqno is a public app. Logseq's own tldraw fork is MIT but built into Logseq's app (its shapes call Logseq's handlers and ClojureScript state), and its store keeps the board as one document, where seqno needs each shape as a block so it syncs, undoes and links like any other block. What Logseq's board does is small enough to own: straight connectors only, no rotation handle, no snapping to other shapes.
 
+Copying writes Logseq's clipboard: the shapes' `((refs))` as text and `<whiteboard-tldr>{shapes, assets, bindings}</whiteboard-tldr>` as html, words back in Logseq's fields, so shapes move between seqno and Logseq boards both ways. A paste, an Alt-drag copy or a clone handle mints its new block ids in the browser and sends them in `InsertBlocks` (the graph refuses an id already taken), as tldraw mints shape ids, so a copied connector binds to the copied shape in the same command and the whole copy is one undo step.
+
 **Cost.** Everything tldraw would give comes from seqno: hit testing, connector clipping, the grid. Shapes Logseq has that seqno doesn't draw yet (YouTube, tweet, iframe, video, HTML, PDF, groups) show as a labeled card and keep every prop, so writing them back loses nothing.
 
 ## A ref to a block's Logseq id is looked up, not made its id
