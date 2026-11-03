@@ -220,13 +220,12 @@ export const createHost = (
     if (isSync !== true) return
     const stored = settingsOf(pid)
     const missing = items.filter((item) => item.type !== "heading" && !(item.key in stored))
-    if (missing.length === 0) return
     saveSettings(pid, {
       ...Object.fromEntries(missing.map((item) => [item.key, item.default])),
       ...stored,
     })
     const plugin = plugins.get(pid)
-    if (plugin !== undefined && !plugin.restarted) {
+    if (missing.length > 0 && plugin !== undefined && !plugin.restarted) {
       void unload(pid).then(() => load(plugin.info, true))
     }
   }

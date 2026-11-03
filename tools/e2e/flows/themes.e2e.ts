@@ -114,3 +114,21 @@ test("Catppuccin Mocha turns seqno dark and colors its sidebar, folded bullets a
   await expect(page.locator(".ls-block .form-checkbox").first()).toHaveCSS("border-radius", "4px")
   await expect(page.locator("h1.page-title")).toHaveCSS("color", "rgb(186, 194, 222)")
 })
+
+test("Catppuccin's accent setting, under its settings gear as in Logseq, recolors its links", async ({
+  page,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await useTheme(page, "Catppuccin", "Catppuccin Mocha")
+  const link = seqno.today.locator("a.page-ref").first()
+  await expect(link).toHaveCSS("color", "rgb(137, 180, 250)")
+  const dialog = await openPlugins(page)
+  await dialog.getByRole("radio", { name: /^Themes/ }).click()
+  await dialog.getByRole("button", { name: "Catppuccin settings" }).click()
+  const settings = page.getByRole("dialog", { name: "Plugin settings" })
+  await settings.getByRole("combobox").selectOption("Red")
+  await expect(link).toHaveCSS("color", "rgb(243, 139, 168)")
+  await page.reload()
+  await expect(seqno.today.locator("a.page-ref").first()).toHaveCSS("color", "rgb(243, 139, 168)")
+})

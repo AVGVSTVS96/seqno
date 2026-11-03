@@ -148,9 +148,11 @@ const isThemePackage = (plugin: PluginInfo) => plugin.themes.length > 0
 const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
   const registry = useContext(RegistryContext)
   const enabled = useAtomValue(pluginSettings(plugin.id))["disabled"] !== true
-  const status = useAtomValue(running)[plugin.id]?.status
+  const state = useAtomValue(running)[plugin.id]
+  const status = state?.status
   const openSettings = useAtomSet(settingsFor)
   const isTheme = isThemePackage(plugin)
+  const hasSettings = !isTheme || (state?.schema.length ?? 0) > 0
   return (
     <Card
       {...plugin}
@@ -164,7 +166,7 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
             </span>
           ) : null}
           <span className="plugin-version">{plugin.version}</span>
-          {isTheme ? null : (
+          {hasSettings ? (
             <button
               type="button"
               className="icon-button"
@@ -173,7 +175,7 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
             >
               <IconSettings size={18} aria-hidden />
             </button>
-          )}
+          ) : null}
           <button
             type="button"
             className="icon-button"
