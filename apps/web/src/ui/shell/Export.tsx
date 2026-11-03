@@ -134,12 +134,19 @@ const Picture = ({
   return (
     <div className="export-dialog-picture" aria-label="Exported picture" role="img">
       <div className="export-dialog-picture-inner" data-transparent={transparent} ref={pictured}>
-        {target._tag === "Page"
-          ? outline(target.pageId, null)
-          : target.blockIds.flatMap((id) => {
-              const pageId = pageOf(id)
-              return pageId === undefined ? [] : [outline(pageId, id)]
-            })}
+        {target._tag === "Page" ? (
+          <>
+            <h1 className="export-dialog-picture-title">
+              {trees.find((tree) => tree.page.id === target.pageId)?.page.title}
+            </h1>
+            {outline(target.pageId, null)}
+          </>
+        ) : (
+          target.blockIds.flatMap((id) => {
+            const pageId = pageOf(id)
+            return pageId === undefined ? [] : [outline(pageId, id)]
+          })
+        )}
       </div>
     </div>
   )
