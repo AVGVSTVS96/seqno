@@ -536,6 +536,14 @@ Each format writes what Logseq 0.10.9 writes for the same graph, checked against
 
 **Cost.** Plain blocks on a board come back without a few things Logseq sometimes writes (a missing `:block/properties`, a broken `:block/left` chain, an `id::` line), and the file lists shapes first. seqno has no edit times on blocks, so shapes drawn in seqno have no `:block/created-at`.
 
+## Whiteboards draw on seqno's own canvas, in Logseq's shape format
+
+**Decision.** `@seqno/whiteboard` is seqno's own canvas: shapes as absolutely placed HTML and SVG under one CSS camera transform, gestures as pure functions from pointer state to `Command`s, and portals as the real `Outliner`. It reads and writes the shapes Logseq stores (tldraw v1 props in `logseq.tldraw.shape`, one top-level block per shape, block order as z-order), so nothing converts between a Logseq board and a seqno one. A drag draws from the gesture's commands applied locally and commits once, on release, as one `DispatchAll`, so one move is one undo step and one synced change.
+
+**Why.** Today's tldraw (5.x) is under the tldraw license, which forbids production use without a paid license key, and seqno is a public app. Logseq's own tldraw fork is MIT but built into Logseq's app (its shapes call Logseq's handlers and ClojureScript state), and its store keeps the board as one document, where seqno needs each shape as a block so it syncs, undoes and links like any other block. What Logseq's board does is small enough to own: straight connectors only, no rotation handle, no snapping to other shapes.
+
+**Cost.** Everything tldraw would give comes from seqno: hit testing, connector clipping, the grid. Shapes Logseq has that seqno doesn't draw yet (YouTube, tweet, iframe, video, HTML, PDF, groups) show as a labeled card and keep every prop, so writing them back loses nothing.
+
 ## A ref to a block's Logseq id is looked up, not made its id
 
 **Decision.** A block imported with a Logseq-era (v4) `id::` keeps its v7 `BlockId` and its written id in `props.id`, as before. A `((uuid))` reaches it by either: the outliner, embeds, Export page and plugins' `getBlock` ask the core with `GetBlockByRef`, which tries the uuid as a `BlockId` and otherwise finds the block whose `id` property is that uuid in the index's `props` table. Refs seqno writes to such a block (`((` suggestions, Copy block ref and embed, the search palette's copy) use its Logseq id (`blockRefId`).
