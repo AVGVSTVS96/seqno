@@ -140,7 +140,12 @@ const Picture = ({
     trees.find((tree) => tree.blocks.some((block) => block.id === id))?.page.id
   return (
     <div className="export-dialog-picture" aria-label="Exported picture" role="img">
-      <div className="export-dialog-picture-inner" data-transparent={transparent} ref={pictured}>
+      <div
+        className="export-dialog-picture-inner"
+        data-transparent={transparent}
+        data-shapes={shapes !== undefined}
+        ref={pictured}
+      >
         {shapes !== undefined && target._tag === "Page" ? (
           <>
             <BoardStyle />

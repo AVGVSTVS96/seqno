@@ -1086,6 +1086,11 @@
   background: transparent;
 }
 
+.export-dialog-picture-inner[data-shapes="true"] {
+  width: fit-content;
+  padding: 0;
+}
+
 .export-graph-dialog {
   width: 502px;
   padding: 28px;
