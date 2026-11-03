@@ -17,7 +17,8 @@ const install = async (page: Page, name: string) => {
   const card = dialog.getByRole("listitem", { name })
   await card.getByRole("button", { name: "Install" }).click()
   await expect(card.getByRole("button", { name: "Installed" })).toBeDisabled()
-  await page.keyboard.press("Escape")
+  await dialog.press("Escape")
+  await expect(dialog).toBeHidden()
 }
 
 const selectLine = async (page: Page, line: Locator) => {
@@ -49,7 +50,7 @@ test("PDF Translator's highlight menu item translates the selected text in the v
 }) => {
   await install(page, "logseq-pdf-translator")
   await page.keyboard.press("Control+k")
-  await page.getByRole("searchbox", { name: "Search" }).fill("Reading")
+  await page.getByRole("searchbox", { name: "Search", exact: true }).fill("Reading")
   await page.getByRole("option").first().click()
   await page.getByRole("main").getByText("Paper.pdf", { exact: true }).click()
   const line = viewer(page).locator('.page[data-page-number="1"] .textLayer span', {
