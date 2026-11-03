@@ -16,6 +16,7 @@ import { CoreClient, type QueryResult } from "@seqno/rpc"
 import { splitProperties } from "@seqno/syntax"
 import type { Api, Host } from "./host.ts"
 import { snakeCase } from "./protocol.ts"
+import { cursorPosition } from "./selection.ts"
 import { list, record, text } from "./package.ts"
 import {
   blockJson,
@@ -140,23 +141,6 @@ const keybindingOf = (value: unknown): Keybinding | null => {
 
 const created = (events: ReadonlyArray<GraphEvent>) =>
   events.flatMap((event) => (event._tag === "BlockUpserted" ? [event.block] : []))
-
-const cursorPosition = () => {
-  const live = editingBlock()
-  if (live === null) return null
-  const pos = live.view.state.selection.main.head
-  const coords = live.view.coordsAtPos(pos)
-  const rect = live.view.dom.getBoundingClientRect().toJSON()
-  return coords === null
-    ? null
-    : {
-        pos,
-        left: coords.left - rect.left,
-        top: coords.top - rect.top,
-        height: coords.bottom - coords.top,
-        rect,
-      }
-}
 
 const elementRect = (selector: unknown) => {
   const query = text(selector)

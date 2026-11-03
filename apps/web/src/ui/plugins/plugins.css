@@ -28,10 +28,8 @@
 .lsp-ui-float-container {
   position: fixed;
   top: 20vh;
-  left: 50%;
-  z-index: 40;
-  min-width: 300px;
-  translate: -50% 0;
+  left: 30%;
+  z-index: 60;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

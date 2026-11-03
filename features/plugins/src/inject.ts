@@ -119,6 +119,11 @@ const targetOf = (pid: string, ui: UIOptions, id: string): HTMLElement | null =>
   )
 }
 
+const boxOf = (wrapper: HTMLElement) => {
+  const float = wrapper.closest(".lsp-ui-float-container")
+  return float instanceof HTMLElement ? float : wrapper
+}
+
 const setAttrs = (element: HTMLElement, attrs: Readonly<Record<string, string>>) => {
   for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value)
 }
@@ -133,8 +138,9 @@ export const injectUI = (pid: string, ui: UIOptions, callModel: CallModel) => {
   }
   if (existing !== null) {
     existing.innerHTML = sanitizeHtml(ui.template)
-    setAttrs(existing, ui.attrs)
-    applyStyle(existing, ui.style)
+    const outer = boxOf(existing)
+    setAttrs(outer, ui.attrs)
+    applyStyle(outer, ui.style)
     return
   }
   const target = targetOf(pid, ui, id)
@@ -146,11 +152,12 @@ export const injectUI = (pid: string, ui: UIOptions, callModel: CallModel) => {
   wrapper.id = id
   wrapper.dataset["injectedUi"] = id
   wrapper.dataset["ref"] = pid
-  setAttrs(wrapper, ui.attrs)
-  applyStyle(wrapper, ui.style)
   wrapper.innerHTML = sanitizeHtml(ui.template)
   listen(wrapper, callModel)
   target.append(wrapper)
+  const outer = boxOf(wrapper)
+  setAttrs(outer, ui.attrs)
+  applyStyle(outer, ui.style)
 }
 
 export const injectStyle = (pid: string, key: string | null, css: string) => {

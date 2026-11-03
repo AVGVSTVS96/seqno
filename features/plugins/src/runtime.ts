@@ -5,6 +5,7 @@ import { editingBlock, type SlashCommand } from "@seqno/editor"
 import { createApi, lastCursor, type Bridge } from "./api.ts"
 import { createHost, type Host } from "./host.ts"
 import { fetchPlugin, type MarketItem } from "./marketplace.ts"
+import { watchSelection } from "./selection.ts"
 import { record, text } from "./package.ts"
 import { contentOf, numberOf } from "./shapes.ts"
 import {
@@ -89,6 +90,7 @@ export const startPlugins = (registry: AtomRegistry.AtomRegistry, bridge: Bridge
   const host = createHost(registry, createApi(registry, bridge))
   registry.set(hostAtom, host)
   for (const info of registry.get(installedPlugins)) host.load(info)
+  watchSelection(host)
 
   window.addEventListener(
     "keydown",
