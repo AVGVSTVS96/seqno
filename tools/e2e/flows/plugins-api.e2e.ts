@@ -24,6 +24,19 @@ const install = async (page: Page, name: string) => {
   await page.keyboard.press("Escape")
 }
 
+const settingsSaved = (page: Page) =>
+  expect
+    .poll(() =>
+      page.evaluate(() =>
+        Object.keys(localStorage).some(
+          (key) =>
+            key.startsWith("seqno.plugins.settings.") &&
+            Object.keys(JSON.parse(localStorage.getItem(key) ?? "{}")).length > 1,
+        ),
+      ),
+    )
+    .toBe(true)
+
 test("Word count shows how many words are selected in a block, next to the selection", async ({
   page,
   seqno,
@@ -214,6 +227,8 @@ test("a block a plugin inserts with a customUUID keeps that uuid, so ((refs)) an
 }) => {
   await seqno.openDemoGraph()
   await install(page, "Quick Capture")
+  await settingsSaved(page)
+  await page.reload()
   const uuid = "6650a1b2-1111-4000-8000-00000000abcd"
   await expect(page.locator('[data-on-click="handleShowQuickCapture"]')).toBeVisible()
   const plugin = page.frame({ url: /logseq-quick-capture/ })

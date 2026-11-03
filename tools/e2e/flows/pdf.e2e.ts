@@ -37,7 +37,15 @@ const highlightsFile = (page: Page) =>
     const root = await navigator.storage.getDirectory()
     const graph = await (await root.getDirectoryHandle("graphs")).getDirectoryHandle("demo")
     const file = await (await graph.getDirectoryHandle("assets")).getFileHandle(name)
-    return (await file.getFile()).text()
+    const read = async (): Promise<string> =>
+      (await file.getFile())
+        .text()
+        .catch((cause: unknown) =>
+          cause instanceof DOMException && cause.name === "NotReadableError"
+            ? read()
+            : Promise.reject(cause),
+        )
+    return read()
   }, `${key}.edn`)
 
 const exported = async (page: Page) => {

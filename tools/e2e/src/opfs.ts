@@ -59,7 +59,19 @@ export const opfsFiles = async (page: Page, root: ReadonlyArray<string>) => {
     const walk = async (dir: FileSystemDirectoryHandle, prefix: string): Promise<void> => {
       for await (const entry of dir.values()) {
         if (entry.kind === "file") {
-          const bytes = new Uint8Array(await (await entry.getFile()).arrayBuffer())
+          let buffer: ArrayBuffer | null = null
+          while (buffer === null) {
+            buffer = await (
+              await entry.getFile()
+            )
+              .arrayBuffer()
+              .catch((cause: unknown) =>
+                cause instanceof DOMException && cause.name === "NotReadableError"
+                  ? null
+                  : Promise.reject(cause),
+              )
+          }
+          const bytes = new Uint8Array(buffer)
           found.push([`${prefix}${entry.name}`, [...bytes]])
         } else {
           await walk(entry, `${prefix}${entry.name}/`)
