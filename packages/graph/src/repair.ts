@@ -161,7 +161,9 @@ const rescueOnce = (doc: LoroDoc, tree: LoroTree, unseen: Unseen): boolean => {
         for (let at = node.parent(); at !== undefined; at = at.parent()) {
           if (isTrash(at)) {
             const k = chain.at(-1)
-            if (k !== undefined) killed.set(k.id, [...(killed.get(k.id) ?? []), chain])
+            const known = k === undefined ? undefined : killed.get(k.id)
+            if (known !== undefined) known.push(chain)
+            else if (k !== undefined) killed.set(k.id, [chain])
             return
           }
           chain.push(at)
@@ -204,8 +206,7 @@ const rescueOnce = (doc: LoroDoc, tree: LoroTree, unseen: Unseen): boolean => {
       }
     }
   }
-  placeAll(tree, placings)
-  return placings.length > 0
+  return placeAll(tree, placings)
 }
 
 export const repairUnseen = (doc: LoroDoc, tree: LoroTree): boolean =>

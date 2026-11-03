@@ -163,9 +163,10 @@ export const moveUnder = (
   node: LoroTreeNode,
   parent: TreeID | undefined,
   index: number,
-): void => {
-  if (parent !== undefined && isWithin(tree.getNodeByID(parent), node)) return
+): boolean => {
+  if (parent !== undefined && isWithin(tree.getNodeByID(parent), node)) return false
   tree.move(node.id, parent, index)
+  return true
 }
 
 export const lastPlacement = (
@@ -179,12 +180,7 @@ export const lastPlacement = (
   for (const touch of unseen.nodes.get(node.id)?.touches ?? []) {
     if (Option.isNone(touch.to) || seenBy(doc, touch.id, by)) continue
     const parent = touch.to.value.parent
-    if (
-      parent !== undefined &&
-      (tree.isNodeDeleted(parent) || tree.getNodeByID(parent) === undefined)
-    ) {
-      continue
-    }
+    if (!usable(tree, touch.to.value)) continue
     if (parent !== undefined && isWithin(tree.getNodeByID(parent), node)) continue
     if (best === undefined || best.lamport < touch.lamport) best = touch
   }
@@ -199,7 +195,7 @@ export interface Placing {
   readonly node: LoroTreeNode
   readonly spot: Spot
   readonly path: ReadonlyArray<string>
-  readonly put: (index: number) => void
+  readonly put: (index: number) => boolean
 }
 
 const byPlace = (a: Placing, b: Placing): number => {
@@ -229,21 +225,27 @@ export const rounds = (once: () => boolean): boolean => {
   return repaired
 }
 
-export const placeAll = (tree: LoroTree, placings: ReadonlyArray<Placing>): void => {
+export const placeAll = (tree: LoroTree, placings: ReadonlyArray<Placing>): boolean => {
   const moving = new Set(placings.map(({ node }) => node.id))
   const groups = new Map<string, Array<Placing>>()
   for (const placing of placings) {
     const key = placing.spot.parent ?? ""
-    groups.set(key, [...(groups.get(key) ?? []), placing])
+    const group = groups.get(key)
+    if (group === undefined) groups.set(key, [placing])
+    else group.push(placing)
   }
+  let placed = false
   for (const group of groups.values()) {
     const parentId = group[0]?.spot.parent
     const parent = parentId === undefined ? undefined : tree.getNodeByID(parentId)
     const indexes = (parent === undefined ? tree.roots() : childrenOf(parent))
       .filter((sibling) => !moving.has(sibling.id))
       .map((sibling) => sibling.fractionalIndex() ?? "")
-    group.toSorted(byPlace).forEach((placing, order) => {
-      placing.put(countUpTo(indexes, placing.spot.index) + order)
-    })
+    let order = 0
+    for (const placing of group.toSorted(byPlace)) {
+      if (placing.put(countUpTo(indexes, placing.spot.index) + order)) order++
+    }
+    if (order > 0) placed = true
   }
+  return placed
 }

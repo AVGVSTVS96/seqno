@@ -2,7 +2,6 @@ import { Option, Schema } from "effect"
 import { PageId, type Page } from "@seqno/domain"
 import { setProp } from "../tree.ts"
 import {
-  isWithin,
   lastPlacement,
   moveUnder,
   placeAll,
@@ -141,28 +140,32 @@ const chainOf = (trees: Trees, spot: Spot): Option.Option<Chain> => {
 const nodesOf = (unit: Unit) =>
   sameSpot(unit.home, unit.at) ? [unit.home.node] : [unit.home.node, unit.at.node]
 
-const placeAt = (trees: Trees, unit: Unit, page: PageId, spot: Place, index: number) => {
+const placeAt = (trees: Trees, unit: Unit, page: PageId, spot: Place, index: number): boolean => {
   const { home, at } = unit
   const tree = trees.tree(page)
   if (home.page === page) {
-    if (spot.parent !== undefined && isWithin(tree.getNodeByID(spot.parent), home.node)) return
-    tree.move(home.node.id, spot.parent, index)
+    if (!moveUnder(tree, home.node, spot.parent, index)) return false
     if (!sameSpot(home, at)) {
       trees.tree(at.page).move(at.node.id, trees.trash(at.page).id, 0)
       home.node.data.delete(AT)
     }
-    return
+    return true
   }
-  if (at.page === page) {
-    moveUnder(tree, at.node, spot.parent, index)
-    return
-  }
+  if (at.page === page) return moveUnder(tree, at.node, spot.parent, index)
   const node = tree.createNode(spot.parent, index)
   node.data.set(REF, home.key)
   home.node.data.set(AT, spotOf(page, node).key)
   trees.markMoved(home)
   if (!sameSpot(home, at)) trees.tree(at.page).move(at.node.id, trees.trash(at.page).id, 0)
+  return true
 }
+
+const leadsTo = (trees: Trees, k: Spot, spot: Place): boolean =>
+  spot.parent !== undefined &&
+  Option.exists(
+    Option.flatMap(trees.node(k.page, spot.parent), (node) => chainOf(trees, spotOf(k.page, node))),
+    ({ end }) => end._tag === "Node" && sameSpot(end.k, k),
+  )
 
 const rescue = (
   trees: Trees,
@@ -192,7 +195,10 @@ const rescue = (
       },
     )
   }
-  const was = Option.filter(wasOf(k.node), (spot) => usable(tree, spot))
+  const was = Option.map(
+    Option.filter(wasOf(k.node), (spot) => usable(tree, spot)),
+    (spot) => (leadsTo(trees, k, spot) ? { parent: undefined, index: spot.index } : spot),
+  )
   if (Option.isNone(was)) return []
   const placings = new Map<string, Placing>()
   for (const { units } of chains) {
@@ -228,7 +234,9 @@ const rescueOnce = (trees: Trees, unseen: Unseen): boolean => {
       ),
       (chain) => {
         if (chain.end._tag === "Page") {
-          pages.set(chain.end.page, [...(pages.get(chain.end.page) ?? []), chain])
+          const known = pages.get(chain.end.page)
+          if (known === undefined) pages.set(chain.end.page, [chain])
+          else known.push(chain)
           return
         }
         const { k } = chain.end
@@ -240,13 +248,13 @@ const rescueOnce = (trees: Trees, unseen: Unseen): boolean => {
   }
   const placings = new Map<PageId, Array<Placing>>()
   for (const { k, chains } of killed.values()) {
-    placings.set(k.page, [...(placings.get(k.page) ?? []), ...rescue(trees, unseen, k, chains)])
+    const known = placings.get(k.page)
+    if (known === undefined) placings.set(k.page, [...rescue(trees, unseen, k, chains)])
+    else known.push(...rescue(trees, unseen, k, chains))
   }
   let repaired = false
   for (const [page, onPage] of placings) {
-    if (onPage.length === 0) continue
-    placeAll(trees.tree(page), onPage)
-    repaired = true
+    if (placeAll(trees.tree(page), onPage)) repaired = true
   }
   const flags = unseen.keys.get(TRASHED)
   for (const [page, chains] of pages) {
