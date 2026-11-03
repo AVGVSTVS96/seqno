@@ -27,9 +27,9 @@ test("Export page writes text, OPML and HTML with Logseq's options", async ({ pa
   const text = dialog.getByRole("textbox", { name: "Exported text" })
   await expect(text).toHaveValue(
     [
-      "alias:: Allotment",
-      "plot:: 14B",
-      "",
+      "  alias:: Allotment",
+      "  plot:: 14B",
+      "  ",
       "- Beds run north to south so neither row shades the other.",
       "- Winter",
       "\t- Garlic along the fence, planted before the first frost",
@@ -48,7 +48,6 @@ test("Export page writes text, OPML and HTML with Logseq's options", async ({ pa
     [
       "alias:: Allotment",
       "plot:: 14B",
-      "",
       "Beds run north to south so neither row shades the other.",
       "Winter",
       "Summer",
@@ -58,7 +57,7 @@ test("Export page writes text, OPML and HTML with Logseq's options", async ({ pa
   )
   await dialog.getByRole("button", { name: "OPML" }).click()
   await expect(dialog.getByRole("combobox", { name: "Indentation style:" })).toHaveCount(0)
-  await expect(text).toHaveValue(/<title>Garden Plan<\/title>/)
+  await expect(text).toHaveValue(/<title>garden plan<\/title>/)
   await expect(text).toHaveValue(/<outline text="Seed orders go on the Seed Inventory page\."\/>/)
   await dialog.getByRole("combobox", { name: "level <=" }).selectOption("all")
   await dialog.getByRole("checkbox", { name: "[[text]] -> text" }).uncheck()
@@ -139,9 +138,9 @@ test("Export graph downloads EDN, JSON and a markdown zip", async ({ page }) => 
   const edn = await choose("Export as EDN")
   expect(edn.suggestedFilename()).toMatch(/^demo_\d+\.edn$/)
   const ednText = (await saved(edn)).toString()
-  expect(ednText.startsWith("{:version 1,\n :blocks\n [{:block/id #uuid ")).toBe(true)
+  expect(ednText.startsWith("{:version 1,\n :blocks\n ({:block/id #uuid ")).toBe(true)
   expect(ednText).toContain(':block/page-name "Garden Plan",')
-  expect(ednText).toContain(':block/content "Broad beans under fleece",')
+  expect(ednText).toContain(':block/content "Broad beans under fleece"}')
   await page.keyboard.press("Escape")
   const json = await choose("Export as JSON")
   expect(json.suggestedFilename()).toMatch(/^demo_\d+\.json$/)

@@ -267,7 +267,16 @@ const bodyItems = (
       while (index + 1 < lines.length) {
         const next = lines[index + 1]?.text ?? ""
         const fenced = regions.some((candidate) => candidate.span.from === lines[index + 1]?.from)
-        if (next.trim() === "" || fenced || isTableRow(next) || QUOTE.test(next)) break
+        if (
+          next.trim() === "" ||
+          fenced ||
+          isTableRow(next) ||
+          QUOTE.test(next) ||
+          isRule(next) ||
+          FOOTNOTE.test(next) ||
+          MATH.test(next)
+        )
+          break
         index++
         listed.push(next)
       }

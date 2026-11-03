@@ -64,7 +64,7 @@ const render = (
             }),
       )
     case "opml":
-      return opmlOf(items, inlines, page?.title ?? "untitled", options.level)
+      return opmlOf(items, inlines, page?.name ?? "untitled", options.level)
     case "html":
       return htmlOfItems(items, inlines, options.level)
   }

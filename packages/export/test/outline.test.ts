@@ -35,7 +35,7 @@ describe("OPML export", () => {
         `<?xml version="1.0" encoding="UTF-8"?>`,
         `<opml version="2.0">`,
         `  <head>`,
-        `    <title>Reading list</title>`,
+        `    <title>reading list</title>`,
         `  </head>`,
         `  <body>`,
         `    <outline text="TODO [#A] read **Dune** &amp; [[Ada]] #books second &quot;line&quot;">`,
@@ -45,7 +45,6 @@ describe("OPML export", () => {
         `    <outline text="^^bright^^ and \`code\`"/>`,
         `  </body>`,
         `</opml>`,
-        ``,
       ].join("\n"),
     )
   })
@@ -70,29 +69,87 @@ describe("OPML export", () => {
 })
 
 describe("HTML export", () => {
-  it("nests lists and maps inline marks to tags", () => {
+  it("puts child blocks in a list after their item and maps inline marks to tags, as Logseq does", () => {
     expect(page("html")).toBe(
       [
         `<ul>`,
-        `  <li>TODO [#A] read <b>Dune</b> &amp; <a>[[Ada]]</a> <a>#books</a>`,
-        `    <p>second &quot;line&quot;</p>`,
-        `    <ul>`,
-        `      <li>see read <b>Dune</b> &amp; <a>[[Ada]]</a> <a>#books</a> at <a href="https://example.com/a?b=1&amp;c=2">site</a></li>`,
-        `      <li>`,
-        `        <pre data-lang="js">if (a &lt; b) go()</pre>`,
-        `      </li>`,
-        `    </ul>`,
-        `  </li>`,
+        `  <li>TODO [#A] read <b>Dune</b> &amp; <a>[[Ada]]</a> <a>#books</a><p>second "line"<br/></p></li>`,
+        `  <ul>`,
+        `    <li>see read <b>Dune</b> &amp; <a>[[Ada]]</a> <a>#books</a> at <a href="https://example.com/a?b=1&amp;c=2">site</a></li>`,
+        `    <li>`,
+        `      <pre data-lang="js">if (a &lt; b) go()`,
+        `</pre>`,
+        `    </li>`,
+        `  </ul>`,
         `  <li><mark>bright</mark> and <code>code</code></li>`,
         `</ul>`,
-        ``,
       ].join("\n"),
     )
   })
 
   it("drops brackets and tags when asked", () => {
     expect(page("html", { removeBrackets: true, removeTags: true, level: 1 }).split("\n")[1]).toBe(
-      `  <li>TODO [#A] read <b>Dune</b> &amp; Ada `,
+      `  <li>TODO [#A] read <b>Dune</b> &amp; Ada <p>second "line"<br/></p></li>`,
+    )
+  })
+
+  it("writes lists, tables, rules and footnotes inside a block", () => {
+    const shaped = libraryOf({
+      shaped: [
+        "- Steps",
+        "  1. water",
+        "     * deep",
+        "  ---",
+        "  see[^1]",
+        "  [^1]: the note",
+        "- | Bed | Crop |",
+        "  | --- | --- |",
+        "  | 1 | **Garlic** |",
+        "-",
+      ].join("\n"),
+    })
+    expect(exportBlocks(shaped, { _tag: "Page", pageId: pageId(1) }, "html", defaults)).toBe(
+      [
+        `<ul>`,
+        `  <li>Steps<hr/><p>see<sup><a href="#fnd.1">1</a></sup><br/></p><div>the note<sup id="fnd.1">1↩</sup></div></li>`,
+        `  <ul>`,
+        `    <li>`,
+        `      <p>water</p>`,
+        `    </li>`,
+        `    <ul>`,
+        `      <li>`,
+        `        <p>deep</p>`,
+        `      </li>`,
+        `    </ul>`,
+        `  </ul>`,
+        `  <li>`,
+        `    <table style="width:100%">`,
+        `      <tr>`,
+        `        <th>Bed</th>`,
+        `        <th>Crop</th>`,
+        `      </tr>`,
+        `      <tr>`,
+        `        <td>1</td>`,
+        `        <td>`,
+        `          <b>Garlic</b>`,
+        `        </td>`,
+        `      </tr>`,
+        `    </table>`,
+        `  </li>`,
+        `  <li/>`,
+        `</ul>`,
+      ].join("\n"),
+    )
+    expect(exportBlocks(shaped, { _tag: "Page", pageId: pageId(1) }, "opml", defaults)).toContain(
+      [
+        `    <outline text="Steps see[^1] [^1]: the note">`,
+        `      <outline text="water">`,
+        `        <outline text="deep"/>`,
+        `      </outline>`,
+        `    </outline>`,
+        `    <outline text=""/>`,
+        `    <outline text=""/>`,
+      ].join("\n"),
     )
   })
 })

@@ -1,4 +1,5 @@
 import type { Inline } from "@seqno/syntax"
+import { element, text as textNode, type Html } from "./html.ts"
 import type { Run } from "./items.ts"
 
 export interface Removals {
@@ -21,29 +22,34 @@ const refOf = (node: Inline): string | null =>
       ? node.target.uuid
       : null
 
-const walk = <C>(
+const walk = <C, O>(
   run: Run,
   inlines: Inlines,
   depth: number,
   context: C,
-  gap: (text: string) => string,
+  gap: (text: string) => ReadonlyArray<O>,
   node: (
     node: Inline,
     raw: string,
     context: C,
-    children: (nodes: ReadonlyArray<Inline>, context: C) => string,
-  ) => string,
-): string => {
-  const children = (from: number, to: number, nodes: ReadonlyArray<Inline>, inner: C): string => {
-    let out = ""
+    children: (nodes: ReadonlyArray<Inline>, context: C) => ReadonlyArray<O>,
+  ) => ReadonlyArray<O>,
+): ReadonlyArray<O> => {
+  const children = (
+    from: number,
+    to: number,
+    nodes: ReadonlyArray<Inline>,
+    inner: C,
+  ): ReadonlyArray<O> => {
+    const out: Array<O> = []
     let at = from
     for (const child of nodes) {
-      out += gap(run.source.slice(at, child.span.from))
+      out.push(...gap(run.source.slice(at, child.span.from)))
       const raw = run.source.slice(child.span.from, child.span.to)
       const uuid = refOf(child)
       const target = uuid === null || depth >= maxRefDepth ? undefined : inlines.ref(uuid)
-      out +=
-        target === undefined
+      out.push(
+        ...(target === undefined
           ? node(child, raw, inner, (nested, next) =>
               children(
                 nested[0]?.span.from ?? child.span.to,
@@ -52,10 +58,12 @@ const walk = <C>(
                 next,
               ),
             )
-          : walk(target, inlines, depth + 1, inner, gap, node)
+          : walk(target, inlines, depth + 1, inner, gap, node)),
+      )
       at = child.span.to
     }
-    return out + gap(run.source.slice(at, to))
+    out.push(...gap(run.source.slice(at, to)))
+    return out
   }
   return children(run.from, run.to, run.nodes, context)
 }
@@ -71,37 +79,46 @@ const emphasisOf = (node: Inline) =>
 const CLOZE = /^\s*(.*?)\s*$/s
 
 export const markdownOf = (run: Run, inlines: Inlines, depth = 0): string =>
-  walk(
+  walk<boolean, string>(
     run,
     inlines,
     depth,
     false,
-    (text) => text,
-    (node, raw, starred, children) => {
-      const emphasis = emphasisOf(node)
-      if (emphasis !== null) {
-        if (inlines.removals.emphasis) return children(emphasis.children, starred)
-        switch (emphasis._tag) {
-          case "Bold":
-            return starred
-              ? `__${children(emphasis.children, true)}__`
-              : `**${children(emphasis.children, true)}**`
-          case "Italic":
-            return starred
-              ? `_${children(emphasis.children, true)}_`
-              : `*${children(emphasis.children, true)}*`
-          case "Strike":
-            return `~~${children(emphasis.children, starred)}~~`
-          case "Highlight":
-            return `^^${children(emphasis.children, starred)}^^`
-        }
-      }
-      if (node._tag === "PageRef" && node.brackets && inlines.removals.brackets) return node.name
-      if (node._tag === "Tag" && inlines.removals.tags) return ""
-      if (node._tag === "Macro" && node.name === "cloze") return CLOZE.exec(node.args)?.[1] ?? ""
-      return raw
-    },
-  )
+    (text) => [text],
+    (node, raw, starred, nested) => [markdownNode(node, raw, starred, nested, inlines)],
+  ).join("")
+
+const markdownNode = (
+  node: Inline,
+  raw: string,
+  starred: boolean,
+  nested: (nodes: ReadonlyArray<Inline>, context: boolean) => ReadonlyArray<string>,
+  inlines: Inlines,
+): string => {
+  const children = (nodes: ReadonlyArray<Inline>, next: boolean) => nested(nodes, next).join("")
+  const emphasis = emphasisOf(node)
+  if (emphasis !== null) {
+    if (inlines.removals.emphasis) return children(emphasis.children, starred)
+    switch (emphasis._tag) {
+      case "Bold":
+        return starred
+          ? `__${children(emphasis.children, true)}__`
+          : `**${children(emphasis.children, true)}**`
+      case "Italic":
+        return starred
+          ? `_${children(emphasis.children, true)}_`
+          : `*${children(emphasis.children, true)}*`
+      case "Strike":
+        return `~~${children(emphasis.children, starred)}~~`
+      case "Highlight":
+        return `^^${children(emphasis.children, starred)}^^`
+    }
+  }
+  if (node._tag === "PageRef" && node.brackets && inlines.removals.brackets) return node.name
+  if (node._tag === "Tag" && inlines.removals.tags) return ""
+  if (node._tag === "Macro" && node.name === "cloze") return CLOZE.exec(node.args)?.[1] ?? ""
+  return raw
+}
 
 export const escapeHtml = (text: string) =>
   text
@@ -112,42 +129,61 @@ export const escapeHtml = (text: string) =>
 
 const tagOf = { Bold: "b", Italic: "i", Strike: "del", Highlight: "mark" } as const
 
-export const htmlOf = (run: Run, inlines: Inlines, depth = 0): string =>
-  walk(run, inlines, depth, null, escapeHtml, (node, raw, context, nested) => {
+const FOOTNOTE_OR_MATH = /\[\^([^\]\s]+)\]|\$\$(.+?)\$\$/g
+
+const plain = (value: string): ReadonlyArray<Html> => {
+  const out: Array<Html> = []
+  let at = 0
+  for (const match of value.matchAll(FOOTNOTE_OR_MATH)) {
+    if (match.index > at) out.push(textNode(value.slice(at, match.index)))
+    const [whole, note] = match
+    out.push(
+      note === undefined
+        ? element("span", [textNode(whole)])
+        : element("sup", [element("a", [textNode(note)], [["href", `#fnd.${note}`]])]),
+    )
+    at = match.index + whole.length
+  }
+  if (at < value.length) out.push(textNode(value.slice(at)))
+  return out
+}
+
+export const htmlOf = (run: Run, inlines: Inlines, depth = 0): ReadonlyArray<Html> =>
+  walk<null, Html>(run, inlines, depth, null, plain, (node, raw, context, nested) => {
     const children = (nodes: ReadonlyArray<Inline>) => nested(nodes, context)
     switch (node._tag) {
       case "Text":
-        return escapeHtml(raw)
+        return plain(raw)
       case "Code":
-        return `<code>${escapeHtml(node.code)}</code>`
+        return [element("code", [textNode(node.code)])]
       case "PageRef":
         return inlines.removals.brackets || !node.brackets
-          ? escapeHtml(node.name)
-          : `<a>${escapeHtml(raw)}</a>`
+          ? [textNode(node.name)]
+          : [element("a", [textNode(raw)])]
       case "Tag":
-        return inlines.removals.tags ? "" : `<a>${escapeHtml(raw)}</a>`
+        return inlines.removals.tags ? [] : [element("a", [textNode(raw)])]
       case "BlockRef":
-        return `<a>${escapeHtml(raw)}</a>`
+        return [element("a", [textNode(raw)])]
       case "Macro":
-        return node.name === "cloze"
-          ? `<code>${escapeHtml(CLOZE.exec(node.args)?.[1] ?? "")}</code>`
-          : `<code>${escapeHtml(raw)}</code>`
+        return [
+          element("code", [
+            textNode(node.name === "cloze" ? (CLOZE.exec(node.args)?.[1] ?? "") : raw),
+          ]),
+        ]
       case "Priority":
-        return escapeHtml(raw)
+        return [textNode(raw)]
       case "Bold":
       case "Italic":
       case "Strike":
-      case "Highlight": {
-        const inner = children(node.children)
+      case "Highlight":
         return inlines.removals.emphasis
-          ? inner
-          : `<${tagOf[node._tag]}>${inner}</${tagOf[node._tag]}>`
-      }
+          ? children(node.children)
+          : [element(tagOf[node._tag], children(node.children))]
       case "Link":
         return node.target._tag === "Url"
-          ? `<a href="${escapeHtml(node.target.url)}">${children(node.label)}</a>`
-          : `<a>${escapeHtml(raw)}</a>`
+          ? [element("a", children(node.label), [["href", node.target.url]])]
+          : [element("a", [textNode(raw)])]
       case "Image":
-        return `<a href="${escapeHtml(node.url)}">${escapeHtml(node.alt)}</a>`
+        return [element("a", [textNode(node.alt)], [["href", node.url]])]
     }
   })
