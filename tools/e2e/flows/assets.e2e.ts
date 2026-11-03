@@ -83,7 +83,7 @@ test("dropping files on a block adds a block that plays, reads and downloads the
     { name: "plan.docx", type: "application/octet-stream", bytes: Buffer.from("docx") },
   ])
   const added = page.getByRole("main").getByRole("treeitem").nth(1)
-  await expect(added.locator("a.asset-ref.is-pdf")).toHaveText("Field notes.pdf")
+  await expect(added.locator("a.seqno-asset.is-pdf")).toHaveText("Field notes.pdf")
   await expect(added.locator("audio[controls]")).toHaveAttribute("src", /^blob:/)
   const download = page.waitForEvent("download")
   await added.getByRole("link", { name: "plan.docx" }).click()

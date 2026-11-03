@@ -33,19 +33,13 @@ export const AssetFileLink = ({ url, children }: { url: string; children: ReactN
   const source = useSource(url)
   if (source === undefined) {
     return (
-      <span className="asset-ref is-doc is-missing" title={url}>
+      <span className="seqno-asset is-doc is-missing" title={url}>
         {children}
       </span>
     )
   }
   return (
-    <a
-      className="asset-ref is-doc"
-      href={source}
-      download={fileName(url)}
-      data-href={url}
-      onClick={stop}
-    >
+    <a className="seqno-asset is-doc" href={source} download={fileName(url)} onClick={stop}>
       {children}
     </a>
   )
@@ -63,8 +57,7 @@ const PdfLink = ({ url, label }: { url: string; label: string }) => {
     <a
       role="link"
       tabIndex={0}
-      className="asset-ref is-pdf"
-      data-href={url}
+      className="seqno-asset is-pdf"
       draggable
       onDragStart={(event) => event.dataTransfer.setData("file", url)}
       onClick={(event) => {
@@ -120,7 +113,7 @@ export const AssetMedia = ({
       return <AudioFile url={url} label={label} />
     case "Video":
       return (
-        <span className="asset-ref-wrap" data-ext={url.split(".").at(-1)?.toLowerCase()}>
+        <span className="seqno-asset-video">
           <VideoFile url={url} />
         </span>
       )
