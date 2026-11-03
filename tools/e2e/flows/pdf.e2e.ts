@@ -27,10 +27,18 @@ const openPaper = async (page: Page) => {
   await expect(viewer(page).locator(".textLayer span").first()).toBeVisible()
 }
 
-const assets = async (page: Page) => opfsFiles(page, ["graphs", "demo", "assets"])
+const assets = (page: Page): ReturnType<typeof opfsFiles> =>
+  opfsFiles(page, ["graphs", "demo", "assets"]).catch((cause: unknown) =>
+    String(cause).includes("NotFoundError") ? assets(page) : Promise.reject(cause),
+  )
 
-const highlightsFile = async (page: Page) =>
-  new TextDecoder().decode((await assets(page))[`${key}.edn`])
+const highlightsFile = (page: Page) =>
+  page.evaluate(async (name) => {
+    const root = await navigator.storage.getDirectory()
+    const graph = await (await root.getDirectoryHandle("graphs")).getDirectoryHandle("demo")
+    const file = await (await graph.getDirectoryHandle("assets")).getFileHandle(name)
+    return (await file.getFile()).text()
+  }, `${key}.edn`)
 
 const exported = async (page: Page) => {
   await page.getByRole("button", { name: "More", exact: true }).click()
@@ -162,6 +170,7 @@ test("picking a color for selected text makes a highlight, its annotation block 
     ].join("\n"),
   )
   await viewer(page).getByRole("button", { name: "Close" }).click()
+  await expect.poll(() => highlightsFile(page)).toContain(id)
   const file = await highlightsFile(page)
   expect(file).toContain(
     `              {:id #uuid "${id}",\n               :page 1,\n               :position {:bounding {:x1 `,
@@ -214,7 +223,7 @@ test("a saved highlight's menu copies its ref and text, recolors it, links to it
   await expect(region).toHaveCount(0)
   await expect(hlsPage(page).getByRole("treeitem")).toHaveText(["P2"])
   await viewer(page).getByRole("button", { name: "Close" }).click()
-  expect(await highlightsFile(page)).not.toContain(green)
+  await expect.poll(() => highlightsFile(page)).not.toContain(green)
 })
 
 test("dragging out an area makes an area highlight with its picture, shown in its block", async ({
