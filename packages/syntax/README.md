@@ -19,6 +19,8 @@ A pure parser for Logseq markdown: file to block tree and back, byte for byte, p
 
 A block's text is its full markdown with bullet indentation removed, property and planning lines included. Refs inside code, fences and queries are ignored.
 
+A `#` heading line outside a code fence starts a top-level block even without a `-` bullet, at any indentation, as Logseq reads it; text before the first block stays in `preamble`. Such a block is `bare`, and `render` writes a bare top-level block without its bullet. `startsBlock` says whether a line would start a block.
+
 ## Tests
 
 ```sh
@@ -27,6 +29,5 @@ pnpm test --project @seqno/syntax
 
 ## Known gaps
 
-- Only `-` bullets start blocks, so a plain markdown file with no bullets lands whole in `preamble`. Logseq splits its top-level headings into blocks.
 - YAML front matter stays in `preamble`; its keys are not read as page properties.
 - Org-mode files are not parsed.

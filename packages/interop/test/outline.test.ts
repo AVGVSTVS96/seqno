@@ -54,6 +54,33 @@ describe("outline syntax", () => {
     assert.strictEqual(roundTrip(source), source)
   })
 
+  it("reads each heading outside a bullet as its own block, and writes a first heading bare as Logseq does", () => {
+    const source =
+      "# Title\nid:: 6512a0c4-1111-4222-8333-444455556666\n\t- child\n## Next\nbody\n- a"
+    assert.deepStrictEqual(parse(source), {
+      props: {},
+      blocks: [
+        {
+          text: "# Title",
+          props: { id: "6512a0c4-1111-4222-8333-444455556666" },
+          collapsed: false,
+          children: [{ text: "child", props: {}, collapsed: false, children: [] }],
+        },
+        { text: "## Next\nbody", props: {}, collapsed: false, children: [] },
+        { text: "a", props: {}, collapsed: false, children: [] },
+      ],
+    })
+    assert.strictEqual(
+      roundTrip(source),
+      "# Title\nid:: 6512a0c4-1111-4222-8333-444455556666\n\t- child\n- ## Next\n  body\n- a",
+    )
+    assert.strictEqual(roundTrip("# Title\n- a\n- b"), "# Title\n- a\n- b")
+    assert.strictEqual(roundTrip("title:: T\n\n# First\ntext"), "title:: T\n\n- # First\n  text")
+    assert.strictEqual(roundTrip("- # One\n  # Two"), "# One\n- # Two")
+    assert.strictEqual(roundTrip("# One\n  indented"), "# One\nindented")
+    assert.strictEqual(roundTrip("- # One\n    code"), "- # One\n    code")
+  })
+
   it("keeps dash lines inside a fenced code block as block text", () => {
     const source = ["- code:", "  ```md", "  - not a block", "  ```", "- next"].join("\n")
     assert.deepStrictEqual(

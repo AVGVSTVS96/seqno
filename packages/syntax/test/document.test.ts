@@ -1,6 +1,14 @@
 import * as fc from "fast-check"
 import { describe, expect, it } from "vitest"
-import { type Block, type Outline, parse, print, render, toOutline } from "../src/index.ts"
+import {
+  type Block,
+  type Outline,
+  parse,
+  print,
+  render,
+  startsBlock,
+  toOutline,
+} from "../src/index.ts"
 
 const read = (source: string) => toOutline(parse(source))
 
@@ -92,10 +100,49 @@ describe("parse and print", () => {
     ])
   })
 
-  it("treats a file without bullets as preamble only", () => {
+  it("starts a block at each heading outside a bullet, as Logseq does", () => {
+    const source = [
+      "intro line",
+      "# H1",
+      "body of h1",
+      "## H2",
+      "- bullet a",
+      "  - bullet b",
+      "# H1b",
+      "```text",
+      "# not a heading",
+      "```",
+      "#tag-not-heading",
+      "####### seven",
+      "",
+    ].join("\n")
+    expect(read(source)).toStrictEqual({
+      preamble: "intro line\n",
+      blocks: [
+        { text: "# H1\nbody of h1", children: [], bare: true },
+        { text: "## H2", children: [], bare: true },
+        { text: "bullet a", children: [{ text: "bullet b", children: [] }] },
+        {
+          text: "# H1b\n```text\n# not a heading\n```\n#tag-not-heading",
+          children: [],
+          bare: true,
+        },
+        { text: "####### seven", children: [], bare: true },
+      ],
+      format: { indent: "  ", eol: "\n", finalNewline: true, bom: false },
+    })
+    expect(render(read(source))).toBe(source)
+    expect(print(parse(source))).toBe(source)
+  })
+
+  it("nests bullets under a heading by their indentation and keeps text before the first one", () => {
+    expect(read("# Top\nbody line\n\t- child of top\n- sibling").blocks).toStrictEqual([
+      { text: "# Top\nbody line", children: [{ text: "child of top", children: [] }], bare: true },
+      { text: "sibling", children: [] },
+    ])
     expect(read("just text\n# heading")).toStrictEqual({
-      preamble: "just text\n# heading",
-      blocks: [],
+      preamble: "just text\n",
+      blocks: [{ text: "# heading", children: [], bare: true }],
       format: { indent: "\t", eol: "\n", finalNewline: false, bom: false },
     })
     expect(read("")).toStrictEqual({
@@ -103,6 +150,24 @@ describe("parse and print", () => {
       blocks: [],
       format: { indent: "\t", eol: "\n", finalNewline: false, bom: false },
     })
+  })
+
+  it("keeps bullets and headings inside a fence before the first block as text", () => {
+    expect(read("```\n- in fence\n# in fence\n```\n# after")).toStrictEqual({
+      preamble: "```\n- in fence\n# in fence\n```\n",
+      blocks: [{ text: "# after", children: [], bare: true }],
+      format: { indent: "\t", eol: "\n", finalNewline: false, bom: false },
+    })
+  })
+
+  it("moves a heading line out of a bulleted block to the top level, as Logseq does", () => {
+    const source = "- a\n\t- b\n\t  # in b\n\t  after in b\n\t- c\n- d"
+    expect(read(source).blocks).toStrictEqual([
+      { text: "a", children: [{ text: "b", children: [] }] },
+      { text: "# in b\n after in b", children: [{ text: "c", children: [] }], bare: true },
+      { text: "d", children: [] },
+    ])
+    expect(print(parse(source))).toBe(source)
   })
 
   it("nests by indentation width, not by indentation characters", () => {
@@ -165,21 +230,23 @@ describe("properties", () => {
     )
   })
 
-  const plainLine = fc.oneof(
-    fc.constantFrom(
-      "",
-      "  indented",
-      "\tcode",
-      "key:: value",
-      "SCHEDULED: <2024-01-01 Mon>",
-      ":LOGBOOK:",
-      ":END:",
-      "text with [[ref]] and #tag",
-      "* star item",
-      "-- dash",
-    ),
-    fc.string({ unit: fc.constantFrom("a", " ", "#", "[", "]", "(", ")", ":") }),
-  )
+  const plainLine = fc
+    .oneof(
+      fc.constantFrom(
+        "",
+        "  indented",
+        "\tcode",
+        "key:: value",
+        "SCHEDULED: <2024-01-01 Mon>",
+        ":LOGBOOK:",
+        ":END:",
+        "text with [[ref]] and #tag",
+        "* star item",
+        "-- dash",
+      ),
+      fc.string({ unit: fc.constantFrom("a", " ", "#", "[", "]", "(", ")", ":") }),
+    )
+    .filter((line) => !startsBlock(line))
   const fenced = fc
     .tuple(
       fc.constantFrom("```", "~~~", "```js"),

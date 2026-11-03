@@ -4,11 +4,13 @@ import { type Document, type Node, print } from "./document.ts"
 export interface Block {
   readonly text: string
   readonly children: ReadonlyArray<Block>
+  readonly bare?: true
 }
 
 export const Block: Schema.Codec<Block> = Schema.Struct({
   text: Schema.String,
   children: Schema.Array(Schema.suspend((): Schema.Codec<Block> => Block)),
+  bare: Schema.optionalKey(Schema.Literal(true)),
 })
 
 export const Format = Schema.Struct({
@@ -68,9 +70,14 @@ export const toOutline = (document: Document): Outline => {
     const prefix = `${node.indent}  `
     const [first = "", ...rest] =
       node === last && finalNewline ? node.lines.slice(0, -1) : node.lines
+    const children = node.children.map(toBlock)
+    if (node.bare === true) {
+      const lines = [first, ...rest.map((line) => line.replace(/^[ \t]{1,2}/, ""))]
+      return { text: lines.map(unCr).join("\n"), children, bare: true }
+    }
     const head = first.startsWith(" ") || first.startsWith("\t") ? first.slice(1) : first
     const lines = [head, ...rest.map((line) => line.slice(commonPrefix(line, prefix)))]
-    return { text: lines.map(unCr).join("\n"), children: node.children.map(toBlock) }
+    return { text: lines.map(unCr).join("\n"), children }
   }
 
   const preamble = bom ? document.preamble.slice(BOM.length) : document.preamble
@@ -87,6 +94,8 @@ export const render = (outline: Outline): string => {
   const blockLines = (block: Block, depth: number): ReadonlyArray<string> => {
     const indent = unit.repeat(depth)
     const [first = "", ...rest] = block.text.split("\n")
+    if (block.bare === true && depth === 0)
+      return [first, ...rest, ...block.children.flatMap((child) => blockLines(child, 1))]
     return [
       block.text === "" ? `${indent}-` : `${indent}- ${first}`,
       ...rest.map((line) => `${indent}  ${line}`),

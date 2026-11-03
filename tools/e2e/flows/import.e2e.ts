@@ -52,3 +52,18 @@ test("search finds an imported block", async ({ page }) => {
     "tasksI recorded a [[voice note]].",
   ])
 })
+
+test("each heading written without a bullet imports as its own block, as in Logseq", async ({
+  page,
+}) => {
+  await page.keyboard.press("Control+k")
+  await page.getByRole("searchbox", { name: "Search" }).fill("headings")
+  await expect(page.getByRole("option").first()).toHaveText("headings")
+  await page.keyboard.press("Enter")
+  const blocks = page.getByRole("article", { name: "headings", exact: true }).getByRole("treeitem")
+  await expect(blocks).toHaveCount(20)
+  await expect(blocks.nth(0)).toHaveText("Top H1")
+  await expect(blocks.nth(1)).toHaveText("Top H2")
+  await expect(blocks.nth(5)).toHaveText("Top H6")
+  await expect(blocks.nth(0).getByRole("heading", { level: 1 })).toHaveText("Top H1")
+})

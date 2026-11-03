@@ -91,12 +91,23 @@ const toSyntax = (block: OutlineBlock): Syntax.Block => {
   }
 }
 
+const heading = /^#+[ \t]/
+
+const topHeading = (block: Syntax.Block): Syntax.Block => {
+  const [first = "", ...rest] = block.text.split("\n")
+  const plain = rest.every((line) => !Syntax.startsBlock(line) && !/^[ \t]/.test(line))
+  return heading.test(first) && plain ? { ...block, bare: true } : block
+}
+
 const print = (outline: Outline): string => {
   const props = propertyLines(outline.props, false)
   const preamble = [...props, ...(props.length > 0 && outline.blocks.length > 0 ? ["", ""] : [])]
+  const [first, ...rest] = outline.blocks.map(toSyntax)
+  const blocks =
+    first === undefined ? [] : [props.length === 0 ? topHeading(first) : first, ...rest]
   return Syntax.render({
     preamble: preamble.join("\n"),
-    blocks: outline.blocks.map(toSyntax),
+    blocks,
     format: Syntax.logseqFormat,
   })
     .replace(/^[ \t]+$/gm, "")

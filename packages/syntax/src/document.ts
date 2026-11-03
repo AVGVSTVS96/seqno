@@ -4,12 +4,14 @@ export interface Node {
   readonly indent: string
   readonly lines: ReadonlyArray<string>
   readonly children: ReadonlyArray<Node>
+  readonly bare?: true
 }
 
 export const Node: Schema.Codec<Node> = Schema.Struct({
   indent: Schema.String,
   lines: Schema.Array(Schema.String),
   children: Schema.Array(Schema.suspend((): Schema.Codec<Node> => Node)),
+  bare: Schema.optionalKey(Schema.Literal(true)),
 })
 
 export const Document = Schema.Struct({
@@ -20,6 +22,7 @@ export type Document = typeof Document.Type
 
 const BOM = "﻿"
 const BULLET = /^([ \t]*)-(?=[ \t\r]|$)/
+const HEADING = /^([ \t]*)#+[ \t]/
 const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})([^\n]*)$/
 const DIRECTIVE_OPEN = /^[ \t]*#\+BEGIN_(\S+)/i
 
@@ -33,7 +36,10 @@ interface Open {
   readonly lines: Array<string>
   readonly children: Array<Open>
   readonly indent: string
+  readonly bare: boolean
 }
+
+export const startsBlock = (line: string): boolean => BULLET.test(line) || HEADING.test(line)
 
 export const width = (indent: string): number =>
   [...indent].reduce((column, char) => (char === "\t" ? column + 4 - (column % 4) : column + 1), 0)
@@ -57,6 +63,7 @@ const freeze = (open: Open): Node => ({
   indent: open.indent,
   lines: open.lines,
   children: open.children.map(freeze),
+  ...(open.bare ? { bare: true } : {}),
 })
 
 const frontMatterEnd = (lines: ReadonlyArray<string>): number => {
@@ -76,21 +83,30 @@ export const parse = (source: string): Document => {
 
   for (const [index, line] of lines.entries()) {
     const current = stack.at(-1)
-    const indent = index < skip ? undefined : BULLET.exec(line)?.[1]
-    if (current === undefined) {
-      if (indent === undefined) {
-        preamble.push(line)
-        continue
+    const body = index >= skip
+    const bullet = body ? BULLET.exec(line)?.[1] : undefined
+    const heading = body && fence === null && bullet === undefined ? HEADING.exec(line) : null
+    const fenced = fence !== null && (bullet === undefined || width(bullet) > fence.ownerWidth)
+    if (fenced || (bullet === undefined && heading === null)) {
+      if (current === undefined) preamble.push(line)
+      else current.lines.push(line)
+      if (body) {
+        const owner = current?.width ?? -1
+        fence = fence === null ? fenceOpenedBy(line, owner) : fence.close(line) ? null : fence
       }
-    } else if (indent === undefined || (fence !== null && width(indent) > fence.ownerWidth)) {
-      current.lines.push(line)
-      fence = fence === null ? fenceOpenedBy(line, current.width) : fence.close(line) ? null : fence
       continue
     }
-    const depth = width(indent)
+    const indent = bullet ?? heading?.[1] ?? ""
+    const depth = bullet === undefined ? 0 : width(indent)
     while ((stack.at(-1)?.width ?? -1) >= depth) stack.pop()
-    const rest = line.slice(indent.length + 1)
-    const node: Open = { indent, width: depth, lines: [rest], children: [] }
+    const rest = line.slice(indent.length + (bullet === undefined ? 0 : 1))
+    const node: Open = {
+      indent,
+      width: depth,
+      lines: [rest],
+      children: [],
+      bare: bullet === undefined,
+    }
     const parent = stack.at(-1)
     if (parent === undefined) roots.push(node)
     else parent.children.push(node)
@@ -106,7 +122,7 @@ export const parse = (source: string): Document => {
 }
 
 const nodeLines = (node: Node): ReadonlyArray<string> => [
-  `${node.indent}-${node.lines[0] ?? ""}`,
+  `${node.indent}${node.bare === true ? "" : "-"}${node.lines[0] ?? ""}`,
   ...node.lines.slice(1),
   ...node.children.flatMap(nodeLines),
 ]
