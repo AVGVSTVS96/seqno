@@ -195,15 +195,19 @@ test("Mod+C Mod+B hides page link brackets in config.edn, and the palette shows 
 }) => {
   await openDemo(page, "/page/getting%20started")
   const ref = page.getByRole("main").locator(".seqno-pageref", { hasText: "garden" }).first()
-  const opening = () => ref.evaluate((element) => getComputedStyle(element, "::before").content)
+  const brackets = ref.locator(".bracket")
+  const opening = () =>
+    brackets.first().evaluate((element) => getComputedStyle(element, "::before").content)
   await expect.poll(opening).toBe('"[["')
+  await expect(brackets).toHaveCount(2)
   await page.keyboard.press("ControlOrMeta+KeyC")
   await page.keyboard.press("ControlOrMeta+KeyB")
-  await expect.poll(opening).toBe("none")
+  await expect(brackets).toHaveCount(0)
   await page.reload()
-  await expect.poll(opening).toBe("none")
+  await expect(ref).toBeVisible()
+  await expect(brackets).toHaveCount(0)
   await runCommand(page, "Toggle whether to display brackets")
-  await expect.poll(opening).toBe('"[["')
+  await expect(brackets).toHaveCount(2)
 })
 
 test("journals can be deleted: today's comes back empty, and undo restores it", async ({

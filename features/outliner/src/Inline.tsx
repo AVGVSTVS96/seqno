@@ -190,9 +190,7 @@ const PageLink = ({
   return (
     <span {...logseq("seqno-pageref", name)}>
       {brackets && shown ? (
-        <span {...logseq("seqno-bracket")} data-from={span?.from}>
-          [[
-        </span>
+        <span {...logseq("seqno-bracket")} data-side="open" data-from={span?.from} />
       ) : null}
       <a
         role="link"
@@ -208,9 +206,11 @@ const PageLink = ({
         {children}
       </a>
       {brackets && shown ? (
-        <span {...logseq("seqno-bracket")} data-from={span === undefined ? undefined : span.to - 2}>
-          ]]
-        </span>
+        <span
+          {...logseq("seqno-bracket")}
+          data-side="close"
+          data-from={span === undefined ? undefined : span.to - 2}
+        />
       ) : null}
       {preview.popup}
     </span>

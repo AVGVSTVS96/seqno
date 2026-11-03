@@ -54,7 +54,7 @@ const sample = [
 test("renders blocks as flat rows with their depth and Logseq markdown", async () => {
   await mount(sample)
   expect(levels()).toEqual([
-    ["1", "Plan launch with code and [[Project]] #idea"],
+    ["1", "Plan launch with code and Project #idea"],
     ["2", "child one"],
     ["2", "child two"],
     ["1", "Last docs"],
@@ -83,7 +83,7 @@ test("the toggle arrow shows on hover and collapsing hides the children", async 
   await row("Plan").hover()
   await page.getByRole("button", { name: "Collapse" }).click()
   expect(levels()).toEqual([
-    ["1", "Plan launch with code and [[Project]] #idea"],
+    ["1", "Plan launch with code and Project #idea"],
     ["1", "Last docs"],
   ])
   expect(core.commands).toEqual([{ _tag: "SetCollapsed", blockId: id(1), collapsed: true }])
@@ -310,7 +310,7 @@ test("properties render as key and value rows, without id and collapsed", async 
       `Tomato bed\nid:: ${id(9)}\nvariety:: San Marzano\nlocation:: [[Greenhouse]]\ncollapsed:: true`,
     ),
   ])
-  expect(levels()).toEqual([["1", "Tomato bedvariety:San Marzanolocation:[[Greenhouse]]"]])
+  expect(levels()).toEqual([["1", "Tomato bedvariety:San Marzanolocation:Greenhouse"]])
   await expect.element(page.getByRole("link", { name: "Greenhouse" })).toBeInTheDocument()
 })
 

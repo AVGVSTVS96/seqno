@@ -124,6 +124,13 @@ export const edgeCases: ReadonlyArray<EdgeCase> = [
     source: committed("pdf-highlights"),
   },
   {
+    name: "theme-names",
+    upstreamCase: null,
+    issues: [],
+    expect: "code in every language seqno highlights, headings two to six, the six admonitions and a block to schedule, so the themes check reaches every token kind and screen Logseq's themes style",
+    source: committed("theme-names"),
+  },
+  {
     name: "og-syntax-mix",
     upstreamCase: null,
     issues: [],

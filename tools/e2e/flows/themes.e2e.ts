@@ -324,7 +324,7 @@ test("seqno renders every Logseq name the fixture themes select, except the gaps
   }
   await page.setViewportSize({ width: 1440, height: 4000 })
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
-  await seedOpfs(page, fixtureGraph("graphs/theme-names"), ["graphs", "demo"])
+  await seedOpfs(page, fixtureGraph("graphs/theme-names/pages"), ["graphs", "demo", "pages"])
   await seedOpfs(page, fixtureGraph("graphs/pdf-highlights/pages"), ["graphs", "demo", "pages"])
   await seedOpfs(page, fixtureGraph("graphs/pdf-highlights/assets"), ["graphs", "demo", "assets"])
   await page.evaluate(() => localStorage.setItem("seqno.leftSidebar", "true"))

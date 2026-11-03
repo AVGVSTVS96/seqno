@@ -555,8 +555,13 @@
   opacity: var(--opacity-bracket);
 }
 
-.seqno-bracket:first-child {
+.seqno-bracket[data-side="open"]::before {
+  content: "[[";
   margin-right: 1px;
+}
+
+.seqno-bracket[data-side="close"]::before {
+  content: "]]";
 }
 
 .seqno-pageref-link,
