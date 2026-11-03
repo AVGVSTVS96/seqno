@@ -82,9 +82,19 @@ const scrollTo = (
 ) => {
   const element = list.scrollElement
   if (element === null) return
-  const top = adjustments === undefined ? offset : element.scrollTop + adjustments
+  const top =
+    adjustments === undefined
+      ? offset
+      : element.scrollTop + adjustments + (roundedAway.get(element) ?? 0)
   element.scrollTo(behavior === undefined ? { top } : { top, behavior })
+  const away = top - element.scrollTop
+  roundedAway.set(element, adjustments !== undefined && Math.abs(away) < 1 ? away : 0)
 }
+
+const roundedAway = new WeakMap<Element, number>()
+
+const heightOf = (element: HTMLElement, entry?: ResizeObserverEntry) =>
+  entry?.borderBoxSize[0]?.blockSize ?? element.getBoundingClientRect().height
 
 interface Owner {
   readonly list: List
@@ -160,7 +170,7 @@ const measureMounted = (list: List) => {
     .map((element) => ({ element, index: list.indexFromElement(element) }))
     .toSorted((a, b) => a.index - b.index)
   for (const { element, index } of mounted) {
-    list.resizeItem(index, Math.round(element.getBoundingClientRect().height))
+    list.resizeItem(index, heightOf(element))
   }
 }
 
@@ -177,6 +187,7 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
     rangeExtractor: options.range,
     scrollMargin: margin ?? 0,
     initialMeasurementsCache: options.initial,
+    measureElement: (element, entry) => heightOf(element, entry),
     onChange: () => {
       if (scroll !== null) settle(scroll.element)
     },
@@ -198,14 +209,19 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
     : (item, _delta, list) => judgeItem(item, list, options.element.current)
   const [watch] = useState(() => (element: HTMLElement) => {
     owners.set(element, { list: virtualizer, element })
-    const changes = new MutationObserver(() => measureMounted(virtualizer))
+    const measure = () => measureMounted(virtualizer)
+    const changes = new MutationObserver(measure)
     changes.observe(element, {
       childList: true,
       subtree: true,
       characterData: true,
       attributes: true,
     })
-    return () => changes.disconnect()
+    element.addEventListener("load", measure, true)
+    return () => {
+      changes.disconnect()
+      element.removeEventListener("load", measure, true)
+    }
   })
   return {
     items: virtualizer.getVirtualItems(),
