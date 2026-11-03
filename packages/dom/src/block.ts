@@ -15,6 +15,7 @@ export interface Bullet {
   readonly blockId: BlockId
   readonly folded: boolean
   readonly numbered: boolean
+  readonly hidden?: boolean
 }
 
 type Kind = "block" | "page"
@@ -52,8 +53,8 @@ export interface BlockParts {
   readonly "seqno-crumbs": readonly []
   readonly "seqno-embed": readonly [Kind]
   readonly "seqno-embed-title": readonly []
-  readonly "seqno-outliner": readonly [boolean]
-  readonly "seqno-outline": readonly []
+  readonly "seqno-outliner": readonly [boolean, boolean]
+  readonly "seqno-outline": readonly [boolean]
   readonly "seqno-preview": readonly []
   readonly "seqno-preview-content": readonly []
   readonly "seqno-preview-page": readonly [Kind]
@@ -93,10 +94,11 @@ export const blockParts: Table<BlockParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L1776
   "seqno-bullet-wrap": () => ({ className: "bullet-link-wrap" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L1777-L1787
-  "seqno-bullet": ({ blockId, folded, numbered }) => ({
+  "seqno-bullet": ({ blockId, folded, numbered, hidden = false }) => ({
     className: names(
       "bullet-container",
       folded && "bullet-closed",
+      hidden && "hide-inner-bullet",
       numbered && "as-order-list typed-list",
     ),
     id: `dot-${blockId}`,
@@ -165,10 +167,14 @@ export const blockParts: Table<BlockParts> = {
   }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L825
   "seqno-embed-title": () => ({ className: "embed-header" }),
-  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L3489
-  "seqno-outliner": (embedded) => ({ className: embedded ? "" : "content" }),
-  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L3452
-  "seqno-outline": () => ({ className: "blocks-container" }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L3489-L3491
+  "seqno-outliner": (embedded, documentMode) => ({
+    className: names(!embedded && "content", documentMode && "doc-mode"),
+  }),
+  // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L3452-L3453
+  "seqno-outline": (documentMode) => ({
+    className: names("blocks-container", documentMode && "document-mode"),
+  }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L947-L968
   "seqno-preview": () => ({ className: "tippy-tooltip customized-theme" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L947-L968

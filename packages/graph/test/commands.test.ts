@@ -152,6 +152,34 @@ describe("pages", () => {
     ),
   )
 
+  it.effect(
+    "a journal deleted and then created again comes back empty, and two undos restore it",
+    () =>
+      withGraph((graph) =>
+        Effect.gen(function* () {
+          const journal = {
+            _tag: "CreatePage",
+            title: "Oct 14th, 2026",
+            journalDay: 20261014,
+          } as const
+          const first = createdPage(yield* graph.dispatch(journal))
+          yield* graph.dispatch({ _tag: "InsertBlock", pageId: first, parentId: null, text: "old" })
+          yield* graph.dispatch({ _tag: "DeletePage", pageId: first })
+          const again = createdPage(yield* graph.dispatch(journal))
+          assert.deepStrictEqual((yield* graph.page(again)).blocks, [])
+          yield* graph.dispatch({ _tag: "Undo" })
+          assert.deepStrictEqual(yield* graph.pages, [])
+          yield* graph.dispatch({ _tag: "Undo" })
+          const restored = yield* graph.pages
+          assert.strictEqual(restored.length, 1)
+          assert.deepStrictEqual(
+            (yield* graph.page(restored[0]?.id ?? first)).blocks.map((block) => block.text),
+            ["old"],
+          )
+        }),
+      ),
+  )
+
   it.effect("deletes a page with all of its blocks", () =>
     withGraph((graph) =>
       Effect.gen(function* () {

@@ -142,3 +142,32 @@ test("View as slides shows the page's top blocks as slides in the right sidebar"
   await page.emulateMedia({ colorScheme: "dark" })
   await page.screenshot({ path: test.info().outputPath("slides-dark.png") })
 })
+
+test("the Code filter finds only code blocks", async ({ page }) => {
+  await openDemo(page, "/", "Developer graph")
+  await page.keyboard.press("ControlOrMeta+k")
+  await searchbox(page).fill("/cod")
+  await expect(palette(page).getByRole("option")).toHaveText([
+    "Search only codes — Add filter to search",
+  ])
+  await page.keyboard.press("Enter")
+  await searchbox(page).fill("HTMLAttributes")
+  const code = palette(page).getByRole("listbox", { name: "Code" }).getByRole("option")
+  await expect(code).toHaveCount(1)
+  await expect(code).toContainText("import type { HTMLAttributes }")
+})
+
+test("the Files filter lists the graph's files and opens a page's file", async ({ page }) => {
+  await openDemo(page)
+  await page.keyboard.press("ControlOrMeta+k")
+  await searchbox(page).fill("/fil")
+  await expect(palette(page).getByRole("option")).toHaveText([
+    "Search only files — Add filter to search",
+  ])
+  await page.keyboard.press("Enter")
+  await searchbox(page).fill("garden")
+  const files = palette(page).getByRole("listbox", { name: "Files" }).getByRole("option")
+  await expect(files.first()).toHaveText("pages/Garden.md")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText("Garden")
+})

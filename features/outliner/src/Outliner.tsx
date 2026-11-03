@@ -49,7 +49,7 @@ import {
 import { moveCommand, type DropTarget } from "./drop.ts"
 import { historyFocus, historyStep, type Editing, type HistoryStep } from "./history.ts"
 import { Inlines } from "./Inline.tsx"
-import { layOut } from "./layout.ts"
+import { layOut, orderListKey } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
 import { BlockRefs } from "./BlockRefs.tsx"
 import { PlainTextEditor } from "./PlainTextEditor.tsx"
@@ -60,6 +60,7 @@ import {
   BoardSlot,
   clickOnEnter,
   contentOf,
+  DocumentMode,
   HostBlock,
   RenderContext,
   type EmbedTarget,
@@ -395,6 +396,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const Editor = props.editor ?? PlainTextEditor
   const vim = props.vim ?? false
   const embedded = props.embedded ?? false
+  const documentMode = use(DocumentMode)
   const addable = props.addable ?? false
   const dialectOf = use(PageDialects)
   const parent = use(RenderContext)
@@ -410,6 +412,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const vimKeys = useRef("")
   const historyQueue = useRef(Promise.resolve())
   const linewise = useRef(false)
+  const chord = useRef("")
   const [localEditing, setLocalEditing] = useState<Editing | null>(null)
   const [request, setRequest] = useAtom(editRequest)
   const [selection, setSelection] = useState<Selection | null>(null)
@@ -739,16 +742,48 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     const vertical = key === "ArrowUp" || key === "ArrowDown"
     const down = key === "ArrowDown"
     const step = historyStep(event)
+    const chorded = chord.current
+    chord.current = !mod && !event.altKey && key === "t" ? "t" : ""
     if (step !== null) history(step)
     else if (vertical && isMoveChord(event) && chosen !== null) {
       moveBy(view, chosen, down ? 1 : -1)
+    } else if (chorded === "t" && key === "n" && chosen !== null) {
+      const listed = chosen.every((id) => rows[indexOf(id)]?.block.props[orderListKey] === "number")
+      void dispatchAll(
+        chosen.map((id) => ({
+          _tag: "SetProperty",
+          target: { _tag: "BlockTarget", blockId: id },
+          key: orderListKey,
+          value: listed ? null : "number",
+        })),
+      )
+    } else if (mod && key === ";" && chosen !== null) {
+      const first = rows[indexOf(chosen[0])]
+      const collapsed = first?.expanded ?? false
+      void dispatchAll(
+        chosen.flatMap((id): ReadonlyArray<Command> =>
+          rows[indexOf(id)]?.hasChildren === true
+            ? [{ _tag: "SetCollapsed", blockId: id, collapsed }]
+            : [],
+        ),
+      )
+    } else if (
+      (key === "ArrowLeft" || key === "ArrowRight") &&
+      !mod &&
+      !event.altKey &&
+      !event.shiftKey &&
+      chosen !== null
+    ) {
+      const block =
+        rows[indexOf(key === "ArrowLeft" ? chosen[0] : (chosen.at(-1) ?? chosen[0]))]?.block
+      if (block !== undefined) edit(block, key === "ArrowLeft" ? 0 : block.text.length)
     } else if (vertical && mod) {
       for (const id of selected) {
         if (rows[indexOf(id)]?.hasChildren === true) {
           dispatch({ _tag: "SetCollapsed", blockId: id, collapsed: !down })
         }
       }
-    } else if (vertical && event.shiftKey && selection !== null) {
+    } else if (vertical && (event.shiftKey || event.altKey) && selection !== null) {
       const target = down ? (head >= anchor ? (rows[head]?.end ?? head + 1) : head + 1) : head - 1
       const row = rows[Math.max(0, Math.min(rows.length - 1, target))]
       if (row !== undefined) select(row.block.id, selection.anchor)
@@ -966,6 +1001,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         highlight={highlighted.get(index)}
         dropZone={drop?.blockId === block.id ? drop.zone : null}
         hoveredGuide={hoveredGuide}
+        documentMode={documentMode}
         canToggle={row.hasChildren && !(block.id === zoom && !embedded)}
         references={references}
         referencesOpen={refsShown}
@@ -1028,7 +1064,11 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
 
   return (
     <RenderContext value={renderer}>
-      <div {...logseq("seqno-outliner", embedded)} data-embedded={embedded ? true : undefined}>
+      <div
+        {...logseq("seqno-outliner", embedded, documentMode)}
+        data-embedded={embedded ? true : undefined}
+        data-document-mode={documentMode || undefined}
+      >
         <style href="@seqno/outliner" precedence="default">
           {styles}
         </style>
@@ -1042,7 +1082,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         ) : null}
         <div
           ref={attach}
-          {...logseq("seqno-outline")}
+          {...logseq("seqno-outline", documentMode)}
           role="tree"
           aria-label="Outline"
           aria-multiselectable

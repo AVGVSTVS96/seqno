@@ -48,6 +48,8 @@ const label = (item: Item) => {
       return `filter ${item.text}`
     case "Theme":
       return `theme ${item.theme.name}`
+    case "File":
+      return `file ${item.file.path}`
   }
 }
 

@@ -1,9 +1,11 @@
+import type { AccentChoice } from "./accents.ts"
 import { names, type LogseqNames } from "./names.ts"
 
 export interface DocumentState {
   readonly mode: "light" | "dark"
   readonly route: string | undefined
   readonly platform: "mac" | "win32" | "linux"
+  readonly color: AccentChoice
 }
 
 const pages: Readonly<Record<string, string>> = {
@@ -20,13 +22,14 @@ export const logseqDocument = ({
   mode,
   route,
   platform,
+  color,
 }: DocumentState): { readonly html: LogseqNames; readonly body: LogseqNames } => ({
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/ui.cljs#L368-L375
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/theme.cljs#L40-L56
   html: {
     className: names(`is-${platform}`, mode === "dark" && "dark"),
     "data-theme": mode,
-    "data-color": "logseq",
+    "data-color": color,
   },
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/theme.cljs#L44-L48
   body: {

@@ -1,4 +1,4 @@
-import { Clock, Effect, Option, Schema, Stream } from "effect"
+import { Cause, Clock, Effect, Option, Schema, Stream } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import {
   allPagesPublic,
@@ -18,6 +18,7 @@ import { readPropertyConfig } from "@seqno/syntax"
 import { openGraph, resolvedTheme } from "../../atoms.ts"
 import { graphTitle, GraphLocations } from "../../graph-locations.ts"
 import { viewRuntime } from "../pages/atoms.ts"
+import { notify } from "./Notices.tsx"
 
 export class PublishFailed extends Schema.TaggedError<PublishFailed>()("PublishFailed", {
   reason: Schema.String,
@@ -101,6 +102,13 @@ const download = (bytes: Uint8Array, name: string) => {
   link.download = name
   link.click()
   URL.revokeObjectURL(link.href)
+}
+
+export const reasonOf = (cause: Cause.Cause<unknown>) => {
+  const error = Cause.squash(cause)
+  return typeof error === "object" && error !== null && "reason" in error
+    ? String(error.reason)
+    : String(error)
 }
 
 export const publishPages = viewRuntime.fn((_: void, get) =>
@@ -202,5 +210,20 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
     if (Option.isNone(folder)) return { _tag: "Nothing", reason: "" } satisfies Delivered
     yield* writeFolder(folder.value, files)
     return { _tag: "Folder", name: folder.value.name } satisfies Delivered
-  }),
+  }).pipe(
+    Effect.tap((delivered) =>
+      Effect.sync(() => {
+        if (delivered._tag === "Folder")
+          notify(
+            get.registry,
+            `Export public pages and publish assets to ${delivered.name} successfully`,
+          )
+        if (delivered._tag === "Nothing" && delivered.reason !== "")
+          notify(get.registry, delivered.reason)
+      }),
+    ),
+    Effect.tapCause((cause) =>
+      Effect.sync(() => notify(get.registry, `Export public pages failed: ${reasonOf(cause)}`)),
+    ),
+  ),
 )

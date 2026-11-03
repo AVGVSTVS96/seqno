@@ -130,9 +130,30 @@ export const WatchQuery = Rpc.make("WatchQuery", {
 })
 
 export const Search = Rpc.make("Search", {
-  payload: { text: Schema.String, pageId: Schema.optional(PageId) },
+  payload: {
+    text: Schema.String,
+    pageId: Schema.optional(PageId),
+    code: Schema.optional(Schema.Boolean),
+  },
   success: SearchHits,
   error: GraphNotOpen,
+})
+
+export const RebuildIndex = Rpc.make("RebuildIndex", { error: GraphNotOpen })
+
+export const PageFile = Schema.Struct({ path: Schema.String, name: Schema.String })
+export type PageFile = typeof PageFile.Type
+
+export const ListPageFiles = Rpc.make("ListPageFiles", {
+  success: Schema.Array(PageFile),
+  error: GraphNotOpen,
+})
+
+export const ConfigFlag = Schema.Literals([":ui/show-brackets?"])
+
+export const SetConfigFlag = Rpc.make("SetConfigFlag", {
+  payload: { key: ConfigFlag, value: Schema.Boolean },
+  error: Schema.Union([GraphNotOpen, CommandRejected]),
 })
 
 export const WatchBlockRefCounts = Rpc.make("WatchBlockRefCounts", {
@@ -180,6 +201,9 @@ export const CoreRpcs = RpcGroup.make(
   WatchPage,
   WatchQuery,
   Search,
+  RebuildIndex,
+  ListPageFiles,
+  SetConfigFlag,
   WatchBlockRefCounts,
   WatchBlockReferences,
   WatchSaveState,

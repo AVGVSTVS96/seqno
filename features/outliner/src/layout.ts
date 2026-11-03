@@ -20,7 +20,7 @@ const estimateHeight = (block: Block) => {
   return rowPadding + lineHeight * Math.max(1, lines) + properties
 }
 
-const orderListKey = "logseq.order-list-type"
+export const orderListKey = "logseq.order-list-type"
 const numbered = /^[ \t]*logseq\.order-list-type::[ \t]*number[ \t]*$/m
 
 const ordinalsOf = (rows: ReadonlyArray<Row>): ReadonlyArray<number | null> => {

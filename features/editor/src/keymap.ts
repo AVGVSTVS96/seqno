@@ -63,6 +63,7 @@ export const blockKeymap = (
   handoff: Handoff,
   whenConfirmed: (run: () => void) => void,
   textOf: (draft: string) => string,
+  documentMode: boolean,
 ) => {
   const send = (command: Command) => () => {
     host.dispatch(command)
@@ -135,8 +136,8 @@ export const blockKeymap = (
   return Prec.high(
     keymap.of([
       { any: (_view, event) => history(event) },
-      { ...bound(editorBindings.newBlock), run: split },
-      { ...bound(editorBindings.newLine), run: insertNewline },
+      { ...bound(editorBindings.newBlock), run: documentMode ? insertNewline : split },
+      { ...bound(editorBindings.newLine), run: documentMode ? split : insertNewline },
       { key: "Backspace", run: (view) => deletePair(view) || merge(view) },
       { ...bound(editorBindings.indent), run: send({ _tag: "Indent", blockIds: [blockId] }) },
       { ...bound(editorBindings.outdent), run: send({ _tag: "Outdent", blockIds: [blockId] }) },
@@ -148,6 +149,8 @@ export const blockKeymap = (
       { ...bound(editorBindings.selectAbove), run: selectBeyond(false) },
       { ...bound(editorBindings.selectBelow), run: selectBeyond(true) },
       { ...bound(editorBindings.exit), run: act({ _tag: "Exit" }) },
+      { ...bound(editorBindings.selectBlockAbove), run: act({ _tag: "Exit" }) },
+      { ...bound(editorBindings.selectBlockBelow), run: act({ _tag: "Exit" }) },
       { ...bound(editorBindings.cycleTask), run: rewrite(cycleMarker) },
       { ...bound(editorBindings.bold), run: rewrite((draft) => toggleMark(draft, "**")) },
       { ...bound(editorBindings.italic), run: rewrite((draft) => toggleMark(draft, "*")) },

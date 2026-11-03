@@ -1467,3 +1467,43 @@
 .seqno-annotation-ref[data-annotation="area"] .seqno-annotation-prefix > .seqno-annotation-area {
   cursor: alias;
 }
+
+.seqno-outliner[data-document-mode] {
+  --block-indent: 19px;
+}
+
+.seqno-outliner[data-document-mode]:not([data-embedded]) {
+  margin-left: -16px;
+}
+
+.seqno-outliner[data-document-mode] .seqno-guide {
+  display: none;
+}
+
+.seqno-outliner[data-document-mode] .seqno-bullet[data-hidden] {
+  visibility: hidden;
+}
+
+.seqno-outliner[data-document-mode] :is(.seqno-h1, .sq-h1) {
+  margin-block: 0.67em;
+}
+
+.seqno-outliner[data-document-mode] :is(.seqno-h2, .sq-h2) {
+  margin-block: 0.75em;
+}
+
+.seqno-outliner[data-document-mode] :is(.seqno-h3, .sq-h3) {
+  margin-block: 0.83em;
+}
+
+.seqno-outliner[data-document-mode] :is(.seqno-h4, .sq-h4) {
+  margin-block: 1.12em;
+}
+
+.seqno-outliner[data-document-mode] :is(.seqno-h5, .sq-h5) {
+  margin-block: 1.5em;
+}
+
+.seqno-outliner[data-document-mode] :is(.seqno-h6, .sq-h6) {
+  margin-block: 1.67em;
+}

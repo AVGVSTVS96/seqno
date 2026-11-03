@@ -5,6 +5,10 @@ export type ShortcutAction =
   | "ToggleLeftSidebar"
   | "ToggleRightSidebar"
   | "ToggleWideMode"
+  | "ToggleDocumentMode"
+  | "PickAccentColor"
+  | "ResetAccentColor"
+  | "ToggleBrackets"
   | "ToggleHelp"
   | "GoJournals"
   | "GoHome"
@@ -23,12 +27,21 @@ export type ShortcutAction =
   | "GoBackward"
   | "GoForward"
   | "ToggleFavorite"
+  | "GoNextJournal"
+  | "GoPrevJournal"
+  | "GoTomorrow"
+  | "ToggleOpenBlocks"
+  | "SelectGraph"
+  | "RebuildIndex"
 
 const bindings: ReadonlyArray<readonly [string, ShortcutAction]> = [
   ["t t", "ToggleTheme"],
   ["t l", "ToggleLeftSidebar"],
   ["t r", "ToggleRightSidebar"],
   ["t w", "ToggleWideMode"],
+  ["t d", "ToggleDocumentMode"],
+  ["c c", "PickAccentColor"],
+  ["c o", "ResetAccentColor"],
   ["?", "ToggleHelp"],
   ["g j", "GoJournals"],
   ["g h", "GoHome"],
@@ -47,6 +60,13 @@ const bindings: ReadonlyArray<readonly [string, ShortcutAction]> = [
   ["mod [", "GoBackward"],
   ["mod ]", "GoForward"],
   ["mod shift f", "ToggleFavorite"],
+  ["g n", "GoNextJournal"],
+  ["g p", "GoPrevJournal"],
+  ["g t", "GoTomorrow"],
+  ["t o", "ToggleOpenBlocks"],
+  ["alt shift g", "SelectGraph"],
+  ["mod c then mod s", "RebuildIndex"],
+  ["mod c then mod b", "ToggleBrackets"],
 ]
 
 export const keysOf = (action: ShortcutAction): ReadonlyArray<string> =>
@@ -75,14 +95,18 @@ const letterOf = (press: KeyPress) =>
 
 const modPressed = (press: KeyPress) => (onMac ? press.metaKey : press.ctrlKey)
 
+const modifierKeys = new Set(["Control", "Meta", "Shift", "Alt"])
+
 export const nextKeyState = (state: KeyState, press: KeyPress): KeyState => {
+  if (modifierKeys.has(press.key)) return { ...state, action: null }
   const letter = letterOf(press)
   if (press.ctrlKey || press.metaKey) {
-    const bound =
-      modPressed(press) && !press.altKey
-        ? actionFor(`mod ${press.shiftKey ? "shift " : ""}${letter}`)
-        : null
-    return { pending: null, action: bound }
+    if (!modPressed(press) || press.altKey) return idle
+    const step = `mod ${press.shiftKey ? "shift " : ""}${letter}`
+    const chord = state.pending === null ? null : actionFor(`${state.pending} then ${step}`)
+    if (chord !== null) return { pending: null, action: chord }
+    const starts = bindings.some(([keys]) => keys.startsWith(`${step} then `))
+    return { pending: starts ? step : null, action: actionFor(step) }
   }
   if (press.key === "?") return { pending: null, action: actionFor("?") }
   if (press.altKey) {

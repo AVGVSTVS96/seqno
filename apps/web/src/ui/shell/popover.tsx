@@ -225,6 +225,7 @@ export const MenuSeparator = () => <div role="separator" {...logseq("menu-separa
 export interface TooltipContent {
   readonly label: string
   readonly keys?: ReadonlyArray<string>
+  readonly body?: ReactNode
 }
 
 const below: Placement = { align: "center", gap: 4, inset: 4 }
@@ -264,6 +265,7 @@ export const useTooltip = (content: TooltipContent | undefined, placement: Place
             >
               <span {...logseq("tooltip-label")}>{content.label}</span>
               {content.keys === undefined ? null : <Keys keys={content.keys} framed />}
+              {content.body}
             </div>,
             document.body,
           ),

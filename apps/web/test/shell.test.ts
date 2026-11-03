@@ -74,6 +74,22 @@ describe("shell shortcuts", () => {
     ])
   })
 
+  it("runs the journal, view and color sequences, and Mod chords across the modifier's own keydown", () => {
+    expect(typed("gngpgttdtoccco")).toEqual([
+      "GoNextJournal",
+      "GoPrevJournal",
+      "GoTomorrow",
+      "ToggleDocumentMode",
+      "ToggleOpenBlocks",
+      "PickAccentColor",
+      "ResetAccentColor",
+    ])
+    const control = press("Control", { ctrlKey: true })
+    const chord = (letter: string) => [control, press(letter, { ctrlKey: true })]
+    expect(actionsOf([...chord("c"), ...chord("b")])).toEqual(["ToggleBrackets"])
+    expect(actionsOf([...chord("c"), ...chord("s")])).toEqual(["RebuildIndex"])
+  })
+
   it("labels each action with its keys", () => {
     expect(keysOf("ToggleRightSidebar")).toEqual(["t", "r"])
     expect(keysOf("ToggleContents")).toEqual(["alt", "shift", "c"])

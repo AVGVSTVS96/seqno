@@ -23,7 +23,7 @@ import { pages } from "../atoms.ts"
 import { saveAssets } from "./assets.ts"
 import { referencedOnly } from "./pages/atoms.ts"
 import { notify } from "./shell/Notices.tsx"
-import { vimMode } from "./shell/state.ts"
+import { documentMode, vimMode } from "./shell/state.ts"
 import { useNavigateTo } from "./pages/navigation.ts"
 import { searchHits } from "./search/atoms.ts"
 import { blockHits } from "./search/model.ts"
@@ -54,6 +54,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
   const router = useRouter()
   const navigateTo = useNavigateTo()
   const vim = useAtomValue(vimMode)
+  const docMode = useAtomValue(documentMode)
   const dialect = use(PageDialects)(block.pageId)
   const commands = editorCommands(
     useAtomValue(hostAtom),
@@ -170,6 +171,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
       host={host}
       handoff={handoff}
       vim={vim}
+      documentMode={docMode}
       commands={commands}
       propertyStyle={dialect}
     />

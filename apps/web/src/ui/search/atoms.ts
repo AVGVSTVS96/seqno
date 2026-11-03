@@ -16,10 +16,10 @@ export const openPalette = (registry: AtomRegistry.AtomRegistry, filter: Filter 
   registry.set(searchOpen, true)
 }
 
-const hitsOf = (text: string, pageId?: PageId) =>
+const hitsOf = (text: string, pageId?: PageId, code?: boolean) =>
   Effect.gen(function* () {
     const hits = yield* (yield* CoreClient).Search(
-      pageId === undefined ? { text } : { text, pageId },
+      code === true ? { text, code } : pageId === undefined ? { text } : { text, pageId },
     )
     const ancestors = yield* (yield* PageClient).Ancestors({
       blockIds: hits.blocks.map((block) => block.id),
@@ -31,6 +31,17 @@ export const paletteHits = viewRuntime.atom((get) => {
   const text = get(paletteQuery).trim()
   return text === "" ? Effect.succeed(noHits) : hitsOf(text)
 })
+
+export const codeHits = viewRuntime.atom((get) => {
+  const text = get(paletteQuery).trim()
+  return text === "" || get(paletteFilter) !== "codes"
+    ? Effect.succeed(noHits)
+    : hitsOf(text, undefined, true)
+})
+
+export const pageFiles = viewRuntime.atom(
+  Effect.flatMap(Effect.service(CoreClient), (core) => core.ListPageFiles()),
+)
 
 export const searchHits = Atom.family((text: string) => viewRuntime.atom(hitsOf(text)))
 

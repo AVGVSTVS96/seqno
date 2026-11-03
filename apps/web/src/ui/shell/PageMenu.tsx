@@ -45,7 +45,7 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
         {starred ? "Unfavorite page" : "Add to Favorites"}
       </MenuItem>
       <MenuItem onSelect={copyUrl}>Copy page URL</MenuItem>
-      {page.journalDay === null && page.name !== "contents" ? (
+      {page.name !== "contents" ? (
         <MenuItem onSelect={() => setDeleting(page)}>Delete page</MenuItem>
       ) : null}
       {onPage === false ? null : (

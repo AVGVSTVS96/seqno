@@ -39,3 +39,20 @@ export const readPropertyConfig = (configEdn: string): PropertyConfig => {
 
 export const propertyConfigKey = ({ listKeys, unparsedKeys }: PropertyConfig): string =>
   JSON.stringify([[...listKeys].toSorted(), [...unparsedKeys].toSorted()])
+
+const flagPattern = (key: string) =>
+  new RegExp(`^([^;\\n]*?)${key.replace(/[?/.]/g, "\\$&")}\\s+(true|false)\\b`, "m")
+
+export const readConfigFlag = (configEdn: string, key: string, fallback: boolean): boolean => {
+  const found = flagPattern(key).exec(configEdn)
+  return found === null ? fallback : found[2] === "true"
+}
+
+export const writeConfigFlag = (configEdn: string, key: string, value: boolean): string => {
+  const pattern = flagPattern(key)
+  if (pattern.test(configEdn)) return configEdn.replace(pattern, `$1${key} ${value}`)
+  const end = configEdn.lastIndexOf("}")
+  return end === -1
+    ? `{${key} ${value}}\n`
+    : `${configEdn.slice(0, end)}\n ${key} ${value}${configEdn.slice(end)}`
+}

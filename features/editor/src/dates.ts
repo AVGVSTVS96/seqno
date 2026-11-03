@@ -17,6 +17,16 @@ export const shiftMonths = (date: Date, months: number) => {
 export const journalTitle = (date: Date) =>
   `${date.toLocaleString("en-US", { month: "short" })} ${date.getDate()}${ordinal(date.getDate())}, ${date.getFullYear()}`
 
+const months = Array.from({ length: 12 }, (_, month) =>
+  new Date(2000, month, 1).toLocaleString("en-US", { month: "short" }).toLowerCase(),
+)
+
+export const journalDate = (title: string) => {
+  const [, month = "", day = "", year = ""] = /^(\w{3}) (\d{1,2})\w{2}, (\d{4})$/.exec(title) ?? []
+  const date = new Date(Number(year), months.indexOf(month.toLowerCase()), Number(day))
+  return journalTitle(date).toLowerCase() === title.toLowerCase() ? date : null
+}
+
 export const planningDate = (date: Date) =>
   `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${date.toLocaleString("en-US", { weekday: "short" })}`
 

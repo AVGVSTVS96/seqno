@@ -6,7 +6,7 @@ import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
 import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
 import { AssetClient, CoreClient, type Asset, type SkippedFile } from "@seqno/rpc"
-import { assetKey, defaultPropertyConfig, readPropertyConfig } from "@seqno/syntax"
+import { assetKey, readConfigFlag, readPropertyConfig } from "@seqno/syntax"
 import { WorkerAssets, WorkerCore, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
 
@@ -117,24 +117,31 @@ export const graphAssets = assetRuntime
   .atom(Stream.unwrap(Effect.map(Effect.service(AssetClient), (client) => client.WatchAssets())))
   .pipe(Atom.keepAlive)
 
-const graphProperties = appRuntime.atom((get) =>
+const graphConfig = appRuntime.atom((get) =>
   Option.match(AsyncResult.value(get(openGraph)), {
-    onNone: () => Effect.succeed(defaultPropertyConfig),
+    onNone: () => Effect.succeed(""),
     onSome: ({ graph }) =>
       Effect.map(
         Effect.flatMap(Effect.service(GraphLocations), (locations) =>
           locations.file(graph, "logseq/config.edn"),
         ),
-        (bytes) =>
-          bytes === null
-            ? defaultPropertyConfig
-            : readPropertyConfig(new TextDecoder().decode(bytes)),
+        (bytes) => (bytes === null ? "" : new TextDecoder().decode(bytes)),
       ),
   }),
 )
 
-export const propertyConfig = Atom.make((get) =>
-  AsyncResult.getOrElse(get(graphProperties), () => defaultPropertyConfig),
+const configText = Atom.make((get) => AsyncResult.getOrElse(get(graphConfig), () => ""))
+
+export const propertyConfig = Atom.make((get) => readPropertyConfig(get(configText)))
+
+const bracketsKey = ":ui/show-brackets?"
+
+export const showBrackets = Atom.make((get) => readConfigFlag(get(configText), bracketsKey, true))
+
+export const toggleBrackets = appRuntime.fn((_: void, get) =>
+  Effect.flatMap(Effect.service(CoreClient), (core) =>
+    core.SetConfigFlag({ key: bracketsKey, value: !get(showBrackets) }),
+  ).pipe(Effect.tap(() => Effect.sync(() => get.refresh(graphConfig)))),
 )
 
 export const assetFiles = Atom.make((get) =>

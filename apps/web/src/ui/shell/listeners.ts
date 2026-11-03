@@ -1,23 +1,46 @@
 import type { ParsedLocation, RegisteredRouter } from "@tanstack/react-router"
 import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
-import { normalizePageName } from "@seqno/domain"
-import { historyAtom, historyStep, placeOf, restorePlace, type Place } from "@seqno/outliner"
+import { normalizePageName, type Command } from "@seqno/domain"
+import { journalDate, journalTitle, shiftDays } from "@seqno/editor"
 import {
+  dispatchAllAtom,
+  historyAtom,
+  historyStep,
+  pageTreeAtom,
+  placeOf,
+  restorePlace,
+  type Place,
+} from "@seqno/outliner"
+import {
+  allPages,
   journals,
   leftSidebarOpen,
   openGraph,
   resolvedTheme,
   rightSidebar,
   theme,
+  toggleBrackets,
   toggleFavorite,
   type SidebarItem,
 } from "../../atoms.ts"
 import { createWhiteboard } from "../pages/Whiteboards.tsx"
 import { openPlugins } from "../plugins/PluginsDialog.tsx"
+import { dayOf } from "../pages/model.ts"
 import { openPalette } from "../search/atoms.ts"
+import { graphSelect } from "./GraphSelect.tsx"
+import { rebuildIndex } from "./reindex.ts"
 import { openDialog, togglePopover } from "./popover.tsx"
 import { idle, nextKeyState, type KeyState, type ShortcutAction } from "./shortcuts.ts"
-import { recentPages, remember, settingsDialogId, settingsTab, wideMode } from "./state.ts"
+import {
+  accentColor,
+  accentPickerOpen,
+  documentMode,
+  recentPages,
+  remember,
+  settingsDialogId,
+  settingsTab,
+  wideMode,
+} from "./state.ts"
 
 export const contentsItem = { _tag: "Page", name: "contents" } as const satisfies SidebarItem
 
@@ -31,9 +54,6 @@ export const closeSidebarItem = (registry: AtomRegistry.AtomRegistry, item: Side
   const { items } = registry.get(rightSidebar)
   registry.set(rightSidebar, items.length <= 1 ? { _tag: "Clear" } : { _tag: "Close", item })
 }
-
-const dayNumber = (date: Date) =>
-  date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
 
 const isEditable = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
@@ -51,6 +71,35 @@ export const currentPageName = (registry: AtomRegistry.AtomRegistry, router: Reg
   return home ? (registry.get(journals)[0]?.name ?? null) : null
 }
 
+const currentPage = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter) => {
+  const name = currentPageName(registry, router)
+  return registry.get(allPages).find((page) => page.name === name)
+}
+
+const goToJournal = (router: RegisteredRouter, date: Date) =>
+  void router.navigate({
+    to: "/page/$name",
+    params: { name: normalizePageName(journalTitle(date)) },
+  })
+
+const shownDate = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter) =>
+  journalDate(currentPageName(registry, router) ?? "") ?? new Date()
+
+const toggleOpenBlocks = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter) => {
+  const page = currentPage(registry, router)
+  if (page === undefined) return
+  const tree = registry.get(pageTreeAtom(page.id))
+  if (!AsyncResult.isSuccess(tree)) return
+  const blocks = tree.value.blocks
+  const parents = new Set(blocks.map((block) => block.parentId))
+  const folding = blocks.filter((block) => parents.has(block.id))
+  const collapsed = folding.every((block) => !block.collapsed)
+  const commands = folding.flatMap((block): ReadonlyArray<Command> =>
+    block.collapsed === collapsed ? [] : [{ _tag: "SetCollapsed", blockId: block.id, collapsed }],
+  )
+  if (commands.length > 0) registry.set(dispatchAllAtom, commands)
+}
+
 const toggleSettings = () => {
   const dialog = document.getElementById(settingsDialogId)
   if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close()
@@ -65,6 +114,10 @@ export const perform = (
   ToggleLeftSidebar: () => registry.set(leftSidebarOpen, !registry.get(leftSidebarOpen)),
   ToggleRightSidebar: () => registry.set(rightSidebar, { _tag: "Toggle" }),
   ToggleWideMode: () => registry.set(wideMode, !registry.get(wideMode)),
+  ToggleDocumentMode: () => registry.set(documentMode, !registry.get(documentMode)),
+  PickAccentColor: () => registry.set(accentPickerOpen, !registry.get(accentPickerOpen)),
+  ResetAccentColor: () => registry.set(accentColor, "logseq"),
+  ToggleBrackets: () => registry.set(toggleBrackets, undefined),
   ToggleHelp: () => togglePopover(helpMenuId),
   GoJournals: () => void router.navigate({ to: "/" }),
   GoHome: () => void router.navigate({ to: "/" }),
@@ -97,7 +150,7 @@ export const perform = (
     else registry.set(rightSidebar, { _tag: "Open", item: contentsItem })
   },
   OpenTodayInSidebar: () => {
-    const today = registry.get(journals).find((page) => page.journalDay === dayNumber(new Date()))
+    const today = registry.get(journals).find((page) => page.journalDay === dayOf(new Date()))
     if (today !== undefined) {
       registry.set(rightSidebar, { _tag: "Open", item: { _tag: "Page", name: today.name } })
     }
@@ -115,6 +168,12 @@ export const perform = (
     const name = currentPageName(registry, router)
     if (name !== null) registry.set(toggleFavorite, name)
   },
+  GoNextJournal: () => goToJournal(router, shiftDays(shownDate(registry, router), 1)),
+  GoPrevJournal: () => goToJournal(router, shiftDays(shownDate(registry, router), -1)),
+  GoTomorrow: () => goToJournal(router, shiftDays(new Date(), 1)),
+  ToggleOpenBlocks: () => toggleOpenBlocks(registry, router),
+  SelectGraph: () => registry.set(graphSelect, "open"),
+  RebuildIndex: () => registry.set(rebuildIndex, undefined),
 })
 
 const recordVisit = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter) => {

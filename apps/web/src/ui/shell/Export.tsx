@@ -1,9 +1,9 @@
-import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
+import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { IconX } from "@tabler/icons-react"
-import { Cause, Clock, Effect, Exit, Option, Schema } from "effect"
+import { Clock, Effect, Option, Schema } from "effect"
 import { AsyncResult, Atom } from "effect/reactivity"
 import { domToBlob } from "modern-screenshot"
-import { useContext, useId, useRef, useState } from "react"
+import { useId, useRef, useState } from "react"
 import type { Block, BlockId, Page, PageId, Props } from "@seqno/domain"
 import {
   exportBlocks,
@@ -18,7 +18,6 @@ import { Outliner, PlainTextEditor } from "@seqno/outliner"
 import { CoreClient, type ExportedTree } from "@seqno/rpc"
 import { isHiddenProperty, joinProperties } from "@seqno/syntax"
 import { appRuntime, assetResolver, openGraph, propertyConfig, settingsLayer } from "../../atoms.ts"
-import { notify } from "./Notices.tsx"
 import { closeDialogOf, Dialog, openDialog } from "./popover.tsx"
 import { publishPages } from "./publish.ts"
 
@@ -406,13 +405,6 @@ const graphChoices: ReadonlyArray<readonly [GraphChoice, string]> = [
   ["roam-json", "Export as Roam JSON"],
 ]
 
-const reasonOf = (cause: Cause.Cause<unknown>) => {
-  const error = Cause.squash(cause)
-  return typeof error === "object" && error !== null && "reason" in error
-    ? String(error.reason)
-    : String(error)
-}
-
 const exportGraphAs = appRuntime.fn((kind: GraphFormat, get) =>
   Effect.gen(function* () {
     const graph = Option.match(AsyncResult.value(get(openGraph)), {
@@ -437,26 +429,9 @@ const exportGraphAs = appRuntime.fn((kind: GraphFormat, get) =>
 export const GraphExportDialog = () => {
   const [running, run] = useAtom(exportGraphAs)
   const publishing = useAtomValue(publishPages)
-  const publish = useAtomSet(publishPages, { mode: "promiseExit" })
-  const registry = useContext(RegistryContext)
+  const publish = useAtomSet(publishPages)
   const busy = AsyncResult.isWaiting(running) || AsyncResult.isWaiting(publishing)
-  const choose = (kind: GraphChoice) => {
-    if (kind !== "public-pages") return run(kind)
-    void publish().then(
-      Exit.match({
-        onFailure: (cause) => notify(registry, `Export public pages failed: ${reasonOf(cause)}`),
-        onSuccess: (delivered) => {
-          if (delivered._tag === "Folder")
-            notify(
-              registry,
-              `Export public pages and publish assets to ${delivered.name} successfully`,
-            )
-          if (delivered._tag === "Nothing" && delivered.reason !== "")
-            notify(registry, delivered.reason)
-        },
-      }),
-    )
-  }
+  const choose = (kind: GraphChoice) => (kind === "public-pages" ? publish() : run(kind))
   return (
     <Dialog id={graphExportDialogId} label="Export graph" className="export-graph-dialog">
       <div className="export-dialog-head">

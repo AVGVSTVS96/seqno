@@ -30,6 +30,7 @@ export interface BlockEditorOptions {
   readonly hidden?: (key: string) => boolean
   readonly propertyStyle?: PropertyStyle
   readonly vim?: boolean
+  readonly documentMode?: boolean
   readonly commands?: ReadonlyArray<SlashCommand>
 }
 
@@ -69,6 +70,7 @@ export const mountBlockEditor = (
     hidden,
     propertyStyle,
     vim = false,
+    documentMode = false,
     commands: extra = [],
   }: BlockEditorOptions,
   popups = createPopupStore(),
@@ -115,7 +117,14 @@ export const mountBlockEditor = (
             })
           : [],
         properties === undefined
-          ? blockKeymap(block.id, { ...host, dispatch }, handoff, whenConfirmed, fields.textOf)
+          ? blockKeymap(
+              block.id,
+              { ...host, dispatch },
+              handoff,
+              whenConfirmed,
+              fields.textOf,
+              documentMode,
+            )
           : propertiesKeymap(host),
         completion(block.id, host, popups),
         extraCommands.of(extra),

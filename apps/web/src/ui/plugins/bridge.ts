@@ -10,6 +10,7 @@ import {
   openGraph,
   pages,
   resolvedTheme,
+  showBrackets,
   rightSidebar,
 } from "../../atoms.ts"
 import type { router as appRouter } from "../../router.tsx"
@@ -88,6 +89,7 @@ export const makeBridge = (
     },
     notify: (message) => notify(registry, message),
     themeMode: () => registry.get(resolvedTheme),
+    showBrackets: () => registry.get(showBrackets),
     setSidebar: (side, visible) => {
       if (side === "left") return registry.set(leftSidebarOpen, visible)
       if (registry.get(rightSidebar).open !== visible)

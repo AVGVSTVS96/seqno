@@ -4,7 +4,16 @@ import { crumbLabel, listValues } from "../pages/model.ts"
 
 export type PageName = Pick<Page, "name" | "title"> & { readonly tag?: boolean }
 
-export type Filter = "current-page" | "nodes" | "commands" | "themes"
+export type Filter = "current-page" | "nodes" | "codes" | "commands" | "files" | "themes"
+
+export type FileTarget =
+  | { readonly _tag: "Page"; readonly name: string }
+  | { readonly _tag: "Asset"; readonly url: string }
+
+export interface GraphFile {
+  readonly path: string
+  readonly target: FileTarget
+}
 
 export interface PaletteCommand {
   readonly id: string
@@ -31,13 +40,16 @@ export type Item =
   | { readonly _tag: "Command"; readonly command: PaletteCommand }
   | { readonly _tag: "Filter"; readonly filter: Filter; readonly text: string }
   | { readonly _tag: "Theme"; readonly theme: ThemeOption }
+  | { readonly _tag: "File"; readonly file: GraphFile }
 
 export type GroupId =
   | "create"
   | "current-page"
   | "nodes"
   | "recent"
+  | "codes"
   | "commands"
+  | "files"
   | "themes"
   | "filters"
 
@@ -57,6 +69,7 @@ export interface Hits {
 export const noHits: Hits = { pages: [], blocks: [], ancestors: [] }
 
 const nodesShown = 10
+const filesShown = 99
 const recentShown = 5
 const shownPerGroup = 5
 
@@ -116,13 +129,24 @@ const matches = (page: PageName, words: ReadonlyArray<string>) =>
 const filterLabels: Readonly<Record<Filter, string>> = {
   "current-page": "Current page",
   nodes: "Nodes",
+  codes: "Code",
   commands: "Commands",
+  files: "Files",
   themes: "Themes",
+}
+
+const filterTexts: Readonly<Record<Filter, string>> = {
+  "current-page": "Search only current page",
+  nodes: "Search only nodes",
+  codes: "Search only codes",
+  commands: "Search only commands",
+  files: "Search only files",
+  themes: "Search only themes",
 }
 
 export const filterLabel = (filter: Filter) => filterLabels[filter]
 
-export const filterText = (filter: Filter) => `Search only ${filterLabels[filter].toLowerCase()}`
+export const filterText = (filter: Filter) => filterTexts[filter]
 
 const wordsMatch = (text: string, words: ReadonlyArray<string>) => {
   const lower = text.toLowerCase()
@@ -159,6 +183,8 @@ export const groupsOf = (input: {
   readonly commands?: ReadonlyArray<PaletteCommand>
   readonly themes?: ReadonlyArray<ThemeOption>
   readonly pageHits?: Hits
+  readonly codeHits?: Hits
+  readonly files?: ReadonlyArray<GraphFile>
 }): ReadonlyArray<Group> => {
   const { query, hits, pages, referenced, stats, expanded } = input
   const filter = input.filter ?? null
@@ -197,6 +223,13 @@ export const groupsOf = (input: {
   const commands = byMatch(input.commands ?? [], query, (command) => command.label).map(
     (command): Item => ({ _tag: "Command", command }),
   )
+  const codes = blockHits(input.codeHits ?? noHits, pages).map((hit): Item => ({
+    _tag: "Block",
+    ...hit,
+  }))
+  const files = byMatch(input.files ?? [], query, (file) => file.path)
+    .slice(0, filesShown)
+    .map((file): Item => ({ _tag: "File", file }))
   const themes = byMatch(input.themes ?? [], query, (theme) => theme.name).map((theme): Item => ({
     _tag: "Theme",
     theme,
@@ -224,6 +257,7 @@ export const groupsOf = (input: {
     : split !== null
       ? [
           group("nodes", "Nodes", nodes, nodesShown),
+          group("files", "Files", files, shownPerGroup),
           create,
           group("filters", "Filters", filters, shownPerGroup),
         ]
@@ -235,19 +269,24 @@ export const groupsOf = (input: {
           ]
         : filter === "current-page"
           ? [group("current-page", "Current page", onPage, shownPerGroup)]
-          : filter === "commands"
-            ? [group("commands", "Commands", commands, shownPerGroup)]
-            : filter === "themes"
-              ? [group("themes", "Themes", themes, shownPerGroup)]
-              : words.length === 0
-                ? [group("recent", "Recently updated", recent, recentShown)]
-                : [
-                    group("nodes", "Nodes", nodes, nodesShown),
-                    group("recent", "Recently updated", recent, recentShown),
-                    group("commands", "Commands", commands, shownPerGroup),
-                    create,
-                    group("filters", "Filters", filters, shownPerGroup),
-                  ]
+          : filter === "codes"
+            ? [group("codes", "Code", codes, shownPerGroup)]
+            : filter === "files"
+              ? [group("files", "Files", files, shownPerGroup)]
+              : filter === "commands"
+                ? [group("commands", "Commands", commands, shownPerGroup)]
+                : filter === "themes"
+                  ? [group("themes", "Themes", themes, shownPerGroup)]
+                  : words.length === 0
+                    ? [group("recent", "Recently updated", recent, recentShown)]
+                    : [
+                        group("nodes", "Nodes", nodes, nodesShown),
+                        group("recent", "Recently updated", recent, recentShown),
+                        group("commands", "Commands", commands, shownPerGroup),
+                        group("files", "Files", files, shownPerGroup),
+                        create,
+                        group("filters", "Filters", filters, shownPerGroup),
+                      ]
   return withCreateAfterFirstMatch(ordered.filter((one) => one.items.length > 0))
 }
 
@@ -281,5 +320,7 @@ export const itemKey = (item: Item) => {
       return `filter:${item.filter}`
     case "Theme":
       return `theme:${item.theme.url ?? ""}`
+    case "File":
+      return `file:${item.file.path}`
   }
 }

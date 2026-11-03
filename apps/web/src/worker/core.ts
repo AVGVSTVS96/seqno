@@ -17,6 +17,7 @@ import {
 } from "effect"
 import { BlockId, PageId, type Block, type Command, type Page } from "@seqno/domain"
 import { isReadKey, type BlockHit, type GraphPage, type Row } from "@seqno/index"
+import { defaultConfig, mirrorPath } from "@seqno/interop"
 import {
   ALIASES_SQL,
   compileQuery,
@@ -32,6 +33,7 @@ import {
   AssetRpcs,
   BlockNotFound,
   BlockRefNotFound,
+  CommandRejected,
   CoreRpcs,
   GraphLocked,
   GraphNotOpen,
@@ -45,7 +47,7 @@ import {
   type Reference,
 } from "@seqno/rpc"
 import { everyPage, pagesReached } from "./exporting.ts"
-import { journalDayOf, journalDayOfTitle, withJournalDay } from "./journal.ts"
+import { journalDayOf, journalDayOfTitle, todayDeleted, withJournalDay } from "./journal.ts"
 import { GraphLocks } from "./lock.ts"
 import { Device, GraphPlaces } from "./place.ts"
 import { withReferenceEdits } from "./rename.ts"
@@ -405,13 +407,18 @@ const CoreHandlers = CoreRpcs.toLayer(
     const places = yield* GraphPlaces
     const dispatchAll = (client: number, commands: ReadonlyArray<Command>) =>
       Effect.flatMap(current(client), (session) =>
-        Effect.forEach(commands, (command) =>
-          withReferenceEdits(session, withJournalDay(command, session.newPageFormat)),
-        ).pipe(
-          Effect.flatMap((expanded) =>
-            session.record(session.graph.dispatchAll(expanded.flat(), String(client)), client),
-          ),
-        ),
+        Effect.gen(function* () {
+          const expanded = yield* Effect.forEach(commands, (command) =>
+            withReferenceEdits(session, withJournalDay(command, session.newPageFormat)),
+          )
+          const today = yield* todayDeleted(session.graph, commands)
+          const dispatch = (batch: ReadonlyArray<Command>) =>
+            session.record(session.graph.dispatchAll(batch, String(client)), client)
+          const events = yield* dispatch(expanded.flat())
+          if (Option.isNone(today)) return events
+          const again = yield* dispatch([withJournalDay(today.value, session.newPageFormat)])
+          return [...events, ...again]
+        }),
       )
     return CoreRpcs.of({
       Attach: ({ tab }, { client }) => attach(client.id, tab),
@@ -469,11 +476,33 @@ const CoreHandlers = CoreRpcs.toLayer(
             Stream.mapEffect((hits) => session.blocks(hits.map((hit) => hit.blockId))),
           ),
         ),
-      Search: ({ text, pageId }, { client }) =>
+      RebuildIndex: (_, { client }) =>
+        Effect.flatMap(current(client.id), (session) => session.rebuildIndex),
+      ListPageFiles: (_, { client }) =>
+        Effect.flatMap(current(client.id), (session) =>
+          Effect.map(session.graph.pages, (pages) =>
+            pages.map((page) => ({ path: mirrorPath(page, defaultConfig), name: page.name })),
+          ),
+        ),
+      SetConfigFlag: ({ key, value }, { client }) =>
+        Effect.flatMap(current(client.id), (session) =>
+          Effect.mapError(
+            session.setConfigFlag(key, value),
+            (failed) => new CommandRejected({ reason: failed.reason }),
+          ),
+        ),
+      Search: ({ text, pageId, code }, { client }) =>
         Effect.gen(function* () {
           const session = yield* current(client.id)
           const hits = yield* Effect.orDie(
-            session.index.search(text, pageId === undefined ? {} : { limit: 100, page: pageId }),
+            session.index.search(
+              text,
+              code === true
+                ? { limit: 20, code }
+                : pageId === undefined
+                  ? {}
+                  : { limit: 100, page: pageId },
+            ),
           )
           return {
             pages: yield* pagesOf(

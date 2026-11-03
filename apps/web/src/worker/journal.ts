@@ -66,3 +66,18 @@ export const withJournalDay = (command: Command, format?: "org"): Command => {
     onSome: (journalDay) => ({ ...rest, journalDay }),
   })
 }
+
+export const todayDeleted = (graph: Graph["Service"], commands: ReadonlyArray<Command>) =>
+  Effect.gen(function* () {
+    const deleted = new Set(
+      commands.flatMap((command) => (command._tag === "DeletePage" ? [command.pageId] : [])),
+    )
+    if (deleted.size === 0) return Option.none<Command>()
+    const today = journalDayOf(yield* Clock.currentTimeMillis)
+    const pages = yield* graph.pages
+    if (!pages.some((page) => deleted.has(page.id) && page.journalDay === today)) {
+      return Option.none<Command>()
+    }
+    const title = formatJournalDay(today, defaultConfig.journalTitleFormat)
+    return Option.some<Command>({ _tag: "CreatePage", title, journalDay: today })
+  })

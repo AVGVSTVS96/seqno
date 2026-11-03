@@ -41,7 +41,8 @@ import {
   useTooltip,
 } from "./popover.tsx"
 import { keysOf } from "./shortcuts.ts"
-import { settingsDialogId, settingsTab } from "./state.ts"
+import { Keys } from "./Keys.tsx"
+import { documentMode, settingsDialogId, settingsTab } from "./state.ts"
 
 const useCurrentPage = (): Page | undefined => {
   const matchRoute = useMatchRoute()
@@ -100,6 +101,39 @@ const MoreMenu = () => {
         </MenuItem>
       </Menu>
       <Appearance handle={appearance} />
+    </>
+  )
+}
+
+const DocumentModeButton = () => {
+  const [on, setOn] = useAtom(documentMode)
+  const hint = useTooltip({
+    label: "Document mode",
+    body: (
+      <ul className="seqno-doc-mode-hint">
+        <li>
+          <Keys keys={["shift", "enter"]} framed /> to create new block
+        </li>
+        <li>
+          Click `D` or type <Keys keys={keysOf("ToggleDocumentMode")} framed /> to toggle document
+          mode
+        </li>
+      </ul>
+    ),
+  })
+  if (!on) return null
+  return (
+    <>
+      <button
+        type="button"
+        className="seqno-doc-mode"
+        aria-label="Turn off document mode"
+        {...hint.props}
+        onClick={() => setOn(false)}
+      >
+        D
+      </button>
+      {hint.tooltip}
     </>
   )
 }
@@ -186,6 +220,7 @@ export const Header = () => {
             onClick={() => void navigate({ to: "/" })}
           />
         )}
+        <DocumentModeButton />
         <MoreMenu />
         <IconButton
           label="Toggle right sidebar"

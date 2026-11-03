@@ -1,5 +1,6 @@
 import { Schema } from "effect"
 import { Atom } from "effect/reactivity"
+import { accentColors } from "@seqno/dom"
 import { settingsLayer } from "../../atoms.ts"
 
 const settingsRuntime = Atom.runtime((get) => get(settingsLayer))
@@ -16,6 +17,14 @@ export const setting = <S extends Schema.ConstraintCodec<unknown, unknown>>(
 export const wideMode = setting("seqno.wideMode", Schema.Boolean, false)
 
 export const vimMode = setting("seqno.vimMode", Schema.Boolean, false)
+
+export const AccentChoice = Schema.Literals(["none", "logseq", ...accentColors])
+
+export const accentColor = setting("seqno.accentColor", AccentChoice, "logseq")
+
+export const accentPickerOpen = Atom.make(false).pipe(Atom.keepAlive)
+
+export const documentMode = setting("seqno.documentMode", Schema.Boolean, false)
 
 export const leftSidebarWidth = setting("seqno.leftSidebarWidth", Schema.Finite, 246)
 

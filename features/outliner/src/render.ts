@@ -1,4 +1,5 @@
 import { createContext, type ComponentType, type KeyboardEvent, type ReactNode } from "react"
+import type { AccentChoice } from "@seqno/dom"
 import type { Block, BlockId, PageId } from "@seqno/domain"
 import {
   blockContent,
@@ -40,6 +41,12 @@ export const RenderContext = createContext<Renderer>({
   vim: false,
   readOnly: false,
 })
+
+export const DocumentMode = createContext(false)
+
+export const ShowBrackets = createContext(true)
+
+export const Accent = createContext<AccentChoice>("logseq")
 
 export const PageDialects = createContext<(pageId: PageId) => Dialect>(() => "markdown")
 

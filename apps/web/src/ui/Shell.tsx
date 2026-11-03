@@ -4,16 +4,19 @@ import { Outlet, useRouter } from "@tanstack/react-router"
 import { Cause, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useContext } from "react"
-import { logseq, names } from "@seqno/dom"
+import { accentStyles, logseq, names } from "@seqno/dom"
 import type { PageId } from "@seqno/domain"
 import {
+  Accent,
   AssetActions,
   BoardSlot,
   CodeSlot,
   MacroSlot,
+  DocumentMode,
   PageDialects,
   PropertySettings,
   ScrollContent,
+  ShowBrackets,
 } from "@seqno/outliner"
 import { blockColored } from "@seqno/pdf"
 import { PluginCode, PluginMacroSlot, PluginThemeLink } from "@seqno/plugins"
@@ -27,6 +30,7 @@ import {
   propertyConfig,
   resolvedTheme,
   rightSidebar,
+  showBrackets,
 } from "../atoms.ts"
 import { openAnnotationBlock, openPdf, saveAssets } from "./assets.ts"
 import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
@@ -41,11 +45,19 @@ import { Header } from "./shell/Header.tsx"
 import { HelpButton } from "./shell/HelpButton.tsx"
 import { LeftSidebar } from "./shell/LeftSidebar.tsx"
 import { Notices } from "./shell/Notices.tsx"
+import { AccentColors } from "./shell/AccentColors.tsx"
+import { GraphSelect } from "./shell/GraphSelect.tsx"
 import { PageMenu } from "./shell/PageMenu.tsx"
 import { shellListeners } from "./shell/listeners.ts"
 import { RightSidebar } from "./shell/RightSidebar.tsx"
 import { Settings } from "./shell/Settings.tsx"
-import { leftSidebarWidth, rightSidebarWidth, wideMode } from "./shell/state.ts"
+import {
+  accentColor,
+  documentMode,
+  leftSidebarWidth,
+  rightSidebarWidth,
+  wideMode,
+} from "./shell/state.ts"
 
 const pluginMacros = { Slot: PluginMacroSlot }
 
@@ -119,6 +131,8 @@ const Layout = ({
                   <HelpButton />
                   <BlockMenu />
                   <PageMenu />
+                  <GraphSelect />
+                  <AccentColors />
                   <ExportDialog />
                   <GraphExportDialog />
                   <Settings />
@@ -175,7 +189,16 @@ export const Shell = () => {
         <style href="seqno/shell" precedence="app">
           {shellCss}
         </style>
-        <Screen />
+        <style href="seqno/accents" precedence="app">
+          {accentStyles}
+        </style>
+        <DocumentMode value={useAtomValue(documentMode)}>
+          <ShowBrackets value={useAtomValue(showBrackets)}>
+            <Accent value={useAtomValue(accentColor)}>
+              <Screen />
+            </Accent>
+          </ShowBrackets>
+        </DocumentMode>
       </PageDialects>
     </PropertySettings>
   )

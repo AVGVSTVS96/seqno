@@ -56,6 +56,7 @@ export interface Bridge {
   readonly navigate: (target: NavigationTarget | Route) => void
   readonly notify: (message: string) => void
   readonly themeMode: () => ThemeMode
+  readonly showBrackets: () => boolean
   readonly setSidebar: (side: "left" | "right", visible: boolean) => void
   readonly sidebarOpen: (side: "left" | "right") => boolean
   readonly editBlock: (blockId: BlockId, caret: number | null) => void
@@ -611,7 +612,7 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
       preferredLanguage: navigator.language,
       preferredWorkflow: "todo",
       currentGraph: graph === null ? null : `logseq_local_${graph}`,
-      showBrackets: true,
+      showBrackets: bridge.showBrackets(),
       enabledFlashcards: false,
       enabledJournals: true,
       me: {},

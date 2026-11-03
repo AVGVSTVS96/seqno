@@ -28,8 +28,11 @@ export {
   clickOnEnter,
   CodeSlot,
   MacroSlot,
+  DocumentMode,
   PageDialects,
   PropertySettings,
+  ShowBrackets,
+  Accent,
   type CodeSlotProps,
   type MacroSlotProps,
 } from "./render.ts"

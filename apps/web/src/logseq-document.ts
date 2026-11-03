@@ -1,6 +1,7 @@
 import type { AtomRegistry } from "effect/reactivity"
 import { attributesOf, logseqDocument, type DocumentState, type LogseqNames } from "@seqno/dom"
 import { resolvedTheme } from "./atoms.ts"
+import { accentColor } from "./ui/shell/state.ts"
 import type { router as appRouter } from "./router.tsx"
 
 const platform = (): DocumentState["platform"] => {
@@ -30,10 +31,12 @@ export const markLogseqDocument = (
       mode: registry.get(resolvedTheme),
       route: router.state.matches.at(-1)?.routeId,
       platform: platform(),
+      color: registry.get(accentColor),
     })
     html(names.html)
     body(names.body)
   }
   registry.subscribe(resolvedTheme, mark, { immediate: true })
+  registry.subscribe(accentColor, mark)
   router.subscribe("onResolved", mark)
 }

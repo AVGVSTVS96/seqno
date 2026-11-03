@@ -33,6 +33,7 @@ import {
   maxDepth,
   PageDialects,
   RenderContext,
+  ShowBrackets,
   toPage,
 } from "./render.ts"
 import { Timestamp, VideoEmbed } from "./Video.tsx"
@@ -184,9 +185,10 @@ const PageLink = ({
   readonly children: ReactNode
 }) => {
   const renderer = use(RenderContext)
+  const shown = use(ShowBrackets)
   const preview = usePreview({ _tag: "Page", name })
   return (
-    <span {...logseq("seqno-pageref", name)} data-brackets={brackets || undefined}>
+    <span {...logseq("seqno-pageref", name)} data-brackets={(brackets && shown) || undefined}>
       <a
         role="link"
         tabIndex={0}

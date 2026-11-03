@@ -8,9 +8,17 @@ import { names, type LogseqNames, type Table } from "./names.ts"
 import { pdfParts, type PdfParts } from "./pdf.ts"
 import { pageParts, type PageParts } from "./page.ts"
 import { pluginParts, type PluginParts } from "./plugins.ts"
+import { selectParts, type SelectParts } from "./select.ts"
 import { shellParts, type ShellParts } from "./shell.ts"
 import { slideParts, type SlideParts } from "./slide.ts"
 
+export {
+  accentColors,
+  accentScale,
+  accentStyles,
+  type AccentChoice,
+  type AccentColor,
+} from "./accents.ts"
 export { logseqDocument, type DocumentState } from "./document.ts"
 export { gaps } from "./gaps.ts"
 export { attributesOf, names, type LogseqNames, type Table } from "./names.ts"
@@ -34,6 +42,7 @@ type Parts = AssetParts &
   PageParts &
   PdfParts &
   PluginParts &
+  SelectParts &
   ShellParts &
   SlideParts
 
@@ -47,6 +56,7 @@ const parts: Table<Parts> = {
   ...pageParts,
   ...pdfParts,
   ...pluginParts,
+  ...selectParts,
   ...shellParts,
   ...slideParts,
 }

@@ -4,9 +4,12 @@ import type { AtomRegistry } from "effect/reactivity"
 import { historyAtom } from "@seqno/outliner"
 import { hostAtom, runCommand, type PluginCommand } from "@seqno/plugins"
 import { rightSidebar } from "../../atoms.ts"
+import { graphSelect } from "./GraphSelect.tsx"
+import { publishPages } from "./publish.ts"
+import { rebuildIndex } from "./reindex.ts"
 import { openPalette } from "../search/atoms.ts"
 import type { PaletteCommand } from "../search/model.ts"
-import { perform } from "./listeners.ts"
+import { currentPageName, perform } from "./listeners.ts"
 import { notices } from "./Notices.tsx"
 import { keysOf, onMac, type ShortcutAction } from "./shortcuts.ts"
 import { setting } from "./state.ts"
@@ -29,6 +32,16 @@ const keyNames: Readonly<Record<string, string>> = {
   escape: "Escape",
   arrowup: "ArrowUp",
   arrowdown: "ArrowDown",
+  arrowleft: "ArrowLeft",
+  arrowright: "ArrowRight",
+}
+
+const modifiers = new Set(["mod", "shift", "alt"])
+
+const stepsOf = (combo: string): ReadonlyArray<string> => {
+  if (combo.includes(" then ")) return combo.split(" then ")
+  const parts = combo.split(" ")
+  return parts.length > 1 && parts.every((part) => !modifiers.has(part)) ? parts : [combo]
 }
 
 const replayed = (combo: string) => {
@@ -54,7 +67,7 @@ const replay = (id: string, label: string, ...combos: ReadonlyArray<string>): Ru
     const first = combos[0]
     if (returnTo === null || first === undefined) return
     returnTo.focus()
-    returnTo.dispatchEvent(replayed(first))
+    for (const step of stepsOf(first)) returnTo.dispatchEvent(replayed(step))
   },
 })
 
@@ -113,6 +126,10 @@ export const builtInCommands = (
   })
   return [
     app("ui/toggle-wide-mode", "Toggle wide mode", "ToggleWideMode"),
+    app("ui/toggle-document-mode", "Toggle document mode", "ToggleDocumentMode"),
+    app("ui/accent-colors-picker", "Pick accent color", "PickAccentColor"),
+    app("ui/accent-color-reset", "Reset accent color", "ResetAccentColor"),
+    app("ui/toggle-brackets", "Toggle whether to display brackets", "ToggleBrackets"),
     app("ui/toggle-theme", "Toggle between dark/light theme", "ToggleTheme"),
     app("ui/toggle-settings", "Toggle settings", "ToggleSettings"),
     app("ui/toggle-right-sidebar", "Toggle right sidebar", "ToggleRightSidebar"),
@@ -176,6 +193,39 @@ export const builtInCommands = (
     replay("editor/cycle-todo", "Rotate the TODO state", "mod enter"),
     replay("editor/cut", "Cut", "mod x"),
     replay("editor/copy", "Copy (copies either selection, or block reference)", "mod c"),
+    replay("editor/copy-text", "Copy selections as text", "mod shift c"),
+    replay("misc/copy", "Copy", "mod c"),
+    replay("editor/insert-link", "HTML Link", "mod l"),
+    replay("editor/left", "Move cursor left / Open selected block at beginning", "arrowleft"),
+    replay("editor/right", "Move cursor right / Open selected block at end", "arrowright"),
+    replay("editor/select-block-up", "Select block above", "alt arrowup"),
+    replay("editor/select-block-down", "Select block below", "alt arrowdown"),
+    replay("editor/toggle-block-children", "Toggle expand/collapse", "mod ;"),
+    replay("editor/toggle-number-list", "Toggle number list", "t n"),
+    app(
+      "editor/toggle-open-blocks",
+      "Toggle open blocks (collapse or expand all blocks)",
+      "ToggleOpenBlocks",
+    ),
+    plain("editor/copy-page-url", "Copy page url", () => {
+      const name = currentPageName(registry, router)
+      if (name === null) return
+      const { href } = router.buildLocation({ to: "/page/$name", params: { name } })
+      void navigator.clipboard
+        .writeText(new URL(href, window.location.origin).href)
+        .catch(() => undefined)
+    }),
+    app("go/next-journal", "Go to next journal", "GoNextJournal"),
+    app("go/prev-journal", "Go to previous journal", "GoPrevJournal"),
+    app("go/tomorrow", "Go to tomorrow", "GoTomorrow"),
+    app("graph/open", "Select graph to open", "SelectGraph"),
+    plain("graph/remove", "Remove a graph", () => registry.set(graphSelect, "remove")),
+    plain("graph/add", "Add a graph", () => void router.navigate({ to: "/graphs" })),
+    plain("graph/export-as-html", "Export public graph pages as html", () =>
+      registry.set(publishPages, undefined),
+    ),
+    plain("graph/re-index", "Re-index current graph", () => registry.set(rebuildIndex, undefined)),
+    app("search/re-index", "Rebuild search index", "RebuildIndex"),
   ]
 }
 

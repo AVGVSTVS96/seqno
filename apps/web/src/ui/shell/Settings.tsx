@@ -5,6 +5,7 @@ import { useId, type ReactNode } from "react"
 import { resolvedTheme } from "../../atoms.ts"
 import { revision } from "../../version.ts"
 import { SettingSwitch, ThemeChoices, themeLabelOf } from "./Appearance.tsx"
+import { AccentColorList } from "./AccentColors.tsx"
 import { Keys } from "./Keys.tsx"
 import { closeDialogOf, Dialog } from "./popover.tsx"
 import { ShortcutList } from "./ShortcutList.tsx"
@@ -39,6 +40,7 @@ const General = () => {
   const themeLabel = useId()
   const wideLabel = useId()
   const vimLabel = useId()
+  const accentLabel = useId()
   return (
     <>
       <Row label="Current version" labelId={versionLabel}>
@@ -49,6 +51,10 @@ const General = () => {
       <Row label={themeLabelOf(resolved)} labelId={themeLabel}>
         <ThemeChoices labelledBy={themeLabel} />
         <Keys keys={keysOf("ToggleTheme")} />
+      </Row>
+      <Row label="Accent color" labelId={accentLabel}>
+        <AccentColorList />
+        <Keys keys={keysOf("PickAccentColor")} />
       </Row>
       <Row label="Wide mode" labelId={wideLabel}>
         <SettingSwitch setting={wideMode} labelledBy={wideLabel} />

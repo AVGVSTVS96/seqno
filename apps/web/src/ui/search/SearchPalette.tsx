@@ -6,6 +6,7 @@ import {
   useAtomValue,
 } from "@effect/atom-react"
 import {
+  IconCode,
   IconCommand,
   IconFile,
   IconHash,
@@ -33,6 +34,7 @@ import { chosenThemes, pluginCommands, runtimeThemes, type PluginTheme } from "@
 import type { PageStat } from "@seqno/rpc"
 import {
   allPages,
+  assetFiles,
   createPage,
   openGraph,
   pageNamed,
@@ -41,6 +43,7 @@ import {
   searchOpen,
   type SidebarItem,
 } from "../../atoms.ts"
+import { openPdf } from "../assets.ts"
 import { pageStats, referencedOnly } from "../pages/atoms.ts"
 import { applyTheme, themeChosen } from "../plugins/PluginsDialog.tsx"
 import {
@@ -52,7 +55,9 @@ import {
   type RunnableCommand,
 } from "../shell/commands.ts"
 import {
+  codeHits,
   isSearchKey,
+  pageFiles,
   pageHits,
   paletteFilter,
   paletteHits,
@@ -67,6 +72,7 @@ import {
   itemKey,
   noHits,
   type Filter,
+  type GraphFile,
   type Group,
   type Item,
   type ThemeOption,
@@ -93,7 +99,9 @@ const Marked = ({ text, query }: { readonly text: string; readonly query: string
 const filterIcons: Readonly<Record<Filter, ReactNode>> = {
   "current-page": <IconFile size={14} aria-hidden />,
   nodes: <IconPointFilled size={14} aria-hidden />,
+  codes: <IconCode size={14} aria-hidden />,
   commands: <IconCommand size={14} aria-hidden />,
+  files: <IconFile size={14} aria-hidden />,
   themes: <IconPalette size={14} aria-hidden />,
 }
 
@@ -113,6 +121,8 @@ const iconOf = (item: Item): ReactNode => {
       return <IconCommand size={14} aria-hidden />
     case "Filter":
       return filterIcons[item.filter]
+    case "File":
+      return <IconFile size={14} aria-hidden />
     case "Theme":
       return item.theme.selected ? (
         <IconSquareCheck size={14} aria-hidden />
@@ -137,6 +147,8 @@ const textOf = (item: Item, query: string): ReactNode => {
       return <Marked text={item.block.text} query={query} />
     case "Command":
       return <Marked text={item.command.label} query={query} />
+    case "File":
+      return <Marked text={item.file.path} query={query} />
     case "Filter":
       return (
         <>
@@ -226,6 +238,8 @@ const actionOf = (item: Item) => {
       return "Filter"
     case "Theme":
       return "Apply theme"
+    case "File":
+      return "Open"
     case "Page":
     case "Block":
       return null
@@ -295,6 +309,17 @@ const Palette = ({
     () => noHits,
   )
   const pages = useAtomValue(allPages)
+  const code = AsyncResult.getOrElse(useAtomValue(codeHits), () => noHits)
+  const files: ReadonlyArray<GraphFile> = [
+    ...AsyncResult.getOrElse(useAtomValue(pageFiles), () => []).map((file): GraphFile => ({
+      path: file.path,
+      target: { _tag: "Page", name: file.name },
+    })),
+    ...useAtomValue(assetFiles).map((asset): GraphFile => ({
+      path: asset.path,
+      target: { _tag: "Asset", url: asset.url },
+    })),
+  ]
   const stats = AsyncResult.getOrElse(useAtomValue(pageStats), () => noStats)
   const history = useAtomValue(commandHistory)
   const plugins = useAtomValue(pluginCommands)
@@ -329,12 +354,16 @@ const Palette = ({
     filters: [
       ...(currentPage === undefined ? [] : ["current-page" as const]),
       "nodes",
+      "codes",
       "commands",
+      "files",
       "themes",
     ],
     commands,
     themes,
     pageHits: onPage,
+    codeHits: code,
+    files,
   })
   const items = groups.flatMap((group) => group.items)
   const fresh = active.query === query && active.filter === filter
@@ -378,6 +407,16 @@ const Palette = ({
     command.run(returnTo.current)
   }
 
+  const openFile = (file: GraphFile, sidebar: boolean) => {
+    if (file.target._tag === "Page") {
+      const name = file.target.name
+      return sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+    }
+    onClose()
+    if (file.path.toLowerCase().endsWith(".pdf")) openPdf(registry, `../${file.path}`)
+    else window.open(file.target.url, "_blank", "noopener")
+  }
+
   const open = async (item: Item, sidebar: boolean) => {
     switch (item._tag) {
       case "Command":
@@ -397,6 +436,8 @@ const Palette = ({
         const name = created.value
         return sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
       }
+      case "File":
+        return openFile(item.file, sidebar)
       case "Page":
         return sidebar
           ? toSidebar({ _tag: "Page", name: item.page.name })

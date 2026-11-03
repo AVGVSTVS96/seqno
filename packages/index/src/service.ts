@@ -303,6 +303,7 @@ SELECT b.id, p.id, b.content FROM fts
 JOIN blocks b ON b.rid = fts.rowid
 JOIN pages p ON p.rid = b.page
 WHERE fts MATCH ?1 AND (?3 IS NULL OR p.id = ?3)
+  AND (?4 = 0 OR instr(b.content, '\`\`\`') > 0 OR instr(upper(b.content), '#+BEGIN_SRC') > 0)
 ORDER BY rank
 LIMIT ?2`
 
@@ -553,19 +554,30 @@ const make = Effect.gen(function* () {
 
     search: (
       text: string,
-      { limit = 20, page = null }: { readonly limit?: number; readonly page?: string | null } = {},
+      {
+        limit = 20,
+        page = null,
+        code = false,
+      }: {
+        readonly limit?: number
+        readonly page?: string | null
+        readonly code?: boolean
+      } = {},
     ): Effect.Effect<SearchResult, IndexError> =>
       sqlite.use((db) => {
         const name = normalizePageName(text)
         const match = ftsQuery(text)
         return {
           pages:
-            name === "" || page !== null
+            name === "" || page !== null || code
               ? []
               : db
                   .all(SEARCH_PAGES, [name, limit])
                   .map(([pageId, title]) => decodePageHit({ pageId, title })),
-          blocks: match === null ? [] : blockHits(db.all(SEARCH_BLOCKS, [match, limit, page])),
+          blocks:
+            match === null
+              ? []
+              : blockHits(db.all(SEARCH_BLOCKS, [match, limit, page, code ? 1 : 0])),
         }
       }),
   }

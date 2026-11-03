@@ -10,6 +10,8 @@ export const editorBindings = {
   indent: { label: "Indent block", key: "Tab" },
   outdent: { label: "Outdent block", key: "Shift-Tab" },
   exit: { label: "Stop editing and select the block", key: "Escape" },
+  selectBlockAbove: { label: "Select block above", key: "Alt-ArrowUp" },
+  selectBlockBelow: { label: "Select block below", key: "Alt-ArrowDown" },
   selectAbove: { label: "Select the block above", key: "Shift-ArrowUp" },
   selectBelow: { label: "Select the block below", key: "Shift-ArrowDown" },
   cycleTask: { label: "Cycle the task marker", key: "Mod-Enter" },

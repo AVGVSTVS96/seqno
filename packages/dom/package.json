@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@radix-ui/colors": "3.0.0",
     "@seqno/domain": "workspace:*",
     "@seqno/syntax": "workspace:*"
   },

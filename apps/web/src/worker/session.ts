@@ -16,10 +16,15 @@ import {
 import { BlockId, GraphEvent, PageId, type Block } from "@seqno/domain"
 import { Graph, inBackground, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index, PropertySettings, type IndexError } from "@seqno/index"
-import { defaultPropertyConfig, propertyConfigKey, readPropertyConfig } from "@seqno/syntax"
+import {
+  defaultPropertyConfig,
+  propertyConfigKey,
+  readPropertyConfig,
+  writeConfigFlag,
+} from "@seqno/syntax"
 import { ImportIssue, LogseqSyntaxLive, importGraph, parseConfig } from "@seqno/interop"
 import { SaveState, type SkippedFile } from "@seqno/rpc"
-import { Storage, Vault, layer as vaultLayer } from "@seqno/vault"
+import { Storage, type StorageFailed, Vault, layer as vaultLayer } from "@seqno/vault"
 import { makeAssetFiles, type AssetFiles } from "./assets.ts"
 import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
@@ -46,6 +51,8 @@ export interface Session {
     client?: number,
   ) => Effect.Effect<ReadonlyArray<GraphEvent>, E, R>
   readonly indexed: Effect.Effect<void>
+  readonly rebuildIndex: Effect.Effect<void>
+  readonly setConfigFlag: (key: string, value: boolean) => Effect.Effect<void, StorageFailed>
   readonly closing: Effect.Effect<void>
 }
 
@@ -398,34 +405,36 @@ export const openSession = (place: GraphPlace) =>
       }
     })
 
-    const openIndex = Effect.andThen(
+    const fillIndex = (fresh: boolean) =>
       Effect.andThen(
-        indexed.close,
-        Effect.sync(() => {
-          filling.running = true
-          filling.marked = false
-        }),
-      ),
-      Effect.forkIn(
         Effect.andThen(
-          Effect.flatMap(loaded, (caught) => (caught ? Effect.void : started)),
-          writeOwed,
-        ).pipe(
-          logged,
-          Effect.ensuring(
-            Effect.andThen(
-              Effect.sync(() => {
-                filling.running = false
-              }),
-              indexed.open,
-            ),
-          ),
-          Effect.andThen(saveIndexNow),
-          inBackground,
+          indexed.close,
+          Effect.sync(() => {
+            filling.running = true
+            filling.marked = false
+          }),
         ),
-        scope,
-      ),
-    )
+        Effect.forkIn(
+          Effect.andThen(
+            fresh ? started : Effect.flatMap(loaded, (caught) => (caught ? Effect.void : started)),
+            writeOwed,
+          ).pipe(
+            logged,
+            Effect.ensuring(
+              Effect.andThen(
+                Effect.sync(() => {
+                  filling.running = false
+                }),
+                indexed.open,
+              ),
+            ),
+            Effect.andThen(saveIndexNow),
+            inBackground,
+          ),
+          scope,
+        ),
+      )
+    const openIndex = fillIndex(false)
     const restore = (blobs: ReadonlyArray<Uint8Array>) =>
       graph
         .restore(blobs)
@@ -524,6 +533,18 @@ export const openSession = (place: GraphPlace) =>
       skipped,
       record,
       indexed: indexed.await,
+      rebuildIndex: Effect.andThen(fillIndex(true), indexed.await),
+      setConfigFlag: (key, value) =>
+        place.storage.read("logseq/config.edn").pipe(
+          Effect.map((bytes) => decoder.decode(bytes)),
+          Effect.orElseSucceed(() => ""),
+          Effect.flatMap((text) =>
+            place.storage.write(
+              "logseq/config.edn",
+              encoder.encode(writeConfigFlag(text, key, value)),
+            ),
+          ),
+        ),
       closing: saveIndexNow,
     }
     yield* opened.open

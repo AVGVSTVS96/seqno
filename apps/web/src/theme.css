@@ -163,8 +163,11 @@ body {
   --fg-text-selection: var(--ls-selection-text-color, light-dark(#433f38, #a4b5b6));
   --fg-mark: var(--ls-page-mark-color, #262626);
   --fg-kbd: light-dark(#171717, #ededed);
-  --fg-link: var(--ls-link-ref-text-color, light-dark(#1b6898, #9bd3d4));
-  --fg-link-hover: var(--ls-link-ref-text-hover-color, light-dark(#1a537c, #d0e8e8));
+  --fg-link: var(--lx-accent-11, var(--ls-link-ref-text-color, light-dark(#1b6898, #9bd3d4)));
+  --fg-link-hover: var(
+    --lx-accent-12,
+    var(--ls-link-ref-text-hover-color, light-dark(#1a537c, #d0e8e8))
+  );
   --fg-bracket: #6b7280;
   --fg-danger: var(--ls-error-text-color, #ef4444);
   --fg-code: light-dark(#657b83, #839496);

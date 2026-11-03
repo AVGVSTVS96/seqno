@@ -5,6 +5,7 @@ import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
 import { isWhiteboard, normalizePageName, type BlockId, type Page } from "@seqno/domain"
 import { Outliner } from "@seqno/outliner"
+import { journalDate, journalTitle } from "@seqno/editor"
 import { assetResolver, createPage, pages } from "../atoms.ts"
 import { EditorSlot } from "./EditorSlot.tsx"
 import { blockMenu } from "./shell/BlockMenu.tsx"
@@ -78,7 +79,10 @@ const named = (all: ReadonlyArray<Page>, name: string) =>
 const MissingPage = ({ name }: { readonly name: string }) => {
   const heading = useId()
   const create = useAtomSet(createPage)
-  const title = useAtomValue(referencedOnly).find((page) => page.name === name)?.title ?? name
+  const day = journalDate(name)
+  const title =
+    useAtomValue(referencedOnly).find((page) => page.name === name)?.title ??
+    (day === null ? name : journalTitle(day))
   return (
     <div {...logseq("seqno-page", false)}>
       <PagesStyle />

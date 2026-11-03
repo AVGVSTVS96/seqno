@@ -1,4 +1,11 @@
-import type { DragEvent, MouseEvent, PointerEvent, ReactNode, Ref } from "react"
+import {
+  useState,
+  type DragEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type Ref,
+} from "react"
 import { IconCaretRightFilled } from "@tabler/icons-react"
 import { logseq } from "@seqno/dom"
 import type { BlockId } from "@seqno/domain"
@@ -33,6 +40,7 @@ export interface RowProps {
   readonly highlight: Highlight | undefined
   readonly dropZone: DropZone | null
   readonly hoveredGuide: BlockId | null
+  readonly documentMode: boolean
   readonly canToggle: boolean
   readonly references: number
   readonly referencesOpen: boolean
@@ -67,6 +75,7 @@ export const RowView = ({
   highlight,
   dropZone,
   hoveredGuide,
+  documentMode,
   canToggle,
   references,
   referencesOpen,
@@ -80,6 +89,8 @@ export const RowView = ({
   const { block, depth } = row
   const folded = row.hasChildren && !row.expanded
   const numbered = ordinal !== null
+  const [hovered, setHovered] = useState(false)
+  const hidden = documentMode && !folded && !hovered
   const offset =
     content.title === null || content.heading === null
       ? undefined
@@ -102,7 +113,13 @@ export const RowView = ({
       aria-selected={selected}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
       style={{ paddingLeft: indent(depth) }}
-      onPointerEnter={actions.sweep}
+      onPointerEnter={(event) => {
+        if (documentMode) setHovered(true)
+        actions.sweep(event)
+      }}
+      onPointerLeave={() => {
+        if (documentMode) setHovered(false)
+      }}
       onDragOver={actions.dragOver}
       onDrop={actions.drop}
     >
@@ -167,10 +184,11 @@ export const RowView = ({
           <span {...logseq("seqno-bullet-wrap")}>
             <button
               type="button"
-              {...logseq("seqno-bullet", { blockId: block.id, folded, numbered })}
+              {...logseq("seqno-bullet", { blockId: block.id, folded, numbered, hidden })}
               aria-label="Zoom into block"
               data-numbered={numbered || undefined}
               data-folded={folded || undefined}
+              data-hidden={hidden || undefined}
               draggable
               onClick={actions.bullet}
               onContextMenu={actions.menu}
