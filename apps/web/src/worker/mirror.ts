@@ -66,6 +66,7 @@ export interface Mirror {
   readonly fileOf: (page: Page) => Effect.Effect<string>
   readonly restore: (path: string, text: string) => Effect.Effect<void, StorageFailed>
   readonly forget: Effect.Effect<void>
+  readonly idle: Effect.Effect<boolean>
 }
 
 type Done = "done" | "later"
@@ -826,6 +827,15 @@ export const makeMirror = (deps: MirrorDeps) =>
           dirtyPaths.add(path)
           yield* wake.open
         }),
+      idle: Effect.sync(
+        () =>
+          state.started &&
+          state.reconciled &&
+          state.paused === null &&
+          dirtyPages.size === 0 &&
+          dirtyPaths.size === 0 &&
+          failed.size === 0,
+      ),
       forget: Effect.suspend(() => {
         state.forgetting = true
         return wake.open

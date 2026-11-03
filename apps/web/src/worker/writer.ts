@@ -120,3 +120,31 @@ export const makeWriters = (options: {
 
 export const staleSince = (own: Option.Option<Version>, previous: Option.Option<Version>) =>
   Option.isSome(previous) && (Option.isNone(own) || !covers(own.value, previous.value))
+
+const opsOf = (vv: Readonly<Record<string, number>>) =>
+  Object.values(vv).reduce((sum, ops) => sum + ops, 0)
+
+export const outweighed = (
+  me: DeviceId,
+  root: string,
+  report: SyncReport,
+  own: ReadonlyMap<string, number>,
+) => {
+  const others = report.devices.filter((one) => one.device !== me)
+  const weight = (lineage: string) => {
+    const members = others.filter((one) => (one.vv[lineage] ?? 0) > 0)
+    return [members.length, Math.max(0, ...members.map((one) => opsOf(one.vv)))] as const
+  }
+  const [alongside] = weight(root)
+  const mine = [1, opsOf(Object.fromEntries(own))] as const
+  return (
+    alongside === 0 &&
+    report.foreignRoots.some((other) => {
+      const [count, ops] = weight(other)
+      return (
+        count > mine[0] ||
+        (count === mine[0] && (ops > mine[1] || (ops === mine[1] && other < root)))
+      )
+    })
+  )
+}

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, describe, it } from "@effect/vitest"
-import { Clock, Context, Crypto, Effect, Layer, Option, Stream } from "effect"
+import { Clock, Context, Crypto, Effect, Exit, Layer, Option, Stream } from "effect"
 import { RpcTest } from "effect/rpc"
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
@@ -742,6 +742,89 @@ describe("the markdown mirror", () => {
         }),
       ),
     60_000,
+  )
+
+  it.live(
+    "a copy that imported on its own gives way to the folder's, keeping every edit once",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const root = yield* folderWith({ "pages/plans.md": "- a\n- b" })
+          const laptop = yield* coreOn(root, "laptop")
+          yield* laptop.OpenGraph({ graph: "plans" })
+          yield* settled(root, "laptop")
+          const blockOf = (core: typeof laptop, index: number) =>
+            Effect.gen(function* () {
+              const plans = named(yield* core.GetPages(), "plans")
+              const block = (yield* core.GetPage({ pageId: plans.id })).blocks[index]
+              return block ?? (yield* Effect.die(`plans has no block ${index}`))
+            })
+          const a = yield* blockOf(laptop, 0)
+          const draft = " a long draft the laptop typed and took back"
+          yield* laptop.Dispatch({
+            command: { _tag: "EditText", blockId: a.id, from: 1, to: 1, insert: draft },
+          })
+          yield* laptop.Dispatch({
+            command: { _tag: "EditText", blockId: a.id, from: 1, to: 1 + draft.length, insert: "" },
+          })
+          yield* laptop.Dispatch({
+            command: { _tag: "EditText", blockId: a.id, from: 1, to: 1, insert: " edited" },
+          })
+          yield* until(read(root, "pages/plans.md"), (text) => text === "- a edited\n- b")
+          yield* Effect.scoped(
+            Effect.gen(function* () {
+              const alone = yield* tempFolder
+              yield* Effect.promise(() =>
+                cp(join(root, "pages"), join(alone, "pages"), { recursive: true }),
+              )
+              const early = yield* coreOn(alone, "phone")
+              yield* early.OpenGraph({ graph: "plans alone" })
+              yield* settled(alone, "phone")
+              yield* share(alone, root)
+            }),
+          )
+          const phone = yield* coreOn(root, "phone")
+          yield* phone.OpenGraph({ graph: "plans on the phone" })
+          const b = yield* blockOf(phone, 1)
+          yield* phone.Dispatch({
+            command: { _tag: "EditText", blockId: b.id, from: 1, to: 1, insert: " phone" },
+          })
+          const gone = yield* until(
+            Effect.map(Effect.exit(phone.GetPages()), Exit.isFailure),
+            (failed) => failed,
+            30,
+          )
+          yield* phone.OpenGraph({ graph: "plans on the phone" })
+          const outline = (core: typeof laptop) =>
+            Effect.gen(function* () {
+              const pages = (yield* core.GetPages()).filter((page) => page.title === "plans")
+              const trees = yield* Effect.forEach(pages, (page) =>
+                core.GetPage({ pageId: page.id }),
+              )
+              return trees.map((tree) => tree.blocks.map((block) => block.text))
+            })
+          const both = Effect.orDie(Effect.all({ laptop: outline(laptop), phone: outline(phone) }))
+          const joined = yield* until(
+            Effect.andThen(Effect.orDie(laptop.CheckFiles()), both),
+            (found) =>
+              JSON.stringify(found) ===
+              JSON.stringify({
+                laptop: [["a edited", "b phone"]],
+                phone: [["a edited", "b phone"]],
+              }),
+            20,
+          )
+          assert.deepStrictEqual(
+            { gone, joined, file: yield* read(root, "pages/plans.md") },
+            {
+              gone: true,
+              joined: { laptop: [["a edited", "b phone"]], phone: [["a edited", "b phone"]] },
+              file: "- a edited\n- b phone",
+            },
+          )
+        }),
+      ),
+    90_000,
   )
 
   it.live(

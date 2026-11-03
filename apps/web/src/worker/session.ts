@@ -3,6 +3,8 @@ import {
   Clock,
   Context,
   Crypto,
+  Deferred,
+  Schedule,
   Effect,
   Exit,
   Latch,
@@ -42,7 +44,7 @@ import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { makeMergeBack } from "./merge-back.ts"
 import { makeMirror, type Mirror } from "./mirror.ts"
-import { makeWriters, staleSince } from "./writer.ts"
+import { makeWriters, outweighed, staleSince } from "./writer.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 
 export interface Committed {
@@ -72,6 +74,7 @@ export interface Session {
   readonly setConfigFlag: (key: string, value: boolean) => Effect.Effect<void, StorageFailed>
   readonly mirror: Mirror
   readonly writeFilesHere: Effect.Effect<void>
+  readonly gaveWay: Effect.Effect<void>
   readonly closing: Effect.Effect<void>
   readonly git: GraphGit | null
 }
@@ -500,9 +503,11 @@ export const openSession = (place: GraphPlace) =>
       setMirror: vault.setMirror,
     })
     const lineage = Effect.map(graph.roots, (roots) => {
-      const [only, ...rest] = roots.filter((root) => root.imported)
+      const imported = roots.filter((root) => root.imported)
+      const [only, ...rest] = imported.length > 0 ? imported : roots
       return only !== undefined && rest.length === 0 ? only.peer : null
     })
+    const gaveWay = yield* Deferred.make<void>()
     const synced = yield* vault.sync(replica)
     yield* writers.heard(synced, yield* lineage)
     const skipped: Array<SkippedFile> = []
@@ -610,9 +615,25 @@ export const openSession = (place: GraphPlace) =>
       yield* writers.mirrorVersion(yield* place.mirrorStore.version)
       const report = yield* vault.sync(replica)
       const became = yield* writers.heard(report, yield* lineage)
-      const { previous } = yield* SubscriptionRef.get(writers.state)
-      if (became && staleSince(yield* place.mirrorStore.version, previous)) {
+      const now = yield* SubscriptionRef.get(writers.state)
+      if (became && staleSince(yield* place.mirrorStore.version, now.previous)) {
         yield* mirrored.mirror.forget
+      }
+      const root = yield* lineage
+      if (
+        root !== null &&
+        now.mayWrite &&
+        outweighed(device, root, report, yield* graph.version) &&
+        (yield* mirrored.mirror.idle)
+      ) {
+        yield* vault.abandon
+        yield* Effect.repeat(mirrored.mirror.idle, {
+          until: (idle) => idle,
+          schedule: Schedule.spaced("200 millis"),
+        })
+        yield* place.mirrorStore.clear
+        yield* Deferred.succeed(gaveWay, undefined)
+        return
       }
       yield* mirrored.mirror.check([])
     })
@@ -646,6 +667,7 @@ export const openSession = (place: GraphPlace) =>
         ),
       mirror: mirrored.mirror,
       writeFilesHere: Effect.andThen(writers.takeOver, syncPass),
+      gaveWay: Deferred.await(gaveWay),
       closing: saveIndexNow,
       git,
     }

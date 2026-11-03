@@ -61,6 +61,7 @@ export interface SyncReport {
   readonly merged: ReadonlyArray<string>
   readonly waiting: ReadonlyArray<string>
   readonly foreign: ReadonlyArray<string>
+  readonly foreignRoots: ReadonlyArray<string>
   readonly devices: ReadonlyArray<SeenDevice>
   readonly unread: number
   readonly behind: boolean
@@ -77,6 +78,7 @@ export class Vault extends Context.Service<
     ) => Effect.Effect<string, UpdateRejected | StorageFailed>
     readonly sync: (replica: Replica) => Effect.Effect<SyncReport, StorageFailed>
     readonly setMirror: (claim: MirrorClaim) => Effect.Effect<void>
+    readonly abandon: Effect.Effect<void, StorageFailed>
   }
 >()("@seqno/vault/Vault") {}
 
@@ -107,6 +109,18 @@ const lineageOf = (replica: Replica) =>
     return only !== undefined && rest.length === 0 ? only.peer : null
   })
 
+const given: SyncReport = {
+  merged: [],
+  waiting: [],
+  foreign: [],
+  foreignRoots: [],
+  devices: [],
+  unread: 0,
+  behind: false,
+  written: [],
+  deleted: [],
+}
+
 const make = (config: VaultConfig) =>
   Effect.gen(function* () {
     const storage = yield* Storage
@@ -125,6 +139,7 @@ const make = (config: VaultConfig) =>
       lastSnapshotAt: Option.none<number>(),
       merged: false,
       mirror: Option.none<MirrorClaim>(),
+      abandoned: false,
     }
     const blobRoots = new Map<string, ReadonlyArray<Root>>()
     const rootsOf = (replica: Replica, key: string, bytes: Uint8Array) => {
@@ -205,6 +220,9 @@ const make = (config: VaultConfig) =>
     const writeUpdate = (bytes: Uint8Array) =>
       lock.withPermits(1)(
         Effect.gen(function* () {
+          if (state.abandoned) {
+            return yield* new UpdateRejected({ reason: "this device gave the folder up" })
+          }
           const meta = Option.filter(inspectBlob(bytes), (blob) => blob.kind === "update")
           if (Option.isNone(meta)) {
             return yield* new UpdateRejected({ reason: "bytes are not a Loro update" })
@@ -229,9 +247,10 @@ const make = (config: VaultConfig) =>
         }),
       )
 
-    const sync = (replica: Replica) =>
+    const sync = (replica: Replica): Effect.Effect<SyncReport, StorageFailed> =>
       lock.withPermits(1)(
         Effect.gen(function* () {
+          if (state.abandoned) return given
           const snapshots = yield* listSnapshots
           const updates = yield* listUpdates
           const seenFiles = yield* filesIn(seenDir, seenDir)
@@ -340,25 +359,31 @@ const make = (config: VaultConfig) =>
           }
 
           const foreign: Array<string> = []
+          const foreignRoots = new Set<string>()
           const mergeAll = (offered: ReadonlyArray<readonly [Listed, Uint8Array]>) =>
             Effect.gen(function* () {
               const have = yield* replica.version
               const rooted = offered.flatMap(([file, bytes]) =>
                 Option.isSome(Option.filter(inspectBlob(bytes), (meta) => meta.rooted))
-                  ? [[file.key, rootsOf(replica, file.key, bytes), bytes.length] as const]
+                  ? [
+                      {
+                        key: file.key,
+                        roots: rootsOf(replica, file.key, bytes),
+                        own:
+                          file.key.startsWith(`${myUpdates}/`) || mine.has(originalName(file.name)),
+                        size: bytes.length,
+                      },
+                    ]
                   : [],
               )
-              const roots = new Map(rooted.map(([key, found]) => [key, found]))
+              const roots = new Map(rooted.map((blob) => [blob.key, blob.roots]))
               const lineage =
                 (yield* lineageOf(replica)) ??
                 (isEmpty(have)
                   ? (rooted
-                      .flatMap(([, found, size]) =>
-                        found
-                          .filter((root) => root.imported)
-                          .map((root) => [root.peer, size] as const),
-                      )
-                      .toSorted((a, b) => b[1] - a[1])[0]?.[0] ?? null)
+                      .toSorted((a, b) => Number(b.own) - Number(a.own) || b.size - a.size)
+                      .flatMap((blob) => blob.roots.filter((root) => root.imported))[0]?.peer ??
+                    null)
                   : null)
               const hasPages = yield* replica.hasPages
               const batch = offered.filter(([file]) => {
@@ -371,7 +396,12 @@ const make = (config: VaultConfig) =>
                     (have[root.peer] ?? 0) === 0 &&
                     (lineage !== null || hasPages),
                 )
-                if (!allowed) foreign.push(file.key)
+                if (!allowed) {
+                  foreign.push(file.key)
+                  found
+                    .filter((root) => root.imported && root.peer !== lineage)
+                    .forEach((root) => foreignRoots.add(root.peer))
+                }
                 return allowed
               })
               if (batch.length === 0) return 0
@@ -522,7 +552,17 @@ const make = (config: VaultConfig) =>
             if (isSeenConflictOf(me, file.name)) yield* remove(file)
           }
 
-          return { merged, waiting, foreign, devices, unread, behind, written, deleted }
+          return {
+            merged,
+            waiting,
+            foreign,
+            foreignRoots: [...foreignRoots],
+            devices,
+            unread,
+            behind,
+            written,
+            deleted,
+          }
         }),
       )
 
@@ -531,7 +571,25 @@ const make = (config: VaultConfig) =>
         state.mirror = Option.some(claim)
       })
 
-    return Vault.of({ device: me, writeUpdate, sync, setMirror })
+    const abandon = lock.withPermits(1)(
+      Effect.gen(function* () {
+        const own = (yield* listUpdates).filter((file) => file.key.startsWith(`${myUpdates}/`))
+        const snapshots = (yield* listSnapshots).filter((file) => mine.has(originalName(file.name)))
+        const seen = (yield* filesIn(seenDir, seenDir)).filter(
+          (file) => originalName(file.name) === `${me}.json`,
+        )
+        yield* Effect.forEach(
+          [...own, ...snapshots, ...seen],
+          (file) => storage.remove(file.path),
+          {
+            discard: true,
+          },
+        )
+        state.abandoned = true
+      }),
+    )
+
+    return Vault.of({ device: me, writeUpdate, sync, setMirror, abandon })
   })
 
 export const layer = (config: VaultConfig): Layer.Layer<Vault, never, Storage> =>

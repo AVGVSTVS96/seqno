@@ -285,7 +285,10 @@ const SessionsLive = Layer.effect(
           Effect.mapError((error) => new GraphUnavailable({ graph, reason: reasonOf(error) })),
         )
         yield* Effect.forkIn(
-          Effect.andThen(held.value, Effect.forkIn(moveOut(shared), scope)),
+          Effect.andThen(
+            Effect.raceFirst(held.value, session.gaveWay),
+            Effect.forkIn(moveOut(shared), scope),
+          ),
           shared.scope,
         )
         return session
