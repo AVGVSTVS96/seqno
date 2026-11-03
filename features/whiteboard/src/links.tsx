@@ -243,7 +243,7 @@ const LinkRow = ({
         type="button"
         className="wb-button"
         aria-label="Open page"
-        title="Open page"
+        data-tooltip="Open page"
         onClick={() => open(false)}
       >
         <IconOpenAsPage size={16} />
@@ -253,7 +253,7 @@ const LinkRow = ({
       type="button"
       className="wb-button"
       aria-label="Open page in sidebar"
-      title="Open page in sidebar"
+      data-tooltip="Open page in sidebar"
       onClick={() => open(true)}
     >
       <IconMoveToSidebarRight size={16} />
@@ -263,7 +263,7 @@ const LinkRow = ({
         type="button"
         className="wb-button wb-link-remove"
         aria-label="Remove link"
-        title="Remove link"
+        data-tooltip="Remove link"
         onClick={onRemove}
       >
         <IconX size={14} />
@@ -342,7 +342,7 @@ export const LinksAction = ({
         type="button"
         className="wb-button wb-links-button"
         aria-label="Link"
-        title="Link"
+        data-tooltip="Link"
         popoverTarget={ids.id}
         style={ids.trigger}
       >

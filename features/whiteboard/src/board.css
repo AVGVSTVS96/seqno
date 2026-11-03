@@ -1599,3 +1599,81 @@
   color: inherit;
   outline: none;
 }
+
+.wb-tooltip {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 4px;
+  padding: 10px 15px;
+  font-size: 15px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(
+    --ls-whiteboard-tooltip-text,
+    var(--lx-gray-12, var(--ls-secondary-text-color, light-dark(#161e2e, #dfdfdf)))
+  );
+  background-color: var(
+    --ls-whiteboard-tooltip-background,
+    var(--lx-gray-05, var(--ls-secondary-background-color))
+  );
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+  pointer-events: none;
+  user-select: none;
+}
+
+.wb-tooltip:popover-open {
+  display: flex;
+  align-items: center;
+}
+
+.wb-tooltip[data-state="delayed-open"] {
+  animation: wb-tooltip-in 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes wb-tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.wb-tooltip-keys {
+  padding-left: 20px;
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.wb-tooltip-arrow {
+  position: absolute;
+  fill: var(--ls-secondary-background-color);
+}
+
+.wb-tooltip[data-side="top"] .wb-tooltip-arrow {
+  top: 100%;
+  left: var(--wb-tooltip-arrow);
+}
+
+.wb-tooltip[data-side="bottom"] .wb-tooltip-arrow {
+  bottom: 100%;
+  left: var(--wb-tooltip-arrow);
+  rotate: 180deg;
+}
+
+.wb-tooltip[data-side="left"] .wb-tooltip-arrow,
+.wb-tooltip[data-side="right"] .wb-tooltip-arrow {
+  top: calc(var(--wb-tooltip-arrow) + 2.5px);
+}
+
+.wb-tooltip[data-side="left"] .wb-tooltip-arrow {
+  left: calc(100% - 2.5px);
+  rotate: -90deg;
+}
+
+.wb-tooltip[data-side="right"] .wb-tooltip-arrow {
+  right: calc(100% - 2.5px);
+  rotate: 90deg;
+}

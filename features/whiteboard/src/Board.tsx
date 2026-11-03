@@ -123,6 +123,7 @@ import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
 import { applyLocally, isGhost } from "./preview.ts"
 import { QuickSearch, type Pick } from "./QuickSearch.tsx"
 import { ShapeView, type ShapeSlots } from "./ShapeView.tsx"
+import { Tooltip } from "./Tooltip.tsx"
 import { ActionBar, PrimaryTools, usePopoverIds, type ZoomAction } from "./Toolbar.tsx"
 import {
   DEFAULT_SIZE,
@@ -2048,6 +2049,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         pen={penMode}
         onPen={() => setPenMode(!penMode)}
       />
+      <Tooltip />
     </div>
   )
 }

@@ -178,7 +178,7 @@ const Popover = ({
         type="button"
         className="wb-button"
         aria-label={label}
-        title={label}
+        data-tooltip={label}
         popoverTarget={ids.id}
         style={ids.trigger}
       >
@@ -273,7 +273,7 @@ export const ContextBar = ({
                   type="button"
                   className="wb-button"
                   aria-label={label}
-                  title={label}
+                  data-tooltip={label}
                   aria-pressed={all(items, (item) => item.shape.type === type)}
                   onClick={(event) => {
                     onPatch(() => (type === "polygon" ? { type, sides: 3 } : { type }))

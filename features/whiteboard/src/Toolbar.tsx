@@ -62,7 +62,8 @@ export const ToolButton = ({
     type="button"
     className="wb-button"
     aria-label={label}
-    title={keys === undefined ? label : `${label} (${keys})`}
+    data-tooltip={label}
+    data-tooltip-keys={keys}
     {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
     disabled={disabled}
     onClick={onClick}
@@ -156,7 +157,7 @@ export const PrimaryTools = ({
   )
   const shapePressed = tool === "box" || tool === "ellipse" || tool === "polygon"
   return (
-    <div className="wb-primary">
+    <div className="wb-primary" data-tooltip-side="left">
       <div
         className="wb-panel"
         role="toolbar"
@@ -202,7 +203,7 @@ export const PrimaryTools = ({
           type="button"
           className="wb-button"
           aria-label="Color"
-          title="Color"
+          data-tooltip="Color"
           popoverTarget={colors.id}
           style={colors.trigger}
         >

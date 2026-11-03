@@ -31,7 +31,8 @@ const MenuRows = ({
               role="menuitem"
               className="wb-button"
               aria-label={entry.label}
-              title={entry.label}
+              data-tooltip={entry.label}
+              data-tooltip-keys={entry.keys}
               onClick={() => {
                 onClose()
                 entry.run()
