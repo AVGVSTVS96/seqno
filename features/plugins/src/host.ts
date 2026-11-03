@@ -11,6 +11,7 @@ import {
   request,
   snakeCase,
 } from "./protocol.ts"
+import { entryOf, local } from "./files.ts"
 import { record, settingItems, strings, text, themesOf } from "./package.ts"
 import {
   pluginCommands,
@@ -303,7 +304,7 @@ export const createHost = (
     title: info.title,
     version: info.version,
     settings: settingsOf(info.id),
-    lsr: info.root,
+    lsr: local(info.root),
     webMode: "github",
     iir: false,
     usf: null,
@@ -332,8 +333,9 @@ export const createHost = (
   const load = (info: PluginInfo, restarted = false) => {
     if (plugins.has(info.id)) return
     addThemes(info.themes)
-    if (info.main === null || settingsOf(info.id)["disabled"] === true) return
-    const entry = new URL(info.main, info.root)
+    const main = entryOf(info)
+    if (main === null || settingsOf(info.id)["disabled"] === true) return
+    const entry = new URL(main)
     entry.searchParams.set("__v__", info.version)
     const container = document.createElement("div")
     container.id = `${info.id}_lsp_main`

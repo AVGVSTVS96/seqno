@@ -19,5 +19,11 @@
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     }
   ],
-  "rewrites": [{ "source": "/app/(.*)", "destination": "/app/index.html" }]
+  "rewrites": [
+    {
+      "source": "/app/lsp/(.*)",
+      "destination": "https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/$1"
+    },
+    { "source": "/app/(.*)", "destination": "/app/index.html" }
+  ]
 }

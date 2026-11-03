@@ -6,6 +6,7 @@ import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { coreLayer, rejectionAtom } from "@seqno/outliner"
+import { pluginFiles } from "@seqno/plugins"
 import {
   graphMoves,
   lastGraph,
@@ -74,6 +75,13 @@ if (embedded) {
   registry.subscribe(openGraph, (result) => {
     if (AsyncResult.isSuccess(result)) toParent("ready")
   })
+}
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  const files = new URLSearchParams({ plugins: pluginFiles.path, cache: pluginFiles.cache })
+  void navigator.serviceWorker
+    .register(`${import.meta.env.BASE_URL}sw.js?${files}`, { scope: import.meta.env.BASE_URL })
+    .catch(() => undefined)
 }
 
 await Promise.allSettled([

@@ -18,6 +18,7 @@ import {
   install,
   installedPlugins,
   loadMarket,
+  local,
   pluginSettings,
   running,
   runtimeThemes,
@@ -152,6 +153,7 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
   return (
     <Card
       {...plugin}
+      icon={plugin.icon === null ? null : local(plugin.icon)}
       theme={isTheme}
       footer={
         <>

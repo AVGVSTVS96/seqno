@@ -26,6 +26,14 @@ const install = async (page: Page, name: string, kind: "Plugins" | "Themes" = "P
   await page.keyboard.press("Escape")
 }
 
+const keptCalendarFiles = (page: Page) => () =>
+  page.evaluate(
+    async () =>
+      (await (await caches.open("seqno-plugins")).keys()).filter((request) =>
+        request.url.includes("/logseq-journals-calendar/"),
+      ).length,
+  )
+
 const iso = (day: Date) =>
   `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`
 
@@ -193,8 +201,54 @@ test("installed plugins load again after a reload, and turning one off or uninst
   await expect(button).toHaveCount(0)
   await enabled.click()
   await expect(button).toBeVisible()
+  await expect.poll(keptCalendarFiles(page)).toBeGreaterThan(0)
   await dialog.getByRole("button", { name: "Uninstall Journals calendar" }).click()
   await expect(dialog.getByRole("listitem")).toHaveCount(0)
   await expect(button).toHaveCount(0)
   await expect(page.locator("#logseq-journals-calendar_lsp_main")).toHaveCount(0)
+  await expect.poll(keptCalendarFiles(page)).toBe(0)
+})
+
+test("installed plugins and themes keep working offline, after a reload", async ({
+  page,
+  context,
+  seqno,
+}) => {
+  await seqno.openDemoGraph()
+  await install(page, "Journals calendar")
+  await install(page, "logseq-wordcount-plugin")
+  await install(page, "Dev theme", "Themes")
+  const dialog = await openPlugins(page)
+  await dialog.getByRole("radio", { name: /^Themes/ }).click()
+  await dialog.getByRole("radio", { name: "Dev theme", exact: true }).click()
+  await page.keyboard.press("Escape")
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await context.unrouteAll()
+  await context.route("**", (route) => route.abort("internetdisconnected"))
+  await context.setOffline(true)
+  await page.reload()
+  const font = () => page.evaluate(() => getComputedStyle(document.body).fontFamily)
+  await expect.poll(font).toMatch(/^"Only Emoji", "Source Sans 3 VF"/)
+  await page.locator("#open-calendar-button").click()
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  await page
+    .frameLocator("#logseq-journals-calendar_iframe")
+    .locator(`.id-${iso(yesterday)} .vc-day-content`)
+    .click()
+  await expect(page.getByRole("heading", { name: journalTitle(yesterday), level: 1 })).toBeVisible()
+  await page.goBack()
+  await seqno.today.getByRole("treeitem").filter({ hasText: "Rain all morning" }).click()
+  await page.keyboard.press("End")
+  await page.keyboard.press("Enter")
+  await page.keyboard.type("Beds /word")
+  await page.getByRole("option", { name: "Word count" }).click()
+  await expect(seqno.editor).toHaveText(/^Beds \{\{renderer :wordcount_[0-9a-f-]+\}\}$/)
+  await page.keyboard.press("Enter")
+  await page.keyboard.press("Tab")
+  await page.keyboard.type("one two three")
+  await page.keyboard.press("Escape")
+  await expect(
+    seqno.today.getByRole("treeitem").filter({ hasText: "Beds" }).locator(".wordcount-btn"),
+  ).toHaveText("Words: 3")
 })

@@ -36,12 +36,12 @@ export const serveMarketplace = async (context: BrowserContext) => {
   await context.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) =>
     route.fulfill({ status: 404, headers: cors }),
   )
-  await context.route(
-    /^https:\/\/pub-80f42b85b62c40219354a834fcf2bbfa\.r2\.dev\//,
-    (route, request) =>
-      route.fulfill(
-        fulfill(`${fixtures}files${decodeURIComponent(new URL(request.url()).pathname)}`),
+  await context.route(/\/lsp\//, (route, request) =>
+    route.fulfill(
+      fulfill(
+        `${fixtures}files${decodeURIComponent(new URL(request.url()).pathname).replace(/^.*?\/lsp/, "")}`,
       ),
+    ),
   )
 }
 

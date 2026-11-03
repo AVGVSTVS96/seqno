@@ -1,6 +1,7 @@
 import { useAtomValue } from "@effect/atom-react"
 import { useId } from "react"
 import type { MacroSlotProps } from "@seqno/outliner"
+import { local } from "./files.ts"
 import type { Host } from "./host.ts"
 import { injectUI } from "./inject.ts"
 import { hostAtom, macroArguments } from "./runtime.ts"
@@ -80,6 +81,6 @@ export const PluginMacroSlot = ({ args, blockId }: MacroSlotProps) => {
 export const PluginThemeLink = ({ mode }: { readonly mode: ThemeMode }) => {
   const chosen = useAtomValue(chosenThemes)[mode]
   return chosen === null ? null : (
-    <link rel="stylesheet" href={chosen.url} data-theme-pid={chosen.pid} />
+    <link rel="stylesheet" href={local(chosen.url)} data-theme-pid={chosen.pid} />
   )
 }

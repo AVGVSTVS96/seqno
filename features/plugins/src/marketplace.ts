@@ -3,13 +3,14 @@ import type { PluginInfo } from "./state.ts"
 
 const central = "https://raw.githubusercontent.com/logseq/marketplace/master/"
 
+export const mirror = "https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/"
+
 export const urls = {
   index: `${central}plugins.json`,
   stats: `${central}stats.json`,
   icon: (id: string, icon: string) => `${central}packages/${id}/${icon.replace(/^\.\//, "")}`,
   package: (repo: string) => `https://plugins.logseq.io/r2/${repo}`,
-  files: (repo: string, version: string) =>
-    `https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/${repo}/${version}/`,
+  files: (repo: string, version: string) => `${mirror}${repo}/${version}/`,
 }
 
 export interface MarketItem extends Listing {

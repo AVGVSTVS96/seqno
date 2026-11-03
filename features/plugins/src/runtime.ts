@@ -3,6 +3,7 @@ import { Atom, type AtomRegistry } from "effect/reactivity"
 import type { BlockId, GraphEvent } from "@seqno/domain"
 import { editingBlock, type SlashCommand } from "@seqno/editor"
 import { createApi, lastCursor, type Bridge } from "./api.ts"
+import { dropCopy, ensureCopy, keepCopy } from "./files.ts"
 import { createHost, type Host } from "./host.ts"
 import { fetchPlugin, type MarketItem } from "./marketplace.ts"
 import { watchSelection } from "./selection.ts"
@@ -109,7 +110,10 @@ export const editorCommands = (
 export const startPlugins = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) => {
   const host = createHost(registry, createApi(registry, bridge))
   registry.set(hostAtom, host)
-  for (const info of registry.get(installedPlugins)) host.load(info)
+  for (const info of registry.get(installedPlugins)) {
+    host.load(info)
+    void ensureCopy(info).catch(() => undefined)
+  }
   watchSelection(host)
 
   window.addEventListener(
@@ -150,6 +154,9 @@ export const changedPayload = (events: ReadonlyArray<GraphEvent>) => {
 
 export const install = async (registry: AtomRegistry.AtomRegistry, item: MarketItem) => {
   const info = await fetchPlugin(item)
+  await keepCopy(info)
+  const before = registry.get(installedPlugins).find((other) => other.id === info.id)
+  if (before !== undefined && before.root !== info.root) void dropCopy(before)
   registry.set(installedPlugins, [
     ...registry.get(installedPlugins).filter((other) => other.id !== info.id),
     info,
@@ -160,6 +167,8 @@ export const install = async (registry: AtomRegistry.AtomRegistry, item: MarketI
 
 export const uninstall = async (registry: AtomRegistry.AtomRegistry, pid: string) => {
   await registry.get(hostAtom)?.unload(pid)
+  const info = registry.get(installedPlugins).find((other) => other.id === pid)
+  if (info !== undefined) await dropCopy(info)
   registry.set(
     installedPlugins,
     registry.get(installedPlugins).filter((other) => other.id !== pid),

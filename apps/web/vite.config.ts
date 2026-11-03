@@ -2,6 +2,7 @@ import babel from "@rolldown/plugin-babel"
 import react, { reactCompilerPreset } from "@vitejs/plugin-react"
 import { execFileSync } from "node:child_process"
 import { defineConfig } from "vite"
+import { offline } from "./offline.ts"
 import { viewer } from "./viewer.ts"
 
 const revision =
@@ -9,7 +10,7 @@ const revision =
   execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim()
 
 export default defineConfig({
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), viewer()],
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), viewer(), offline()],
   resolve: { alias: [{ find: /^loro-crdt$/, replacement: "loro-crdt/web" }] },
   optimizeDeps: { exclude: ["@sqlite.org/sqlite-wasm", "loro-crdt"] },
   worker: { format: "es" },

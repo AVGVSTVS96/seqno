@@ -20,4 +20,4 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 - `files/<owner>/<repo>/<version>/`: what `https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/<owner>/<repo>/<version>/` serves.
 - `jsdelivr/npm/@logseq/libs`: what `https://cdn.jsdelivr.net/npm/@logseq/libs` serves (0.0.17), for packages like Catppuccin whose `index.html` loads the SDK from there.
 
-`tools/e2e/src/plugins.ts` routes those URLs to these files.
+`tools/e2e/src/plugins.ts` routes those URLs, and seqno's own `lsp/<owner>/<repo>/<version>/` copy of the mirror, to these files.
