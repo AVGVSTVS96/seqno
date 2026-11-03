@@ -1,5 +1,5 @@
 import { Option, Schema } from "effect"
-import { shapeRaw, wordsField, wordsFields, wordsIn, type Vec } from "@seqno/domain"
+import { assetTypeOf, shapeRaw, wordsField, wordsFields, wordsIn, type Vec } from "@seqno/domain"
 import { round, sub } from "./geometry.ts"
 import type { Item, Scene } from "./model.ts"
 
@@ -100,7 +100,7 @@ export const clipboardHtml = (copied: ReadonlyArray<Copied>): string => {
       ? [
           {
             id: typeof raw["assetId"] === "string" ? raw["assetId"] : `${id}-asset`,
-            type: raw["type"] === "video" ? "video" : "image",
+            type: assetTypeOf(raw["type"]),
             src: raw["src"],
             size: raw["size"] ?? [0, 0],
           },

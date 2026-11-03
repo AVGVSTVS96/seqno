@@ -16,10 +16,20 @@ import {
   type Vec,
 } from "@seqno/domain"
 import { dispatchAllAtom, editRequest, historyAtom, pageTreeAtom } from "@seqno/outliner"
-import type { PageTree } from "@seqno/rpc"
+import type { Asset, PageTree } from "@seqno/rpc"
 import boardCss from "./board.css?inline"
 import { clipboardHtml, copiedOf, readClipboard } from "./clipboard.ts"
-import { clones, copiesAt, create, editText, patch, remove, reorder, type Raw } from "./commands.ts"
+import {
+  clones,
+  copiesAt,
+  create,
+  editText,
+  patch,
+  remove,
+  reorder,
+  type Draft,
+  type Raw,
+} from "./commands.ts"
 import { ContextBar } from "./ContextBar.tsx"
 import { ContextMenu, type MenuGroup } from "./ContextMenu.tsx"
 import {
@@ -55,8 +65,10 @@ import {
   type ResizeHandle,
 } from "./gestures.ts"
 import {
+  isInteractive,
   isLocked,
   itemsOf,
+  ratioLocked,
   sceneOf,
   topHit,
   type Item,
@@ -65,6 +77,7 @@ import {
 } from "./model.ts"
 import type { OutlinerEnv } from "./Portal.tsx"
 import { freshId } from "./ids.ts"
+import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
 import { applyLocally, isGhost } from "./preview.ts"
 import { QuickSearch, type Pick } from "./QuickSearch.tsx"
 import { ShapeView, type ShapeSlots } from "./ShapeView.tsx"
@@ -90,6 +103,7 @@ export interface BoardProps {
   readonly focus: BlockId | null
   readonly outliner: OutlinerEnv
   readonly resolveAsset: (path: string) => string | undefined
+  readonly saveFiles: (files: ReadonlyArray<File>) => Promise<ReadonlyArray<Asset>>
   readonly openPage: (name: string, sidebar: boolean) => void
   readonly onRenamed: (name: string) => void
   readonly references: number
@@ -153,7 +167,8 @@ const isEditableTarget = (target: EventTarget | null) =>
     target.closest("input, textarea, select, [contenteditable]") !== null)
 
 const insideLivePortal = (target: EventTarget | null) =>
-  target instanceof Element && target.closest('[data-live="true"] .wb-portal-body') !== null
+  target instanceof Element &&
+  target.closest('[data-live="true"] .wb-portal-body, [data-active="true"]') !== null
 
 const handleOf = (target: EventTarget | null) => {
   const element = target instanceof Element ? target.closest<HTMLElement>("[data-handle]") : null
@@ -303,6 +318,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const [hover, setHover] = useState<BlockId | null>(null)
   const [menuAt, setMenuAt] = useState<Vec | null>(null)
   const [penMode, setPenMode] = useState(false)
+  const [active, setActive] = useState<BlockId | null>(null)
 
   const blocks =
     pending !== null && pending.base === tree
@@ -545,6 +561,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     if (event.button === 2 || insideLivePortal(event.target)) return
     if (searchAt !== null) setSearchAt(null)
     if (menuAt !== null) setMenuAt(null)
+    if (active !== null) setActive(null)
     const at = screenOf(event)
     const world = toWorld(cam, at)
     event.preventDefault()
@@ -570,7 +587,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           from: box,
           to: world,
           ids: selection,
-          keepRatio: event.shiftKey,
+          keepRatio: event.shiftKey || ratioLocked(scene, selection),
         })
       }
       return
@@ -702,7 +719,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         setGesture({
           ...gesture,
           to: snap && !event.shiftKey ? snapped(world) : world,
-          keepRatio: event.shiftKey,
+          keepRatio: event.shiftKey || ratioLocked(scene, gesture.ids),
         })
         return
       case "Creating":
@@ -748,7 +765,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       setSearchAt(world)
       return
     }
-    if (!startEditing(hit.block.id)) setSelected([hit.block.id])
+    if (startEditing(hit.block.id)) return
+    setSelected([hit.block.id])
+    if (isInteractive(hit) && !isLocked(hit)) setActive(hit.block.id)
   }
 
   const zoomKeys: Record<string, ZoomAction> = {
@@ -780,7 +799,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       if (gesture._tag !== "Idle") {
         setGesture(idle)
         press.current = null
-      } else if (tool !== "select") setTool("select")
+      } else if (active !== null) setActive(null)
+      else if (tool !== "select") setTool("select")
       else setSelected([])
       return
     }
@@ -973,6 +993,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const slots: ShapeSlots = {
     asset: props.resolveAsset,
     measure,
+    active,
     editing:
       editing === null ? null : { id: editing, draft, onDraft: setDraft, onFinish: finishEditing },
     portals: {
@@ -1147,6 +1168,19 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     overlay.push(<div key="bind" className="wb-bind" style={toBox(bound)} />)
   }
 
+  const createLinked = (drafts: ReadonlyArray<Draft>, from: BlockId, to: BlockId) => {
+    const lineId = freshId()
+    const link = (start: Vec, end: Vec): Draft => ({
+      id: lineId,
+      raw: lineRaw(start, end, from, to, styles),
+      text: "",
+    })
+    const sketch = create(page.id, scene, [...drafts, link([0, 0], [1, 1])])
+    if (sketch === null) return null
+    const ends = sceneOf(itemsOf(applyLocally(blocks, [sketch])), measured).ends.get(lineId)
+    return ends === undefined ? sketch : create(page.id, scene, [...drafts, link(ends[0], ends[1])])
+  }
+
   const cloneTo = (item: Item, [dx, dy]: Vec) => {
     if (item.shape.type !== "box" && item.shape.type !== "ellipse" && item.shape.type !== "polygon")
       return
@@ -1159,18 +1193,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       Object.entries({ ...shapeRaw(item.block), point }).filter(([key]) => key !== "refs"),
     )
     const id = freshId()
-    const lineId = freshId()
-    const link = (from: Vec, to: Vec) => ({
-      id: lineId,
-      raw: lineRaw(from, to, item.block.id, id, styles),
-      text: "",
-    })
-    const copy = { id, raw, text: "" }
-    const sketch = create(page.id, scene, [copy, link([0, 0], [1, 1])])
-    if (sketch === null) return
-    const ends = sceneOf(itemsOf(applyLocally(blocks, [sketch])), measured).ends.get(lineId)
-    const made =
-      ends === undefined ? sketch : create(page.id, scene, [copy, link(ends[0], ends[1])])
+    const made = createLinked([{ id, raw, text: "" }], item.block.id, id)
     if (made === null) return
     void commit([made])
     setSelected([id])
@@ -1202,11 +1225,46 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const onPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
     if (isEditableTarget(event.target) || insideLivePortal(event.target)) return
+    const files = [...event.clipboardData.files]
+    if (files.some((file) => mediaOf(file.name) !== null)) {
+      event.preventDefault()
+      void placeFiles(files, pointer.current ?? toWorld(cam, center(viewport)), false)
+      return
+    }
     const html = event.clipboardData.getData("text/html")
     const text = event.clipboardData.getData("text/plain").trim()
     if (html === "" && text === "") return
     event.preventDefault()
     paste(html, text, pointer.current)
+  }
+
+  const placeFiles = async (files: ReadonlyArray<File>, at: Vec, fromDrop: boolean) => {
+    const media = files.flatMap((file) => {
+      const kind = mediaOf(file.name)
+      return kind === null ? [] : [{ file, kind }]
+    })
+    if (media.length === 0) return false
+    const linkFrom = fromDrop && selectedItems.length === 1 ? selectedItems[0] : undefined
+    const assets = await props.saveFiles(media.map(({ file }) => file))
+    const saved = await Promise.all(
+      assets.flatMap((asset, index): ReadonlyArray<Promise<Saved>> => {
+        const kind = media[index]?.kind
+        if (kind === undefined) return []
+        return [
+          naturalSize(asset.url, kind).then((size) => ({ media: kind, path: asset.path, size })),
+        ]
+      }),
+    )
+    const drafts = mediaDrafts(saved, at).map((made) => ({ ...made, id: freshId() }))
+    const ids = drafts.flatMap((made) => made.id ?? [])
+    const [only] = ids
+    const made =
+      linkFrom === undefined || only === undefined || ids.length !== 1
+        ? create(page.id, scene, drafts)
+        : createLinked(drafts, linkFrom.block.id, only)
+    if (made !== null) void commit([made])
+    setSelected(ids)
+    return true
   }
 
   const paste = (html: string, text: string, at: Vec | null) => {
@@ -1333,6 +1391,17 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       onCopy={(event) => onCopy(event, false)}
       onCut={(event) => onCopy(event, true)}
       onPaste={onPaste}
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes("Files") || insideLivePortal(event.target)) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = "copy"
+      }}
+      onDrop={(event) => {
+        const files = [...event.dataTransfer.files]
+        if (files.length === 0 || insideLivePortal(event.target)) return
+        event.preventDefault()
+        void placeFiles(files, toWorld(cam, screenOf(event)), true)
+      }}
       onContextMenu={(event) => {
         if (insideLivePortal(event.target) || isEditableTarget(event.target)) return
         event.preventDefault()

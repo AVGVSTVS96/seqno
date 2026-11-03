@@ -100,6 +100,16 @@ export const ImageShape = Schema.Struct({
   type: Schema.Literal("image"),
   ...sized,
   src: Schema.optionalKey(Schema.String),
+  assetId: Schema.optionalKey(Schema.String),
+  objectFit: Schema.optionalKey(Schema.String),
+  isAspectRatioLocked: Schema.optionalKey(Schema.Boolean),
+})
+
+export const VideoShape = Schema.Struct({
+  type: Schema.Literal("video"),
+  ...sized,
+  src: Schema.optionalKey(Schema.String),
+  assetId: Schema.optionalKey(Schema.String),
   isAspectRatioLocked: Schema.optionalKey(Schema.Boolean),
 })
 
@@ -121,10 +131,14 @@ export const Shape = Schema.Union([
   StrokeShape,
   PortalShape,
   ImageShape,
+  VideoShape,
 ])
 export type Shape = typeof Shape.Type
 
 export type OtherShape = typeof OtherShape.Type
+
+export const assetTypeOf = (shapeType: unknown): "image" | "video" | "pdf" =>
+  shapeType === "video" || shapeType === "pdf" ? shapeType : "image"
 
 const RawJson = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown))
 

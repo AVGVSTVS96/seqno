@@ -81,8 +81,20 @@ const resized = (gesture: Extract<Gesture, { _tag: "Resizing" }>): Bounds => {
   let maxX = east ? Math.max(x, box.minX + 1) : box.maxX
   let minY = north ? Math.min(y, box.maxY - 1) : box.minY
   let maxY = south ? Math.max(y, box.minY + 1) : box.maxY
+  const ratio = (from.maxX - from.minX) / Math.max(1, from.maxY - from.minY)
+  if (keepRatio && (west || east) && !(north || south)) {
+    const next = (maxX - minX) / ratio
+    const middle = (from.minY + from.maxY) / 2
+    minY = middle - next / 2
+    maxY = middle + next / 2
+  }
+  if (keepRatio && (north || south) && !(west || east)) {
+    const next = (maxY - minY) * ratio
+    const middle = (from.minX + from.maxX) / 2
+    minX = middle - next / 2
+    maxX = middle + next / 2
+  }
   if (keepRatio && (west || east) && (north || south)) {
-    const ratio = (from.maxX - from.minX) / Math.max(1, from.maxY - from.minY)
     const width = maxX - minX
     const height = maxY - minY
     if (width / ratio > height) {

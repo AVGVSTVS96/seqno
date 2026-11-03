@@ -4,6 +4,7 @@ import {
   TYPE_KEY,
   WHITEBOARD_PAGE,
   WHITEBOARD_SHAPE,
+  assetTypeOf,
   isShapeBlock,
   shapeRaw,
   wordsField,
@@ -418,7 +419,7 @@ export const renderWhiteboard = (page: Page, blocks: ReadonlyArray<Block>): stri
     shape["assetId"] = id
     newAssets.push({
       id,
-      type: shape["type"] === "video" ? "video" : "image",
+      type: assetTypeOf(shape["type"]),
       src,
       size: shape["size"] ?? [0, 0],
     })

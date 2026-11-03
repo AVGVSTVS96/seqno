@@ -186,3 +186,15 @@ export const topHit = (scene: Scene, point: Vec, zoom: number): Item | null =>
   scene.items.findLast((item) => hits(scene, item, point, zoom)) ?? null
 
 export const isLocked = (item: Item) => item.shape.isLocked === true
+
+export const isInteractive = (item: Item) => item.shape.type === "video"
+
+export const ratioLocked = (scene: Scene, ids: ReadonlyArray<BlockId>) => {
+  const [only, ...rest] = ids
+  const item = only === undefined || rest.length > 0 ? undefined : scene.byId.get(only)
+  return (
+    item !== undefined &&
+    "isAspectRatioLocked" in item.shape &&
+    item.shape.isAspectRatioLocked === true
+  )
+}

@@ -283,14 +283,33 @@
   opacity: 0.6;
 }
 
-.wb-image {
+.wb-media {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.wb-media[data-asset-loaded="false"] {
+  background: var(--bg-sidebar, light-dark(#f7f7f7, rgb(2 54 67)));
+}
+
+.wb-image {
   width: 100%;
   height: 100%;
-  object-fit: fill;
   pointer-events: none;
-  background: var(--bg-sidebar);
+}
+
+.wb-video {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+[data-active="true"] .wb-video {
+  pointer-events: auto;
 }
 
 .wb-other {

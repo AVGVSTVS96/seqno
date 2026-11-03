@@ -359,6 +359,57 @@ describe("whiteboard mirror", () => {
     }).pipe(Effect.provide(LogseqSyntaxLive)),
   )
 
+  it.effect("lists a dropped image and PDF in the board's assets, typed as Logseq types them", () =>
+    Effect.gen(function* () {
+      const media: PageTree = {
+        page: drawn.page,
+        blocks: [
+          drawnBlock(
+            5,
+            "",
+            shapeProps({
+              type: "image",
+              point: [0, 0],
+              size: [200, 120],
+              assetId: "a1",
+              src: "../assets/beds_1_0.png",
+            }),
+          ),
+          drawnBlock(
+            6,
+            "",
+            shapeProps({
+              type: "pdf",
+              point: [300, 0],
+              size: [298, 421],
+              assetId: "a2",
+              src: "../assets/plan_1_1.pdf",
+            }),
+          ),
+        ],
+      }
+      const files = yield* renderMirror([media], defaultConfig)
+      const file = files.get("whiteboards/Plans.edn") ?? ""
+      const assets = file.slice(file.indexOf(":assets "), file.indexOf(":shapes-index"))
+      assert.strictEqual(
+        assets,
+        [
+          ":assets [",
+          '{:id "a1"',
+          ':type "image"',
+          ':src "../assets/beds_1_0.png"',
+          ":size [200 120]} ",
+          '{:id "a2"',
+          ':type "pdf"',
+          ':src "../assets/plan_1_1.pdf"',
+          ":size [298 421]}]",
+          "",
+        ].join("\n"),
+      )
+      assert.isFalse(file.slice(0, file.indexOf(":pages")).includes(":src"))
+    }).pipe(Effect.provide(LogseqSyntaxLive)),
+  )
+
   it.effect("reads its own whiteboard file back to the same blocks, bindings and portals", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem

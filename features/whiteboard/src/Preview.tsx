@@ -27,6 +27,7 @@ const Drawing = ({
     measure: noMeasure,
     editing: null,
     portals: null,
+    active: null,
   }
   const attach = (node: HTMLDivElement | null) => {
     if (node === null) return

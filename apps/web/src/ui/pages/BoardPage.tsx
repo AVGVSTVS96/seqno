@@ -1,9 +1,11 @@
-import { useAtomSet, useAtomValue } from "@effect/atom-react"
+import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
+import { useContext } from "react"
 import { AsyncResult } from "effect/reactivity"
 import { useNavigate } from "@tanstack/react-router"
 import { normalizePageName, type BlockId, type Page } from "@seqno/domain"
 import { Board } from "@seqno/whiteboard"
 import { assetResolver, rightSidebar } from "../../atoms.ts"
+import { saveAssetFiles } from "../assets.ts"
 import { EditorSlot } from "../EditorSlot.tsx"
 import { blockMenu } from "../shell/BlockMenu.tsx"
 import { vimMode } from "../shell/state.ts"
@@ -25,6 +27,7 @@ export const BoardPage = ({
   const onBlockMenu = useAtomSet(blockMenu)
   const vim = useAtomValue(vimMode)
   const updateSidebar = useAtomSet(rightSidebar)
+  const registry = useContext(RegistryContext)
   const references = AsyncResult.getOrElse(
     AsyncResult.map(
       useAtomValue(pageStats),
@@ -45,6 +48,7 @@ export const BoardPage = ({
         focus={zoom}
         outliner={{ onNavigate: navigateTo, editor: EditorSlot, resolveAsset, onBlockMenu, vim }}
         resolveAsset={resolveAsset}
+        saveFiles={(files) => saveAssetFiles(registry, files)}
         openPage={openPage}
         references={references}
         referencesPanel={<References page={page} unlinked={false} />}

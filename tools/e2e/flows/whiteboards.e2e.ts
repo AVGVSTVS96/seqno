@@ -1,41 +1,8 @@
-import type { Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
-import { expect, openDemo, saved, test } from "../src/test.ts"
+import { expect, saved, test } from "../src/test.ts"
+import { board, drag, newBoard, rename, shapes } from "../src/whiteboard.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
-
-const board = (page: Page) => page.getByRole("application", { name: /^Whiteboard / })
-
-const shapes = (page: Page, type: string) => board(page).locator(`.wb-shape[data-type="${type}"]`)
-
-const drag = async (page: Page, from: readonly [number, number], to: readonly [number, number]) => {
-  await page.mouse.move(from[0], from[1])
-  await page.mouse.down()
-  await page.mouse.move((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, { steps: 4 })
-  await page.mouse.move(to[0], to[1], { steps: 4 })
-  await page.mouse.up()
-}
-
-const newBoard = async (page: Page) => {
-  await openDemo(page, "/")
-  await page.keyboard.press("g")
-  await page.keyboard.press("w")
-  await expect(page).toHaveURL(/\/whiteboards$/)
-  await expect(page).toHaveTitle("Whiteboards")
-  await page.getByRole("button", { name: "New whiteboard" }).click()
-  await expect(board(page)).toBeVisible()
-  await expect(page.getByRole("textbox", { name: "Whiteboard title" })).toHaveAttribute(
-    "placeholder",
-    "Untitled",
-  )
-}
-
-const rename = async (page: Page, title: string) => {
-  const input = page.getByRole("textbox", { name: "Whiteboard title" })
-  await input.fill(title)
-  await input.press("Enter")
-  await expect(page).toHaveURL(new RegExp(`/page/${encodeURIComponent(title.toLowerCase())}$`))
-}
 
 test("draws a labeled rectangle connected to a circle, and the arrow follows the circle when it moves", async ({
   page,

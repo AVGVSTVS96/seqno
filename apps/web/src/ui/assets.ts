@@ -39,18 +39,30 @@ export const linksOf = (files: ReadonlyArray<File>, dialect: Dialect = "markdown
     ),
   )
 
+const failed = (registry: AtomRegistry.AtomRegistry) => (cause: unknown) => {
+  notify(
+    registry,
+    `Couldn't save the file: ${cause instanceof Error ? cause.message : String(cause)}`,
+  )
+  return []
+}
+
 export const saveAssets = (
   registry: AtomRegistry.AtomRegistry,
   files: ReadonlyArray<File>,
   dialect: Dialect = "markdown",
-) =>
-  runAssets(registry, linksOf(files, dialect)).catch((cause: unknown) => {
-    notify(
-      registry,
-      `Couldn't save the file: ${cause instanceof Error ? cause.message : String(cause)}`,
-    )
-    return []
-  })
+) => runAssets(registry, linksOf(files, dialect)).catch(failed(registry))
+
+export const saveAssetFiles = (
+  registry: AtomRegistry.AtomRegistry,
+  files: ReadonlyArray<File>,
+): Promise<ReadonlyArray<Asset>> =>
+  runAssets(
+    registry,
+    Effect.flatMap(Clock.currentTimeMillis, (now) =>
+      Effect.forEach(files, (file, index) => saveFile(labelOf(file), file, now, index)),
+    ),
+  ).catch(failed(registry))
 
 export const openPdf = (registry: AtomRegistry.AtomRegistry, path: string) => {
   const source = registry.get(assetResolver)(path)

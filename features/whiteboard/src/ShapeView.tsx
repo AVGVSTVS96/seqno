@@ -24,6 +24,7 @@ export interface ShapeSlots {
   readonly measure: (blockId: BlockId) => (node: HTMLElement | null) => (() => void) | undefined
   readonly editing: Editing | null
   readonly portals: Portals | null
+  readonly active: BlockId | null
 }
 
 const ShapeEditor = ({ item, editing }: { readonly item: Item; readonly editing: Editing }) => (
@@ -384,7 +385,7 @@ export const ShapeView = ({
         </div>
       )
     case "image": {
-      const src = shape.src === undefined ? undefined : (slots.asset(shape.src) ?? shape.src)
+      const src = shape.src === undefined ? undefined : slots.asset(shape.src)
       return (
         <div
           className="wb-shape"
@@ -392,11 +393,38 @@ export const ShapeView = ({
           data-erasing={erasing}
           style={{ ...place, width: size[0], height: size[1] }}
         >
-          {src === undefined ? (
-            <div className="wb-other">Image</div>
-          ) : (
-            <img className="wb-image" src={src} alt="" />
-          )}
+          <div className="wb-media" data-asset-loaded={src !== undefined}>
+            {src === undefined ? (
+              "Asset is missing"
+            ) : (
+              <img
+                className="wb-image"
+                src={src}
+                alt=""
+                draggable={false}
+                style={{ objectFit: shape.objectFit === "contain" ? "contain" : "fill" }}
+              />
+            )}
+          </div>
+        </div>
+      )
+    }
+    case "video": {
+      const src = shape.src === undefined ? undefined : slots.asset(shape.src)
+      const active = slots.active === item.block.id
+      return (
+        <div
+          className="wb-shape"
+          data-type="video"
+          data-erasing={erasing}
+          data-active={active}
+          style={{ ...place, width: size[0], height: size[1] }}
+        >
+          <div className="wb-media" data-asset-loaded={src !== undefined}>
+            {src === undefined ? null : (
+              <video className="wb-video" src={src} controls aria-label="Video" />
+            )}
+          </div>
         </div>
       )
     }
