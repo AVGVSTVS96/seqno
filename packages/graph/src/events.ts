@@ -2,6 +2,7 @@ import { Match, Option } from "effect"
 import type { LoroEventBatch, LoroTree, LoroTreeNode, TreeDiffItem, TreeID } from "loro-crdt"
 import type { GraphEvent, PageId } from "@seqno/domain"
 import { forget, type Registry } from "./registry.ts"
+import { WAS } from "./unseen.ts"
 import {
   blockIdOf,
   isTrash,
@@ -78,10 +79,13 @@ export const collectChanges = (batch: LoroEventBatch, pending: Pending): void =>
       continue
     }
     const id = event.path[1]
-    if (isTreeId(id)) {
-      mark(pending, id, { upserted: true })
-      pending.data.add(id)
-    }
+    if (!isTreeId(id)) continue
+    const marked =
+      event.path.length === 2 &&
+      event.diff.type === "map" &&
+      Object.keys(event.diff.updated).every((key) => key === WAS)
+    if (!marked) mark(pending, id, { upserted: true })
+    pending.data.add(id)
   }
 }
 

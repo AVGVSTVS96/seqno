@@ -291,23 +291,14 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
     ),
   )
 
-  it.effect("a page deleted on one device comes back on undo with the other's edits", () =>
+  it.effect("a page deleted on one device comes back with what the other typed on it", () =>
     Effect.scoped(
       Effect.gen(function* () {
         const { left, right, y, yy } = yield* twoDevices
         yield* left.dispatch({ _tag: "DeletePage", pageId: y.pageId })
         yield* right.dispatch({ _tag: "EditText", blockId: yy, from: 1, to: 1, insert: "es" })
         yield* sync(left, right)
-        assert.strictEqual(
-          (yield* right.pages).some((page) => page.id === y.pageId),
-          false,
-        )
-        const restored = yield* left.dispatch({ _tag: "Undo" })
-        assert.deepStrictEqual(
-          restored.map((event) => event._tag),
-          ["PageUpserted", "BlockUpserted"],
-        )
-        yield* sync(left, right)
+        assert.deepStrictEqual(yield* pageOf(left, y.pageId), ["yes"])
         assert.deepStrictEqual(yield* pageOf(right, y.pageId), ["yes"])
       }),
     ),

@@ -12,6 +12,7 @@ import type {
 import type { BlockId } from "@seqno/domain"
 import { compose, invert, span, splice, transform, type TextDelta } from "./delta.ts"
 import { childrenOf, isTrash, propKeysIn, readProps, setProp, textOf } from "./tree.ts"
+import { markWas } from "./unseen.ts"
 
 export interface Place {
   readonly doc: LoroDoc
@@ -228,7 +229,10 @@ const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
     move: (node, parent, index) => moved(node, () => node.move(parent, index)),
     moveAfter: (node, anchor) => moved(node, () => node.moveAfter(anchor)),
     moveBefore: (node, anchor) => moved(node, () => node.moveBefore(anchor)),
-    trash: (node) => moved(node, () => node.move(place.trash(), 0)),
+    trash: (node) => {
+      markWas(node)
+      moved(node, () => node.move(place.trash(), 0))
+    },
     restore: (node, { parent, after, index }) => {
       if (parent?.isDeleted() === true || isWithin(parent, node)) return
       if (after !== undefined && !after.isDeleted() && sameNode(after.parent(), parent)) {

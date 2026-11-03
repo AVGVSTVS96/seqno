@@ -567,7 +567,9 @@ export const applyCommand = (
         }
         const into = target.home.node.data
         const record = ws.record(target.home.page)
-        record.edit(into, textOf(into).length, 0, textOf(item.home.node.data).toString())
+        const text = textOf(item.home.node.data).toString()
+        record.edit(into, textOf(into).length, 0, text)
+        ws.record(item.home.page).edit(item.home.node.data, 0, text.length, "")
         const kept = readProps(into)
         Object.entries(readProps(item.home.node.data))
           .filter(([key]) => !(key in kept))

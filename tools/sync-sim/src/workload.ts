@@ -2,6 +2,7 @@ import { Effect, Match, Option } from "effect"
 import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
 import type { Replica } from "./ports.ts"
 import type { Rng } from "./rng.ts"
+import type { VV } from "./vv.ts"
 
 export type OpKind =
   | "insertText"
@@ -28,6 +29,8 @@ export interface Intent {
   readonly explicitlyDeleted: Set<string>
   readonly tokens: Map<string, BlockId>
   readonly deadTokens: Set<string>
+  readonly lastWrites: Map<BlockId, { readonly peer: string; readonly end: number }>
+  readonly removals: Array<VV>
   readonly counts: Counts
 }
 
@@ -68,6 +71,8 @@ export const createIntent = (): Intent => ({
   explicitlyDeleted: new Set(),
   tokens: new Map(),
   deadTokens: new Set(),
+  lastWrites: new Map(),
+  removals: [],
   counts: {
     insertText: 0,
     deleteText: 0,
@@ -177,12 +182,46 @@ export class Workload {
 
   private send(replica: Replica, command: Command) {
     return replica.dispatch(command).pipe(
+      Effect.tap((events) => this.remember(replica, command, events)),
       Effect.map(Option.some),
       Effect.catchTag("CommandRejected", () => {
         this.intent.counts.rejected++
         return Effect.succeed(Option.none<ReadonlyArray<GraphEvent>>())
       }),
     )
+  }
+
+  private remember(replica: Replica, command: Command, events: ReadonlyArray<GraphEvent>) {
+    const created = events.flatMap((event) =>
+      event._tag === "BlockUpserted" ? [event.block.id] : [],
+    )
+    const written = Match.value(command).pipe(
+      Match.tagsExhaustive({
+        EditText: ({ blockId, insert }) => (insert === "" ? [] : [blockId]),
+        InsertBlock: () => created,
+        InsertBlocks: () => created,
+        SplitBlock: ({ blockId }) => created.filter((id) => id !== blockId),
+        MoveBlocks: ({ blockIds }) => blockIds,
+        Indent: ({ blockIds }) => blockIds,
+        Outdent: ({ blockIds }) => blockIds,
+        CreatePage: () => [],
+        RenamePage: () => [],
+        DeletePage: () => [],
+        MergeWithPrevious: () => [],
+        DeleteBlocks: () => [],
+        SetCollapsed: () => [],
+        SetProperty: () => [],
+        Undo: () => [],
+        Redo: () => [],
+      }),
+    )
+    return Effect.map(replica.version, (version) => {
+      const end = version[replica.peer] ?? 0
+      for (const id of written) this.intent.lastWrites.set(id, { peer: replica.peer, end })
+      if (events.some((event) => event._tag === "BlockDeleted" || event._tag === "PageDeleted")) {
+        this.intent.removals.push(version)
+      }
+    })
   }
 
   private pickAlive<Id extends string>(

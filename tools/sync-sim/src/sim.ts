@@ -671,6 +671,11 @@ export const runSeed = (cfg: SimConfig) =>
       for (const id of twice(shape.blocks)) {
         fail("duplicates", `block ${id} appears twice`)
       }
+      const alive = new Set<string>(shape.blocks)
+      for (const [id, { peer, end }] of intent.lastWrites) {
+        if (alive.has(id) || intent.removals.some((seen) => (seen[peer] ?? 0) >= end)) continue
+        fail("lostOps", `block ${id} is gone though no delete saw its last change`)
+      }
     } else {
       for (const problem of yield* checkIntent(oracle, intent)) {
         fail("lostOps", problem)

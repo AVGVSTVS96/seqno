@@ -149,7 +149,34 @@ Unless noted, numbers come from a generated graph of 50k blocks on 1,865 pages (
 
 **Cost.** Deleted blocks stay in the doc, as Loro already keeps deleted nodes' state to merge concurrent edits. Nothing empties the trash yet.
 
-**Numbers.** None. `packages/graph/test/sync.test.ts` deletes a block on one device while another types into it, undoes the delete, and both devices end with the typed text; with Loro's delete the undo brings back the block without it.
+**Numbers.** None. `packages/graph/test/sync.test.ts` deletes a block on one device while another types into its child, then undoes the delete: the same block comes back, and the typed child (kept all along, see the next section) stays.
+
+## A delete removes only what the deleting device saw
+
+**Decision.** When two devices change the same blocks before hearing from each other, a delete takes away only what the deleting device saw. Whatever the other device moved, wrote or added meanwhile is kept:
+
+- **The block the delete named** stays where the other device moved or indented it (the move wins), and comes back where it was if the other device typed in it.
+- **A block inside it** that the other device moved there, indented there, created there or typed in takes the deleted block's place, and the rest stays deleted.
+- **A page** another device moved a block onto or wrote on comes back whole, since its blocks have nowhere else to go.
+
+Everything the delete did see stays deleted, and two devices deleting one block both get their way. Collapsing a block, deleting text and removing a property don't count as writing. A move against a move or an indent of the same block is unchanged: one wins, the same on every device, and the block shows once. On one tree the later one wins, as Loro decides; on the tree-per-page layout a move to another page wins over a move within the page, because a block shows wherever its pointer is.
+
+**Why.** Asked "when a move meets a delete, which wins?", Bassim answered "whatever is more appropriate/correct", and the test is that nothing someone wrote is lost unless they deleted it. The two wrong outcomes don't cost the same. Keeping a block the other device meant to delete shows it again, and deleting it again fixes that. Deleting a block the other device moved or wrote in loses it, with no way back from that device: seqno has no trash view, and only the deleting tab's undo restores it. So a delete gives way to what it never saw, the way an observed-remove set removes only the adds it observed. Before this, both layouts lost every block in the second list. On one tree a delete also beat a move of the same block whenever its op happened to be later, and so did typing.
+
+Logseq's own sync (`src/main/frontend/worker/sync/apply_txs.cljs`) replays a device's pending ops on top of what the server already has. There, a delete of the same block wins, and a block moved or added into a deleted one is either dropped or deleted with it, depending on which device reached the server first. Logseq has a recycle bin to get it back. seqno keeps the block in every order.
+
+How it works (`packages/graph/src/unseen.ts`, and `repairUnseen` in `repair.ts` and `v2/repair.ts`):
+
+- **Only histories that fork are checked.** Changes made without each other exist only while the doc's history has two or more heads, so a merge or an open that leaves one head does nothing more. That is the usual case of one device at a time.
+- **Loro's own history says what a delete saw.** From the newest version every head shares, the repair reads the ops since then (`exportJsonInIdSpan`). For each tree node it keeps the ops that placed it (a create, or a move anywhere but the trash) and the ops that wrote in it (text inserted, a key set). For a node that reads as deleted, it finds the node that went into the trash, following pointers to their homes on the tree-per-page layout, and the op that put it there (`getLastMoveId`). `cmpFrontiers` then says, op by op, whether the delete had seen it. A page deleted on the tree-per-page layout is a flag in `trashed`, so the op that set it comes from the same ops.
+- **A delete writes down where it was.** When the recorder moves a node into the trash it first writes `was` on it (its parent and fractional index). A kept block inside goes to its deleted ancestor's `was`. The named block goes to the target of the newest move it didn't see, or else to its own `was`. Placements into one parent are sorted and placed in one pass, so 5,000 kept blocks read that parent's children once.
+- **It repeats until nothing moves** (at most 8 rounds). A block whose move wins can land under a parent the delete did see, and then it takes that parent's place.
+- **Every device that hears both sides repairs**, a third device included. They place the same nodes in the same spots, and Loro keeps one of the identical moves, so all devices agree. The repair commits with its own origin, so undo never takes it back.
+- **Merging with Backspace now empties the merged-away block's text** (undo puts it back). Text typed into it meanwhile then comes back alone, instead of doubling the text the merge already moved.
+
+**Cost.** One short map write for each deleted top block. A merge whose changes crossed another device's reads the ops back to the version both had. A block deleted by a build before this one has no `was`, so a block kept from under it stays deleted. When the deleting tab undoes its delete, the block comes back where it was, and a child already kept outside it stays where it was put.
+
+**Numbers.** See below; `packages/graph/test/conflicts.test.ts` runs every case above, with either device making each change, on both layouts. It also covers a third device that hears of both changes at once and a device that opens from the saved files. `tools/sync-sim/test/pages.test.ts` runs the main cases through the fake iCloud, the real vault and the index. The simulator's random runs on real graphs now also check that every block that ends up gone had its last move, edit or creation seen by some delete.
 
 ## Undo is seqno's own, not Loro's UndoManager
 
@@ -380,7 +407,7 @@ How B works:
 - **Journals are keyed by day.** `journalPageId(day)` gives a day's journal the same page id on every device (`0000YYYY-MMDD-7000-8000-000000000000`), so two devices that each create today's journal before syncing write into one tree instead of making two pages that need a merge. The converter gives each day's journal that id.
 - **Undo is keyed by doc.** The undo recorder records writes to any Loro map and keeps its rebasing state per doc, so the page trees and the directory maps share one history. A move between pages records the new pointer, the old placement going to the trash and the old `at`, so undo puts the block back with what other devices typed into it.
 
-**Cost.** A move between pages wins over a delete, indent or move of the same block that another device made meanwhile, where Loro's own tree would pick the later one. A page that shows blocks moved in from a long page reads that page's tree the first time it opens. The snapshot is about 6% larger (63.0 against 59.4 MB at ten years).
+**Cost.** A move between pages wins over a move or indent of the same block within the page that another device made meanwhile, where Loro's own tree would pick the later one (a delete against a move is in "A delete removes only what the deleting device saw"). A page that shows blocks moved in from a long page reads that page's tree the first time it opens. The snapshot is about 6% larger (63.0 against 59.4 MB at ten years).
 
 **Numbers.** Ten years of journals with a 20k-block page, in Node: an open (restore the snapshot, list the pages, read today's journal) takes 0.20 to 0.38 s against 1.7 to 2.3 s on the one-tree layout, at 510 against 670 MB of whole-process memory. `tools/bench` opens it in a fresh process on every CI run against a 300 ms budget; a CI runner measured 109 ms. At 30 years a first open in a fresh process on the Ryzen takes 0.42 s against 2.8 s on one tree (the spike had estimated 0.35 against 5.5 s), and at 60 years 0.87 s against 5.6 s, at 0.71 and 1.2 GB against 1.0 and 1.8 GB; a CI runner's median of three opens is 0.21 s at 30 years and 0.33 s at 60. `convertOneTree` converts a ten-year one-tree graph in 37 s, and converting the same files again gives byte-identical snapshots, so devices that convert one folder write the same ops. Bulk commands on a 20k-block page cost about what they cost on the one-tree layout (see "Bulk commands touch each tree node a fixed number of times"). Every `@seqno/graph` test runs on both layouts; `packages/graph/test/pages.test.ts` and `pages-fuzz.test.ts` cover moves between pages, pointers, merges and cycles, and `tools/sync-sim/test/pages.test.ts` checks moves between pages, same-day journals, page merges and undo across pages against the real vault and index.
 
@@ -388,7 +415,7 @@ How B works:
 
 **Decision.** Graphs kept in the browser (OPFS: the two demo graphs, and any graph made there later) open on the tree-per-page layout, with today's journal on `journalPageId(today)`. Picked folders open on one tree, as before, and this build never converts or writes one on the new layout.
 
-**Why.** A browser graph has one writer: one device, and every tab of a build shares one worker and one doc. Nothing has to agree across devices, so it can switch on its own. A synced folder can't until every device that opens it runs a build that reads the new layout and exactly one of them converts it; that order waits on Bassim (see [roadmap.md](roadmap.md)). The two calls still open on the layout (moving a block between pages as a pointer, and the move winning over another device's edit to that block) only bite when two devices edit one graph, so browser graphs don't settle them. What the switch does fix is that a browser graph's moves between pages are written as pointers from now on, so a later change to copy-then-delete would have to keep reading them.
+**Why.** A browser graph has one writer: one device, and every tab of a build shares one worker and one doc. Nothing has to agree across devices, so it can switch on its own. A synced folder can't until every device that opens it runs a build that reads the new layout and exactly one of them converts it; that order waits on Bassim (see [roadmap.md](roadmap.md)). Two calls on moves between pages only bite when two devices edit one graph: a move is a pointer, so what other devices type into the block lands on it, and what happens when the move meets another device's delete is in "A delete removes only what the deleting device saw".
 
 How it works (`apps/web/src/worker/layout.ts`):
 

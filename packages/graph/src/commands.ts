@@ -266,7 +266,9 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         if (target === undefined) {
           return yield* reject("the first block of a page has nothing to merge into")
         }
-        ws.record.edit(target.data, textOf(target.data).length, 0, textOf(node.data).toString())
+        const text = textOf(node.data).toString()
+        ws.record.edit(target.data, textOf(target.data).length, 0, text)
+        ws.record.edit(node.data, 0, text.length, "")
         const kept = readProps(target.data)
         Object.entries(readProps(node.data))
           .filter(([key]) => !(key in kept))

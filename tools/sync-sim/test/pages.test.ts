@@ -196,6 +196,14 @@ const twoDevices = Effect.gen(function* () {
   }
 })
 
+interface Ids {
+  readonly x: PageId
+  readonly b: BlockId
+  readonly b1: BlockId
+  readonly c: BlockId
+  readonly yy: BlockId
+}
+
 const moveTo = (on: Device, blockId: BlockId, after: BlockId) =>
   on.run({ _tag: "MoveBlocks", blockIds: [blockId], parentId: null, after })
 
@@ -248,6 +256,57 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
           }
         }),
       ),
+  )
+
+  it.effect("a delete keeps what the other device moved, wrote or added meanwhile", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const cases: Record<
+          string,
+          {
+            readonly change: (on: Device, ids: Ids) => Effect.Effect<unknown>
+            readonly after: ReadonlyArray<ReadonlyArray<string>>
+          }
+        > = {
+          moved: {
+            change: (on, ids) =>
+              on.run({ _tag: "MoveBlocks", blockIds: [ids.b], parentId: null, after: ids.c }),
+            after: [["a", "c", "b", "  b1"], ["y"]],
+          },
+          "moved in": {
+            change: (on, ids) =>
+              on.run({ _tag: "MoveBlocks", blockIds: [ids.c], parentId: ids.b, after: ids.b1 }),
+            after: [["a", "c"], ["y"]],
+          },
+          "moved from another page": {
+            change: (on, ids) =>
+              on.run({ _tag: "MoveBlocks", blockIds: [ids.yy], parentId: ids.b }),
+            after: [["a", "y", "c"], []],
+          },
+          added: {
+            change: (on, ids) =>
+              on.run({ _tag: "InsertBlock", pageId: ids.x, parentId: ids.b, text: "new" }),
+            after: [["a", "new", "c"], ["y"]],
+          },
+          typed: {
+            change: (on, ids) =>
+              on.run({ _tag: "EditText", blockId: ids.b1, from: 2, to: 2, insert: " typed" }),
+            after: [["a", "b1 typed", "c"], ["y"]],
+          },
+        }
+        for (const [name, { change, after }] of Object.entries(cases)) {
+          const { mac, ipad, exchange, x, y, b, b1, yy } = yield* twoDevices
+          const c = nth((yield* Effect.orDie(mac.graph.page(x))).blocks, 3).id
+          yield* change(mac, { x, b, b1, c, yy })
+          yield* ipad.run({ _tag: "DeleteBlocks", blockIds: [b] })
+          yield* exchange
+          for (const on of [mac, ipad]) {
+            assert.deepStrictEqual([yield* outline(on, x), yield* outline(on, y)], after, name)
+            yield* indexMatchesGraph(on)
+          }
+        }
+      }),
+    ),
   )
 
   it.effect("today's journal written on two devices is one page in one tree", () =>

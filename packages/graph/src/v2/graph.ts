@@ -25,7 +25,7 @@ import { applyCommand, mergeTargetOf, outliner, type Lookup, type Workspace } fr
 import { collectChanges, emptyKnown, emptyPending, remember, translate } from "./events.ts"
 import { parseKey, spotOf } from "./layout.ts"
 import { locate, makeTrees, pageTrees, readView } from "./outline.ts"
-import { movedHomes, repairCycles, repairNames, spotsOf } from "./repair.ts"
+import { movedHomes, repairCycles, repairNames, repairUnseen, spotsOf } from "./repair.ts"
 import { writePage } from "./write.ts"
 
 const make = (source: GraphSource) =>
@@ -95,6 +95,7 @@ const make = (source: GraphSource) =>
     const loaded = new Set<PageId>()
 
     const repair = Effect.sync(() => {
+      if (repairUnseen(trees)) doc.commit({ origin: REPAIRED })
       const names = repairNames(trees, pending.pages)
       const cycles = repairCycles(trees, spotsOf(trees, [...pending.nodes, ...pending.data]))
       if (names || cycles) doc.commit({ origin: REPAIRED })
@@ -288,6 +289,7 @@ const make = (source: GraphSource) =>
               Effect.sync(() => {
                 flushed = ownCounter()
                 trees.relist()
+                if (repairUnseen(trees)) doc.commit({ origin: REPAIRED })
                 const names = repairNames(trees, trees.listing().live.keys())
                 const cycles = repairCycles(trees, movedHomes(trees))
                 if (names || cycles) doc.commit({ origin: REPAIRED })

@@ -2,6 +2,7 @@ import { Option, Schema } from "effect"
 import type { LoroEventBatch } from "loro-crdt"
 import { PageId, type BlockId, type GraphEvent, type Page } from "@seqno/domain"
 import { isTreeId, readBlock } from "../tree.ts"
+import { WAS } from "../unseen.ts"
 import { AT, REF, feeding, isDirectory, pageOfTree, type Spot } from "./layout.ts"
 import {
   homeOf,
@@ -89,7 +90,7 @@ export const collectChanges = (batch: LoroEventBatch, pending: Pending): boolean
       const placing =
         event.path.length === 2 &&
         event.diff.type === "map" &&
-        Object.keys(event.diff.updated).every((key) => key === AT || key === REF)
+        Object.keys(event.diff.updated).every((key) => key === AT || key === REF || key === WAS)
       ;(placing ? pending.nodes : pending.data).add(`${page.value}|${below}`)
     }
   }

@@ -21,7 +21,7 @@ import { collectChanges, emptyPending, translate } from "./events.ts"
 import { histories, type Place } from "./history.ts"
 import { loader } from "./loader.ts"
 import { emptyRegistry } from "./registry.ts"
-import { repairAll, repairPages, type LivePages } from "./repair.ts"
+import { repairAll, repairPages, repairUnseen, type LivePages } from "./repair.ts"
 import {
   TREE,
   blockIdOf,
@@ -213,6 +213,7 @@ const make = (source: GraphSource) =>
     }
 
     const repair = Effect.sync(() => {
+      if (repairUnseen(doc, tree)) doc.commit({ origin: REPAIRED })
       if (repairPages(tree, pending, listed)) doc.commit({ origin: REPAIRED })
     })
 
@@ -399,6 +400,7 @@ const make = (source: GraphSource) =>
             Effect.andThen((reached) =>
               Effect.sync(() => {
                 flushed = ownCounter()
+                if (repairUnseen(doc, tree)) doc.commit({ origin: REPAIRED })
                 if (repairAll(tree, listed)) doc.commit({ origin: REPAIRED })
                 pending = emptyPending()
                 registerPages()
