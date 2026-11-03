@@ -1,0 +1,22 @@
+{
+  "name": "logseq-display-math",
+  "version": "v1.0.1",
+  "description": "Tweak the display and style of LaTeX formulas.",
+  "scripts": {
+    "build": "esbuild index.ts --minify --bundle --outfile=index.js"
+  },
+  "keywords": [],
+  "author": "Allan Chain",
+  "license": "MIT",
+  "devDependencies": {
+    "@logseq/libs": "^0.0.15",
+    "@types/katex": "^0.16.0",
+    "esbuild": "^0.18.0"
+  },
+  "logseq": {
+    "id": "logseq-display-math",
+    "title": "Display Math",
+    "main": "index.html",
+    "icon": "icon.svg"
+  }
+}

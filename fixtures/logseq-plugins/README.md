@@ -1,6 +1,6 @@
 # Logseq plugins for the plugin flows
 
-Real Logseq marketplace plugins, exactly as the marketplace serves them, so the `tools/e2e/flows/plugins*.e2e.ts` flows run them without the network. Each folder keeps its plugin's own `LICENSE` (all MIT).
+Real Logseq marketplace plugins, exactly as the marketplace serves them, so the `tools/e2e/flows/plugins*.e2e.ts` flows run them without the network. Each folder keeps its plugin's own `LICENSE` (MIT, and the Unlicense for Logseq Display Math).
 Real Logseq marketplace plugins, exactly as the marketplace serves them, so `tools/e2e/flows/plugins.e2e.ts` runs them without the network. Each folder keeps its plugin's own `LICENSE` (MIT, and Apache 2.0 for DONE time).
 
 | Folder                                         | Plugin                | Version  |
@@ -25,6 +25,8 @@ Real Logseq marketplace plugins, exactly as the marketplace serves them, so `too
 | `files/benjypng/logseq-mergepages-plugin` | logseq-mergepages-plugin | v2.0.0 |
 | `files/xyhp915/logseq-fenced-code-plus` | Fenced code plus | 0.0.11 |
 | `files/pihalf/gitseq` | GitSeq | v0.2.0 |
+| `files/AllanChain/logseq-display-math` | Logseq Display Math | v1.0.1 |
+| `files/xyhp915/logseq-extensions-plus` | Extensions plus | 0.0.5 |
 
 - `plugins.json` and `stats.json`: those entries from `logseq/marketplace`, including three desktop-only (`effect`) plugins, which Logseq's web marketplace hides and its desktop app lists.
 - `packages/<owner>__<repo>.json`: what `https://plugins.logseq.io/r2/<owner>/<repo>` answers.

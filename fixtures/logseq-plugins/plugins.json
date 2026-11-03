@@ -227,6 +227,29 @@
    "effect": false,
    "id": "gitseq",
    "addedAt": 1776249481000
+  },
+  {
+   "title": "Logseq Display Math",
+   "description": "Tweak LaTeX rendering and styling.",
+   "author": "Allan Chain",
+   "repo": "AllanChain/logseq-display-math",
+   "icon": "icon.svg",
+   "effect": true,
+   "id": "logseq-display-math",
+   "addedAt": 1686398234000
+  },
+  {
+   "title": "Extensions plus",
+   "description": "A plugin to enhance functions of Logseq's internal extensions.",
+   "repo": "xyhp915/logseq-extensions-plus",
+   "author": "xyhp915",
+   "icon": "icon.png",
+   "effect": true,
+   "sponsors": [
+    "https://opencollective.com/logseq"
+   ],
+   "id": "logseq-extensions-plus",
+   "addedAt": 1670048597000
   }
  ]
 }

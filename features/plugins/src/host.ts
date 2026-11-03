@@ -1,5 +1,6 @@
 import { logseq } from "@seqno/dom"
 import { Option } from "effect"
+import { dropKatexEnhancers } from "@seqno/outliner"
 import type { AtomRegistry } from "effect/reactivity"
 import { applyStyle, injectStyle, injectUI, removeInjected, type UIOptions } from "./inject.ts"
 import {
@@ -408,6 +409,7 @@ export const createHost = (
     registry.set(pluginCommands, without(registry.get(pluginCommands), pid))
     registry.set(runtimeThemes, without(registry.get(runtimeThemes), pid))
     registry.set(fencedRenderers, without(registry.get(fencedRenderers), pid))
+    await dropKatexEnhancers(registry, pid)
     registry.set(
       running,
       Object.fromEntries(Object.entries(registry.get(running)).filter(([key]) => key !== pid)),
