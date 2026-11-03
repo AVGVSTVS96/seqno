@@ -144,6 +144,13 @@ describe("text export options", () => {
     )
   })
 
+  it("reads a table's first row as its header and writes autolinks bare, as Logseq does", () => {
+    const loose = libraryOf({ loose: "- see <https://example.com/a>\n  | a | b |\n  | 1 | 2 |" })
+    expect(exportBlocks(loose, { _tag: "Page", pageId: pageId(1) }, "text", defaults)).toBe(
+      "- see https://example.com/a\n  | a | b |\n  |---|---|\n  | 1 | 2 |\n",
+    )
+  })
+
   it("writes lists and tables inside a block as Logseq's standard Markdown does", () => {
     const shaped = libraryOf({
       shaped: [

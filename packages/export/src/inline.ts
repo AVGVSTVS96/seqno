@@ -76,6 +76,8 @@ const emphasisOf = (node: Inline) =>
     ? node
     : null
 
+const AUTOLINK = /<(https?:\/\/[^\s>]+)>/g
+
 const CLOZE = /^\s*(.*?)\s*$/s
 
 export const markdownOf = (run: Run, inlines: Inlines, depth = 0): string =>
@@ -86,7 +88,9 @@ export const markdownOf = (run: Run, inlines: Inlines, depth = 0): string =>
     false,
     (text) => [text],
     (node, raw, starred, nested) => [markdownNode(node, raw, starred, nested, inlines)],
-  ).join("")
+  )
+    .join("")
+    .replaceAll(AUTOLINK, "$1")
 
 const markdownNode = (
   node: Inline,
@@ -116,6 +120,13 @@ const markdownNode = (
   }
   if (node._tag === "PageRef" && node.brackets && inlines.removals.brackets) return node.name
   if (node._tag === "Tag" && inlines.removals.tags) return ""
+  if (
+    node._tag === "Link" &&
+    node.target._tag === "Url" &&
+    raw.startsWith("<") &&
+    raw.endsWith(">")
+  )
+    return node.target.url
   if (node._tag === "Macro" && node.name === "cloze") return CLOZE.exec(node.args)?.[1] ?? ""
   return raw
 }

@@ -139,10 +139,8 @@ export const textOf = (
         out.push({ text: "", broken: false })
         break
       case "Table":
-        if (item.header !== null) {
-          push(`${flush}${cellText(item.header, inlines)}`)
-          push(`${flush}|${item.header.map(() => "---|").join("")}`)
-        }
+        push(`${flush}${cellText(item.header, inlines)}`)
+        push(`${flush}|${item.header.map(() => "---|").join("")}`)
         item.rows.forEach((row) => push(`${flush}${cellText(row, inlines)}`))
         break
     }

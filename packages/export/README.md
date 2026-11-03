@@ -11,9 +11,11 @@ The UI renders PNG itself from the real block view; this package does not draw.
 
 `pnpm vitest run packages/export`. The e2e flows are in `tools/e2e/flows/export.e2e.ts`.
 
+## Like Logseq, and where it isn't
+
+Every format matches Logseq 0.10.9's output for the same graph; `docs/decisions.md` lists where seqno keeps text Logseq's output loses (quote continuations, footnote carets, repeater `+`, logbooks and `#+BEGIN` blocks, macro arguments, unresolved refs) and where OPML and HTML write single spaces instead of Logseq's stray ones.
+
 ## Known gaps
 
-- Lists and tables inside a block stay as text in OPML and HTML; Logseq turns lists into child outlines and `<ul>`s.
-- Property values are strings; Logseq types `true`, numbers and reference sets.
-- Multi-line blocks don't get Logseq's two-space hard breaks in text.
-- Logseq's "Export public pages" (a static site, desktop only) isn't built.
+- Property values are typed with Logseq's default config; `:property/separated-by-commas` and `:ignored-page-references-keywords` from a graph's `config.edn` aren't read.
+- A ref to a block on another page that still has its Logseq-era (non-v7) `id::` isn't loaded for Export page, so it stays `((uuid))`; the outliner can't show those refs either.

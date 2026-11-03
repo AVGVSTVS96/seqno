@@ -203,10 +203,7 @@ export const htmlOfItems = (
         into().children.push(
           element(
             "table",
-            [
-              ...(entry.header === null ? [] : [row("th", entry.header)]),
-              ...entry.rows.map((cells) => row("td", cells)),
-            ],
+            [row("th", entry.header), ...entry.rows.map((cells) => row("td", cells))],
             [["style", "width:100%"]],
           ),
         )

@@ -48,7 +48,7 @@ export type Item =
   | {
       readonly _tag: "Table"
       readonly level: number
-      readonly header: ReadonlyArray<Run> | null
+      readonly header: ReadonlyArray<Run>
       readonly rows: ReadonlyArray<ReadonlyArray<Run>>
     }
   | { readonly _tag: "Rule"; readonly level: number; readonly line: string }
@@ -104,11 +104,10 @@ const cellsOf = (line: string): ReadonlyArray<Run> =>
 
 const tableOf = (level: number, lines: ReadonlyArray<string>): Item => {
   const separated = lines.length > 1 && isTableSeparator(lines[1] ?? "")
-  const rows = lines.filter((_, index) => !(index === 1 && separated))
-  const cells = rows.map(cellsOf)
-  return separated
-    ? { _tag: "Table", level, header: cells[0] ?? [], rows: cells.slice(1) }
-    : { _tag: "Table", level, header: null, rows: cells }
+  const [header = [], ...rows] = lines
+    .filter((_, index) => !(index === 1 && separated))
+    .map(cellsOf)
+  return { _tag: "Table", level, header, rows }
 }
 
 const maxEmbedDepth = 5
