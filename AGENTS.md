@@ -122,6 +122,6 @@ If you need something the contract lacks, add it in your package and note it in 
 
 - Commit with conventional-commit messages, and run `pnpm check:fast` first (seconds for most changes: `vitest --changed origin/main` runs only the tests that import what you changed). Push to main in small working steps.
 - CI is the full check: every push to main runs `pnpm check` on Node 24 and 26, the e2e flows, sync-sim seeds and the benches, sharded across machines, and a newer push cancels the older run, so the newest run covers everything landed. `scripts/ci` waits for the newest run that includes your commit and prints what failed.
-- e2e, bench and sync-sim runs take turns on a machine (`scripts/turn`, inside their package scripts; on the server it also runs them in `seqno.slice` at low priority). Run the flows your change touches (`pnpm --filter @seqno/e2e test flows/editor.e2e.ts`) and leave the rest to CI.
+- e2e, bench and sync-sim runs take turns on a machine (`scripts/turn`, inside their package scripts), with every other project's builds and tests where `turn` is installed. Run the flows your change touches (`pnpm --filter @seqno/e2e test flows/editor.e2e.ts`) and leave the rest to CI.
 - Keep each package's README current: what it does, how to test it, known gaps.
 - `pnpm --filter @seqno/e2e test` runs the browser flows; `SEQNO_SCREENS=1` on `flows/screens.e2e.ts` refreshes `docs/screenshots`.

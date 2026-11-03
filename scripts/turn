@@ -1,9 +1,4 @@
 #!/bin/sh
-set -e
-lock=/tmp/seqno-turn.lock
-if ! command -v flock >/dev/null; then exec "$@"; fi
-if systemctl --user cat seqno.slice >/dev/null 2>&1; then
-  set -- systemd-run --user --scope --quiet --slice=seqno.slice -p CPUWeight=10 nice -n 19 "$@"
-fi
-flock -n "$lock" true || echo "scripts/turn: waiting for another seqno run on this machine to finish" >&2
-exec flock -o "$lock" "$@"
+# Heavy runs take turns with every other project's on this machine through a machine-wide `turn` command, where one is installed.
+command -v turn >/dev/null && exec turn "$@"
+exec "$@"
