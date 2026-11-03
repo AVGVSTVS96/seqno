@@ -406,7 +406,7 @@ const CoreHandlers = CoreRpcs.toLayer(
     const dispatchAll = (client: number, commands: ReadonlyArray<Command>) =>
       Effect.flatMap(current(client), (session) =>
         Effect.forEach(commands, (command) =>
-          withReferenceEdits(session, withJournalDay(command)),
+          withReferenceEdits(session, withJournalDay(command, session.newPageFormat)),
         ).pipe(
           Effect.flatMap((expanded) =>
             session.record(session.graph.dispatchAll(expanded.flat(), String(client))),

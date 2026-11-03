@@ -17,7 +17,7 @@ import { BlockId, GraphEvent, PageId, type Block } from "@seqno/domain"
 import { Graph, inBackground, newPeerId, vaultReplica } from "@seqno/graph"
 import { Index, PropertySettings, type IndexError } from "@seqno/index"
 import { defaultPropertyConfig, propertyConfigKey, readPropertyConfig } from "@seqno/syntax"
-import { ImportIssue, LogseqSyntaxLive, importGraph } from "@seqno/interop"
+import { ImportIssue, LogseqSyntaxLive, importGraph, parseConfig } from "@seqno/interop"
 import { SaveState, type SkippedFile } from "@seqno/rpc"
 import { Storage, Vault, layer as vaultLayer } from "@seqno/vault"
 import { makeAssetFiles, type AssetFiles } from "./assets.ts"
@@ -35,6 +35,7 @@ export interface Session {
   readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
   readonly assets: AssetFiles
   readonly skipped: ReadonlyArray<SkippedFile>
+  readonly newPageFormat: "org" | undefined
   readonly record: <E, R>(
     change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>,
   ) => Effect.Effect<ReadonlyArray<GraphEvent>, E, R>
@@ -158,6 +159,7 @@ export const openSession = (place: GraphPlace) =>
       Effect.orElseSucceed(() => ""),
     )
     const properties = readPropertyConfig(configText)
+    const newPageFormat = parseConfig(configText).preferredFormat === "org" ? "org" : undefined
     const propertiesKey = propertyConfigKey(properties)
     const index = yield* serviceOf(
       Index,
@@ -460,7 +462,11 @@ export const openSession = (place: GraphPlace) =>
       if (Option.isSome(seeded.update)) yield* vault.writeUpdate(seeded.update.value.bytes)
       yield* record(Effect.succeed(seeded.events))
     }
-    yield* record(Effect.flatMap(todaysJournal(graph), (pages) => graph.load(log.incoming(pages))))
+    yield* record(
+      Effect.flatMap(todaysJournal(graph, newPageFormat), (pages) =>
+        graph.load(log.incoming(pages)),
+      ),
+    )
     yield* save
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
@@ -496,6 +502,7 @@ export const openSession = (place: GraphPlace) =>
 
     const session: Session = {
       graph,
+      newPageFormat,
       index,
       blocks,
       blocksByRef,

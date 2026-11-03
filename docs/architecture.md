@@ -120,9 +120,14 @@ Each sync pass: list the folder, read the `seen` files, merge new files, check s
 
 ### Import and the markdown mirror
 
-Opening a folder that has no edit log yet imports its Logseq markdown (`journals/` and `pages/`, read with the name and date formats in `logseq/config.edn`) and its whiteboards (`whiteboards/*.edn`, one page per board and one block per shape) as one load that undo can't take back. From then on the edit log is the source of truth.
+Opening a folder that has no edit log yet imports its Logseq markdown and Org files (`journals/` and `pages/`, read with the name and date formats in `logseq/config.edn`) and its whiteboards (`whiteboards/*.edn`, one page per board and one block per shape) as one load that undo can't take back. From then on the edit log is the source of truth.
 
 The import is a pure function of the files. Ids come from a generator seeded with a hash of every file read, the ops are written under a peer id hashed from the resulting pages, and their times come from the pages too. So two devices that open the same folder before either has synced write byte-identical update files, and Loro keeps one copy.
+
+Two page shapes come from Logseq's files and stay on the page (`Page.format`, `Page.frontMatter`), so the mirror writes each page back the way it was written:
+
+- **Org pages** (`format: "org"`). Each `*` heading is a block, its `:PROPERTIES:` drawer becomes the block's props, `#+key: value` lines become the page's. Block text stays Org text. Everything that reads it asks for the page's dialect: `@seqno/syntax` parses with `dialect: "org"` (`*bold*`, `/italic/`, `_underline_`, `+strike+`, `=verbatim=`, `~code~`, `[[target][label]]`, heading `:tags:`), the index stores an `org` flag per page and takes refs and tags with it, the outliner and the published site get it from `PageDialects`, and the editor shows the props as a drawer. The mirror writes `.org` with stars and drawers.
+- **Front matter pages** (`frontMatter: true`). A `---` block of `key: value` lines at the very top is the page's props, read and typed like `key::` ones, and the page properties editor and the mirror write it back as YAML.
 
 `@seqno/interop` also has the mirror writer: one designated device writes the graph back as Logseq markdown, and each whiteboard as the EDN file Logseq writes, touching only changed files. A canonical Logseq graph round-trips to the same bytes. The app doesn't run it yet.
 

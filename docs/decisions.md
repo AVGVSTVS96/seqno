@@ -572,6 +572,16 @@ Copying writes Logseq's clipboard: the shapes' `((refs))` as text and `<whiteboa
 
 **Cost.** A blob URL lives as long as the worker, so a file replaced on disk by another program shows its old version until the next listing. A graph kept in the browser has no sync, so its assets stay on that device, as its pages do. Logseq links only the first file of a multi-file drop (marked FIXME in its source); seqno links each one, separated by spaces. Removing a link never deletes the file, as in Logseq.
 
+## Org pages keep Org text, and the page says which syntax reads it
+
+**Decision.** An `.org` file imports as a page with `format: "org"`; its blocks keep their Org text as written, minus the `:PROPERTIES:` drawer, which becomes the block's props as `key:: value` lines do in Markdown. Every reader of block text takes a dialect from the page (`parseInline`, `analyzeBlock`, `blockContent` and the export items take `"org"`; the index keeps an `org` column on `pages`; the UI reads `PageDialects`). YAML front matter is the same kind of choice for page props: `frontMatter: true` on the page, props in the usual map.
+
+**Why.** Logseq keeps Org text as Org and writes it back as Org, and someone who opens a block in an Org page sees and types Org there. Converting to Markdown on import and back on write can't round-trip (`=verbatim=` and `~code~` both become a code span, `_x_` is underline in Org and italic in Markdown), so the mirror would rewrite files nobody edited. Taking the dialect from the page, not storing it per block, matches what Logseq does on its next read of a file: a block moved into an Org page is read as Org.
+
+New pages and today's journal follow `config.edn`'s `:preferred-format`, as in Logseq; whiteboards stay EDN.
+
+**Cost.** Logseq quirks kept: front matter with any line that isn't `key: value` (a YAML list) is not properties at all, and `tags: [a, b]` gives the pages `[a` and `b]`. Not kept: whole-page Export of an Org page in Logseq re-reads the Org text as Markdown (its export looks up the page's format by a key that is never found); seqno exports Org pages with Org syntax, as Logseq does for selected blocks.
+
 ## Smaller decisions
 
 | Question                                     | Answer                                                                                                                                                                                                                                                                                                                | Why                                                                                                                                                                                                    |

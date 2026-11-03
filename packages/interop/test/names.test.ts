@@ -92,6 +92,7 @@ describe("config.edn", () => {
       ' :journal/file-name-format "yyyy-MM-dd"',
       " :file/name-format :triple-lowbar",
       ' :pages-directory "./notes/"',
+      ' :preferred-format "Org"',
       ' :hidden ["/archive" "drafts"]}',
     ].join("\n")
     assert.deepStrictEqual(parseConfig(source), {
@@ -102,6 +103,7 @@ describe("config.edn", () => {
       journalsDirectory: "journals",
       whiteboardsDirectory: "whiteboards",
       hidden: ["archive", "drafts"],
+      preferredFormat: "org",
     })
   })
 

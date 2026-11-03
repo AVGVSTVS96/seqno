@@ -40,6 +40,7 @@ export const Command = Schema.TaggedUnion({
     title: Schema.String,
     journalDay: Schema.optionalKey(JournalDay),
     props: Schema.optionalKey(Props),
+    format: Schema.optionalKey(Schema.Literal("org")),
   },
   RenamePage: { pageId: PageId, title: Schema.String },
   DeletePage: { pageId: PageId },

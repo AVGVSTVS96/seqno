@@ -8,6 +8,7 @@ export const LogseqConfig = Schema.Struct({
   journalsDirectory: Schema.String,
   whiteboardsDirectory: Schema.String,
   hidden: Schema.Array(Schema.String),
+  preferredFormat: Schema.Literals(["markdown", "org"]),
 })
 export type LogseqConfig = typeof LogseqConfig.Type
 
@@ -19,6 +20,7 @@ export const defaultConfig: LogseqConfig = {
   journalsDirectory: "journals",
   whiteboardsDirectory: "whiteboards",
   hidden: [],
+  preferredFormat: "markdown",
 }
 
 const ednToken = /"(?:[^"\\]|\\.)*"|;[^\n]*|#\{|[{}[\]()]|[^\s,{}[\]()";]+/g
@@ -74,13 +76,15 @@ export const parseConfig = (source: string): LogseqConfig => {
       text(":whiteboards-directory", defaultConfig.whiteboardsDirectory),
     ),
     hidden: Option.getOrElse(decodeStrings(entries.get(":hidden")), () => []).map(directory),
+    preferredFormat:
+      text(":preferred-format", "Markdown").toLowerCase() === "org" ? "org" : "markdown",
   }
 }
 
 export const printConfig = (config: LogseqConfig): string =>
   [
     "{:meta/version 1",
-    ` :preferred-format "Markdown"`,
+    ` :preferred-format ${config.preferredFormat === "org" ? '"Org"' : '"Markdown"'}`,
     ` :file/name-format :triple-lowbar`,
     ` :journal/page-title-format ${JSON.stringify(config.journalTitleFormat)}`,
     ` :journal/file-name-format ${JSON.stringify(config.journalFileFormat)}`,

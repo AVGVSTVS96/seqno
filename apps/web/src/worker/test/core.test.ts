@@ -19,7 +19,7 @@ import {
 } from "effect"
 import { RpcClient, type RpcGroup, type RpcMessage, RpcServer, RpcTest } from "effect/rpc"
 import { TestClock } from "effect/testing"
-import { DeviceId } from "@seqno/domain"
+import { DeviceId, whiteboardProps } from "@seqno/domain"
 import { Graph, PeerId, graphV2Layer, journalPageId, journalsByDay } from "@seqno/graph"
 import { layerNode } from "@seqno/index/node"
 import { AssetRpcs, CoreRpcs, PageRpcs, tabLock, type PageTree, type SaveState } from "@seqno/rpc"
@@ -871,6 +871,37 @@ describe("the core worker on the real graph, vault and index", () => {
       assert.deepStrictEqual(yield* titles, [["Oct 13th, 2026", 20261013]])
       assert.deepStrictEqual(yield* titles, [["Oct 13th, 2026", 20261013]])
     }),
+  )
+
+  it.effect(
+    'under :preferred-format "Org" new pages and today\'s journal are Org, as in Logseq',
+    () =>
+      Effect.gen(function* () {
+        yield* TestClock.setTime(new Date(2026, 9, 13, 12).getTime())
+        const root = yield* emptyFolder
+        yield* Effect.promise(async () => {
+          await mkdir(join(root, "logseq"))
+          await writeFile(join(root, "logseq", "config.edn"), '{:preferred-format "Org"}')
+        })
+        const formats = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const core = yield* coreOn(root)
+            yield* core.OpenGraph({ graph: "og" })
+            yield* core.Dispatch({ command: { _tag: "CreatePage", title: "Org notes" } })
+            yield* core.Dispatch({
+              command: { _tag: "CreatePage", title: "Board", props: whiteboardProps },
+            })
+            return (yield* core.GetPages())
+              .map((page) => [page.title, page.format ?? "markdown"])
+              .toSorted(([a = ""], [b = ""]) => a.localeCompare(b))
+          }),
+        )
+        assert.deepStrictEqual(formats, [
+          ["Board", "markdown"],
+          ["Oct 13th, 2026", "org"],
+          ["Org notes", "org"],
+        ])
+      }),
   )
 
   it.effect(
