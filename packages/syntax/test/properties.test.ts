@@ -81,6 +81,14 @@ describe("pasting an outline", () => {
     ])
   })
 
+  it("makes one block per heading written without a bullet", () => {
+    assert.deepStrictEqual(pastedBlocks("# Trip\nday one\n## Packing\n- socks"), [
+      { text: "# Trip\nday one", props: {}, children: [] },
+      { text: "## Packing", props: {}, children: [] },
+      { text: "socks", props: {}, children: [] },
+    ])
+  })
+
   it("splits plain text into blocks at blank lines, keeping code fences whole", () => {
     assert.deepStrictEqual(pastedBlocks("line one\nline two\n\nline three\n"), [
       { text: "line one\nline two", props: {}, children: [] },

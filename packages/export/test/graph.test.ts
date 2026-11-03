@@ -156,6 +156,7 @@ describe("graph export", () => {
         "  title:: My [[Title]]",
         '  quoted:: "x [[y]]"',
         "- ## A heading",
+        "- ####### Seven hashes",
       ].join("\n"),
     })
     const blocks = JSON.parse(strFromU8(exportGraph(typed, "json", options).bytes)).blocks[0]
@@ -173,6 +174,7 @@ describe("graph export", () => {
         quoted: '"x [[y]]"',
       },
       { heading: 2 },
+      { heading: 7 },
     ])
   })
 

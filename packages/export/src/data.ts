@@ -105,7 +105,7 @@ const pagePropertiesOf = (
   return kept.length === 0 ? null : kept
 }
 
-const HEADING = /^(#{1,6})[ \t]/
+const HEADING = /^(#+)[ \t]/
 
 const blockPropertiesOf = (block: Block, config: PropertyConfig): Properties => {
   const level = HEADING.exec(block.text)?.[1]?.length
