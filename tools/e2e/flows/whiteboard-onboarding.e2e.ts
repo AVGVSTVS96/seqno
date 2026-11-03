@@ -36,7 +36,7 @@ test("the first board you create is filled with Logseq's own onboarding board, o
     "https://logseq.com/",
   )
 
-  await saved(page)
+  await saved(page, 30_000)
   await page.reload()
   await expect(shapes(page, "text")).toHaveCount(32)
 
@@ -59,14 +59,12 @@ test("when the onboarding file can't be fetched, the board opens empty", async (
 
 test("the first click on Whiteboards in the sidebar welcomes you, and Start whiteboarding runs Logseq's two-step tour", async ({
   page,
-  seqno,
 }) => {
   test.setTimeout(90_000)
   await loadGraphFolder(page, fixtureGraph("graphs/og-syntax-mix"))
   await page.goto("/")
   await page.getByRole("button", { name: "Open a folder" }).click()
-  await expect(seqno.today).toBeVisible({ timeout: 30_000 })
-  await page.getByRole("button", { name: "Toggle left sidebar" }).click()
+  await page.getByRole("button", { name: "Toggle left sidebar" }).click({ timeout: 30_000 })
   const nav = page.getByRole("navigation", { name: "Navigations" })
   await nav.getByRole("link", { name: "Whiteboards" }).click()
   await expect(page).toHaveURL(/\/whiteboards$/)

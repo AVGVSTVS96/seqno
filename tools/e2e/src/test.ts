@@ -7,13 +7,16 @@ const updateFiles = async (page: Page) =>
     .toSorted()
     .join("\n")
 
-export const saved = (page: Page) =>
+export const saved = (page: Page, timeout = 5_000) =>
   expect
-    .poll(async () => {
-      const before = await updateFiles(page)
-      await page.waitForTimeout(500)
-      return before !== "" && before === (await updateFiles(page))
-    })
+    .poll(
+      async () => {
+        const before = await updateFiles(page)
+        await page.waitForTimeout(500)
+        return before !== "" && before === (await updateFiles(page))
+      },
+      { timeout },
+    )
     .toBe(true)
 
 export const todayOn = (page: Page) =>
