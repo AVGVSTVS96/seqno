@@ -21,6 +21,7 @@ import { AnnotationPrefix, annotationMarks, isAnnotation, isAreaAnnotation } fro
 import { AssetFileLink, AssetMedia } from "./Asset.tsx"
 import { copyImage, ImageViewer } from "./ImageViewer.tsx"
 import { blockRefAtom, pageTreeAtom } from "./core.ts"
+import { Latex } from "./Math.tsx"
 import { usePreview } from "./Preview.tsx"
 import {
   AssetActions,
@@ -401,6 +402,7 @@ const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
         {code}
       </code>
     ),
+    Math: ({ tex, span }) => <Latex tex={tex} block={false} caret={span.to} />,
     PageRef: ({ name, brackets, span }) => (
       <PageLink name={name} brackets={brackets} span={span}>
         {name.startsWith(hlsPagePrefix) ? assetPageName(name) : name}

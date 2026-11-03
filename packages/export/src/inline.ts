@@ -1,4 +1,4 @@
-import type { Inline } from "@seqno/syntax"
+import type { Inline, MathOpen } from "@seqno/syntax"
 import { element, text as textNode, type Html } from "./html.ts"
 import type { Run } from "./items.ts"
 
@@ -81,17 +81,38 @@ const AUTOLINK = /<(https?:\/\/[^\s>]+)>/g
 
 const CLOZE = /^\s*(.*?)\s*$/s
 
+const SPACE = "\uE000"
+const SPACES = /\uE000+/g
+const WHITESPACE = /\s/
+
+const spaced = (text: string) =>
+  text.replaceAll(SPACES, (marks: string, at: number) => {
+    const before = text[at - 1]
+    const after = text[at + marks.length]
+    return before === undefined ||
+      after === undefined ||
+      WHITESPACE.test(before) ||
+      WHITESPACE.test(after)
+      ? ""
+      : " "
+  })
+
+const wrapperOf = (open: MathOpen) => (open === "$" || open === "\\(" ? "$" : "$$")
+
+export const mathText = (open: MathOpen, tex: string) =>
+  `${wrapperOf(open)}${tex}${wrapperOf(open)}`
+
 export const markdownOf = (run: Run, inlines: Inlines, depth = 0): string =>
-  walk<boolean, string>(
-    run,
-    inlines,
-    depth,
-    false,
-    (text) => [text],
-    (node, raw, starred, nested) => [markdownNode(node, raw, starred, nested, inlines)],
-  )
-    .join("")
-    .replaceAll(AUTOLINK, "$1")
+  spaced(
+    walk<boolean, string>(
+      run,
+      inlines,
+      depth,
+      false,
+      (text) => [text],
+      (node, raw, starred, nested) => [markdownNode(node, raw, starred, nested, inlines)],
+    ).join(""),
+  ).replaceAll(AUTOLINK, "$1")
 
 const markdownNode = (
   node: Inline,
@@ -121,6 +142,7 @@ const markdownNode = (
         return children(emphasis.children, starred)
     }
   }
+  if (node._tag === "Math") return `${SPACE}${mathText(node.open, node.tex)}${SPACE}`
   if (node._tag === "PageRef" && node.brackets && inlines.removals.brackets) return node.name
   if (node._tag === "Tag" && inlines.removals.tags) return ""
   if (
@@ -149,19 +171,15 @@ const tagOf = {
   Highlight: "mark",
 } as const
 
-const FOOTNOTE_OR_MATH = /\[\^([^\]\s]+)\]|\$\$(.+?)\$\$/g
+const FOOTNOTE = /\[\^([^\]\s]+)\]/g
 
 const plain = (value: string): ReadonlyArray<Html> => {
   const out: Array<Html> = []
   let at = 0
-  for (const match of value.matchAll(FOOTNOTE_OR_MATH)) {
+  for (const match of value.matchAll(FOOTNOTE)) {
     if (match.index > at) out.push(textNode(value.slice(at, match.index)))
-    const [whole, note] = match
-    out.push(
-      note === undefined
-        ? element("span", [textNode(whole)])
-        : element("sup", [element("a", [textNode(note)], [["href", `#fnd.${note}`]])]),
-    )
+    const [whole, note = ""] = match
+    out.push(element("sup", [element("a", [textNode(note)], [["href", `#fnd.${note}`]])]))
     at = match.index + whole.length
   }
   if (at < value.length) out.push(textNode(value.slice(at)))
@@ -176,6 +194,8 @@ export const htmlOf = (run: Run, inlines: Inlines, depth = 0): ReadonlyArray<Htm
         return plain(raw)
       case "Code":
         return [element("code", [textNode(node.code)])]
+      case "Math":
+        return [element("span", [textNode(mathText(node.open, node.tex))])]
       case "PageRef":
         return inlines.removals.brackets || !node.brackets
           ? [textNode(node.name)]

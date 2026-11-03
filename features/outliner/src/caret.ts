@@ -1,4 +1,6 @@
 export const caretFromPoint = (x: number, y: number): number | null => {
+  const fixed = document.elementFromPoint(x, y)?.closest("[data-caret]")
+  if (fixed instanceof HTMLElement) return Number(fixed.dataset["caret"])
   const position = document.caretPositionFromPoint(x, y)
   const node = position?.offsetNode
   if (position === null || !(node instanceof Text)) return null

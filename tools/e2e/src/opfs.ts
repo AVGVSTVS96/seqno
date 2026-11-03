@@ -55,24 +55,25 @@ export const seedOpfs = async (page: Page, from: string, to: ReadonlyArray<strin
 
 export const opfsFiles = async (page: Page, root: ReadonlyArray<string>) => {
   const files = await page.evaluate(async (path) => {
-    const found: Array<[string, Array<number>]> = []
+    const found: Array<[string, string]> = []
     const walk = async (dir: FileSystemDirectoryHandle, prefix: string): Promise<void> => {
       for await (const entry of dir.values()) {
         if (entry.kind === "file") {
-          let buffer: ArrayBuffer | null = null
-          while (buffer === null) {
-            buffer = await (
-              await entry.getFile()
-            )
-              .arrayBuffer()
-              .catch((cause: unknown) =>
-                cause instanceof DOMException && cause.name === "NotReadableError"
-                  ? null
-                  : Promise.reject(cause),
+          let data: string | null = null
+          while (data === null) {
+            const file = await entry.getFile()
+            data = await new Promise<string | null>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.addEventListener("load", () =>
+                resolve(String(reader.result).split(",")[1] ?? ""),
               )
+              reader.addEventListener("error", () =>
+                reader.error?.name === "NotReadableError" ? resolve(null) : reject(reader.error),
+              )
+              reader.readAsDataURL(file)
+            })
           }
-          const bytes = new Uint8Array(buffer)
-          found.push([`${prefix}${entry.name}`, [...bytes]])
+          found.push([`${prefix}${entry.name}`, data])
         } else {
           await walk(entry, `${prefix}${entry.name}/`)
         }
@@ -87,7 +88,9 @@ export const opfsFiles = async (page: Page, root: ReadonlyArray<string>) => {
     )
     return found
   }, root)
-  return Object.fromEntries(files.map(([path, bytes]) => [path, new Uint8Array(bytes)]))
+  return Object.fromEntries(
+    files.map(([path, bytes]) => [path, new Uint8Array(Buffer.from(bytes, "base64"))]),
+  )
 }
 
 export const loadGraphFolder = async (page: Page, from: string) => {

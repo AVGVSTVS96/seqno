@@ -259,6 +259,9 @@ importers:
       effect:
         specifier: 4.0.1
         version: 4.0.1
+      katex:
+        specifier: 0.16.10
+        version: 0.16.10
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -275,6 +278,9 @@ importers:
       '@rolldown/plugin-babel':
         specifier: 0.2.4
         version: 0.2.4(@babel/core@8.0.6)(rolldown@1.2.12)(vite@8.3.3(@types/node@24.19.1))
+      '@types/katex':
+        specifier: 0.16.7
+        version: 0.16.7
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0
@@ -1687,6 +1693,9 @@ packages:
   '@types/jsesc@2.5.1':
     resolution: {integrity: sha512-9VN+6yxLOPLOav+7PwjZbxiID2bVaeq0ED4qSQmdQTdjnXJSaCVKTR58t15oqH1H5t8Ng2ZX1SabJVoN9Q34bw==}
 
+  '@types/katex@0.16.7':
+    resolution: {integrity: sha512-HMwFiRujE5PjrgwHQ25+bsLJgowjGjm5Z8FVSf0N6PwgJrwxH0QxzHYDcKsTfV3wva0vzrpqMTJS2jXPr5BMEQ==}
+
   '@types/node@24.19.1':
     resolution: {integrity: sha512-aS3/DG0oM05K0RIXXP+hKjinGG5IgSSVGzswZxW3O0sS3pH4/fycXundUC9XsszgKCk4gHXylTEK6hyFxVxnoQ==}
 
@@ -1937,6 +1946,10 @@ packages:
 
   clean-git-ref@2.0.1:
     resolution: {integrity: sha512-bLSptAy2P0s6hU4PzuIMKmMJJSE6gLXGH1cntDu7bWJUksvuM+7ReOK61mozULErYvP6a15rnYl0zFDef+pyPw==}
+
+  commander@8.3.0:
+    resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
+    engines: {node: '>= 12'}
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
@@ -2189,6 +2202,10 @@ packages:
   json5@2.2.3:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
     engines: {node: '>=6'}
+    hasBin: true
+
+  katex@0.16.10:
+    resolution: {integrity: sha512-ZiqaC04tp2O5utMsl2TEZTXxa6WSC4yo0fv5ML++D3QZv/vx2Mct0mTlRx3O+uUkjfuAgOkzsCmq5MiUEsDDdA==}
     hasBin: true
 
   lightningcss-android-arm64@1.33.0:
@@ -3352,6 +3369,8 @@ snapshots:
 
   '@types/jsesc@2.5.1': {}
 
+  '@types/katex@0.16.7': {}
+
   '@types/node@24.19.1':
     dependencies:
       undici-types: 7.24.6
@@ -3605,6 +3624,8 @@ snapshots:
 
   clean-git-ref@2.0.1: {}
 
+  commander@8.3.0: {}
+
   convert-source-map@2.0.0: {}
 
   cookie-es@3.1.1: {}
@@ -3830,6 +3851,10 @@ snapshots:
   jsesc@3.1.0: {}
 
   json5@2.2.3: {}
+
+  katex@0.16.10:
+    dependencies:
+      commander: 8.3.0
 
   lightningcss-android-arm64@1.33.0:
     optional: true

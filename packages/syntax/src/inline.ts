@@ -1,5 +1,6 @@
 import { Match } from "effect"
 import type { Priority, Span } from "./block.ts"
+import { inlineMathAt, mathClose, type MathOpen } from "./math.ts"
 import { BLOCK_REF, MACRO, PRIORITY, TAG, TAG_TRAILER } from "./patterns.ts"
 
 export type LinkTarget =
@@ -10,6 +11,12 @@ export type LinkTarget =
 export type Inline =
   | { readonly _tag: "Text"; readonly text: string; readonly span: Span }
   | { readonly _tag: "Code"; readonly code: string; readonly span: Span }
+  | {
+      readonly _tag: "Math"
+      readonly open: MathOpen
+      readonly tex: string
+      readonly span: Span
+    }
   | {
       readonly _tag: "PageRef"
       readonly name: string
@@ -81,7 +88,7 @@ const orgLinkAt = (source: string, at: number, base: number): Token | null => {
   const label =
     labelText === undefined
       ? [{ _tag: "Text" as const, text: raw, span }]
-      : parseInline(labelText, base + labelFrom, "org")
+      : nestedInline(labelText, base + labelFrom, "org")
   const protocol = ORG_PROTOCOL.exec(raw)
   const scheme = protocol?.[1]?.toLowerCase()
   if (scheme === "id" && UUID_REF.test(`((${protocol?.[2] ?? ""}))`)) {
@@ -306,7 +313,7 @@ const atomAt = (
     return {
       node: {
         _tag: "Link",
-        label: parseInline(label, base + labelFrom + 1),
+        label: nestedInline(label, base + labelFrom + 1),
         target,
         span: span(end),
       },
@@ -361,7 +368,7 @@ const boldItalicAt = (source: string, at: number, base: number): Token | null =>
       children: [
         {
           _tag: "Bold",
-          children: parseInline(source.slice(inner, close), base + inner),
+          children: nestedInline(source.slice(inner, close), base + inner),
           span: { from: base + at + 1, to: base + end - 1 },
         },
       ],
@@ -385,7 +392,7 @@ const emphasisAt = (source: string, at: number, base: number, dialect: Dialect):
     return {
       node: {
         _tag: tag,
-        children: parseInline(source.slice(inner, close), base + inner, dialect),
+        children: nestedInline(source.slice(inner, close), base + inner, dialect),
         span: { from: base + at, to: base + end },
       },
       end,
@@ -394,16 +401,53 @@ const emphasisAt = (source: string, at: number, base: number, dialect: Dialect):
   return null
 }
 
-export const parseInline = (
+const mathTokenAt = (source: string, at: number, base: number): Token | null => {
+  const math = inlineMathAt(source, at)
+  return math === null
+    ? null
+    : {
+        node: {
+          _tag: "Math",
+          open: math.open,
+          tex: math.tex,
+          span: { from: base + at, to: base + math.end },
+        },
+        end: math.end,
+      }
+}
+
+const escapeAt = (source: string, at: number, base: number): Token | "skip" | null => {
+  if (source[at] !== "\\") return null
+  const next = source[at + 1]
+  if (next === "\\") return "skip"
+  return next === "$"
+    ? {
+        node: { _tag: "Text", text: "$", span: { from: base + at, to: base + at + 2 } },
+        end: at + 2,
+      }
+    : null
+}
+
+const inlineNodes = (
   source: string,
-  base = 0,
-  dialect: Dialect = "markdown",
+  base: number,
+  dialect: Dialect,
+  math: boolean,
 ): ReadonlyArray<Inline> => {
   const nodes: Array<Inline> = []
   let text = 0
   let at = 0
   while (at < source.length) {
-    const token = atomAt(source, at, base, dialect) ?? emphasisAt(source, at, base, dialect)
+    const escaped = dialect === "markdown" ? escapeAt(source, at, base) : null
+    if (escaped === "skip") {
+      at += 2
+      continue
+    }
+    const token =
+      escaped ??
+      (math ? mathTokenAt(source, at, base) : null) ??
+      atomAt(source, at, base, dialect) ??
+      emphasisAt(source, at, base, dialect)
     if (token === null) {
       at++
       continue
@@ -429,12 +473,22 @@ export const parseInline = (
   return nodes
 }
 
+const nestedInline = (source: string, base = 0, dialect: Dialect = "markdown") =>
+  inlineNodes(source, base, dialect, false)
+
+export const parseInline = (
+  source: string,
+  base = 0,
+  dialect: Dialect = "markdown",
+): ReadonlyArray<Inline> => inlineNodes(source, base, dialect, true)
+
 export const plainText = (nodes: ReadonlyArray<Inline>): string =>
   nodes
     .map((node) =>
       Match.valueTags(node, {
         Text: ({ text }) => text,
         Code: ({ code }) => code,
+        Math: ({ open, tex }) => `${open}${tex}${mathClose(open)}`,
         PageRef: ({ name, brackets }) => (brackets ? `[[${name}]]` : name),
         Tag: ({ name }) => `#${name}`,
         BlockRef: ({ uuid }) => `((${uuid}))`,

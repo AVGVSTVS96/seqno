@@ -29,6 +29,8 @@ const summary = (content: BlockContent) => ({
         return `quote: ${body.lines.map(plainText).join(" / ")}`
       case "Admonition":
         return `${body.kind}: ${body.lines.map(plainText).join(" / ")}`
+      case "Math":
+        return `math: ${body.tex}`
     }
   }),
   numbered: content.numbered,

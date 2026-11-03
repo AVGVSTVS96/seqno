@@ -1,5 +1,6 @@
 import { Option, Schema } from "effect"
 import { parseInline, type Dialect, type Inline } from "./inline.ts"
+import { mathSpans } from "./math.ts"
 import {
   BLOCK_REF,
   HEADING,
@@ -315,15 +316,16 @@ export const analyzeBlock = (text: string, dialect: Dialect = "markdown"): Block
       .map((region) => region.span),
     ...(dialect === "org" ? [] : [...text.matchAll(INLINE_CODE)].map(spanOf)),
   ]
+  const verbatim = [...code, ...mathSpans(text, code)]
   const macros = [...text.matchAll(MACRO)]
-    .filter((match) => !inside(code, match.index ?? 0))
+    .filter((match) => !inside(verbatim, match.index ?? 0))
     .map((match): Macro => ({
       name: (match[1] ?? "").toLowerCase(),
       args: (match[2] ?? "").trim(),
       span: spanOf(match),
     }))
   const queries = macros.filter((macro) => macro.name === "query").map((macro) => macro.span)
-  const excluded = [...code, ...queries]
+  const excluded = [...verbatim, ...queries]
 
   const blockRefs = [...text.matchAll(BLOCK_REF)]
     .filter((match) => !inside(excluded, match.index ?? 0))

@@ -18,13 +18,21 @@ const outputsOf = (
       ? result.output
       : []
 
+const OLDER_FONTS = /,url\([^)]*\.(?:woff|ttf)\) format\("(?:woff|truetype)"\)/g
+
+const woff2Fonts = (): Plugin => ({
+  name: "seqno-viewer-woff2",
+  enforce: "pre",
+  transform: (code, id) => (id.includes("/katex.min.css") ? code.replace(OLDER_FONTS, "") : null),
+})
+
 const buildViewer = async (): Promise<ReadonlyArray<ViewerFile>> => {
   const result = await build({
     configFile: false,
     root,
     logLevel: "warn",
     base: "./",
-    plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+    plugins: [woff2Fonts(), react(), babel({ presets: [reactCompilerPreset()] })],
     define: { "process.env.NODE_ENV": JSON.stringify("production") },
     build: {
       write: false,

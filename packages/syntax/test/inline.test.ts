@@ -12,6 +12,8 @@ const show = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
         return `Text(${node.text})${at}`
       case "Code":
         return `Code(${node.code})${at}`
+      case "Math":
+        return `Math(${node.open}|${node.tex})${at}`
       case "PageRef":
         return `PageRef(${node.name}${node.brackets ? "" : ", bare"})${at}`
       case "Tag":
@@ -63,6 +65,7 @@ const refsOf = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
         ]
       case "Text":
       case "Code":
+      case "Math":
       case "Priority":
       case "Image":
         return []

@@ -24,6 +24,7 @@ import {
 import { AnnotationPrefix, annotationNames, isAnnotation, isAreaAnnotation } from "./Annotation.tsx"
 import { CodeBlock } from "./CodeBlock.tsx"
 import { Inlines } from "./Inline.tsx"
+import { Latex } from "./Math.tsx"
 import {
   BlockSource,
   clickOnEnter,
@@ -127,6 +128,7 @@ const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: Cod
       )
     },
     Admonition: ({ kind, lines }) => <Admonition kind={kind} lines={lines} />,
+    Math: ({ tex, span }) => <Latex tex={tex} block caret={span.to} />,
     Quote: ({ lines }) => (
       <blockquote className="seqno-quote">
         {lines.map((line, index) => (

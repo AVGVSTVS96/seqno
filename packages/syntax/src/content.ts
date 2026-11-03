@@ -1,6 +1,7 @@
 import { analyzeBlock, type Marker, type Region, type Span, type TextEdit } from "./block.ts"
 import { parseInline, type Dialect, type Inline } from "./inline.ts"
 import { defaultPropertyConfig, type PropertyConfig } from "./config.ts"
+import { mathBlockAt } from "./math.ts"
 import { HEADING, MARKER, PLANNING_LINE } from "./patterns.ts"
 
 export type Body =
@@ -29,6 +30,7 @@ export type Body =
       readonly lines: ReadonlyArray<ReadonlyArray<Inline>>
       readonly span: Span
     }
+  | { readonly _tag: "Math"; readonly tex: string; readonly span: Span }
 
 export type AdmonitionKind = "note" | "tip" | "important" | "caution" | "warning" | "pinned"
 
@@ -93,6 +95,8 @@ const FENCE_INFO = /^[ \t]*(?:`{3,}|~{3,})[ \t]*([^\s`]*)/
 const LEADING_PRIORITY = /^\[#([ABC])\][ \t]*/
 
 const ORG_HEADING_TAGS = /[ \t]+:(?:[^\s:]+:)+[ \t]*$/
+const EXPORT_LANGUAGE = /^[ \t]*#\+BEGIN_EXPORT[ \t]+(\S+)/i
+const OPENS_MATH = /\\[[(]/
 const ORG_HIDDEN = /^[ \t]*(?:#\+(?!BEGIN_|END_)\S*:|#(?:[ \t]|$))/i
 
 const titleOf = (line: string, start: number, dialect: Dialect): ReadonlyArray<Inline> => {
@@ -189,13 +193,41 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
   const titleFrom = heading.length + marker.length
   const titleText = first.text.slice(titleFrom)
   const titleStart = titleFrom + (titleText.length - titleText.trimStart().length)
+  const titleMath = hasTitle ? mathBlockAt(text, titleStart) : null
 
   const planning: Array<Planning> = []
   const body: Array<Body> = []
   let logbook: Logbook | null = null
   const rest = hasTitle ? lines.slice(1) : lines
-  for (let index = 0; index < rest.length; index++) {
-    const line = rest[index]
+  const queue: Array<Line> =
+    titleMath === null
+      ? [...rest]
+      : [{ text: first.text.slice(titleStart), from: titleStart }, ...rest]
+  const plainLine = (line: Line) =>
+    regionAt(syntax.regions, line) === undefined &&
+    !syntax.properties.some((property) => within(property.span, line)) &&
+    !PLANNING_LINE.test(line.text) &&
+    (org || (!QUOTE.test(line.text) && !HEADING.test(line.text))) &&
+    mathBlockAt(text, line.from) === null
+  const mathThrough = (line: Line, index: number): number => {
+    if (!OPENS_MATH.test(line.text)) return index
+    let last = index
+    while (queue[last + 1] !== undefined && plainLine(queue[last + 1] ?? line)) last++
+    if (last === index) return index
+    const lineEnd = line.from + line.text.length
+    const tail = queue[last] ?? line
+    const crossing = parseInline(
+      text.slice(line.from, tail.from + tail.text.length),
+      line.from,
+      dialect,
+    ).find((node) => node.span.to > lineEnd)
+    if (crossing?._tag !== "Math" || crossing.span.from >= lineEnd) return index
+    let through = index
+    while ((queue[through + 1]?.from ?? Number.POSITIVE_INFINITY) < crossing.span.to) through++
+    return through
+  }
+  for (let index = 0; index < queue.length; index++) {
+    const line = queue[index]
     if (line === undefined) continue
     if (syntax.properties.some((property) => within(property.span, line))) continue
     const region = regionAt(syntax.regions, line)
@@ -216,6 +248,12 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
             span,
           }
         }
+      } else if (
+        region.kind === "Directive" &&
+        region.name === "EXPORT" &&
+        EXPORT_LANGUAGE.exec(line.text)?.[1] === "latex"
+      ) {
+        body.push({ _tag: "Math", tex: inner.map((entry) => `${entry.text}\n`).join(""), span })
       } else if (region.kind === "Directive" && region.name === "QUOTE") {
         body.push({
           _tag: "Quote",
@@ -257,11 +295,20 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
       continue
     }
     if (org && ORG_HIDDEN.test(line.text)) continue
+    const math = mathBlockAt(text, line.from)
+    if (math !== null) {
+      body.push({ _tag: "Math", tex: math.tex, span: math.span })
+      while ((queue[index + 1]?.from ?? Number.POSITIVE_INFINITY) <= math.span.to) index++
+      const last = queue[index] ?? line
+      const tail = last.text.slice(math.span.to - last.from)
+      if (tail.trim() !== "") queue[index--] = { text: tail, from: math.span.to }
+      continue
+    }
     const quote = org ? null : QUOTE.exec(line.text)
     if (quote !== null) {
       const run = [line]
-      while (QUOTE.test(rest[index + 1]?.text ?? "")) {
-        const next = rest[index + 1]
+      while (QUOTE.test(queue[index + 1]?.text ?? "")) {
+        const next = queue[index + 1]
         if (next !== undefined) run.push(next)
         index++
       }
@@ -277,10 +324,17 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
       continue
     }
     const hashes = org ? undefined : HEADING.exec(line.text)?.[0]
-    const span = { from: line.from, to: line.from + line.text.length }
+    const through = hashes === undefined ? mathThrough(line, index) : index
+    const end = queue[through] ?? line
+    index = through
+    const span = { from: line.from, to: end.from + end.text.length }
     body.push(
       hashes === undefined
-        ? { _tag: "Paragraph", inline: parseInline(line.text, line.from, dialect), span }
+        ? {
+            _tag: "Paragraph",
+            inline: parseInline(text.slice(span.from, span.to), line.from, dialect),
+            span,
+          }
         : {
             _tag: "Heading",
             level: hashes.trim().length,
@@ -292,7 +346,7 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
   return {
     marker: hasTitle ? syntax.marker : null,
     heading: heading === "" ? null : heading.trim().length,
-    title: hasTitle ? titleOf(first.text, titleStart, dialect) : null,
+    title: !hasTitle ? null : titleMath === null ? titleOf(first.text, titleStart, dialect) : [],
     properties: syntax.properties
       .filter((property) => !isHiddenProperty(property.key))
       .map((property) => {

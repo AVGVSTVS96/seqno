@@ -22,7 +22,10 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
     "{:meta/version 1\n :file/name-format :triple-lowbar\n :property/separated-by-commas #{:crops}}\n",
   )
   const plan = join(graph, "pages", "Garden Plan.md")
-  await writeFile(plan, `${await readFile(plan, "utf8")}- Rotation\n  crops:: garlic, broad beans`)
+  await writeFile(
+    plan,
+    `${await readFile(plan, "utf8")}- Rotation\n  crops:: garlic, broad beans\n- Rows sit $30\\,\\text{cm}$ apart`,
+  )
   await seedOpfs(page, graph, ["graphs", "demo"])
   await page.addInitScript(() => {
     window.showDirectoryPicker = async () =>
@@ -74,6 +77,10 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   await expect(main.getByRole("region", { name: "Linked references" })).toContainText(
     "Seed Inventory",
   )
+  await expect(main.locator(".latex-inline .katex annotation")).toHaveText("30\\,\\text{cm}")
+  expect(
+    await viewer.evaluate(async () => (await document.fonts.load('16px "KaTeX_Main"')).length),
+  ).toBeGreaterThan(0)
 
   await main.getByText("Seed Inventory", { exact: true }).first().click()
   await expect(viewer).toHaveTitle("Seed Inventory")

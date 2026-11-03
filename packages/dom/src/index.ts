@@ -6,6 +6,7 @@ import { contentParts, type ContentParts } from "./content.ts"
 import { editorParts, type EditorParts } from "./editor.ts"
 import { fileParts, type FileParts } from "./file.ts"
 import { names, type LogseqNames, type Table } from "./names.ts"
+import { latexParts, type LatexParts } from "./latex.ts"
 import { pdfParts, type PdfParts } from "./pdf.ts"
 import { pageParts, type PageParts } from "./page.ts"
 import { pluginParts, type PluginParts } from "./plugins.ts"
@@ -42,6 +43,7 @@ type Parts = AssetParts &
   ContentParts &
   EditorParts &
   FileParts &
+  LatexParts &
   PageParts &
   PdfParts &
   PluginParts &
@@ -57,6 +59,7 @@ const parts: Table<Parts> = {
   ...contentParts,
   ...editorParts,
   ...fileParts,
+  ...latexParts,
   ...pageParts,
   ...pdfParts,
   ...pluginParts,

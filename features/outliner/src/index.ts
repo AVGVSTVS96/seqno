@@ -18,6 +18,13 @@ export {
 } from "./core.ts"
 export { CodeFile } from "./CodeFile.tsx"
 export { historyStep, type Editing, type HistoryStep } from "./history.ts"
+export {
+  addKatexEnhancer,
+  dropKatexEnhancers,
+  katexEnhancers,
+  redrawMath,
+  type KatexEnhancer,
+} from "./Math.tsx"
 export type { BlockMenuRequest, Navigate, NavigationTarget, OpenBlockMenu } from "./navigation.ts"
 export { Outliner, PropertyValue, StaticBlock, type OutlinerProps } from "./Outliner.tsx"
 export { PlainTextEditor } from "./PlainTextEditor.tsx"
