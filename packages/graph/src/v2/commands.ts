@@ -10,7 +10,7 @@ import {
   type PageId,
 } from "@seqno/domain"
 import { CommandRejected } from "@seqno/rpc"
-import { Unresolved } from "../commands.ts"
+import { freshIds, Unresolved } from "../commands.ts"
 import type { Recorder } from "../history.ts"
 import { isCollapsed, readProps, textOf, writeBlock, writeProps } from "../tree.ts"
 import {
@@ -419,7 +419,7 @@ const createTree = (
   draft: BlockDraft,
 ): Effect.Effect<void, never, Crypto.Crypto> =>
   Effect.gen(function* () {
-    const id = yield* Effect.orDie(newBlockId)
+    const id = draft.id ?? (yield* Effect.orDie(newBlockId))
     writeBlock(node, id, draft.text, yield* Clock.currentTimeMillis)
     writeProps(node.data, draft.props)
     yield* Effect.forEach(
@@ -521,6 +521,7 @@ export const applyCommand = (
     InsertBlocks: ({ pageId, parentId, after, blocks }) =>
       Effect.gen(function* () {
         const parent = yield* parentFor(ws, pageId, parentId)
+        yield* freshIds(blocks, (id) => Option.isSome(ws.homes.home(id)))
         const start = yield* childAfter(ws, out, parent, after)
         yield* Effect.forEach(
           blocks,

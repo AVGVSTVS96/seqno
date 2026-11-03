@@ -13,15 +13,26 @@ export const PropertyTarget = Schema.TaggedUnion({
 export type PropertyTarget = typeof PropertyTarget.Type
 
 export interface BlockDraft {
+  readonly id?: BlockId
   readonly text: string
   readonly props: Props
   readonly children: ReadonlyArray<BlockDraft>
 }
 
-export const BlockDraft: Schema.Codec<BlockDraft> = Schema.Struct({
+interface BlockDraftEncoded {
+  readonly id?: string
+  readonly text: string
+  readonly props: Props
+  readonly children: ReadonlyArray<BlockDraftEncoded>
+}
+
+export const BlockDraft: Schema.Codec<BlockDraft, BlockDraftEncoded> = Schema.Struct({
+  id: Schema.optionalKey(BlockId),
   text: Schema.String,
   props: Props,
-  children: Schema.Array(Schema.suspend((): Schema.Codec<BlockDraft> => BlockDraft)),
+  children: Schema.Array(
+    Schema.suspend((): Schema.Codec<BlockDraft, BlockDraftEncoded> => BlockDraft),
+  ),
 })
 
 export const Command = Schema.TaggedUnion({

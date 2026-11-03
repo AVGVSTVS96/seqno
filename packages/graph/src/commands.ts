@@ -145,6 +145,14 @@ const createBlock = (ws: Workspace, parent: LoroTreeNode, index: number, text: s
     writeBlock(ws.record.create(parent, index), id, text, now)
   })
 
+export const freshIds = (drafts: ReadonlyArray<BlockDraft>, known: (id: BlockId) => boolean) => {
+  const ids = drafts.flatMap(function chosen(draft): ReadonlyArray<BlockId> {
+    return [...(draft.id === undefined ? [] : [draft.id]), ...draft.children.flatMap(chosen)]
+  })
+  const taken = ids.find((id, at) => known(id) || ids.indexOf(id) !== at)
+  return taken === undefined ? Effect.void : reject(`block ${taken} already exists`)
+}
+
 const createTree = (
   ws: Workspace,
   parent: LoroTreeNode,
@@ -152,7 +160,7 @@ const createTree = (
   draft: BlockDraft,
 ): Effect.Effect<void, never, Crypto.Crypto> =>
   Effect.gen(function* () {
-    const id = yield* Effect.orDie(newBlockId)
+    const id = draft.id ?? (yield* Effect.orDie(newBlockId))
     const now = yield* Clock.currentTimeMillis
     const node = ws.record.create(parent, index)
     writeBlock(node, id, draft.text, now)
@@ -228,6 +236,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
         if (rootOf(parent).id !== page.id) {
           return yield* reject(`block ${parentId} is not on page ${pageId}`)
         }
+        yield* freshIds(blocks, (id) => ws.registry.blocks.has(id))
         const start = yield* childAfter(ws, parent, after)
         yield* Effect.forEach(blocks, (draft, at) => createTree(ws, parent, start + at, draft), {
           discard: true,

@@ -277,6 +277,27 @@ describe("blocks", () => {
     ),
   )
 
+  it.effect("gives pasted blocks the ids they bring, and refuses an id already taken", () =>
+    withGraph((graph) =>
+      Effect.gen(function* () {
+        const { pageId, ids } = yield* seedPage(graph, "Chosen", ["before"])
+        const chosen = BlockId.make("01920000-0000-7000-8000-00000000c0de")
+        const insert = (id: BlockId): Command => ({
+          _tag: "InsertBlocks",
+          pageId,
+          parentId: null,
+          after: nth(ids, 0),
+          blocks: [{ id, text: "brought", props: {}, children: [] }],
+        })
+        yield* graph.dispatch(insert(chosen))
+        const tree = yield* graph.page(pageId)
+        assert.strictEqual(tree.blocks.find((block) => block.text === "brought")?.id, chosen)
+        assert.match(yield* rejection(graph.dispatch(insert(chosen))), /already exists/)
+        assert.match(yield* rejection(graph.dispatch(insert(nth(ids, 0)))), /already exists/)
+      }),
+    ),
+  )
+
   it.effect("rejects a parent from another page", () =>
     withGraph((graph) =>
       Effect.gen(function* () {
