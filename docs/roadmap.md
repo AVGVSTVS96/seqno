@@ -77,7 +77,7 @@ Ten years at 2× and 4× the blocks a day (`SEQNO_BENCH_DENSITY`, a heavy writer
 ### UI
 
 - **Missing features:** flashcards, All pages views and filters, linked-reference filters, a toolbar for selected blocks, the query builder menu, and Settings beyond General and Keymap.
-- **Plugins:** a plugin's display in one tab doesn't follow `DB.onChanged` for edits typed in another tab, and the API parts listed in [decisions.md](decisions.md) answer "not supported yet". Themes that rely on Logseq's nested block markup (`.block-children` threading) don't find it in seqno's flat outline.
+- **Plugins:** a plugin's display in one tab doesn't follow `DB.onChanged` for edits typed in another tab, and the API parts listed in [decisions.md](decisions.md) answer "not supported yet". Themes that rely on Logseq's nested block markup (`.block-children` threading) don't find it in seqno's flat outline, and the other Logseq names the popular themes select that seqno doesn't render yet are listed, each with its reason, in `packages/dom/src/gaps.ts`.
 - The command palette lacks Logseq's commands for what seqno doesn't have yet (document mode, flashcards, the brackets toggle, next and previous journal, tomorrow, accent colors, re-index, Git and file commands), and search has no Codes or Files filter. The page menu lacks View page history and Logseq desktop's file items (open in directory, default app, backups).
 - `[[` suggests pages only; Logseq 2.x also lists matching blocks.
 - Favorites live in app storage, not `config.edn`, so Logseq doesn't see them and a Logseq graph's favorites aren't imported.

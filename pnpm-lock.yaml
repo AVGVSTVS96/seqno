@@ -802,6 +802,10 @@ importers:
         version: 4.0.1
 
   tools/lint:
+    dependencies:
+      '@seqno/dom':
+        specifier: workspace:*
+        version: link:../../packages/dom
     devDependencies:
       '@oxlint/plugins':
         specifier: 1.86.0

@@ -58,7 +58,7 @@ A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added t
    tools/*  may import anything; nothing imports a tool
 ```
 
-- The UI side imports only `@seqno/domain`, `@seqno/rpc`, the pure packages (`@seqno/syntax`, `@seqno/query`) and other UI packages. Blocks render with the same parser the core uses, not a second one. It never imports graph, index, vault or interop, and talks to the core only through `@seqno/rpc`.
+- The UI side imports only `@seqno/domain`, `@seqno/rpc`, the pure packages (`@seqno/syntax`, `@seqno/query`, `@seqno/dom`) and other UI packages. Blocks render with the same parser the core uses, not a second one. It never imports graph, index, vault or interop, and talks to the core only through `@seqno/rpc`.
 - The core side never imports UI packages.
 - The core worker entry lives in `apps/web/src/worker/`. Files there count as core side: they may import core packages and may not import UI code. UI files in `apps/web` may not import from `src/worker/` (start the worker with `new SharedWorker(new URL(...))`, not an import).
 - Relative imports never leave their package. Import another package by its `@seqno/*` name and list it in `package.json`.
@@ -78,6 +78,7 @@ A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added t
   - A package's public API is `src/index.ts`, exposed through `"exports": { ".": "./src/index.ts" }`. No build step for workspace packages.
   - Tests live in `<package>/test/*.test.ts` and use `@effect/vitest` (`it.effect`) for Effect code.
   - Dependencies use exact versions. `effect` is `4.0.1`, `loro-crdt` is `1.16.4`.
+  - An element Logseq also has spreads `logseq("<its seqno class>", state)` from `@seqno/dom`; seqno's own state goes in `data-*`.
 - Effect v4 differs from v3: `Context.Service` instead of `Context.Tag`, `Result` instead of `Either`, Schema v4 names. Check the installed types and https://github.com/Effect-TS/effect/blob/main/MIGRATION.md.
 
 ## What enforces each rule
@@ -94,6 +95,7 @@ A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added t
 | No `!` non-null assertions                                                  | `typescript/no-non-null-assertion` (oxlint)                                                                                                               |
 | No `@ts-ignore` / `@ts-expect-error`                                        | `seqno/no-comments` and `typescript/ban-ts-comment` (oxlint)                                                                                              |
 | No lint-disable escape hatches                                              | `tools/lint/src/directives.ts` (runs in `pnpm lint`)                                                                                                      |
+| Logseq's names come only from `@seqno/dom`                                  | `seqno/logseq-names` (oxlint)                                                                                                                             |
 | No import cycles                                                            | `import/no-cycle` (oxlint)                                                                                                                                |
 | Strict types, checked index access                                          | `tsconfig.base.json` (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)                                                                 |
 | Erasable TypeScript only (no enums, namespaces)                             | `tsconfig.base.json` (`erasableSyntaxOnly`)                                                                                                               |

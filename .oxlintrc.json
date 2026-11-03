@@ -26,7 +26,15 @@
   "overrides": [
     {
       "files": ["features/outliner/src/virtual.tsx"],
-      "rules": { "react/incompatible-library": "off" }
+      "rules": {
+        "react/incompatible-library": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/**/*.{ts,tsx}", "features/*/src/**/*.{ts,tsx}"],
+      "rules": {
+        "seqno/logseq-names": "error"
+      }
     }
   ],
   "jsPlugins": ["./tools/lint/src/plugin.ts"]

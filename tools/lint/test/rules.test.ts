@@ -3,6 +3,7 @@ import { describe, it } from "vitest"
 import { RuleTester } from "oxlint/plugins-dev"
 import { importBoundaries } from "../src/boundaries.ts"
 import { noAny, noAsCast, noComments, noUseEffect } from "../src/code-rules.ts"
+import { logseqNames } from "../src/logseq-names.ts"
 
 RuleTester.describe = describe
 RuleTester.it = it
@@ -156,5 +157,32 @@ tester.run("import-boundaries", importBoundaries, {
       filename: at("packages/mystery/src/x.ts"),
       errors: [/^packages\/mystery is not in the repo map/],
     },
+  ],
+})
+
+tester.run("logseq-names", logseqNames, {
+  valid: [
+    'const row = <div {...logseq("seqno-row", state)} data-index={1} />',
+    'const dot = <span className="seqno-dot" />',
+    "const title = <Heading level={2} />",
+    'element.className = logseq("seqno-plugin-frame").className',
+  ],
+  invalid: [
+    {
+      code: 'const bullet = <span className="seqno-bullet bullet-container" />',
+      errors: [
+        {
+          message:
+            "`bullet-container` is one of Logseq's names. Spread `logseq(\"seqno-…\", state)` from @seqno/dom on this element and add Logseq's names to the table there.",
+        },
+      ],
+    },
+    {
+      code: "const dot = <span id={`dot-${id}`} blockid={id} />",
+      errors: [/^`dot-` is one of Logseq's names/, /^`blockid` is one of Logseq's names/],
+    },
+    { code: 'const menu = <div className={names("menu", extra)} />', errors: [/^`menu`/] },
+    { code: 'frame.className = "lsp-iframe-sandbox"', errors: [/^`lsp-iframe-sandbox`/] },
+    { code: 'node.classList.toggle("bullet-closed", folded)', errors: [/^`bullet-closed`/] },
   ],
 })
