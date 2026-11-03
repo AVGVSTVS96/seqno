@@ -18,7 +18,8 @@ import {
 import { dispatchAllAtom, editRequest, historyAtom, pageTreeAtom } from "@seqno/outliner"
 import type { PageTree } from "@seqno/rpc"
 import boardCss from "./board.css?inline"
-import { create, editText, patch, remove, reorder, type Raw } from "./commands.ts"
+import { clipboardHtml, copiedOf, readClipboard } from "./clipboard.ts"
+import { clones, copiesAt, create, editText, patch, remove, reorder, type Raw } from "./commands.ts"
 import { ContextBar } from "./ContextBar.tsx"
 import { ContextMenu, type MenuGroup } from "./ContextMenu.tsx"
 import {
@@ -48,6 +49,7 @@ import {
   changesOf,
   erasedAt,
   idle,
+  lineRaw,
   selectionBounds,
   type Gesture,
   type ResizeHandle,
@@ -62,7 +64,8 @@ import {
   type Scene,
 } from "./model.ts"
 import type { OutlinerEnv } from "./Portal.tsx"
-import { applyLocally } from "./preview.ts"
+import { freshId } from "./ids.ts"
+import { applyLocally, isGhost } from "./preview.ts"
 import { QuickSearch, type Pick } from "./QuickSearch.tsx"
 import { ShapeView, type ShapeSlots } from "./ShapeView.tsx"
 import { ActionBar, PrimaryTools, usePopoverIds, type ZoomAction } from "./Toolbar.tsx"
@@ -266,6 +269,13 @@ const TitleChip = ({
   )
 }
 
+const readClipboardItems = async () => {
+  const [item] = await navigator.clipboard.read()
+  const read = (type: string) =>
+    item?.types.includes(type) === true ? item.getType(type).then((blob) => blob.text()) : ""
+  return { html: await read("text/html"), text: await read("text/plain") }
+}
+
 const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) => {
   const { page, focus } = props
   const run = useAtomSet(dispatchAllAtom, { mode: "promiseExit" })
@@ -273,6 +283,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const requestEdit = useAtomSet(editRequest)
   const root = useRef<HTMLDivElement | null>(null)
   const press = useRef<Press | null>(null)
+  const pointer = useRef<Vec | null>(null)
   const [camera, setCamera] = useState<Camera | null>(null)
   const [viewport, setViewport] = useState<Viewport>({ width: 0, height: 0 })
   const [tool, setTool] = useState<Tool>("select")
@@ -306,12 +317,17 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const shown = live.length === 0 ? scene : sceneOf(itemsOf(applyLocally(blocks, live)), measured)
   const exists = (id: BlockId) => scene.byId.has(id)
   const selection = gesture._tag === "Brushing" ? brushed(scene, gesture) : selected.filter(exists)
+  const editingId = editing !== null && exists(editing) ? editing : null
   const selectedItems = selection.flatMap((id) => shown.byId.get(id) ?? [])
   const erasing = gesture._tag === "Erasing" ? new Set(gesture.ids) : new Set<BlockId>()
 
   const commit = (commands: ReadonlyArray<Command>) => {
     if (commands.length === 0) return Promise.resolve<ReadonlyArray<GraphEvent>>([])
-    setPending({ base: tree, commands })
+    setPending((current) =>
+      current !== null && current.base === tree
+        ? { base: tree, commands: [...current.commands, ...commands] }
+        : { base: tree, commands },
+    )
     return run(commands).then((exit) => {
       if (Exit.isSuccess(exit)) return exit.value
       setPending(null)
@@ -354,10 +370,10 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     return true
   }
 
-  const finishEditing = () => {
+  const finishEditing = (next: EventTarget | null) => {
     const id = editing
     setEditing(null)
-    root.current?.focus()
+    if (!isEditableTarget(next)) root.current?.focus()
     if (id === null) return
     const item = scene.byId.get(id)
     if (item === undefined) return
@@ -368,7 +384,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     const text = editText(id, item.block.text, draft)
     const seen = measured.get(id)
     const sized =
-      item.shape.type === "text" && item.shape.isAutoResizing !== false && seen !== undefined
+      item.shape.type === "text" && item.shape.isSizeLocked !== false && seen !== undefined
         ? [patch(item, { size: [round(seen[0]), round(seen[1])] })]
         : []
     void commit([...(text === null ? [] : [text]), ...sized])
@@ -380,7 +396,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         .filter((item) => !isLocked(item))
         .flatMap((item) => {
           const original = scene.byId.get(item.block.id)
-          return original === undefined ? [] : [patch(original, change(original))]
+          if (original === undefined || isGhost(original.block.id)) return []
+          const next = change(original)
+          return Object.keys(next).length === 0 ? [] : [patch(original, next)]
         }),
     )
 
@@ -420,7 +438,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   }
 
   const newBlockPortal = (point: Vec, text: string) => {
-    const after = scene.items.at(-1)?.block.id
+    const after = scene.items.findLast((item) => !isGhost(item.block.id))?.block.id
     const made: Command = {
       _tag: "InsertBlocks",
       pageId: page.id,
@@ -587,7 +605,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             ? selection
             : [id]
         setSelected(next)
-        setGesture({ _tag: "Translating", from: world, to: world, ids: next, copy: event.altKey })
+        setGesture({
+          _tag: "Translating",
+          from: world,
+          to: world,
+          ids: next,
+          copy: event.altKey ? next.map(() => freshId()) : null,
+        })
         return
       }
       case "box":
@@ -634,6 +658,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const at = screenOf(event)
     const world = toWorld(cam, at)
+    pointer.current = world
     if (gesture._tag === "Idle") {
       if (tool === "select" && !insideLivePortal(event.target)) {
         const hit = topHit(scene, world, cam.zoom)?.block.id ?? null
@@ -666,7 +691,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           box === null || !snap
             ? locked
             : sub(snapped(add([box.minX, box.minY], locked)), [box.minX, box.minY])
-        setGesture({ ...gesture, to: add(gesture.from, delta), copy: event.altKey })
+        setGesture({
+          ...gesture,
+          to: add(gesture.from, delta),
+          copy: event.altKey ? (gesture.copy ?? gesture.ids.map(() => freshId())) : null,
+        })
         return
       }
       case "Resizing":
@@ -693,17 +722,25 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         return
       }
       case "Drawing":
-        setGesture({ ...gesture, points: [...gesture.points, world] })
+        setGesture((current) =>
+          current._tag === "Drawing" ? { ...current, points: [...current.points, world] } : current,
+        )
         return
       case "Erasing": {
         const hits = erasedAt(scene, world, cam.zoom)
-        setGesture({ ...gesture, ids: [...new Set([...gesture.ids, ...hits])], last: world })
+        setGesture((current) =>
+          current._tag === "Erasing"
+            ? { ...current, ids: [...new Set([...current.ids, ...hits])], last: world }
+            : current,
+        )
       }
     }
   }
 
   const onDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (insideLivePortal(event.target) || tool !== "select") return
+    if (isEditableTarget(event.target) || insideLivePortal(event.target) || tool !== "select") {
+      return
+    }
     const world = toWorld(cam, screenOf(event))
     const hit = topHit(scene, world, cam.zoom)
     if (hit === null) {
@@ -829,7 +866,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       setChord(null)
       return
     }
-    if (lower === "g" || lower === "n") {
+    if (lower === "g" || lower === "n" || lower === "c") {
       setChord(lower)
       return
     }
@@ -954,7 +991,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const single = selectedItems.length === 1 ? selectedItems[0] : undefined
   const selectedBox = selectionBounds(shown, selection)
-  const quiet = gesture._tag === "Idle" && editing === null
+  const quiet = gesture._tag === "Idle" && editingId === null
   const brush = brushOf(gesture)
   const bound = bindingTo === null ? undefined : shown.bounds.get(bindingTo)
   const cursor =
@@ -1078,13 +1115,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         single.shape.type === "ellipse" ||
         single.shape.type === "polygon"
       ) {
-        const clones: ReadonlyArray<readonly [string, number, number, Vec]> = [
+        const handles: ReadonlyArray<readonly [string, number, number, Vec]> = [
           ["left", left - 30 - 16, top + height / 2, [-1, 0]],
           ["right", left + width + 30 + 16, top + height / 2, [1, 0]],
           ["bottom", left + width / 2, top + height + 30 + 16, [0, 1]],
         ]
         overlay.push(
-          ...clones.map(([name, x, y, direction]) => (
+          ...handles.map(([name, x, y, direction]) => (
             <button
               key={`clone-${name}`}
               type="button"
@@ -1121,28 +1158,24 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     const raw = Object.fromEntries(
       Object.entries({ ...shapeRaw(item.block), point }).filter(([key]) => key !== "refs"),
     )
-    const made = create(page.id, scene, [{ raw, text: "" }])
-    if (made === null) return
-    void commit([made]).then((events) => {
-      const id = createdIds(events)[0]
-      if (id === undefined) return
-      const line = create(page.id, sceneOf(itemsOf(blocks), measured), [
-        {
-          raw: newShape("line", [0, 0], [0, 0], styles, {
-            handles: {
-              start: { point: [0, 0], bindTo: item.block.id },
-              end: { point: [1, 1], bindTo: id },
-            },
-          }),
-          text: "",
-        },
-      ])
-      void commit(line === null ? [] : [line]).then(() => {
-        setSelected([id])
-        setEditing(id)
-        setDraft("")
-      })
+    const id = freshId()
+    const lineId = freshId()
+    const link = (from: Vec, to: Vec) => ({
+      id: lineId,
+      raw: lineRaw(from, to, item.block.id, id, styles),
+      text: "",
     })
+    const copy = { id, raw, text: "" }
+    const sketch = create(page.id, scene, [copy, link([0, 0], [1, 1])])
+    if (sketch === null) return
+    const ends = sceneOf(itemsOf(applyLocally(blocks, [sketch])), measured).ends.get(lineId)
+    const made =
+      ends === undefined ? sketch : create(page.id, scene, [copy, link(ends[0], ends[1])])
+    if (made === null) return
+    void commit([made])
+    setSelected([id])
+    setEditing(id)
+    setDraft("")
   }
 
   const onCopy = (event: React.ClipboardEvent<HTMLDivElement>, cut: boolean) => {
@@ -1150,43 +1183,48 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       return
     event.preventDefault()
     event.clipboardData.setData("text/plain", copyText())
+    event.clipboardData.setData("text/html", copyHtml())
     if (cut) deleteSelection()
   }
 
   const copyText = () =>
     selection.map((id) => portalText({ _tag: "BlockPortal", uuid: id })).join(" ")
 
-  const writeClipboard = () => void navigator.clipboard.writeText(copyText())
+  const copyHtml = () => clipboardHtml(copiedOf(scene, selectedItems))
+
+  const writeClipboard = () =>
+    navigator.clipboard.write([
+      new ClipboardItem({
+        "text/plain": new Blob([copyText()], { type: "text/plain" }),
+        "text/html": new Blob([copyHtml()], { type: "text/html" }),
+      }),
+    ])
 
   const onPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
     if (isEditableTarget(event.target) || insideLivePortal(event.target)) return
+    const html = event.clipboardData.getData("text/html")
     const text = event.clipboardData.getData("text/plain").trim()
-    if (text === "") return
+    if (html === "" && text === "") return
     event.preventDefault()
-    pasteText(text)
+    paste(html, text, pointer.current)
   }
 
-  const pasteText = (text: string) => {
-    const at = toWorld(cam, center(viewport))
-    const point: Vec = [at[0] - PORTAL_WIDTH / 2, at[1]]
-    const refs = text.split(/\s+/).map(portalTarget)
-    const copied = refs.every(Option.isSome)
-      ? refs.flatMap((target) =>
-          Option.isSome(target) && target.value._tag === "BlockPortal" ? [target.value.uuid] : [],
-        )
-      : []
-    const shapes = copied.flatMap(
-      (uuid) => scene.items.find((item) => item.block.id === uuid) ?? [],
-    )
-    if (shapes.length > 0 && shapes.length === refs.length) {
-      const drafts = shapes.map((item) => ({
-        raw: { ...shapeRaw(item.block), point: add(item.shape.point, [24, 24]) },
-        text: item.block.text,
-      }))
+  const paste = (html: string, text: string, at: Vec | null) => {
+    const copied = readClipboard(html)
+    const where = at ?? toWorld(cam, center(viewport))
+    if (copied.length > 0) {
+      const drafts = clones(
+        copied,
+        copiesAt(copied, snapped(where)),
+        copied.map(() => freshId()),
+      )
       const made = create(page.id, scene, drafts)
-      if (made !== null) void commit([made]).then((events) => setSelected(createdIds(events)))
+      if (made !== null) void commit([made])
+      setSelected(drafts.flatMap((copy) => copy.id ?? []))
       return
     }
+    if (text === "") return
+    const point: Vec = [where[0] - PORTAL_WIDTH / 2, where[1]]
     const target = portalTarget(text)
     if (Option.isSome(target)) {
       void placeShape(portalRaw(point, target.value._tag === "PagePortal" ? "P" : "B"), text).then(
@@ -1212,21 +1250,18 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
               {
                 label: "Cut",
                 keys: "Mod+X",
-                run: () => {
-                  writeClipboard()
-                  deleteSelection()
-                },
+                run: () => void writeClipboard().then(deleteSelection),
               },
-              { label: "Copy", keys: "Mod+C", run: writeClipboard },
+              { label: "Copy", keys: "Mod+C", run: () => void writeClipboard() },
             ]
           : []),
         {
           label: "Paste",
           keys: "Mod+V",
-          run: () =>
-            void navigator.clipboard.readText().then((text) => {
-              if (text.trim() !== "") pasteText(text.trim())
-            }),
+          run: () => {
+            const at = menuAt === null ? null : toWorld(cam, menuAt)
+            void readClipboardItems().then(({ html, text }) => paste(html, text.trim(), at))
+          },
         },
       ],
       [
@@ -1299,7 +1334,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       onCut={(event) => onCopy(event, true)}
       onPaste={onPaste}
       onContextMenu={(event) => {
-        if (insideLivePortal(event.target)) return
+        if (insideLivePortal(event.target) || isEditableTarget(event.target)) return
         event.preventDefault()
         const at = screenOf(event)
         const hit = topHit(scene, toWorld(cam, at), cam.zoom)

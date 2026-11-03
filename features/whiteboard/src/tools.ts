@@ -80,7 +80,7 @@ export const newShape = (
         size,
         noFill: true,
         strokeWidth: 2,
-        isAutoResizing: true,
+        isSizeLocked: true,
         lineHeight: 1.2,
         padding: 4,
         ...lettered,

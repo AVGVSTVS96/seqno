@@ -69,7 +69,7 @@ export const TextShape = Schema.Struct({
   type: Schema.Literal("text"),
   ...sized,
   ...lettered,
-  isAutoResizing: Schema.optionalKey(Schema.Boolean),
+  isSizeLocked: Schema.optionalKey(Schema.Boolean),
 })
 
 export const LineShape = Schema.Struct({
@@ -177,3 +177,44 @@ export const portalText = (target: PortalTarget): string =>
     PagePortal: ({ name }) => `[[${name}]]`,
     BlockPortal: ({ uuid }) => `((${uuid}))`,
   })
+
+export const wordsField = (type: unknown): string | null => {
+  switch (type) {
+    case "text":
+      return "text"
+    case "box":
+    case "ellipse":
+    case "polygon":
+    case "line":
+      return "label"
+    case "logseq-portal":
+      return "pageId"
+    default:
+      return null
+  }
+}
+
+export const wordsIn = (shape: Readonly<Record<string, unknown>>): string => {
+  const field = wordsField(shape["type"])
+  const value = field === null ? undefined : shape[field]
+  if (typeof value !== "string") return ""
+  if (field !== "pageId" || value === "") return value
+  return portalText(
+    shape["blockType"] === "P"
+      ? { _tag: "PagePortal", name: value }
+      : { _tag: "BlockPortal", uuid: value },
+  )
+}
+
+export const wordsFields = (type: unknown, text: string): Readonly<Record<string, unknown>> => {
+  const field = wordsField(type)
+  if (field === null) return {}
+  if (field !== "pageId") return { [field]: text }
+  return Option.match(portalTarget(text), {
+    onNone: () => ({ pageId: text }),
+    onSome: (target) =>
+      target._tag === "PagePortal"
+        ? { blockType: "P", pageId: target.name }
+        : { blockType: "B", pageId: target.uuid },
+  })
+}

@@ -139,7 +139,11 @@ export const ContextBar = ({
   const italic = all(items, (item) => field(item, "italic") === true)
   const noFill = all(items, (item) => field(item, "noFill") === true)
   const dashed = all(items, (item) => field(item, "strokeType") === "dashed")
-  const auto = all(items, (item) => field(item, "isAutoResizing") !== false)
+  const auto = all(items, (item) =>
+    item.shape.type === "text"
+      ? item.shape.isSizeLocked !== false
+      : field(item, "isAutoResizing") !== false,
+  )
   const collapsed = all(items, (item) =>
     item.shape.type === "logseq-portal"
       ? item.shape.blockType === "B"
@@ -210,7 +214,11 @@ export const ContextBar = ({
           <ToolButton
             label="Auto resize"
             pressed={auto}
-            onClick={() => onPatch(() => ({ isAutoResizing: !auto }))}
+            onClick={() =>
+              onPatch((item) =>
+                item.shape.type === "text" ? { isSizeLocked: true } : { isAutoResizing: !auto },
+              )
+            }
           >
             <IconDimensions size={16} />
           </ToolButton>

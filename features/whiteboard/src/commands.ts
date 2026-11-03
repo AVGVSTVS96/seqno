@@ -1,7 +1,6 @@
 import {
   SHAPE_KEY,
   patchShape,
-  shapeRaw,
   shapeProps,
   type BlockId,
   type Command,
@@ -10,6 +9,8 @@ import {
 } from "@seqno/domain"
 import { add, round, sub, type Bounds } from "./geometry.ts"
 import type { Item, Scene } from "./model.ts"
+import { handlesOf, type Copied } from "./clipboard.ts"
+import { isGhost } from "./preview.ts"
 
 export type Raw = Readonly<Record<string, unknown>>
 
@@ -23,18 +24,26 @@ const setShape = (blockId: BlockId, value: string): Command => ({
 export const patch = (item: Item, change: Raw): Command =>
   setShape(item.block.id, patchShape(item.block, change))
 
-const draftOf = ({ raw, text }: { readonly raw: Raw; readonly text: string }) => ({
+export interface Draft {
+  readonly id?: BlockId
+  readonly raw: Raw
+  readonly text: string
+}
+
+const draftOf = ({ id, raw, text }: Draft) => ({
+  ...(id === undefined ? {} : { id }),
   text,
   props: shapeProps(raw),
   children: [],
 })
 
-const lastRoot = (scene: Scene): BlockId | undefined => scene.items.at(-1)?.block.id
+const lastRoot = (scene: Scene): BlockId | undefined =>
+  scene.items.findLast((item) => !isGhost(item.block.id))?.block.id
 
 export const create = (
   pageId: PageId,
   scene: Scene,
-  drafts: ReadonlyArray<{ readonly raw: Raw; readonly text: string }>,
+  drafts: ReadonlyArray<Draft>,
 ): Command | null => {
   const [first, ...rest] = drafts
   if (first === undefined) return null
@@ -53,51 +62,90 @@ const roundVec = ([x, y]: Vec): Vec => [round(x), round(y)]
 const handleRaw = (point: Vec, bindTo: BlockId | undefined): Raw =>
   bindTo === undefined ? { point } : { point, bindTo }
 
-const movedHandles = (item: Item, moving: ReadonlySet<BlockId>): Raw => {
+const movedHandles = (scene: Scene, item: Item, moving: ReadonlySet<BlockId>): Raw => {
   if (item.shape.type !== "line") return {}
   const { start, end } = item.shape.handles
   const kept = (bindTo: BlockId | undefined) =>
     bindTo !== undefined && moving.has(bindTo) ? bindTo : undefined
   if (kept(start.bindTo) === start.bindTo && kept(end.bindTo) === end.bindTo) return {}
+  const ends = scene.ends.get(item.block.id)
+  const local = (at: Vec | undefined, fallback: Vec) =>
+    at === undefined ? fallback : roundVec(sub(at, item.shape.point))
   return {
     handles: {
-      start: handleRaw(start.point, kept(start.bindTo)),
-      end: handleRaw(end.point, kept(end.bindTo)),
+      start: handleRaw(local(ends?.[0], start.point), kept(start.bindTo)),
+      end: handleRaw(local(ends?.[1], end.point), kept(end.bindTo)),
     },
   }
 }
 
-export const translate = (items: ReadonlyArray<Item>, delta: Vec): ReadonlyArray<Command> => {
-  const moving = new Set(items.map((item) => item.block.id))
-  return items.map((item) =>
-    patch(item, { point: roundVec(add(item.shape.point, delta)), ...movedHandles(item, moving) }),
-  )
-}
-
-export const duplicate = (
-  pageId: PageId,
+export const translate = (
   scene: Scene,
   items: ReadonlyArray<Item>,
   delta: Vec,
-): Command | null =>
-  create(
-    pageId,
-    scene,
-    items.map((item) => {
-      const point = roundVec(add(item.shape.point, delta))
-      const ends = scene.ends.get(item.block.id)
-      const handles =
-        item.shape.type === "line" && ends !== undefined
-          ? {
-              handles: {
-                start: { point: roundVec(sub(add(ends[0], delta), point)) },
-                end: { point: roundVec(sub(add(ends[1], delta), point)) },
-              },
-            }
-          : {}
-      return { raw: { ...shapeRaw(item.block), point, ...handles }, text: item.block.text }
+): ReadonlyArray<Command> => {
+  const moving = new Set(items.map((item) => item.block.id))
+  return items.map((item) =>
+    patch(item, {
+      point: roundVec(add(item.shape.point, delta)),
+      ...movedHandles(scene, item, moving),
     }),
   )
+}
+
+const vecIn = (value: unknown): Vec | undefined =>
+  Array.isArray(value) && typeof value[0] === "number" && typeof value[1] === "number"
+    ? [value[0], value[1]]
+    : undefined
+
+export const copiesAt = (copied: ReadonlyArray<Copied>, at: Vec): Vec => {
+  const points = copied.flatMap(({ raw }) => {
+    const point = raw["type"] === "group" ? undefined : vecIn(raw["point"])
+    return point === undefined ? [] : [point]
+  })
+  if (points.length === 0) return [0, 0]
+  return sub(at, [Math.min(...points.map(([x]) => x)), Math.min(...points.map(([, y]) => y))])
+}
+
+export const clones = (
+  copied: ReadonlyArray<Copied>,
+  delta: Vec,
+  fresh: ReadonlyArray<BlockId>,
+): ReadonlyArray<Draft> => {
+  const ids = new Map(
+    copied.flatMap(({ id }, index) => {
+      const made = fresh[index]
+      return made === undefined ? [] : [[id.toLowerCase(), made] as const]
+    }),
+  )
+  const mapped = (value: unknown) =>
+    typeof value === "string" ? ids.get(value.toLowerCase()) : undefined
+  return copied.flatMap(({ id, raw, text }) => {
+    const own = mapped(id)
+    if (own === undefined) return []
+    const { id: _id, index: _index, refs: _refs, ...rest } = raw
+    const children = raw["children"]
+    const handles = handlesOf(raw["handles"]).map(([name, handle]) => {
+      const { bindTo, bindingId: _bindingId, ...kept } = handle
+      const target = mapped(bindTo)
+      return [name, target === undefined ? kept : { ...kept, bindTo: target }] as const
+    })
+    return [
+      {
+        id: own,
+        text,
+        raw: {
+          ...rest,
+          point: roundVec(add(vecIn(raw["point"]) ?? [0, 0], delta)),
+          ...(handles.length === 0 ? {} : { handles: Object.fromEntries(handles) }),
+          ...(Array.isArray(children)
+            ? { children: children.flatMap((child) => mapped(child) ?? []) }
+            : {}),
+        },
+      },
+    ]
+  })
+}
 
 export const scaleInto = (item: Item, from: Bounds, to: Bounds, own: Bounds): Raw => {
   const sx = (to.maxX - to.minX) / Math.max(1, from.maxX - from.minX)
@@ -135,6 +183,7 @@ export const scaleInto = (item: Item, from: Bounds, to: Bounds, own: Bounds): Ra
       return {
         point: roundVec([minX, minY]),
         size: roundVec([Math.max(1, maxX - minX), Math.max(1, maxY - minY)]),
+        ...(shape.type === "text" ? { isSizeLocked: false } : {}),
       }
     }
   }

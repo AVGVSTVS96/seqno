@@ -5,9 +5,10 @@ import {
   WHITEBOARD_PAGE,
   WHITEBOARD_SHAPE,
   isShapeBlock,
-  portalTarget,
-  portalText,
   shapeRaw,
+  wordsField,
+  wordsFields,
+  wordsIn,
   type Block,
   type BlockId,
   type Page,
@@ -63,22 +64,6 @@ const recordOf = (value: unknown): Raw => Option.getOrElse(decodeRecord(value), 
 const textIn = (value: unknown): string | undefined => Option.getOrUndefined(decodeText(value))
 const arrayOf = (value: unknown): ReadonlyArray<unknown> =>
   Option.getOrElse(decodeArray(value), () => [])
-
-const wordsKey = (type: string | undefined): string | null => {
-  switch (type) {
-    case "text":
-      return "text"
-    case "box":
-    case "ellipse":
-    case "polygon":
-    case "line":
-      return "label"
-    case "logseq-portal":
-      return "pageId"
-    default:
-      return null
-  }
-}
 
 const TIMES = [
   ["block/created-at", CREATED],
@@ -249,9 +234,8 @@ const importShape = (
   resolve: (logseqId: string | undefined) => BlockId | undefined,
 ): { readonly text: string; readonly shape: Record<string, unknown> } => {
   const type = textIn(entry.shape["type"])
-  const words = wordsKey(type)
+  const words = wordsField(type)
   const shape: Record<string, unknown> = { ...entry.shape }
-  const value = words === null ? undefined : textIn(shape[words])
   if (words !== null) delete shape[words]
   const handles = decodeRecord(shape["handles"])
   if (Option.isSome(handles)) {
@@ -268,17 +252,7 @@ const importShape = (
   const asset = board.assets.map(recordOf).find((item) => textIn(item["id"]) === assetId)
   const src = asset === undefined ? undefined : textIn(asset["src"])
   if (src !== undefined && shape["src"] === undefined) shape["src"] = src
-  const text =
-    type === "logseq-portal"
-      ? value === undefined || value === ""
-        ? ""
-        : portalText(
-            shape["blockType"] === "P"
-              ? { _tag: "PagePortal", name: value }
-              : { _tag: "BlockPortal", uuid: value },
-          )
-      : (value ?? "")
-  return { text, shape }
+  return { text: wordsIn(entry.shape), shape }
 }
 
 const keptId = (written: string | undefined, id: BlockId): Props =>
@@ -456,20 +430,7 @@ export const renderWhiteboard = (page: Page, blocks: ReadonlyArray<Block>): stri
     const id = logseqIdOf(block)
     const shape: Record<string, unknown> = { ...raw, id, index }
     if (Option.isNone(decodeNumber(raw["nonce"]))) shape["nonce"] = 1
-    const words = wordsKey(type)
-    if (words === "pageId") {
-      Option.match(portalTarget(block.text), {
-        onNone: () => {
-          shape["pageId"] = block.text
-        },
-        onSome: (target) => {
-          shape["blockType"] = target._tag === "PagePortal" ? "P" : "B"
-          shape["pageId"] = target._tag === "PagePortal" ? target.name : target.uuid
-        },
-      })
-    } else if (words !== null) {
-      shape[words] = block.text
-    }
+    Object.assign(shape, wordsFields(type, block.text))
     const handles = decodeRecord(raw["handles"])
     if (Option.isSome(handles)) {
       shape["handles"] = Object.fromEntries(

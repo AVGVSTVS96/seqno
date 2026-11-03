@@ -177,3 +177,55 @@ test("a board embedded in a block shows its drawing, and the board counts the re
   await page.getByRole("button", { name: "1 Reference" }).click()
   await expect(page.locator(".wb-references-panel")).toContainText("Raised beds")
 })
+
+test("copied shapes paste with their connector still bound, undo takes the paste back in one step, and cut moves them", async ({
+  page,
+}) => {
+  await newBoard(page)
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.keyboard.press("9")
+  await drag(page, [300, 300], [400, 400])
+  await page.keyboard.press("o")
+  await drag(page, [600, 300], [700, 400])
+  await page.keyboard.press("7")
+  await drag(page, [350, 350], [650, 350])
+  await expect(shapes(page, "line")).toHaveCount(1)
+  await page.keyboard.press("1")
+  await page.keyboard.press("ControlOrMeta+a")
+  await page.keyboard.press("ControlOrMeta+c")
+  await page.mouse.move(400, 600)
+  await page.keyboard.press("ControlOrMeta+v")
+  await expect(shapes(page, "box")).toHaveCount(2)
+  await expect(shapes(page, "ellipse")).toHaveCount(2)
+  await expect(shapes(page, "line")).toHaveCount(2)
+
+  const pastedArrow = shapes(page, "line").nth(1).locator("path").first()
+  const ends = async () =>
+    ((await pastedArrow.getAttribute("d")) ?? "")
+      .match(/-?\d+(\.\d+)?/g)
+      ?.map((n) => Math.round(Number(n)))
+  const before = await ends()
+  await page.mouse.click(700, 700)
+  const circle = shapes(page, "ellipse").nth(1)
+  const box = await circle.boundingBox()
+  if (box === null) throw new Error("the pasted circle has no box")
+  await drag(
+    page,
+    [box.x + box.width / 2, box.y + box.height / 2],
+    [box.x + box.width / 2, box.y + box.height / 2 + 160],
+  )
+  await expect.poll(ends).not.toEqual(before)
+
+  await page.keyboard.press("ControlOrMeta+z")
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(shapes(page, "box")).toHaveCount(1)
+  await expect(shapes(page, "line")).toHaveCount(1)
+
+  await page.keyboard.press("ControlOrMeta+a")
+  await page.keyboard.press("ControlOrMeta+x")
+  await expect(shapes(page, "box")).toHaveCount(0)
+  await page.keyboard.press("ControlOrMeta+v")
+  await expect(shapes(page, "box")).toHaveCount(1)
+  await expect(shapes(page, "ellipse")).toHaveCount(1)
+  await expect(shapes(page, "line")).toHaveCount(1)
+})

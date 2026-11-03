@@ -39,6 +39,9 @@ export {
   shapeRaw,
   shapeValue,
   whiteboardProps,
+  wordsField,
+  wordsFields,
+  wordsIn,
   type Handle,
   type Vec,
 } from "./whiteboard.ts"

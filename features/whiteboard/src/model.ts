@@ -49,6 +49,7 @@ export interface Scene {
   readonly byId: ReadonlyMap<BlockId, Item>
   readonly bounds: ReadonlyMap<BlockId, Bounds>
   readonly ends: ReadonlyMap<BlockId, readonly [Vec, Vec]>
+  readonly measured: Measured
 }
 
 const unsupported = (block: Block): ReadonlyArray<Item> =>
@@ -98,7 +99,7 @@ export const sizeOfItem = (item: Item, measured: Measured): Vec => {
     if (seen !== undefined && shape.isAutoResizing !== false) return [shape.size[0], seen[1]]
     return [shape.size[0], Math.max(shape.size[1], PORTAL_HEADER)]
   }
-  if (shape.type === "text" && shape.isAutoResizing !== false && seen !== undefined) return seen
+  if (shape.type === "text" && shape.isSizeLocked !== false && seen !== undefined) return seen
   return "size" in shape ? shape.size : [0, 0]
 }
 
@@ -161,7 +162,7 @@ export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene =
       bounds.set(item.block.id, boundsOfPoints(both))
     }
   }
-  return { items, byId, bounds, ends }
+  return { items, byId, bounds, ends, measured }
 }
 
 export const LINE_TOLERANCE = 8

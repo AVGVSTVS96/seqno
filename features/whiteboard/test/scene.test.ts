@@ -75,19 +75,36 @@ describe("camera", () => {
 })
 
 describe("commands", () => {
-  it("moves shapes by rewriting their point, and unbinds a connector moved alone", () => {
+  it("moves shapes by rewriting their point, and a connector moved alone keeps the ends it was drawn with", () => {
     const scene = sceneFrom([box(1, [0, 0]), box(2, [300, 0]), arrow(3, 1, 2)])
     const arrowItem = scene.byId.get(id(3))
     assert.isDefined(arrowItem)
     if (arrowItem === undefined) return
-    const [moved] = translate([arrowItem], [8, 16])
+    const [moved] = translate(scene, [arrowItem], [8, 16])
     assert.deepStrictEqual(moved, {
       _tag: "SetProperty",
       target: { _tag: "BlockTarget", blockId: id(3) },
       key: "logseq.tldraw.shape",
       value:
-        '{"type":"line","point":[8,16],"handles":{"start":{"point":[0,0]},"end":{"point":[1,1]}}}',
+        '{"type":"line","point":[8,16],"handles":{"start":{"point":[104,50]},"end":{"point":[296,50]}}}',
     })
+  })
+
+  it("writes a bound connector's drawn ends back when its shape moves", () => {
+    const scene = sceneFrom([box(1, [0, 0]), box(2, [300, 0]), arrow(3, 1, 2)])
+    const commands = changesOf(
+      pageId,
+      scene,
+      { _tag: "Translating", from: [0, 0], to: [0, 200], ids: [id(2)], copy: null },
+      defaultStyles,
+    )
+    assert.deepStrictEqual(
+      commands.map((command) => (command._tag === "SetProperty" ? command.value : null)),
+      [
+        '{"type":"box","point":[300,200],"size":[100,100]}',
+        '{"type":"line","point":[0,0],"handles":{"start":{"point":[103.33,85.55],"bindTo":"01920000-0000-7000-8000-000000000001"},"end":{"point":[296.67,214.45],"bindTo":"01920000-0000-7000-8000-000000000002"}}}',
+      ],
+    )
   })
 
   it("frees connector ends where their shape is deleted", () => {
@@ -119,12 +136,18 @@ describe("commands", () => {
     })
   })
 
-  it("copies the dragged shapes when Alt is held, freeing a connector's ends where they were", () => {
+  it("copies the dragged shapes when Alt is held, keeping a connector bound to a copied shape", () => {
     const scene = sceneFrom([box(1, [0, 0]), box(2, [300, 0]), arrow(3, 1, 2)])
     const [made] = changesOf(
       pageId,
       scene,
-      { _tag: "Translating", from: [0, 0], to: [0, 200], ids: [id(1), id(3)], copy: true },
+      {
+        _tag: "Translating",
+        from: [0, 0],
+        to: [0, 200],
+        ids: [id(1), id(3)],
+        copy: [id(11), id(13)],
+      },
       defaultStyles,
     )
     assert.deepStrictEqual(made, {
@@ -134,6 +157,7 @@ describe("commands", () => {
       after: id(3),
       blocks: [
         {
+          id: id(11),
           text: "",
           props: {
             "ls-type": "whiteboard-shape",
@@ -142,11 +166,11 @@ describe("commands", () => {
           children: [],
         },
         {
+          id: id(13),
           text: "",
           props: {
             "ls-type": "whiteboard-shape",
-            "logseq.tldraw.shape":
-              '{"type":"line","point":[0,200],"handles":{"start":{"point":[104,50]},"end":{"point":[296,50]}}}',
+            "logseq.tldraw.shape": `{"type":"line","point":[0,200],"handles":{"start":{"point":[104,50],"bindTo":"${id(11)}"},"end":{"point":[296,50]}}}`,
           },
           children: [],
         },

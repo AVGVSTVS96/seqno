@@ -1,5 +1,7 @@
 import { BlockId, type Block, type Command, type PageId } from "@seqno/domain"
 
+export const isGhost = (id: BlockId) => id.startsWith("00000000-0000-7000-8000-")
+
 export const ghostId = (index: number) =>
   BlockId.make(`00000000-0000-7000-8000-${index.toString(16).padStart(12, "0")}`)
 
@@ -35,7 +37,7 @@ const applyOne = (blocks: ReadonlyArray<Block>, command: Command): ReadonlyArray
         blocks,
         command.after,
         command.blocks.map((draft, index): Block => ({
-          id: ghostId(index),
+          id: draft.id ?? ghostId(index),
           pageId: command.pageId,
           parentId: null,
           text: draft.text,

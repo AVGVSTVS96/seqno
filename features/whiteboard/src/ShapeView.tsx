@@ -9,7 +9,7 @@ export interface Editing {
   readonly id: BlockId
   readonly draft: string
   readonly onDraft: (text: string) => void
-  readonly onFinish: () => void
+  readonly onFinish: (next: EventTarget | null) => void
 }
 
 export interface Portals {
@@ -37,7 +37,7 @@ const ShapeEditor = ({ item, editing }: { readonly item: Item; readonly editing:
     rows={1}
     onFocus={(event) => event.currentTarget.select()}
     onChange={(event) => editing.onDraft(event.currentTarget.value)}
-    onBlur={editing.onFinish}
+    onBlur={(event) => editing.onFinish(event.relatedTarget)}
     onPointerDown={(event) => event.stopPropagation()}
     onKeyDown={(event) => {
       event.stopPropagation()
@@ -347,7 +347,7 @@ export const ShapeView = ({
         </div>
       )
     case "text": {
-      const auto = shape.isAutoResizing !== false
+      const auto = shape.isSizeLocked !== false
       const editor = editorOf(item, slots)
       return (
         <div
