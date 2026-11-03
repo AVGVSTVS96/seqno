@@ -6,13 +6,14 @@ The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.
 
 ## Commands
 
-| Command          | What it does                                                     |
-| ---------------- | ---------------------------------------------------------------- |
-| `pnpm check`     | lint, format check, typecheck, test. Run before every commit.    |
-| `pnpm lint`      | oxlint with the `seqno` plugin, then the disable-directive guard |
-| `pnpm fmt`       | oxfmt, writes files                                              |
-| `pnpm typecheck` | `tsc --noEmit` in every workspace package                        |
-| `pnpm test`      | Vitest across every workspace package (one project per package)  |
+| Command           | What it does                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| `pnpm check:fast` | lint, format check, typecheck, and the tests your change reaches. Run before every commit. |
+| `pnpm check`      | lint, format check, typecheck, every test. CI runs it on every push.                       |
+| `pnpm lint`       | oxlint with the `seqno` plugin, then the disable-directive guard                           |
+| `pnpm fmt`        | oxfmt, writes files                                                                        |
+| `pnpm typecheck`  | `tsc --noEmit` in every workspace package                                                  |
+| `pnpm test`       | Vitest across every workspace package (one project per package)                            |
 
 ## Repo map
 
@@ -114,6 +115,8 @@ If you need something the contract lacks, add it in your package and note it in 
 
 ## Working in this repo
 
-- Commit with conventional-commit messages, and run `pnpm check` first.
+- Commit with conventional-commit messages, and run `pnpm check:fast` first (seconds for most changes: `vitest --changed origin/main` runs only the tests that import what you changed). Push to main in small working steps.
+- CI is the full check: every push to main runs `pnpm check` on Node 24 and 26, the e2e flows, sync-sim seeds and the benches, sharded across machines, and a newer push cancels the older run, so the newest run covers everything landed. `scripts/ci` waits for the newest run that includes your commit and prints what failed.
+- e2e, bench and sync-sim runs take turns on a machine (`scripts/turn`, inside their package scripts; on the server it also runs them in `seqno.slice` at low priority). Run the flows your change touches (`pnpm --filter @seqno/e2e test flows/editor.e2e.ts`) and leave the rest to CI.
 - Keep each package's README current: what it does, how to test it, known gaps.
 - `pnpm --filter @seqno/e2e test` runs the browser flows; `SEQNO_SCREENS=1` on `flows/screens.e2e.ts` refreshes `docs/screenshots`.

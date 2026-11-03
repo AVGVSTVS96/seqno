@@ -6,10 +6,11 @@
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "check": "pnpm lint && oxfmt --check && pnpm typecheck && pnpm test",
+    "check:fast": "pnpm lint && oxfmt --check && pnpm typecheck && vitest run --changed origin/main",
     "lint": "oxlint --deny-warnings && node tools/lint/src/directives.ts",
     "fmt": "oxfmt",
     "typecheck": "pnpm --recursive --workspace-concurrency=2 typecheck",
-    "test": "vitest run"
+    "test": "scripts/turn vitest run"
   },
   "devDependencies": {
     "@types/node": "24.19.1",

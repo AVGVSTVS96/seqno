@@ -7,8 +7,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "sim": "node scripts/run.ts",
-    "mutants": "node scripts/mutants.ts"
+    "sim": "../../scripts/turn node scripts/run.ts",
+    "mutants": "../../scripts/turn node scripts/mutants.ts"
   },
   "dependencies": {
     "@seqno/domain": "workspace:*",

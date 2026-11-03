@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "playwright test",
+    "test": "../../scripts/turn playwright test",
     "typecheck": "tsc --noEmit",
     "design": "node design/capture.ts"
   },

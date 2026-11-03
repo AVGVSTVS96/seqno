@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "bench": "node --max-old-space-size=6144 src/run.ts",
-    "scroll": "playwright test"
+    "bench": "../../scripts/turn node --max-old-space-size=6144 src/run.ts",
+    "scroll": "../../scripts/turn playwright test"
   },
   "dependencies": {
     "@seqno/domain": "workspace:*",

@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+sha=$(git rev-parse HEAD)
+while :; do
+  git fetch -q origin main
+  git merge-base --is-ancestor "$sha" origin/main || { echo "scripts/ci: $sha is not on origin/main; push it first" >&2; exit 1; }
+  run=$(gh run list -w ci -b main -e push -L 1 --json databaseId,headSha -q '.[0] | "\(.databaseId) \(.headSha)"')
+  id=${run% *}
+  head=${run#* }
+  if ! git merge-base --is-ancestor "$sha" "$head" 2>/dev/null; then sleep 15; continue; fi
+  gh run watch "$id" -i 30 --exit-status >/dev/null 2>&1 && { echo "ci green at $head (run $id)"; exit 0; }
+  [ "$(gh run view "$id" --json conclusion -q .conclusion)" = cancelled ] && continue
+  echo "ci failed at $head: https://github.com/AVGVSTVS96/seqno/actions/runs/$id"
+  gh run view "$id" --log-failed | cut -c1-300 | tail -n 120
+  exit 1
+done
