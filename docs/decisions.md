@@ -469,6 +469,14 @@ On the Mac the open's rows showed 185 to 410 ms after the click, against 480 to 
 
 **Cost.** Lists and tables inside a block stay text in OPML and HTML, property values stay strings where Logseq types `true`, numbers and reference sets, and multi-line blocks don't get Logseq's two-space hard breaks. Export graph on 50k blocks takes about 1 s to load and 0.1 to 1.4 s to write (JSON, EDN, the zip). Save to file names start `seqno_`, where Logseq's start `logseq_`.
 
+## The developer graph keeps real dates
+
+**Decision.** Everything that happened in the developer demo graph sits on the day it happened, as an absolute date. Only plans move with today: the scheduled and deadline dates on open tasks, and the weekly review, so the review page's agenda queries always have something due. A journal day that two files of the graph both write to is merged into one file before import.
+
+**Why.** The graph used to place its last month as day offsets from today. It read as current on the day it was written and false a month later: today's journal said "first step of hardening" long after hardening was done, and project events sat on days that didn't match their commits or posts. The graph is Bassim's own record, and he keeps adding to it, so it should read like a real Logseq graph does: the latest entry is the last day he wrote.
+
+**Cost.** Opened after November 3 2026, today's journal is empty and the newest entries sit just below it. Queries with `today` as an end still work; "decisions this fall" starts on a fixed day.
+
 ## Smaller decisions
 
 | Question                                     | Answer                                                                                                  | Why                                                                                                                                                                                                    |
