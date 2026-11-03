@@ -360,6 +360,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const { openPdf } = use(AssetActions)
   const root = useRef<HTMLDivElement | null>(null)
   const press = useRef<Press | null>(null)
+  const presses = useRef(0)
   const pointer = useRef<Vec | null>(null)
   const [camera, setCamera] = useAtom(savedCamera(page.id))
   const flight = useRef(0)
@@ -509,10 +510,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       stroke: styles.color,
     })
 
-  const selectCreated = (events: ReadonlyArray<GraphEvent>) => {
-    const ids = createdIds(events)
-    if (ids.length > 0) setSelected(ids.slice(-1))
-    return ids
+  const selectCreated = () => {
+    const pressed = presses.current
+    return (events: ReadonlyArray<GraphEvent>) => {
+      const ids = createdIds(events)
+      if (ids.length > 0 && presses.current === pressed) setSelected(ids.slice(-1))
+      return ids
+    }
   }
 
   const newBlockPortal = (point: Vec, text: string) => {
@@ -528,7 +532,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       const blockId = createdIds(events)[0]
       if (blockId === undefined) return
       void placeShape(portalRaw(point, "B"), portalText({ _tag: "BlockPortal", uuid: blockId }))
-        .then(selectCreated)
+        .then(selectCreated())
         .then(() => requestEdit({ blockId, caret: text.length }))
     })
   }
@@ -545,13 +549,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         return newBlockPortal(point, choice.text)
       case "Page": {
         const { raw, text } = pagePortal(choice.page.title)
-        return void placeShape(raw, text).then(selectCreated)
+        return void placeShape(raw, text).then(selectCreated())
       }
       case "Block":
         return void placeShape(
           portalRaw(point, "B"),
           portalText({ _tag: "BlockPortal", uuid: choice.block.id }),
-        ).then(selectCreated)
+        ).then(selectCreated())
       case "NewPage":
       case "NewWhiteboard": {
         const { raw, text } = pagePortal(choice.title)
@@ -560,7 +564,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           choice._tag === "NewPage"
             ? { _tag: "CreatePage", title: choice.title }
             : { _tag: "CreatePage", title: choice.title, props: whiteboardProps }
-        return void commit(made === null ? [createPage] : [createPage, made]).then(selectCreated)
+        return void commit(made === null ? [createPage] : [createPage, made]).then(selectCreated())
       }
     }
   }
@@ -593,14 +597,14 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             ].flatMap((command) => (command === null ? [] : [command]))
           : changesOf(page.id, scene, done, styles)
         setTool("select")
-        void commit(commands).then(selectCreated)
+        void commit(commands).then(selectCreated())
         return
       }
       case "Connecting": {
         const span = Math.hypot(done.to[0] - done.from[0], done.to[1] - done.from[1])
         setTool("select")
         if (span < DRAG_THRESHOLD) return
-        void commit(changesOf(page.id, scene, done, styles)).then(selectCreated)
+        void commit(changesOf(page.id, scene, done, styles)).then(selectCreated())
         return
       }
       case "Translating":
@@ -627,6 +631,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button === 2 || insideLivePortal(event.target)) return
+    presses.current += 1
     if (searchAt !== null) setSearchAt(null)
     if (menuAt !== null) setMenuAt(null)
     if (active !== null) setActive(null)
@@ -1678,7 +1683,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       void placeShape(
         portalRaw(centered, target.value._tag === "PagePortal" ? "P" : "B"),
         text,
-      ).then(selectCreated)
+      ).then(selectCreated())
       return
     }
     newBlockPortal(centered, text)
