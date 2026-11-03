@@ -525,7 +525,6 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button === 2 || insideLivePortal(event.target)) return
-    if (editing !== null) finishEditing()
     if (searchAt !== null) setSearchAt(null)
     if (menuAt !== null) setMenuAt(null)
     const at = screenOf(event)

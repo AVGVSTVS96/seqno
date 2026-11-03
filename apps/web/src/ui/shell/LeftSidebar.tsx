@@ -12,8 +12,9 @@ import {
 } from "@tabler/icons-react"
 import { Link } from "@tanstack/react-router"
 import type { ReactNode } from "react"
-import type { Page } from "@seqno/domain"
-import { favorites, leftSidebarOpen, rightSidebar, toggleFavorite } from "../../atoms.ts"
+import { isWhiteboard, type Page } from "@seqno/domain"
+import { boardTitle } from "@seqno/whiteboard"
+import { allPages, favorites, leftSidebarOpen, rightSidebar, toggleFavorite } from "../../atoms.ts"
 import { pageNames, type PageName } from "../pages/atoms.ts"
 import { GraphSwitcher } from "./GraphSwitcher.tsx"
 import { Keys } from "./Keys.tsx"
@@ -101,6 +102,9 @@ const PageLink = ({
   readonly onUnfavorite?: () => void
 }) => {
   const updateSidebar = useAtomSet(rightSidebar)
+  const board = useAtomValue(allPages).find(
+    (candidate) => candidate.name === page.name && isWhiteboard(candidate),
+  )
   const menu = usePopover({ placement: { align: "center", gap: 4, inset: 8 }, kind: "menu" })
   const openInSidebar = () =>
     updateSidebar({ _tag: "Open", item: { _tag: "Page", name: page.name } })
@@ -116,8 +120,14 @@ const PageLink = ({
           openInSidebar()
         }}
       >
-        <IconFile className="page-link-icon" size={16} aria-hidden />
-        <span className="page-link-title">{page.title}</span>
+        {board === undefined ? (
+          <IconFile className="page-link-icon" size={16} aria-hidden />
+        ) : (
+          <IconChalkboard className="page-link-icon" size={16} aria-hidden />
+        )}
+        <span className="page-link-title">
+          {board === undefined ? page.title : boardTitle(board)}
+        </span>
       </Link>
       <button
         type="button"

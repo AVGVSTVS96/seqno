@@ -49,8 +49,13 @@ test("draws a labeled rectangle connected to a circle, and the arrow follows the
 
   await page.mouse.dblclick(400, 375)
   await page.getByRole("textbox", { name: "Label" }).fill("Plan")
-  await page.keyboard.press("Escape")
+  await page.mouse.click(700, 600)
   await expect(shapes(page, "box")).toHaveText("Plan")
+  await page.mouse.dblclick(400, 375)
+  await page.getByRole("textbox", { name: "Label" }).press("End")
+  await page.keyboard.type(" A")
+  await page.keyboard.press("Escape")
+  await expect(shapes(page, "box")).toHaveText("Plan A")
 
   await page.keyboard.press("o")
   await drag(page, [800, 300], [960, 420])
@@ -70,7 +75,7 @@ test("draws a labeled rectangle connected to a circle, and the arrow follows the
   await rename(page, "Garden plan")
   await saved(page)
   await page.reload()
-  await expect(shapes(page, "box")).toHaveText("Plan")
+  await expect(shapes(page, "box")).toHaveText("Plan A")
   await expect(shapes(page, "ellipse")).toHaveCount(1)
   await expect(shapes(page, "line")).toHaveCount(1)
   await expect(page.getByRole("textbox", { name: "Whiteboard title" })).toHaveValue("Garden plan")
