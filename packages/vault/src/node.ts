@@ -52,9 +52,16 @@ export const nodeStorage = (root: string): Storage["Service"] => ({
           : failed(path)(cause),
     }),
   write: (path, bytes) =>
-    Effect.tryPromise({ try: () => writeAtomically(join(root, path), bytes), catch: failed(path) }),
+    Effect.uninterruptible(
+      Effect.tryPromise({
+        try: () => writeAtomically(join(root, path), bytes),
+        catch: failed(path),
+      }),
+    ),
   remove: (path) =>
-    Effect.tryPromise({ try: () => rm(join(root, path), { force: true }), catch: failed(path) }),
+    Effect.uninterruptible(
+      Effect.tryPromise({ try: () => rm(join(root, path), { force: true }), catch: failed(path) }),
+    ),
   download: () => Effect.void,
 })
 

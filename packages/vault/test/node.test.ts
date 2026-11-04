@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { assert, describe, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
 import { layerNode, nodeStorage } from "@seqno/vault/node"
 import { makeDevice } from "./device.ts"
 
@@ -23,6 +23,24 @@ describe("node storage", () => {
       yield* storage.write("seen/mac.json", new TextEncoder().encode('{"v":2}'))
       assert.deepStrictEqual(yield* namesIn(root, "seen"), ["mac.json"])
       assert.strictEqual(new TextDecoder().decode(yield* storage.read("seen/mac.json")), '{"v":2}')
+    }),
+  )
+
+  it.effect("a write that's interrupted finishes before the interruption returns", () =>
+    Effect.gen(function* () {
+      const root = yield* tempRoot
+      const storage = nodeStorage(root)
+      const bytes = new Uint8Array(8 * 1024 * 1024).fill(7)
+      const writing = yield* Effect.forkChild(storage.write("pages/big.md", bytes))
+      yield* Effect.yieldNow
+      yield* Fiber.interrupt(writing)
+      assert.deepStrictEqual(
+        {
+          names: yield* namesIn(root, "pages"),
+          size: (yield* storage.read("pages/big.md")).length,
+        },
+        { names: ["big.md"], size: bytes.length },
+      )
     }),
   )
 

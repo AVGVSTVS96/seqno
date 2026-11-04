@@ -107,8 +107,13 @@ export const directoryStorage = (root: FileSystemDirectoryHandle): Storage["Serv
   list: (dir) => Effect.tryPromise({ try: () => listDir(root, dir), catch: failed(dir) }),
   read: (path) => Effect.tryPromise({ try: () => readFile(root, path), catch: unavailable(path) }),
   write: (path, bytes) =>
-    Effect.tryPromise({ try: () => writeFile(root, path, bytes), catch: failed(path) }),
-  remove: (path) => Effect.tryPromise({ try: () => removeFile(root, path), catch: failed(path) }),
+    Effect.uninterruptible(
+      Effect.tryPromise({ try: () => writeFile(root, path, bytes), catch: failed(path) }),
+    ),
+  remove: (path) =>
+    Effect.uninterruptible(
+      Effect.tryPromise({ try: () => removeFile(root, path), catch: failed(path) }),
+    ),
   download: () => Effect.void,
 })
 
