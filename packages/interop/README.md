@@ -57,3 +57,5 @@ pnpm test --project @seqno/interop
 - Groups keep their `children` as Logseq ids, which stay right only while the grouped shapes keep theirs.
 - Import is one-time. Running it again on changed files gives a whole new set of ids.
 - The mirror writes two pages on the same journal day to the same file, and doesn't shorten names over 255 bytes.
+- The app keeps what the mirror last wrote to each file in a separate IndexedDB database, `seqno-mirror`, per device; it isn't in the graph's folder, so another device or a cleared browser compares every file once.
+- Logseq's `:legacy-dot` sanitizer isn't a format Logseq lets a graph set, so the mirror writes legacy names the `%2F` way; it still reads dot names.
