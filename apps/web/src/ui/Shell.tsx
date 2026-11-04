@@ -169,7 +169,11 @@ const Screen = () => {
   const attempted = useAtomValue(attemptedGraph)
   return AsyncResult.match(useAtomValue(openGraph), {
     onInitial: (initial) =>
-      initial.waiting ? <Layout graph={last ?? demoGraph} ready={false} /> : <GraphChooser />,
+      initial.waiting ? (
+        <Layout graph={attempted ?? last ?? demoGraph} ready={false} />
+      ) : (
+        <GraphChooser />
+      ),
     onFailure: (failure) =>
       Option.match(failure.previousSuccess, {
         onSome: (previous) =>

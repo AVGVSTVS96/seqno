@@ -66,6 +66,11 @@ test("the first click on Whiteboards in the sidebar welcomes you, and Start whit
   const graph = testInfo.outputPath("my-notes")
   await mkdir(join(graph, "pages"), { recursive: true })
   await writeFile(join(graph, "pages", "ideas.md"), "- sketch the [[Garden]]")
+  await Promise.all(
+    Array.from({ length: 1500 }, (_, i) =>
+      writeFile(join(graph, "pages", `note ${i}.md`), `- planted [[Garden]] bed ${i}`),
+    ),
+  )
   await loadGraphFolder(page, graph)
   await page.goto("/")
   await page.getByRole("button", { name: "Open a folder" }).click()
