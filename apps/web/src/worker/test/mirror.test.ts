@@ -106,11 +106,18 @@ const pageFiles = (root: string) =>
       .map((entry) => relative(root, join(entry.parentPath, entry.name)).split("\\").join("/"))
       .filter((path) => /^(journals|pages|whiteboards|logseq)\//.test(path))
       .toSorted()
-    return Object.fromEntries(
-      await Promise.all(
-        files.map(async (path) => [path, await readFile(join(root, path), "utf8")]),
+    const read = await Promise.all(
+      files.map((path) =>
+        readFile(join(root, path), "utf8").then(
+          (text) => [[path, text]],
+          (cause: unknown) =>
+            cause instanceof Error && "code" in cause && cause.code === "ENOENT"
+              ? []
+              : Promise.reject(cause),
+        ),
       ),
     )
+    return Object.fromEntries(read.flat())
   })
 
 const folderWith = (files: Readonly<Record<string, string>>) =>
