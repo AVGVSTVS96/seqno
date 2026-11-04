@@ -421,7 +421,7 @@ const CoreHandlers = CoreRpcs.toLayer(
   Effect.gen(function* () {
     const { attach, open, current, following } = yield* Sessions
     const places = yield* GraphPlaces
-    const dispatchAll = (client: number, commands: ReadonlyArray<Command>) =>
+    const dispatchAll = (client: number, commands: ReadonlyArray<Command>, seq?: number) =>
       Effect.flatMap(current(client), (session) =>
         Effect.gen(function* () {
           const expanded = yield* Effect.forEach(commands, (command) =>
@@ -434,14 +434,16 @@ const CoreHandlers = CoreRpcs.toLayer(
           if (Option.isNone(today)) return events
           const again = yield* dispatch([withJournalDay(today.value, session.newPageFormat)])
           return [...events, ...again]
-        }),
+        }).pipe(
+          Effect.ensuring(seq === undefined ? Effect.void : session.saving.handled(client, seq)),
+        ),
       )
     return CoreRpcs.of({
       Attach: ({ tab }, { client }) => attach(client.id, tab),
       OpenGraph: ({ graph, wait }, { client }) => open(client.id, graph, wait ?? false),
       ForgetGraph: ({ graph }) => places.forget(graph),
-      Dispatch: ({ command }, { client }) => dispatchAll(client.id, [command]),
-      DispatchAll: ({ commands }, { client }) => dispatchAll(client.id, commands),
+      Dispatch: ({ command, seq }, { client }) => dispatchAll(client.id, [command], seq),
+      DispatchAll: ({ commands, seq }, { client }) => dispatchAll(client.id, commands, seq),
       GetPages: (_, { client }) =>
         Effect.flatMap(current(client.id), (session) => session.graph.pages),
       GetPage: ({ pageId }, { client }) =>
@@ -476,7 +478,7 @@ const CoreHandlers = CoreRpcs.toLayer(
       WatchQuery: ({ query }, { client }) =>
         following(client.id, (session) => Stream.unwrap(watchQuery(session, query))),
       WatchSaveState: (_, { client }) =>
-        following(client.id, (session) => SubscriptionRef.changes(session.saving)),
+        following(client.id, (session) => session.saving.watch(client.id)),
       WatchChanges: (_, { client }) =>
         following(client.id, (session) =>
           Stream.map(Stream.fromPubSub(session.changes), ({ events, client: by }) => ({

@@ -48,7 +48,7 @@ export const SearchHits = Schema.Struct({
 export type SearchHits = typeof SearchHits.Type
 
 export const SaveState = Schema.TaggedUnion({
-  Saved: {},
+  Saved: { through: Schema.optionalKey(Schema.Int) },
   Unsaved: {},
   Failed: { reason: Schema.String },
 })
@@ -76,13 +76,13 @@ export const ForgetGraph = Rpc.make("ForgetGraph", {
 })
 
 export const Dispatch = Rpc.make("Dispatch", {
-  payload: { command: Command },
+  payload: { command: Command, seq: Schema.optionalKey(Schema.Int) },
   success: Schema.Array(GraphEvent),
   error: Schema.Union([GraphNotOpen, CommandRejected]),
 })
 
 export const DispatchAll = Rpc.make("DispatchAll", {
-  payload: { commands: Schema.Array(Command) },
+  payload: { commands: Schema.Array(Command), seq: Schema.optionalKey(Schema.Int) },
   success: Schema.Array(GraphEvent),
   error: Schema.Union([GraphNotOpen, CommandRejected]),
 })

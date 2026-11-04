@@ -6,6 +6,7 @@ import { Graph, PeerId, vaultReplica } from "@seqno/graph"
 import { Vault, layer as vaultLayer } from "@seqno/vault"
 import { layerNode } from "@seqno/vault/node"
 import { loadGraphFolder, opfsFiles, seedOpfs } from "../src/opfs.ts"
+import type { Page } from "@playwright/test"
 import { expect, test } from "../src/test.ts"
 
 const folder = ["seqno-e2e-picked", "two-devices"]
@@ -75,6 +76,41 @@ const onPhone = (root: string) =>
       yield* graph.flush((update) => Effect.orDie(vault.writeUpdate(update.bytes)))
     }),
   )
+
+const logCopy = async (page: Page, copy: string) => {
+  await rm(copy, { recursive: true, force: true })
+  const files = await opfsFiles(page, folder)
+  for (const [path, bytes] of Object.entries(files)) {
+    if (!/^(updates|snapshots|seen)\//.test(path)) continue
+    await mkdir(dirname(join(copy, path)), { recursive: true })
+    await writeFile(join(copy, path), bytes)
+  }
+  return Effect.runPromise(textsIn(copy))
+}
+
+test("the saved dot shows only once everything typed is in the folder's edit log", async ({
+  page,
+  seqno,
+}, testInfo) => {
+  const notes = testInfo.outputPath("two-devices")
+  await mkdir(join(notes, "pages"), { recursive: true })
+  await writeFile(join(notes, "pages", "inbox.md"), "- inbox")
+  await loadGraphFolder(page, notes)
+  await page.goto("/")
+  await page.getByRole("button", { name: "Open a folder" }).click()
+  const dot = page.locator("[data-save-state]")
+  const words = ["first", "second", "third", "fourth", "fifth", "sixth"]
+  const missing: Array<string> = []
+  await seqno.today.getByRole("treeitem").first().click()
+  for (const [at, word] of words.entries()) {
+    if (at > 0) await page.keyboard.press("Enter")
+    await page.keyboard.type(word)
+    await expect(dot).toHaveAttribute("data-save-state", "saved")
+    const texts = await logCopy(page, testInfo.outputPath(`log-${word}`))
+    missing.push(...words.slice(0, at + 1).filter((typed) => !texts.includes(typed)))
+  }
+  expect(missing).toEqual([])
+})
 
 test("a block you move stays where you put it when your phone deleted it before hearing of the move", async ({
   page,

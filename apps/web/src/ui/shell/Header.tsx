@@ -15,6 +15,7 @@ import {
 import { useMatchRoute, useNavigate } from "@tanstack/react-router"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
+import { useSyncExternalStore } from "react"
 import type { Page } from "@seqno/domain"
 import { SaveState } from "@seqno/rpc"
 import {
@@ -25,6 +26,7 @@ import {
   saveState,
   searchOpen,
 } from "../../atoms.ts"
+import { sends, shownSaveState } from "../../core.ts"
 import { Appearance } from "./Appearance.tsx"
 import { openPlugins } from "../plugins/PluginsDialog.tsx"
 import { ToolbarPlugins } from "../plugins/ToolbarPlugins.tsx"
@@ -159,7 +161,12 @@ const NotSaved = ({ reason }: { readonly reason: string }) => {
 
 const SaveStatus = () =>
   SaveState.match(
-    AsyncResult.getOrElse(useAtomValue(saveState), (): SaveState => SaveState.cases.Saved.make({})),
+    shownSaveState(
+      AsyncResult.getOrElse(useAtomValue(saveState), (): SaveState =>
+        SaveState.cases.Saved.make({}),
+      ),
+      useSyncExternalStore(sends.subscribe, sends.get),
+    ),
     {
       Saved: () => <span className="save-state" data-save-state="saved" />,
       Unsaved: () => (

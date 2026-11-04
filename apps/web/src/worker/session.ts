@@ -35,7 +35,7 @@ import {
   parseConfig,
   refsIn,
 } from "@seqno/interop"
-import { SaveState, type SkippedFile } from "@seqno/rpc"
+import type { SkippedFile } from "@seqno/rpc"
 import { Storage, type StorageFailed, Vault, layer as vaultLayer } from "@seqno/vault"
 import { makeAssetFiles, type AssetFiles } from "./assets.ts"
 import { makeAppFiles, type AppFiles } from "./files.ts"
@@ -44,6 +44,7 @@ import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { makeMergeBack } from "./merge-back.ts"
 import { makeMirror, type Mirror } from "./mirror.ts"
+import { makeSaveLog, type SaveLog } from "./saving.ts"
 import { makeWriters, outweighed, staleSince } from "./writer.ts"
 import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
 
@@ -60,7 +61,7 @@ export interface Session {
   readonly blocksByRef: (uuids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<Block>>
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
   readonly changes: PubSub.PubSub<Committed>
-  readonly saving: SubscriptionRef.SubscriptionRef<SaveState>
+  readonly saving: SaveLog
   readonly assets: AssetFiles
   readonly appFiles: AppFiles
   readonly skipped: ReadonlyArray<SkippedFile>
@@ -188,9 +189,8 @@ export const openSession = (place: GraphPlace) =>
     const peer = yield* newPeerId
     const touched = yield* SubscriptionRef.make<Touched>(new Set())
     const changes = yield* PubSub.unbounded<Committed>()
-    const saving = yield* SubscriptionRef.make<SaveState>(SaveState.cases.Saved.make({}))
+    const saving = yield* makeSaveLog
     const unsaved = yield* Latch.make(false)
-    const edits = { count: 0 }
     const filling = { running: false, marked: false }
     if (place.starter !== null) yield* layStarter(place.storage, place.starter)
     const log = yield* openEditLog(place.storage, place.layout, device)
@@ -274,8 +274,7 @@ export const openSession = (place: GraphPlace) =>
             pages.forEach((page) => sinceSave.pages.add(page))
             yield* SubscriptionRef.set(touched, pages)
             yield* PubSub.publish(changes, { events, client, pages })
-            edits.count += 1
-            yield* SubscriptionRef.set(saving, SaveState.cases.Unsaved.make({}))
+            yield* saving.edited
             yield* unsaved.open
           }).pipe(Effect.orDie)
 
@@ -484,16 +483,13 @@ export const openSession = (place: GraphPlace) =>
     const save = graph.flush((update) => vault.writeUpdate(update.bytes))
     const saveNow = Effect.gen(function* () {
       yield* unsaved.close
-      const at = edits.count
+      const at = yield* saving.started
       const exit = yield* Effect.exit(save)
       if (Exit.isFailure(exit)) {
         yield* Effect.logError(exit.cause)
-        yield* SubscriptionRef.set(
-          saving,
-          SaveState.cases.Failed.make({ reason: reasonOf(Cause.squash(exit.cause)) }),
-        )
-      } else if (edits.count === at) {
-        yield* SubscriptionRef.set(saving, SaveState.cases.Saved.make({}))
+        yield* saving.failed(reasonOf(Cause.squash(exit.cause)))
+      } else {
+        yield* saving.saved(at)
       }
     })
 
