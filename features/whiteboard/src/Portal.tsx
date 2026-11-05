@@ -114,8 +114,9 @@ const PagePortal = ({
 
   const header = (
     <div className="wb-portal-header">
-      <button
-        type="button"
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events -- a pointer-only link out of the board, as Logseq's portal title is, kept out of the tab order of the board's application widget */}
+      <a
+        role="link"
         tabIndex={-1}
         onPointerDown={(event) => {
           event.stopPropagation()
@@ -125,7 +126,7 @@ const PagePortal = ({
         }}
       >
         {Option.match(page, { onNone: () => name, onSome: (found) => found.title })}
-      </button>
+      </a>
     </div>
   )
 

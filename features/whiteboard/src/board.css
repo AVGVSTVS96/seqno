@@ -281,11 +281,7 @@
   overflow: hidden;
 }
 
-.wb-portal-header button {
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
+.wb-portal-header a {
   color: inherit;
   text-decoration: none;
   cursor: pointer;
@@ -293,7 +289,7 @@
   text-overflow: ellipsis;
 }
 
-.wb-portal-header button:hover {
+.wb-portal-header a:hover {
   text-decoration: underline;
 }
 

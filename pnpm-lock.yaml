@@ -274,7 +274,7 @@ importers:
         version: 6.43.15
       '@effect/atom-react':
         specifier: 4.1.2
-        version: 4.1.2(effect@4.1.2)(react@19.3.1)(scheduler@0.27.0)
+        version: 4.1.2(effect@4.1.2)(react@19.3.1)(scheduler@0.28.0)
       '@lezer/common':
         specifier: 1.5.5
         version: 1.5.5
@@ -324,8 +324,8 @@ importers:
         specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
       scheduler:
-        specifier: 0.27.0
-        version: 0.27.0
+        specifier: 0.28.0
+        version: 0.28.0
     devDependencies:
       '@babel/core':
         specifier: 8.1.0
@@ -2912,9 +2912,6 @@ packages:
   scheduler@0.20.2:
     resolution: {integrity: sha512-2eWfGgAqqWFGqtdMmcL5zCMK1U8KlXv8SQFGglL3CEtd0aDVDWgeF/YoCmvln55m5zSk3J/20hTaSBeSObsQDQ==}
 
-  scheduler@0.27.0:
-    resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
-
   scheduler@0.28.0:
     resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
 
@@ -3462,12 +3459,6 @@ snapshots:
       css-tree: 3.2.1
 
   '@csstools/css-tokenizer@4.0.2': {}
-
-  '@effect/atom-react@4.1.2(effect@4.1.2)(react@19.3.1)(scheduler@0.27.0)':
-    dependencies:
-      effect: 4.1.2
-      react: 19.3.1
-      scheduler: 0.27.0
 
   '@effect/atom-react@4.1.2(effect@4.1.2)(react@19.3.1)(scheduler@0.28.0)':
     dependencies:
@@ -4890,8 +4881,6 @@ snapshots:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
-
-  scheduler@0.27.0: {}
 
   scheduler@0.28.0: {}
 

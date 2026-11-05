@@ -141,7 +141,8 @@ const Surface = ({
 
   return (
     <div {...logseq("graph-root")}>
-      <canvas ref={attach} className="graph-canvas" aria-label={label} />
+      {/* oxlint-disable-next-line jsx-a11y/no-interactive-element-to-noninteractive-role -- the canvas is one pointer-driven graph widget, named for assistive tech as an application */}
+      <canvas ref={attach} className="graph-canvas" role="application" aria-label={label} />
       {ready ? null : <div className="graph-loading">Preparing graph…</div>}
       <SelectionStatus picked={picked} onOpen={open} />
       {children?.(view, picked)}
