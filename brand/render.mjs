@@ -1,10 +1,10 @@
-import puppeteer from "puppeteer-core"
+import { chromium } from "playwright-core"
 import { mkdirSync } from "node:fs"
 
 const here = import.meta.dirname
 const only = process.argv[2]
 const chrome = process.env.CHROME ?? "/usr/bin/google-chrome-stable"
-const browser = await puppeteer.launch({
+const browser = await chromium.launch({
   executablePath: chrome,
   headless: true,
   args: ["--force-color-profile=srgb", "--hide-scrollbars", "--allow-file-access-from-files", "--disable-gpu", "--disable-dev-shm-usage"],
@@ -13,11 +13,9 @@ mkdirSync(`${here}/shots`, { recursive: true })
 mkdirSync(`${here}/og`, { recursive: true })
 
 async function shoot({ file, out, width, height, scale, scheme, fullPage }) {
-  const page = await browser.newPage()
+  const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale, colorScheme: scheme })
   page.on("pageerror", (e) => console.error(`${out}: ${e.message}`))
-  await page.setViewport({ width, height, deviceScaleFactor: scale })
-  await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: scheme }])
-  await page.goto(`file://${here}/${file}?still`, { waitUntil: "networkidle0" })
+  await page.goto(`file://${here}/${file}?still`, { waitUntil: "networkidle" })
   await page.waitForFunction(() => document.documentElement.dataset.ready === "true", { timeout: 30000 })
   await page.screenshot({ path: `${here}/${out}`, fullPage })
   await page.close()

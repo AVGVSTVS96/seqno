@@ -2,7 +2,7 @@ import react from "@vitejs/plugin-react"
 import { rm } from "node:fs/promises"
 import { resolve } from "node:path"
 import { pathToFileURL } from "node:url"
-import { defineConfig, type Plugin } from "vite-plus"
+import { defineConfig, type Plugin } from "vite"
 import { fetchCommits } from "./src/github.ts"
 
 const prerendered = resolve(import.meta.dirname, "node_modules/.prerender")
@@ -58,11 +58,5 @@ export default defineConfig(async () => {
     define: { __COMMIT_COUNT__: String(count) },
     server: { proxy: { "/app": { target: "https://seqno.vercel.app", changeOrigin: true } } },
     build: { target: "es2022", assetsInlineLimit: 0 },
-    fmt: { semi: false },
-    lint: {
-      jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-      rules: { "vite-plus/prefer-vite-plus-imports": "error" },
-      options: { typeAware: true, typeCheck: true },
-    },
   }
 })

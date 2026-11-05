@@ -10,7 +10,8 @@
     "lint": "oxlint --deny-warnings && node tools/lint/src/directives.ts",
     "fmt": "oxfmt",
     "typecheck": "pnpm --recursive --workspace-concurrency=2 typecheck",
-    "test": "scripts/turn vitest run"
+    "test": "scripts/turn vitest run",
+    "build": "pnpm --filter @seqno/site build && pnpm --filter @seqno/web build --base /app/ --outDir ../site/dist/app"
   },
   "devDependencies": {
     "@types/node": "24.19.1",

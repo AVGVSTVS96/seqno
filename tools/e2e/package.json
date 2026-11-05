@@ -6,7 +6,10 @@
   "scripts": {
     "test": "../../scripts/turn playwright test",
     "typecheck": "tsc --noEmit",
-    "design": "node design/capture.ts"
+    "design": "node design/capture.ts",
+    "site:capture": "node design/site/capture.ts",
+    "site:media": "node design/site/media.ts",
+    "site:shots": "node design/site/shots.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 
-export const media = resolve(import.meta.dirname, "../src/media")
+export const media = resolve(import.meta.dirname, "../../../../apps/site/src/media")
 
 const flags = (line: string) => line.split(" ")
 const run = (command: string, args: ReadonlyArray<string>) =>

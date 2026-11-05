@@ -1,10 +1,10 @@
 import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from "node:fs"
 import { createServer } from "node:http"
 import { extname, join, resolve } from "node:path"
-import { chromium, type Page } from "playwright-core"
+import { chromium, type Page } from "@playwright/test"
 
-const dist = resolve(import.meta.dirname, "../dist")
-const shots = resolve(import.meta.dirname, "../shots")
+const dist = resolve(import.meta.dirname, "../../../../apps/site/dist")
+const shots = resolve(import.meta.dirname, "../../../../apps/site/shots")
 const only = process.argv[2]
 const types: Record<string, string> = {
   ".html": "text/html",

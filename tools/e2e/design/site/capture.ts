@@ -2,11 +2,13 @@ import { execFileSync } from "node:child_process"
 import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join, resolve } from "node:path"
-import { chromium, type Locator } from "playwright-core"
+import { join } from "node:path"
+import { chromium, type Locator } from "@playwright/test"
+import { seedOpfs } from "../../src/opfs.ts"
+import { editBlock, openSeqno, scrollToText } from "../seqno.ts"
+import { materializeShowcase } from "../showcase.ts"
 import { encode, media } from "./encode.ts"
 
-const seqno = resolve(process.env["SEQNO_REPO"] ?? join(import.meta.dirname, "../../../seqno"))
 const app = process.env["SEQNO_APP"] ?? "http://127.0.0.1:4300"
 const [scene = "outline", theme = "light"] = process.argv.slice(2)
 const still = scene === "links"
@@ -15,11 +17,6 @@ const below = still ? 0 : 56
 const scale = 2
 const flags = (line: string) => line.split(" ")
 
-const { materializeShowcase } = await import(join(seqno, "tools/e2e/design/showcase.ts"))
-const { editBlock, openSeqno, scrollToText } = await import(
-  join(seqno, "tools/e2e/design/seqno.ts")
-)
-const { seedOpfs } = await import(join(seqno, "tools/e2e/src/opfs.ts"))
 
 const cursor = `
 addEventListener("DOMContentLoaded", () => {

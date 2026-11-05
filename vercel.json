@@ -2,17 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @seqno/web exec vite build --base /app/ --outDir dist/app",
-  "outputDirectory": "apps/web/dist",
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "seqno-app.vercel.app" }],
-      "missing": [{ "type": "header", "key": "x-forwarded-host", "value": "seqno.vercel.app" }],
-      "destination": "https://seqno.vercel.app/app/$1",
-      "permanent": true
-    }
-  ],
+  "buildCommand": "pnpm build",
+  "outputDirectory": "apps/site/dist",
+  "redirects": [{ "source": "/app", "destination": "/app/", "permanent": true }],
   "headers": [
     {
       "source": "/app/assets/(.*)",

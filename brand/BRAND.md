@@ -227,10 +227,10 @@ brand/
 ├ references.md     what from Bassim's saves and the reference sites shaped each decision
 ├ specimen.html     the system, with the hero running live (open it in Chrome)
 ├ hero.js           the hero simulation, createSchool(canvas, options)
-├ render.mjs        bun render.mjs → shots/ and og/og.png (headless Chrome)
+├ render.mjs        node render.mjs → shots/ and og/og.png (headless Chrome)
 ├ fonts/            Wix Madefor Display, Wix Madefor Text, Commit Mono (woff2, OFL)
 ├ logo/
-│ ├ gen.mjs         bun logo/gen.mjs regenerates every file below from src/
+│ ├ gen.mjs         node logo/gen.mjs regenerates every file below from src/
 │ ├ src/            Wix Madefor Display 800 (the logo's source outlines) + OFL
 │ ├ wordmark.svg  wordmark-dark.svg  wordmark-mono.svg
 │ ├ mark.svg      mark-dark.svg      mark-mono.svg
@@ -238,6 +238,7 @@ brand/
 │ ├ app-icon.svg  app-icon-mono.svg
 │ ├ favicon.svg  favicon-32.png  apple-touch-icon.png  icon-512.png
 │ └ explore-a-outline.svg  explore-b-bullet-q.svg  explore-c-numero.svg
+├ copy/             the words on the page and the launch post
 ├ og/               og.html (source) → og.png, 1200 × 630
 └ shots/            specimen-{light,dark}.png and hero-{light,dark}.png at 2x
 ```
