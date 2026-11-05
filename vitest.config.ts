@@ -22,6 +22,5 @@ export default defineConfig({
         },
       },
     ],
-    maxWorkers: 2,
   },
 })

@@ -1,9 +1,9 @@
 import opentype from "opentype.js"
-import { writeFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 
 const here = import.meta.dirname
-const font = opentype.loadSync(`${here}/src/wix-madefor-display-800.woff`)
+const font = opentype.parse(readFileSync(`${here}/src/wix-madefor-display-800.woff`))
 
 const color = {
   ink: "#25170D",

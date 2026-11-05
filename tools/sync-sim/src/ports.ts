@@ -1,5 +1,6 @@
 import { Context } from "effect"
-import type { Crypto, Effect, Option, Scope } from "effect"
+import type { Effect, Option, Scope } from "effect"
+import type { SecureRandom } from "effect/crypto"
 import type { Block, BlockId, Command, DeviceId, GraphEvent, PageId } from "@seqno/domain"
 import type { CommandRejected } from "@seqno/rpc"
 import type { CloudFs } from "./cloud.ts"
@@ -43,7 +44,9 @@ export interface ReplicaSpec {
 export class Graphs extends Context.Service<
   Graphs,
   {
-    readonly open: (spec: ReplicaSpec) => Effect.Effect<Replica, never, Scope.Scope | Crypto.Crypto>
+    readonly open: (
+      spec: ReplicaSpec,
+    ) => Effect.Effect<Replica, never, Scope.Scope | SecureRandom.SecureRandom>
     readonly blobSpan: (bytes: Uint8Array, checksum: boolean) => Option.Option<Span>
     readonly full: boolean
   }

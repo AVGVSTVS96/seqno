@@ -3,7 +3,8 @@ import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, describe, it } from "@effect/vitest"
-import { Clock, Context, Crypto, Effect, Exit, Layer, Option, Stream } from "effect"
+import { Clock, Context, Effect, Exit, Layer, Option, Stream } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { RpcTest } from "effect/rpc"
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
@@ -28,11 +29,8 @@ const graphs = fileURLToPath(new URL("../../../../../fixtures/graphs/", import.m
 const layout: Layout = "OneTree"
 
 const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used by the core"),
-  }),
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => globalThis.crypto.getRandomValues(new Uint8Array(size))),
 )
 
 const fileOf = (storage: Storage["Service"], root: string) => (path: string) =>

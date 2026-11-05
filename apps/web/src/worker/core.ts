@@ -1,7 +1,6 @@
 import {
   Clock,
   Context,
-  Crypto,
   Data,
   Deferred,
   Effect,
@@ -15,6 +14,7 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { BlockId, PageId, normalizePageName } from "@seqno/domain"
 import type { Block, Command, Page } from "@seqno/domain"
 import { isReadKey } from "@seqno/index"
@@ -220,7 +220,7 @@ const SessionsLive = Layer.effect(
   Effect.gen(function* () {
     const places = yield* GraphPlaces
     const device = yield* Device
-    const crypto = yield* Crypto.Crypto
+    const crypto = yield* SecureRandom.SecureRandom
     const gitDevice = yield* GitDevice
     const locks = yield* GraphLocks
     const scope = yield* Effect.scope
@@ -304,7 +304,7 @@ const SessionsLive = Layer.effect(
         const session = yield* openSession(place).pipe(
           Scope.provide(shared.scope),
           Effect.provideService(Device, device),
-          Effect.provideService(Crypto.Crypto, crypto),
+          Effect.provideService(SecureRandom.SecureRandom, crypto),
           Effect.provideService(GitDevice, gitDevice),
           Effect.mapError((error) => new GraphUnavailable({ graph, reason: reasonOf(error) })),
         )

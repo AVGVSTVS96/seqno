@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as fc from "fast-check"
-import { Context, Crypto, Effect, Layer, Option, Result } from "effect"
+import { Context, Effect, Layer, Option, Result } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { BlockId } from "@seqno/domain"
 import { Graph, PeerId } from "@seqno/graph"
 import type { PageTree } from "@seqno/rpc"
@@ -17,11 +18,8 @@ import {
 import type { FileTree } from "@seqno/interop"
 
 const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used"),
-  }),
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => globalThis.crypto.getRandomValues(new Uint8Array(size))),
 )
 
 const syntax = Effect.runSync(

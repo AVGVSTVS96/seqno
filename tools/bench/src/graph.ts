@@ -1,12 +1,10 @@
-import { Context, Crypto, Effect, Layer, Option } from "effect"
+import { Context, Effect, Layer, Option } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { Graph, PeerId, graphV2Layer } from "@seqno/graph"
 
 const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used by the graph"),
-  }),
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => globalThis.crypto.getRandomValues(new Uint8Array(size))),
 )
 
 export const serviceOf = <I, S, E>(tag: Context.Key<I, S>, layer: Layer.Layer<I, E>) =>

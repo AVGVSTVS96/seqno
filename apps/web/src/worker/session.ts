@@ -2,7 +2,6 @@ import {
   Cause,
   Clock,
   Context,
-  Crypto,
   Schedule,
   Effect,
   Exit,
@@ -15,6 +14,7 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { BlockId, GraphEvent, PageId } from "@seqno/domain"
 import type { Block } from "@seqno/domain"
 import { Graph, inBackground, newPeerId, vaultReplica } from "@seqno/graph"
@@ -667,7 +667,7 @@ export const openSession = (place: GraphPlace) =>
         return [...direct, ...written]
       })
 
-    const crypto = yield* Crypto.Crypto
+    const crypto = yield* SecureRandom.SecureRandom
 
     const baseVersion = Effect.gen(function* () {
       const stored = yield* place.mirrorStore.version
@@ -698,7 +698,8 @@ export const openSession = (place: GraphPlace) =>
       indexed: indexed.await,
       mayWrite,
       writer: Effect.map(SubscriptionRef.get(writers.state), (state) => state.writer),
-      outside: (change) => Effect.provideService(mergeBack(change), Crypto.Crypto, crypto),
+      outside: (change) =>
+        Effect.provideService(mergeBack(change), SecureRandom.SecureRandom, crypto),
       baseVersion,
     }
 

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
-import { Clock, Crypto, Effect, Exit, Option, Scope } from "effect"
+import { Clock, Effect, Exit, Option, Scope } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { DeviceId } from "@seqno/domain"
 import { FakeICloud } from "./cloud.ts"
 import type { CloudDeviceConfig, CloudStats } from "./cloud.ts"
@@ -88,11 +89,9 @@ const simClock = (millis: () => number): Clock.Clock => {
   }
 }
 
-const deterministicCrypto = (bytes: (size: number) => Uint8Array): Crypto.Crypto =>
-  Crypto.make({
-    randomBytes: bytes,
-    digest: () => Effect.die(new Error("the sim's id minting never digests")),
-  })
+const deterministicCrypto = (
+  bytes: (size: number) => Uint8Array,
+): SecureRandom.SecureRandom["Service"] => SecureRandom.make(bytes)
 
 const withoutPeer = (vv: VV, peer: string): VV =>
   Object.fromEntries(Object.entries(vv).filter(([other]) => other !== peer))
@@ -340,7 +339,7 @@ export const runSeed = (cfg: SimConfig) =>
       <A, E, R>(effect: Effect.Effect<A, E, R>) =>
         effect.pipe(
           Effect.provideService(Clock.Clock, at(clocks, d)),
-          Effect.provideService(Crypto.Crypto, at(cryptos, d)),
+          Effect.provideService(SecureRandom.SecureRandom, at(cryptos, d)),
         )
 
     const replicas: Replica[] = []

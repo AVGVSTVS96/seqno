@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Crypto, Effect, FileSystem, Layer, Path } from "effect"
+import { Effect, FileSystem, Layer, Path } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import type { PageTree } from "@seqno/rpc"
 import { LogseqSyntaxLive, importGraph, layerFileSystem, renderMirror } from "@seqno/interop"
@@ -7,14 +8,11 @@ import { LogseqSyntaxLive, importGraph, layerFileSystem, renderMirror } from "@s
 const counter = { value: 0 }
 
 const SequentialCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => {
-      counter.value += 1
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => {
+    counter.value += 1
 
-      return Uint8Array.from({ length: size }, (_, index) => (counter.value * 31 + index) % 256)
-    },
-    digest: () => Effect.die("digest is not used by import"),
+    return Uint8Array.from({ length: size }, (_, index) => (counter.value * 31 + index) % 256)
   }),
 )
 

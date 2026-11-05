@@ -1,4 +1,4 @@
-import type { Crypto } from "effect"
+import type { SecureRandom } from "effect/crypto"
 import { Clock, Data, Effect, Option } from "effect"
 import type { LoroTree, LoroTreeNode, TreeID } from "loro-crdt"
 import { Command, newBlockId, newPageId, normalizePageName } from "@seqno/domain"
@@ -166,7 +166,7 @@ const createTree = (
   parent: LoroTreeNode,
   index: number,
   draft: BlockDraft,
-): Effect.Effect<void, never, Crypto.Crypto> =>
+): Effect.Effect<void, never, SecureRandom.SecureRandom> =>
   Effect.gen(function* () {
     const id = draft.id ?? (yield* Effect.orDie(newBlockId))
     const now = yield* Clock.currentTimeMillis

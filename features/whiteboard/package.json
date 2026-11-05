@@ -9,24 +9,24 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@effect/atom-react": "4.0.1",
+    "@effect/atom-react": "4.1.2",
     "@seqno/dom": "workspace:*",
     "@seqno/domain": "workspace:*",
     "@seqno/outliner": "workspace:*",
     "@seqno/rpc": "workspace:*",
-    "@tabler/icons-react": "3.49.0",
-    "effect": "4.0.1",
+    "@tabler/icons-react": "3.50.0",
+    "effect": "4.1.2",
     "perfect-freehand": "1.2.3",
-    "potpack": "2.0.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "potpack": "2.1.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@effect/vitest": "4.0.1",
+    "@effect/vitest": "4.1.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "typescript": "7.0.2",
-    "vite": "8.3.3",
-    "vitest": "5.0.3"
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
   }
 }

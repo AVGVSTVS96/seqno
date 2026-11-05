@@ -1,4 +1,4 @@
-import type { Crypto } from "effect"
+import type { SecureRandom } from "effect/crypto"
 import { Clock, Effect, Option } from "effect"
 import type { LoroTreeNode } from "loro-crdt"
 import { Command, newBlockId, newPageId, normalizePageName } from "@seqno/domain"
@@ -345,7 +345,10 @@ export const outliner = (ws: Workspace) => {
     ws.record(item.at.page).trash(item.at.node)
   }
 
-  const create = (parent: Parent, index: number): Effect.Effect<Item, never, Crypto.Crypto> =>
+  const create = (
+    parent: Parent,
+    index: number,
+  ): Effect.Effect<Item, never, SecureRandom.SecureRandom> =>
     Effect.gen(function* () {
       const id = yield* Effect.orDie(newBlockId)
       const slot = slotIn(parent, index, undefined)
@@ -491,7 +494,7 @@ const createTree = (
   node: LoroTreeNode,
   page: PageId,
   draft: BlockDraft,
-): Effect.Effect<void, never, Crypto.Crypto> =>
+): Effect.Effect<void, never, SecureRandom.SecureRandom> =>
   Effect.gen(function* () {
     const id = draft.id ?? (yield* Effect.orDie(newBlockId))
     writeBlock(node, id, draft.text, yield* Clock.currentTimeMillis)
@@ -557,7 +560,7 @@ export const applyCommand = (
   ws: Workspace,
   out: Writer,
   command: Command,
-): Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto> =>
+): Effect.Effect<void, CommandRejected | Unresolved, SecureRandom.SecureRandom> =>
   Command.match(command, {
     CreatePage: ({ title, journalDay, props, format }) =>
       Effect.gen(function* () {

@@ -6,10 +6,10 @@
   "scripts": {
     "prepare": "lefthook install",
     "check": "pnpm lint && oxfmt --check && pnpm typecheck && pnpm test",
-    "check:fast": "pnpm lint && oxfmt --check && pnpm typecheck && vitest run --changed origin/main",
+    "check:fast": "pnpm lint && oxfmt --check && pnpm typecheck && vitest run --maxWorkers=2 --changed origin/main",
     "lint": "oxlint --deny-warnings",
     "typecheck": "pnpm --recursive --workspace-concurrency=2 typecheck",
-    "test": "scripts/turn vitest run",
+    "test": "scripts/turn vitest run --maxWorkers=2",
     "build": "pnpm --filter @seqno/site build && pnpm --filter @seqno/web build --base /app/ --outDir ../site/dist/app",
     "fix": "oxlint --fix; oxfmt"
   },
@@ -22,7 +22,7 @@
     "oxlint-tsgolint": "7.0.2005",
     "typescript": "7.0.2",
     "ultracite": "8.1.1",
-    "vitest": "5.0.3"
+    "vitest": "5.1.0"
   },
   "engines": {
     "node": ">=24"

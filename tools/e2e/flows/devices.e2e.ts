@@ -1,6 +1,7 @@
 import { mkdir, rm, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
-import { Context, Crypto, Effect, Layer, Option, Schema } from "effect"
+import { Context, Effect, Layer, Option, Schema } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
 import { Vault, layer as vaultLayer } from "@seqno/vault"
@@ -12,11 +13,8 @@ import { expect, test } from "../src/test.ts"
 const folder = ["seqno-e2e-picked", "two-devices"]
 
 const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used by the graph"),
-  }),
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => globalThis.crypto.getRandomValues(new Uint8Array(size))),
 )
 
 const phone = Schema.decodeUnknownSync(DeviceId)("phone")

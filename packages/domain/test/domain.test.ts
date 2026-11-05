@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Crypto, Effect, Layer, Result, Schema } from "effect"
+import { Effect, Layer, Result, Schema } from "effect"
+import { SecureRandom } from "effect/crypto"
 import {
   Block,
   BlockId,
@@ -16,11 +17,8 @@ import {
 } from "@seqno/domain"
 
 const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used by id minting"),
-  }),
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => globalThis.crypto.getRandomValues(new Uint8Array(size))),
 )
 
 const blockA = "01920000-0000-7000-8000-000000000001"

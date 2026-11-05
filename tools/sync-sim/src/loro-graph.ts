@@ -1,4 +1,5 @@
-import { Clock, Crypto, Effect, Layer, Option, Schema } from "effect"
+import { Clock, Effect, Layer, Option, Schema } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { BlockId, Command, PageId, newBlockId, newPageId, normalizePageName } from "@seqno/domain"
 import type { Block, GraphEvent, Page, Props } from "@seqno/domain"
 import { CommandRejected } from "@seqno/rpc"
@@ -143,7 +144,7 @@ const unsupported = (name: string) =>
 
 const open = (spec: ReplicaSpec) =>
   Effect.gen(function* () {
-    const crypto = yield* Crypto.Crypto
+    const crypto = yield* SecureRandom.SecureRandom
 
     const doc = yield* Effect.acquireRelease(
       Effect.sync(() => {
@@ -163,8 +164,8 @@ const open = (spec: ReplicaSpec) =>
     const ids = doc.getMap("ids")
     const peer = String(spec.peer)
 
-    const mint = <A, E>(effect: Effect.Effect<A, E, Crypto.Crypto>) =>
-      Effect.orDie(Effect.provideService(effect, Crypto.Crypto, crypto))
+    const mint = <A, E>(effect: Effect.Effect<A, E, SecureRandom.SecureRandom>) =>
+      Effect.orDie(Effect.provideService(effect, SecureRandom.SecureRandom, crypto))
 
     const nodeOf = (id: string): Node | undefined => {
       const treeId = ids.get(id)
@@ -223,7 +224,7 @@ const open = (spec: ReplicaSpec) =>
         CreatePage: ({ title }) =>
           normalizePageName(title).length === 0
             ? reject("a page title needs a visible character")
-            : Effect.gen(function* () {
+            : Effect.gen(function* (): Effect.fn.Return<readonly GraphEvent[], CommandRejected> {
                 const id = yield* mint(newPageId)
                 const node = tree.createNode()
                 node.data.set("id", id)

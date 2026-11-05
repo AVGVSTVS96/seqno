@@ -1,5 +1,5 @@
 import { Effect, Option, Result, Schema } from "effect"
-import type { Crypto } from "effect"
+import type { SecureRandom } from "effect/crypto"
 import { BlockId, newBlockId } from "@seqno/domain"
 import type { Block, Command, GraphEvent, PageId } from "@seqno/domain"
 import type { Graph } from "@seqno/graph"
@@ -44,7 +44,7 @@ const emptyAt = (tree: PageTree): PageTree => ({ page: tree.page, blocks: [] })
 
 export const openMergeBack =
   (deps: MergeBackDeps) =>
-  (change: Outside): Effect.Effect<Merged, never, Crypto.Crypto> =>
+  (change: Outside): Effect.Effect<Merged, never, SecureRandom.SecureRandom> =>
     Effect.gen(function* () {
       const { graph } = deps
       const { tree, text, disk } = change

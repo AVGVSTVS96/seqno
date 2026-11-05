@@ -1,4 +1,5 @@
-import { Clock, Crypto, Effect, Latch, Layer, Option, PubSub, Semaphore, Stream } from "effect"
+import { Clock, Effect, Latch, Layer, Option, PubSub, Semaphore, Stream } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { LoroDoc, VersionVector } from "loro-crdt"
 import { importMessage } from "@seqno/domain"
 import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
@@ -37,7 +38,7 @@ import { writePage } from "./write.ts"
 
 const make = (source: GraphSource) =>
   Effect.gen(function* () {
-    const crypto = yield* Crypto.Crypto
+    const crypto = yield* SecureRandom.SecureRandom
     const doc = new LoroDoc()
     doc.setPeerId(BigInt(source.peer))
     const importAll = importer(doc)
@@ -256,7 +257,7 @@ const make = (source: GraphSource) =>
       client: string,
       commands: readonly Command[],
       typing: BlockId | null,
-    ): Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto> =>
+    ): Effect.Effect<void, CommandRejected | Unresolved, SecureRandom.SecureRandom> =>
       Effect.suspend(() => {
         listen()
 
@@ -292,12 +293,14 @@ const make = (source: GraphSource) =>
         )
       })
 
-    const committed = (applied: Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto>) =>
+    const committed = (
+      applied: Effect.Effect<void, CommandRejected | Unresolved, SecureRandom.SecureRandom>,
+    ) =>
       applied.pipe(
         Effect.catchTag("Unresolved", ({ id }) =>
           Effect.fail(new CommandRejected({ reason: `block ${id} does not exist` })),
         ),
-        Effect.provideService(Crypto.Crypto, crypto),
+        Effect.provideService(SecureRandom.SecureRandom, crypto),
         Effect.andThen(repair),
         Effect.andThen(drain),
       )

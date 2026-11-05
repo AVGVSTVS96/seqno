@@ -16,7 +16,6 @@ import { assert, describe, it } from "@effect/vitest"
 import {
   Clock,
   Context,
-  Crypto,
   Effect,
   Fiber,
   Latch,
@@ -26,6 +25,7 @@ import {
   Schedule,
   Stream,
 } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { RpcClient, RpcServer, RpcTest } from "effect/rpc"
 import type { RpcGroup, RpcMessage } from "effect/rpc"
 import { TestClock } from "effect/testing"
@@ -63,11 +63,8 @@ const incoming = (pages: readonly PageTree[]) =>
 const logOf = (root: string) => (layout === "TreePerPage" ? join(root, "edit-log") : root)
 
 const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used by the core"),
-  }),
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => globalThis.crypto.getRandomValues(new Uint8Array(size))),
 )
 
 const savedIndexes = new Map<string, Uint8Array>()

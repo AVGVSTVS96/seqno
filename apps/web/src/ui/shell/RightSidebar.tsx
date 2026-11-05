@@ -101,11 +101,11 @@ const ItemTitle = ({ item }: { readonly item: SidebarItem }) =>
 
 const itemType = (item: SidebarItem): SidebarItemType =>
   SidebarItem.match(item, {
-    Page: ({ name }) => (name === contentsItem.name ? "contents" : "page"),
-    Block: () => "block",
-    Help: () => "help",
-    PageGraph: () => "page-graph",
-    Slides: () => "page-slide-view",
+    Page: ({ name }): SidebarItemType => (name === contentsItem.name ? "contents" : "page"),
+    Block: (): SidebarItemType => "block",
+    Help: (): SidebarItemType => "help",
+    PageGraph: (): SidebarItemType => "page-graph",
+    Slides: (): SidebarItemType => "page-slide-view",
   })
 
 const SidebarBlock = ({ blockId }: { readonly blockId: BlockId }) => {

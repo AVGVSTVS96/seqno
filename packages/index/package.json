@@ -14,13 +14,13 @@
     "@seqno/domain": "workspace:*",
     "@seqno/query": "workspace:*",
     "@seqno/syntax": "workspace:*",
-    "@sqlite.org/sqlite-wasm": "3.53.4-build2",
-    "effect": "4.0.1"
+    "@sqlite.org/sqlite-wasm": "3.54.1-build1",
+    "effect": "4.1.2"
   },
   "devDependencies": {
-    "@effect/vitest": "4.0.1",
+    "@effect/vitest": "4.1.2",
     "@types/node": "24.19.1",
     "typescript": "7.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.1.0"
   }
 }

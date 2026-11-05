@@ -1,4 +1,5 @@
-import { Clock, Crypto, Effect, Layer, Option, Schema } from "effect"
+import { Clock, Effect, Layer, Option, Schema } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { DeviceId } from "@seqno/domain"
 import type { JournalDay } from "@seqno/domain"
 import { handleFs, lockIndex } from "@seqno/git/browser"
@@ -204,7 +205,7 @@ const writeIdentity = (root: FileSystemDirectoryHandle, text: string) =>
   })
 
 const mintIdentity = Effect.gen(function* () {
-  const crypto = yield* Crypto.Crypto
+  const crypto = yield* SecureRandom.SecureRandom
   const bytes = yield* crypto.randomBytes(6)
   const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
 

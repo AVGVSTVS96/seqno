@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Crypto, Effect, Layer, Option, Schema, Stream } from "effect"
+import { Context, Effect, Layer, Option, Schema, Stream } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { BlockId, DeviceId, JournalDay, normalizePageName } from "@seqno/domain"
 import type { Command, GraphEvent, PageId } from "@seqno/domain"
 import { Graph, PeerId, graphV2Layer, journalPageId, vaultReplica } from "@seqno/graph"
@@ -11,11 +12,8 @@ import type { FakeCloud } from "@seqno/vault"
 const deviceId = Schema.decodeUnknownSync(DeviceId)
 
 const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used by the graph"),
-  }),
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => globalThis.crypto.getRandomValues(new Uint8Array(size))),
 )
 
 const members = ["mac", "ipad"]

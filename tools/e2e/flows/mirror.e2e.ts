@@ -1,7 +1,8 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, join, relative, sep } from "node:path"
 import type { Page } from "@playwright/test"
-import { Context, Crypto, Effect, Layer, Option, Schema } from "effect"
+import { Context, Effect, Layer, Option, Schema } from "effect"
+import { SecureRandom } from "effect/crypto"
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
 import { Vault, layer as vaultLayer } from "@seqno/vault"
@@ -197,11 +198,8 @@ test("moving a whiteboard shape rewrites the board's file, which reads back with
 })
 
 const WebCrypto = Layer.succeed(
-  Crypto.Crypto,
-  Crypto.make({
-    randomBytes: (size) => globalThis.crypto.getRandomValues(new Uint8Array(size)),
-    digest: () => Effect.die("digest is not used by the graph"),
-  }),
+  SecureRandom.SecureRandom,
+  SecureRandom.make((size) => globalThis.crypto.getRandomValues(new Uint8Array(size))),
 )
 
 const phoneEdits = (root: string) =>

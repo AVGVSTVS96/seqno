@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Crypto, Effect, Layer, Option, Order } from "effect"
+import { Context, Effect, Layer, Option, Order } from "effect"
+import { SecureRandom } from "effect/crypto"
 import type { BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { Graph, PeerId, graphV2Layer } from "@seqno/graph"
 import { format } from "./support.ts"
@@ -20,11 +21,8 @@ const random = (seed: number) => {
 
 const seededCrypto = (draw: () => number) =>
   Layer.succeed(
-    Crypto.Crypto,
-    Crypto.make({
-      randomBytes: (size) => Uint8Array.from({ length: size }, () => Math.floor(draw() * 256)),
-      digest: () => Effect.die("digest is not used by the graph"),
-    }),
+    SecureRandom.SecureRandom,
+    SecureRandom.make((size) => Uint8Array.from({ length: size }, () => Math.floor(draw() * 256))),
   )
 
 interface Placed {

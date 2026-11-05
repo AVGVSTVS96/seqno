@@ -9,8 +9,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p sw"
   },
   "dependencies": {
-    "@effect/atom-react": "4.0.1",
-    "@effect/platform-browser": "4.0.1",
+    "@effect/atom-react": "4.1.2",
+    "@effect/platform-browser": "4.1.2",
     "@fontsource-variable/inter": "5.3.0",
     "@seqno/dom": "workspace:*",
     "@seqno/domain": "workspace:*",
@@ -28,29 +28,29 @@
     "@seqno/syntax": "workspace:*",
     "@seqno/vault": "workspace:*",
     "@seqno/whiteboard": "workspace:*",
-    "@tabler/icons-react": "3.49.0",
-    "@tabler/icons-webfont": "3.49.0",
-    "@tanstack/react-router": "1.170.41",
-    "d3-force": "3.0.0",
-    "effect": "4.0.1",
+    "@tabler/icons-react": "3.50.0",
+    "@tabler/icons-webfont": "3.50.0",
+    "@tanstack/react-router": "1.170.46",
+    "d3-force": "3.0.1",
+    "effect": "4.1.2",
     "loro-crdt": "1.16.4",
     "modern-screenshot": "4.7.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "reveal.js": "6.0.2"
   },
   "devDependencies": {
-    "@babel/core": "8.0.6",
-    "@effect/vitest": "4.0.1",
-    "@rolldown/plugin-babel": "0.2.4",
+    "@babel/core": "8.1.0",
+    "@effect/vitest": "4.1.2",
+    "@rolldown/plugin-babel": "0.3.0",
     "@types/d3-force": "3.0.10",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/wicg-file-system-access": "2023.10.7",
-    "@vitejs/plugin-react": "6.1.2",
+    "@vitejs/plugin-react": "6.2.1",
     "babel-plugin-react-compiler": "1.0.0",
     "typescript": "7.0.2",
-    "vite": "8.3.3",
-    "vitest": "5.0.3"
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
   }
 }

@@ -1,4 +1,5 @@
-import { Crypto, Effect, Schema } from "effect"
+import { Effect, Schema } from "effect"
+import { SecureRandom } from "effect/crypto"
 
 export const BlockId = Schema.String.check(Schema.isUUID(7)).pipe(Schema.brand("BlockId"))
 
@@ -14,7 +15,7 @@ export const DeviceId = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_-]{1,6
 
 export type DeviceId = typeof DeviceId.Type
 
-const uuidV7 = Effect.flatMap(Crypto.Crypto, (crypto) => crypto.randomUUIDv7)
+const uuidV7 = Effect.flatMap(SecureRandom.SecureRandom, (crypto) => crypto.uuidV7())
 
 export const newBlockId = Effect.map(uuidV7, (id) => BlockId.make(id))
 

@@ -14,10 +14,10 @@
     "@seqno/index": "workspace:*",
     "@seqno/interop": "workspace:*",
     "@seqno/vault": "workspace:*",
-    "effect": "4.0.1"
+    "effect": "4.1.2"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "1.64.1",
     "@types/node": "24.19.1",
     "typescript": "7.0.2"
   }
