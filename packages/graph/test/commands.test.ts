@@ -339,8 +339,8 @@ describe("blocks", () => {
         yield* graph.dispatch(insert(chosen))
         const tree = yield* graph.page(pageId)
         assert.strictEqual(tree.blocks.find((block) => block.text === "brought")?.id, chosen)
-        assert.match(yield* rejection(graph.dispatch(insert(chosen))), /already exists/)
-        assert.match(yield* rejection(graph.dispatch(insert(nth(ids, 0)))), /already exists/)
+        assert.match(yield* rejection(graph.dispatch(insert(chosen))), /already exists/u)
+        assert.match(yield* rejection(graph.dispatch(insert(nth(ids, 0)))), /already exists/u)
       }),
     ),
   )

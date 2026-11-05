@@ -25,7 +25,7 @@ const server = createServer((request, response) => {
   const path = join(dist, new URL(request.url ?? "/", "http://x").pathname)
   const file = existsSync(path) && statSync(path).isFile() ? path : join(dist, "index.html")
   const size = statSync(file).size
-  const range = /bytes=(\d+)-(\d*)/.exec(request.headers.range ?? "")
+  const range = /bytes=(\d+)-(\d*)/u.exec(request.headers.range ?? "")
 
   const headers = {
     "content-type": types[extname(file)] ?? "application/octet-stream",
@@ -251,7 +251,7 @@ if (!only || only === "odometer") {
   mkdirSync(dir, { recursive: true })
 
   const baked = Number(
-    /<span class="sr">Nº <!-- -->(\d+)/.exec(readFileSync(join(dist, "index.html"), "utf-8"))?.[1],
+    /<span class="sr">Nº <!-- -->(\d+)/u.exec(readFileSync(join(dist, "index.html"), "utf-8"))?.[1],
   )
 
   const live = async (page: Page) =>

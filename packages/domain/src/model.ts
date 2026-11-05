@@ -45,7 +45,7 @@ export const Block = Schema.Struct({
 
 export type Block = typeof Block.Type
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
 export const blockRefId = (block: Block): string => {
   const written = block.props["id"]

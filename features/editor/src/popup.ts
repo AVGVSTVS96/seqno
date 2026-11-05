@@ -53,13 +53,13 @@ export const triggers: Readonly<Record<PopupKind, string>> = {
   Slash: "/",
 }
 
-const tagCharacters = /^[^\s,;!?"'()[\]{}#]*$/
+const tagCharacters = /^[^\s,;!?"'()[\]{}#]*$/u
 
 const validQuery: Readonly<Record<PopupKind, (query: string) => boolean>> = {
-  Page: (query) => !/\]\]|\[\[|\n/.test(query),
-  Block: (query) => !/\)\)|\n/.test(query),
+  Page: (query) => !/\]\]|\[\[|\n/u.test(query),
+  Block: (query) => !/\)\)|\n/u.test(query),
   Tag: (query) => tagCharacters.test(query),
-  Slash: (query) => !query.includes("\n") && !/^\s/.test(query),
+  Slash: (query) => !query.includes("\n") && !/^\s/u.test(query),
 }
 
 export const needsSearch = (popup: Popup) => popup.kind !== "Slash" && popup.query.trim() !== ""
@@ -173,7 +173,7 @@ const tracked = (popup: Popup, tr: Transaction): Popup | null => {
 }
 
 const startsWord = (state: EditorState, at: number) =>
-  at === 0 || /\s/.test(state.sliceDoc(at - 1, at))
+  at === 0 || /\s/u.test(state.sliceDoc(at - 1, at))
 
 const detected = (state: EditorState): Popup | null => {
   const head = state.selection.main.head
@@ -263,7 +263,7 @@ export const pageChoices = (pages: readonly PageName[], query: string): readonly
     : [fresh, ...ranked]
 }
 
-const flat = (text: string) => text.replaceAll(/\s*\n\s*/g, " ")
+const flat = (text: string) => text.replaceAll(/\s*\n\s*/gu, " ")
 
 const occurrence = (text: string, word: string): readonly Range[] => {
   const at = text.toLowerCase().indexOf(word.toLowerCase())
@@ -278,7 +278,7 @@ const queryRanges = (text: string, query: string): readonly Range[] => {
     ? whole
     : query
         .trim()
-        .split(/\s+/)
+        .split(/\s+/u)
         .flatMap((word) => occurrence(text, word))
         .toSorted((left, right) => left[0] - right[0])
 }

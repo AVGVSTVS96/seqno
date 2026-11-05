@@ -73,7 +73,7 @@ export const lastCursor: { current: { blockId: BlockId; caret: number } | null }
 }
 
 const decodePageId = Schema.decodeUnknownOption(PageId)
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
 
 const uuidIn = (value: unknown): string | null => {
   if (typeof value === "number") {
@@ -94,7 +94,7 @@ const uuidIn = (value: unknown): string | null => {
 const valueText = (value: unknown) =>
   Array.isArray(value) ? value.map(String).join(", ") : String(value)
 
-const kebab = (key: string) => key.replaceAll(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+const kebab = (key: string) => key.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`)
 
 const minimalEdit = (before: string, after: string) => {
   let start = 0
@@ -1239,8 +1239,8 @@ export const createApi = (registry: AtomRegistry.AtomRegistry, bridge: Bridge) =
     }
 
     return (pid, method, args) => {
-      const snake = snakeCase(method.startsWith("_call") ? method : method.replace(/^[_$]+/, ""))
-      const run = table[snake] ?? table[snake.replace(/^(ui|git|assets|utils|experiments)_/, "")]
+      const snake = snakeCase(method.startsWith("_call") ? method : method.replace(/^[_$]+/u, ""))
+      const run = table[snake] ?? table[snake.replace(/^(ui|git|assets|utils|experiments)_/u, "")]
 
       if (run === undefined) {
         throw unsupported(method)

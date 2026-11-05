@@ -2,7 +2,7 @@ import { analyzeBlock, applyEdit } from "./block.ts"
 import type { Ref, TextEdit } from "./block.ts"
 import { TAG_TRAILER } from "./patterns.ts"
 
-const BARE_TAG = /^[^\s#,;!?"'()[\]{}+][^\s,;!?"'()[\]{}]*$/
+const BARE_TAG = /^[^\s#,;!?"'()[\]{}+][^\s,;!?"'()[\]{}]*$/u
 
 const written = (ref: Ref, source: string, title: string): string => {
   if (ref._tag === "Tag") {

@@ -40,8 +40,8 @@ import {
 import { Timestamp, VideoEmbed } from "./Video.tsx"
 
 const isBlockId = Schema.is(BlockId)
-const safeUrl = /^(?:https?|mailto|ftp):/i
-const absoluteUrl = /^(?:https?:|data:image\/|blob:)/i
+const safeUrl = /^(?:https?|mailto|ftp):/iu
+const absoluteUrl = /^(?:https?:|data:image\/|blob:)/iu
 
 const stop = (event: { stopPropagation: () => void }) => {
   event.stopPropagation()

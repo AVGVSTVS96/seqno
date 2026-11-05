@@ -14,7 +14,7 @@ export interface ShortcutGroup {
 }
 
 const keysIn = (codeMirrorKey: string) =>
-  codeMirrorKey.split(/-(?!$)/).map((part) => part.toLowerCase())
+  codeMirrorKey.split(/-(?!$)/u).map((part) => part.toLowerCase())
 
 const editing = ({ label, key, mac }: Binding): Shortcut => ({
   label,

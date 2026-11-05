@@ -30,8 +30,8 @@ const openWithPalette = async (page: Page, text: string, title: string) => {
 test("the palette opens a page, which lists the blocks linking to it by page", async ({ page }) => {
   await openShowcaseAt(page, "/")
   await openWithPalette(page, "garden plan", "Garden Plan")
-  await expect(page).toHaveURL(/\/page\/garden%20plan$/)
-  const linked = page.getByRole("region", { name: /^Linked references/ })
+  await expect(page).toHaveURL(/\/page\/garden%20plan$/u)
+  const linked = page.getByRole("region", { name: /^Linked references/u })
   const groups = linked.getByRole("region")
   await expect(groups).toHaveCount(3)
   await expect(groups.nth(0)).toHaveAccessibleName("Oct 6th, 2026")
@@ -39,7 +39,7 @@ test("the palette opens a page, which lists the blocks linking to it by page", a
   await expect(groups.nth(2)).toContainText(
     "An alias reaches its page: Allotment is the Garden Plan.",
   )
-  await linked.getByRole("button", { name: /^Linked references/ }).click()
+  await linked.getByRole("button", { name: /^Linked references/u }).click()
   await expect(linked.getByRole("treeitem")).toHaveCount(0)
 })
 
@@ -68,26 +68,26 @@ test("clicking a page title renames the page", async ({ page }) => {
   await title.press("End")
   await title.pressSequentially(" starter")
   await title.press("Enter")
-  await expect(page).toHaveURL(/\/page\/sourdough%20starter$/)
+  await expect(page).toHaveURL(/\/page\/sourdough%20starter$/u)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sourdough starter")
 })
 
 test("renaming a page rewrites the links to it and keeps its references", async ({ page }) => {
   await openShowcaseAt(page, "/page/garden%20plan")
-  const references = page.getByRole("region", { name: /^Linked references/ })
+  const references = page.getByRole("region", { name: /^Linked references/u })
   await expect(references.getByRole("region")).toHaveCount(3)
   await page.getByRole("heading", { level: 1, name: "Garden Plan" }).click()
   const title = page.getByRole("textbox", { name: "Page title" })
   await title.press("End")
   await title.pressSequentially(" X")
   await title.press("Enter")
-  await expect(page).toHaveURL(/\/page\/garden%20plan%20x$/)
+  await expect(page).toHaveURL(/\/page\/garden%20plan%20x$/u)
   await expect(references.getByRole("region")).toHaveCount(3)
   await expect(references).toContainText("compost bay for the Garden Plan X")
   await page.keyboard.press("g")
   await page.keyboard.press("a")
   const names = page.getByRole("table", { name: "All pages" }).locator("tbody tr td:nth-child(2)")
-  await expect(names.filter({ hasText: /^Garden Plan/ })).toHaveText(["Garden Plan X"])
+  await expect(names.filter({ hasText: /^Garden Plan/u })).toHaveText(["Garden Plan X"])
 })
 
 test("all pages hides journals, sorts by title and filters", async ({ page }) => {
@@ -122,7 +122,7 @@ test("a page created from the palette opens with the caret in its first block", 
   await palette(page).getByRole("searchbox", { name: "Search" }).fill("Potting Bench")
   await expect(palette(page).getByRole("option").first()).toContainText("Create page")
   await page.keyboard.press("Enter")
-  await expect(page).toHaveURL(/\/page\/potting%20bench$/)
+  await expect(page).toHaveURL(/\/page\/potting%20bench$/u)
   await expect(seqno.editor).toBeFocused()
   await page.keyboard.type("typed")
   await expect(seqno.editor).toHaveText("typed")
@@ -260,7 +260,7 @@ const openLongDay = async (page: Page) => {
   await latePictures(page)
   await openDemo(page)
   const day = page.getByRole("article", { name: "Jan 1st, 2025", exact: true })
-  await expect(day.getByRole("treeitem").first()).toHaveText(/^row 1 /)
+  await expect(day.getByRole("treeitem").first()).toHaveText(/^row 1 /u)
 
   return day
 }
@@ -281,7 +281,7 @@ test("the keyboard walks a long journal day, and Mod+Shift+A selects all of it",
   const day = await openLongDay(page)
   await day
     .getByRole("treeitem")
-    .filter({ hasText: /^row 2 and more$/ })
+    .filter({ hasText: /^row 2 and more$/u })
     .click()
   await page.keyboard.press("Escape")
 
@@ -290,10 +290,10 @@ test("the keyboard walks a long journal day, and Mod+Shift+A selects all of it",
   }
 
   const selected = day.locator("[role=treeitem][aria-selected=true]")
-  await expect(selected).toHaveText(/^row 82 /)
+  await expect(selected).toHaveText(/^row 82 /u)
   await expect(selected).toBeInViewport()
   await page.keyboard.press("ControlOrMeta+Shift+a")
-  const last = day.getByRole("treeitem").filter({ hasText: /^row 3000 / })
+  const last = day.getByRole("treeitem").filter({ hasText: /^row 3000 /u })
   await expect(last).toHaveAttribute("aria-selected", "true")
   await expect(last).toBeInViewport()
 })
@@ -307,7 +307,7 @@ test("Back returns to the same row of a long journal day after a fling past slow
     await flingTo(page, [0.9, 0.1, stop], "[role=treeitem]")
     await page.waitForTimeout(1000)
     const before = await topRow(page)
-    expect(before).toMatch(/^row \d+/)
+    expect(before).toMatch(/^row \d+/u)
     await awayAndBack(page)
     await landsOn(page, before)
   }
@@ -348,8 +348,8 @@ test("the header menu exports the page as markdown and opens Settings", async ({
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Export page" }).click()
   const text = page.getByRole("dialog", { name: "Export" }).getByRole("textbox")
-  await expect(text).toHaveValue(/^  alias:: Allotment\n  plot:: 14B\n  \n- Beds run north/)
-  await expect(text).toHaveValue(/\n\t- Garlic along the fence/)
+  await expect(text).toHaveValue(/^  alias:: Allotment\n  plot:: 14B\n  \n- Beds run north/u)
+  await expect(text).toHaveValue(/\n\t- Garlic along the fence/u)
   await page.keyboard.press("Escape")
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Settings" }).click()
@@ -372,7 +372,7 @@ test("g s opens the searchable keymap, and Help lists it in the right sidebar", 
     "true",
   )
   await settings.getByRole("searchbox", { name: "Search shortcuts" }).fill("block up")
-  await expect(settings.getByRole("listitem")).toHaveText([/^Move block up/])
+  await expect(settings.getByRole("listitem")).toHaveText([/^Move block up/u])
   await page.keyboard.press("Escape")
   await page.keyboard.press("Escape")
   await page.getByRole("button", { name: "Help" }).click()
@@ -427,10 +427,10 @@ test("page property values render links and markdown like block properties", asy
   )
   await expect(properties.locator("strong")).toHaveText("raised beds")
   await properties.getByRole("link", { name: "project" }).click()
-  await expect(page).toHaveURL(/\/page\/project$/)
+  await expect(page).toHaveURL(/\/page\/project$/u)
   await page.goBack()
   await properties.getByRole("link", { name: "garden" }).click()
-  await expect(page).toHaveURL(/\/page\/garden$/)
+  await expect(page).toHaveURL(/\/page\/garden$/u)
 })
 
 test("Add to Favorites lists the page in the sidebar and leaves its file alone", async ({
@@ -449,7 +449,7 @@ test("Add to Favorites lists the page in the sidebar and leaves its file alone",
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Export page" }).click()
   const text = page.getByRole("dialog", { name: "Export" }).getByRole("textbox")
-  await expect(text).not.toHaveValue(/favorite/)
+  await expect(text).not.toHaveValue(/favorite/u)
   await page.keyboard.press("Escape")
   await page.reload()
   await expect(favorites.getByRole("link")).toHaveText(["Reading List"])

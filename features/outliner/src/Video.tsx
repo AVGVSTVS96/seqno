@@ -7,7 +7,7 @@ import { RenderContext } from "./render.ts"
 const seekEvent = "seqno-seek"
 const youtubeOrigin = "https://www.youtube-nocookie.com"
 const vimeoOrigin = "https://player.vimeo.com"
-const playableUrl = /^(?:https?:|blob:)/i
+const playableUrl = /^(?:https?:|blob:)/iu
 
 const stop = (event: { stopPropagation: () => void }) => {
   event.stopPropagation()

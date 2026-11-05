@@ -125,7 +125,7 @@ export const bodyOf = (message: string) => {
 export const short = (oid: string) => oid.slice(0, 7)
 
 const placeholder =
-  /%(?:C\([^)]*\)|Cred|Cgreen|Cblue|Creset|an|ae|ad|at|ai|aI|ar|cn|ce|cd|ct|ci|cI|cr|H|h|T|t|P|p|s|b|B|n|%)/g
+  /%(?:C\([^)]*\)|Cred|Cgreen|Cblue|Creset|an|ae|ad|at|ai|aI|ar|cn|ce|cd|ct|ci|cI|cr|H|h|T|t|P|p|s|b|B|n|%)/gu
 
 export const pretty = (template: string, commit: CommitInfo, style: DateStyle, now: Date) =>
   template.replaceAll(placeholder, (token) => {

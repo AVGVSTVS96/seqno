@@ -26,8 +26,8 @@ test("a query block lists its results by page and follows edits live", async ({ 
   const showcase = query.getByRole("region", { name: "Showcase" })
   await expect(showcase.getByRole("navigation", { name: "Parent blocks" })).toHaveText(["Tasks"])
   await expect(showcase.getByRole("treeitem")).toHaveText([
-    /DOING\s*Seal the gaps around the ridge beam/,
-    /NOW\s*Water the seedlings before noon/,
+    /DOING\s*Seal the gaps around the ridge beam/u,
+    /NOW\s*Water the seedlings before noon/u,
   ])
   await showcase
     .getByRole("treeitem")
@@ -51,5 +51,5 @@ test("an and query draws its clauses in brackets, and No matched result when emp
   await page.keyboard.insertText("{{query (and (task WAITING) (priority A))}}")
   await page.keyboard.press("Escape")
   await expect(query.getByText("No matched result")).toBeVisible()
-  await expect(query.getByText(/^\d+ results?$/)).toHaveCount(0)
+  await expect(query.getByText(/^\d+ results?$/u)).toHaveCount(0)
 })

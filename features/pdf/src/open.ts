@@ -135,7 +135,7 @@ export const retryWithPassword = (
 }
 
 const urlOf = (files: PdfFiles, path: string) =>
-  files.resolveAsset(path) ?? (/^https?:\/\//i.test(path) ? path : undefined)
+  files.resolveAsset(path) ?? (/^https?:\/\//iu.test(path) ? path : undefined)
 
 export const openPdf = (registry: AtomRegistry.AtomRegistry, files: PdfFiles, path: string) => {
   const asset = inflateAsset(path)

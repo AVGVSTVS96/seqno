@@ -58,7 +58,7 @@ const decoded = (part: string) => {
 }
 
 export const routeOf = (hash: string): Route => {
-  const path = hash.replace(/^#\/?/, "")
+  const path = hash.replace(/^#\/?/u, "")
 
   if (path === "all-pages") {
     return { _tag: "AllPages" }
@@ -164,7 +164,7 @@ const siteOf = (data: Published): Site => {
   return {
     data,
     resolveAsset: (path) => {
-      const local = /^(?:\.{1,2}\/|\/)*assets\/(.+)$/.exec(path)?.[1]
+      const local = /^(?:\.{1,2}\/|\/)*assets\/(.+)$/u.exec(path)?.[1]
 
       return local === undefined ? undefined : `assets/${local}`
     },

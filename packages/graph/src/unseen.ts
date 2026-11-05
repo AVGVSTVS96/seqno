@@ -75,7 +75,7 @@ const lowest = (doc: LoroDoc, heads: readonly OpId[]): VersionVector => {
   return VersionVector.parseJSON(min)
 }
 
-const isPeer = (peer: string): peer is PeerID => /^\d+$/.test(peer)
+const isPeer = (peer: string): peer is PeerID => /^\d+$/u.test(peer)
 
 const peerOf = (change: JsonChange): Option.Option<PeerID> => {
   const peer = change.id.slice(change.id.indexOf("@") + 1)

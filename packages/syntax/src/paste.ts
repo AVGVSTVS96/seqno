@@ -15,7 +15,7 @@ const pasted = (block: Block): PastedBlock => {
   return { text, props: Object.fromEntries(props), children: block.children.map(pasted) }
 }
 
-const fence = /^\s*(`{3,}|~{3,})/
+const fence = /^\s*(`{3,}|~{3,})/u
 
 const paragraphs = (source: string): readonly string[] => {
   const found: string[] = []

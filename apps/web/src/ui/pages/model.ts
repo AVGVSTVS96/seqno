@@ -61,11 +61,11 @@ export const outermost = (
 }
 
 const markup: ReadonlyArray<readonly [RegExp, string]> = [
-  [/#\[\[([^\]]*)\]\]/g, "#$1"],
-  [/\[\[([^\]]*)\]\]/g, "$1"],
-  [/\[([^\]]*)\]\([^)]*\)/g, "$1"],
-  [/(\*\*|__|~~|==|\^\^|`)/g, ""],
-  [/^#{1,6}\s+/, ""],
+  [/#\[\[([^\]]*)\]\]/gu, "#$1"],
+  [/\[\[([^\]]*)\]\]/gu, "$1"],
+  [/\[([^\]]*)\]\([^)]*\)/gu, "$1"],
+  [/(\*\*|__|~~|==|\^\^|`)/gu, ""],
+  [/^#{1,6}\s+/u, ""],
 ]
 
 export const crumbLabel = (text: string) =>
@@ -176,8 +176,8 @@ export const listValues = (value: string) =>
     .map((part) =>
       part
         .trim()
-        .replace(/^\[\[(.*)\]\]$/, "$1")
-        .replace(/^#/, ""),
+        .replace(/^\[\[(.*)\]\]$/u, "$1")
+        .replace(/^#/u, ""),
     )
     .filter((part) => part !== "")
 

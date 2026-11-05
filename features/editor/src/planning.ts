@@ -50,7 +50,7 @@ export const stampOf = ({ date, time, repeater }: Planned) =>
     ...(repeater === null ? [] : [`.+${repeater.count}${repeater.unit}`]),
   ].join(" ")
 
-const planned = /^(\d{4})-(\d{2})-(\d{2})/
+const planned = /^(\d{4})-(\d{2})-(\d{2})/u
 
 export const plannedDate = (text: string, kind: Planning): Date | null => {
   const stamp = new RegExp(`${kind}: <([^>\\n]*)>`).exec(text)?.[1]

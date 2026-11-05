@@ -22,10 +22,10 @@ export const Document = Schema.Struct({
 export type Document = typeof Document.Type
 
 const BOM = "﻿"
-const BULLET = /^([ \t]*)-(?=[ \t\r]|$)/
-const HEADING = /^([ \t]*)#+[ \t]/
-const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})([^\n]*)$/
-const DIRECTIVE_OPEN = /^[ \t]*#\+BEGIN_(\S+)/i
+const BULLET = /^([ \t]*)-(?=[ \t\r]|$)/u
+const HEADING = /^([ \t]*)#+[ \t]/u
+const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})([^\n]*)$/u
+const DIRECTIVE_OPEN = /^[ \t]*#\+BEGIN_(\S+)/iu
 
 interface Fence {
   readonly close: (line: string) => boolean

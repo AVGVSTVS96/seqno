@@ -56,7 +56,7 @@ SELECT b.id FROM blocks b WHERE instr(lower(b.content), ?1) > 0
 UNION SELECT b.id FROM props p JOIN blocks b ON b.rid = p.block WHERE instr(lower(p.value), ?1) > 0`
 
 const spansOf = (text: string, needle: string) =>
-  [...text.matchAll(new RegExp(needle.replaceAll(/[()]/g, "\\$&"), "gi"))].map(
+  [...text.matchAll(new RegExp(needle.replaceAll(/[()]/gu, "\\$&"), "gi"))].map(
     (match) => match.index,
   )
 

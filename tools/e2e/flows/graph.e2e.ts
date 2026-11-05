@@ -15,10 +15,10 @@ const graphCanvas = (page: Page) => page.getByRole("application", { name: "Graph
 const nodeCount = async (page: Page) => {
   const text = await page
     .getByRole("region", { name: "Graph settings" })
-    .getByText(/ nodes?$/)
+    .getByText(/ nodes?$/u)
     .textContent()
 
-  return Number((text ?? "").replaceAll(/\D/g, ""))
+  return Number((text ?? "").replaceAll(/\D/gu, ""))
 }
 
 const pixelOf = async (canvas: Locator, rgb: readonly [number, number, number]) =>
@@ -57,7 +57,7 @@ test("g g opens the graph view, whose settings filter journals and orphans and s
   await openShowcaseAt(page, "/")
   await page.keyboard.press("g")
   await page.keyboard.press("g")
-  await expect(page).toHaveURL(/\/graph$/)
+  await expect(page).toHaveURL(/\/graph$/u)
   await expect(page).toHaveTitle("Graph view")
   await expect(graphCanvas(page)).toBeVisible()
   await expect(page.getByText("Preparing graph…")).toHaveCount(0)
@@ -95,7 +95,7 @@ test("double-clicking a node in the graph view opens its page", async ({ page })
 
   const box = await canvas.boundingBox()
   await page.mouse.dblclick((box?.x ?? 0) + point.x + 1, (box?.y ?? 0) + point.y + 2)
-  await expect(page).toHaveURL(/\/page\/[^/]+$/)
+  await expect(page).toHaveURL(/\/page\/[^/]+$/u)
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
 })
 
@@ -113,7 +113,7 @@ test("the right sidebar's Page graph follows the page you are on", async ({ page
   await palette.getByRole("searchbox", { name: "Search" }).fill("sourdough")
   await expect(palette.getByRole("option").first()).toHaveText("Sourdough")
   await page.keyboard.press("Enter")
-  await expect(page).toHaveURL(/\/page\/sourdough$/)
+  await expect(page).toHaveURL(/\/page\/sourdough$/u)
   await expect(pageGraph).toBeVisible()
   await expect.poll(async () => await pixelOf(pageGraph, [37, 99, 235])).not.toBeNull()
 })

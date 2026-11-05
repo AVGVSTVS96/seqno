@@ -15,9 +15,9 @@ export const channelOf = (pid: string) => `#lspmsg#${pid}`
 
 export const snakeCase = (input: string) =>
   input
-    .replaceAll(/([a-z0-9])([A-Z])/g, "$1\0$2")
-    .replaceAll(/([A-Z])([A-Z][a-z])/g, "$1\0$2")
-    .replaceAll(/[^A-Z0-9]+/gi, "\0")
+    .replaceAll(/([a-z0-9])([A-Z])/gu, "$1\0$2")
+    .replaceAll(/([A-Z])([A-Z][a-z])/gu, "$1\0$2")
+    .replaceAll(/[^A-Z0-9]+/giu, "\0")
     .split("\0")
     .filter((part) => part !== "")
     .map((part) => part.toLowerCase())

@@ -23,7 +23,7 @@ export const numberOf = (uuid: string) => {
 export const uuidOfNumber = (id: number) => uuids.get(id) ?? null
 
 const camel = (key: string) =>
-  key.replaceAll(/[-_]+([a-z0-9])/g, (_, letter: string) => letter.toUpperCase())
+  key.replaceAll(/[-_]+([a-z0-9])/gu, (_, letter: string) => letter.toUpperCase())
 
 export const propertyLines = (props: Props): readonly PropertyLine[] => Object.entries(props)
 

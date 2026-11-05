@@ -166,7 +166,7 @@ const property = (owner: Owner, key: string): FieldDef => ({
     (owner === "block" ? f.props : f.page.props).flatMap(([k, v]) => (k === key ? [v] : [])),
 })
 
-const PROPERTY = /^(page\.)?property\.(.+)$/
+const PROPERTY = /^(page\.)?property\.(.+)$/u
 
 export const fieldDef = (field: Field): FieldDef => {
   if (isFixedField(field)) {

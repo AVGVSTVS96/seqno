@@ -36,11 +36,11 @@ const read = (root: string) => {
     classes: sorted(selected.flatMap((names) => names.classes)),
     ids: sorted([
       ...selected.flatMap((names) => names.ids),
-      ...components.flatMap((code) => matches(code, /:[a-z][\w.-]*#([a-zA-Z][\w-]*)/g)),
-      ...components.flatMap((code) => matches(code, /:id "([a-zA-Z][\w-]*)"/g)),
+      ...components.flatMap((code) => matches(code, /:[a-z][\w.-]*#([a-zA-Z][\w-]*)/gu)),
+      ...components.flatMap((code) => matches(code, /:id "([a-zA-Z][\w-]*)"/gu)),
     ]),
     idPrefixes: sorted(
-      components.flatMap((code) => matches(code, /:id \(str "([a-zA-Z][\w-]*-)"/g)),
+      components.flatMap((code) => matches(code, /:id \(str "([a-zA-Z][\w-]*-)"/gu)),
     ),
     attributes: sorted(selected.flatMap((names) => names.attributes)),
   }

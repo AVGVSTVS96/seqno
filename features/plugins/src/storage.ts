@@ -3,7 +3,7 @@ const root = "plugin-storages"
 const partsOf = (key: string, action: string) => {
   const parts: string[] = []
 
-  for (const part of key.split(/[/\\]+/)) {
+  for (const part of key.split(/[/\\]+/u)) {
     if (part === "" || part === ".") {
       continue
     }

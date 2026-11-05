@@ -34,7 +34,7 @@ test("the first board you create is filled with Logseq's own onboarding board, o
   await expect(
     shapes(page, "text").locator(".wb-text").filter({ hasText: "Whiteboards!" }),
   ).toBeVisible()
-  await expect(shapes(page, "image").first().locator("img")).toHaveAttribute("src", /^data:image/)
+  await expect(shapes(page, "image").first().locator("img")).toHaveAttribute("src", /^data:image/u)
   await expect(shapes(page, "iframe").locator("iframe")).toHaveAttribute(
     "src",
     "https://logseq.com/",
@@ -81,7 +81,7 @@ test("the first click on Whiteboards in the sidebar welcomes you, and Start whit
   await page.getByRole("button", { name: "Toggle left sidebar" }).click({ timeout: 30_000 })
   const nav = page.getByRole("navigation", { name: "Navigations" })
   await nav.getByRole("link", { name: "Whiteboards" }).click()
-  await expect(page).toHaveURL(/\/whiteboards$/)
+  await expect(page).toHaveURL(/\/whiteboards$/u)
   const welcome = page.getByRole("dialog", { name: "A new canvas for your thoughts." })
   await expect(welcome).toBeVisible()
   await page.mouse.click(5, 5)
@@ -112,6 +112,6 @@ test("the first click on Whiteboards in the sidebar welcomes you, and Start whit
 
   await nav.getByRole("link", { name: "Journals" }).click()
   await nav.getByRole("link", { name: "Whiteboards" }).click()
-  await expect(page).toHaveURL(/\/whiteboards$/)
+  await expect(page).toHaveURL(/\/whiteboards$/u)
   await expect(welcome).toHaveCount(0)
 })

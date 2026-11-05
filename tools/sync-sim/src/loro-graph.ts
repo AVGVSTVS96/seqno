@@ -11,9 +11,9 @@ import type { Span, VV } from "./vv.ts"
 type Node = LoroTreeNode
 
 const isTreeId = (value: unknown): value is TreeID =>
-  typeof value === "string" && /^\d+@\d+$/.test(value)
+  typeof value === "string" && /^\d+@\d+$/u.test(value)
 
-const isPeerId = (value: string): value is PeerID => /^\d+$/.test(value)
+const isPeerId = (value: string): value is PeerID => /^\d+$/u.test(value)
 
 const vvOf = (version: VersionVector): VV => Object.fromEntries(version.toJSON())
 

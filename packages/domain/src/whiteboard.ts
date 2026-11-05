@@ -205,7 +205,7 @@ export const shapeProps = (raw: Readonly<Record<string, unknown>>): Props => ({
   [SHAPE_KEY]: shapeValue(raw),
 })
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
 export const isBlockLink = (link: string): boolean => UUID.test(link)
 
@@ -237,8 +237,8 @@ export const PortalTarget = Schema.TaggedUnion({
 
 export type PortalTarget = typeof PortalTarget.Type
 
-const PAGE_PORTAL = /^\[\[([^\]\n]+)\]\]$/
-const BLOCK_PORTAL = /^\(\(([0-9a-fA-F-]{36})\)\)$/
+const PAGE_PORTAL = /^\[\[([^\]\n]+)\]\]$/u
+const BLOCK_PORTAL = /^\(\(([0-9a-fA-F-]{36})\)\)$/u
 
 export const portalTarget = (text: string): Option.Option<PortalTarget> => {
   const page = PAGE_PORTAL.exec(text.trim())?.[1]

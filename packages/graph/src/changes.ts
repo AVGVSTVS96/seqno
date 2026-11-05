@@ -9,7 +9,7 @@ export interface Changed {
   readonly blocks: ReadonlySet<BlockId>
 }
 
-const isPeer = (peer: string): peer is PeerID => /^\d+$/.test(peer)
+const isPeer = (peer: string): peer is PeerID => /^\d+$/u.test(peer)
 
 export const loroVersion = (version: ReadonlyMap<string, number>) =>
   VersionVector.parseJSON(

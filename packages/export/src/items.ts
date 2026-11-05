@@ -126,11 +126,11 @@ const tableOf = (level: number, lines: readonly string[], dialect: Dialect): Ite
 }
 
 const maxEmbedDepth = 5
-const QUOTE = /^[ \t]*>[ \t]?/
-const EMBED_BLOCK = /^\(\(([0-9a-f-]{36})\)\)$/i
-const EMBED_PAGE = /^\[\[(.+)\]\]$/
-const MATH = /^[ \t]*\$\$[ \t]*$/
-const FOOTNOTE = /^[ \t]*\[\^[^\]]+\]:/
+const QUOTE = /^[ \t]*>[ \t]?/u
+const EMBED_BLOCK = /^\(\(([0-9a-f-]{36})\)\)$/iu
+const EMBED_PAGE = /^\[\[(.+)\]\]$/u
+const MATH = /^[ \t]*\$\$[ \t]*$/u
+const FOOTNOTE = /^[ \t]*\[\^[^\]]+\]:/u
 
 export const lineRun = (line: string, dialect: Dialect = "markdown"): Run => ({
   source: line,
@@ -277,7 +277,7 @@ const bodyItems = (
 
       items.push(
         region.kind === "Fence"
-          ? { _tag: "Code", level, language: region.name.split(/\s/)[0] ?? "", lines: inner }
+          ? { _tag: "Code", level, language: region.name.split(/\s/u)[0] ?? "", lines: inner }
           : { _tag: "Raw", level, lines: inner },
       )
       continue

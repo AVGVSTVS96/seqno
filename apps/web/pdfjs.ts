@@ -24,7 +24,7 @@ export const pdfjsAssets = (): Plugin => ({
   name: "seqno-pdfjs-assets",
   configureServer(server) {
     server.middlewares.use("/pdfjs/", (request, response, next) => {
-      const path = (request.url ?? "").replace(/^\//, "").split("?")[0] ?? ""
+      const path = (request.url ?? "").replace(/^\//u, "").split("?")[0] ?? ""
 
       if (!folders.some((folder) => path.startsWith(`${folder}/`)) || path.includes("..")) {
         next()

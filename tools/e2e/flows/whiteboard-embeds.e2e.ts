@@ -53,7 +53,7 @@ test("tweet links embed the tweet, other links become a sandboxed website the Re
   })
   await expect(shapes(page, "tweet").locator("iframe")).toHaveAttribute(
     "src",
-    /^https:\/\/platform\.twitter\.com\/embed\/Tweet\.html\?dnt=true&id=1600000000000000000/,
+    /^https:\/\/platform\.twitter\.com\/embed\/Tweet\.html\?dnt=true&id=1600000000000000000/u,
   )
   await page.mouse.click(1100, 650)
   await page.mouse.move(150, 400)

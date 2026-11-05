@@ -111,7 +111,7 @@ test("a demo graph an older seqno saved as one tree converts when it opens, edit
   await expect(seqno.today.getByRole("treeitem").first()).toHaveText("written as one tree")
   await expect(page.getByRole("article", { name: "Mar 9th, 2025", exact: true })).toBeVisible()
   const converted = Object.keys(await opfsFiles(page, ["graphs", "demo"]))
-  expect(converted.filter((path) => /^(updates|snapshots|seen)\//.test(path))).toEqual([])
+  expect(converted.filter((path) => /^(updates|snapshots|seen)\//u.test(path))).toEqual([])
   expect(converted.filter((path) => path.startsWith("edit-log/snapshots/")).length).toBe(1)
   expect(converted).toContain("edit-log/layout")
   await page.reload()

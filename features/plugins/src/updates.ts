@@ -43,7 +43,7 @@ export const autoCheckDue = (last: boolean | number, now: number) =>
   last !== false && (last === true || now - last > autoEvery)
 
 const numbers = (version: string) =>
-  (/\d+(?:\.\d+){0,2}/.exec(version)?.[0] ?? "0").split(".").map(Number)
+  (/\d+(?:\.\d+){0,2}/u.exec(version)?.[0] ?? "0").split(".").map(Number)
 
 export const isNewer = (latest: string, current: string) => {
   const [a = 0, b = 0, c = 0] = numbers(latest)

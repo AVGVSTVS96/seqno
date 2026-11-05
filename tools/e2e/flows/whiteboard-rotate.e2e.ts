@@ -26,7 +26,7 @@ test("dragging just outside a selected shape's corner rotates it about its cente
   await newBoard(page)
   await drawBox(page)
   const target = board(page).locator('[data-handle="rotate-top-right"]')
-  await expect(target).toHaveCSS("cursor", /svg\+xml.*pointer/)
+  await expect(target).toHaveCSS("cursor", /svg\+xml.*pointer/u)
   const box = await shapes(page, "box").boundingBox()
   const [cx, cy] = [(box?.x ?? 0) + (box?.width ?? 0) / 2, (box?.y ?? 0) + (box?.height ?? 0) / 2]
   await page.mouse.move(406, 294)
@@ -36,7 +36,7 @@ test("dragging just outside a selected shape's corner rotates it about its cente
   await page.mouse.up()
   const expected = Math.atan2(406 - cy, 406 - cx) - Math.atan2(288 - cy, 406 - cx)
   await expect.poll(async () => Math.abs(radiansOf(await turn(page)) - expected)).toBeLessThan(1e-4)
-  await expect(board(page).locator(".wb-frame")).toHaveCSS("rotate", /^9\d(\.\d+)?deg$/)
+  await expect(board(page).locator(".wb-frame")).toHaveCSS("rotate", /^9\d(\.\d+)?deg$/u)
 
   await saved(page)
   await page.reload()

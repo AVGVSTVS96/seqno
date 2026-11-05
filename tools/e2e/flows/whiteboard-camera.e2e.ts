@@ -50,7 +50,7 @@ test("zoom in glides over several frames to 125%, and the board keeps its camera
   })
   await expect(zoomLabel(page)).toHaveText("125%")
   expect(frames.length).toBeGreaterThan(2)
-  expect(frames.at(-1)).toMatch(/^scale\(1\.25\)/)
+  expect(frames.at(-1)).toMatch(/^scale\(1\.25\)/u)
 
   const url = page.url()
   await page.keyboard.press("g")
@@ -71,7 +71,7 @@ test("Alt+wheel does nothing and a plain wheel pans at 0.8 of the wheel, as in L
   await page.mouse.wheel(0, 100)
   await page.keyboard.up("Alt")
   await expect(zoomLabel(page)).toHaveText("100%")
-  await expect(world).toHaveAttribute("style", /translate\(0px, 0px\)/)
+  await expect(world).toHaveAttribute("style", /translate\(0px, 0px\)/u)
   await page.mouse.wheel(0, 100)
-  await expect(world).toHaveAttribute("style", /translate\(0px, -80px\)/)
+  await expect(world).toHaveAttribute("style", /translate\(0px, -80px\)/u)
 })

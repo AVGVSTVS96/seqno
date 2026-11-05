@@ -10,7 +10,7 @@ import { LogseqSyntax, titleKey } from "./outline.ts"
 import type { OutlineBlock } from "./outline.ts"
 import { renderWhiteboard } from "./whiteboard.ts"
 
-const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
+const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/giu
 
 export const refsIn = (text: string): readonly string[] =>
   [...text.matchAll(blockRef)].map((match) => (match[1] ?? "").toLowerCase())

@@ -67,7 +67,7 @@ test("pasting an image saves it in assets/ and links it, as Logseq does", async 
   await page.keyboard.press("Escape")
   const image = welcomeRow(page).getByRole("img", { name: "image.png" })
   await expect(image).toHaveJSProperty("naturalWidth", 1)
-  expect(await assetNames(page)).toEqual([expect.stringMatching(/^image_\d{13}_0\.png$/)])
+  expect(await assetNames(page)).toEqual([expect.stringMatching(/^image_\d{13}_0\.png$/u)])
   await seqno.saved()
   await page.reload()
   await expect(welcomeRow(page).getByRole("img", { name: "image.png" })).toHaveJSProperty(
@@ -88,13 +88,13 @@ test("dropping files on a block adds a block that plays, reads and downloads the
   ])
   const added = page.getByRole("main").getByRole("treeitem").nth(1)
   await expect(added.locator('a.seqno-asset[data-kind="pdf"]')).toHaveText("Field notes.pdf")
-  await expect(added.locator("audio[controls]")).toHaveAttribute("src", /^blob:/)
+  await expect(added.locator("audio[controls]")).toHaveAttribute("src", /^blob:/u)
   const download = page.waitForEvent("download")
   await added.getByRole("link", { name: "plan.docx" }).click()
-  expect((await download).suggestedFilename()).toMatch(/^plan_\d{13}_2\.docx$/)
+  expect((await download).suggestedFilename()).toMatch(/^plan_\d{13}_2\.docx$/u)
   await added.click()
   await expect(seqno.editor).toHaveText(
-    /^!\[Field notes\.pdf\]\(\.\.\/assets\/Field_notes_\d{13}_0\.pdf\) !\[birdsong\.mp3\]\(\.\.\/assets\/birdsong_\d{13}_1\.mp3\) \[plan\.docx\]\(\.\.\/assets\/plan_\d{13}_2\.docx\)$/,
+    /^!\[Field notes\.pdf\]\(\.\.\/assets\/Field_notes_\d{13}_0\.pdf\) !\[birdsong\.mp3\]\(\.\.\/assets\/birdsong_\d{13}_1\.mp3\) \[plan\.docx\]\(\.\.\/assets\/plan_\d{13}_2\.docx\)$/u,
   )
 })
 

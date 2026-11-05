@@ -116,7 +116,7 @@ const pageFiles = (root: string) =>
     const files = entries
       .filter((entry) => entry.isFile() && !entry.name.startsWith("."))
       .map((entry) => relative(root, join(entry.parentPath, entry.name)).split("\\").join("/"))
-      .filter((path) => /^(journals|pages|whiteboards|logseq)\//.test(path))
+      .filter((path) => /^(journals|pages|whiteboards|logseq)\//u.test(path))
       .toSorted()
 
     const read = await Promise.all(

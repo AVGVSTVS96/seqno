@@ -47,7 +47,7 @@ interface Ack {
 
 const encoder = new TextEncoder()
 
-const baseName = (name: string) => name.replace(/ \d+(\.[a-z]+)$/, "$1")
+const baseName = (name: string) => name.replace(/ \d+(\.[a-z]+)$/u, "$1")
 
 const visibleName = (raw: string): Listed["name"] => (stubTarget(raw) ?? raw).normalize("NFC")
 
@@ -267,7 +267,7 @@ const attach =
 
       const readSeen = Effect.gen(function* () {
         for (const file of yield* seenFiles) {
-          const match = /^([A-Za-z0-9_-]{1,64})\.json$/.exec(file.name)
+          const match = /^([A-Za-z0-9_-]{1,64})\.json$/u.exec(file.name)
           const device = match?.[1]
 
           if (device === undefined || device === me) {

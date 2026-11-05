@@ -60,7 +60,7 @@ export interface BlockState {
 }
 
 export const isTreeId = (value: unknown): value is TreeID =>
-  typeof value === "string" && /^\d+@\d+$/.test(value)
+  typeof value === "string" && /^\d+@\d+$/u.test(value)
 
 export const childrenOf = (node: LoroTreeNode): readonly LoroTreeNode[] => node.children() ?? []
 

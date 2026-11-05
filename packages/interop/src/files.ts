@@ -24,11 +24,11 @@ export type Classified = Result.Result<
 
 export const configPath = "logseq/config.edn"
 
-const placeholder = /^\.(.+)\.icloud$/
-const swapFile = /\.(crswap|seqno-tmp)$/i
-const markdown = /\.(md|markdown)$/i
-const org = /\.org$/i
-const edn = /\.edn$/i
+const placeholder = /^\.(.+)\.icloud$/u
+const swapFile = /\.(crswap|seqno-tmp)$/iu
+const markdown = /\.(md|markdown)$/iu
+const org = /\.org$/iu
+const edn = /\.edn$/iu
 
 const within = (path: string, directory: string) =>
   directory === "" || path === directory || path.startsWith(`${directory}/`)

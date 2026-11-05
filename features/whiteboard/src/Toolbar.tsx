@@ -28,7 +28,7 @@ import type { ScaleLevel } from "@seqno/domain"
 import { COLORS, colorVar } from "./tools.ts"
 import type { Color, ShapeTool, Tool } from "./tools.ts"
 
-export const anchorOf = (id: string) => `--wb-${id.replaceAll(/[^a-zA-Z0-9]/g, "")}`
+export const anchorOf = (id: string) => `--wb-${id.replaceAll(/[^a-zA-Z0-9]/gu, "")}`
 
 export const closePopover = (target: EventTarget) => {
   const popover = target instanceof Element ? target.closest("[popover]") : null

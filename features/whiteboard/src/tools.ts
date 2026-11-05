@@ -27,7 +27,7 @@ export const defaultStyles: Styles = { color: "", scaleLevel: "md" }
 
 const isBuiltIn = (color: string): boolean => COLORS.some((name) => name === color)
 
-const LOGSEQ_TEXT = /var\(--ls-primary-text-color(?:,[^)]*)?\)/g
+const LOGSEQ_TEXT = /var\(--ls-primary-text-color(?:,[^)]*)?\)/gu
 
 export const colorVar = (kind: "stroke" | "background" | "text", color: string | undefined) =>
   color === undefined || isBuiltIn(color)

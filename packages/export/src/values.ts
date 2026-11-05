@@ -69,7 +69,7 @@ const refsOf = (
       ? nodes.flatMap((node) =>
           node._tag === "Text"
             ? node.text
-                .split(/[,，]/)
+                .split(/[,，]/u)
                 .map((part) => part.trim())
                 .filter((part) => part !== "")
             : [],
@@ -105,5 +105,5 @@ export const propertyValue = (
     return false
   }
 
-  return /^\d+$/.test(value) ? Number(value) : value
+  return /^\d+$/u.test(value) ? Number(value) : value
 }

@@ -152,7 +152,7 @@ describe("commits Logseq's way", () => {
     expect((await run(["config", "--global", "user.email", "b@example.com"])).exitCode).toBe(0)
     expect(await run(["commit", "-m", "first"])).toEqual({
       stdout: expect.stringMatching(
-        /^\[master \(root-commit\) [0-9a-f]{7}\] first\n 1 file changed, 1 insertion\(\+\)\n create mode 100644 pages\/a\.md\n$/,
+        /^\[master \(root-commit\) [0-9a-f]{7}\] first\n 1 file changed, 1 insertion\(\+\)\n create mode 100644 pages\/a\.md\n$/u,
       ),
       stderr: "",
       exitCode: 0,

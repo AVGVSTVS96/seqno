@@ -72,7 +72,7 @@ const Editor = ({ path }: { readonly path: AppFilePath }) => {
 }
 
 export const FilePage = ({ path }: { readonly path: string }) => {
-  const id = useId().replaceAll(/[^a-z0-9]/gi, "")
+  const id = useId().replaceAll(/[^a-z0-9]/giu, "")
 
   return (
     <div {...logseq("seqno-file", id)}>

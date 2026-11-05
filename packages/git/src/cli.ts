@@ -79,7 +79,7 @@ may have crashed in this repository earlier:
 remove the file manually to continue.
 `)
 
-const upstream = /@\{(u|upstream|push)\}$/i
+const upstream = /@\{(u|upstream|push)\}$/iu
 
 class Fatal extends Error {
   readonly result: Result
@@ -121,13 +121,13 @@ const logOptions = (args: readonly string[]) => {
   for (let at = 0; at < options.length; at += 1) {
     const arg = options[at] ?? ""
 
-    if (/^-\d+$/.test(arg)) {
+    if (/^-\d+$/u.test(arg)) {
       depth = Number(arg.slice(1))
     } else if (arg === "-n" || arg === "--max-count") {
       depth = Number(options[(at += 1)])
     } else if (arg.startsWith("--max-count=")) {
       depth = Number(arg.slice("--max-count=".length))
-    } else if (/^-n\d+$/.test(arg)) {
+    } else if (/^-n\d+$/u.test(arg)) {
       depth = Number(arg.slice(2))
     } else if (arg === "--oneline") {
       format = { kind: "oneline", template: "" }
@@ -168,7 +168,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
       throw new Fatal(fatal(`no upstream configured for branch '${await repo.branch()}'`))
     }
 
-    const match = /^(.*?)((?:[~^]\d*)*)$/.exec(rev)
+    const match = /^(.*?)((?:[~^]\d*)*)$/u.exec(rev)
     const base = match?.[1] ?? rev
     const steps = match?.[2] ?? ""
 
@@ -176,7 +176,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
       (await git
         .resolveRef({ fs: repo.fs, gitdir: "/.git", ref: base === "" ? "HEAD" : base })
         .catch(() => null)) ??
-      (/^[0-9a-f]{4,40}$/.test(base)
+      (/^[0-9a-f]{4,40}$/u.test(base)
         ? await git
             .expandOid({ fs: repo.fs, gitdir: "/.git", oid: base, cache: repo.cache })
             .catch(() => null)
@@ -190,7 +190,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
 
     let oid: string = found
 
-    for (const step of steps.match(/[~^]\d*/g) ?? []) {
+    for (const step of steps.match(/[~^]\d*/gu) ?? []) {
       const count = step.length === 1 ? 1 : Number(step.slice(1))
 
       for (let n = 0; n < (step.startsWith("~") ? count : 1); n += 1) {
@@ -309,7 +309,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
     }
 
     for (const path of named) {
-      const rows = await repo.matrix([path.replace(/^\.\//, "")])
+      const rows = await repo.matrix([path.replace(/^\.\//u, "")])
 
       if (rows.length === 0) {
         return fatal(`pathspec '${path}' did not match any files`)
@@ -500,7 +500,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
       await repo.commits(
         tipOid,
         paths.length === 1 && paths[0] !== undefined
-          ? { filepath: paths[0].replace(/^\.\//, "") }
+          ? { filepath: paths[0].replace(/^\.\//u, "") }
           : {},
       )
     ).filter((entry) => !excluded.has(entry.oid))
@@ -548,7 +548,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
 
     if (colon !== -1) {
       const rev = target.slice(0, colon) || "HEAD"
-      const path = target.slice(colon + 1).replace(/^\.\//, "")
+      const path = target.slice(colon + 1).replace(/^\.\//u, "")
       const oid = await resolve(rev)
       const blob = await repo.readBlob(oid, path)
 

@@ -31,7 +31,7 @@ export type Clause =
   | { readonly _tag: "Chip"; readonly label: string }
   | { readonly _tag: "Group"; readonly op: string; readonly clauses: readonly Clause[] }
 
-const token = /"[^"]*"|\[\[.*?\]\]|[()]|[^\s()"]+/g
+const token = /"[^"]*"|\[\[.*?\]\]|[()]|[^\s()"]+/gu
 
 const sexpsOf = (tokens: readonly string[]): readonly Sexp[] => {
   const stack: Sexp[][] = [[]]
@@ -50,7 +50,7 @@ const sexpsOf = (tokens: readonly string[]): readonly Sexp[] => {
   return stack[0] ?? []
 }
 
-const unquoted = (atom: string) => atom.replace(/^"(.*)"$/, "$1")
+const unquoted = (atom: string) => atom.replace(/^"(.*)"$/u, "$1")
 
 const written = (sexp: Sexp): string =>
   typeof sexp === "string" ? unquoted(sexp) : `(${sexp.map(written).join(" ")})`

@@ -10,9 +10,9 @@ type Tok =
   | { readonly _tag: "Num"; readonly v: number }
 
 const TOKEN =
-  /\s+|"((?:[^"\\]|\\.)*)"|#?\[\[([^\]]+)\]\]|#([\w/.-]+)|(<=|>=|!=|=|<|>)|([(),])|(-)(?=[#["(])|([^\s(),"=<>!]+)/gy
+  /\s+|"((?:[^"\\]|\\.)*)"|#?\[\[([^\]]+)\]\]|#([\w/.-]+)|(<=|>=|!=|=|<|>)|([(),])|(-)(?=[#["(])|([^\s(),"=<>!]+)/gyu
 
-const NUMBER = /^[+-]?\d+(\.\d+)?$/
+const NUMBER = /^[+-]?\d+(\.\d+)?$/u
 
 const lex = (src: string): Tok[] => {
   const out: Tok[] = []
@@ -24,7 +24,7 @@ const lex = (src: string): Tok[] => {
     const [all, str, wiki, tag, op, punct, minus, bare] = m
 
     if (str !== undefined) {
-      out.push({ _tag: "Str", v: str.replaceAll(/\\(.)/g, "$1") })
+      out.push({ _tag: "Str", v: str.replaceAll(/\\(.)/gu, "$1") })
     } else if (wiki !== undefined) {
       out.push({ _tag: all.startsWith("#") ? "Tag" : "Wiki", v: wiki })
     } else if (tag !== undefined) {

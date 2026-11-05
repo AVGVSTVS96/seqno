@@ -27,9 +27,9 @@ test("a shape's Link button links it to a page: Quick Links show it on hover, an
   const quick = board(page).getByTitle("Shape Quick Links")
   await expect(quick).toContainText("Harvest log")
   await page.mouse.move(350, 420)
-  await quick.getByRole("button", { name: /Harvest log/ }).dispatchEvent("pointerdown")
-  await expect(page).toHaveURL(/\/page\/harvest%20log$/)
-  await expect(page.getByRole("region", { name: /Linked references/ })).toContainText("Bed links")
+  await quick.getByRole("button", { name: /Harvest log/u }).dispatchEvent("pointerdown")
+  await expect(page).toHaveURL(/\/page\/harvest%20log$/u)
+  await expect(page.getByRole("region", { name: /Linked references/u })).toContainText("Bed links")
 })
 
 test("Mod+Shift+V links the selected shape to a copied shape, which then shows a backlinks count", async ({

@@ -77,7 +77,7 @@ export const PluginItems = ({ type }: { readonly type: UIItem["type"] }) => {
 
 export const PluginMacroSlot = ({ args, blockId }: MacroSlotProps) => {
   const host = useAtomValue(hostAtom)
-  const slot = `slot__${useId().replaceAll(/[^a-z0-9]/gi, "")}`
+  const slot = `slot__${useId().replaceAll(/[^a-z0-9]/giu, "")}`
   const [type = ""] = macroArguments(args)
 
   return (

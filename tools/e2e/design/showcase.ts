@@ -15,7 +15,7 @@ export interface Journal {
   readonly markdown: string
 }
 
-const journalName = /^(\d{4})_(\d{2})_(\d{2})\.md$/
+const journalName = /^(\d{4})_(\d{2})_(\d{2})\.md$/u
 
 const dayOf = (file: string) => {
   const [, year, month, day] = journalName.exec(file) ?? []
@@ -58,7 +58,7 @@ export const showcasePage = async (file: string) =>
   await readFile(join(showcaseDir, "pages", file), "utf-8")
 
 export const withoutPageProperties = (markdown: string) =>
-  markdown.slice(Math.max(0, markdown.search(/^- /m)))
+  markdown.slice(Math.max(0, markdown.search(/^- /mu)))
 
 export const materializeShowcase = async (today: Date) => {
   const dir = await mkdtemp(join(tmpdir(), "seqno-design-"))

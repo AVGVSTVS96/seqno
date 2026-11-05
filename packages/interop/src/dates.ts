@@ -20,7 +20,7 @@ const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 
 const short = (names: readonly string[]) => names.map((name) => name.slice(0, 3))
 
-const tokenGroup = /(yyyy|MMMM|MMM|MM|M|do|dd|d|EEEE|EEE|EE|E|'[^']*')/
+const tokenGroup = /(yyyy|MMMM|MMM|MM|M|do|dd|d|EEEE|EEE|EE|E|'[^']*')/u
 
 const isToken = (index: number) => index % 2 === 1
 
@@ -78,7 +78,7 @@ const matchers: Record<string, readonly [pattern: string, part: Part]> = {
   E: [`(${short(weekdays).join("|")})`, "weekday"],
 }
 
-const escapeRegExp = (text: string): string => text.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const escapeRegExp = (text: string): string => text.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 
 const decodeJournalDay = Schema.decodeUnknownOption(JournalDay)
 

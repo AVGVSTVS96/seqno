@@ -7,7 +7,7 @@ import type { Outline, Row } from "./tree.ts"
 const lineChars = 110
 const lineHeight = 24
 const rowPadding = 4
-const hiddenLine = /^\s*(?:id|collapsed)::/
+const hiddenLine = /^\s*(?:id|collapsed)::/u
 
 const propertiesBox = 16
 
@@ -27,7 +27,7 @@ const estimateHeight = (block: Block) => {
 }
 
 export const orderListKey = "logseq.order-list-type"
-const numbered = /^[ \t]*logseq\.order-list-type::[ \t]*number[ \t]*$/m
+const numbered = /^[ \t]*logseq\.order-list-type::[ \t]*number[ \t]*$/mu
 
 const ordinalsOf = (rows: readonly Row[]): ReadonlyArray<number | null> => {
   const streaks = new Map<BlockId | null, number>()

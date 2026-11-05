@@ -76,7 +76,7 @@ export const hashOrder = (
     .map(({ entry }) => entry)
 }
 
-const QUOTED = /["\\\b\f\n\r\t]/g
+const QUOTED = /["\\\b\f\n\r\t]/gu
 
 const QUOTES: Readonly<Record<string, string>> = {
   '"': '\\"',

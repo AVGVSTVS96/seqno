@@ -78,9 +78,9 @@ export const copiedOf = (scene: Scene, items: readonly Item[]): readonly Copied[
     }
   })
 
-const TLDR = /<whiteboard-tldr>(.*)<\/whiteboard-tldr>/s
+const TLDR = /<whiteboard-tldr>(.*)<\/whiteboard-tldr>/su
 
-const ENCODED = /%3Cwhiteboard-tldr%3E(.*?)%3C%2Fwhiteboard-tldr%3E/is
+const ENCODED = /%3Cwhiteboard-tldr%3E(.*?)%3C%2Fwhiteboard-tldr%3E/isu
 
 const decodeUri = Option.liftThrowable(decodeURIComponent)
 

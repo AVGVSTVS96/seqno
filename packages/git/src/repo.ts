@@ -356,7 +356,7 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     const inside = (path: string) =>
       paths.length === 0 ||
       paths.some((wanted) => {
-        const clean = wanted.replace(/^\.\//, "").replace(/\/+$/, "")
+        const clean = wanted.replace(/^\.\//u, "").replace(/\/+$/u, "")
 
         return (
           clean === "" ||

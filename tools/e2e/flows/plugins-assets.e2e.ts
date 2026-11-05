@@ -40,20 +40,20 @@ test("Assets plus lists the graph's assets through logseq.Assets and links the o
   const chooser = page.waitForEvent("filechooser")
   await page.keyboard.press("Enter")
   await (await chooser).setFiles({ name: "harvest.png", mimeType: "image/png", buffer: png })
-  await expect(seqno.editor).toHaveText(/!\[harvest\.png\]/)
+  await expect(seqno.editor).toHaveText(/!\[harvest\.png\]/u)
   await page.keyboard.press("Enter")
   await expect(seqno.editor).toHaveText("")
   await page.keyboard.type("/Insert a local asset file")
   await page.keyboard.press("Enter")
   const picker = page.frameLocator("#logseq-assets-plus_iframe")
   await picker.getByPlaceholder("Search local assets for current graph").fill("harvest")
-  await expect(picker.getByText(/^harvest_\d{13}_0/)).toBeVisible()
+  await expect(picker.getByText(/^harvest_\d{13}_0/u)).toBeVisible()
   await picker.getByPlaceholder("Search local assets for current graph").press("Enter")
   await expect(seqno.editor).toHaveText(
-    /^!\[harvest_\d{13}_0\.png\]\(assets\/harvest_\d{13}_0\.png\)$/,
+    /^!\[harvest_\d{13}_0\.png\]\(assets\/harvest_\d{13}_0\.png\)$/u,
   )
   await seqno.editor.press("Escape")
   await expect(
-    page.getByRole("main").getByRole("img", { name: /^harvest_\d{13}_0\.png$/ }),
+    page.getByRole("main").getByRole("img", { name: /^harvest_\d{13}_0\.png$/u }),
   ).toHaveJSProperty("naturalWidth", 1)
 })

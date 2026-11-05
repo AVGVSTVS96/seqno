@@ -159,8 +159,8 @@ describe("setProperty", () => {
   })
 
   it("round-trips: setting then clearing a new property restores the text", () => {
-    const key = fc.stringMatching(/^[a-z][a-z0-9-]{0,8}$/).filter((k) => k !== "id")
-    const value = fc.stringMatching(/^[a-z0-9][a-z0-9 ]{0,10}[a-z0-9]$/)
+    const key = fc.stringMatching(/^[a-z][a-z0-9-]{0,8}$/u).filter((k) => k !== "id")
+    const value = fc.stringMatching(/^[a-z0-9][a-z0-9 ]{0,10}[a-z0-9]$/u)
     const text = fc.constantFrom("", "title", "TODO x\nbody", "x:: 1", "a\nb:: 2\nc")
     fc.assert(
       fc.property(text, key, value, (original, k, v) => {

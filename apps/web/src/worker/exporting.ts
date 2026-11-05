@@ -5,8 +5,8 @@ import { defaultConfig, mirrorPath } from "@seqno/interop"
 import type { ExportedTree, PageTree } from "@seqno/rpc"
 import type { Session } from "./session.ts"
 
-const BLOCK_REF = /\(\(([0-9a-f-]{36})\)\)/gi
-const PAGE_EMBED = /\{\{embed\s+\[\[([^\]]+)\]\]\s*\}\}/g
+const BLOCK_REF = /\(\(([0-9a-f-]{36})\)\)/giu
+const PAGE_EMBED = /\{\{embed\s+\[\[([^\]]+)\]\]\s*\}\}/gu
 const maxDepth = 5
 
 const exportedOf = (tree: PageTree): ExportedTree => ({

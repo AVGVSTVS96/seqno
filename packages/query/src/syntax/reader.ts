@@ -12,8 +12,8 @@ export type Form =
 
 export type Of<T extends Form["_tag"]> = Extract<Form, { readonly _tag: T }>
 
-const DELIM = /[\s,()[\]{}";]/
-const NUMBER = /^[+-]?\d+(\.\d+)?$/
+const DELIM = /[\s,()[\]{}";]/u
+const NUMBER = /^[+-]?\d+(\.\d+)?$/u
 
 const OPENERS: ReadonlyArray<
   readonly [open: string, close: string, make: (items: Form[]) => Form]
@@ -29,7 +29,7 @@ export const read = (src: string, options: { readonly wiki: boolean }): Form[] =
 
   const skip = () => {
     while (i < src.length) {
-      if (/[\s,]/.test(src.charAt(i))) {
+      if (/[\s,]/u.test(src.charAt(i))) {
         i++
       } else if (src[i] === ";") {
         while (i < src.length && src[i] !== "\n") {

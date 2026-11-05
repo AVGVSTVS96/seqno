@@ -21,7 +21,7 @@ export async function fetchCommits(init?: RequestInit): Promise<Commits> {
   }
 
   const [newest]: readonly CommitJson[] = await response.json()
-  const last = /[?&]page=(\d+)>; rel="last"/.exec(response.headers.get("link") ?? "")
+  const last = /[?&]page=(\d+)>; rel="last"/u.exec(response.headers.get("link") ?? "")
 
   return { count: last ? Number(last[1]) : 1, date: newest?.commit.committer.date ?? null }
 }

@@ -101,7 +101,7 @@ test("Word count shows how many words are selected in a block, next to the selec
   await container.getByRole("button", { name: "Close" }).click()
   await expect(float).toHaveCount(0)
   await page.mouse.click(10, 10)
-  await expect(page.locator("#logseq-wordcount-plugin_lsp_main")).not.toHaveClass(/visible/)
+  await expect(page.locator("#logseq-wordcount-plugin_lsp_main")).not.toHaveClass(/visible/u)
 })
 
 test("Quick Capture adds a note to today's journal, found with a Datalog query on :today", async ({
@@ -114,8 +114,8 @@ test("Quick Capture adds a note to today's journal, found with a Datalog query o
   const capture = page.frameLocator("#logseq-quick-capture_iframe")
   await capture.getByRole("textbox").fill("Order more seed potatoes")
   await capture.getByRole("textbox").press("Control+Enter")
-  await expect(page.locator("#logseq-quick-capture_lsp_main")).not.toHaveClass(/visible/)
-  await expect(seqno.today.getByRole("treeitem").last()).toHaveText(/Order more seed potatoes/)
+  await expect(page.locator("#logseq-quick-capture_lsp_main")).not.toHaveClass(/visible/u)
+  await expect(seqno.today.getByRole("treeitem").last()).toHaveText(/Order more seed potatoes/u)
 })
 
 test("Quick Capture's default block puts notes under that block, matched by its text", async ({
@@ -137,9 +137,9 @@ test("Quick Capture's default block puts notes under that block, matched by its 
   await capture.getByRole("textbox").fill("Sketch the new bed layout")
   await capture.getByRole("textbox").press("Control+Enter")
   const child = seqno.today.getByRole("treeitem", { level: 2 })
-  await expect(child).toHaveText(/Sketch the new bed layout/)
+  await expect(child).toHaveText(/Sketch the new bed layout/u)
   await expect(child.locator("xpath=preceding-sibling::*[1]")).toHaveText(
-    /Welcome to the seqno demo graph/,
+    /Welcome to the seqno demo graph/u,
   )
 })
 
@@ -205,7 +205,7 @@ test("Hypothesis keeps fetched notes in its file storage, so they're there after
   let online = true
   await page
     .context()
-    .route(/^https:\/\/api\.hypothes\.is\/api\/search/, async (route, request) => {
+    .route(/^https:\/\/api\.hypothes\.is\/api\/search/u, async (route, request) => {
       online
         ? await route.fulfill({
             headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" },
@@ -229,12 +229,12 @@ test("Hypothesis keeps fetched notes in its file storage, so they're there after
   await hypothesis.getByRole("button", { name: "Fetch latest notes" }).click()
   await expect(hypothesis.getByRole("button", { name: "Fetch latest notes" })).toBeEnabled()
   await hypothesis.locator("#uri").click()
-  await expect(hypothesis.getByRole("option", { name: /Seed saving guide/ })).toBeVisible()
+  await expect(hypothesis.getByRole("option", { name: /Seed saving guide/u })).toBeVisible()
   online = false
   await page.reload()
   await page.locator('[title="Hypothes.is"]').click()
   await hypothesis.locator("#uri").click()
-  await expect(hypothesis.getByRole("option", { name: /Seed saving guide/ })).toBeVisible()
+  await expect(hypothesis.getByRole("option", { name: /Seed saving guide/u })).toBeVisible()
 })
 
 test("a block a plugin inserts with a customUUID keeps that uuid, so ((refs)) and getBlock reach it", async ({
@@ -247,7 +247,7 @@ test("a block a plugin inserts with a customUUID keeps that uuid, so ((refs)) an
   await page.reload()
   const uuid = "6650a1b2-1111-4000-8000-00000000abcd"
   await expect(page.locator('[data-on-click="handleShowQuickCapture"]')).toBeVisible()
-  const plugin = page.frame({ url: /logseq-quick-capture/ })
+  const plugin = page.frame({ url: /logseq-quick-capture/u })
 
   const inserted = await plugin?.evaluate(`(async () => {
     const page = await logseq.Editor.getCurrentPage() ?? (await logseq.Editor.getAllPages()).find((one) => one["journal?"])
@@ -268,8 +268,8 @@ test("a block a plugin inserts with a customUUID keeps that uuid, so ((refs)) an
   await expect(seqno.editor).toHaveText("")
   await page.keyboard.insertText(`See ((${uuid}))`)
   await page.keyboard.press("Escape")
-  await expect(seqno.today.getByRole("treeitem", { name: /^Zoom into block See / })).toHaveText(
-    /See Seed order placed/,
+  await expect(seqno.today.getByRole("treeitem", { name: /^Zoom into block See /u })).toHaveText(
+    /See Seed order placed/u,
   )
 })
 
@@ -303,7 +303,7 @@ test("Fenced code plus draws htmlmixed and mermaid code blocks with Logseq's Rea
   await expect(html.locator(".ui-fenced-code-editor")).toBeHidden()
   await html.locator(".ui-fenced-code-result").hover()
   await html.getByRole("button", { name: "Show code" }).click()
-  await expect(html.locator(".ui-fenced-code-editor")).toHaveText(/<b class="grown">Tomatoes<\/b>/)
+  await expect(html.locator(".ui-fenced-code-editor")).toHaveText(/<b class="grown">Tomatoes<\/b>/u)
   await expect(html.getByRole("button", { name: "Show code" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -314,7 +314,7 @@ test("Fenced code plus draws htmlmixed and mermaid code blocks with Logseq's Rea
   await expect(page.getByRole("treeitem").getByRole("textbox")).toHaveCount(0)
   await html.locator(".ui-fenced-code-result").hover()
   await html.getByRole("button", { name: "Edit block" }).click()
-  await expect(page.getByRole("treeitem").getByRole("textbox")).toHaveText(/```htmlmixed/)
+  await expect(page.getByRole("treeitem").getByRole("textbox")).toHaveText(/```htmlmixed/u)
   await page.keyboard.press("Escape")
 
   await codeBlock(
@@ -327,7 +327,7 @@ test("Fenced code plus draws htmlmixed and mermaid code blocks with Logseq's Rea
   await expect(diagram).toContainText("Sprout")
   await expect(page.locator('script[data-ref="logseq-fenced-code-plus"]')).toHaveAttribute(
     "src",
-    /\/lsp\/xyhp915\/logseq-fenced-code-plus\/0\.0\.11\/vendors\/mermaid\.min\.js$/,
+    /\/lsp\/xyhp915\/logseq-fenced-code-plus\/0\.0\.11\/vendors\/mermaid\.min\.js$/u,
   )
 })
 
@@ -340,9 +340,9 @@ test("Random Note's Let's go opens a random page that isn't a journal, from its 
   await page.keyboard.press("ControlOrMeta+Shift+KeyP")
   const palette = page.getByRole("dialog", { name: "Search" })
   await palette.getByRole("searchbox", { name: "Search" }).fill("let's go")
-  await palette.getByRole("option", { name: /Random note => Let's go/ }).click()
-  await expect(page).toHaveURL(/\/page\/[^/]+$/)
+  await palette.getByRole("option", { name: /Random note => Let's go/u }).click()
+  await expect(page).toHaveURL(/\/page\/[^/]+$/u)
   const title = page.getByRole("heading", { level: 1 }).first()
   await expect(title).toBeVisible()
-  await expect(title).not.toHaveText(/^[A-Z][a-z]{2} \d{1,2}(st|nd|rd|th), \d{4}$/)
+  await expect(title).not.toHaveText(/^[A-Z][a-z]{2} \d{1,2}(st|nd|rd|th), \d{4}$/u)
 })

@@ -13,7 +13,7 @@ const sharedHighlight = () => {
   return created
 }
 
-const escape = (word: string) => word.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const escape = (word: string) => word.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 
 export const wordsOf = (names: readonly string[]) => [
   ...new Set(names.flatMap((name) => name.split(/[^\p{L}\p{N}]+/u)).filter((word) => word !== "")),

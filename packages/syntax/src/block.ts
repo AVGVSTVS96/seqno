@@ -108,12 +108,12 @@ const decodeRepeater = Schema.decodeUnknownOption(Repeater)
 const VERBATIM = new Set(["QUERY", "SRC", "EXAMPLE", "EXPORT", "COMMENT"])
 
 const TIMESTAMP =
-  /(SCHEDULED|DEADLINE): <(\d{4})-(\d{2})-(\d{2})(?: [^\s\d>]+)?(?: (\d{1,2}:\d{2}))?(?: (\.\+|\+\+|\+)(\d+)([hdwmy]))?>/g
+  /(SCHEDULED|DEADLINE): <(\d{4})-(\d{2})-(\d{2})(?: [^\s\d>]+)?(?: (\d{1,2}:\d{2}))?(?: (\.\+|\+\+|\+)(\d+)([hdwmy]))?>/gu
 
-const DRAWER_OPEN = /^[ \t]*:([A-Za-z][\w-]*):[ \t]*$/
-const DRAWER_CLOSE = /^[ \t]*:END:[ \t]*$/i
-const FENCE = /^[ \t]*(`{3,}|~{3,})([^\n]*)$/
-const DIRECTIVE = /^[ \t]*#\+BEGIN_(\S+)/i
+const DRAWER_OPEN = /^[ \t]*:([A-Za-z][\w-]*):[ \t]*$/u
+const DRAWER_CLOSE = /^[ \t]*:END:[ \t]*$/iu
+const FENCE = /^[ \t]*(`{3,}|~{3,})([^\n]*)$/u
+const DIRECTIVE = /^[ \t]*#\+BEGIN_(\S+)/iu
 
 interface Line {
   readonly text: string
@@ -297,7 +297,7 @@ const spanOf = (match: RegExpMatchArray): Span => {
   return { from, to: from + match[0].length }
 }
 
-const ORG_HEADING_TAGS = /[ \t]+:((?:[^\s:]+:)+)[ \t]*$/
+const ORG_HEADING_TAGS = /[ \t]+:((?:[^\s:]+:)+)[ \t]*$/u
 
 const inlineRefs = (nodes: readonly Inline[]): readonly Ref[] =>
   nodes.flatMap((node): readonly Ref[] => {

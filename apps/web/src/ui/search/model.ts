@@ -78,10 +78,10 @@ const shownPerGroup = 5
 const terms = (query: string) =>
   query
     .trim()
-    .split(/\s+/)
+    .split(/\s+/u)
     .filter((term) => term !== "")
 
-const escape = (term: string) => term.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const escape = (term: string) => term.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 
 export interface Part {
   readonly text: string

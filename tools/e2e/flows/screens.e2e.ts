@@ -63,7 +63,7 @@ for (const theme of themes) {
 
     await openSeqno(page, "/")
     await page
-      .getByRole("link", { name: /Garden Plan/ })
+      .getByRole("link", { name: /Garden Plan/u })
       .first()
       .click({ modifiers: ["Shift"] })
     await expect(page.getByRole("complementary", { name: "Right sidebar" })).toBeVisible()

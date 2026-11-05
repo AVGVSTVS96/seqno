@@ -110,7 +110,7 @@ const lettering = (item: Item) => {
   }
 }
 
-const DIRECT = /^(?:data|blob|https?):/i
+const DIRECT = /^(?:data|blob|https?):/iu
 
 const mediaUrl = (slots: ShapeSlots, src: string | undefined) =>
   src === undefined ? undefined : DIRECT.test(src) ? src : slots.asset(src)

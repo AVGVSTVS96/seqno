@@ -4,7 +4,7 @@ import { logseq } from "@seqno/dom"
 import { readConfigString } from "@seqno/syntax"
 import { appFileText, assetResolver } from "../../atoms.ts"
 
-const relativeAsset = /\.\.\/assets\/[^\s"'()]+/g
+const relativeAsset = /\.\.\/assets\/[^\s"'()]+/gu
 
 export const customStyleHref = (
   configEdn: string,

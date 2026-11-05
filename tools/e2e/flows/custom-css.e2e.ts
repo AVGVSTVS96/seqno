@@ -86,7 +86,7 @@ test("the graph's custom.css restyles Logseq's classes, and follows edits on its
 
   const settings = await openSettings(page)
   await settings.getByRole("link", { name: "Edit custom.css" }).click()
-  await expect(page).toHaveURL(/\/file\/logseq%2Fcustom\.css$/)
+  await expect(page).toHaveURL(/\/file\/logseq%2Fcustom\.css$/u)
   await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText(
     "logseq/custom.css",
   )
@@ -114,7 +114,7 @@ test("Edit config.edn opens Logseq's file page, and its edits apply live", async
   await expect(brackets).toHaveCount(2)
 
   const settings = await openSettings(page)
-  await expect(settings.getByRole("link", { name: /^Edit / })).toHaveText([
+  await expect(settings.getByRole("link", { name: /^Edit /u })).toHaveText([
     "Edit config.edn",
     "Edit custom.css",
     "Edit export.css",
@@ -150,6 +150,6 @@ test("the Files filter lists logseq/ files and opens them on the file page", asy
   const files = palette.getByRole("listbox", { name: "Files" }).getByRole("option")
   await expect(files).toHaveText(["logseq/config.edn", "logseq/custom.css"])
   await files.nth(1).click()
-  await expect(page).toHaveURL(/\/file\/logseq%2Fcustom\.css$/)
+  await expect(page).toHaveURL(/\/file\/logseq%2Fcustom\.css$/u)
   await expect(fileEditor(page)).toHaveText(outline("rgb(255, 0, 0)"))
 })

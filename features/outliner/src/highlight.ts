@@ -27,7 +27,7 @@ const functions = new Set([
   "MethodDeclaration",
 ])
 
-const docTag = /(@\w+)(?:(\s*)(\{[^}\n]*\}))?(?:(\s+)([A-Za-z_$][\w$]*)(?=\s*-|\s*$))?/gm
+const docTag = /(@\w+)(?:(\s*)(\{[^}\n]*\}))?(?:(\s+)([A-Za-z_$][\w$]*)(?=\s*-|\s*$))?/gmu
 
 const scriptLocals = (tree: Tree, code: string, paint: Paint) => {
   const scopes: Array<{ readonly from: number; readonly to: number; names: Set<string> }> = []

@@ -12,7 +12,7 @@ const fulfill = (path: string) =>
 
 export const serveMarketplace = async (context: BrowserContext) => {
   await context.route(
-    /^https:\/\/raw\.githubusercontent\.com\/logseq\/marketplace\/master\/(plugins|stats)\.json$/,
+    /^https:\/\/raw\.githubusercontent\.com\/logseq\/marketplace\/master\/(plugins|stats)\.json$/u,
     async (route, request) => {
       await route.fulfill(
         fulfill(`${fixtures}${new URL(request.url()).pathname.split("/").at(-1) ?? ""}`),
@@ -20,33 +20,33 @@ export const serveMarketplace = async (context: BrowserContext) => {
     },
   )
   await context.route(
-    /^https:\/\/raw\.githubusercontent\.com\/logseq\/marketplace\/master\/packages\//,
+    /^https:\/\/raw\.githubusercontent\.com\/logseq\/marketplace\/master\/packages\//u,
     async (route) => {
       await route.fulfill({ status: 404, headers: cors })
     },
   )
-  await context.route(/^https:\/\/plugins\.logseq\.io\/r2\//, async (route, request) => {
+  await context.route(/^https:\/\/plugins\.logseq\.io\/r2\//u, async (route, request) => {
     await route.fulfill(
       fulfill(
         `${fixtures}packages/${new URL(request.url()).pathname.replace("/r2/", "").replace("/", "__")}.json`,
       ),
     )
   })
-  await context.route(/^https:\/\/cdn\.jsdelivr\.net\//, async (route, request) => {
+  await context.route(/^https:\/\/cdn\.jsdelivr\.net\//u, async (route, request) => {
     await route.fulfill(
       fulfill(`${fixtures}jsdelivr${decodeURIComponent(new URL(request.url()).pathname)}`),
     )
   })
   await context.route(
-    /^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//,
+    /^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//u,
     async (route) => {
       await route.fulfill({ status: 404, headers: cors })
     },
   )
-  await context.route(/\/lsp\//, async (route, request) => {
+  await context.route(/\/lsp\//u, async (route, request) => {
     await route.fulfill(
       fulfill(
-        `${fixtures}files${decodeURIComponent(new URL(request.url()).pathname).replace(/^.*?\/lsp/, "")}`,
+        `${fixtures}files${decodeURIComponent(new URL(request.url()).pathname).replace(/^.*?\/lsp/u, "")}`,
       ),
     )
   })
@@ -76,12 +76,12 @@ export const openPlugins = async (page: Page) => {
 export const useTheme = async (page: Page, title: string, theme: string) => {
   const dialog = await openPlugins(page)
   await dialog.getByRole("tab", { name: "Marketplace" }).click()
-  await dialog.getByRole("radio", { name: /^Themes/ }).click()
+  await dialog.getByRole("radio", { name: /^Themes/u }).click()
   const card = dialog.getByRole("listitem", { name: title })
   await card.getByRole("button", { name: "Install" }).click()
   await expect(card.getByRole("button", { name: "Installed" })).toBeDisabled()
   await dialog.getByRole("tab", { name: "Installed" }).click()
-  await dialog.getByRole("radio", { name: /^Themes/ }).click()
+  await dialog.getByRole("radio", { name: /^Themes/u }).click()
   await dialog.getByRole("radio", { name: new RegExp(`^${theme}( light| dark)?$`) }).click()
   await page.keyboard.press("Escape")
 }

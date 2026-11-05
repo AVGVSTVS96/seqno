@@ -28,8 +28,8 @@ export class LogseqSyntax extends Context.Service<
 export const titleKey = (props: Props): string | undefined =>
   Object.keys(props).find((key) => key.toLowerCase() === "title")
 
-const property = /^([^\s:]+):: (.*)$/
-const opensVerbatim = /^\s*(```|~~~|#\+BEGIN_)/i
+const property = /^([^\s:]+):: (.*)$/u
+const opensVerbatim = /^\s*(```|~~~|#\+BEGIN_)/iu
 
 interface PropertyRun {
   readonly props: Props
@@ -47,7 +47,7 @@ const propertyRun = (lines: readonly string[]): PropertyRun => {
     const key = match?.[1]
     const value = match?.[2]
 
-    if (key === undefined || value === undefined || key in props || /^\d+$/.test(key)) {
+    if (key === undefined || value === undefined || key in props || /^\d+$/u.test(key)) {
       break
     }
 
@@ -86,7 +86,7 @@ const fromSyntax = (block: Syntax.Block): OutlineBlock =>
 
 const filled = (line: string) => line.trim() !== ""
 
-const frontMatterLine = /^([^:]+):(.*)$/
+const frontMatterLine = /^([^:]+):(.*)$/u
 
 const frontMatterOf = (preamble: readonly string[]) => {
   const close = preamble.findIndex((line, index) => index > 0 && line.startsWith("---"))
@@ -180,11 +180,11 @@ const toSyntax = (block: OutlineBlock): Syntax.Block => ({
   children: block.children.map(toSyntax),
 })
 
-const heading = /^#+[ \t]/
+const heading = /^#+[ \t]/u
 
 const topHeading = (block: Syntax.Block): Syntax.Block => {
   const [first = "", ...rest] = block.text.split("\n")
-  const plain = rest.every((line) => !Syntax.startsBlock(line) && !/^[ \t]/.test(line))
+  const plain = rest.every((line) => !Syntax.startsBlock(line) && !/^[ \t]/u.test(line))
 
   return heading.test(first) && plain ? { ...block, bare: true } : block
 }
@@ -215,8 +215,8 @@ const print = (outline: Outline): string => {
     blocks,
     format: Syntax.logseqFormat,
   })
-    .replaceAll(/^[ \t]+$/gm, "")
-    .replaceAll(/^([ \t]*-) $/gm, "$1")
+    .replaceAll(/^[ \t]+$/gmu, "")
+    .replaceAll(/^([ \t]*-) $/gmu, "$1")
 }
 
 export const LogseqSyntaxLive = Layer.succeed(LogseqSyntax, LogseqSyntax.of({ parse, print }))

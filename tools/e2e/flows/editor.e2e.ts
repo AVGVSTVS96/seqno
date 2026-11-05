@@ -242,7 +242,7 @@ test("Mod+O follows the ref under the caret, Mod+Shift+O opens it in the sidebar
   await page.keyboard.press("ControlOrMeta+Shift+O")
   const sidebar = page.getByRole("complementary", { name: "Right sidebar" })
   await expect(sidebar.getByRole("treeitem").first()).toBeVisible()
-  await expect(sidebar.getByRole("button", { name: /Getting started/ }).first()).toBeVisible()
+  await expect(sidebar.getByRole("button", { name: /Getting started/u }).first()).toBeVisible()
   await page.keyboard.press("ControlOrMeta+O")
   await expect(
     page.getByRole("main").getByRole("heading", { name: "Getting started" }),
@@ -251,11 +251,11 @@ test("Mod+O follows the ref under the caret, Mod+Shift+O opens it in the sidebar
 
 test("Alt+Right zooms into the edited block and Alt+Left zooms back out", async ({ page }) => {
   await page.keyboard.press("Alt+ArrowRight")
-  await expect(page).toHaveURL(/zoom=/)
+  await expect(page).toHaveURL(/zoom=/u)
   const main = page.getByRole("main")
   await expect(main.getByRole("treeitem")).toHaveText([welcome])
   await main.getByRole("treeitem").getByText(welcome).click()
   await page.keyboard.press("Alt+ArrowLeft")
-  await expect(page).not.toHaveURL(/zoom=/)
+  await expect(page).not.toHaveURL(/zoom=/u)
   await expect(main.getByRole("treeitem").filter({ hasText: second })).toBeVisible()
 })

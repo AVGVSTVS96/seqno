@@ -185,10 +185,10 @@ test("GitSeq syncs through Logseq.Git: it commits the graph and reports that no 
   await settingsSaved(page)
   await page.reload()
   await expect(page.locator('[title="Sync error — check logs"]')).toBeAttached()
-  const plugin = page.frame({ url: /gitseq/ })
+  const plugin = page.frame({ url: /gitseq/u })
   const log = await plugin?.evaluate(`logseq.Git.execCommand(["log", "--format=%an %s"])`)
   expect(log).toEqual({
-    stdout: expect.stringMatching(/^Bassim sync: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z\n$/),
+    stdout: expect.stringMatching(/^Bassim sync: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z\n$/u),
     stderr: "",
     exitCode: 0,
   })
@@ -206,5 +206,5 @@ test("GitSeq syncs through Logseq.Git: it commits the graph and reports that no 
   expect(await plugin?.evaluate(`logseq.Git.loadIgnoreFile()`)).toBe(`${seqnoFiles}*.bak\n`)
 
   const history = await openHistory(page)
-  await expect(history).toContainText(/sync: \d{4}-/)
+  await expect(history).toContainText(/sync: \d{4}-/u)
 })

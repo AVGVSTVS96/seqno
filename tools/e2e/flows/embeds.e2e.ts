@@ -70,7 +70,7 @@ test("clicking the thumbnail plays the video in place instead of editing the blo
   await main.getByRole("button", { name: "Play video" }).click()
   await expect(main.getByTitle("YouTube video")).toHaveAttribute(
     "src",
-    /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?autoplay=1&enablejsapi=1&rel=0&start=0$/,
+    /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?autoplay=1&enablejsapi=1&rel=0&start=0$/u,
   )
   await expect(main.getByRole("textbox")).toHaveCount(0)
 })

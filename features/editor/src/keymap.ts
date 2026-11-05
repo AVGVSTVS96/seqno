@@ -13,12 +13,12 @@ import type { Handoff } from "./handoff.ts"
 import type { EditorAction, EditorHost } from "./host.ts"
 import { linkAt } from "./links.ts"
 
-const fenceLine = /^\s*(`{3,}|~{3,})/gm
+const fenceLine = /^\s*(`{3,}|~{3,})/gmu
 
 const insideCodeFence = (state: EditorState, position: number): boolean =>
   (state.sliceDoc(0, position).match(fenceLine)?.length ?? 0) % 2 === 1
 
-const propertyLine = /^[^\s:]+:: /
+const propertyLine = /^[^\s:]+:: /u
 
 const atPropertyLineEnd = (state: EditorState, from: number, to: number): boolean => {
   const line = state.doc.lineAt(from)

@@ -23,7 +23,7 @@ export interface Shelf {
   readonly dialect: (pageId: PageId) => Dialect
 }
 
-const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
+const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/giu
 
 export const referencedIds = (pages: readonly PageBlocks[]): ReadonlySet<string> =>
   new Set(

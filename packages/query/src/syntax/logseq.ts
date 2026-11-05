@@ -68,7 +68,7 @@ const filter = (f: Form, acc: Acc): Filter | null => {
   }
 
   if (f._tag === "Sym" && (f.v.startsWith("#") || f.v === "@page")) {
-    return block(pathRef(word(f.v.replace(/^#/, ""))))
+    return block(pathRef(word(f.v.replace(/^#/u, ""))))
   }
 
   if (f._tag !== "List") {
@@ -218,8 +218,8 @@ const filter = (f: Form, acc: Acc): Filter | null => {
 export const readLogseq = (src: string): Query => {
   const body = src
     .trim()
-    .replace(/^\{\{query\s+/, "")
-    .replace(/\}\}$/, "")
+    .replace(/^\{\{query\s+/u, "")
+    .replace(/\}\}$/u, "")
 
   const acc: Acc = { pages: false, blocks: false, sort: [] }
 

@@ -111,7 +111,7 @@ const prepare: Record<logseq.Reference, (page: Page) => Promise<void>> = {
     }
 
     for (const file of ["Garden Plan.md", "Reading List.md"]) {
-      await logseq.openBlankPage(page, file.replace(/\.md$/, ""))
+      await logseq.openBlankPage(page, file.replace(/\.md$/u, ""))
       await logseq.pasteMarkdown(page, withoutPageProperties(await showcasePage(file)))
     }
   },

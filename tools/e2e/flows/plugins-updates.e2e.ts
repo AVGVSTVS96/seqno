@@ -25,7 +25,7 @@ const keptVersions = (page: Page) => async () =>
     [
       ...new Set(
         (await (await caches.open("seqno-plugins")).keys()).flatMap(
-          (request) => /\/logseq-wordcount-plugin\/([^/]+)\//.exec(request.url)?.[1] ?? [],
+          (request) => /\/logseq-wordcount-plugin\/([^/]+)\//u.exec(request.url)?.[1] ?? [],
         ),
       ),
     ].toSorted(),
@@ -39,7 +39,7 @@ const countWords = async (page: Page) => {
   await expect(editor).toHaveText("")
   await page.keyboard.type("Beds /word")
   await page.getByRole("option", { name: "Word count" }).click()
-  await expect(editor).toHaveText(/^Beds \{\{renderer :wordcount_[0-9a-f-]+\}\}$/)
+  await expect(editor).toHaveText(/^Beds \{\{renderer :wordcount_[0-9a-f-]+\}\}$/u)
   await page.keyboard.press("Enter")
   await page.keyboard.press("Tab")
   await page.keyboard.type("one two three")
@@ -121,7 +121,7 @@ test("Check all updates finds a plugin's newer version, and Update all of select
   await context.setOffline(true)
   await page.reload()
   await expect(wordCount(page)).toHaveText("Mots: 3")
-  expect(page.frame({ url: /\/lsp\/benjypng\/logseq-wordcount-plugin\/v2\.4\.3\// })).not.toBeNull()
+  expect(page.frame({ url: /\/lsp\/benjypng\/logseq-wordcount-plugin\/v2\.4\.3\//u })).not.toBeNull()
   const again = await openPlugins(page)
   await again.getByRole("button", { name: "logseq-wordcount-plugin settings" }).click()
   await expect(settings.getByRole("textbox", { name: "Customise word count text" })).toHaveValue(

@@ -16,10 +16,10 @@ export interface PdfAsset {
   readonly originalPath: string
 }
 
-const illegal = /[/?<>\\:*|"]/g
-const reserved = /^\.+$/
-const windowsReserved = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i
-const windowsTrailing = /[. ]+$/
+const illegal = /[/?<>\\:*|"]/gu
+const reserved = /^\.+$/u
+const windowsReserved = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/iu
+const windowsTrailing = /[. ]+$/u
 
 const isControl = (char: string) => {
   const code = char.codePointAt(0) ?? 0
@@ -58,7 +58,7 @@ export const sanitizeFilename = (input: string): string =>
   )
 
 const basename = (path: string) => {
-  const trimmed = path.replace(/\/+$/, "")
+  const trimmed = path.replace(/\/+$/u, "")
 
   return trimmed.slice(trimmed.lastIndexOf("/") + 1)
 }
@@ -116,9 +116,9 @@ export const fixSelectionText = (text: string): string => {
   const marker = "|#|"
 
   return text
-    .replaceAll(/[\r\n]+/g, marker)
+    .replaceAll(/[\r\n]+/gu, marker)
     .replaceAll(`-${marker}`, "")
-    .replaceAll(/\|#\|([a-zA-Z_])/g, " $1")
+    .replaceAll(/\|#\|([a-zA-Z_])/gu, " $1")
     .replaceAll(marker, "")
 }
 

@@ -8,7 +8,7 @@ import type { router as appRouter } from "./router.tsx"
 const platform = (): DocumentState["platform"] => {
   const name = navigator.platform
 
-  return /Mac|iPhone|iPad/.test(name) ? "mac" : /Win/.test(name) ? "win32" : "linux"
+  return /Mac|iPhone|iPad/u.test(name) ? "mac" : /Win/u.test(name) ? "win32" : "linux"
 }
 
 const marker = (element: HTMLElement) => {

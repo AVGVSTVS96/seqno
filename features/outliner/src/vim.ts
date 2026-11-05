@@ -72,7 +72,7 @@ const actionOf = (keys: string, count: number, visual: boolean): BlockKey | null
 }
 
 const waitsFor = (keys: string, visual: boolean) =>
-  keys === "" || keys === "g" || keys === "z" || (!visual && /^[dy><]$/.test(keys))
+  keys === "" || keys === "g" || keys === "z" || (!visual && /^[dy><]$/u.test(keys))
 
 export const readBlockKey = (pending: string, key: string, visual: boolean): BlockKeyRead => {
   if (key === "<C-r>") {
@@ -80,7 +80,7 @@ export const readBlockKey = (pending: string, key: string, visual: boolean): Blo
   }
 
   const typed = pending + key
-  const [, digits = "", keys = ""] = /^([1-9]\d*)?(.*)$/.exec(typed) ?? []
+  const [, digits = "", keys = ""] = /^([1-9]\d*)?(.*)$/u.exec(typed) ?? []
   const action = actionOf(keys, digits === "" ? 1 : Number(digits), visual)
 
   if (action !== null) {

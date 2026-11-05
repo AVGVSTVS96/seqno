@@ -39,7 +39,7 @@ import {
 } from "./state.ts"
 import type { ViewerTheme } from "./state.ts"
 
-const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(navigator.platform)
 
 const themes: readonly ViewerTheme[] = ["light", "warm", "dark"]
 
@@ -175,7 +175,7 @@ const Metadata = ({
           const text = event.currentTarget.closest("dialog")?.querySelector(".seqno-pdf-inner-text")
 
           const copied =
-            text instanceof HTMLElement ? text.innerText.replaceAll(/[\n\t]+/g, "\n") : ""
+            text instanceof HTMLElement ? text.innerText.replaceAll(/[\n\t]+/gu, "\n") : ""
 
           void navigator.clipboard.writeText(copied).then(() => {
             notify("Copied!")

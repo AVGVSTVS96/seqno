@@ -123,7 +123,7 @@ export const assetsApi = (assets: AssetBridge, graphName: () => string | null) =
         return null
       }
 
-      if (/^(?:https?|data|blob):/i.test(given)) {
+      if (/^(?:https?|data|blob):/iu.test(given)) {
         return given
       }
 

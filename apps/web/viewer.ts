@@ -19,7 +19,7 @@ const outputsOf = (
       ? result.output
       : []
 
-const OLDER_FONTS = /,url\([^)]*\.(?:woff|ttf)\) format\("(?:woff|truetype)"\)/g
+const OLDER_FONTS = /,url\([^)]*\.(?:woff|ttf)\) format\("(?:woff|truetype)"\)/gu
 
 const woff2Fonts = (): Plugin => ({
   name: "seqno-viewer-woff2",
@@ -68,7 +68,7 @@ export const viewer = (): Plugin => {
     name: "seqno-viewer",
     configureServer(server) {
       server.middlewares.use(`/${viewerFolder}/`, (request, response, next) => {
-        const path = (request.url ?? "").replace(/^\//, "").split("?")[0] ?? ""
+        const path = (request.url ?? "").replace(/^\//u, "").split("?")[0] ?? ""
 
         if (path === "files.json") {
           served = buildViewer()

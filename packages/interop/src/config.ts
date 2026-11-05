@@ -24,15 +24,15 @@ export const defaultConfig: LogseqConfig = {
   preferredFormat: "markdown",
 }
 
-const ednToken = /"(?:[^"\\]|\\.)*"|;[^\n]*|#\{|[{}[\]()]|[^\s,{}[\]()";]+/g
+const ednToken = /"(?:[^"\\]|\\.)*"|;[^\n]*|#\{|[{}[\]()]|[^\s,{}[\]()";]+/gu
 
 const unquote = (token: string): string =>
-  token.slice(1, -1).replaceAll(/\\(.)/g, (_, char: string) => (char === "n" ? "\n" : char))
+  token.slice(1, -1).replaceAll(/\\(.)/gu, (_, char: string) => (char === "n" ? "\n" : char))
 
 const topLevelEntries = (source: string): ReadonlyMap<string, unknown> => {
   const tokens = [...source.matchAll(ednToken)]
     .map((match) => match[0])
-    .filter((token) => !token.startsWith(";") && !/^#[^{]/.test(token))
+    .filter((token) => !token.startsWith(";") && !/^#[^{]/u.test(token))
 
   const entries = new Map<string, unknown>()
   const values: unknown[] = []
@@ -73,7 +73,7 @@ const topLevelEntries = (source: string): ReadonlyMap<string, unknown> => {
 const decodeString = Schema.decodeUnknownOption(Schema.String)
 const decodeStrings = Schema.decodeUnknownOption(Schema.Array(Schema.String))
 
-const directory = (value: string): string => value.replaceAll(/^\.?\/+|\/+$/g, "")
+const directory = (value: string): string => value.replaceAll(/^\.?\/+|\/+$/gu, "")
 
 export const parseConfig = (source: string): LogseqConfig => {
   const entries = topLevelEntries(source)

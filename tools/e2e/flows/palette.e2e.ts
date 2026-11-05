@@ -20,12 +20,12 @@ test("Mod+Shift+P lists Logseq's commands with their keys, runs one, and puts th
   await expect(palette(page).getByText("Commands", { exact: true }).first()).toBeVisible()
   const first = commandList(page).getByRole("option").first()
   await expect(first).toHaveText("Toggle wide modeTW")
-  await expect(palette(page).getByRole("button", { name: /^Trigger/ })).toBeVisible()
+  await expect(palette(page).getByRole("button", { name: /^Trigger/u })).toBeVisible()
   await searchbox(page).fill("right sidebar")
   await expect(commandList(page).getByRole("option")).toHaveText([
     "Toggle right sidebarTR",
     "Clear all in the right sidebar",
-    /^Open today's page in the right sidebar/,
+    /^Open today's page in the right sidebar/u,
     "Closes the top item in the right sidebarCT",
   ])
   await page.keyboard.press("Enter")

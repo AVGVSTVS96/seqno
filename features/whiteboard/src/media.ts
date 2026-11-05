@@ -12,7 +12,7 @@ const EXTENSIONS: ReadonlyArray<readonly [Media, readonly string[]]> = [
 ]
 
 export const mediaOf = (name: string): Media | null => {
-  const extension = /\.[0-9a-z]+$/i.exec(name)?.[0].toLowerCase()
+  const extension = /\.[0-9a-z]+$/iu.exec(name)?.[0].toLowerCase()
 
   if (extension === undefined) {
     return null

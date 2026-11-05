@@ -127,7 +127,7 @@ test("Copy page url copies the open page's address", async ({ page, context }) =
   await runCommand(page, "Copy page url")
   await expect
     .poll(async () => await page.evaluate(async () => await navigator.clipboard.readText()))
-    .toMatch(/\/page\/ideas$/)
+    .toMatch(/\/page\/ideas$/u)
 })
 
 test("t d turns on document mode: bullets hide until hovered, Enter breaks the line and Shift+Enter makes a block", async ({
@@ -135,7 +135,7 @@ test("t d turns on document mode: bullets hide until hovered, Enter breaks the l
 }) => {
   await openDemo(page, "/page/getting%20started")
   const outline = page.getByRole("main").getByRole("treeitem")
-  const parent = outline.filter({ hasText: /^Outline/ }).first()
+  const parent = outline.filter({ hasText: /^Outline/u }).first()
   const bullet = parent.getByRole("button", { name: "Zoom into block" }).first()
   await expect(bullet).toBeVisible()
   await page.keyboard.press("t")
@@ -152,8 +152,8 @@ test("t d turns on document mode: bullets hide until hovered, Enter breaks the l
   await page.keyboard.press("End")
   await page.keyboard.press("Enter")
   await page.keyboard.type("second line")
-  await expect(parent.getByRole("textbox")).toHaveText(/Outline\s*second line/)
-  await expect(outline.filter({ hasText: /^second line/ })).toHaveCount(0)
+  await expect(parent.getByRole("textbox")).toHaveText(/Outline\s*second line/u)
+  await expect(outline.filter({ hasText: /^second line/u })).toHaveCount(0)
   await page.keyboard.press("Shift+Enter")
   await expect(parent.getByRole("textbox")).toHaveCount(0)
   await expect(page.getByRole("main").getByRole("textbox")).toHaveText("")

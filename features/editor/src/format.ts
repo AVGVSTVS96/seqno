@@ -18,9 +18,9 @@ interface Change {
 
 const markerNames = Marker.literals.toSorted((left, right) => right.length - left.length)
 const markerPattern = new RegExp(`^(${markerNames.join("|")})(?=[ \\t]|$)`)
-const headingPattern = /^#{1,6}[ \t]+/
-const priorityPattern = /^\[#[ABC]\][ \t]?/
-const url = /^(?:https?:\/\/|www\.)\S+$/
+const headingPattern = /^#{1,6}[ \t]+/u
+const priorityPattern = /^\[#[ABC]\][ \t]?/u
+const url = /^(?:https?:\/\/|www\.)\S+$/u
 
 const mapPosition = (change: Change, position: number) =>
   position <= change.from
@@ -48,7 +48,7 @@ export const setMarker = (draft: Draft, marker: Marker | null): Draft => {
   const start = headingLength(draft.text)
   const current = markerOf(draft.text)
   const end = current === null ? start : current.to
-  const spaced = /[ \t]/.test(draft.text.charAt(end)) ? end + 1 : end
+  const spaced = /[ \t]/u.test(draft.text.charAt(end)) ? end + 1 : end
 
   return replace(draft, { from: start, to: spaced, insert: marker === null ? "" : `${marker} ` })
 }
@@ -80,7 +80,7 @@ export const setPriority = (draft: Draft, priority: Priority | null): Draft => {
   const afterMarker = marker === null ? headingLength(draft.text) : marker.to
 
   const start =
-    marker !== null && /[ \t]/.test(draft.text.charAt(afterMarker)) ? afterMarker + 1 : afterMarker
+    marker !== null && /[ \t]/u.test(draft.text.charAt(afterMarker)) ? afterMarker + 1 : afterMarker
 
   const existing = priorityPattern.exec(draft.text.slice(start))?.[0].length ?? 0
 
@@ -118,7 +118,7 @@ export const setPlanning = (draft: Draft, kind: "SCHEDULED" | "DEADLINE", date: 
 
   const firstLineEnd = draft.text.indexOf("\n")
   const at = firstLineEnd === -1 ? draft.text.length : firstLineEnd
-  const from = at - (/[ \t]*$/.exec(draft.text.slice(0, at))?.[0].length ?? 0)
+  const from = at - (/[ \t]*$/u.exec(draft.text.slice(0, at))?.[0].length ?? 0)
 
   return replace(draft, { from, to: at, insert: `\n${stamp}` })
 }

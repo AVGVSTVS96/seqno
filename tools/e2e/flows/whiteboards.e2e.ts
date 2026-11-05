@@ -32,7 +32,7 @@ test("draws a labeled rectangle connected to a circle, and the arrow follows the
 
   const ends = async () =>
     ((await arrow.getAttribute("d")) ?? "")
-      .match(/-?\d+(\.\d+)?/g)
+      .match(/-?\d+(\.\d+)?/gu)
       ?.map((n) => Math.round(Number(n)))
 
   await expect.poll(ends).toEqual([508, 325, 796, 318])
@@ -65,8 +65,8 @@ test("a page placed on the board shows it live, and the board shows up in that p
   await expect(portal.getByRole("treeitem").first()).toBeVisible()
 
   await portal.getByRole("link", { name: "Harvest log" }).click()
-  await expect(page).toHaveURL(/\/page\/harvest%20log$/)
-  await expect(page.getByRole("region", { name: /Linked references/ })).toContainText("Beds")
+  await expect(page).toHaveURL(/\/page\/harvest%20log$/u)
+  await expect(page.getByRole("region", { name: /Linked references/u })).toContainText("Beds")
 })
 
 test("a new block from the board's search is an ordinary block, edited in place on the board", async ({
@@ -111,7 +111,7 @@ test("the Whiteboards list shows each board as a card and deletes the ticked one
   await page.keyboard.press("w")
   await expect(page.getByRole("heading", { name: "All whiteboards · 1" })).toBeVisible()
   const card = page.getByRole("link", { name: "Compost bins" })
-  await expect(card).toContainText(/Edited /)
+  await expect(card).toContainText(/Edited /u)
   await expect(card.locator(".wb-shape[data-type='box']")).toHaveCount(1)
   await card.getByRole("checkbox", { name: "Select Compost bins" }).check()
   await page.getByRole("button", { name: "Delete 1 selected" }).click()
@@ -175,7 +175,7 @@ test("copied shapes paste with their connector still bound, undo takes the paste
 
   const ends = async () =>
     ((await pastedArrow.getAttribute("d")) ?? "")
-      .match(/-?\d+(\.\d+)?/g)
+      .match(/-?\d+(\.\d+)?/gu)
       ?.map((n) => Math.round(Number(n)))
 
   const before = await ends()

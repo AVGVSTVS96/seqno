@@ -36,5 +36,5 @@ export const openLongPage = async (page: Page, others: readonly string[] = []) =
   await rm(folder, { recursive: true })
   await latePictures(page)
   await openDemo(page, "/page/long")
-  await expect(page.getByRole("main").getByRole("treeitem").first()).toHaveText(/^row 1 /)
+  await expect(page.getByRole("main").getByRole("treeitem").first()).toHaveText(/^row 1 /u)
 }

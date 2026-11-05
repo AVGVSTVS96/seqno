@@ -68,7 +68,7 @@ const strings = (node: ESTree.Node | null | undefined): readonly Found[] => {
   }
 }
 
-const tokens = (text: string) => text.split(/\s+/).filter((token) => token !== "")
+const tokens = (text: string) => text.split(/\s+/u).filter((token) => token !== "")
 
 const isClass = (token: string) => logseqClasses.has(token)
 
@@ -90,7 +90,7 @@ const check = (
 }
 
 const intrinsic = (element: ESTree.JSXOpeningElement) =>
-  element.name.type === "JSXIdentifier" && /^[a-z]/.test(element.name.name)
+  element.name.type === "JSXIdentifier" && /^[a-z]/u.test(element.name.name)
 
 export const logseqNames = defineRule({
   create: (context) => ({

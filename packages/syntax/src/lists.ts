@@ -6,7 +6,7 @@ export interface ListLine {
   readonly from: number
 }
 
-const LIST = /^([ \t]*)(?:([*+])|(\d+)\.)[ \t]+(?:\[([ xX])\][ \t]+)?/
+const LIST = /^([ \t]*)(?:([*+])|(\d+)\.)[ \t]+(?:\[([ xX])\][ \t]+)?/u
 
 export const listLine = (line: string): ListLine | null => {
   const match = LIST.exec(line)
@@ -26,8 +26,8 @@ export const listLine = (line: string): ListLine | null => {
   }
 }
 
-const TABLE = /^[ \t]*\|.*\|[ \t]*$/
-const SEPARATOR = /^[ \t]*\|?(?:[ \t]*:?-+:?[ \t]*\|)+(?:[ \t]*:?-+:?[ \t]*)?$/
+const TABLE = /^[ \t]*\|.*\|[ \t]*$/u
+const SEPARATOR = /^[ \t]*\|?(?:[ \t]*:?-+:?[ \t]*\|)+(?:[ \t]*:?-+:?[ \t]*)?$/u
 
 export const isTableRow = (line: string) => TABLE.test(line)
 
@@ -53,4 +53,4 @@ export const tableCells = (
   return cells
 }
 
-export const isRule = (line: string) => /^[ \t]*-{3,}[ \t]*$/.test(line)
+export const isRule = (line: string) => /^[ \t]*-{3,}[ \t]*$/u.test(line)

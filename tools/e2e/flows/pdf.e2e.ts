@@ -98,8 +98,8 @@ test("a PDF link opens Logseq's viewer on the left, at the page and with the hig
 }) => {
   await openPaper(page)
   await expect(viewer(page)).toHaveAttribute("id", "pdf-layout-container_1700000000000_0")
-  await expect(page.locator("body")).toHaveClass(/seqno-pdf-open/)
-  await expect(page.locator("body")).toHaveClass(/is-pdf-active/)
+  await expect(page.locator("body")).toHaveClass(/seqno-pdf-open/u)
+  await expect(page.locator("body")).toHaveClass(/is-pdf-active/u)
   await expect(
     page.locator(".extensions__pdf-container .extensions__pdf-viewer-cnt .extensions__pdf-viewer"),
   ).toHaveCount(1)
@@ -128,7 +128,7 @@ test("a PDF link opens Logseq's viewer on the left, at the page and with the hig
   expect(main?.x ?? 0).toBeGreaterThanOrEqual((pane?.width ?? 0) + 15)
   await viewer(page).getByRole("button", { name: "Close" }).click()
   await expect(viewer(page)).toHaveCount(0)
-  await expect(page.locator("body")).not.toHaveClass(/seqno-pdf-open/)
+  await expect(page.locator("body")).not.toHaveClass(/seqno-pdf-open/u)
   expect(await page.evaluate(() => Reflect.has(window, "lsActivePdfViewer"))).toBe(false)
 })
 
@@ -301,7 +301,7 @@ test("the P<n> prefix and a ((ref)) to an annotation open the viewer at the high
   await expect(prefixes).toHaveText(["P1", "P2"])
   await prefixes.first().dispatchEvent("mousedown", { button: 0 })
   await expect(pdfPage(page, 1).locator(`[data-highlight-id="${green}"]`)).toHaveClass(
-    /seqno-pdf-flash/,
+    /seqno-pdf-flash/u,
   )
   await expect(viewer(page).getByRole("spinbutton", { name: "Page number" })).toHaveValue("1")
   await viewer(page).getByRole("button", { name: "Close" }).click()
@@ -316,7 +316,7 @@ test("the P<n> prefix and a ((ref)) to an annotation open the viewer at the high
   await expect(ref.locator(".seqno-annotation-prefix strong")).toHaveText("P2")
   await ref.locator(".seqno-annotation-prefix strong").dispatchEvent("mousedown", { button: 0 })
   await expect(pdfPage(page, 2).locator(`[data-highlight-id="${purple}"]`)).toHaveClass(
-    /seqno-pdf-flash/,
+    /seqno-pdf-flash/u,
   )
 })
 
@@ -356,7 +356,7 @@ test("the toolbar pages, zooms, searches, lists highlights, changes theme and cl
   await viewer(page).getByRole("button", { name: "dark" }).click()
   await expect(viewer(page)).toHaveAttribute("data-theme", "dark")
   await viewer(page).getByRole("switch", { name: "Dashed style for area highlight" }).click()
-  await expect(viewer(page).locator(".seqno-pdf-viewer")).toHaveClass(/is-area-dashed/)
+  await expect(viewer(page).locator(".seqno-pdf-viewer")).toHaveClass(/is-area-dashed/u)
   await page.locator("body").click({ position: { x: 900, y: 600 } })
   await page.keyboard.press("Alt+x")
   await expect(viewer(page)).toHaveCount(0)

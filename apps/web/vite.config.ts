@@ -18,7 +18,7 @@ export default defineConfig({
     offline(),
     pdfjsAssets(),
   ],
-  resolve: { alias: [{ find: /^loro-crdt$/, replacement: "loro-crdt/web" }] },
+  resolve: { alias: [{ find: /^loro-crdt$/u, replacement: "loro-crdt/web" }] },
   optimizeDeps: { exclude: ["@sqlite.org/sqlite-wasm", "loro-crdt"] },
   worker: { format: "es" },
   build: { target: "esnext" },

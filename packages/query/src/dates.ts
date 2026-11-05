@@ -61,20 +61,20 @@ export const parseDateWord = (word: string): Value | null => {
     return { _tag: "RelDate", amount: 1, unit: "d" }
   }
 
-  const [, amount, unit] = /^([+-]\d+)([dwmy])$/.exec(w) ?? []
+  const [, amount, unit] = /^([+-]\d+)([dwmy])$/u.exec(w) ?? []
 
   if (amount !== undefined && unit !== undefined && isUnit(unit)) {
     return { _tag: "RelDate", amount: Number(amount), unit }
   }
 
-  const [, year, month, day] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(w) ?? []
+  const [, year, month, day] = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(w) ?? []
 
   if (year !== undefined && month !== undefined && day !== undefined) {
     return ymd(year, Number(month), day)
   }
 
   const [, name, jday, jyear] =
-    /^([a-z]{3})[a-z]* (\d{1,2})(?:st|nd|rd|th)?, (\d{4})$/.exec(w) ?? []
+    /^([a-z]{3})[a-z]* (\d{1,2})(?:st|nd|rd|th)?, (\d{4})$/u.exec(w) ?? []
 
   const index = name === undefined ? -1 : MONTHS.indexOf(name)
 

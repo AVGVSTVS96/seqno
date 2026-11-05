@@ -188,7 +188,7 @@ const SORT_ATTRS: Record<string, Field> = {
 }
 
 const SORT_TRANSFORM =
-  /^\(fn \[(\S+)\] (\(reverse )?\(sort-by \(fn \[(\S+)\] \(get \3 :(block\/[\w-]+)(?: [^)]*)?\)\) \1\)\)?\)$/
+  /^\(fn \[(\S+)\] (\(reverse )?\(sort-by \(fn \[(\S+)\] \(get \3 :(block\/[\w-]+)(?: [^)]*)?\)\) \1\)\)?\)$/u
 
 const sortOf = (f: Form): Sort => {
   const src = show(f)
@@ -874,7 +874,7 @@ const translateDatalog = (
 }
 
 export const translateLogseq = (text: string): Translation => {
-  const src = text.replaceAll(/#\+BEGIN_QUERY|#\+END_QUERY/g, "").trim()
+  const src = text.replaceAll(/#\+BEGIN_QUERY|#\+END_QUERY/gu, "").trim()
 
   try {
     if (src.startsWith("{{query")) {

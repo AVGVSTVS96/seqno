@@ -33,7 +33,7 @@ test("Export in the right-click menu saves a PNG of just the selected shapes, 8p
   const download = page.waitForEvent("download")
   await dialog.getByRole("button", { name: "Save to file" }).click()
   const file = await download
-  expect(file.suggestedFilename()).toMatch(/^seqno_[0-9a-f-]{36}\.png$/)
+  expect(file.suggestedFilename()).toMatch(/^seqno_[0-9a-f-]{36}\.png$/u)
   const png = await readFile((await file.path()) ?? "")
   expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
   const box = await shapes(page, "box").boundingBox()

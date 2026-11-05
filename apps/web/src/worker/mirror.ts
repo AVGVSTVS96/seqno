@@ -105,7 +105,7 @@ const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
 const writtenId =
-  /(?:^|\n)[ \t]*(?:- |\* )?(?:id::|:id:)[ \t]+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi
+  /(?:^|\n)[ \t]*(?:- |\* )?(?:id::|:id:)[ \t]+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/giu
 
 const pathBudgetMs = 300
 

@@ -99,7 +99,7 @@ const exportTrees = appRuntime.atom((get) => {
 })
 
 const fileName = (name: string, extension: string) =>
-  `seqno_${name.replaceAll(/[\\/:*?"<>|]/g, "_")}.${extension}`
+  `seqno_${name.replaceAll(/[\\/:*?"<>|]/gu, "_")}.${extension}`
 
 const save = (blob: Blob, name: string) => {
   const link = document.createElement("a")

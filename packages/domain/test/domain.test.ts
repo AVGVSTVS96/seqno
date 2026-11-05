@@ -38,7 +38,7 @@ describe("ids", () => {
       const first = yield* newBlockId
       const second = yield* newBlockId
       const page = yield* newPageId
-      assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+      assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u)
       assert.notStrictEqual(first, second)
       assert.isTrue(accepts(BlockId, first))
       assert.isTrue(accepts(Page.fields.id, page))

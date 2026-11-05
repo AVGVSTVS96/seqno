@@ -21,7 +21,7 @@ tester.run("no-comments", noCommentsRule, {
     "// oxlint-disable-next-line no-console -- the CLI's output\nconsole.log(1)",
   ],
   invalid: [
-    { code: "// increments the counter\nconst x = 1", errors: [/^Comments are banned/] },
+    { code: "// increments the counter\nconst x = 1", errors: [/^Comments are banned/u] },
     { code: "/** docs */\nexport const x = 1", errors: 1 },
     { code: "// oxlint-disable-next-line no-console\nconsole.log(1)", errors: 1 },
   ],
@@ -46,10 +46,10 @@ tester.run("logseq-names", logseqNames, {
     },
     {
       code: "const dot = <span id={`dot-${id}`} blockid={id} />",
-      errors: [/^`dot-` is one of Logseq's names/, /^`blockid` is one of Logseq's names/],
+      errors: [/^`dot-` is one of Logseq's names/u, /^`blockid` is one of Logseq's names/u],
     },
-    { code: 'const menu = <div className={names("menu", extra)} />', errors: [/^`menu`/] },
-    { code: 'frame.className = "lsp-iframe-sandbox"', errors: [/^`lsp-iframe-sandbox`/] },
-    { code: 'node.classList.toggle("bullet-closed", folded)', errors: [/^`bullet-closed`/] },
+    { code: 'const menu = <div className={names("menu", extra)} />', errors: [/^`menu`/u] },
+    { code: 'frame.className = "lsp-iframe-sandbox"', errors: [/^`lsp-iframe-sandbox`/u] },
+    { code: 'node.classList.toggle("bullet-closed", folded)', errors: [/^`bullet-closed`/u] },
   ],
 })

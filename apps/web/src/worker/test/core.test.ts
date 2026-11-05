@@ -371,7 +371,7 @@ describe("the core worker on the real graph, vault and index", () => {
           const ids = new Set(blocks.flatMap((block) => [block.id, block.props["id"] ?? ""]))
 
           const refs = blocks.flatMap((block) =>
-            [...block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/g)].map((match) => match[1] ?? ""),
+            [...block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/gu)].map((match) => match[1] ?? ""),
           )
 
           assert.strictEqual(refs.length, 7)
@@ -545,7 +545,7 @@ describe("the core worker on the real graph, vault and index", () => {
           const ids = new Set(blocks.flatMap((block) => [block.id, block.props["id"] ?? ""]))
 
           const refs = blocks.flatMap((block) =>
-            [...block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/g)].map((match) => match[1] ?? ""),
+            [...block.text.matchAll(/\(\(([0-9a-f-]{36})\)\)/gu)].map((match) => match[1] ?? ""),
           )
 
           assert.strictEqual(refs.length, 29)
@@ -673,7 +673,7 @@ describe("the core worker on the real graph, vault and index", () => {
           )
 
           assert.deepStrictEqual(
-            written.map((name) => name.replace(/^\d+-/, "<peer>-")),
+            written.map((name) => name.replace(/^\d+-/u, "<peer>-")),
             ["<peer>-0.loro", "<peer>-0.loro"],
           )
         }),
@@ -805,7 +805,7 @@ describe("the core worker on the real graph, vault and index", () => {
       })
       const titles = yield* welcomeOn(root, tour(1, "tour"))
       assert.deepStrictEqual(
-        titles.filter((title) => !/\d{4}$/.test(title)),
+        titles.filter((title) => !/\d{4}$/u.test(title)),
         ["Garden"],
       )
     }),
@@ -2046,7 +2046,7 @@ const filesIn = (dir: string) =>
     (await readdir(dir, { recursive: true, withFileTypes: true }).catch(() => []))
       .filter((entry) => entry.isFile())
       .map((entry) =>
-        relative(dir, join(entry.parentPath, entry.name)).replace(/[0-9a-f]{32}/, "<hash>"),
+        relative(dir, join(entry.parentPath, entry.name)).replace(/[0-9a-f]{32}/u, "<hash>"),
       )
       .toSorted(),
   )

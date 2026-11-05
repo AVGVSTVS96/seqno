@@ -68,7 +68,7 @@ const ednText = (value: string | number | boolean) =>
   typeof value === "string" ? JSON.stringify(value) : String(value)
 
 const VALID_KEY = /^[^\s"|^(){}#,:/\\[\]][^\s"|^(){},\\[\]]*$/u
-const HEADING = /^(#+)[ \t]/
+const HEADING = /^(#+)[ \t]/u
 
 const derivedUuid = (seed: string) => {
   const half = (salt: string) => {

@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
 import { expect, openDemo } from "./test.ts"
 
-export const board = (page: Page) => page.getByRole("application", { name: /^Whiteboard / })
+export const board = (page: Page) => page.getByRole("application", { name: /^Whiteboard /u })
 
 export const shapes = (page: Page, type: string) =>
   board(page).locator(`.wb-shape[data-type="${type}"]`)
@@ -22,7 +22,7 @@ export const newBoard = async (page: Page) => {
   await openDemo(page, "/")
   await page.keyboard.press("g")
   await page.keyboard.press("w")
-  await expect(page).toHaveURL(/\/whiteboards$/)
+  await expect(page).toHaveURL(/\/whiteboards$/u)
   await expect(page).toHaveTitle("Whiteboards")
   await page.getByRole("button", { name: "New whiteboard" }).click()
   await expect(board(page)).toBeVisible()

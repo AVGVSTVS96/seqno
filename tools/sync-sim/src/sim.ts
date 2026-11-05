@@ -100,7 +100,7 @@ const withoutPeer = (vv: VV, peer: string): VV =>
 const twice = (items: readonly string[]) =>
   items.filter((item, index) => items.indexOf(item) !== index)
 
-const ownerOf = (path: string) => /^updates\/d(\d+)\//.exec(path)?.[1]
+const ownerOf = (path: string) => /^updates\/d(\d+)\//u.exec(path)?.[1]
 
 const checkIntent = (oracle: Replica, intent: Intent) =>
   Effect.gen(function* () {

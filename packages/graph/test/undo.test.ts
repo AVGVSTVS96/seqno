@@ -229,7 +229,7 @@ describe("undo against random edits", () => {
           const session = yield* randomSession(seed, 12, true)
           const { edited, undone, redone, typedByRight, onRight } = session
           assert.deepStrictEqual(
-            [seed, undone.replaceAll(/[^0-3]/g, "").length, undone.replaceAll(/[^X]/g, "").length],
+            [seed, undone.replaceAll(/[^0-3]/gu, "").length, undone.replaceAll(/[^X]/gu, "").length],
             [seed, 4, typedByRight],
           )
           assert.deepStrictEqual([redone, onRight], [edited, edited])

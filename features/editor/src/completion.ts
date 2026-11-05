@@ -217,7 +217,7 @@ const searchPlugin = (blockId: BlockId, host: EditorHost) =>
 const step = (state: EditorState, spec: TransactionSpec): Transaction => state.update(spec)
 
 const refText = (popup: Popup, value: string) =>
-  popup.kind === "Tag" && /\s/.test(value) ? `[[${value}]]` : value
+  popup.kind === "Tag" && /\s/u.test(value) ? `[[${value}]]` : value
 
 const closing: Readonly<Record<Popup["kind"], string>> = {
   Page: "]]",

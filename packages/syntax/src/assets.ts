@@ -35,7 +35,7 @@ export const assetKey = (link: string): string => {
     path = link
   }
 
-  return path.replace(/^(?:\.{1,2}\/|\/)+/, "").normalize("NFC")
+  return path.replace(/^(?:\.{1,2}\/|\/)+/u, "").normalize("NFC")
 }
 
 export const assetPathOf = (link: string): string | null => {
@@ -48,10 +48,10 @@ export const assetPathOf = (link: string): string | null => {
     : null
 }
 
-export const isLocalAsset = (link: string) => /^[./]*assets\//.test(link)
+export const isLocalAsset = (link: string) => /^[./]*assets\//u.test(link)
 
 export const extensionOf = (path: string): string =>
-  /\.(\w+)[^.]*$/.exec(path)?.[1]?.toLowerCase() ?? ""
+  /\.(\w+)[^.]*$/u.exec(path)?.[1]?.toLowerCase() ?? ""
 
 export type AssetKind = "Image" | "Pdf" | "Audio" | "Video" | "Text" | "File"
 
@@ -98,9 +98,9 @@ export const assetFileName = (original: string, now: number, index: number): str
   const last = lastExtension(name)
   const lower = last.slice(1).toLowerCase()
   const ext = supported.some((formats) => formats.has(lower)) ? last : completeExtension(name)
-  const stem = name.slice(0, name.length - ext.length).replaceAll(/[ %/]/g, "_")
+  const stem = name.slice(0, name.length - ext.length).replaceAll(/[ %/]/gu, "_")
 
-  return `${`${stem}_${now}_${index}`.replaceAll(/_+/g, "_")}${ext}`
+  return `${`${stem}_${now}_${index}`.replaceAll(/_+/gu, "_")}${ext}`
 }
 
 export const assetLink = (label: string, path: string, dialect: Dialect = "markdown"): string => {
@@ -116,10 +116,10 @@ export const assetLink = (label: string, path: string, dialect: Dialect = "markd
 }
 
 const concatWithoutSpaces = (left: string, right: string) => {
-  const trimmed = left.replace(/[ \t\r]+$/, "")
+  const trimmed = left.replace(/[ \t\r]+$/u, "")
   const gap = trimmed.trim() === "" || trimmed.endsWith("\n") ? "" : " "
 
-  return `${trimmed}${gap}${right.replace(/^[ \t\r]+/, "")}`
+  return `${trimmed}${gap}${right.replace(/^[ \t\r]+/u, "")}`
 }
 
 export const insertAsset = (
@@ -144,15 +144,15 @@ export const assetPageName = (name: string): string => {
     return name
   }
 
-  const localAsset = /[0-9]{13}_\d$/.test(name)
+  const localAsset = /[0-9]{13}_\d$/u.test(name)
 
   if (!localAsset && !name.startsWith(hlsPagePrefix)) {
     return name
   }
 
   return (localAsset ? name.slice(0, name.length - 15) : name)
-    .replace(/^hls__/, "")
-    .replace(/__[-\d]+$/, "")
+    .replace(/^hls__/u, "")
+    .replace(/__[-\d]+$/u, "")
     .replaceAll("_", " ")
     .trimEnd()
 }

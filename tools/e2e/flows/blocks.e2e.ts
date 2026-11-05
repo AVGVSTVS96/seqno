@@ -46,7 +46,7 @@ test("right-clicking a bullet selects the block and opens its menu", async ({ pa
   await menu.getByRole("menuitem", { name: "Collapse all" }).click()
   await expect(winter).toHaveAttribute("aria-expanded", "false")
   await winter.getByRole("button", { name: "Zoom into block" }).first().click({ button: "right" })
-  await menu.getByRole("menuitem", { name: /^Delete selected blocks/ }).click()
+  await menu.getByRole("menuitem", { name: /^Delete selected blocks/u }).click()
   await expect(rowWith(page, "Winter")).toHaveCount(0)
 })
 
@@ -117,7 +117,7 @@ test("clicking under the last block adds a block and edits it", async ({ page, s
   await page.keyboard.type("Autumn")
   await page.keyboard.press("Escape")
   const tree = page.getByRole("main").getByRole("tree").first()
-  await expect(tree.getByRole("treeitem", { level: 1 }).last()).toHaveText(/^Autumn/)
+  await expect(tree.getByRole("treeitem", { level: 1 }).last()).toHaveText(/^Autumn/u)
 })
 
 test("a block's reference count opens the blocks that reference it, open when zoomed in", async ({
@@ -136,7 +136,7 @@ test("a block's reference count opens the blocks that reference it, open when zo
     "ReferencesThe same rule, embedded:",
   ])
   await expect(panel.getByRole("treeitem").first()).toHaveText(
-    /^The rule above, by reference: Water in the morning, never at night\./,
+    /^The rule above, by reference: Water in the morning, never at night\./u,
   )
   await count.click()
   await expect(panel).toHaveCount(0)
@@ -209,7 +209,7 @@ test("Back returns to the same row of a long page after a fling past slow pictur
     await flingTo(page, [0.9, 0.1, stop], "[role=treeitem]")
     await page.waitForTimeout(1000)
     const before = await topRow(page)
-    expect(before).toMatch(/^row \d+/)
+    expect(before).toMatch(/^row \d+/u)
     await awayAndBack(page)
     await landsOn(page, before)
   }

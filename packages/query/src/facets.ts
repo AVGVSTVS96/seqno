@@ -41,6 +41,6 @@ export const tokenize = (text: string): string[] | null =>
   /^\p{ASCII}*$/u.test(text)
     ? text
         .toLowerCase()
-        .split(/[^a-z0-9]+/)
+        .split(/[^a-z0-9]+/u)
         .filter((t) => t !== "")
     : null

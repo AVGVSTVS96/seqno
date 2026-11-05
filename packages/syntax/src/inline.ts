@@ -58,11 +58,11 @@ const BLOCK_REF_AT = sticky(BLOCK_REF)
 const TAG_AT = sticky(TAG)
 const MACRO_AT = sticky(MACRO)
 const PRIORITY_AT = sticky(PRIORITY)
-const URL_AT = /https?:\/\/[^\s<>()[\]{}"'`]+/y
-const IMAGE_SIZE_AT = /\{\s*:(?:width|height)\b[^}\n]*\}/y
-const URL_TRAILER = /[.,;:!?]+$/
-const UUID_REF = /^\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)$/i
-const PAGE_TARGET = /^\[\[(.+)\]\]$/
+const URL_AT = /https?:\/\/[^\s<>()[\]{}"'`]+/yu
+const IMAGE_SIZE_AT = /\{\s*:(?:width|height)\b[^}\n]*\}/yu
+const URL_TRAILER = /[.,;:!?]+$/u
+const UUID_REF = /^\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)$/iu
+const PAGE_TARGET = /^\[\[(.+)\]\]$/u
 const WORD = /[\p{L}\p{N}]/u
 
 const orgDelimiters: ReadonlyArray<readonly [string, Emphasis]> = [
@@ -73,10 +73,10 @@ const orgDelimiters: ReadonlyArray<readonly [string, Emphasis]> = [
   ["+", "Strike"],
 ]
 
-const ORG_LINK_AT = /\[\[([^\]\n]+)\](?:\[([^\]\n]*)\])?\]/y
-const ORG_PROTOCOL = /^([a-zA-Z][\w+.-]*):(.*)$/
+const ORG_LINK_AT = /\[\[([^\]\n]+)\](?:\[([^\]\n]*)\])?\]/yu
+const ORG_PROTOCOL = /^([a-zA-Z][\w+.-]*):(.*)$/u
 
-const LOCAL_ASSET = /^[./]*assets\//
+const LOCAL_ASSET = /^[./]*assets\//u
 
 const orgLinkAt = (source: string, at: number, base: number): Token | null => {
   const link = matchAt(ORG_LINK_AT, source, at)
@@ -181,7 +181,7 @@ const matchAt = (pattern: RegExp, source: string, at: number) => {
   return pattern.exec(source)
 }
 
-const isSpace = (char: string | undefined) => char === undefined || /\s/.test(char)
+const isSpace = (char: string | undefined) => char === undefined || /\s/u.test(char)
 const isWord = (char: string | undefined) => char !== undefined && WORD.test(char)
 
 const pairedEnd = (source: string, from: number, open: string, close: string): number => {
@@ -260,7 +260,7 @@ const targetOf = (raw: string): LinkTarget => {
     return { _tag: "Block", uuid: (block[1] ?? "").toLowerCase() }
   }
 
-  return { _tag: "Url", url: target.split(/\s+/)[0] ?? "" }
+  return { _tag: "Url", url: target.split(/\s+/u)[0] ?? "" }
 }
 
 const atomAt = (
@@ -402,7 +402,7 @@ const atomAt = (
 
       const attrs = matchAt(IMAGE_SIZE_AT, source, end)
       const sized = attrs === null ? end : end + attrs[0].length
-      const width = Number(/:width\s+(\d+(?:\.\d+)?)/.exec(attrs?.[0] ?? "")?.[1] ?? Number.NaN)
+      const width = Number(/:width\s+(\d+(?:\.\d+)?)/u.exec(attrs?.[0] ?? "")?.[1] ?? Number.NaN)
 
       return {
         node: {

@@ -113,13 +113,13 @@ export const keywordInput = (name: string, context: InputContext): string | numb
     }
   }
 
-  const today = /^today-(start|end|\d{2}|\d{4}|\d{6}|\d{9})$/.exec(name)
+  const today = /^today-(start|end|\d{2}|\d{4}|\d{6}|\d{9})$/u.exec(name)
 
   if (today?.[1] !== undefined) {
     return at(now, timeUnits(null, today[1]))
   }
 
-  const relative = /^([+-])(\d+)([dwmy])$/.exec(name)
+  const relative = /^([+-])(\d+)([dwmy])$/u.exec(name)
 
   if (relative !== null) {
     const [, sign = "+", amount = "0", unit = "d"] = relative
@@ -127,7 +127,7 @@ export const keywordInput = (name: string, context: InputContext): string | numb
     return dayOf(shifted(now, sign, Number(amount), unit))
   }
 
-  const timed = /^([+-])(\d+)([dwmy])-(ms|start|end|\d{2,9})$/.exec(name)
+  const timed = /^([+-])(\d+)([dwmy])-(ms|start|end|\d{2,9})$/u.exec(name)
 
   if (timed !== null) {
     const [, sign = "+", amount = "0", unit = "d", suffix = "start"] = timed
@@ -135,7 +135,7 @@ export const keywordInput = (name: string, context: InputContext): string | numb
     return at(shifted(now, sign, Number(amount), unit), timeUnits(sign, suffix))
   }
 
-  const old = /^(\d+)d(-before|-after|-before-ms|-after-ms)?$/.exec(name)
+  const old = /^(\d+)d(-before|-after|-before-ms|-after-ms)?$/u.exec(name)
 
   if (old !== null) {
     const [, amount = "0", kind = ""] = old
@@ -149,8 +149,8 @@ export const keywordInput = (name: string, context: InputContext): string | numb
   return null
 }
 
-const PAGE_REF = /^\[\[(.+)\]\]$/s
-const KEYWORD = /^:([^\s,;()[\]{}"]+)$/
+const PAGE_REF = /^\[\[(.+)\]\]$/su
+const KEYWORD = /^:([^\s,;()[\]{}"]+)$/u
 
 export const resolveInput = (
   input: unknown,
@@ -165,7 +165,7 @@ export const resolveInput = (
   const named = KEYWORD.exec(text)?.[1]
 
   if (named !== undefined) {
-    const resolved = keywordInput(named.replace(/^today\//, ""), context)
+    const resolved = keywordInput(named.replace(/^today\//u, ""), context)
 
     if (resolved !== null) {
       return resolved

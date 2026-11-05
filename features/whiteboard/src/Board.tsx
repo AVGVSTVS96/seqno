@@ -144,7 +144,7 @@ export interface BoardProps {
   readonly referencesPanel: ReactNode
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
 export const isUntitled = (page: Page) => UUID.test(page.title)
 
@@ -1586,8 +1586,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       return false
     }
 
-    const block = /^\(\(([0-9a-f-]{36})\)\)$/i.exec(text)?.[1]
-    const name = /^\[\[(.*)\]\]$/s.exec(text)?.[1]
+    const block = /^\(\(([0-9a-f-]{36})\)\)$/iu.exec(text)?.[1]
+    const name = /^\[\[(.*)\]\]$/su.exec(text)?.[1]
     const link = block ?? (name === "" ? undefined : name)
 
     if (link === undefined) {

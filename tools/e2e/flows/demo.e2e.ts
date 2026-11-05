@@ -20,7 +20,7 @@ test("the graph switcher opens the developer graph, and Contents is its hub", as
   await page.getByRole("menuitemradio", { name: "Developer graph" }).click()
   const latest = page.getByRole("article", { name: nov3, exact: true })
   await expect(latest.getByRole("treeitem").first()).toHaveText(
-    /NOW\s*seqno: whiteboards, flashcards and plugins, the Logseq features still to build projects\/seqno/,
+    /NOW\s*seqno: whiteboards, flashcards and plugins, the Logseq features still to build projects\/seqno/u,
   )
   await page.keyboard.press("t")
   await page.keyboard.press("r")
@@ -40,7 +40,7 @@ test("a query lists the decisions tagged with a project, but not its own block",
   await expect(decisions.locator(".seqno-query-group-clause")).toHaveText(
     "(AND[[decision]][[seqno]])",
   )
-  await expect(decisions.getByText(/^\d+ results$/)).toBeVisible()
+  await expect(decisions.getByText(/^\d+ results$/u)).toBeVisible()
   const days = await groupNames(decisions)
   expect(days[0]).toBe(nov3)
   expect(days).toContain(journalTitle(new Date(2026, 9, 6)))

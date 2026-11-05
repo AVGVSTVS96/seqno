@@ -5,7 +5,7 @@ import { leftWidthAt, remember, rightWidthAt, rightWidthStep } from "../src/ui/s
 
 const press = (key: string, modifiers: Partial<KeyPress> = {}): KeyPress => ({
   key,
-  code: /^[a-z]$/i.test(key) ? `Key${key.toUpperCase()}` : key,
+  code: /^[a-z]$/iu.test(key) ? `Key${key.toUpperCase()}` : key,
   ctrlKey: false,
   metaKey: false,
   altKey: false,

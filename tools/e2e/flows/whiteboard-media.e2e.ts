@@ -30,7 +30,7 @@ test("an image dropped on a board is saved in assets/ and lands at half its size
     )
     .toBe(400)
   const assets = Object.keys(await opfsFiles(page, ["graphs", "demo", "assets"]))
-  expect(assets.filter((name) => /^beds_\d+_0\.png$/.test(name))).toHaveLength(1)
+  expect(assets.filter((name) => /^beds_\d+_0\.png$/u.test(name))).toHaveLength(1)
 
   await saved(page)
   await page.reload()

@@ -13,9 +13,9 @@ export type Edn =
   | { readonly _tag: "Set"; readonly items: readonly Edn[] }
   | { readonly _tag: "Map"; readonly entries: ReadonlyArray<readonly [Edn, Edn]> }
 
-const SPACE = /[\s,]/
-const DELIMITER = /[\s,()[\]{}"\\;]/
-const NUMBER = /^[+-]?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?M?$|^[+-]?\d+N$/
+const SPACE = /[\s,]/u
+const DELIMITER = /[\s,()[\]{}"\\;]/u
+const NUMBER = /^[+-]?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?M?$|^[+-]?\d+N$/u
 
 const ESCAPES: Readonly<Record<string, string>> = {
   n: "\n",
@@ -223,7 +223,7 @@ class Reader {
     }
 
     if (NUMBER.test(token)) {
-      return Number(token.replace(/[MN]$/, ""))
+      return Number(token.replace(/[MN]$/u, ""))
     }
 
     return { _tag: "Symbol", name: token }
@@ -266,7 +266,7 @@ const FIPP_QUOTES: Readonly<Record<string, string>> = {
 }
 
 const prString = (value: string) =>
-  `"${value.replaceAll(/["\\\b\f\n\r\t]/g, (char) => FIPP_QUOTES[char] ?? char)}"`
+  `"${value.replaceAll(/["\\\b\f\n\r\t]/gu, (char) => FIPP_QUOTES[char] ?? char)}"`
 
 const prNumber = (value: number) =>
   Number.isNaN(value)

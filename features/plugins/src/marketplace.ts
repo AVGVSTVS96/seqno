@@ -9,7 +9,7 @@ export const mirror = "https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev/"
 export const urls = {
   index: `${central}plugins.json`,
   stats: `${central}stats.json`,
-  icon: (id: string, icon: string) => `${central}packages/${id}/${icon.replace(/^\.\//, "")}`,
+  icon: (id: string, icon: string) => `${central}packages/${id}/${icon.replace(/^\.\//u, "")}`,
   package: (repo: string) => `https://plugins.logseq.io/r2/${repo}`,
   files: (repo: string, version: string) => `${mirror}${repo}/${version}/`,
 }

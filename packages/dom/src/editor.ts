@@ -1,7 +1,7 @@
 import { names } from "./names.ts"
 import type { Table } from "./names.ts"
 
-const headingPrefix = /^(#{1,6}) /
+const headingPrefix = /^(#{1,6}) /u
 
 const editorStyle = (content: string, heading: string | undefined) => {
   const level = Number(heading)

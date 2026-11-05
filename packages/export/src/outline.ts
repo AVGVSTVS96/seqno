@@ -8,9 +8,9 @@ import type { Item, ListItem, Run } from "./items.ts"
 const markerOf = (item: Extract<Item, { _tag: "Heading" }>) =>
   item.marker === null ? "" : `${item.marker} `
 
-const MATH = /^\s*\$\$\s*$/
-const PLANNING = /^\s*(?:SCHEDULED|DEADLINE): <[^>]*>\s*$/
-const FOOTNOTE = /^\s*\[\^([^\]\s]+)\]:\s*/
+const MATH = /^\s*\$\$\s*$/u
+const PLANNING = /^\s*(?:SCHEDULED|DEADLINE): <[^>]*>\s*$/u
+const FOOTNOTE = /^\s*\[\^([^\]\s]+)\]:\s*/u
 
 interface Outline {
   readonly parts: string[]
@@ -18,7 +18,7 @@ interface Outline {
 }
 
 const tidy = (value: string) => {
-  const spaced = value.replaceAll(/\s+/g, " ")
+  const spaced = value.replaceAll(/\s+/gu, " ")
 
   return spaced === " " ? spaced : spaced.trim()
 }

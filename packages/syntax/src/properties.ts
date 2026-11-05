@@ -1,4 +1,4 @@
-export const propertyKey = (key: string): string => key.toLowerCase().replaceAll(/[ _]/g, "-")
+export const propertyKey = (key: string): string => key.toLowerCase().replaceAll(/[ _]/gu, "-")
 
 export type PropertyLine = readonly [key: string, value: string]
 
@@ -19,21 +19,21 @@ interface StyleRules {
 }
 
 const styles: Record<PropertyStyle, StyleRules> = {
-  markdown: { line: /^([^\s:]+):: (.*)$/, print: (key, value) => `${key}:: ${value}` },
+  markdown: { line: /^([^\s:]+):: (.*)$/u, print: (key, value) => `${key}:: ${value}` },
   org: {
-    line: /^:([^\s:]+): ?(.*)$/,
+    line: /^:([^\s:]+): ?(.*)$/u,
     print: (key, value) => `:${key}: ${value}`,
     open: ":PROPERTIES:",
     close: ":END:",
   },
   frontMatter: {
-    line: /^([^:]+):[ \t]*(.*)$/,
+    line: /^([^:]+):[ \t]*(.*)$/u,
     print: (key, value) => `${key}: ${value}`,
     open: "---",
     close: "---",
   },
   directives: {
-    line: /^#\+([^:\s][^:]*):[ \t]*(.*)$/,
+    line: /^#\+([^:\s][^:]*):[ \t]*(.*)$/u,
     print: (key, value) => `#+${key}: ${value}`,
   },
 }
@@ -50,7 +50,7 @@ export const propertyLineOf = (text: string, style: PropertyStyle): PropertyLine
   return match === null ? null : [match[1] ?? "", match[2] ?? ""]
 }
 
-const verbatim = /^\s*(```|~~~|#\+BEGIN_)/i
+const verbatim = /^\s*(```|~~~|#\+BEGIN_)/iu
 
 const runOf = (lines: readonly string[], style: PropertyStyle): readonly PropertyLine[] => {
   const rules = styles[style]
@@ -65,7 +65,7 @@ const runOf = (lines: readonly string[], style: PropertyStyle): readonly Propert
     const key = match?.[1]
     const value = match?.[2]
 
-    if (key === undefined || value === undefined || /^\d+$/.test(key)) {
+    if (key === undefined || value === undefined || /^\d+$/u.test(key)) {
       break
     }
 

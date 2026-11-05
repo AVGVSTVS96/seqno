@@ -73,7 +73,7 @@ export const inlineMathAt = (source: string, at: number): InlineMath | null => {
   return close === -1 ? null : { open, tex: source.slice(at + 2, close), end: close + 2 }
 }
 
-const BEGIN = /\\begin\{([^}]+)\}[ \t\r\n]*/iy
+const BEGIN = /\\begin\{([^}]+)\}[ \t\r\n]*/iyu
 
 export const latexEnvironment = (name: string, content: string) =>
   name === "equation" ? content : `\\begin{${name}}\n${content}\\end{${name}}`
@@ -111,7 +111,7 @@ export const mathBlockAt = (text: string, from: number): MathBlock | null => {
   }
 }
 
-const MAYBE_MATH = /\$|\\[[(]|\\begin\{/i
+const MAYBE_MATH = /\$|\\[[(]|\\begin\{/iu
 
 export const mathSpans = (text: string, skip: readonly Span[]): readonly Span[] => {
   if (!MAYBE_MATH.test(text)) {

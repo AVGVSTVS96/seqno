@@ -26,7 +26,7 @@ import type { ChosenTheme, PluginCommand, PluginInfo, PluginSlashCommand } from 
 
 export const hostAtom = Atom.make<Host | null>(null).pipe(Atom.keepAlive)
 
-const onMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+const onMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(navigator.platform)
 
 const stepMatches = (step: string, event: KeyboardEvent) => {
   const parts = step.toLowerCase().split("+")
@@ -44,7 +44,7 @@ const stepMatches = (step: string, event: KeyboardEvent) => {
 }
 
 const comboMatches = (combo: string, event: KeyboardEvent, previous: KeyboardEvent | null) => {
-  const steps = combo.trim().split(/\s+/)
+  const steps = combo.trim().split(/\s+/u)
   const last = steps.at(-1) ?? ""
 
   if (steps.length === 1) {
@@ -58,7 +58,7 @@ const comboMatches = (combo: string, event: KeyboardEvent, previous: KeyboardEve
 
 const modifierKeys = new Set(["Control", "Shift", "Alt", "Meta"])
 
-const modified = (combo: string) => /(^|[+ ])(mod|ctrl|meta|alt)\+/i.test(combo)
+const modified = (combo: string) => /(^|[+ ])(mod|ctrl|meta|alt)\+/iu.test(combo)
 
 const typingIn = (target: EventTarget | null) =>
   target instanceof HTMLElement &&

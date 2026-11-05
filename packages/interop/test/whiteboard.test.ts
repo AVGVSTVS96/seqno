@@ -269,7 +269,7 @@ describe("whiteboard mirror", () => {
       assert.deepStrictEqual(after.pages, before.pages)
       const changed = after.blocks.filter((block) => !before.blocks.includes(block))
       assert.deepStrictEqual(
-        changed.map((block) => block.match(/:block\/uuid #uuid "([^"]+)"\}$/)?.[1]),
+        changed.map((block) => block.match(/:block\/uuid #uuid "([^"]+)"\}$/u)?.[1]),
         [
           "67b22d63-71b5-4393-bfc9-8e2ce5190d9c",
           "67b87c75-abde-4c73-8d14-ce3da4a40003",
@@ -495,11 +495,11 @@ describe("whiteboard mirror", () => {
 
       const text = (yield* renderMirror([moved], defaultConfig)).get("whiteboards/Plans.edn") ?? ""
       assert.deepStrictEqual(
-        [...text.matchAll(/:bindingId "([^"]+)"/g)].map((match) => match[1]),
+        [...text.matchAll(/:bindingId "([^"]+)"/gu)].map((match) => match[1]),
         ["b25bc749-e462-44f8-8fdc-5e7cf4724c3c"],
       )
       assert.deepStrictEqual(
-        [...text.matchAll(/:toId "([^"]+)"/g)].map((match) => match[1]),
+        [...text.matchAll(/:toId "([^"]+)"/gu)].map((match) => match[1]),
         ["01920000-0000-7000-8000-0000000000b2"],
       )
       assert.include(
@@ -525,7 +525,7 @@ describe("edn", () => {
     ]
 
     const reversed = `{${written
-      .map((line) => line.replaceAll(/^\{|\}$/g, ""))
+      .map((line) => line.replaceAll(/^\{|\}$/gu, ""))
       .toReversed()
       .join(" ")}}`
 

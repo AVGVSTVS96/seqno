@@ -68,7 +68,7 @@ test("Extensions plus loads KaTeX physics through its enhancer, so \\dv and \\ab
   await install(page, "Extensions plus")
   await expect(page.locator('script[data-ref="logseq-extensions-plus"]')).toHaveAttribute(
     "src",
-    /\/lsp\/xyhp915\/logseq-extensions-plus\/0\.0\.5\/vendors\/katex\.physics\.js$/,
+    /\/lsp\/xyhp915\/logseq-extensions-plus\/0\.0\.5\/vendors\/katex\.physics\.js$/u,
   )
   await expect(first.locator(".katex-html .mfrac")).toBeAttached()
   await expect(first.locator(".katex-html")).not.toContainText("\\dv")

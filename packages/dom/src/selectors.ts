@@ -6,11 +6,11 @@ export interface SelectorNames {
 
 const preludes = (css: string) =>
   css
-    .replaceAll(/\/\*[\s\S]*?\*\//g, "")
-    .replaceAll(/url\([^)]*\)/g, "")
-    .split(/[{};]/)
+    .replaceAll(/\/\*[\s\S]*?\*\//gu, "")
+    .replaceAll(/url\([^)]*\)/gu, "")
+    .split(/[{};]/u)
     .map((part) => part.trim())
-    .filter((part) => part !== "" && !part.startsWith("@") && !/^[\w-]+\s*:[^:]/.test(part))
+    .filter((part) => part !== "" && !part.startsWith("@") && !/^[\w-]+\s*:[^:]/u.test(part))
 
 const matches = (text: string, pattern: RegExp) =>
   [...text.matchAll(pattern)].map((hit) => hit[1] ?? "")
@@ -23,9 +23,9 @@ export const selectorNames = (css: string): SelectorNames => {
 
   return {
     classes: sorted(
-      selectors.flatMap((selector) => matches(selector, /\.(-?[_a-zA-Z][\w-]*)(?![\w\\-])/g)),
+      selectors.flatMap((selector) => matches(selector, /\.(-?[_a-zA-Z][\w-]*)(?![\w\\-])/gu)),
     ),
-    ids: sorted(selectors.flatMap((selector) => matches(selector, /#(-?[_a-zA-Z][\w-]*)/g))),
-    attributes: sorted(selectors.flatMap((selector) => matches(selector, /\[([a-zA-Z][\w-]*)/g))),
+    ids: sorted(selectors.flatMap((selector) => matches(selector, /#(-?[_a-zA-Z][\w-]*)/gu))),
+    attributes: sorted(selectors.flatMap((selector) => matches(selector, /\[([a-zA-Z][\w-]*)/gu))),
   }
 }

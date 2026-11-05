@@ -134,7 +134,7 @@ test("a first visit offers both demo graphs before any graph opens", async ({ pa
   const welcome = page.getByRole("heading", { level: 1, name: "Welcome to seqno" })
   await expect(welcome).toBeVisible()
   await expect(page.getByRole("list", { name: "Welcome to seqno" }).getByRole("button")).toHaveText(
-    [/^Getting started/, /^Developer graph/],
+    [/^Getting started/u, /^Developer graph/u],
   )
   await expect(
     page.getByRole("button", { name: "Getting started", exact: true }),
@@ -155,7 +155,7 @@ test("the chooser and the help menu lead back to the seqno homepage, in the same
   await page.goto("/")
   const about = page.getByRole("link", { name: "What is seqno?" })
   await expect(about).toHaveAttribute("href", "https://seqno.vercel.app")
-  await expect(about).not.toHaveAttribute("target", /.+/)
+  await expect(about).not.toHaveAttribute("target", /.+/u)
   await page.getByRole("button", { name: "Getting started", exact: true }).click()
   await expect(page.getByRole("main")).not.toBeEmpty()
   await page.getByRole("button", { name: "Help" }).click()
@@ -258,9 +258,9 @@ test.describe("tips in a demo graph", () => {
     seqno,
   }) => {
     await openDemo(page)
-    await expect(tip(page)).toHaveText(/from the left sidebar\.$/)
+    await expect(tip(page)).toHaveText(/from the left sidebar\.$/u)
     await page.getByRole("button", { name: "Toggle left sidebar" }).click()
-    await expect(tip(page)).toHaveText(/Switch graphs here\.$/)
+    await expect(tip(page)).toHaveText(/Switch graphs here\.$/u)
     await leftSidebar(page).getByRole("button", { name: "Getting started" }).focus()
     await page.keyboard.press("ArrowDown")
     await expect(page.getByRole("menu", { name: "Graphs" })).toBeVisible()
@@ -271,7 +271,7 @@ test.describe("tips in a demo graph", () => {
     await page.keyboard.press("Escape")
     await expect(tip(page)).toHaveText("Click to open this page.")
     await page.getByRole("main").locator(".seqno-journal .seqno-pageref-link").first().click()
-    await expect(page).toHaveURL(/\/page\//)
+    await expect(page).toHaveURL(/\/page\//u)
     await expect(tip(page)).toHaveText(
       "Shift-click any link on this page to open it in the sidebar, next to this one.",
     )
@@ -287,7 +287,7 @@ test.describe("tips in a demo graph", () => {
       .getByRole("complementary", { name: "Right sidebar" })
       .getByRole("button", { name: "Contents", exact: true })
       .click()
-    await expect(tip(page)).not.toHaveText(/^Contents/)
+    await expect(tip(page)).not.toHaveText(/^Contents/u)
   })
 
   test("the graph menu tip goes even when the menu closes before its toggle event arrives", async ({
@@ -295,7 +295,7 @@ test.describe("tips in a demo graph", () => {
   }) => {
     await openDemo(page)
     await page.getByRole("button", { name: "Toggle left sidebar" }).click()
-    await expect(tip(page)).toHaveText(/Switch graphs here\.$/)
+    await expect(tip(page)).toHaveText(/Switch graphs here\.$/u)
     const trigger = leftSidebar(page).getByRole("button", { name: "Getting started" })
 
     const toggle = await trigger.evaluate((button) => {
@@ -332,7 +332,7 @@ test.describe("tips in a demo graph", () => {
   }) => {
     await openDemo(page)
     await page.getByRole("button", { name: "Toggle left sidebar" }).click()
-    await expect(tip(page)).toHaveText(/Switch graphs here\.$/)
+    await expect(tip(page)).toHaveText(/Switch graphs here\.$/u)
     await expect.poll(async () => await caretAim(page)).toBe("faces its target, 0px off center")
     await expect.poll(async () => await textUnderTip(page)).toEqual([])
     await tip(page).getByRole("button", { name: "Dismiss tip" }).click()
@@ -353,7 +353,7 @@ test.describe("tips in a demo graph", () => {
     await expect(tip(page)).toHaveCount(0)
     await page.keyboard.press("Escape")
     await expect(help).toBeHidden()
-    await expect(tip(page)).toHaveText(/from the left sidebar\.$/)
+    await expect(tip(page)).toHaveText(/from the left sidebar\.$/u)
     expect((await tipEvents(page)).filter((event) => event.open && event.menuOpen)).toEqual([])
   })
 
@@ -381,10 +381,10 @@ test.describe("tips in a demo graph", () => {
   }) => {
     await recordTips(page)
     await openDemo(page)
-    await expect(tip(page)).toHaveText(/from the left sidebar\.$/)
+    await expect(tip(page)).toHaveText(/from the left sidebar\.$/u)
     await page.keyboard.press("Shift")
     await expect(tip(page)).toHaveCount(0)
-    await expect(tip(page)).toHaveText(/from the left sidebar\.$/)
+    await expect(tip(page)).toHaveText(/from the left sidebar\.$/u)
     expect(await openedTips(page)).toEqual(["graph-menu:demo", "graph-menu:demo"])
     expect(
       await page.evaluate(() => localStorage.getItem("seqno.dismissedHints") ?? "[]"),

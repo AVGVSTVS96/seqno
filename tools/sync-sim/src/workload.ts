@@ -107,7 +107,7 @@ const unitEnds = (text: string): readonly number[] => {
   return ends
 }
 
-const TOKEN = /\[\d+\.\d+\]/g
+const TOKEN = /\[\d+\.\d+\]/gu
 
 type Parent = { readonly pageId: PageId; readonly parentId: BlockId | null }
 

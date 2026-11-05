@@ -63,7 +63,7 @@ export const PageTitle = ({
   }
 
   const commit = async (text: string) => {
-    const title = text.replaceAll(/\s+/g, " ").trim()
+    const title = text.replaceAll(/\s+/gu, " ").trim()
 
     if (title === "" || title === page.title) {
       setDraft(null)

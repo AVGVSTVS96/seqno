@@ -14,11 +14,11 @@ export const defaultPropertyConfig: PropertyConfig = {
 }
 
 const closers: Readonly<Record<string, string>> = { "#{": "}", "[": "]", "(": ")" }
-const entry = /"((?:[^"\\]|\\.)*)"|:([^\s,"[\](){}]+)/g
+const entry = /"((?:[^"\\]|\\.)*)"|:([^\s,"[\](){}]+)/gu
 
 const entriesOf = (edn: string, key: string) => {
   const at = edn.indexOf(key)
-  const open = at === -1 ? null : /^\s*(#\{|\[|\()/.exec(edn.slice(at + key.length))
+  const open = at === -1 ? null : /^\s*(#\{|\[|\()/u.exec(edn.slice(at + key.length))
 
   if (open === null) {
     return { keywords: [], strings: [] }
@@ -35,7 +35,7 @@ const entriesOf = (edn: string, key: string) => {
 }
 
 export const readPropertyConfig = (configEdn: string): PropertyConfig => {
-  const edn = configEdn.replaceAll(/;[^\n]*/g, "")
+  const edn = configEdn.replaceAll(/;[^\n]*/gu, "")
 
   return {
     listKeys: new Set([
@@ -50,7 +50,7 @@ export const propertyConfigKey = ({ listKeys, unparsedKeys }: PropertyConfig): s
   JSON.stringify([[...listKeys].toSorted(), [...unparsedKeys].toSorted()])
 
 const flagPattern = (key: string) =>
-  new RegExp(`^([^;\\n]*?)${key.replaceAll(/[?/.]/g, "\\$&")}\\s+(true|false)\\b`, "m")
+  new RegExp(`^([^;\\n]*?)${key.replaceAll(/[?/.]/gu, "\\$&")}\\s+(true|false)\\b`, "m")
 
 export const readConfigFlag = (configEdn: string, key: string, fallback: boolean): boolean => {
   const found = flagPattern(key).exec(configEdn)

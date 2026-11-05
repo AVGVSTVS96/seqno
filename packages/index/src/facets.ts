@@ -30,14 +30,14 @@ export const NO_FACETS: BlockFacets = { refs: [], tags: [], props: [], task: nul
 
 export const TASK_FIELDS = ["status", "priority", "scheduled", "deadline"] as const
 
-const MARKER = /^(TODO|DOING|DONE|LATER|NOW|WAITING|CANCELED|CANCELLED)(?=\s|$)/
-const PRIORITY = /\[#([ABC])\]/
-const DATE_LINE = /^(SCHEDULED|DEADLINE): <(\d{4})-(\d{2})-(\d{2})/gm
-const WIKI = /\[\[([^\]]+)\]\]/g
-const TAG = /(?:^|\s)#(?!\[\[|\+)([^\s#,[\]()]+)|#\[\[([^\]]+)\]\]/g
-const CODE = /`[^`\n]*`/g
-const FENCE = /^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]*\1[ \t]*$|(?![\s\S]))/gm
-const TAG_TRAILER = /[.:]+$/
+const MARKER = /^(TODO|DOING|DONE|LATER|NOW|WAITING|CANCELED|CANCELLED)(?=\s|$)/u
+const PRIORITY = /\[#([ABC])\]/u
+const DATE_LINE = /^(SCHEDULED|DEADLINE): <(\d{4})-(\d{2})-(\d{2})/gmu
+const WIKI = /\[\[([^\]]+)\]\]/gu
+const TAG = /(?:^|\s)#(?!\[\[|\+)([^\s#,[\]()]+)|#\[\[([^\]]+)\]\]/gu
+const CODE = /`[^`\n]*`/gu
+const FENCE = /^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]*\1[ \t]*$|(?![\s\S]))/gmu
+const TAG_TRAILER = /[.:]+$/u
 
 const wikiNames = (text: string) =>
   [...text.matchAll(WIKI)].map((m) => normalizePageName(m[1] ?? ""))
@@ -70,8 +70,8 @@ const listItem = (part: string) =>
   normalizePageName(
     part
       .trim()
-      .replace(/^\[\[(.*)\]\]$/, "$1")
-      .replace(/^#/, ""),
+      .replace(/^\[\[(.*)\]\]$/u, "$1")
+      .replace(/^#/u, ""),
   )
 
 const propValues = (key: string, raw: string, config: PropertyConfig): readonly string[] => {
@@ -104,7 +104,7 @@ const linkedProps = (props: Props, config: PropertyConfig): readonly string[] =>
       return []
     }
 
-    return config.listKeys.has(key) || /\[\[|#/.test(raw) ? propValues(key, raw, config) : []
+    return config.listKeys.has(key) || /\[\[|#/u.test(raw) ? propValues(key, raw, config) : []
   })
 
 const taskOf = (text: string): Task | null => {

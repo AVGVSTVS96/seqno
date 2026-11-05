@@ -93,8 +93,8 @@ for (const name of ["og-syntax-mix", "org-and-front-matter", "whiteboards", "sho
     const added = Object.keys(after).filter(
       (path) =>
         !(path in before) &&
-        /^(journals|pages|whiteboards)\//.test(path) &&
-        !/^journals\/\d{4}_\d{2}_\d{2}\.md$/.test(path),
+        /^(journals|pages|whiteboards)\//u.test(path) &&
+        !/^journals\/\d{4}_\d{2}_\d{2}\.md$/u.test(path),
     )
 
     expect({ changed, added }).toEqual({ changed: [], added: [] })
@@ -125,8 +125,8 @@ test("a ref typed to a block on another page writes that block's id:: into its f
   await page.keyboard.press("Escape")
   await expect
     .poll(async () => await textOf(page, "pages/tasks.md"))
-    .toMatch(/\n- I recorded a \[\[voice note\]\]\.\n {2}id:: [0-9a-f-]{36}\n\t- TODO\n/)
-  const id = /id:: ([0-9a-f-]{36})/.exec((await textOf(page, "pages/tasks.md")) ?? "")?.[1]
+    .toMatch(/\n- I recorded a \[\[voice note\]\]\.\n {2}id:: [0-9a-f-]{36}\n\t- TODO\n/u)
+  const id = /id:: ([0-9a-f-]{36})/u.exec((await textOf(page, "pages/tasks.md")) ?? "")?.[1]
   await expect.poll(async () => await textOf(page, journal)).toContain(`((${id}))`)
 })
 
@@ -148,7 +148,7 @@ test("a rename moves the old file to logseq/.recycle and writes the new one", as
 })
 
 const uuidsIn = (text: string) =>
-  [...text.matchAll(/:block\/uuid #uuid "([0-9a-f-]{36})"/g)].map((match) => match[1]).toSorted()
+  [...text.matchAll(/:block\/uuid #uuid "([0-9a-f-]{36})"/gu)].map((match) => match[1]).toSorted()
 
 test("moving a whiteboard shape rewrites the board's file, which reads back with the same ids", async ({
   page,
@@ -242,7 +242,7 @@ test("another device's edit reaches the file once this device merges it", async 
   const copy = testInfo.outputPath("phone")
 
   for (const [path, bytes] of Object.entries(await opfsFiles(page, ogFolder))) {
-    if (!/^(updates|snapshots|seen)\//.test(path)) {
+    if (!/^(updates|snapshots|seen)\//u.test(path)) {
       continue
     }
 
@@ -258,7 +258,7 @@ test("another device's edit reaches the file once this device merges it", async 
   ])
   await expect
     .poll(async () => await textOf(page, "pages/tasks.md"), { timeout: 20_000 })
-    .toMatch(/^- TODO \(phone\)\n- DONE\n/)
+    .toMatch(/^- TODO \(phone\)\n- DONE\n/u)
 })
 
 const logseqDesktopWrites = async (
@@ -339,7 +339,7 @@ test("Logseq desktop's half-written save of an edit, an add and a delete comes i
   expect(await day.textContent()).toContain("time-tracked task")
 
   const merged = [
-    /^journal links to/,
+    /^journal links to/u,
     "journal uses a namespaced tag #project/Alpha, edited in Logseq",
     "added in Logseq",
   ]
@@ -384,7 +384,7 @@ test("Logseq desktop's half-written save merges in once, next to an edit typed i
 
   await expect.poll(async () => await textOf(page, journal), { timeout: 15_000 }).toBe(merged)
   await expect(day.getByRole("treeitem")).toHaveText([
-    /journal links to .* \(typed in seqno\)$/,
+    /journal links to .* \(typed in seqno\)$/u,
     "journal uses a namespaced tag #project/Alpha, edited in Logseq",
     "added in Logseq",
   ])

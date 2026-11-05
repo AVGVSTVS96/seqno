@@ -109,7 +109,7 @@ const pluginKeys = (command: PluginCommand): ReadonlyArray<readonly string[]> =>
   const combos = onMac && binding.mac.length > 0 ? binding.mac : binding.binding
 
   return combos.map((combo) => {
-    const steps = combo.trim().split(/\s+/)
+    const steps = combo.trim().split(/\s+/u)
 
     return steps.every((step) => !step.includes("+"))
       ? steps

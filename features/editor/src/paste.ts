@@ -30,7 +30,7 @@ const insert = (
       ]
 }
 
-const url = /^[a-z][a-z\d+.-]*:\/\/\S+$/i
+const url = /^[a-z][a-z\d+.-]*:\/\/\S+$/iu
 
 const asText = (block: PastedBlock) => joinProperties(block.text, Object.entries(block.props))
 

@@ -85,7 +85,7 @@ export const toOutline = (document: Document): Outline => {
     const children = node.children.map(toBlock)
 
     if (node.bare === true) {
-      const lines = [first, ...rest.map((line) => line.replace(/^[ \t]{1,2}/, ""))]
+      const lines = [first, ...rest.map((line) => line.replace(/^[ \t]{1,2}/u, ""))]
 
       return { text: lines.map(unCr).join("\n"), children, bare: true }
     }

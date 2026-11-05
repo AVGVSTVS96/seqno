@@ -79,7 +79,7 @@ test("Journals calendar's toolbar button opens its calendar, and a day opens tha
   await install(page, "Journals calendar")
   await page.locator("#open-calendar-button").click()
   const calendar = page.locator("#logseq-journals-calendar_lsp_main")
-  await expect(calendar).toHaveClass(/visible/)
+  await expect(calendar).toHaveClass(/visible/u)
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   await page
@@ -87,8 +87,8 @@ test("Journals calendar's toolbar button opens its calendar, and a day opens tha
     .locator(`.id-${iso(yesterday)} .vc-day-content`)
     .click()
   await expect(page.getByRole("heading", { name: journalTitle(yesterday), level: 1 })).toBeVisible()
-  await expect(page).toHaveURL(/\/page\//)
-  await expect(calendar).not.toHaveClass(/visible/)
+  await expect(page).toHaveURL(/\/page\//u)
+  await expect(calendar).not.toHaveClass(/visible/u)
 })
 
 test("the puzzle menu lists every plugin's toolbar item with a pin: pinned ones stay in the header, the rest move into the menu", async ({
@@ -144,7 +144,7 @@ test("Word count's slash command puts a live count in the block, which follows e
   await expect(seqno.editor).toHaveText("")
   await page.keyboard.type("Beds /word")
   await page.getByRole("option", { name: "Word count" }).click()
-  await expect(seqno.editor).toHaveText(/^Beds \{\{renderer :wordcount_[0-9a-f-]+\}\}$/)
+  await expect(seqno.editor).toHaveText(/^Beds \{\{renderer :wordcount_[0-9a-f-]+\}\}$/u)
   await page.keyboard.press("Enter")
   await page.keyboard.press("Tab")
   await page.keyboard.type("one two three")
@@ -208,7 +208,7 @@ test("Markdown Table Editor opens from the block menu and writes the table back"
   await expect(editor.getByRole("textbox")).toBeFocused()
   await page.keyboard.type("pear")
   await editor.getByRole("button", { name: "Confirm" }).click()
-  await expect(page.locator("#logseq-markdown-table_lsp_main")).not.toHaveClass(/visible/)
+  await expect(page.locator("#logseq-markdown-table_lsp_main")).not.toHaveClass(/visible/u)
   await expect(seqno.today.getByRole("treeitem").filter({ hasText: "pear" })).toHaveCount(1)
   await expect(seqno.today.getByRole("treeitem").filter({ hasText: "apple" })).toHaveCount(0)
 })
@@ -258,14 +258,14 @@ test("Markmap opens from the command palette and from its own keys, and draws th
   ])
   await page.keyboard.press("Enter")
   const markmap = page.locator("#logseq-mark-map_lsp_main")
-  await expect(markmap).toHaveClass(/visible/)
+  await expect(markmap).toHaveClass(/visible/u)
   const drawn = page.frameLocator("#logseq-mark-map_iframe").locator("svg")
   await expect(drawn.getByText("Loose thoughts go here", { exact: false })).toBeVisible()
   await page.keyboard.press("Escape")
-  await expect(markmap).not.toHaveClass(/visible/)
+  await expect(markmap).not.toHaveClass(/visible/u)
   await page.keyboard.press("Control+m")
   await page.keyboard.press("Control+m")
-  await expect(markmap).toHaveClass(/visible/)
+  await expect(markmap).toHaveClass(/visible/u)
 })
 
 test("Merge Pages adds its item to the page menu, and merging moves a page's blocks into another", async ({
@@ -286,7 +286,7 @@ test("Merge Pages adds its item to the page menu, and merging moves a page's blo
   await search.pressSequentially("basil")
   await search.press("ArrowRight")
   await picker.getByText("BASIL", { exact: true }).click()
-  await expect(page).toHaveURL(/\/page\/basil$/)
+  await expect(page).toHaveURL(/\/page\/basil$/u)
   await expect(
     page.getByRole("treeitem").filter({ hasText: "Loose thoughts go here" }),
   ).toHaveCount(1)
@@ -302,18 +302,18 @@ test("a marketplace theme restyles seqno through Logseq's variables, and the def
 }) => {
   await seqno.openDemoGraph()
   const font = async () => await page.evaluate(() => getComputedStyle(document.body).fontFamily)
-  await expect.poll(font).toMatch(/^"Inter Variable"/)
+  await expect.poll(font).toMatch(/^"Inter Variable"/u)
   await install(page, "Dev theme", "Themes")
   const dialog = await openPlugins(page)
-  await dialog.getByRole("radio", { name: /^Themes/ }).click()
+  await dialog.getByRole("radio", { name: /^Themes/u }).click()
   await dialog.getByRole("radio", { name: "Dev theme", exact: true }).click()
-  await expect.poll(font).not.toMatch(/^"Inter Variable"/)
+  await expect.poll(font).not.toMatch(/^"Inter Variable"/u)
   await page.reload()
-  await expect.poll(font).not.toMatch(/^"Inter Variable"/)
+  await expect.poll(font).not.toMatch(/^"Inter Variable"/u)
   const again = await openPlugins(page)
-  await again.getByRole("radio", { name: /^Themes/ }).click()
+  await again.getByRole("radio", { name: /^Themes/u }).click()
   await again.getByRole("radio", { name: "Logseq default theme" }).click()
-  await expect.poll(font).toMatch(/^"Inter Variable"/)
+  await expect.poll(font).toMatch(/^"Inter Variable"/u)
 })
 
 test("installed plugins load again after a reload, and turning one off or uninstalling removes its UI", async ({
@@ -356,7 +356,7 @@ test("installed plugins and themes keep working offline, with a theme's own font
   await install(page, "Catppuccin", "Themes")
   await install(page, "Dev theme", "Themes")
   const dialog = await openPlugins(page)
-  await dialog.getByRole("radio", { name: /^Themes/ }).click()
+  await dialog.getByRole("radio", { name: /^Themes/u }).click()
   await dialog.getByRole("radio", { name: "Dev theme", exact: true }).click()
   await page.keyboard.press("Escape")
   await context.unrouteAll()
@@ -366,7 +366,7 @@ test("installed plugins and themes keep working offline, with a theme's own font
   await context.setOffline(true)
   await page.reload()
   const font = async () => await page.evaluate(() => getComputedStyle(document.body).fontFamily)
-  await expect.poll(font).toMatch(/^"Only Emoji", "Source Sans 3 VF"/)
+  await expect.poll(font).toMatch(/^"Only Emoji", "Source Sans 3 VF"/u)
 
   const themeFont = async () =>
     await page.evaluate(async () => (await document.fonts.load('16px "Source Sans 3 VF"')).length)
@@ -375,7 +375,7 @@ test("installed plugins and themes keep working offline, with a theme's own font
 
   const catppuccinSdk = () =>
     page
-      .frame({ url: /\/lsp\/catppuccin\/logseq\// })
+      .frame({ url: /\/lsp\/catppuccin\/logseq\//u })
       ?.evaluate(() => typeof Reflect.get(window, "logseq"))
 
   await expect.poll(catppuccinSdk).toBe("object")
@@ -387,7 +387,7 @@ test("installed plugins and themes keep working offline, with a theme's own font
     .locator(`.id-${iso(yesterday)} .vc-day-content`)
     .click()
   await expect(page.getByRole("heading", { name: journalTitle(yesterday), level: 1 })).toBeVisible()
-  await expect(page).toHaveURL(/\/page\//)
+  await expect(page).toHaveURL(/\/page\//u)
   await page.goBack()
   await seqno.today.getByRole("treeitem").filter({ hasText: "Rain all morning" }).click()
   await page.keyboard.press("End")
@@ -395,7 +395,7 @@ test("installed plugins and themes keep working offline, with a theme's own font
   await expect(seqno.editor).toHaveText("")
   await page.keyboard.type("Beds /word")
   await page.getByRole("option", { name: "Word count" }).click()
-  await expect(seqno.editor).toHaveText(/^Beds \{\{renderer :wordcount_[0-9a-f-]+\}\}$/)
+  await expect(seqno.editor).toHaveText(/^Beds \{\{renderer :wordcount_[0-9a-f-]+\}\}$/u)
   await page.keyboard.press("Enter")
   await page.keyboard.press("Tab")
   await page.keyboard.type("one two three")
@@ -423,7 +423,7 @@ const countPluginWrites = async (context: BrowserContext) =>
     addEventListener("message", (event: MessageEvent<unknown>) => {
       const call = Reflect.get(Object(Reflect.get(Object(event.data), "value")), "data")
       const method = String(Reflect.get(Object(Reflect.get(Object(call), "payload")), "method"))
-      const name = method.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+      const name = method.replaceAll(/[A-Z]/gu, (letter) => `_${letter.toLowerCase()}`)
 
       if (Reflect.get(Object(call), "type") === "api:call" && methods.includes(name)) {
         writes.push(name)
@@ -450,7 +450,7 @@ const doneTime = (tab: Page, text: string) =>
   todayOn(tab)
     .getByRole("treeitem")
     .filter({ hasText: text })
-    .getByText(/^done-ms/)
+    .getByText(/^done-ms/u)
 
 const pluginWrites = (page: Page) => async () =>
   await page.evaluate(() => Reflect.get(window, "pluginWrites"))
@@ -481,5 +481,5 @@ test("with two tabs open, a plugin that writes on every change writes once per c
   expect(await pluginWrites(other)()).toEqual(["upsert_block_property"])
 
   await other.locator("#open-calendar-button").click()
-  await expect(other.locator("#logseq-journals-calendar_lsp_main")).toHaveClass(/visible/)
+  await expect(other.locator("#logseq-journals-calendar_lsp_main")).toHaveClass(/visible/u)
 })

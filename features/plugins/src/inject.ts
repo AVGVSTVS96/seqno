@@ -32,7 +32,7 @@ export const sanitizeHtml = (template: string) =>
   })
 
 const kebab = (key: string) =>
-  key.startsWith("--") ? key : key.replaceAll(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)
+  key.startsWith("--") ? key : key.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`)
 
 export const applyStyle = (element: HTMLElement, style: Readonly<Record<string, unknown>>) => {
   for (const [key, value] of Object.entries(style)) {

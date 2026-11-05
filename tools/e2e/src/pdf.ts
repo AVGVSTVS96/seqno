@@ -1,4 +1,4 @@
-const escaped = (text: string) => text.replaceAll(/[\\()]/g, (char) => `\\${char}`)
+const escaped = (text: string) => text.replaceAll(/[\\()]/gu, (char) => `\\${char}`)
 
 export const pdfWithPages = (pages: ReadonlyArray<readonly string[]>): Buffer => {
   const objects: string[] = []

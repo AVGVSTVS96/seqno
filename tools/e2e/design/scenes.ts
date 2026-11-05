@@ -220,7 +220,7 @@ export const scenes: readonly Scene[] = [
       await seqno.openSeqno(page, "/")
       await step("Shift-click on the Garden Plan ref", async () => {
         await page
-          .getByRole("link", { name: /Garden Plan/ })
+          .getByRole("link", { name: /Garden Plan/u })
           .first()
           .click({ modifiers: ["Shift"] })
       })

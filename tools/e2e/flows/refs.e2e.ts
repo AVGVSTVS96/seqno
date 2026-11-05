@@ -24,9 +24,9 @@ test("refs and embeds of blocks on another page that carry a Logseq id:: show th
 }) => {
   const source = await openPage(page, "a source")
   await expect(source.getByRole("treeitem")).toHaveText([
-    /^forward ref to a later file forward target top level/,
+    /^forward ref to a later file forward target top level/u,
     "nested forward ref forward target nested",
-    /^ref inside a property value/,
+    /^ref inside a property value/u,
   ])
   await expect(source.locator(".is-missing")).toHaveCount(0)
   const journal = page.getByRole("article", { name: "Jan 1st, 2025", exact: true })

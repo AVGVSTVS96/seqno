@@ -148,7 +148,7 @@ const pagePropertiesOf = (
   return kept.length === 0 ? null : kept
 }
 
-const HEADING = /^(#+)[ \t]/
+const HEADING = /^(#+)[ \t]/u
 
 type Format = "markdown" | "org"
 
@@ -377,8 +377,8 @@ const uidOf = (uuid: string) => {
   return uid
 }
 
-const TODO = /^(NOW|LATER|TODO|DOING|WAITING|WAIT|CANCELED|CANCELLED|STARTED|IN-PROGRESS)/
-const UUIDS = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
+const TODO = /^(NOW|LATER|TODO|DOING|WAITING|WAIT|CANCELED|CANCELLED|STARTED|IN-PROGRESS)/u
+const UUIDS = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu
 
 interface RoamBlock {
   readonly string: string
@@ -397,7 +397,7 @@ const linkedNames = (pages: readonly ExportedPage[]): ReadonlySet<string> => {
       } else if (node._tag === "Link" && node.target._tag === "Page") {
         add(node.target.name)
       } else if (node._tag === "Macro" && node.name === "embed") {
-        const page = /^\s*\[\[(.+)\]\]\s*$/.exec(node.args)?.[1]
+        const page = /^\s*\[\[(.+)\]\]\s*$/u.exec(node.args)?.[1]
 
         if (page !== undefined) {
           add(page)
@@ -436,7 +436,7 @@ export const roamJsonOf = (pages: readonly ExportedPage[], referenced: ReadonlyS
         referenced.has(uuid.toLowerCase()) ? uidOf(uuid.toLowerCase()) : uuid,
       )
       .replace(TODO, "{{[[TODO]]}}")
-      .replace(/^DONE/, "{{[[DONE]]}}")
+      .replace(/^DONE/u, "{{[[DONE]]}}")
       .replaceAll("{{embed ", "{{embed: ")
       .trim()
 

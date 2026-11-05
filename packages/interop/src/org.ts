@@ -1,11 +1,11 @@
 import type { Props } from "@seqno/domain"
 import type { Outline, OutlineBlock } from "./outline.ts"
 
-const HEADING = /^(\*+)(?: (.*))?$/
-const DIRECTIVE = /^#\+([^:\s][^:]*):(.*)$/
-const DRAWER_LINE = /^:([^:\s]+):(.*)$/
-const PLANNING = /^\s*(SCHEDULED|DEADLINE):/
-const BEGIN = /^\s*#\+BEGIN_(\S+)/i
+const HEADING = /^(\*+)(?: (.*))?$/u
+const DIRECTIVE = /^#\+([^:\s][^:]*):(.*)$/u
+const DRAWER_LINE = /^:([^:\s]+):(.*)$/u
+const PLANNING = /^\s*(SCHEDULED|DEADLINE):/u
+const BEGIN = /^\s*#\+BEGIN_(\S+)/iu
 
 interface Open {
   readonly level: number

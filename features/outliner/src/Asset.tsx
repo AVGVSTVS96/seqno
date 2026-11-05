@@ -11,7 +11,7 @@ const stop = (event: { stopPropagation: () => void }) => {
   event.stopPropagation()
 }
 
-const remoteUrl = /^(?:https?:|blob:)/i
+const remoteUrl = /^(?:https?:|blob:)/iu
 
 const fileName = (url: string) => {
   const last = url.split("/").at(-1) ?? url

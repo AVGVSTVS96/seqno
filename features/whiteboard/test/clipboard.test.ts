@@ -49,7 +49,7 @@ describe("clipboard", () => {
 
     const html = clipboardHtml(copied)
     const inner = decodeURIComponent(html)
-    assert.match(inner, /^<whiteboard-tldr>.*<\/whiteboard-tldr>$/)
+    assert.match(inner, /^<whiteboard-tldr>.*<\/whiteboard-tldr>$/u)
     assert.include(inner, '"label":"Plan"')
     assert.include(inner, '"blockType":"P","pageId":"Harvest log"')
 
@@ -113,7 +113,7 @@ describe("clipboard", () => {
   it("makes UUIDv7 ids that sort by time", () => {
     const early = freshId(1_700_000_000_000)
     const late = freshId(1_700_000_000_001)
-    assert.match(early, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    assert.match(early, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u)
     assert.isTrue(early < late)
   })
 })

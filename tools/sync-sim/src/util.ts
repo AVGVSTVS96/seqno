@@ -20,4 +20,4 @@ export const splitPath = (path: string): readonly [dir: string, name: string] =>
   return [path.slice(0, slash), path.slice(slash + 1)]
 }
 
-export const stubTarget = (name: string): string | undefined => /^\.(.+)\.icloud$/.exec(name)?.[1]
+export const stubTarget = (name: string): string | undefined => /^\.(.+)\.icloud$/u.exec(name)?.[1]

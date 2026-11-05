@@ -8,7 +8,7 @@ const mirror = "https://pub-80f42b85b62c40219354a834fcf2bbfa.r2.dev"
 
 const source = new URL("sw/sw.ts", import.meta.url).pathname
 
-const precached = (file: string) => !/\.(?:map|ttf|woff)$/.test(file)
+const precached = (file: string) => !/\.(?:map|ttf|woff)$/u.test(file)
 
 const filesIn = async (folder: string) =>
   (await readdir(folder, { recursive: true, withFileTypes: true }).catch(() => []))

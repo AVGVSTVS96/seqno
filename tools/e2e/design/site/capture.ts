@@ -231,7 +231,7 @@ async function crop(name: string, clip: { x: number; y: number; width: number; h
 async function links() {
   await openSeqno(page, "/")
   await page
-    .getByRole("link", { name: /Garden Plan/ })
+    .getByRole("link", { name: /Garden Plan/u })
     .first()
     .click({ modifiers: ["Shift"] })
   await page.getByRole("complementary", { name: "Right sidebar" }).waitFor()

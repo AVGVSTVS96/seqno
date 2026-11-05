@@ -17,7 +17,7 @@ const pairs: Readonly<Record<string, string>> = {
 const onlyAroundSelection = new Set(["*", "^", "_", "=", "+", "/"])
 const closers = new Set(Object.values(pairs))
 
-const opensParen = (before: string) => before === "" || /[\s\](]/.test(before)
+const opensParen = (before: string) => before === "" || /[\s\](]/u.test(before)
 
 export const autopair = EditorView.inputHandler.of((view, from, to, text) => {
   if (text.length !== 1 || view.composing) {

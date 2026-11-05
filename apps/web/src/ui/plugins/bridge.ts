@@ -22,7 +22,7 @@ import { notify } from "../shell/Notices.tsx"
 const blockIdOf = Schema.decodeUnknownOption(BlockId)
 
 export const routeOf = (path: string): Route => {
-  const page = /^\/page\/([^/?#]+)/.exec(path)
+  const page = /^\/page\/([^/?#]+)/u.exec(path)
 
   if (path === "/" || path === "") {
     return { _tag: "Journals" }
@@ -48,7 +48,7 @@ export const makeBridge = (
   router: typeof appRouter,
 ): Bridge => {
   const path = () => {
-    const base = import.meta.env.BASE_URL.replace(/\/$/, "")
+    const base = import.meta.env.BASE_URL.replace(/\/$/u, "")
     const full = router.state.location.pathname
 
     return full.startsWith(base) ? full.slice(base.length) || "/" : full

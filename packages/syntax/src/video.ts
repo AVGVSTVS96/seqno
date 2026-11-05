@@ -4,17 +4,17 @@ export type Video =
   | { readonly _tag: "File"; readonly url: string }
 
 const YOUTUBE =
-  /^(?:(?:https?:)?\/\/)?(?:(?:www|m|music)\.)?(?:youtube\.com\/(?:watch\?(?:[^#\s]*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/|youtube-nocookie\.com\/embed\/)([\w-]{11})(?![\w-])/i
+  /^(?:(?:https?:)?\/\/)?(?:(?:www|m|music)\.)?(?:youtube\.com\/(?:watch\?(?:[^#\s]*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/|youtube-nocookie\.com\/embed\/)([\w-]{11})(?![\w-])/iu
 
-const YOUTUBE_START = /[?&#](?:t|start)=([\dhms]+)/i
+const YOUTUBE_START = /[?&#](?:t|start)=([\dhms]+)/iu
 
 const VIMEO =
-  /^(?:(?:https?:)?\/\/)?(?:www\.|player\.)?vimeo\.com\/(?:video\/|channels\/[\w-]+\/|groups\/[\w-]+\/videos\/)?(\d+)(?:\/([\da-f]+))?(?![\w-])/i
+  /^(?:(?:https?:)?\/\/)?(?:www\.|player\.)?vimeo\.com\/(?:video\/|channels\/[\w-]+\/|groups\/[\w-]+\/videos\/)?(\d+)(?:\/([\da-f]+))?(?![\w-])/iu
 
-const VIMEO_HASH = /[?&]h=([\da-f]+)/i
-const FILE = /^[^\s?#]+\.(?:mp4|m4v|webm|ogv|mov)(?:[?#]\S*)?$/i
-const CLOCK = /^(?:(\d+):)?([0-5]?\d):([0-5]?\d)$/
-const DURATION = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/i
+const VIMEO_HASH = /[?&]h=([\da-f]+)/iu
+const FILE = /^[^\s?#]+\.(?:mp4|m4v|webm|ogv|mov)(?:[?#]\S*)?$/iu
+const CLOCK = /^(?:(\d+):)?([0-5]?\d):([0-5]?\d)$/u
+const DURATION = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/iu
 
 const durationSeconds = (text: string): number => {
   const [, hours = "0", minutes = "0", seconds = "0"] = DURATION.exec(text) ?? []
@@ -23,7 +23,7 @@ const durationSeconds = (text: string): number => {
 }
 
 export const parseVideo = (args: string): Video | null => {
-  const url = args.trim().split(/\s+/)[0] ?? ""
+  const url = args.trim().split(/\s+/u)[0] ?? ""
   const youtube = YOUTUBE.exec(url)
 
   if (youtube !== null) {
@@ -52,7 +52,7 @@ export const parseVideo = (args: string): Video | null => {
 export const parseTimestamp = (args: string): number | null => {
   const text = args.trim()
 
-  if (/^\d+$/.test(text)) {
+  if (/^\d+$/u.test(text)) {
     return Number(text)
   }
 

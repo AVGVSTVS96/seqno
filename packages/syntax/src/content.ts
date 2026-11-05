@@ -91,17 +91,17 @@ const HIDDEN_KEYS = new Set([
   "ls-type",
 ])
 
-const QUOTE = /^[ \t]*>[ \t]?/
-const PLANNING = /(SCHEDULED|DEADLINE): <([^>\n]*)>/g
-const CLOCK_DURATION = /=>\s*(\d+):(\d{2})(?::(\d{2}))?\s*$/
-const FENCE_INFO = /^[ \t]*(?:`{3,}|~{3,})[ \t]*([^\s`]*)/
+const QUOTE = /^[ \t]*>[ \t]?/u
+const PLANNING = /(SCHEDULED|DEADLINE): <([^>\n]*)>/gu
+const CLOCK_DURATION = /=>\s*(\d+):(\d{2})(?::(\d{2}))?\s*$/u
+const FENCE_INFO = /^[ \t]*(?:`{3,}|~{3,})[ \t]*([^\s`]*)/u
 
-const LEADING_PRIORITY = /^\[#([ABC])\][ \t]*/
+const LEADING_PRIORITY = /^\[#([ABC])\][ \t]*/u
 
-const ORG_HEADING_TAGS = /[ \t]+:(?:[^\s:]+:)+[ \t]*$/
-const EXPORT_LANGUAGE = /^[ \t]*#\+BEGIN_EXPORT[ \t]+(\S+)/i
-const OPENS_MATH = /\\[[(]/
-const ORG_HIDDEN = /^[ \t]*(?:#\+(?!BEGIN_|END_)\S*:|#(?:[ \t]|$))/i
+const ORG_HEADING_TAGS = /[ \t]+:(?:[^\s:]+:)+[ \t]*$/u
+const EXPORT_LANGUAGE = /^[ \t]*#\+BEGIN_EXPORT[ \t]+(\S+)/iu
+const OPENS_MATH = /\\[[(]/u
+const ORG_HIDDEN = /^[ \t]*(?:#\+(?!BEGIN_|END_)\S*:|#(?:[ \t]|$))/iu
 
 const titleOf = (line: string, start: number, dialect: Dialect): readonly Inline[] => {
   const own = dialect === "org" ? line.replace(ORG_HEADING_TAGS, "") : line
@@ -325,7 +325,7 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
             region.kind === "Fence"
               ? (FENCE_INFO.exec(line.text)?.[1] ?? "")
               : region.name === "SRC"
-                ? (/BEGIN_SRC[ \t]+(\S+)/i.exec(line.text)?.[1] ?? "")
+                ? (/BEGIN_SRC[ \t]+(\S+)/iu.exec(line.text)?.[1] ?? "")
                 : "",
           code: inner.map((entry) => entry.text).join("\n"),
           codeFrom: inner[0]?.from ?? line.from + line.text.length + 1,
@@ -460,7 +460,7 @@ export const setMarker = (text: string, marker: Marker | null): TextEdit | null 
     return { from: 0, to: current.length, insert: marker }
   }
 
-  const spaces = /^[ \t]*/.exec(line.slice(current.length))?.[0].length ?? 0
+  const spaces = /^[ \t]*/u.exec(line.slice(current.length))?.[0].length ?? 0
 
   return { from: 0, to: current.length + spaces, insert: "" }
 }

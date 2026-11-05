@@ -57,14 +57,14 @@ test("Export page writes text, OPML and HTML with Logseq's options", async ({ pa
   )
   await dialog.getByRole("button", { name: "OPML" }).click()
   await expect(dialog.getByRole("combobox", { name: "Indentation style:" })).toHaveCount(0)
-  await expect(text).toHaveValue(/<title>garden plan<\/title>/)
-  await expect(text).toHaveValue(/<outline text="Seed orders go on the Seed Inventory page\."\/>/)
+  await expect(text).toHaveValue(/<title>garden plan<\/title>/u)
+  await expect(text).toHaveValue(/<outline text="Seed orders go on the Seed Inventory page\."\/>/u)
   await dialog.getByRole("combobox", { name: "level <=" }).selectOption("all")
   await dialog.getByRole("checkbox", { name: "[[text]] -> text" }).uncheck()
   await dialog.getByRole("button", { name: "HTML" }).click()
-  await expect(text).toHaveValue(/^<ul>\n {2}<li>Beds run north/)
+  await expect(text).toHaveValue(/^<ul>\n {2}<li>Beds run north/u)
   await expect(text).toHaveValue(
-    /<li>Tomatoes and peppers move into <a>\[\[projects\/Greenhouse\]\]<\/a><\/li>/,
+    /<li>Tomatoes and peppers move into <a>\[\[projects\/Greenhouse\]\]<\/a><\/li>/u,
   )
   const download = page.waitForEvent("download")
   await dialog.getByRole("button", { name: "Save to file" }).click()
@@ -104,7 +104,7 @@ test("Copy / Export as exports the chosen block with its children", async ({ pag
   const winter = page
     .getByRole("main")
     .getByRole("treeitem")
-    .filter({ hasText: /^Winter/ })
+    .filter({ hasText: /^Winter/u })
     .first()
 
   await winter.getByRole("button", { name: "Zoom into block" }).first().click({ button: "right" })
@@ -141,19 +141,19 @@ test("Export graph downloads EDN, JSON and a markdown zip", async ({ page }) => 
   }
 
   const edn = await choose("Export as EDN")
-  expect(edn.suggestedFilename()).toMatch(/^demo_\d+\.edn$/)
+  expect(edn.suggestedFilename()).toMatch(/^demo_\d+\.edn$/u)
   const ednText = (await saved(edn)).toString()
   expect(ednText.startsWith("{:version 1,\n :blocks\n ({:block/id #uuid ")).toBe(true)
   expect(ednText).toContain(':block/page-name "Garden Plan",')
   expect(ednText).toContain(':block/content "Broad beans under fleece"}')
   await page.keyboard.press("Escape")
   const json = await choose("Export as JSON")
-  expect(json.suggestedFilename()).toMatch(/^demo_\d+\.json$/)
+  expect(json.suggestedFilename()).toMatch(/^demo_\d+\.json$/u)
   const parsed: unknown = JSON.parse((await saved(json)).toString())
   expect(parsed).toMatchObject({ version: 1 })
   await page.keyboard.press("Escape")
   const zip = await choose("Export as standard Markdown (no block properties)")
-  expect(zip.suggestedFilename()).toMatch(/^demo_markdown_\d+\.zip$/)
+  expect(zip.suggestedFilename()).toMatch(/^demo_markdown_\d+\.zip$/u)
   const bytes = await saved(zip)
   expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04])
   expect(bytes.toString("latin1")).toContain("pages/Garden Plan.md")

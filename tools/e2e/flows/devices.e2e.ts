@@ -92,7 +92,7 @@ const logCopy = async (page: Page, copy: string) => {
   const files = await opfsFiles(page, folder)
 
   for (const [path, bytes] of Object.entries(files)) {
-    if (!/^(updates|snapshots|seen)\//.test(path)) {
+    if (!/^(updates|snapshots|seen)\//u.test(path)) {
       continue
     }
 
@@ -156,7 +156,7 @@ test("a block you move stays where you put it when your phone deleted it before 
     const files = await opfsFiles(page, folder)
 
     for (const [path, bytes] of Object.entries(files)) {
-      if (!/^(updates|snapshots|seen)\//.test(path)) {
+      if (!/^(updates|snapshots|seen)\//u.test(path)) {
         continue
       }
 

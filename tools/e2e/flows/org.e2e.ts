@@ -80,7 +80,7 @@ test("editing an Org block shows its drawer, and the edit survives a reload", as
 
 test("an Org block's page link shows in that page's linked references", async ({ page }) => {
   const plan = await open(page, "Garden Plan")
-  const references = page.getByRole("region", { name: /Linked references/ })
+  const references = page.getByRole("region", { name: /Linked references/u })
   await expect(references.getByText("see the garden plan and #scifi")).toBeVisible()
   await expect(plan.getByRole("treeitem").first()).toContainText("Read Field Notes")
 })

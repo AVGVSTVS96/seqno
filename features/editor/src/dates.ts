@@ -23,7 +23,7 @@ const months = Array.from({ length: 12 }, (_, month) =>
 )
 
 export const journalDate = (title: string) => {
-  const [, month = "", day = "", year = ""] = /^(\w{3}) (\d{1,2})\w{2}, (\d{4})$/.exec(title) ?? []
+  const [, month = "", day = "", year = ""] = /^(\w{3}) (\d{1,2})\w{2}, (\d{4})$/u.exec(title) ?? []
   const date = new Date(Number(year), months.indexOf(month.toLowerCase()), Number(day))
 
   return journalTitle(date).toLowerCase() === title.toLowerCase() ? date : null

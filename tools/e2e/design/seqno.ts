@@ -86,7 +86,7 @@ export const scrollToText = async (
       while (
         scroller !== null &&
         !(
-          /auto|scroll/.test(getComputedStyle(scroller).overflowY) &&
+          /auto|scroll/u.test(getComputedStyle(scroller).overflowY) &&
           scroller.scrollHeight > scroller.clientHeight
         )
       ) {

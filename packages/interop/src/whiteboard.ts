@@ -422,7 +422,7 @@ const timeFields = (props: Props): ReadonlyArray<readonly [string, Edn]> =>
   TIMES.flatMap(([field, key]) => {
     const value = props[key]
 
-    return value !== undefined && /^\d+$/.test(value) ? [[field, Number(value)] as const] : []
+    return value !== undefined && /^\d+$/u.test(value) ? [[field, Number(value)] as const] : []
   })
 
 const byName = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
@@ -435,7 +435,7 @@ const PULLED_ARRAY_MAP = 6
 const ref = (id: string): Edn => map([["block/uuid", uuid(id)]])
 
 const VALID_KEY = /^[^\s"|^(){}#,][^\s"|^(){},]*$/u
-const HEADING = /^(#{1,6})[ \t]/
+const HEADING = /^(#{1,6})[ \t]/u
 const PAGE_OWN = new Set([TYPE_KEY, TLDRAW_PAGE, "id", FIELDS, CREATED, UPDATED])
 
 const typedValue = (key: string, raw: string): Edn => {

@@ -121,7 +121,7 @@ describe("files that are not downloaded yet", () => {
   )
 })
 
-const tokens = (text: string) => text.match(/[a-c]\d+/g)?.toSorted() ?? []
+const tokens = (text: string) => text.match(/[a-c]\d+/gu)?.toSorted() ?? []
 
 describe("delays and reordering", () => {
   for (const seed of [1, 2, 3, 4, 5]) {

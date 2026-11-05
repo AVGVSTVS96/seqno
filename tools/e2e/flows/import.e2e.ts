@@ -16,7 +16,7 @@ test("an imported journal renders", async ({ page }) => {
   await expect(journalOf(page).getByRole("treeitem")).toHaveText([
     "journal links to project/Alpha and Alpha Project",
     "journal uses a namespaced tag #project/Alpha",
-    /^time-tracked task/,
+    /^time-tracked task/u,
   ])
 })
 
@@ -24,7 +24,7 @@ test("a page link opens the page", async ({ page }) => {
   await journalOf(page).getByRole("link", { name: "project/Alpha" }).first().click()
   const alpha = page.getByRole("article", { name: "project/Alpha", exact: true })
   await expect(alpha).toBeVisible()
-  await expect(page).toHaveURL(/\/page\/project%2Falpha$/)
+  await expect(page).toHaveURL(/\/page\/project%2Falpha$/u)
 })
 
 test("an edit to an imported block survives a reload", async ({ page, seqno }) => {

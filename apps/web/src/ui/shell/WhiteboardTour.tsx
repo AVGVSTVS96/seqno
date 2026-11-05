@@ -21,7 +21,7 @@ export const useWhiteboardWelcome = (graph: string) => {
   const open = useAtomSet(welcomeOpen)
 
   return () => {
-    if (seen || isDemoGraph(graph) || /Mobi/.test(navigator.userAgent)) {
+    if (seen || isDemoGraph(graph) || /Mobi/u.test(navigator.userAgent)) {
       return
     }
 

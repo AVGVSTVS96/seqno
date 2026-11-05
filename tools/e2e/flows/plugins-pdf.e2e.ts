@@ -38,7 +38,7 @@ const selectLine = async (page: Page, line: Locator) => {
 
 test.beforeEach(async ({ context, page, seqno }) => {
   await serveMarketplace(context)
-  await context.route(/^https:\/\/translate\.googleapis\.com\//, async (route) => {
+  await context.route(/^https:\/\/translate\.googleapis\.com\//u, async (route) => {
     await route.fulfill({
       contentType: "application/json",
       headers: { "access-control-allow-origin": "*" },

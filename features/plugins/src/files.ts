@@ -10,15 +10,15 @@ export const local = (url: string) =>
   url.startsWith(mirror) ? `${localRoot()}${url.slice(mirror.length)}` : url
 
 const patterns = {
-  html: [/\s(?:src|href)\s*=\s*["']?([^"'\s>]+)/g],
-  css: [/url\(\s*["']?([^"')]+?)["']?\s*\)/g, /@import\s+["']([^"']+)["']/g],
+  html: [/\s(?:src|href)\s*=\s*["']?([^"'\s>]+)/gu],
+  css: [/url\(\s*["']?([^"')]+?)["']?\s*\)/gu, /@import\s+["']([^"']+)["']/gu],
   js: [
-    /(?:\bimport\s*\(\s*|\bfrom\s*|\bimport\s*|\bnew URL\(\s*)["'`]((?:\.{1,2}\/)[^"'`\s]+)["'`]/g,
+    /(?:\bimport\s*\(\s*|\bfrom\s*|\bimport\s*|\bnew URL\(\s*)["'`]((?:\.{1,2}\/)[^"'`\s]+)["'`]/gu,
   ],
 } as const
 
 const elsewhere = {
-  html: [/<script\b[^>]*?\ssrc\s*=\s*["']?([^"'\s>]+)/g],
+  html: [/<script\b[^>]*?\ssrc\s*=\s*["']?([^"'\s>]+)/gu],
   css: patterns.css,
   js: [],
 } as const
@@ -26,7 +26,7 @@ const elsewhere = {
 const kindOf = (url: string, type = "") => {
   const path = new URL(url).pathname
 
-  if (/\.html?$/.test(path) || type.startsWith("text/html")) {
+  if (/\.html?$/u.test(path) || type.startsWith("text/html")) {
     return "html"
   }
 
@@ -34,7 +34,7 @@ const kindOf = (url: string, type = "") => {
     return "css"
   }
 
-  if (/\.m?js$/.test(path) || type.includes("javascript")) {
+  if (/\.m?js$/u.test(path) || type.includes("javascript")) {
     return "js"
   }
 
@@ -59,7 +59,7 @@ const bare = (url: string) => {
 const matches = (url: string, body: string, found: readonly RegExp[]) =>
   found.flatMap((pattern) =>
     [...body.matchAll(pattern)].flatMap(([, match]) =>
-      match === undefined || /^(?:data|blob|javascript|mailto):/.test(match)
+      match === undefined || /^(?:data|blob|javascript|mailto):/u.test(match)
         ? []
         : [new URL(match, url).href],
     ),
@@ -71,7 +71,7 @@ export const referencesIn = (url: string, body: string, type = ""): readonly str
   return kind === null ? [] : matches(url, body, patterns[kind]).map(bare)
 }
 
-const fallbackFont = /\.(?:woff|ttf|otf|eot)(?:[?#]|$)/
+const fallbackFont = /\.(?:woff|ttf|otf|eot)(?:[?#]|$)/u
 
 export const elsewhereIn = (url: string, body: string, type = ""): readonly string[] => {
   const kind = kindOf(url, type)
@@ -84,7 +84,7 @@ export const elsewhereIn = (url: string, body: string, type = ""): readonly stri
     (ref) => new URL(ref).origin !== location.origin,
   )
 
-  const woff2 = found.some((ref) => /\.woff2(?:[?#]|$)/.test(ref))
+  const woff2 = found.some((ref) => /\.woff2(?:[?#]|$)/u.test(ref))
 
   return found.filter((ref) => !(woff2 && fallbackFont.test(ref))).map(unhashed)
 }
@@ -123,7 +123,7 @@ export const keepCopy = async (info: PluginInfo) => {
   }
 
   const away = async (url: string): Promise<void> => {
-    if (seen.has(url) || !/^https?:/.test(url)) {
+    if (seen.has(url) || !/^https?:/u.test(url)) {
       return
     }
 

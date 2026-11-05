@@ -8,7 +8,7 @@ export const PageId = Schema.String.check(Schema.isUUID(7)).pipe(Schema.brand("P
 
 export type PageId = typeof PageId.Type
 
-export const DeviceId = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_-]{1,64}$/)).pipe(
+export const DeviceId = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_-]{1,64}$/u)).pipe(
   Schema.brand("DeviceId"),
 )
 

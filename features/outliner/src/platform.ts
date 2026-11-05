@@ -1,4 +1,4 @@
-export const onMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent)
+export const onMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(navigator.userAgent)
 
 export const isMoveChord = (event: {
   readonly altKey: boolean

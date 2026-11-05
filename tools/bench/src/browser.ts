@@ -203,7 +203,7 @@ const procs = async () => {
 
   const rows = await Promise.all(
     all
-      .filter((name) => /^\d+$/.test(name))
+      .filter((name) => /^\d+$/u.test(name))
       .map(async (pid) => {
         const [stat, cmdline] = await Promise.all([
           readFile(`/proc/${pid}/stat`, "utf-8").catch(() => ""),
@@ -222,7 +222,7 @@ const procs = async () => {
 const pss = async (pid: string) => {
   const rollup = await readFile(`/proc/${pid}/smaps_rollup`, "utf-8").catch(() => "")
 
-  return Number(/^Pss:\s+(\d+) kB/m.exec(rollup)?.[1] ?? 0) * 1024
+  return Number(/^Pss:\s+(\d+) kB/mu.exec(rollup)?.[1] ?? 0) * 1024
 }
 
 export const browserFlag = "--seqno-bench"

@@ -42,17 +42,17 @@ export type Published = typeof Published.Type
 
 export const publishedDataId = "seqno-published"
 
-const allPublicSetting = /:(?:publishing\/)?all-pages-public\?\s+true(?![\w?-])/
+const allPublicSetting = /:(?:publishing\/)?all-pages-public\?\s+true(?![\w?-])/u
 
 export const allPagesPublic = (configEdn: string): boolean =>
-  allPublicSetting.test(configEdn.replaceAll(/;[^\n]*/g, ""))
+  allPublicSetting.test(configEdn.replaceAll(/;[^\n]*/gu, ""))
 
 const publicValue = (page: Page) => page.props["public"]?.trim().toLowerCase()
 
 const aliasesOf = (page: Page) =>
   (page.props["alias"] ?? "")
     .split(",")
-    .map((part) => normalizePageName(part.trim().replace(/^\[\[(.*)\]\]$/, "$1")))
+    .map((part) => normalizePageName(part.trim().replace(/^\[\[(.*)\]\]$/u, "$1")))
     .filter((name) => name !== "")
 
 export const publicPages = <P extends PageBlocks>(
@@ -75,7 +75,7 @@ export const publicPages = <P extends PageBlocks>(
   )
 }
 
-const assetLink = /\([./]*\/assets\/([^)]+)\)/g
+const assetLink = /\([./]*\/assets\/([^)]+)\)/gu
 
 const decoded = (path: string) => {
   try {
@@ -93,7 +93,7 @@ export const usedAssets = (pages: readonly PageBlocks[]): readonly string[] => [
     pages.flatMap(({ page, blocks }) =>
       [...Object.values(page.props), ...textsOf(blocks)].flatMap((text) =>
         [...text.matchAll(assetLink)].flatMap((match) => {
-          const path = (match[1] ?? "").split(/\s/)[0] ?? ""
+          const path = (match[1] ?? "").split(/\s/u)[0] ?? ""
 
           return path === "" || path.endsWith(".js") ? [] : [`assets/${decoded(path)}`]
         }),

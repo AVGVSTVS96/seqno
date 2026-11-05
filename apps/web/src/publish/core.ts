@@ -14,7 +14,7 @@ import {
 } from "@seqno/rpc"
 import type { PageTree, QueryResult } from "@seqno/rpc"
 
-const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
+const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/giu
 
 const readOnly = new CommandRejected({ reason: "This is a published copy of the graph." })
 

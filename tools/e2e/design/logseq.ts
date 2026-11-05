@@ -175,15 +175,15 @@ const lastPlainWords = (
 const bullets = (markdown: string) =>
   markdown
     .split("\n")
-    .filter((line) => /^\s*- /.test(line))
-    .map((line) => line.replace(/^\s*- /, ""))
+    .filter((line) => /^\s*- /u.test(line))
+    .map((line) => line.replace(/^\s*- /u, ""))
 
 const lastBullet = (markdown: string) => bullets(markdown).at(-1) ?? ""
 
 const probeText = (markdown: string) =>
   bullets(markdown)
     .filter((bullet) => !bullet.startsWith("{{"))
-    .map((bullet) => lastPlainWords(bullet.replaceAll(/==|~~|[*`]/g, "").split(/\s+/)))
+    .map((bullet) => lastPlainWords(bullet.replaceAll(/==|~~|[*`]/gu, "").split(/\s+/u)))
     .findLast((words) => words.length > 0)
     ?.join(" ") ?? ""
 

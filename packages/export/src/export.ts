@@ -150,7 +150,7 @@ export const pageFiles = (
       format === "markdown"
         ? ([file, render(itemsOfPage(shelf, page.id), shelf, page, "text", standard)] as const)
         : ([
-            file.replace(/\.md$/, ".opml"),
+            file.replace(/\.md$/u, ".opml"),
             render(itemsOfPage(shelf, page.id), shelf, page, "opml", standard),
           ] as const),
     ]

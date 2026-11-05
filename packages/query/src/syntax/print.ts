@@ -10,7 +10,7 @@ const value = (v: Value): string => {
   }
 
   if (typeof v === "string") {
-    return /^[a-z_][\w./-]*$/i.test(v) && !/^[+-]?\d/.test(v) ? v : JSON.stringify(v)
+    return /^[a-z_][\w./-]*$/iu.test(v) && !/^[+-]?\d/u.test(v) ? v : JSON.stringify(v)
   }
 
   return Match.valueTags(v, {
@@ -24,7 +24,7 @@ const value = (v: Value): string => {
 
 const values = (vs: readonly Value[]) => vs.map(value).join(" ")
 
-const PROPERTY = /^property\.(.+)$/
+const PROPERTY = /^property\.(.+)$/u
 
 const equals = (field: Field, vs: readonly Value[]): string => {
   if (field === "task.status") {

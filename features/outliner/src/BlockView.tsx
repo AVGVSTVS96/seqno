@@ -208,7 +208,7 @@ const backgroundOf = (props: Props): string | null => {
     return `var(--bg-highlight-${value})`
   }
 
-  return /^#[0-9a-f]{3,8}$/i.test(value) ? value : null
+  return /^#[0-9a-f]{3,8}$/iu.test(value) ? value : null
 }
 
 const Title = ({

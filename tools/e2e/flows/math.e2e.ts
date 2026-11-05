@@ -61,7 +61,7 @@ test("inline and display math render with KaTeX in Logseq's elements, and bad La
   await expect(water.locator(".katex-html")).not.toContainText("\\ce")
   const error = main.locator(".latex-inline .katex-error")
   await expect(error).toHaveText("\\frac{1}{2")
-  await expect(error).toHaveAttribute("title", /^ParseError: KaTeX parse error/)
+  await expect(error).toHaveAttribute("title", /^ParseError: KaTeX parse error/u)
   await expect(error).toHaveCSS("color", "rgb(204, 0, 0)")
 
   const prices = main.getByRole("treeitem").filter({ hasText: "Prices stay text" })

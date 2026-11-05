@@ -77,13 +77,13 @@ const emphasisOf = (node: Inline) =>
     ? node
     : null
 
-const AUTOLINK = /<(https?:\/\/[^\s>]+)>/g
+const AUTOLINK = /<(https?:\/\/[^\s>]+)>/gu
 
-const CLOZE = /^\s*(.*?)\s*$/s
+const CLOZE = /^\s*(.*?)\s*$/su
 
 const SPACE = "\uE000"
-const SPACES = /\uE000+/g
-const WHITESPACE = /\s/
+const SPACES = /\uE000+/gu
+const WHITESPACE = /\s/u
 
 const spaced = (text: string) =>
   text.replaceAll(SPACES, (marks: string, at: number) => {
@@ -200,7 +200,7 @@ const tagOf = {
   Highlight: "mark",
 } as const
 
-const FOOTNOTE = /\[\^([^\]\s]+)\]/g
+const FOOTNOTE = /\[\^([^\]\s]+)\]/gu
 
 const plain = (value: string): readonly Html[] => {
   const out: Html[] = []

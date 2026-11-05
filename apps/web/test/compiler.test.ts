@@ -24,7 +24,7 @@ const skipped = async (path: string) => {
   }
 
   await transformAsync(code, {
-    filename: path.replace(/\.tsx$/, ".jsx"),
+    filename: path.replace(/\.tsx$/u, ".jsx"),
     babelrc: false,
     configFile: false,
     parserOpts: { plugins: ["jsx"] },
@@ -39,7 +39,7 @@ describe("React Compiler", () => {
     expect(components.length).toBeGreaterThan(40)
     expect((await Promise.all(components.map(skipped))).flat()).toEqual([
       expect.stringMatching(
-        /^features\/outliner\/src\/virtual\.tsx:\d+ Use of incompatible library$/,
+        /^features\/outliner\/src\/virtual\.tsx:\d+ Use of incompatible library$/u,
       ),
     ])
   }, 30_000)

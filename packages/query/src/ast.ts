@@ -1,7 +1,7 @@
 import { Match, Schema } from "effect"
 
 export const FIELD_PATTERN =
-  /^(id|ref|tag|created|updated|task\.(status|priority|scheduled|deadline)|property\.[a-z0-9_-]+|page|page\.(journal|day|tag|alias|namespace)|page\.property\.[a-z0-9_-]+)$/
+  /^(id|ref|tag|created|updated|task\.(status|priority|scheduled|deadline)|property\.[a-z0-9_-]+|page|page\.(journal|day|tag|alias|namespace)|page\.property\.[a-z0-9_-]+)$/u
 
 export const FixedField = Schema.Literals([
   "id",

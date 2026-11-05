@@ -139,7 +139,7 @@ export interface EmbedActions {
 }
 
 const openExternal = (url: string) => {
-  if (/https?:\/\//.test(url)) {
+  if (/https?:\/\//u.test(url)) {
     window.open(url, "_blank", "noopener")
   }
 }

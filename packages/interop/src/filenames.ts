@@ -2,10 +2,10 @@ import { Option } from "effect"
 
 export type FileNameFormat = "triple-lowbar" | "legacy"
 
-const encodedChar = /%[0-9a-f]{2}/gi
-const reservedRun = /[:*?"<>|#\\]+/g
-const legacyAndroidRun = /[\\#|%]+/g
-const legacyReservedRun = /[:\\*?"<>|]+/g
+const encodedChar = /%[0-9a-f]{2}/giu
+const reservedRun = /[:*?"<>|#\\]+/gu
+const legacyAndroidRun = /[\\#|%]+/gu
+const legacyReservedRun = /[:\\*?"<>|]+/gu
 
 const windowsReserved = new Set([
   "CON",
@@ -19,7 +19,7 @@ const decode = (text: string) =>
   Option.getOrElse(Option.liftThrowable(decodeURIComponent)(text), () => text)
 
 const withoutBoundarySlashes = (title: string) =>
-  title.replace(/^\//, "").replace(/\/$/, "").normalize("NFC")
+  title.replace(/^\//u, "").replace(/\/$/u, "").normalize("NFC")
 
 const uriEncode = (run: string) => encodeURIComponent(run).replaceAll("*", "%2A")
 
@@ -27,7 +27,7 @@ const tripleLowbarBody = (title: string) => {
   const escaped = withoutBoundarySlashes(title)
     .replaceAll(encodedChar, (code) => code.replace("%", "%25"))
     .replaceAll(reservedRun, uriEncode)
-    .replace(/^\./, "%2E")
+    .replace(/^\./u, "%2E")
 
   const guarded = windowsReserved.has(escaped) || escaped.endsWith(".") ? `${escaped}/` : escaped
 

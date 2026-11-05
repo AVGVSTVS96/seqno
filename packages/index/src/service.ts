@@ -254,7 +254,7 @@ const samePagesGraph = (left: PagesGraph, right: PagesGraph) =>
 
 const BLOCK_REF_SOURCES = `SELECT content FROM blocks WHERE instr(content, '((') > 0`
 
-const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/gi
+const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/giu
 
 const blockRefCountsOf = (db: Statements): Readonly<Record<string, number>> => {
   const counts: Record<string, number> = {}
@@ -344,7 +344,7 @@ LIMIT ?2`
 
 const ftsQuery = (text: string): string | null => {
   const terms = text
-    .split(/\s+/)
+    .split(/\s+/u)
     .filter((term) => term !== "")
     .map((term) => `"${term.replaceAll('"', '""')}"`)
 

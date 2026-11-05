@@ -308,14 +308,14 @@ const IdentityDialog = ({ onClose }: { readonly onClose: () => void }) => {
   )
 }
 
-const quoted = /"[^"]+"/g
+const quoted = /"[^"]+"/gu
 
 export const splitArgs = (text: string): readonly string[] => {
   const quotes = text.match(quoted) ?? []
   const rest = text.split(quoted)
 
   return rest.flatMap((part, at) => [
-    ...part.split(/\s/).filter((word) => word.trim() !== ""),
+    ...part.split(/\s/u).filter((word) => word.trim() !== ""),
     ...(at < quotes.length ? [(quotes[at] ?? "").slice(1, -1).trim()] : []),
   ])
 }
@@ -577,7 +577,7 @@ const Seconds = ({ settings }: { readonly settings: GitSettings }) => {
         defaultValue={settings.seconds}
         onBlur={(event) => {
           const input = event.currentTarget
-          const value = /^\d+$/.test(input.value.trim()) ? Number(input.value.trim()) : Number.NaN
+          const value = /^\d+$/u.test(input.value.trim()) ? Number(input.value.trim()) : Number.NaN
 
           if (value > 0 && value <= 86_400) {
             saveGitSettings(registry, { ...settings, seconds: value })

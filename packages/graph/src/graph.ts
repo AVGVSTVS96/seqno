@@ -43,7 +43,7 @@ import {
 import type { Placement } from "./tree.ts"
 
 export const PeerId = Schema.String.check(
-  Schema.isPattern(/^[1-9][0-9]{0,19}$/),
+  Schema.isPattern(/^[1-9][0-9]{0,19}$/u),
   Schema.makeFilter((peer: string) => BigInt(peer) < 2n ** 64n - 1n, {
     expected: "a Loro peer id below 2^64 - 1",
   }),
