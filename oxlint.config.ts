@@ -139,6 +139,8 @@ export default defineConfig({
       rules: {
         "vitest/max-expects": "off",
         "vitest/prefer-strict-equal": "off",
+        "vitest/prefer-to-be-falsy": "off",
+        "vitest/prefer-to-be-truthy": "off",
         "vitest/require-top-level-describe": "off",
       },
     },
@@ -152,7 +154,12 @@ export default defineConfig({
     },
     {
       files: ["apps/web/src/**/*.{ts,tsx}", "features/*/src/**/*.{ts,tsx}"],
-      rules: { "seqno/logseq-names": "error" },
+      rules: {
+        "jsx-a11y/anchor-is-valid": "off",
+        "jsx-a11y/no-redundant-roles": "off",
+        "jsx-a11y/prefer-tag-over-role": "off",
+        "seqno/logseq-names": "error",
+      },
     },
   ],
 })

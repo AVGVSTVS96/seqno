@@ -5,6 +5,8 @@ packages:
   - tools/*
   - fixtures
   - brand
+allowBuilds:
+  lefthook: false
 minimumReleaseAgeExclude:
   - vite@8.3.3
 peerDependencyRules:
