@@ -1,4 +1,5 @@
-import { BlockId, type Block, type Command, type PageId } from "@seqno/domain"
+import { BlockId, type Block, type BlockDraft, type Command, type PageId } from "@seqno/domain"
+import { freshId } from "./ids.ts"
 
 export const isGhost = (id: BlockId) => id.startsWith("00000000-0000-7000-8000-")
 
@@ -68,6 +69,19 @@ export const applyLocally = (
   blocks: ReadonlyArray<Block>,
   commands: ReadonlyArray<Command>,
 ): ReadonlyArray<Block> => commands.reduce(applyOne, blocks)
+
+const withId = (draft: BlockDraft): BlockDraft => ({
+  ...draft,
+  id: draft.id ?? freshId(),
+  children: draft.children.map(withId),
+})
+
+export const withIds = (commands: ReadonlyArray<Command>): ReadonlyArray<Command> =>
+  commands.map((command) => {
+    if (command._tag !== "InsertBlocks") return command
+    const [first, ...rest] = command.blocks
+    return { ...command, blocks: [withId(first), ...rest.map(withId)] }
+  })
 
 export interface Pending {
   readonly base: unknown

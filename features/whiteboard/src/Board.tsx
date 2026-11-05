@@ -120,7 +120,7 @@ import { glide, savedCamera } from "./camera.ts"
 import { RotateTargets, resizeCursor, rotateCursor } from "./Rotate.tsx"
 import { EMBED_SIZE, embedOf, isWebUrl } from "./Embeds.tsx"
 import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
-import { applyLocally, isGhost } from "./preview.ts"
+import { applyLocally, isGhost, withIds } from "./preview.ts"
 import { QuickSearch, type Pick } from "./QuickSearch.tsx"
 import { ShapeView, type ShapeSlots } from "./ShapeView.tsx"
 import { Tooltip } from "./Tooltip.tsx"
@@ -405,8 +405,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const selectedItems = selection.flatMap((id) => shown.byId.get(id) ?? [])
   const erasing = gesture._tag === "Erasing" ? new Set(gesture.ids) : new Set<BlockId>()
 
-  const commit = (commands: ReadonlyArray<Command>) => {
-    if (commands.length === 0) return Promise.resolve<ReadonlyArray<GraphEvent>>([])
+  const commit = (given: ReadonlyArray<Command>) => {
+    if (given.length === 0) return Promise.resolve<ReadonlyArray<GraphEvent>>([])
+    const commands = withIds(given)
     setPending((current) =>
       current !== null && current.base === tree
         ? { base: tree, commands: [...current.commands, ...commands] }
