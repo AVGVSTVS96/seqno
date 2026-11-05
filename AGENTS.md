@@ -6,17 +6,17 @@ A TypeScript rebuild of Logseq: a local-first outliner, web first (Chrome and Ed
 
 ## Map
 
-| Folder | Side | Job |
-| --- | --- | --- |
-| `packages/domain` | domain | Schemas, branded ids, Command and GraphEvent unions |
-| `packages/rpc` | contract | UI ↔ core-worker contract (Effect RPC) |
-| `packages/{syntax,query,export,dom}` | pure | Logseq markdown, queries, export formats, Logseq's DOM names |
-| `packages/{graph,index,vault,interop,git}` | core | Loro graph, SQLite index, edit-log files, Logseq import and mirror, git |
-| `apps/web` | ui | The app; `apps/web/src/worker/**` is the core worker (core side) |
-| `apps/site` | ui | The homepage, served at `/` with the app at `/app` |
-| `features/*` | ui | Outliner, editor, plugins, whiteboard, pdf |
-| `tools/*`, `fixtures/` | tool | sync-sim, e2e and design capture, lint plugin, benches, test graphs |
-| `brand/` | | Logo, fonts, og image, copy |
+| Folder                                     | Side     | Job                                                                     |
+| ------------------------------------------ | -------- | ----------------------------------------------------------------------- |
+| `packages/domain`                          | domain   | Schemas, branded ids, Command and GraphEvent unions                     |
+| `packages/rpc`                             | contract | UI ↔ core-worker contract (Effect RPC)                                  |
+| `packages/{syntax,query,export,dom}`       | pure     | Logseq markdown, queries, export formats, Logseq's DOM names            |
+| `packages/{graph,index,vault,interop,git}` | core     | Loro graph, SQLite index, edit-log files, Logseq import and mirror, git |
+| `apps/web`                                 | ui       | The app; `apps/web/src/worker/**` is the core worker (core side)        |
+| `apps/site`                                | ui       | The homepage, served at `/` with the app at `/app`                      |
+| `features/*`                               | ui       | Outliner, editor, plugins, whiteboard, pdf                              |
+| `tools/*`, `fixtures/`                     | tool     | sync-sim, e2e and design capture, lint plugin, benches, test graphs     |
+| `brand/`                                   |          | Logo, fonts, og image, copy                                             |
 
 ```
                  domain   <- imports no @seqno package
@@ -33,17 +33,17 @@ The UI reaches the core only through `@seqno/rpc`, and starts the worker with `n
 
 ## What enforces each rule
 
-| Rule | Enforced by |
-| --- | --- |
-| The side rules above | `no-restricted-imports` overrides in `oxlint.config.ts`, tested in `tools/lint/test/config.test.ts` |
-| Undeclared packages can't be imported | pnpm's strict `node_modules` |
-| Relative imports stay inside their package | `rootDir: "."` in each package's `tsconfig.json` |
-| No comments, except an https:// link, a `SAFETY:` line, or a lint directive with its reason after `--` | `no-comments/no-comments` |
-| No `useEffect` family | `no-restricted-imports` (react) |
-| No `as` (only `as const`), no `any`, no `!` | `typescript/consistent-type-assertions` (never), `no-explicit-any`, `no-non-null-assertion` |
-| Logseq's names come only from `@seqno/dom` | `seqno/logseq-names` |
-| Strict types, erasable syntax only | `tsconfig.base.json` |
-| The rest of the house style | Ultracite core, react, vitest and anti-slop presets, anti-slop's Effect rules |
+| Rule                                                                                                   | Enforced by                                                                                         |
+| ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| The side rules above                                                                                   | `no-restricted-imports` overrides in `oxlint.config.ts`, tested in `tools/lint/test/config.test.ts` |
+| Undeclared packages can't be imported                                                                  | pnpm's strict `node_modules`                                                                        |
+| Relative imports stay inside their package                                                             | `rootDir: "."` in each package's `tsconfig.json`                                                    |
+| No comments, except an https:// link, a `SAFETY:` line, or a lint directive with its reason after `--` | `no-comments/no-comments`                                                                           |
+| No `useEffect` family                                                                                  | `no-restricted-imports` (react)                                                                     |
+| No `as` (only `as const`), no `any`, no `!`                                                            | `typescript/consistent-type-assertions` (never), `no-explicit-any`, `no-non-null-assertion`         |
+| Logseq's names come only from `@seqno/dom`                                                             | `seqno/logseq-names`                                                                                |
+| Strict types, erasable syntax only                                                                     | `tsconfig.base.json`                                                                                |
+| The rest of the house style                                                                            | Ultracite core, react, vitest and anti-slop presets, anti-slop's Effect rules                       |
 
 ## Judgment calls
 
