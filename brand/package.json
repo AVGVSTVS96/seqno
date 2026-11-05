@@ -1,0 +1,13 @@
+{
+  "name": "seqno-brand",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "logo": "bun logo/gen.mjs",
+    "shots": "bun render.mjs"
+  },
+  "devDependencies": {
+    "opentype.js": "1.3.4",
+    "puppeteer-core": "25.12.0"
+  }
+}

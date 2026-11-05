@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>seqno · link preview</title>
+<style>
+@font-face { font-family: "Wix Madefor Display"; src: url(../fonts/wix-madefor-display.woff2) format("woff2"); font-weight: 400 800 }
+@font-face { font-family: "Commit Mono"; src: url(../fonts/commit-mono-400.woff2) format("woff2"); font-weight: 400 }
+@font-face { font-family: "Commit Mono"; src: url(../fonts/commit-mono-500.woff2) format("woff2"); font-weight: 500 }
+:root { --field: #F8AA6D; --field-ink: #25170D; --bullet: #FFF8ED; --grid-dot: rgb(37 23 13 / 0.2) }
+html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden }
+body { background: var(--field) radial-gradient(circle, var(--grid-dot) 1px, transparent 1.4px) 0 0 / 24px 24px; color: var(--field-ink); font-family: "Wix Madefor Display", sans-serif; -webkit-font-smoothing: antialiased }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2 }
+.defs { position: absolute; width: 0; height: 0 }
+.flood { flood-color: var(--field-ink) }
+.tagline { position: absolute; z-index: 3; left: 24px; top: 84px; margin: 0; padding: 0; list-style: none; font: 450 36px/48px "Wix Madefor Display"; letter-spacing: -0.022em }
+.tagline li { position: relative; padding-left: 24px }
+.tagline li::before { content: ""; position: absolute; left: 8px; top: 20px; width: 8px; height: 8px; border-radius: 50% ; background: currentColor }
+.word { position: absolute; z-index: 1; left: 30px; bottom: 60px; width: 760px; filter: url(#grain) }
+.label { position: absolute; z-index: 3; left: 48px; top: 44px; display: flex; gap: 14px; align-items: center; font: 400 14px/1 "Commit Mono"; letter-spacing: 0.14em; text-transform: uppercase }
+</style>
+</head>
+<body>
+<svg class="defs" aria-hidden="true">
+  <filter id="grain" x="-4%" y="-8%" width="108%" height="116%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="soft"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="4" result="noise"/>
+    <feDisplacementMap in="soft" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G" result="grain"/>
+    <feComponentTransfer in="grain" result="shape"><feFuncA type="linear" slope="1.8" intercept="-0.3"/></feComponentTransfer>
+    <feFlood class="flood"/>
+    <feComposite in2="shape" operator="in"/>
+  </filter>
+</svg>
+<canvas></canvas>
+<div class="label top" data-avoid>Work in progress</div>
+<ul class="tagline" data-avoid><li>A local-first outliner, rebuilt<br>to be minimal, solid and clean.</li></ul>
+<img class="word" src="../logo/wordmark-mono.svg" alt="seqno" data-avoid>
+<script src="../hero.js"></script>
+<script>
+async function main() {
+  await document.fonts.ready
+  await Promise.all([...document.images].map((img) => img.decode().catch(() => {})))
+  const avoid = [...document.querySelectorAll("[data-avoid]")].map((el) => {
+    const r = el.getBoundingClientRect()
+    return { x: r.left - 12, y: r.top - 12, w: r.width + 24, h: r.height + 24 }
+  })
+  const school = createSchool(document.querySelector("canvas"), { seed: 5, count: 6, avoid, reduced: true })
+  school.draw()
+  document.documentElement.dataset.ready = "true"
+}
+main()
+</script>
+</body>
+</html>

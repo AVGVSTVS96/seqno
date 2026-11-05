@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>seqno · brand</title>
+<link rel="icon" href="logo/favicon.svg">
+<style>
+@font-face { font-family: "Wix Madefor Display"; src: url(fonts/wix-madefor-display.woff2) format("woff2"); font-weight: 400 800; font-display: swap }
+@font-face { font-family: "Wix Madefor Text"; src: url(fonts/wix-madefor-text.woff2) format("woff2"); font-weight: 400 800; font-display: swap }
+@font-face { font-family: "Wix Madefor Text"; src: url(fonts/wix-madefor-text-italic.woff2) format("woff2"); font-weight: 400 800; font-style: italic; font-display: swap }
+@font-face { font-family: "Commit Mono"; src: url(fonts/commit-mono-400.woff2) format("woff2"); font-weight: 400; font-display: swap }
+@font-face { font-family: "Commit Mono"; src: url(fonts/commit-mono-500.woff2) format("woff2"); font-weight: 500; font-display: swap }
+
+:root {
+  color-scheme: light dark;
+  --display: "Wix Madefor Display", ui-sans-serif, system-ui, sans-serif;
+  --text: "Wix Madefor Text", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Commit Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --apricot: #F8AA6D;
+  --dusk: #01222C;
+
+  --paper: #FDF9F4;
+  --surface: #FFFFFF;
+  --sunk: #F8F1EA;
+  --ink: #25170D;
+  --ink-2: #655449;
+  --ink-3: #7A6C61;
+  --hair: rgb(37 23 13 / 0.12);
+  --hair-2: rgb(37 23 13 / 0.06);
+  --rust: #AE4819;
+
+  --field: var(--apricot);
+  --field-ink: #25170D;
+  --field-faint: var(--field-ink);
+  --bullet: #FFF8ED;
+  --grid-dot: rgb(37 23 13 / 0.2);
+  --line-opacity: 0.5;
+
+  --grid: 24px;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #02141B;
+    --surface: #002B36;
+    --sunk: #01222C;
+    --ink: #F1EAE3;
+    --ink-2: #A3B5B8;
+    --ink-3: #7E9094;
+    --hair: rgb(241 234 227 / 0.12);
+    --hair-2: rgb(241 234 227 / 0.06);
+    --rust: var(--apricot);
+
+    --field: var(--dusk);
+    --field-ink: var(--apricot);
+    --field-faint: var(--ink);
+    --bullet: #F4D9C0;
+    --grid-dot: rgb(241 234 227 / 0.14);
+    --line-opacity: 0.8;
+  }
+}
+
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100% }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/28px var(--text); letter-spacing: -0.005em; -webkit-font-smoothing: antialiased; font-optical-sizing: auto }
+img { display: block; max-width: 100% }
+a { color: inherit }
+p { margin: 0 }
+.defs { position: absolute; width: 0; height: 0 }
+.flood { flood-color: var(--field-ink) }
+.flood-ink { flood-color: var(--ink) }
+
+.label, .mono { font: 400 11px/16px var(--mono); letter-spacing: 0.14em; text-transform: uppercase }
+.mono { color: var(--ink-3) }
+
+.field { background: var(--field) radial-gradient(circle, var(--grid-dot) 1px, transparent 1.4px) 0 0 / var(--grid) var(--grid); color: var(--field-ink); --faint: var(--field-faint) }
+
+.hero { position: relative; height: clamp(640px, 100svh, 900px); overflow: hidden; isolation: isolate }
+.hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; touch-action: pan-y }
+.bar { position: absolute; z-index: 3; top: 24px; left: 24px; right: 24px; height: 48px; display: flex; align-items: center }
+.bar .lockup { height: 26px; width: auto; filter: url(#tint) }
+.pill { display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 999px; font: 550 15px/1 var(--text); text-decoration: none; background: var(--field-ink); color: var(--field); transition: transform 160ms var(--ease) }
+.pill.ghost { background: transparent; color: var(--field-ink); box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--faint) 32%, transparent) }
+.pill:active { transform: scale(0.97) }
+
+.stack { position: absolute; left: 24px; right: 24px; bottom: 48px; display: grid; justify-items: start; pointer-events: none }
+.stack > * { position: relative; z-index: 3; pointer-events: auto }
+.stack .label { margin: 0 0 24px 16px; display: flex; gap: 14px; align-items: center }
+.stack > .word { z-index: 1; width: min(68vw, 1000px); margin-left: 6px }
+.word img { width: 100% }
+.word .soft { position: absolute; inset: 0; filter: url(#grain-soft) }
+.word .crisp { filter: url(#grain-crisp) }
+.tagline { margin: 24px 0 0; padding: 0; list-style: none; font: 450 30px/48px var(--display); letter-spacing: -0.02em }
+.outline, .outline ul { margin: 0; padding: 0; list-style: none }
+.outline li { position: relative; padding-left: 24px }
+.outline li::before { content: ""; position: absolute; left: 8.5px; top: calc(var(--row, 48px) / 2 - 3.5px); width: 7px; height: 7px; border-radius: 50%; background: currentColor }
+.outline ul { position: relative }
+.outline ul::before { content: ""; position: absolute; left: -12.5px; top: 0; bottom: 4px; width: 1px; background: color-mix(in oklab, var(--faint, currentColor) 32%, transparent) }
+.actions { margin: 24px 0 0 24px; display: grid; gap: 16px; justify-items: start }
+.actions nav { display: flex; gap: 8px }
+.actions p { font: 400 15px/24px var(--text); color: color-mix(in oklab, var(--faint) 72%, var(--field)) }
+
+.odo { display: inline-flex; align-items: center; height: 22px; color: inherit; text-decoration: none; border-radius: 5px; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--faint, currentColor) 30%, transparent); font: 500 13px/22px var(--mono); letter-spacing: 0; overflow: hidden }
+.odo .no { padding: 0 6px 0 7px; font-weight: 400; font-size: 11px; letter-spacing: 0.04em; box-shadow: inset -1px 0 color-mix(in oklab, var(--faint, currentColor) 20%, transparent) }
+.odo .digits { display: flex }
+.odo .cell { display: block; width: 14px; height: 22px; overflow: hidden; text-align: center }
+.odo .cell + .cell { box-shadow: inset 1px 0 color-mix(in oklab, var(--faint, currentColor) 14%, transparent) }
+.odo .strip { display: flex; flex-direction: column }
+.odo .strip span { display: block; height: 22px }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%) }
+.cursor { position: absolute; z-index: 4; width: 22px; height: 22px; pointer-events: none; display: none }
+.posed .cursor { display: block }
+
+.sheet { max-width: 1176px; margin: 0 auto; padding: 120px 24px 24px }
+.intro { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding: 0 0 120px 48px; align-items: end }
+.intro h1 { margin: 16px 0 0; font: 700 64px/72px var(--display); letter-spacing: -0.035em }
+.intro .outline { font: 450 20px/32px var(--display); letter-spacing: -0.012em; --row: 32px; color: var(--ink) }
+.intro .outline ul { color: var(--ink-2) }
+
+.block { position: relative; padding: 0 0 120px 48px }
+.block::before { content: ""; position: absolute; left: 8px; top: 20px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink) }
+.block::after { content: ""; position: absolute; left: 11.5px; top: 40px; bottom: 72px; width: 1px; background: var(--hair) }
+.block > header { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin-bottom: 40px }
+.block h2 { margin: 0; font: 650 40px/48px var(--display); letter-spacing: -0.03em }
+.block > header p { max-width: 34em; color: var(--ink-2); font-size: 15px; line-height: 24px; text-align: right }
+.block h3 { margin: 0 0 4px; font: 600 20px/28px var(--display); letter-spacing: -0.012em }
+.lede { color: var(--ink-2) }
+
+.card { background: var(--surface); border-radius: 12px; box-shadow: 0 0 0 1px var(--hair) }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px }
+.stack > * + * { margin-top: 24px }
+
+.logo-main { display: grid; grid-template-columns: 2fr 1fr; gap: 24px }
+.logo-main .card { display: grid; place-items: center; min-height: 312px; padding: 48px 64px; position: relative }
+.logo-main .tile-field { background: var(--apricot); box-shadow: none; color: #25170D }
+.logo-main .tile-night { background: #02141B; box-shadow: 0 0 0 1px rgb(241 234 227 / 0.08) }
+.logo-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px }
+.logo-row .card { height: 168px; display: grid; place-items: center; position: relative }
+.logo-row .card .mono, .logo-main .card .mono, .sizes .mono { position: absolute; left: 16px; bottom: 12px }
+.logo-row .on-field { background: var(--apricot); box-shadow: none }
+.logo-row .on-field .mono { color: rgb(37 23 13 / 0.6) }
+.logo-row .on-night { background: #02141B }
+.logo-row .on-night .mono { color: rgb(241 234 227 / 0.5) }
+.ink-tint { filter: url(#tint-ink) }
+.sizes { display: flex; align-items: end; gap: 40px; margin-top: 24px; padding: 32px 32px 48px; position: relative }
+.sizes figure { margin: 0; display: grid; gap: 12px; justify-items: start }
+.sizes figcaption { font: 400 11px/16px var(--mono); color: var(--ink-3); letter-spacing: 0.04em }
+.pixel { image-rendering: pixelated }
+
+.anatomy { margin-top: 24px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px }
+.anatomy .card { padding: 32px; position: relative }
+.anatomy svg { width: 100%; height: auto; overflow: visible }
+.anatomy .measure line, .anatomy .measure path { stroke: var(--rust); stroke-width: 1; fill: none }
+.anatomy .measure text { fill: var(--rust); font: 400 24px var(--mono); letter-spacing: 0.04em }
+.anatomy .card:first-child { display: grid; align-content: center }
+.rules { margin: 0; padding: 0; list-style: none; font-size: 15px; line-height: 24px; color: var(--ink-2) }
+.rules li { padding: 10px 0; border-top: 1px solid var(--hair-2) }
+.rules li:first-child { border-top: 0; padding-top: 0 }
+.rules b { color: var(--ink); font-weight: 600 }
+
+.directions { margin-top: 48px }
+.direction { display: grid; gap: 16px; align-content: start }
+.direction .card { overflow: hidden; position: relative }
+.direction .card img { width: 100% }
+.direction p { font-size: 15px; line-height: 24px; color: var(--ink-2) }
+.chip { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font: 500 10px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; background: var(--ink); color: var(--paper); vertical-align: 3px; margin-left: 8px }
+.chip.quiet { background: transparent; color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--hair) }
+
+.families { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 24px }
+.family { padding: 28px 28px 24px; display: grid; gap: 20px; align-content: space-between; min-height: 300px }
+.family .big { font: 700 112px/96px var(--display); letter-spacing: -0.045em }
+.family .big.text { font: 400 112px/96px var(--text); letter-spacing: -0.03em }
+.family .big.monoface { font: 400 104px/96px var(--mono); letter-spacing: -0.04em }
+.family dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font: 400 12px/18px var(--mono); color: var(--ink-3) }
+.family dt { color: var(--ink-2) }
+.family dd { margin: 0 }
+.scale { margin-top: 24px; padding: 8px 32px }
+.scale > div { display: grid; grid-template-columns: 1fr 248px; gap: 24px; align-items: baseline; padding: 20px 0; border-top: 1px solid var(--hair-2) }
+.scale > div:first-child { border-top: 0 }
+.scale .spec { font: 400 12px/18px var(--mono); color: var(--ink-3); letter-spacing: 0.02em }
+.scale .spec b { font-weight: 500; color: var(--ink-2) }
+.t-display { font: 700 64px/72px var(--display); letter-spacing: -0.035em }
+.t-h1 { font: 650 44px/48px var(--display); letter-spacing: -0.03em }
+.t-lede { font: 450 30px/48px var(--display); letter-spacing: -0.02em }
+.t-h2 { font: 600 24px/32px var(--display); letter-spacing: -0.015em }
+.t-body { font: 400 17px/28px var(--text); letter-spacing: -0.005em; max-width: 36em }
+.t-small { font: 400 15px/24px var(--text); color: var(--ink-2) }
+.t-ui { font: 550 15px/20px var(--text) }
+.t-code { font: 400 14px/24px var(--mono) }
+.t-num { font: 500 13px/22px var(--mono); font-variant-numeric: tabular-nums }
+
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 24px }
+.swatch-field { height: 288px; border-radius: 12px; position: relative; overflow: hidden; padding: 24px; display: flex; flex-direction: column; justify-content: space-between }
+.swatch-field.day { --field: var(--apricot); --field-ink: #25170D; --field-faint: #25170D; --bullet: #FFF8ED; --grid-dot: rgb(37 23 13 / 0.2); --line-opacity: 0.5 }
+.swatch-field.night { --field: var(--dusk); --field-ink: var(--apricot); --field-faint: #F1EAE3; --bullet: #F4D9C0; --grid-dot: rgb(241 234 227 / 0.14); --line-opacity: 0.8 }
+.swatch-field canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0 }
+.swatch-field > * { position: relative; z-index: 1 }
+.swatch-field > .shot { position: absolute; right: -32px; bottom: -48px; width: 52%; aspect-ratio: 1440 / 888; border-radius: 10px; box-shadow: 0 0 0 1px var(--hair), 0 24px 48px -24px rgb(0 0 0 / 0.5) }
+.swatch-field .name { font: 650 40px/48px var(--display); letter-spacing: -0.03em }
+.swatch-field .codes { font: 400 12px/18px var(--mono); letter-spacing: 0.02em; opacity: 0.8 }
+.tokens { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px }
+.token-set { padding: 8px 24px 16px }
+.token-set.day { --s-paper: #FDF9F4; background: #FDF9F4; color: #25170D; box-shadow: 0 0 0 1px rgb(37 23 13 / 0.12) }
+.token-set.night { background: #02141B; color: #F1EAE3; box-shadow: 0 0 0 1px rgb(241 234 227 / 0.08) }
+.token-set h3 { margin: 12px 0 8px }
+.token { display: grid; grid-template-columns: 36px 1fr auto auto; gap: 14px; align-items: center; padding: 8px 0; border-top: 1px solid currentColor; border-top-color: color-mix(in oklab, currentColor 8%, transparent); font: 400 12px/18px var(--mono) }
+.token i { width: 36px; height: 24px; border-radius: 6px; box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 14%, transparent) }
+.token b { font-weight: 500 }
+.token span { opacity: 0.6 }
+.token em { font-style: normal; opacity: 0.6; min-width: 64px; text-align: right }
+
+.motifs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px }
+.motif { padding: 0; overflow: hidden; display: grid; grid-template-rows: 192px auto }
+.motif .stage { position: relative; display: grid; place-items: center; border-bottom: 1px solid var(--hair-2) }
+.motif .stage.dots { background: radial-gradient(circle, var(--hair) 1px, transparent 1.4px) 0 0 / 24px 24px }
+.motif .copy { padding: 18px 20px 20px }
+.motif .copy p { font-size: 14px; line-height: 22px; color: var(--ink-2) }
+.motif svg { overflow: visible }
+.mini-outline { font: 450 15px/24px var(--display); --row: 24px; letter-spacing: -0.01em }
+.mini-outline li::before { width: 6px; height: 6px; left: 9px; top: 9px }
+.grainy { height: 92px; width: auto; filter: url(#grain-crisp-ink) }
+
+.grid-diagram { padding: 32px; margin-top: 24px; display: grid; grid-template-columns: 1fr 300px; gap: 40px; align-items: center }
+.grid-diagram svg { width: 100%; height: auto; overflow: visible }
+
+.film { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px }
+.film figure { margin: 0; display: grid; gap: 10px }
+.film .frame { position: relative; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden }
+.film .frame canvas { position: absolute; inset: 0; width: 100%; height: 100% }
+.film .frame svg { position: absolute; width: 18px; height: 18px; z-index: 2 }
+.film figcaption { font: 400 11px/16px var(--mono); letter-spacing: 0.04em; color: var(--ink-3) }
+.film figcaption b { font-weight: 500; color: var(--ink-2) }
+.film-title { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 14px }
+.film-title + .film { margin-bottom: 40px }
+
+.springs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 8px }
+.spring { padding: 20px 20px 18px }
+.spring svg { width: 100%; height: auto; overflow: visible; margin: 8px 0 12px }
+.spring svg .axis { stroke: var(--hair); stroke-width: 1 }
+.spring svg .target { stroke: var(--hair); stroke-dasharray: 2 4; stroke-width: 1 }
+.spring svg .curve { stroke: var(--ink); stroke-width: 1.5; fill: none }
+.spring svg .dot { fill: var(--rust) }
+.spring svg text { fill: var(--ink-3); font: 400 10px var(--mono) }
+.spring .t-code { color: var(--ink-2); font-size: 12px; line-height: 18px }
+.params { margin-top: 24px; padding: 8px 24px; display: grid; grid-template-columns: 1fr 1fr; column-gap: 48px }
+.params div { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 10px 0; border-top: 1px solid var(--hair-2); font-size: 14px; line-height: 22px; color: var(--ink-2) }
+.params div:nth-child(-n+2) { border-top: 0 }
+.params code { font: 500 12px/22px var(--mono); color: var(--ink) }
+.principles { margin-top: 40px; font: 450 20px/32px var(--display); letter-spacing: -0.012em; --row: 32px }
+.principles ul { color: var(--ink-2); font: 400 16px/26px var(--text); letter-spacing: -0.005em; --row: 26px; padding-bottom: 12px }
+
+.diagram { padding: 40px 40px 32px }
+.diagram svg { width: 100%; height: auto; overflow: visible }
+.diagram .wire { stroke: var(--ink); stroke-width: 1; fill: none; opacity: 0.35 }
+.diagram .path { stroke: var(--rust); stroke-width: 1.5; fill: none }
+.diagram .node { fill: var(--ink) }
+.diagram .node.hot { fill: var(--rust) }
+.diagram text { fill: var(--ink); font: 450 15px var(--display); letter-spacing: -0.01em }
+.diagram .sub { fill: var(--ink-3); font: 400 11px var(--mono); letter-spacing: 0.04em }
+.diagram .seq { fill: var(--rust); font: 500 11px var(--mono); letter-spacing: 0.04em }
+.diagram .kid { fill: var(--ink-2); font: 400 14px var(--text) }
+
+.voice { display: grid; grid-template-columns: 1fr 1fr; gap: 24px }
+.voice .card { padding: 8px 24px }
+.voice .card > div { padding: 14px 0; border-top: 1px solid var(--hair-2); font-size: 16px; line-height: 26px }
+.voice .card > div:first-of-type { border-top: 0 }
+.voice .card h3 { padding-top: 16px }
+.voice .no-pass { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--hair); text-decoration-thickness: 1px }
+.voice .card > div .mono { display: block; margin-top: 2px }
+
+.foot { display: flex; justify-content: space-between; align-items: center; padding: 32px 0 48px 48px; border-top: 1px solid var(--hair); color: var(--ink-3) }
+.foot img { height: 22px; width: auto; filter: url(#tint-ink) }
+
+@media (max-width: 900px) {
+  .intro, .grid-2, .grid-3, .grid-4, .logo-main, .logo-row, .anatomy, .families, .fields, .tokens, .motifs, .springs, .params, .voice, .grid-diagram { grid-template-columns: 1fr }
+  .film { grid-template-columns: 1fr 1fr }
+  .block > header { flex-direction: column }
+  .block > header p { text-align: left }
+  .tagline { font-size: 22px; line-height: 36px; --row: 36px }
+  .word { width: calc(100vw - 60px) }
+  .t-display, .intro h1 { font-size: 44px; line-height: 48px }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pill { transition: none }
+}
+</style>
+</head>
+<body>
+<svg class="defs" aria-hidden="true">
+  <filter id="grain-crisp" x="-4%" y="-8%" width="108%" height="116%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="3.5" result="soft"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="4" result="noise"/>
+    <feDisplacementMap in="soft" in2="noise" scale="11" xChannelSelector="R" yChannelSelector="G" result="grain"/>
+    <feComponentTransfer in="grain" result="shape"><feFuncA type="linear" slope="1.8" intercept="-0.3"/></feComponentTransfer>
+    <feFlood class="flood"/>
+    <feComposite in2="shape" operator="in"/>
+  </filter>
+  <filter id="grain-soft" x="-8%" y="-16%" width="116%" height="132%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="soft"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="4" result="noise"/>
+    <feDisplacementMap in="soft" in2="noise" scale="26" xChannelSelector="R" yChannelSelector="G" result="shape"/>
+    <feFlood class="flood"/>
+    <feComposite in2="shape" operator="in"/>
+  </filter>
+  <filter id="grain-crisp-ink" x="-4%" y="-8%" width="108%" height="116%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="soft"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="4" result="noise"/>
+    <feDisplacementMap in="soft" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" result="grain"/>
+    <feComponentTransfer in="grain" result="shape"><feFuncA type="linear" slope="1.8" intercept="-0.3"/></feComponentTransfer>
+    <feFlood class="flood-ink"/>
+    <feComposite in2="shape" operator="in"/>
+  </filter>
+  <filter id="tint" color-interpolation-filters="sRGB"><feFlood class="flood"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+  <filter id="tint-ink" color-interpolation-filters="sRGB"><feFlood class="flood-ink"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+  <filter id="tint-day" color-interpolation-filters="sRGB"><feFlood flood-color="#25170D"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+</svg>
+
+<header class="hero field" id="hero">
+  <canvas data-school></canvas>
+  <div class="bar">
+    <img class="lockup" src="logo/lockup-mono.svg" alt="seqno">
+  </div>
+  <div class="stack">
+    <div class="label" data-avoid>
+      <span>Work in progress</span>
+      <a class="odo" href="https://github.com/AVGVSTVS96/seqno/commits/main" data-count="194" title="194 changes so far. Every edit you make in seqno gets a number like this in its edit log."><span class="no">Nº</span><span class="digits"></span><span class="sr">194 changes so far</span></a>
+    </div>
+    <div class="word" data-avoid>
+      <img class="soft" src="logo/wordmark-mono.svg" alt="">
+      <img class="crisp" src="logo/wordmark-mono.svg" alt="seqno">
+    </div>
+    <ul class="tagline outline" data-avoid>
+      <li>A local-first outliner, rebuilt to be minimal, solid and clean.
+        <ul><li>It's early, so keep your real notes where they are for now.</li></ul>
+      </li>
+    </ul>
+    <div class="actions" data-avoid>
+      <nav>
+        <a class="pill" href="https://seqno.vercel.app/app/">Try it in your browser</a>
+        <a class="pill ghost" href="https://github.com/AVGVSTVS96/seqno">GitHub</a>
+      </nav>
+      <p>Runs in Chrome and Edge. Your notes never leave your device.</p>
+    </div>
+  </div>
+  <svg class="cursor" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 2l15 7.2-6.4 1.9L8.9 17.6z" fill="var(--field-ink)" stroke="var(--field)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+</header>
+
+<main class="sheet">
+  <section class="intro">
+    <div>
+      <div class="mono">Brand · October 2026 · Nº 0194</div>
+      <h1>seqno, the brand</h1>
+    </div>
+    <ul class="outline">
+      <li>A local-first outliner, built carefully and in the open.
+        <ul>
+          <li>The brand is made from the outliner's own parts: the bullet, the guide line and the dot-grid page.</li>
+          <li>One warm field color, apricot, that no other notes app uses.</li>
+          <li>The name means sequence number, so the site shows the real one.</li>
+        </ul>
+      </li>
+    </ul>
+  </section>
+
+  <section class="block">
+    <header><h2>Logo</h2><p>The last two letters are set as the numero sign: a bullet sitting on a line. seqnº is the sequence number.</p></header>
+
+    <div class="logo-main">
+      <div class="card"><picture><source srcset="logo/lockup-dark.svg" media="(prefers-color-scheme: dark)"><img src="logo/lockup.svg" alt="seqno lockup" style="width: 100%"></picture><span class="mono">lockup.svg · lockup-dark.svg</span></div>
+      <div class="card tile-night"><img src="logo/app-icon.svg" alt="seqno app icon" style="width: 168px"><span class="mono" style="color: rgb(241 234 227 / 0.5)">app-icon.svg</span></div>
+    </div>
+    <div class="logo-row">
+      <div class="card on-field"><img src="logo/lockup-mono.svg" alt="" style="width: 62%; filter: url(#tint-day)"><span class="mono">lockup-mono.svg on apricot</span></div>
+      <div class="card on-night"><img src="logo/lockup-dark.svg" alt="" style="width: 62%"><span class="mono">lockup-dark.svg</span></div>
+      <div class="card"><img class="ink-tint" src="logo/mark-mono.svg" alt="" style="height: 64px"><span class="mono">mark.svg · mark-mono.svg</span></div>
+    </div>
+
+    <div class="card sizes">
+      <figure><img class="pixel" src="logo/favicon.svg" alt="" width="16" height="16"><figcaption>16</figcaption></figure>
+      <figure><img src="logo/favicon-32.png" alt="" width="32" height="32"><figcaption>32</figcaption></figure>
+      <figure><img src="logo/favicon.svg" alt="" width="64" height="64"><figcaption>64</figcaption></figure>
+      <figure><img src="logo/apple-touch-icon.png" alt="" width="120" height="120" style="border-radius: 27px"><figcaption>apple-touch-icon · 180</figcaption></figure>
+      <figure><img src="logo/icon-512.png" alt="" width="168" height="168"><figcaption>icon-512</figcaption></figure>
+      <span class="mono">favicon.svg · favicon-32.png · apple-touch-icon.png · icon-512.png</span>
+    </div>
+
+    <div class="anatomy">
+      <div class="card">
+        <svg viewBox="-60 -600 1240 800" data-anatomy></svg>
+        <span class="mono" style="position: absolute; left: 16px; bottom: 12px">construction · units of 1000 per em</span>
+      </div>
+      <div class="card">
+        <ul class="rules">
+          <li><b>Always lowercase.</b> In running text the name is plain “seqno”. The º only appears in the drawn logo.</li>
+          <li><b>Clear space</b> is the width of the º disc on every side.</li>
+          <li><b>Smallest sizes:</b> wordmark 20px tall, mark 16px. Below that, write seqno in Wix Madefor Display 700.</li>
+          <li><b>Colors:</b> ink on paper, ink on apricot, apricot or paper on dark. The tile is always apricot with an ink mark, or one solid color with the mark cut out.</li>
+          <li><b>Never</b> outline it, stretch it, recolor the º alone, or put the tile on apricot.</li>
+          <li><b>Grain</b> is for the hero and the link preview only. Everywhere else the logo is clean.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="directions grid-3">
+      <div class="direction">
+        <div class="card"><img src="logo/explore-a-outline.svg" alt=""></div>
+        <h3>A · Outline <span class="chip quiet">passed</span></h3>
+        <p>The app itself: a parent bullet, its guide line and two children, each with a line of text. It says “outliner” at any size and would animate well. It also looks like the bulleted-list button in every editor toolbar, so it describes the category instead of seqno.</p>
+      </div>
+      <div class="direction">
+        <div class="card"><img src="logo/explore-b-bullet-q.svg" alt=""></div>
+        <h3>B · Bullet q <span class="chip quiet">passed</span></h3>
+        <p>The q in the middle of the name rebuilt from a round bullet and a straight stem, so the outliner's bullet sits inside the word. Bold and very ownable. At small sizes the disc and bar read as media buttons, record and pause, and the gap splits the word in two.</p>
+      </div>
+      <div class="direction">
+        <div class="card"><img src="logo/explore-c-numero.svg" alt=""></div>
+        <h3>C · Numero <span class="chip">picked</span></h3>
+        <p>seqno is short for sequence number, so “no” is set as the numero sign: a round bullet on a line. The bullet is the dot the app draws before every block; the line is the row of text after it. The name still reads normally, and “nº” on its own works down to 16px.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <header><h2>Type</h2><p>Three free families, all under the SIL Open Font License, served from <code class="t-code" style="font-size: 13px">brand/fonts/</code>.</p></header>
+    <div class="families">
+      <div class="card family">
+        <div class="big">Ab</div>
+        <div><h3>Wix Madefor Display</h3><dl><dt>use</dt><dd>logo, headlines, taglines</dd><dt>weights</dt><dd>450 · 600 · 650 · 700 · 800 (logo)</dd><dt>axis</dt><dd>variable wght 400–800</dd></dl></div>
+      </div>
+      <div class="card family">
+        <div class="big text">Ab</div>
+        <div><h3>Wix Madefor Text</h3><dl><dt>use</dt><dd>body, UI, buttons</dd><dt>weights</dt><dd>400 · 550 · 650 + italic</dd><dt>axis</dt><dd>variable wght 400–800</dd></dl></div>
+      </div>
+      <div class="card family">
+        <div class="big monoface">0194</div>
+        <div><h3>Commit Mono</h3><dl><dt>use</dt><dd>labels, numbers, code</dd><dt>weights</dt><dd>400 · 500</dd><dt>figures</dt><dd>fixed width, slashed zero</dd></dl></div>
+      </div>
+    </div>
+    <div class="card scale">
+      <div><div class="t-display">Scattered thoughts, in order.</div><div class="spec"><b>display</b> · Display 700<br>64/72 · −0.035em · mobile 44/48</div></div>
+      <div><div class="t-h1">Your notes stay on your device.</div><div class="spec"><b>h1</b> · Display 650<br>44/48 · −0.03em · mobile 32/40</div></div>
+      <div><div class="t-lede">A local-first outliner, rebuilt to be minimal, solid and clean.</div><div class="spec"><b>lede</b> · Display 450<br>30/48 (two grid rows) · −0.02em</div></div>
+      <div><div class="t-h2">Every edit gets a number</div><div class="spec"><b>h2</b> · Display 600<br>24/32 · −0.015em</div></div>
+      <div><div class="t-body">Every edit goes into a Loro edit log, so devices merge without conflicts. SQLite runs in a worker as a fast index you can always rebuild.</div><div class="spec"><b>body</b> · Text 400<br>17/28 · −0.005em · measure 36em</div></div>
+      <div><div class="t-small">The web app runs in Chrome and Edge. It's not ready for your real notes yet.</div><div class="spec"><b>small</b> · Text 400<br>15/24 · ink-2</div></div>
+      <div><div class="t-ui">Try it in your browser</div><div class="spec"><b>ui</b> · Text 550<br>15/20 · buttons, nav</div></div>
+      <div><div class="label">Work in progress · Nº 0194</div><div class="spec"><b>label</b> · Mono 400 uppercase<br>11/16 · +0.14em</div></div>
+      <div><div class="t-code">updates/mac-4f2a/1043.loro</div><div class="spec"><b>code</b> · Mono 400<br>14/24</div></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <header><h2>Color</h2><p>Paper, ink and one field color. Apricot by day. By night the field is dusk, one step darker than the app's own dark screenshots, and apricot moves into the ink. Each field is shown with the screenshot it has to hold.</p></header>
+    <div class="fields">
+      <div class="swatch-field day field" data-swatch><canvas></canvas><img class="shot" src="../site/src/media/showcase-light-800.webp" alt=""><div class="name">Apricot</div><div class="codes">#F8AA6D · oklch(0.80 0.12 58)<br>field, light · ink on it 9.1:1</div></div>
+      <div class="swatch-field night field" data-swatch><canvas></canvas><img class="shot" src="../site/src/media/showcase-dark-800.webp" alt=""><div class="name">Dusk</div><div class="codes">#01222C · oklch(0.23 0.04 222)<br>field, dark · apricot on it 8.7:1</div></div>
+    </div>
+    <div class="tokens">
+      <div class="card token-set day" data-tokens="day"><h3>Light</h3></div>
+      <div class="card token-set night" data-tokens="night"><h3>Dark</h3></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <header><h2>Grid and motifs</h2><p>Everything sits on the outliner's 24px row. The dot grid is the page's empty rows; a bullet is a row that has something in it.</p></header>
+    <div class="card grid-diagram">
+      <svg viewBox="0 0 720 240" data-grid></svg>
+      <ul class="rules">
+        <li><b>Row 24, indent 24.</b> A bullet lands on a grid dot. A child sits one row down and one column in.</li>
+        <li><b>Spacing</b> steps by 8: 4 · 8 · 16 · 24 · 32 · 48 · 72 · 96 · 120.</li>
+        <li><b>Page</b> 1128px max, 24px gutters. Sections are blocks: a bullet and a guide line down the left edge.</li>
+        <li><b>Corners</b> 6 for small UI, 12 for cards and screenshots, round for buttons.</li>
+      </ul>
+    </div>
+    <div class="motifs" style="margin-top: 24px">
+      <div class="card motif"><div class="stage" data-motif="bullet"></div><div class="copy"><h3>The bullet</h3><p>A 6–8px disc. Ink on paper, paper on apricot. The only icon the brand really needs.</p></div></div>
+      <div class="card motif"><div class="stage" data-motif="guide"></div><div class="copy"><h3>The guide line</h3><p>1px, under a parent's bullet, as long as its children. When a bullet swims, the same line hangs behind it.</p></div></div>
+      <div class="card motif"><div class="stage dots" data-motif="dots"></div><div class="copy"><h3>The dot-grid page</h3><p>A 24px dot grid at 20% ink on the field, 12% on paper panels. Never behind running text.</p></div></div>
+      <div class="card motif"><div class="stage"><ul class="outline mini-outline"><li>Open a Logseq folder<ul><li>Pages and journals import once</li><li>Then the edit log is the truth</li></ul></li><li>Edits save every 250 ms</li></ul></div><div class="copy"><h3>Copy as outlines</h3><p>Lists, taglines and diagrams are set as real outlines, with the same row, indent and guide as the app.</p></div></div>
+      <div class="card motif"><div class="stage" data-motif="odometer"></div><div class="copy"><h3>The sequence number</h3><p>The repo's real commit count in a rolling counter. It only moves when the number really changed since your last visit.</p></div></div>
+      <div class="card motif"><div class="stage"><img class="grainy" src="logo/mark-mono.svg" alt=""></div><div class="copy"><h3>Grain</h3><p>Soft, static grain on the big wordmark, like ink on rough paper. It never moves on its own and never touches UI or body text.</p></div></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <header><h2>Motion</h2><p>Scattered thoughts settle into outlines. Bullets drift as a loose school, flee a moving cursor, and land back on the grid when they're left alone.</p></header>
+    <div class="film-title"><h3>Arrival</h3><span class="mono">on load · seed 3</span></div>
+    <div class="film" data-film="arrive"></div>
+    <div class="film-title"><h3>Stir</h3><span class="mono">a cursor passes through · each bullet returns on its own</span></div>
+    <div class="film" data-film="stir"></div>
+    <div class="film-title"><h3>Springs</h3><span class="mono">motion/react · three speeds</span></div>
+    <div class="springs" data-springs></div>
+    <div class="card params">
+      <div>Swim speed<code>34 px/s</code></div>
+      <div>Wakes within<code>150 px of a moving cursor</code></div>
+      <div>Flees within<code>110 px · 2600 px/s²</code></div>
+      <div>Calms down<code>τ = 1.4 s</code></div>
+      <div>Homes in at<code>≤ 220 px/s · gain 4 · steer 6</code></div>
+      <div>Tail swing<code>k 140 · c 9</code></div>
+      <div>Grid<code>row 24 · indent 24</code></div>
+      <div>Wordmark focus<code>blur 14 → 3.5 as bullets land</code></div>
+    </div>
+    <ul class="outline principles">
+      <li>Motion follows state.
+        <ul><li>Things move because something happened: the page loaded, the cursor moved, the commit count changed. No timers, no intervals, no scroll hijacking.</li></ul>
+      </li>
+      <li>One physical model.
+        <ul><li>Bullets have velocity and they keep it. Every landing curves because it starts from wherever the bullet was going.</li></ul>
+      </li>
+      <li>Still means still.
+        <ul><li>A cursor that stops is ignored, a hidden tab stops the loop, and reduced motion draws the settled outlines with nothing moving.</li></ul>
+      </li>
+    </ul>
+  </section>
+
+  <section class="block">
+    <header><h2>Diagrams</h2><p>Bullets are the nodes, 1px lines are the wires, labels are mono. One path in rust or apricot shows the thing being explained.</p></header>
+    <div class="card diagram"><svg viewBox="0 0 1040 200" data-diagram></svg></div>
+  </section>
+
+  <section class="block">
+    <header><h2>Voice</h2><p>Plain words, real numbers, first person when it's Bassim talking. Work in progress is said out loud, not hidden.</p></header>
+    <div class="voice">
+      <div class="card">
+        <h3>Write it like this</h3>
+        <div>Every edit saves to a log on your device, every 250 ms.<span class="mono">a fact with its number</span></div>
+        <div>It runs in Chrome and Edge. It's not ready for your real notes yet.<span class="mono">say what doesn't work</span></div>
+        <div>I watched my favorite note app get worse, so I rebuilt it.<span class="mono">Bassim, first person</span></div>
+        <div>194 commits so far. The number on this page is the real one.<span class="mono">work in progress as a feature</span></div>
+      </div>
+      <div class="card">
+        <h3>Not like this</h3>
+        <div class="no-pass">Supercharge your second brain with blazing-fast sync.</div>
+        <div class="no-pass">Seqno is a revolutionary, AI-native knowledge platform.</div>
+        <div class="no-pass">Coming soon! Join the waitlist to be the first to know.</div>
+        <div class="no-pass">Your thoughts, beautifully organized. Effortlessly.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot"><img src="logo/lockup-mono.svg" alt="seqno"><span class="mono">brand/specimen.html · bun render.mjs</span></footer>
+</main>
+
+<script src="hero.js"></script>
+<script>
+const still = new URLSearchParams(location.search).has("still")
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches
+const css = (el, name) => getComputedStyle(el).getPropertyValue(name).trim()
+const colorsOf = (el) => ({ field: css(el, "--field"), bullet: css(el, "--bullet"), ink: css(el, "--field-ink"), line: Number(css(el, "--line-opacity")) })
+const ns = "http://www.w3.org/2000/svg"
+const svgEl = (tag, attrs, parent) => {
+  const el = document.createElementNS(ns, tag)
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+  parent?.append(el)
+  return el
+}
+
+function springOf({ visualDuration, bounce }) {
+  const root = (2 * Math.PI) / (visualDuration * 1.2)
+  return { k: root * root, c: 2 * Math.min(1, Math.max(0.05, 1 - bounce)) * root }
+}
+function springAt({ k, c }, t) {
+  const w0 = Math.sqrt(k)
+  const z = c / (2 * w0)
+  if (z >= 1) return 1 - Math.exp(-w0 * t) * (1 + w0 * t)
+  const wd = w0 * Math.sqrt(1 - z * z)
+  return 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + ((z * w0) / wd) * Math.sin(wd * t))
+}
+function springEasing(token) {
+  const s = springOf(token)
+  let end = 0.05
+  for (let t = 0; t < 4; t += 0.01) if (Math.abs(1 - springAt(s, t)) > 0.002) end = t + 0.01
+  const points = Array.from({ length: 61 }, (_, i) => +springAt(s, (i / 60) * end).toFixed(4))
+  points[60] = 1
+  return { easing: `linear(${points.join(", ")})`, duration: Math.round(end * 1000) }
+}
+const springs = {
+  fast: { visualDuration: 0.2, bounce: 0 },
+  base: { visualDuration: 0.35, bounce: 0.15 },
+  slow: { visualDuration: 0.6, bounce: 0.25 },
+}
+
+function odometer(el, { from, to, animate }) {
+  const digits = el.querySelector(".digits")
+  const width = Math.max(4, String(to).length)
+  const a = String(from).padStart(width, "0")
+  const b = String(to).padStart(width, "0")
+  const spring = springEasing(springs.slow)
+  digits.replaceChildren()
+  ;[...b].forEach((d, i) => {
+    const cell = document.createElement("span")
+    cell.className = "cell"
+    const strip = document.createElement("span")
+    strip.className = "strip"
+    for (let n = 0; n < 20; n++) strip.append(Object.assign(document.createElement("span"), { textContent: n % 10 }))
+    cell.append(strip)
+    digits.append(cell)
+    const start = +a[i]
+    const end = +d >= start ? +d : +d + 10
+    const at = (n) => `translateY(${-n * 22}px)`
+    if (!animate || start === end) { strip.style.transform = at(+d); return }
+    strip.animate([{ filter: "blur(0px)" }, { filter: "blur(0.6px)", offset: 0.2 }, { filter: "blur(0px)" }], { duration: spring.duration * 0.7, easing: "ease-out" })
+    strip.animate([{ transform: at(start) }, { transform: at(end) }], { duration: spring.duration, easing: spring.easing, fill: "forwards" })
+      .finished.then((anim) => { anim.commitStyles(); anim.cancel(); strip.style.transform = at(+d) })
+  })
+}
+
+const hero = document.getElementById("hero")
+const heroCanvas = hero.querySelector("[data-school]")
+const soft = hero.querySelector(".word .soft")
+const crisp = hero.querySelector(".word .crisp")
+function focus(order) {
+  const x = Math.min(1, Math.max(0, (order - 0.25) / 0.45))
+  const f = x * x * (3 - 2 * x)
+  soft.style.opacity = 1 - f
+  crisp.style.opacity = f
+}
+function avoidRects() {
+  const base = hero.getBoundingClientRect()
+  const rects = [...hero.querySelectorAll("[data-avoid]")].map((el) => {
+    const r = el.getBoundingClientRect()
+    return { x: r.left - base.left - 12, y: r.top - base.top - 12, w: r.width + 24, h: r.height + 24 }
+  })
+  return [...rects, { x: 0, y: 0, w: 320, h: 96 }]
+}
+
+function film(kind, el) {
+  const frames = kind === "arrive"
+    ? [[0.15, "0.15 s", "scattered"], [0.9, "0.9 s", "drifting"], [1.8, "1.8 s", "curving home"], [3.4, "3.4 s", "settled"]]
+    : [[0, "0.0 s", "settled"], [0.12, "0.12 s", "cursor passes"], [0.7, "0.7 s", "loose"], [3.2, "3.2 s", "back on the grid"]]
+  for (const [t, time, words] of frames) {
+    const fig = document.createElement("figure")
+    fig.innerHTML = `<div class="frame field"><canvas></canvas></div><figcaption><b>${time}</b> · ${words}</figcaption>`
+    el.append(fig)
+    const canvas = fig.querySelector("canvas")
+    const { width: fw, height: fh } = canvas.getBoundingClientRect()
+    const path = Array.from({ length: 22 }, (_, i) => [fw * (0.08 + (i / 21) * 0.72), fh * (0.3 + (i / 21) * 0.3) + Math.sin(i / 4) * 14])
+    const school = createSchool(canvas, { seed: 3, count: 2, colors: colorsOf(fig.querySelector(".frame")), spread: [50, 130] })
+    if (kind === "arrive") { school.advance(t); continue }
+    school.advance(5)
+    if (t === 0) continue
+    school.stroke(path)
+    school.leave()
+    school.advance(t - 0.12)
+    if (t === 0.12) {
+      const [x, y] = path[path.length - 1]
+      const cursor = hero.querySelector(".cursor").cloneNode(true)
+      cursor.style.cssText = `display:block;left:${(x / fw) * 100}%;top:${(y / fh) * 100}%`
+      fig.querySelector(".frame").append(cursor)
+    }
+  }
+}
+
+function plotSprings(el) {
+  for (const [name, token] of Object.entries(springs)) {
+    const s = springOf(token)
+    const card = document.createElement("div")
+    card.className = "card spring"
+    card.innerHTML = `<h3>${name}</h3><svg viewBox="0 0 260 120"></svg><div class="t-code">{ type: "spring", visualDuration: ${token.visualDuration}, bounce: ${token.bounce} }<br>stiffness ${Math.round(s.k)} · damping ${s.c.toFixed(1)} · mass 1</div><p class="t-small" style="margin-top: 10px">${{ fast: "Press, hover, toggles, popover open.", base: "Things entering, layout changes, menus.", slow: "Odometer digits, outlines landing in a section." }[name]}</p>`
+    el.append(card)
+    const svg = card.querySelector("svg")
+    const T = 1.2
+    const x = (t) => 10 + (t / T) * 240
+    const y = (v) => 100 - v * 76
+    svgEl("line", { class: "axis", x1: 10, y1: 100, x2: 250, y2: 100 }, svg)
+    svgEl("line", { class: "target", x1: 10, y1: y(1), x2: 250, y2: y(1) }, svg)
+    const d = Array.from({ length: 121 }, (_, i) => `${i ? "L" : "M"}${x((i / 120) * T).toFixed(1)} ${y(springAt(s, (i / 120) * T)).toFixed(1)}`).join("")
+    svgEl("path", { class: "curve", d }, svg)
+    const { duration } = springEasing(token)
+    svgEl("circle", { class: "dot", cx: x(Math.min(T, duration / 1000)), cy: y(springAt(s, duration / 1000)), r: 3 }, svg)
+    svgEl("text", { x: 10, y: 116 }, svg).textContent = "0"
+    svgEl("text", { x: 226, y: 116 }, svg).textContent = "1.2 s"
+    svgEl("text", { x: Math.min(196, x(duration / 1000) + 6), y: y(1) - 8 }, svg).textContent = `${duration} ms`
+  }
+}
+
+function drawAnatomy(svg) {
+  svgEl("image", { href: "logo/mark.svg", x: 51, y: -526, width: 850, height: 526, filter: "url(#tint-ink)" }, svg)
+  const m = svgEl("g", { class: "measure" }, svg)
+  const line = (x1, y1, x2, y2) => svgEl("line", { x1, y1, x2, y2 }, m)
+  const text = (x, y, t, anchor = "start") => { svgEl("text", { x, y, "text-anchor": anchor }, m).textContent = t }
+  line(-40, -526, 1140, -526); line(-40, 0, 1140, 0)
+  text(-40, -548, "x-height 526")
+  text(-40, 40, "baseline")
+  const ox = 625
+  line(ox, -560, ox, 60); line(ox + 276, -560, ox + 276, 60)
+  text(ox + 138, 100, "º 276 = ½ o", "middle")
+  line(ox + 300, -82, ox + 300, 0); text(ox + 316, -30, "82")
+  line(ox - 14, -300, ox, -300); text(ox - 22, -320, "14", "end")
+  text(440, 168, "n set at 800 · tracking −36 · º drawn, not typed", "middle")
+}
+
+function drawGrid(svg) {
+  const g = 24, ox = 12, oy = 12
+  for (let x = 0; x < 30; x++) for (let y = 0; y < 10; y++) svgEl("circle", { cx: ox + x * g, cy: oy + y * g, r: 1.1, fill: "var(--hair)" }, svg)
+  const rows = [[0, 0, 10], [1, 1, 7], [1, 2, 8], [2, 3, 5], [0, 4, 9]]
+  for (const [d, r, w] of rows) {
+    const cx = ox + (d + 2) * g, cy = oy + (r + 2) * g
+    svgEl("rect", { x: cx + 9, y: cy - 3.5, width: w * g - 8, height: 7, fill: "var(--surface)" }, svg)
+    svgEl("rect", { x: cx + 11, y: cy - 1.5, width: w * g - 12, height: 3, rx: 1.5, fill: "var(--ink)", opacity: 0.18 }, svg)
+    svgEl("circle", { cx, cy, r: 3.5, fill: "var(--ink)" }, svg)
+  }
+  svgEl("line", { x1: ox + 2 * g, y1: oy + 2 * g + 8, x2: ox + 2 * g, y2: oy + 5 * g + 8, stroke: "var(--ink)", "stroke-opacity": 0.35 }, svg)
+  svgEl("line", { x1: ox + 3 * g, y1: oy + 4 * g + 8, x2: ox + 3 * g, y2: oy + 5 * g + 8, stroke: "var(--ink)", "stroke-opacity": 0.35 }, svg)
+  const m = svgEl("g", { stroke: "var(--rust)", fill: "none" }, svg)
+  svgEl("path", { d: `M${ox + 2 * g} ${oy + 8 * g}h${g}M${ox + 2 * g} ${oy + 8 * g - 4}v8M${ox + 3 * g} ${oy + 8 * g - 4}v8` }, m)
+  svgEl("path", { d: `M${ox + 13 * g} ${oy + 2 * g}v${g}M${ox + 13 * g - 4} ${oy + 2 * g}h8M${ox + 13 * g - 4} ${oy + 3 * g}h8` }, m)
+  const label = (x, y, t) => { svgEl("text", { x, y, fill: "var(--rust)", style: "font: 400 11px var(--mono); letter-spacing: .04em" }, svg).textContent = t }
+  label(ox + 2 * g, oy + 8 * g + 20, "indent 24")
+  label(ox + 13 * g + 10, oy + 2.5 * g + 4, "row 24")
+  label(ox + 16 * g, oy + 6 * g + 4, "a grid dot is an empty row")
+}
+
+function drawMotifs() {
+  const bullet = document.querySelector('[data-motif="bullet"]')
+  bullet.innerHTML = `<svg width="200" height="60" viewBox="0 0 200 60"><circle cx="30" cy="30" r="4" fill="var(--ink)"/><circle cx="90" cy="30" r="3.5" fill="var(--ink)" opacity=".55"/><circle cx="150" cy="30" r="4" fill="var(--rust)"/><text x="30" y="56" text-anchor="middle" style="font: 400 10px var(--mono); fill: var(--ink-3)">ink</text><text x="90" y="56" text-anchor="middle" style="font: 400 10px var(--mono); fill: var(--ink-3)">muted</text><text x="150" y="56" text-anchor="middle" style="font: 400 10px var(--mono); fill: var(--ink-3)">active</text></svg>`
+  const guide = document.querySelector('[data-motif="guide"]')
+  guide.innerHTML = `<svg width="220" height="120" viewBox="0 0 220 120"><g fill="var(--ink)"><circle cx="40" cy="20" r="3.5"/><circle cx="64" cy="44" r="3.5"/><circle cx="64" cy="68" r="3.5"/><circle cx="64" cy="92" r="3.5"/></g><line x1="40" y1="28" x2="40" y2="100" stroke="var(--ink)" stroke-opacity=".35"/><g fill="var(--ink)" opacity=".16"><rect x="51" y="18.5" width="90" height="3" rx="1.5"/><rect x="75" y="42.5" width="70" height="3" rx="1.5"/><rect x="75" y="66.5" width="100" height="3" rx="1.5"/><rect x="75" y="90.5" width="56" height="3" rx="1.5"/></g><g transform="translate(170 40)"><circle r="3.5" fill="var(--ink)"/><line x1="-3" y1="5.5" x2="-8" y2="16" stroke="var(--ink)" stroke-opacity=".55"/></g></svg>`
+  const dots = document.querySelector('[data-motif="dots"]')
+  dots.innerHTML = `<svg width="168" height="96" viewBox="0 0 168 96"><g fill="var(--ink)"><circle cx="36" cy="36" r="3.5"/><circle cx="60" cy="60" r="3.5"/></g><g fill="var(--ink)" opacity=".16"><rect x="47" y="34.5" width="96" height="3" rx="1.5"/><rect x="71" y="58.5" width="72" height="3" rx="1.5"/></g></svg>`
+  const odo = document.querySelector('[data-motif="odometer"]')
+  odo.innerHTML = `<div style="display: grid; gap: 14px; justify-items: start; color: var(--ink)">${["last visit", "rolling", "now"].map((w) => `<div class="label" style="display: flex; gap: 12px; align-items: center"><span class="odo"><span class="no">Nº</span><span class="digits"></span></span><span style="color: var(--ink-3)">${w}</span></div>`).join("")}</div>`
+  const [a, b, c] = odo.querySelectorAll(".odo")
+  odometer(a, { from: 191, to: 191, animate: false })
+  odometer(b, { from: 194, to: 194, animate: false })
+  odometer(c, { from: 194, to: 194, animate: false })
+  const strips = b.querySelectorAll(".strip")
+  strips[3].style.transform = "translateY(-77px)"
+  strips[3].style.filter = "blur(0.6px)"
+}
+
+function drawDiagram(svg) {
+  const y = 48
+  const nodes = [
+    { x: 24, label: "Keystroke", sub: "EditText · UTF-16 offsets", kids: ["sent to the core worker", "the UI never touches files"] },
+    { x: 288, label: "Loro edit log", sub: "commit · one undo step", kids: ["tree moves, text per block", "merges without conflicts"] },
+    { x: 552, label: "SQLite index", sub: "one transaction", kids: ["refs, tags, full text", "wakes only touched queries"] },
+    { x: 816, label: "Update file", sub: "updates/mac/0195.loro", kids: ["one writer per file", "names never repeat"], hot: true },
+  ]
+  svgEl("path", { class: "path", d: `M${nodes[0].x} ${y}H${nodes[3].x}` }, svg)
+  nodes.forEach((n, i) => {
+    svgEl("text", { x: n.x - 6, y: y - 22 }, svg).textContent = n.label
+    svgEl("circle", { class: `node${n.hot ? " hot" : ""}`, cx: n.x, cy: y, r: 6 }, svg)
+    svgEl("text", { class: "sub", x: n.x + 18, y: y + 4 + 28 }, svg).textContent = n.sub
+    const top = y + 10
+    const rows = n.kids.map((_, k) => y + 72 + k * 32)
+    svgEl("line", { class: "wire", x1: n.x, y1: top, x2: n.x, y2: rows[rows.length - 1] + 10 }, svg)
+    n.kids.forEach((kid, k) => {
+      svgEl("circle", { class: "node", cx: n.x + 24, cy: rows[k], r: 3.5, opacity: 0.7 }, svg)
+      svgEl("text", { class: "kid", x: n.x + 38, y: rows[k] + 5 }, svg).textContent = kid
+    })
+  })
+  ;[["seq 0195", 156], ["events", 420], ["every 250 ms", 684]].forEach(([t, x]) => {
+    const w = t.length * 7.2 + 20
+    svgEl("rect", { x: x - w / 2, y: y - 10, width: w, height: 20, rx: 10, fill: "var(--surface)", stroke: "var(--rust)", "stroke-opacity": 0.35 }, svg)
+    svgEl("text", { class: "seq", x, y: y + 4, "text-anchor": "middle" }, svg).textContent = t
+  })
+}
+
+function tokens() {
+  const sets = {
+    day: [["paper", "#FDF9F4", "page", "—"], ["surface", "#FFFFFF", "cards, screenshots", "—"], ["sunk", "#F8F1EA", "quiet panels", "—"], ["ink", "#25170D", "text, bullets", "16.6"], ["ink-2", "#655449", "secondary text", "6.9"], ["ink-3", "#7A6C61", "labels, hints", "4.8"], ["hair", "rgb(37 23 13 / .12)", "1px rules", "—"], ["rust", "#AE4819", "links, the one path", "5.4"], ["field", "#F8AA6D", "hero, link preview", "—"], ["bullet", "#FFF8ED", "bullets on the field", "—"]],
+    night: [["paper", "#02141B", "page", "—"], ["surface", "#002B36", "cards, screenshots", "—"], ["sunk", "#01222C", "quiet panels", "—"], ["ink", "#F1EAE3", "text, bullets", "15.8"], ["ink-2", "#A3B5B8", "secondary text", "8.8"], ["ink-3", "#7E9094", "labels, hints", "5.6"], ["hair", "rgb(241 234 227 / .12)", "1px rules", "—"], ["rust", "#F8AA6D", "links, the one path", "9.8"], ["field", "#01222C", "hero", "—"], ["bullet", "#F4D9C0", "bullets on the field", "—"]],
+  }
+  for (const [name, rows] of Object.entries(sets)) {
+    const el = document.querySelector(`[data-tokens="${name}"]`)
+    for (const [token, value, use, ratio] of rows) {
+      const row = document.createElement("div")
+      row.className = "token"
+      row.innerHTML = `<i style="background:${value}"></i><div><b>--${token}</b> <span>${use}</span></div><em>${value}</em><em>${ratio === "—" ? "" : ratio + ":1"}</em>`
+      el.append(row)
+    }
+  }
+}
+
+function swatches() {
+  for (const el of document.querySelectorAll("[data-swatch]")) {
+    const base = el.getBoundingClientRect()
+    const shot = el.querySelector(".shot").getBoundingClientRect()
+    const avoid = [{ x: 0, y: 0, w: 260, h: 90 }, { x: 0, y: 220, w: 360, h: 80 }, { x: shot.left - base.left - 24, y: shot.top - base.top - 24, w: shot.width + 48, h: shot.height + 48 }]
+    const school = createSchool(el.querySelector("canvas"), { seed: 11, count: 4, colors: colorsOf(el), avoid, reduced: true })
+    school.draw()
+  }
+}
+
+function pose(school) {
+  school.advance(6)
+  const w = hero.clientWidth
+  const path = Array.from({ length: 34 }, (_, i) => [w * 0.52 + i * w * 0.0085, 300 + i * 2.6 + Math.sin(i / 4) * 26])
+  school.stroke(path)
+  school.leave()
+  school.advance(0.1)
+  const [x, y] = path[path.length - 1]
+  const cursor = hero.querySelector(".cursor")
+  cursor.style.left = `${x}px`
+  cursor.style.top = `${y}px`
+  hero.classList.add("posed")
+  focus(school.order())
+}
+
+async function main() {
+  await document.fonts.ready
+  await Promise.all([...document.images].map((img) => img.decode().catch(() => {})))
+  tokens()
+  drawMotifs()
+  drawGrid(document.querySelector("[data-grid]"))
+  drawAnatomy(document.querySelector("[data-anatomy]"))
+  drawDiagram(document.querySelector("[data-diagram]"))
+  plotSprings(document.querySelector("[data-springs]"))
+  film("arrive", document.querySelector('[data-film="arrive"]'))
+  film("stir", document.querySelector('[data-film="stir"]'))
+  swatches()
+
+  const school = createSchool(heroCanvas, { avoid: avoidRects(), colors: colorsOf(hero), reduced })
+  const odo = hero.querySelector(".odo")
+  const count = +odo.dataset.count
+  const seen = +(localStorage.getItem("seqno:seen") ?? count)
+  odometer(odo, { from: Math.min(seen, count), to: count, animate: !still && !reduced })
+  localStorage.setItem("seqno:seen", count)
+
+  if (still) {
+    pose(school)
+    document.documentElement.dataset.ready = "true"
+    return
+  }
+  if (reduced) { school.draw(); focus(1); return }
+  school.run(hero, focus)
+}
+main()
+</script>
+</body>
+</html>
