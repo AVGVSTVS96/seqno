@@ -128,7 +128,7 @@ const checkIntent = (oracle: Replica, intent: Intent) =>
 
       const text = block.value.text
       const first = text.indexOf(token)
-      const count = first < 0 ? 0 : text.indexOf(token, first + 1) < 0 ? 1 : 2
+      const count = first === -1 ? 0 : text.includes(token, first + 1) ? 2 : 1
       const dead = intent.deadTokens.has(token)
 
       if (dead ? count !== 0 : count !== 1) {
@@ -583,10 +583,7 @@ export const runSeed = (cfg: SimConfig) =>
 
     const longOfflineDevices = rng.chance(0.5) ? 2 : 1
 
-    for (let i = 0; i < longOfflineDevices; i++) {
-      const d = rng.int(0, cfg.devices - 1)
-      const start = rng.chance(0.25) ? 0 : rng.range(0.05, 0.6) * cfg.hours * HOUR
-      const length = rng.range(12, 36) * HOUR
+    const goLongOffline = (d: number, start: number, length: number) => {
       sched.soon(start, () => {
         if (quiescent || inLongOffline[d] === true) {
           return
@@ -607,6 +604,12 @@ export const runSeed = (cfg: SimConfig) =>
           Effect.suspend(() => (inLongOffline[d] === true ? comeBack(d) : Effect.void)),
         )
       })
+    }
+
+    for (let i = 0; i < longOfflineDevices; i++) {
+      const d = rng.int(0, cfg.devices - 1)
+      const start = rng.chance(0.25) ? 0 : rng.range(0.05, 0.6) * cfg.hours * HOUR
+      goLongOffline(d, start, rng.range(12, 36) * HOUR)
     }
 
     const restartDevice = (d: number) =>
@@ -806,7 +809,7 @@ export const runSeed = (cfg: SimConfig) =>
     )
 
     yield* fresh.importBlobs(
-      [...cloud.server].filter(([p]) => p.endsWith(".loro")).map(([, f]) => f.bytes),
+      [...cloud.server].flatMap(([p, f]) => (p.endsWith(".loro") ? [f.bytes] : [])),
     )
 
     if (

@@ -103,6 +103,20 @@ export const conflictCopyName = (path: string, n: number): string => {
   return `${dir}/${name.slice(0, dot)} ${n}${name.slice(dot)}`
 }
 
+const setEntry = (d: DeviceState, path: string, entry: Entry) => {
+  const [dir, name] = splitPath(path)
+  d.view.set(path, entry)
+  const names = d.dirs.get(dir) ?? new Set<string>()
+  d.dirs.set(dir, names)
+  names.add(name)
+}
+
+const removeEntry = (d: DeviceState, path: string) => {
+  const [dir, name] = splitPath(path)
+  d.view.delete(path)
+  d.dirs.get(dir)?.delete(name)
+}
+
 export class FakeICloud {
   readonly server = new Map<string, ServerFile>()
   readonly stats: CloudStats = {
@@ -287,14 +301,14 @@ export class FakeICloud {
         Effect.sync(() => {
           this.hooks.onDeviceWrite(d.id, path, bytes)
           const mtime = this.sched.now
-          this.setEntry(d, path, { version: -1, size: bytes.length, mtime, bytes })
+          setEntry(d, path, { version: -1, size: bytes.length, mtime, bytes })
           d.outbox.set(path, { _tag: "Write", bytes, mtime })
           this.pump(d)
         }),
       remove: (path) =>
         Effect.sync(() => {
           this.hooks.onDeviceRemove(d.id, path)
-          this.removeEntry(d, path)
+          removeEntry(d, path)
           d.outbox.set(path, { _tag: "Delete" })
           this.pump(d)
         }),
@@ -307,20 +321,6 @@ export class FakeICloud {
           }
         }),
     }
-  }
-
-  private setEntry(d: DeviceState, path: string, entry: Entry) {
-    const [dir, name] = splitPath(path)
-    d.view.set(path, entry)
-    const names = d.dirs.get(dir) ?? new Set<string>()
-    d.dirs.set(dir, names)
-    names.add(name)
-  }
-
-  private removeEntry(d: DeviceState, path: string) {
-    const [dir, name] = splitPath(path)
-    d.view.delete(path)
-    d.dirs.get(dir)?.delete(name)
   }
 
   private pump(d: DeviceState) {
@@ -457,7 +457,7 @@ export class FakeICloud {
 
     if (remote === undefined) {
       if (local !== undefined) {
-        this.removeEntry(d, path)
+        removeEntry(d, path)
         this.hooks.onViewChange(d.id)
       }
 
@@ -468,7 +468,7 @@ export class FakeICloud {
       return
     }
 
-    this.setEntry(d, path, {
+    setEntry(d, path, {
       version: remote.version,
       size: remote.bytes.length,
       mtime: remote.mtime,
@@ -529,11 +529,11 @@ export class FakeICloud {
       const remote = this.server.get(path)
 
       if (remote === undefined) {
-        this.removeEntry(d, path)
+        removeEntry(d, path)
       } else {
         this.stats.downloads++
         this.stats.downloadBytes += remote.bytes.length
-        this.setEntry(d, path, {
+        setEntry(d, path, {
           version: remote.version,
           size: remote.bytes.length,
           mtime: remote.mtime,

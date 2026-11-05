@@ -14,58 +14,59 @@ const logseqAttributes = new Set([
 const fix = (name: string) =>
   `\`${name}\` is one of Logseq's names. Spread \`logseq("seqno-…", state)\` from @seqno/dom on this element and add Logseq's names to the table there.`
 
-type Found = { readonly node: ESTree.Node; readonly text: string }
+interface Found {
+  readonly node: ESTree.Node
+  readonly text: string
+}
+
+const isText = (value: Extract<ESTree.Node, { type: "Literal" }>["value"]): value is string =>
+  typeof value === "string"
 
 const strings = (node: ESTree.Node | null | undefined): readonly Found[] => {
   if (node === null || node === undefined) {
     return []
   }
 
-  switch (node.type) {
-    case "Literal": {
-      return typeof node.value === "string" ? [{ node, text: node.value }] : []
-    }
-
-    case "TemplateLiteral": {
-      return [
-        ...node.quasis.flatMap((quasi) =>
-          quasi.value.cooked === null || quasi.value.cooked === undefined
-            ? []
-            : [{ node: quasi, text: quasi.value.cooked }],
-        ),
-        ...node.expressions.flatMap(strings),
-      ]
-    }
-
-    case "JSXExpressionContainer": {
-      return node.expression.type === "JSXEmptyExpression" ? [] : strings(node.expression)
-    }
-
-    case "ConditionalExpression": {
-      return [...strings(node.consequent), ...strings(node.alternate)]
-    }
-
-    case "LogicalExpression":
-    case "BinaryExpression": {
-      return [...strings(node.left), ...strings(node.right)]
-    }
-
-    case "CallExpression": {
-      return node.arguments.flatMap(strings)
-    }
-
-    case "ArrayExpression": {
-      return node.elements.flatMap(strings)
-    }
-
-    case "SpreadElement": {
-      return strings(node.argument)
-    }
-
-    default: {
-      return []
-    }
+  if (node.type === "Literal") {
+    return isText(node.value) ? [{ node, text: node.value }] : []
   }
+
+  if (node.type === "TemplateLiteral") {
+    return [
+      ...node.quasis.flatMap((quasi) =>
+        quasi.value.cooked === null || quasi.value.cooked === undefined
+          ? []
+          : [{ node: quasi, text: quasi.value.cooked }],
+      ),
+      ...node.expressions.flatMap(strings),
+    ]
+  }
+
+  if (node.type === "JSXExpressionContainer") {
+    return node.expression.type === "JSXEmptyExpression" ? [] : strings(node.expression)
+  }
+
+  if (node.type === "ConditionalExpression") {
+    return [...strings(node.consequent), ...strings(node.alternate)]
+  }
+
+  if (node.type === "LogicalExpression" || node.type === "BinaryExpression") {
+    return [...strings(node.left), ...strings(node.right)]
+  }
+
+  if (node.type === "CallExpression") {
+    return node.arguments.flatMap(strings)
+  }
+
+  if (node.type === "ArrayExpression") {
+    return node.elements.flatMap(strings)
+  }
+
+  if (node.type === "SpreadElement") {
+    return strings(node.argument)
+  }
+
+  return []
 }
 
 const tokens = (text: string) => text.split(/\s+/u).filter((token) => token !== "")
@@ -159,7 +160,7 @@ export const logseqNames = defineRule({
           check(context, [value], isId)
         }
 
-        if (typeof attribute.value === "string" && logseqAttributes.has(attribute.value)) {
+        if (isText(attribute.value) && logseqAttributes.has(attribute.value)) {
           context.report({ node: attribute, message: fix(attribute.value) })
         }
       }

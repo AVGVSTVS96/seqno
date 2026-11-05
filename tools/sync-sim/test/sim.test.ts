@@ -15,11 +15,11 @@ const quietCloud = (sched: Scheduler, style: "dataless" | "stub") =>
       { style, autoDownload: false },
     ],
     {
-      onServerWrite: () => undefined,
-      onServerDelete: () => undefined,
-      onDeviceWrite: () => undefined,
-      onDeviceRemove: () => undefined,
-      onViewChange: () => undefined,
+      onServerWrite: () => {},
+      onServerDelete: () => {},
+      onDeviceWrite: () => {},
+      onDeviceRemove: () => {},
+      onViewChange: () => {},
     },
   )
 

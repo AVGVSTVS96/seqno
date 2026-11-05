@@ -2,6 +2,8 @@ import { expect, test as base } from "@playwright/test"
 import type { Page } from "@playwright/test"
 import { journalTitle } from "./journal.ts"
 
+export { expect } from "@playwright/test"
+
 const editLogFiles = async (page: Page) =>
   await page.evaluate(async () => {
     const names: string[] = []
@@ -85,7 +87,7 @@ export const test = base.extend<{
 }>({
   hints: [false, { option: true }],
   onboarded: [true, { option: true }],
-  page: async ({ page, hints, onboarded }, use) => {
+  page: async ({ page, hints, onboarded }, provide) => {
     if (onboarded) {
       await page.addInitScript(() => {
         if (window.top !== window) {
@@ -110,12 +112,10 @@ export const test = base.extend<{
 
     const errors: string[] = []
     page.on("pageerror", (error) => errors.push(error.message))
-    await use(page)
+    await provide(page)
     expect(errors, "uncaught errors in the page").toEqual([])
   },
-  seqno: async ({ page }, use) => {
-    await use(seqno(page))
+  seqno: async ({ page }, provide) => {
+    await provide(seqno(page))
   },
 })
-
-export { expect }

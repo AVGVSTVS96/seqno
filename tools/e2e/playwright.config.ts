@@ -3,7 +3,7 @@ import { baseURL, externalUrl, managedServer, webAppExists } from "./src/env.ts"
 
 const ci = process.env["CI"] !== undefined
 
-export default defineConfig({
+const config = defineConfig({
   testDir: "flows",
   testMatch: "*.e2e.ts",
   workers: 1,
@@ -17,5 +17,10 @@ export default defineConfig({
     screenshot: "on",
     trace: "retain-on-failure",
   },
-  ...(externalUrl === undefined && webAppExists ? { webServer: managedServer } : {}),
 })
+
+if (externalUrl === undefined && webAppExists) {
+  config.webServer = managedServer
+}
+
+export default config

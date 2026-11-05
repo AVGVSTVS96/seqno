@@ -124,7 +124,10 @@ export const scrollToText = async (
   )
   await page.mouse.wheel(0, 600)
   await page.waitForFunction(
-    async () => await new Promise((resolve) => requestAnimationFrame(resolve)),
+    async () =>
+      await new Promise((resolve) => {
+        requestAnimationFrame(resolve)
+      }),
   )
 
   await scrollToText(page, text, offset, tries - 1)

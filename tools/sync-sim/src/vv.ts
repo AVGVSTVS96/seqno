@@ -5,35 +5,23 @@ export interface Span {
   readonly end: VV
 }
 
-export const covers = (a: VV, b: VV): boolean => {
-  for (const peer in b) {
-    if ((a[peer] ?? 0) < (b[peer] ?? 0)) {
-      return false
-    }
-  }
-
-  return true
-}
+export const covers = (a: VV, b: VV): boolean =>
+  Object.entries(b).every(([peer, n]) => (a[peer] ?? 0) >= n)
 
 export const vvEqual = (a: VV, b: VV): boolean => covers(a, b) && covers(b, a)
 
-export const vvMax = (a: VV, b: VV): VV => {
-  const out: Record<string, number> = { ...a }
-
-  for (const peer in b) {
-    out[peer] = Math.max(out[peer] ?? 0, b[peer] ?? 0)
-  }
-
-  return out
-}
+export const vvMax = (a: VV, b: VV): VV =>
+  Object.fromEntries([
+    ...Object.entries(a),
+    ...Object.entries(b).map(([peer, n]) => [peer, Math.max(a[peer] ?? 0, n)] as const),
+  ])
 
 export class Coverage {
   private readonly peers = new Map<string, ReadonlyArray<readonly [number, number]>>()
 
   add({ start, end }: Span) {
-    for (const peer in end) {
+    for (const [peer, to] of Object.entries(end)) {
       const from = start[peer] ?? 0
-      const to = end[peer] ?? 0
 
       if (to > from) {
         this.addRange(peer, from, to)

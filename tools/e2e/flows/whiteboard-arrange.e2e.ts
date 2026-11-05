@@ -12,8 +12,8 @@ const boxes = async (page: Page) =>
     nodes.map((node) =>
       node instanceof HTMLElement
         ? [
-            Number.parseFloat(node.style.left),
-            Number.parseFloat(node.style.top),
+            Number(node.style.left.replace("px", "")),
+            Number(node.style.top.replace("px", "")),
             node.offsetWidth,
             node.offsetHeight,
           ]
@@ -126,7 +126,7 @@ test("files dropped together are packed into a rectangle with 16px gaps", async 
   const [a, b] = await images.evaluateAll((nodes) =>
     nodes.map((node) =>
       node instanceof HTMLElement
-        ? [Number.parseFloat(node.style.left), Number.parseFloat(node.style.top)]
+        ? [Number(node.style.left.replace("px", "")), Number(node.style.top.replace("px", ""))]
         : [],
     ),
   )

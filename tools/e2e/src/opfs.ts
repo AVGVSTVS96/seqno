@@ -27,9 +27,9 @@ export const seedOpfs = async (page: Page, from: string, to: readonly string[]) 
   const serve = async (route: Route) => {
     const path = served.get(new URL(route.request().url()).pathname)
 
-    path === undefined
-      ? await route.fulfill({ contentType: "text/html", body: "<!doctype html>" })
-      : await route.fulfill({ path })
+    await route.fulfill(
+      path === undefined ? { contentType: "text/html", body: "<!doctype html>" } : { path },
+    )
   }
 
   await page.route(routes, serve)
@@ -74,10 +74,16 @@ export const opfsFiles = async (page: Page, root: readonly string[]) => {
             data = await new Promise<string | null>((resolve, reject) => {
               const reader = new FileReader()
               reader.addEventListener("load", () => {
-                resolve(String(reader.result).split(",")[1] ?? "")
+                const url = reader.result
+
+                resolve(url instanceof ArrayBuffer || url === null ? "" : (url.split(",")[1] ?? ""))
               })
               reader.addEventListener("error", () => {
-                reader.error?.name === "NotReadableError" ? resolve(null) : reject(reader.error)
+                if (reader.error?.name === "NotReadableError") {
+                  resolve(null)
+                } else {
+                  reject(reader.error ?? new Error(`could not read ${entry.name}`))
+                }
               })
               reader.readAsDataURL(file)
             })
@@ -102,7 +108,7 @@ export const opfsFiles = async (page: Page, root: readonly string[]) => {
   }, root)
 
   return Object.fromEntries(
-    files.map(([path, bytes]) => [path, new Uint8Array(Buffer.from(bytes, "base64"))]),
+    files.map(([path, bytes]) => [path, new Uint8Array(Buffer.from(bytes, "base64"))] as const),
   )
 }
 
@@ -122,10 +128,9 @@ export const pickedFolder = (from: string) => [pickedFolders, basename(from)]
 
 export const opfsText = async (page: Page, root: readonly string[]) =>
   Object.fromEntries(
-    Object.entries(await opfsFiles(page, root)).map(([path, bytes]) => [
-      path,
-      new TextDecoder().decode(bytes),
-    ]),
+    Object.entries(await opfsFiles(page, root)).map(
+      ([path, bytes]) => [path, new TextDecoder().decode(bytes)] as const,
+    ),
   )
 
 export const opfsFile = async (page: Page, root: readonly string[], path: string) =>

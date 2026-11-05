@@ -59,18 +59,13 @@ export const writeYears = async (
 
 if (import.meta.main) {
   const [out = "years", years = "10", longPage = "0", layout, density = "1"] = process.argv.slice(2)
-  writeYears(
+
+  const shape = await writeYears(
     out,
     { years: Number(years), density: Number(density) },
     Number(longPage),
     layout === "tree-per-page" ? layout : "one-tree",
-  ).then(
-    (shape) => {
-      console.log(JSON.stringify(shape))
-    },
-    (error: unknown) => {
-      console.error(error)
-      process.exit(1)
-    },
   )
+
+  console.log(JSON.stringify(shape))
 }

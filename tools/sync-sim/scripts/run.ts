@@ -1,18 +1,17 @@
 import { fork } from "node:child_process"
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
-import { fileURLToPath } from "node:url"
 import { parseArgs } from "node:util"
 import { Effect, Schema } from "effect"
 import { bugs } from "../src/loro-vault.ts"
-import type { SeedResult } from "../src/sim.ts"
 import { decodeSeedJob, runJob, SeedJob, suites } from "../src/suite.ts"
 import { summarize } from "../src/summary.ts"
-import type { Finished } from "../src/summary.ts"
+import type { Crash, Finished } from "../src/summary.ts"
 
 const childJob = process.env["SYNC_SIM_JOB"]
 
-const send = (message: unknown) => process.send?.(message, () => process.exit(0)) ?? process.exit(1)
+const send = (message: Finished | Crash) =>
+  process.send?.(message, () => process.exit(0)) ?? process.exit(1)
 
 const runChild = async (raw: string) => {
   const job = decodeSeedJob(raw)
@@ -91,14 +90,14 @@ const runParent = async () => {
     writeFileSync(out, "")
   }
 
-  const stream = (line: object) => {
+  const stream = (line: Finished | Crash) => {
     if (out !== undefined) {
       appendFileSync(out, `${JSON.stringify(line)}\n`)
     }
   }
 
   const results: Finished[] = []
-  const crashes: Array<{ readonly seed: number; readonly crash: string }> = []
+  const crashes: Crash[] = []
   const queue = Array.from({ length: count }, (_, i) => options.from + i)
 
   const report = () =>
@@ -110,7 +109,7 @@ const runParent = async () => {
     await new Promise<void>((resolve) => {
       const job: SeedJob = { ...base, seed }
 
-      const child = fork(fileURLToPath(import.meta.url), [], {
+      const child = fork(import.meta.filename, [], {
         env: { ...process.env, SYNC_SIM_JOB: JSON.stringify(Schema.encodeSync(SeedJob)(job)) },
         stdio: ["ignore", "ignore", "inherit", "ipc"],
         execArgv: [`--max-old-space-size=${options["heap-mb"]}`],
@@ -134,34 +133,27 @@ const runParent = async () => {
         child.kill("SIGKILL")
       }, options["timeout-s"] * 1000)
 
-      child.on(
-        "message",
-        (
-          message:
-            | (SeedResult & { readonly rssMB: number })
-            | { readonly seed: number; readonly crash: string },
-        ) => {
-          if ("crash" in message) {
-            crash(message.crash)
+      child.on("message", (message: Finished | Crash) => {
+        if ("crash" in message) {
+          crash(message.crash)
 
-            return
-          }
+          return
+        }
 
-          reported = true
-          results.push(message)
-          stream(message)
+        reported = true
+        results.push(message)
+        stream(message)
 
-          if (!message.ok) {
-            process.stderr.write(
-              `seed ${message.seed} FAILED: ${message.problems.slice(0, 3).join(" | ")}\n`,
-            )
-          }
+        if (!message.ok) {
+          process.stderr.write(
+            `seed ${message.seed} FAILED: ${message.problems.slice(0, 3).join(" | ")}\n`,
+          )
+        }
 
-          if (results.length % 10 === 0) {
-            report()
-          }
-        },
-      )
+        if (results.length % 10 === 0) {
+          report()
+        }
+      })
       child.on("error", (error) => {
         crash(String(error))
       })

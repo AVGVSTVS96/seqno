@@ -10,7 +10,7 @@ const turn = async (page: Page) =>
     node instanceof HTMLElement ? node.style.transform : "",
   )
 
-const radiansOf = (transform: string) => Number.parseFloat(transform.replace("rotate(", ""))
+const radiansOf = (transform: string) => Number(/^rotate\((.+)rad\)$/u.exec(transform)?.[1])
 
 const drawBox = async (page: Page) => {
   await page.keyboard.press("9")

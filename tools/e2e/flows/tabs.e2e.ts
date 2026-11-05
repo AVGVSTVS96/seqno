@@ -2,6 +2,12 @@ import type { Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { expect, restOfToday, saved, test, todayOn } from "../src/test.ts"
 
+declare global {
+  interface Window {
+    letGo?: () => void
+  }
+}
+
 test.skip(!appAvailable, "waits on apps/web")
 
 const welcome = "Welcome to the seqno demo graph"
@@ -154,16 +160,18 @@ for (const heldMs of [300, 600, 900, 1500]) {
   }) => {
     await page.goto("/favicon.svg")
     await page.evaluate(async () => {
-      await new Promise<void>((held) => {
-        void navigator.locks.request(
-          "seqno/graph/demo",
-          async () =>
-            await new Promise<void>((letGo) => {
-              Reflect.set(globalThis, "letGo", letGo)
-              held()
-            }),
-        )
+      const held = Promise.withResolvers<null>()
+      const letGo = Promise.withResolvers<null>()
+
+      window.letGo = () => {
+        letGo.resolve(null)
+      }
+
+      void navigator.locks.request("seqno/graph/demo", async () => {
+        held.resolve(null)
+        await letGo.promise
       })
+      await held.promise
     })
     const other = await page.context().newPage()
     await other.goto("/")
@@ -172,11 +180,7 @@ for (const heldMs of [300, 600, 900, 1500]) {
     ).toBeVisible()
     await other.waitForTimeout(heldMs)
     await page.evaluate(() => {
-      const letGo: unknown = Reflect.get(globalThis, "letGo")
-
-      if (typeof letGo === "function") {
-        letGo()
-      }
+      window.letGo?.()
     })
     await expect(todayOn(other).getByRole("treeitem").first()).toHaveText(welcome)
   })

@@ -1,10 +1,11 @@
+import type { Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
-const open = async (page: import("@playwright/test").Page, name: string) => {
+const open = async (page: Page, name: string) => {
   await page.keyboard.press("Control+k")
   await page.getByRole("searchbox", { name: "Search" }).fill(name)
   await expect(page.getByRole("option").first()).toHaveText(name)

@@ -4,7 +4,8 @@ import { join } from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
 
 const root = join(import.meta.dirname, "../../..")
-const probes: Record<string, string> = {
+
+const probes = {
   "features/editor/src/lint-probe.tsx":
     'import { useEffect } from "react"\nimport { openGraph } from "@seqno/graph"\nexport const probe = [useEffect, openGraph]\n',
   "apps/web/src/lint-probe.ts":
@@ -14,7 +15,7 @@ const probes: Record<string, string> = {
   "packages/domain/src/lint-probe.ts":
     'import { CoreRpcs } from "@seqno/rpc"\nexport const probe = CoreRpcs\n',
   "packages/syntax/src/lint-probe.ts": "export const probe = (value: any) => value as string\n",
-}
+} satisfies Record<string, string>
 
 interface Diagnostic {
   readonly code: string
@@ -25,29 +26,30 @@ interface Diagnostic {
 const isReport = (value: unknown): value is { diagnostics: readonly Diagnostic[] } =>
   value !== null && typeof value === "object" && "diagnostics" in value
 
+const oxlint = () => {
+  try {
+    return execFileSync("pnpm", ["exec", "oxlint", "--format", "json", ...Object.keys(probes)], {
+      cwd: root,
+      encoding: "utf-8",
+    })
+  } catch (error) {
+    return error instanceof Error && "stdout" in error ? String(error.stdout) : "{}"
+  }
+}
+
 const lint = (): readonly Diagnostic[] => {
   for (const [file, code] of Object.entries(probes)) {
     writeFileSync(join(root, file), code)
   }
 
-  const run = () => {
-    try {
-      return execFileSync("pnpm", ["exec", "oxlint", "--format", "json", ...Object.keys(probes)], {
-        cwd: root,
-        encoding: "utf8",
-      })
-    } catch (error) {
-      return error instanceof Error && "stdout" in error ? String(error.stdout) : "{}"
-    }
-  }
-
-  const report: unknown = JSON.parse(run())
+  const report: unknown = JSON.parse(oxlint())
 
   return isReport(report) ? report.diagnostics : []
 }
 
 describe("oxlint.config.ts", () => {
   const diagnostics = lint()
+
   const errorsIn = (file: string) =>
     diagnostics
       .filter((diagnostic) => diagnostic.filename === file)

@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises"
 import { dirname, join, relative, sep } from "node:path"
 import type { Page } from "@playwright/test"
-import { Context, Crypto, Effect, Layer, Option } from "effect"
+import { Context, Crypto, Effect, Layer, Option, Schema } from "effect"
 import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
 import { Vault, layer as vaultLayer } from "@seqno/vault"
@@ -21,7 +21,18 @@ import {
 import { expect, test, todayOn } from "../src/test.ts"
 import { board } from "../src/whiteboard.ts"
 
+declare global {
+  interface Window {
+    logseqSaved?: Promise<void>
+    lockWorker?: Worker
+  }
+}
+
 test.skip(!appAvailable, "waits on apps/web")
+
+const decodeSeen = Schema.decodeUnknownSync(
+  Schema.fromJsonString(Schema.Struct({ vv: Schema.Json })),
+)
 
 const og = fixtureGraph("graphs/og-syntax-mix")
 const ogFolder = pickedFolder(og)
@@ -34,7 +45,9 @@ const diskFiles = async (root: string) => {
     .map((entry) => relative(root, join(entry.parentPath, entry.name)).split(sep).join("/"))
 
   return Object.fromEntries(
-    await Promise.all(paths.map(async (path) => [path, await readFile(join(root, path), "utf-8")])),
+    await Promise.all(
+      paths.map(async (path) => [path, await readFile(join(root, path), "utf-8")] as const),
+    ),
   )
 }
 
@@ -148,7 +161,9 @@ test("a rename moves the old file to logseq/.recycle and writes the new one", as
 })
 
 const uuidsIn = (text: string) =>
-  [...text.matchAll(/:block\/uuid #uuid "([0-9a-f-]{36})"/gu)].map((match) => match[1]).toSorted()
+  [...text.matchAll(/:block\/uuid #uuid "([0-9a-f-]{36})"/gu)]
+    .map((match) => match[1] ?? "")
+    .toSorted((a, b) => a.localeCompare(b))
 
 test("moving a whiteboard shape rewrites the board's file, which reads back with the same ids", async ({
   page,
@@ -156,7 +171,7 @@ test("moving a whiteboard shape rewrites the board's file, which reads back with
   const from = fixtureGraph("graphs/whiteboards")
   const folder = pickedFolder(from)
   const path = "whiteboards/Colloquium 2.edn"
-  const before = (await readFile(join(from, path), "utf-8")).toString()
+  const before = await readFile(join(from, path), "utf-8")
   await openFolder(page, from)
   await openPage(page, "colloquium 2")
   await expect(board(page)).toBeVisible()
@@ -308,7 +323,7 @@ const logseqDesktopWrites = async (
 
       worker.postMessage({ dirs: parts, name, text: content }, [])
       await half
-      Object.assign(window, { logseqSaved: done })
+      window.logseqSaved = done
     },
     { dirs: root, file: path, content: text },
   )
@@ -316,7 +331,7 @@ const logseqDesktopWrites = async (
 
 const logseqSaved = async (page: Page) => {
   await page.evaluate(async () => {
-    await Reflect.get(window, "logseqSaved")
+    await window.logseqSaved
   })
 }
 
@@ -437,7 +452,7 @@ const lockFile = async (page: Page, root: readonly string[], path: string) => {
       const locked = reply()
       worker.postMessage({ dirs: parts, name }, [])
       await locked
-      Object.assign(window, { lockWorker: worker })
+      window.lockWorker = worker
     },
     { dirs: root, file: path },
   )
@@ -445,9 +460,9 @@ const lockFile = async (page: Page, root: readonly string[], path: string) => {
 
 const releaseFile = async (page: Page) => {
   await page.evaluate(async () => {
-    const worker = Reflect.get(window, "lockWorker")
+    const worker = window.lockWorker
 
-    if (!(worker instanceof Worker)) {
+    if (worker === undefined) {
       return
     }
 
@@ -541,7 +556,7 @@ test("a second device's higher claim stops this tab writing, and Write them from
 
   await expect.poll(ownText, { timeout: 15_000 }).toContain('"mirror"')
   const own = { text: await ownText() }
-  const vv = JSON.parse(own.text).vv
+  const { vv } = decodeSeen(own.text)
   await writeOpfsFile(
     page,
     ogFolder,

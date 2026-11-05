@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { opfsFile } from "../src/opfs.ts"
-import { serveMarketplace } from "../src/plugins.ts"
+import { serveMarketplace, settingsSaved } from "../src/plugins.ts"
 import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
@@ -25,21 +25,6 @@ const runGit = async (page: Page, command: string) => {
 const setIdentity = async (page: Page) => {
   await runGit(page, "git config --global user.name Bassim")
   await runGit(page, "git config --global user.email bassim@example.com")
-}
-
-const settingsSaved = async (page: Page) => {
-  await expect
-    .poll(
-      async () =>
-        await page.evaluate(() =>
-          Object.keys(localStorage).some(
-            (key) =>
-              key.startsWith("seqno.plugins.settings.") &&
-              Object.keys(JSON.parse(localStorage.getItem(key) ?? "{}")).length > 1,
-          ),
-        ),
-    )
-    .toBe(true)
 }
 
 const openHistory = async (page: Page) => {

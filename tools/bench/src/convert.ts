@@ -69,13 +69,5 @@ if (import.meta.main) {
   const run: Effect.Effect<unknown, unknown> =
     step === "compare" ? compareFiles(first, second) : convertFile(first, second)
 
-  Effect.runPromise(run).then(
-    (result) => {
-      console.log(JSON.stringify(result))
-    },
-    (error: unknown) => {
-      console.error(error)
-      process.exit(1)
-    },
-  )
+  console.log(JSON.stringify(await Effect.runPromise(run)))
 }

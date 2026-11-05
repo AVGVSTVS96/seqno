@@ -36,7 +36,7 @@ export const rename = async (page: Page, title: string) => {
   const input = page.getByRole("textbox", { name: "Whiteboard title" })
   await input.fill(title)
   await input.press("Enter")
-  await expect(page).toHaveURL(new RegExp(`/page/${encodeURIComponent(title.toLowerCase())}$`))
+  await expect(page).toHaveURL(new RegExp(`/page/${encodeURIComponent(title.toLowerCase())}$`, "u"))
 }
 
 export interface BoardFile {
@@ -73,7 +73,7 @@ export const fireFiles = async (
             ? await new Promise<Blob | null>((resolve) => {
                 canvas.toBlob(resolve, file.type)
               })
-            : new Blob([Uint8Array.from(atob(file.data), (char) => char.charCodeAt(0))])
+            : new Blob([Uint8Array.from(atob(file.data), (char) => char.codePointAt(0) ?? 0)])
 
         transfer.items.add(new File([blob ?? new Blob()], file.name, { type: file.type }))
       }

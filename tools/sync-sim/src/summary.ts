@@ -1,6 +1,17 @@
 import type { SeedResult, Violations } from "./sim.ts"
+import type { SeedJob } from "./suite.ts"
 
 export type Finished = SeedResult & { readonly rssMB: number }
+
+export interface Crash {
+  readonly seed: number
+  readonly crash: string
+}
+
+export interface RunConfig extends Omit<SeedJob, "seed"> {
+  readonly seeds: string
+  readonly workers: number
+}
 
 const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0)
 
@@ -27,9 +38,9 @@ const violationKeys: ReadonlyArray<keyof Violations> = [
 ]
 
 export const summarize = (
-  config: object,
+  config: RunConfig,
   results: readonly Finished[],
-  crashes: ReadonlyArray<{ readonly seed: number; readonly crash: string }>,
+  crashes: readonly Crash[],
   wallS: number,
 ) => {
   const failed = results.filter((r) => !r.ok)

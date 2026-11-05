@@ -323,10 +323,6 @@ const main = Effect.gen(function* () {
   }
 })
 
-Effect.runPromise(Effect.scoped(main)).then(
-  () => process.exit(0),
-  (error: unknown) => {
-    console.error(error)
-    process.exit(1)
-  },
-)
+await Effect.runPromise(Effect.scoped(main))
+
+process.exit(0)

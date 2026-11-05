@@ -45,9 +45,11 @@ test("zoom in glides over several frames to 125%, and the board keeps its camera
   await page.keyboard.press("9")
   await drag(page, [300, 300], [400, 400])
   await page.mouse.click(800, 600)
+
   const frames = await framesWhile(page, async () => {
     await page.keyboard.press("Shift+Equal")
   })
+
   await expect(zoomLabel(page)).toHaveText("125%")
   expect(frames.length).toBeGreaterThan(2)
   expect(frames.at(-1)).toMatch(/^scale\(1\.25\)/u)

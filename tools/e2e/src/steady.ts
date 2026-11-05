@@ -12,7 +12,7 @@ export const crawl = async (page: Page, px: number, distance = Number.POSITIVE_I
       const box = scroller.getBoundingClientRect()
 
       const painted = async () =>
-        await new Promise((resolve) =>
+        await new Promise((resolve) => {
           requestAnimationFrame(() => {
             const observer = new ResizeObserver(() => {
               observer.disconnect()
@@ -20,8 +20,8 @@ export const crawl = async (page: Page, px: number, distance = Number.POSITIVE_I
             })
 
             observer.observe(scroller)
-          }),
-        )
+          })
+        })
 
       const topRow = () =>
         [...scroller.querySelectorAll("[role=treeitem]")].find(
@@ -35,7 +35,9 @@ export const crawl = async (page: Page, px: number, distance = Number.POSITIVE_I
       let travelled = 0
 
       while (travelled < far) {
-        await new Promise((resolve) => setTimeout(resolve, 0))
+        await new Promise((resolve) => {
+          setTimeout(resolve, 0)
+        })
         const before = scroller.scrollTop
         scroller.scrollTop += step
         const requested = scroller.scrollTop - before
@@ -82,7 +84,7 @@ export const topRowsOver = async (page: Page, frames: number) =>
     const seen: string[] = []
 
     for (let frame = 0; frame < count; frame++) {
-      await new Promise((resolve) =>
+      await new Promise((resolve) => {
         requestAnimationFrame(() => {
           const observer = new ResizeObserver(() => {
             observer.disconnect()
@@ -90,8 +92,8 @@ export const topRowsOver = async (page: Page, frames: number) =>
           })
 
           observer.observe(scroller)
-        }),
-      )
+        })
+      })
 
       const row = [...scroller.querySelectorAll("[role=treeitem]")].find(
         (shown) => shown.getBoundingClientRect().top >= box.top,
@@ -107,10 +109,7 @@ export const topRowsOver = async (page: Page, frames: number) =>
     return seen
   }, frames)
 
-export const awayAndBack = async (
-  page: Page,
-  away: () => Promise<unknown> = async () => undefined,
-) => {
+export const awayAndBack = async (page: Page, away: () => Promise<void> = async () => {}) => {
   await page.keyboard.press("g")
   await page.keyboard.press("a")
   await expect(page.getByRole("table", { name: "All pages" })).toBeVisible()

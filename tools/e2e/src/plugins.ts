@@ -2,6 +2,7 @@ import { expect } from "@playwright/test"
 import type { BrowserContext, Page, Route } from "@playwright/test"
 import { existsSync } from "node:fs"
 import { fileURLToPath } from "node:url"
+import { Schema } from "effect"
 
 const fixtures = fileURLToPath(new URL("../../../fixtures/logseq-plugins/", import.meta.url))
 
@@ -82,6 +83,24 @@ export const useTheme = async (page: Page, title: string, theme: string) => {
   await expect(card.getByRole("button", { name: "Installed" })).toBeDisabled()
   await dialog.getByRole("tab", { name: "Installed" }).click()
   await dialog.getByRole("radio", { name: /^Themes/u }).click()
-  await dialog.getByRole("radio", { name: new RegExp(`^${theme}( light| dark)?$`) }).click()
+  await dialog.getByRole("radio", { name: new RegExp(`^${theme}( light| dark)?$`, "u") }).click()
   await page.keyboard.press("Escape")
+}
+
+const decodeSettings = Schema.decodeUnknownSync(
+  Schema.fromJsonString(Schema.Record(Schema.String, Schema.Json)),
+)
+
+export const settingsSaved = async (page: Page) => {
+  await expect
+    .poll(async () => {
+      const saved = await page.evaluate(() =>
+        Object.keys(localStorage)
+          .filter((key) => key.startsWith("seqno.plugins.settings."))
+          .map((key) => localStorage.getItem(key) ?? "{}"),
+      )
+
+      return saved.some((json) => Object.keys(decodeSettings(json)).length > 1)
+    })
+    .toBe(true)
 }

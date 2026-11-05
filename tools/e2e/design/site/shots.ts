@@ -1,25 +1,33 @@
 import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from "node:fs"
+import { once } from "node:events"
 import { createServer } from "node:http"
 import { extname, join, resolve } from "node:path"
+import { setTimeout as sleep } from "node:timers/promises"
 import { chromium } from "@playwright/test"
-import type { Page } from "@playwright/test"
+import type { BrowserContextOptions, Page } from "@playwright/test"
+
+declare global {
+  interface Window {
+    shifts?: { value: number }
+  }
+}
 
 const dist = resolve(import.meta.dirname, "../../../../apps/site/dist")
 const shots = resolve(import.meta.dirname, "../../../../apps/site/shots")
 const only = process.argv[2]
 
-const types: Record<string, string> = {
-  ".html": "text/html",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".avif": "image/avif",
-  ".webp": "image/webp",
-  ".woff2": "font/woff2",
-  ".webm": "video/webm",
-  ".mp4": "video/mp4",
-}
+const types = new Map([
+  [".html", "text/html"],
+  [".js", "text/javascript"],
+  [".css", "text/css"],
+  [".svg", "image/svg+xml"],
+  [".png", "image/png"],
+  [".avif", "image/avif"],
+  [".webp", "image/webp"],
+  [".woff2", "font/woff2"],
+  [".webm", "video/webm"],
+  [".mp4", "video/mp4"],
+])
 
 const server = createServer((request, response) => {
   const path = join(dist, new URL(request.url ?? "/", "http://x").pathname)
@@ -28,7 +36,7 @@ const server = createServer((request, response) => {
   const range = /bytes=(\d+)-(\d*)/u.exec(request.headers.range ?? "")
 
   const headers = {
-    "content-type": types[extname(file)] ?? "application/octet-stream",
+    "content-type": types.get(extname(file)) ?? "application/octet-stream",
     "accept-ranges": "bytes",
   }
 
@@ -40,7 +48,7 @@ const server = createServer((request, response) => {
   }
 
   const start = Number(range[1])
-  const end = range[2] ? Number(range[2]) : size - 1
+  const end = (range[2] ?? "") === "" ? size - 1 : Number(range[2])
   response.writeHead(206, {
     ...headers,
     "content-length": end - start + 1,
@@ -49,7 +57,9 @@ const server = createServer((request, response) => {
   createReadStream(file, { start, end }).pipe(response)
 })
 
-await new Promise<void>((done) => server.listen(4310, "127.0.0.1", done))
+server.listen(4310, "127.0.0.1")
+
+await once(server, "listening")
 
 const url = "http://127.0.0.1:4310/"
 
@@ -74,30 +84,31 @@ interface Open {
   readonly scheme: "light" | "dark"
   readonly reduced?: boolean
   readonly video?: string
-  readonly github?: (page: Page) => Promise<unknown>
+  readonly github?: (page: Page) => Promise<void>
   readonly until?: "load" | "networkidle"
 }
 
 async function open(options: Open) {
-  const context = await browser.newContext({
+  const contextOptions: BrowserContextOptions = {
     viewport: { width: options.width, height: options.height },
-    deviceScaleFactor: options.video ? 1 : 2,
+    deviceScaleFactor: options.video === undefined ? 2 : 1,
     colorScheme: options.scheme,
-    reducedMotion: options.reduced ? "reduce" : "no-preference",
+    reducedMotion: options.reduced === true ? "reduce" : "no-preference",
     isMobile: options.width < 600,
     hasTouch: options.width < 600,
-    ...(options.video
-      ? {
-          recordVideo: {
-            dir: options.video,
-            size: { width: options.width, height: options.height },
-          },
-        }
-      : {}),
-  })
+  }
+
+  if (options.video !== undefined) {
+    contextOptions.recordVideo = {
+      dir: options.video,
+      size: { width: options.width, height: options.height },
+    }
+  }
+
+  const context = await browser.newContext(contextOptions)
 
   const page = await context.newPage()
-  const label = `${options.width}x${options.height} ${options.scheme}${options.reduced ? " reduced" : ""}`
+  const label = `${options.width}x${options.height} ${options.scheme}${options.reduced === true ? " reduced" : ""}`
   page.on("console", (message) => {
     if (message.type() === "error" || message.type() === "warning") {
       problems.push(`${label}: ${message.text()}`)
@@ -106,10 +117,10 @@ async function open(options: Open) {
   page.on("pageerror", (error) => problems.push(`${label}: ${error.message}`))
   await page.addInitScript(() => {
     const shifts = { value: 0 }
-    Object.assign(globalThis, { shifts })
+    window.shifts = shifts
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        if (!("hadRecentInput" in entry) || !entry.hadRecentInput) {
+        if (!("hadRecentInput" in entry) || entry.hadRecentInput !== true) {
           shifts.value += "value" in entry ? Number(entry.value) : 0
         }
       }
@@ -147,7 +158,7 @@ async function scrollThrough(page: Page) {
   await page.waitForTimeout(500)
 }
 
-if (!only || only === "pages") {
+if (only === undefined || only === "pages") {
   for (const size of sizes) {
     for (const scheme of ["light", "dark"] as const) {
       const page = await open({ ...size, scheme })
@@ -156,14 +167,14 @@ if (!only || only === "pages") {
       await page.screenshot({ path: join(shots, `${size.name}-${scheme}-hero.png`) })
 
       const load = await page.evaluate(() => ({
-        shift: Reflect.get(Reflect.get(globalThis, "shifts"), "value"),
-        bytes: performance
-          .getEntriesByType("resource")
-          .concat(performance.getEntriesByType("navigation"))
-          .reduce(
-            (sum, entry) => sum + ("transferSize" in entry ? Number(entry.transferSize) : 0),
-            0,
-          ),
+        shift: window.shifts?.value ?? 0,
+        bytes: [
+          ...performance.getEntriesByType("resource"),
+          ...performance.getEntriesByType("navigation"),
+        ].reduce(
+          (sum, entry) => sum + ("transferSize" in entry ? Number(entry.transferSize) : 0),
+          0,
+        ),
       }))
 
       console.log(
@@ -180,7 +191,7 @@ if (!only || only === "pages") {
   }
 }
 
-if (!only || only === "browsers") {
+if (only === undefined || only === "browsers") {
   const iphone =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
 
@@ -204,13 +215,14 @@ if (!only || only === "browsers") {
     }
 
     await page.goto(url, { waitUntil: "networkidle" })
+    // oxlint-disable-next-line unicorn/prefer-dom-node-text-content -- Playwright's innerText leaves out the label's CSS-hidden per-browser variants
     console.log(`${name}: ${await page.locator(".browser").innerText()}`)
     await page.locator(".actions").screenshot({ path: join(shots, `browser-${name}.png`) })
     await context.close()
   }
 }
 
-if (!only || only === "reduced") {
+if (only === undefined || only === "reduced") {
   const page = await open({ width: 1440, height: 900, scheme: "light", reduced: true })
   await page.waitForTimeout(800)
   await page.screenshot({ path: join(shots, "desktop-light-reduced.png") })
@@ -218,7 +230,7 @@ if (!only || only === "reduced") {
   console.log("reduced motion")
 }
 
-if (!only || only === "motion") {
+if (only === undefined || only === "motion") {
   const dir = join(shots, "motion")
 
   for (const scheme of ["light", "dark"] as const) {
@@ -246,7 +258,7 @@ if (!only || only === "motion") {
   }
 }
 
-if (!only || only === "odometer") {
+if (only === undefined || only === "odometer") {
   const dir = join(shots, "odometer")
   mkdirSync(dir, { recursive: true })
 
@@ -254,9 +266,9 @@ if (!only || only === "odometer") {
     /<span class="sr">Nº <!-- -->(\d+)/u.exec(readFileSync(join(dist, "index.html"), "utf-8"))?.[1],
   )
 
-  const live = async (page: Page) =>
+  const live = async (page: Page) => {
     await page.route("https://api.github.com/**", async (route) => {
-      await new Promise((done) => setTimeout(done, 1500))
+      await sleep(1500)
       await route.fulfill({
         headers: {
           link: `<https://api.github.com/x?page=2>; rel="next", <https://api.github.com/x?page=${baked + 3}>; rel="last"`,
@@ -269,6 +281,7 @@ if (!only || only === "odometer") {
         ]),
       })
     })
+  }
 
   const label = { x: 40, y: 290, width: 360, height: 60 }
 
@@ -296,10 +309,11 @@ if (!only || only === "odometer") {
     width: 1440,
     height: 900,
     scheme: "dark",
-    github: async (p) =>
+    github: async (p) => {
       await p.route("https://api.github.com/**", async (r) => {
         await r.abort()
-      }),
+      })
+    },
   })
 
   await offline.keyboard.press("Tab")
@@ -313,7 +327,7 @@ if (!only || only === "odometer") {
   problems.push(...problems.splice(0).filter((p) => !p.includes("net::ERR_FAILED")))
 }
 
-if (!only || only === "scroll") {
+if (only === undefined || only === "scroll") {
   const dir = join(shots, "motion")
 
   for (const size of sizes) {

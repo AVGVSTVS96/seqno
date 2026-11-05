@@ -4,7 +4,7 @@ import type { Graph } from "@seqno/graph"
 import { emptyGraph } from "./graph.ts"
 
 const STEPS = 5
-const TYPED = "undo"
+const TYPED = ["u", "n", "d", "o"]
 
 const opened = (empty: typeof emptyGraph, snapshot: Uint8Array, peer: string) =>
   Effect.tap(empty(peer), (graph) => graph.restore([snapshot]))
@@ -42,7 +42,7 @@ export const undoAfterRemote = (
     const typedInto = (yield* firstBlocks(local, STEPS)).map((block) => block.id)
 
     for (const blockId of typedInto) {
-      for (const [offset, char] of [...TYPED].entries()) {
+      for (const [offset, char] of TYPED.entries()) {
         yield* local.dispatch({ _tag: "EditText", blockId, from: offset, to: offset, insert: char })
       }
 

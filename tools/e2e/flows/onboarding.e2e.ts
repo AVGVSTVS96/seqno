@@ -68,7 +68,10 @@ const textUnderTip = async (page: Page) =>
     const covered: string[] = []
 
     for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-      if (node.textContent?.trim() === "" || node.parentElement?.closest(".hint") != null) {
+      if (
+        node.textContent?.trim() === "" ||
+        (node.parentElement?.closest(".hint") ?? null) !== null
+      ) {
         continue
       }
 
@@ -298,7 +301,7 @@ test.describe("tips in a demo graph", () => {
     await expect(tip(page)).toHaveText(/Switch graphs here\.$/u)
     const trigger = leftSidebar(page).getByRole("button", { name: "Getting started" })
 
-    const toggle = await trigger.evaluate((button) => {
+    const toggle = await trigger.evaluate(async (button) => {
       const menu = button instanceof HTMLButtonElement ? button.popoverTargetElement : null
 
       if (!(button instanceof HTMLButtonElement && menu instanceof HTMLElement)) {
@@ -318,7 +321,7 @@ test.describe("tips in a demo graph", () => {
       button.click()
       menu.hidePopover()
 
-      return toggled
+      return await toggled
     })
 
     expect(toggle).toBe("closed to closed")

@@ -121,7 +121,9 @@ test("Check all updates finds a plugin's newer version, and Update all of select
   await context.setOffline(true)
   await page.reload()
   await expect(wordCount(page)).toHaveText("Mots: 3")
-  expect(page.frame({ url: /\/lsp\/benjypng\/logseq-wordcount-plugin\/v2\.4\.3\//u })).not.toBeNull()
+  expect(
+    page.frame({ url: /\/lsp\/benjypng\/logseq-wordcount-plugin\/v2\.4\.3\//u }),
+  ).not.toBeNull()
   const again = await openPlugins(page)
   await again.getByRole("button", { name: "logseq-wordcount-plugin settings" }).click()
   await expect(settings.getByRole("textbox", { name: "Customise word count text" })).toHaveValue(

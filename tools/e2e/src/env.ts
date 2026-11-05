@@ -1,6 +1,9 @@
 import { existsSync } from "node:fs"
 import { createServer } from "node:net"
+import type { AddressInfo } from "node:net"
 import { Schema } from "effect"
+
+const isPipe = (address: AddressInfo | string): address is string => typeof address === "string"
 
 const freePort = async () =>
   await new Promise<number>((resolve, reject) => {
@@ -9,9 +12,11 @@ const freePort = async () =>
     server.listen(0, "localhost", () => {
       const address = server.address()
       server.close(() => {
-        typeof address === "object" && address !== null
-          ? resolve(address.port)
-          : reject(new Error("no port"))
+        if (address !== null && !isPipe(address)) {
+          resolve(address.port)
+        } else {
+          reject(new Error("no port"))
+        }
       })
     })
   })

@@ -111,7 +111,8 @@ export const opensInFreshProcess = (snapshot: Uint8Array, last: Last) =>
 
 if (import.meta.main) {
   const [file = "", blockId, pageId] = process.argv.slice(2)
-  Effect.runPromise(
+
+  await Effect.runPromise(
     Effect.gen(function* () {
       const snapshot = yield* Effect.promise(async () => await readFile(file))
       const last = yield* Schema.decodeUnknownEffect(Last)({ blockId, pageId })
@@ -123,8 +124,5 @@ if (import.meta.main) {
 
       console.log(JSON.stringify(opens))
     }),
-  ).catch((error: unknown) => {
-    console.error(error)
-    process.exit(1)
-  })
+  )
 }

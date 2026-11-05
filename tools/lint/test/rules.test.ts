@@ -3,7 +3,12 @@ import { describe, it } from "vitest"
 import noComments from "../src/no-comments.ts"
 import { logseqNames } from "../src/logseq-names.ts"
 
-RuleTester.describe = describe
+RuleTester.describe = (text, fn) => {
+  describe(text, () => {
+    fn()
+  })
+}
+
 RuleTester.it = it
 
 const tester = new RuleTester({ languageOptions: { parserOptions: { lang: "tsx" } } })
@@ -45,7 +50,7 @@ tester.run("logseq-names", logseqNames, {
       ],
     },
     {
-      code: "const dot = <span id={`dot-${id}`} blockid={id} />",
+      code: `const dot = <span id={\`dot-\${id}\`} blockid={id} />`,
       errors: [/^`dot-` is one of Logseq's names/u, /^`blockid` is one of Logseq's names/u],
     },
     { code: 'const menu = <div className={names("menu", extra)} />', errors: [/^`menu`/u] },

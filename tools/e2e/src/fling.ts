@@ -12,10 +12,16 @@ export const flingTo = async (page: Page, stops: readonly number[], items: strin
       const scroller = document.querySelector(".main-content-container")
 
       if (!(scroller instanceof HTMLElement)) {
-        throw new Error("no scroller")
+        throw new TypeError("no scroller")
       }
 
       const box = scroller.getBoundingClientRect()
+
+      // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate serializes this callback, so its helpers must live inside it
+      const frame = async () =>
+        await new Promise((resolve) => {
+          requestAnimationFrame(resolve)
+        })
 
       const shown = (selector: string) =>
         [...scroller.querySelectorAll(selector)].filter((element) => {
@@ -38,11 +44,11 @@ export const flingTo = async (page: Page, stops: readonly number[], items: strin
           }
 
           scroller.scrollTop += Math.sign(left) * Math.min(3000, Math.abs(left))
-          await new Promise(requestAnimationFrame)
+          await frame()
         }
 
-        await new Promise(requestAnimationFrame)
-        await new Promise(requestAnimationFrame)
+        await frame()
+        await frame()
 
         const anchor = shown("[role=treeitem]").find(
           (row) => row.getBoundingClientRect().top >= box.top,
@@ -51,7 +57,7 @@ export const flingTo = async (page: Page, stops: readonly number[], items: strin
         const before = anchor?.getBoundingClientRect().top ?? 0
 
         for (let wait = 0; wait < 30; wait++) {
-          await new Promise(requestAnimationFrame)
+          await frame()
         }
 
         const after = anchor?.isConnected === true ? anchor.getBoundingClientRect().top : -1

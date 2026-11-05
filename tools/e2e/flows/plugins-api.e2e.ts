@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
-import { serveMarketplace } from "../src/plugins.ts"
+import { serveMarketplace, settingsSaved } from "../src/plugins.ts"
 import { expect, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
@@ -23,21 +23,6 @@ const install = async (page: Page, name: string) => {
   await card.getByRole("button", { name: "Install" }).click()
   await expect(card.getByRole("button", { name: "Installed" })).toBeDisabled()
   await page.keyboard.press("Escape")
-}
-
-const settingsSaved = async (page: Page) => {
-  await expect
-    .poll(
-      async () =>
-        await page.evaluate(() =>
-          Object.keys(localStorage).some(
-            (key) =>
-              key.startsWith("seqno.plugins.settings.") &&
-              Object.keys(JSON.parse(localStorage.getItem(key) ?? "{}")).length > 1,
-          ),
-        ),
-    )
-    .toBe(true)
 }
 
 test("Word count shows how many words are selected in a block, next to the selection", async ({
@@ -153,7 +138,7 @@ const statsBlock = async (page: Page, today: Locator, blocks: number) => {
   const all = today.getByRole("treeitem").filter({ hasText: "Finished tasks (DONE)" })
   await expect(all).toHaveCount(blocks)
   const text = (await all.first().textContent()) ?? ""
-  const count = (label: string) => Number(new RegExp(`${label}: (\\d+)`).exec(text)?.[1])
+  const count = (label: string) => Number(new RegExp(`${label}: (\\d+)`, "u").exec(text)?.[1])
 
   return {
     tasks: count("Tasks"),
@@ -206,14 +191,18 @@ test("Hypothesis keeps fetched notes in its file storage, so they're there after
   await page
     .context()
     .route(/^https:\/\/api\.hypothes\.is\/api\/search/u, async (route, request) => {
-      online
-        ? await route.fulfill({
-            headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" },
-            json: {
-              rows: new URL(request.url()).searchParams.has("search_after") ? [] : [annotation],
-            },
-          })
-        : await route.abort()
+      if (!online) {
+        await route.abort()
+
+        return
+      }
+
+      await route.fulfill({
+        headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" },
+        json: {
+          rows: new URL(request.url()).searchParams.has("search_after") ? [] : [annotation],
+        },
+      })
     })
   await seqno.openDemoGraph()
   await install(page, "Hypothesis")

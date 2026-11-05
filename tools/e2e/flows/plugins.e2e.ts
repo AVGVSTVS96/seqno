@@ -4,6 +4,13 @@ import { journalTitle } from "../src/journal.ts"
 import { serveMarketplace } from "../src/plugins.ts"
 import { expect, test, todayOn } from "../src/test.ts"
 
+declare global {
+  interface Window {
+    logseq?: object
+    pluginWrites?: string[]
+  }
+}
+
 test.skip(!appAvailable, "waits on apps/web")
 
 test.beforeEach(async ({ context }) => {
@@ -23,7 +30,7 @@ const cardsOf = (dialog: Locator) =>
 const install = async (page: Page, name: string, kind: "Plugins" | "Themes" = "Plugins") => {
   const dialog = await openPlugins(page)
   await dialog.getByRole("tab", { name: "Marketplace" }).click()
-  await dialog.getByRole("radio", { name: new RegExp(`^${kind}`) }).click()
+  await dialog.getByRole("radio", { name: new RegExp(`^${kind}`, "u") }).click()
   const card = dialog.getByRole("listitem", { name })
   await card.getByRole("button", { name: "Install" }).click()
   await expect(card.getByRole("button", { name: "Installed" })).toBeDisabled()
@@ -373,12 +380,12 @@ test("installed plugins and themes keep working offline, with a theme's own font
 
   await expect.poll(themeFont).toBeGreaterThan(0)
 
-  const catppuccinSdk = () =>
-    page
+  const catppuccinSdk = async () =>
+    await page
       .frame({ url: /\/lsp\/catppuccin\/logseq\//u })
-      ?.evaluate(() => typeof Reflect.get(window, "logseq"))
+      ?.evaluate(() => window.logseq !== undefined)
 
-  await expect.poll(catppuccinSdk).toBe("object")
+  await expect.poll(catppuccinSdk).toBe(true)
   await page.locator("#open-calendar-button").click()
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
@@ -412,6 +419,12 @@ const writeCalls = [
   "insert_block",
 ]
 
+interface PluginMessage {
+  readonly value?: {
+    readonly data?: { readonly type?: string; readonly payload?: { readonly method?: string } }
+  }
+}
+
 const countPluginWrites = async (context: BrowserContext) =>
   await context.addInitScript((methods) => {
     if (window !== window.top) {
@@ -419,13 +432,16 @@ const countPluginWrites = async (context: BrowserContext) =>
     }
 
     const writes: string[] = []
-    Reflect.set(window, "pluginWrites", writes)
-    addEventListener("message", (event: MessageEvent<unknown>) => {
-      const call = Reflect.get(Object(Reflect.get(Object(event.data), "value")), "data")
-      const method = String(Reflect.get(Object(Reflect.get(Object(call), "payload")), "method"))
-      const name = method.replaceAll(/[A-Z]/gu, (letter) => `_${letter.toLowerCase()}`)
+    window.pluginWrites = writes
+    addEventListener("message", (event: MessageEvent<PluginMessage | null>) => {
+      const call = event.data?.value?.data
 
-      if (Reflect.get(Object(call), "type") === "api:call" && methods.includes(name)) {
+      const name = call?.payload?.method?.replaceAll(
+        /[A-Z]/gu,
+        (letter) => `_${letter.toLowerCase()}`,
+      )
+
+      if (call?.type === "api:call" && name !== undefined && methods.includes(name)) {
         writes.push(name)
       }
     })
@@ -452,8 +468,7 @@ const doneTime = (tab: Page, text: string) =>
     .filter({ hasText: text })
     .getByText(/^done-ms/u)
 
-const pluginWrites = (page: Page) => async () =>
-  await page.evaluate(() => Reflect.get(window, "pluginWrites"))
+const pluginWrites = (page: Page) => async () => await page.evaluate(() => window.pluginWrites)
 
 test("with two tabs open, a plugin that writes on every change writes once per change", async ({
   page,

@@ -1,7 +1,6 @@
-import { execFile } from "node:child_process"
+import { execFileSync } from "node:child_process"
 import { readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { promisify } from "node:util"
 import { Effect, Layer, Option, Schema } from "effect"
 import { PageId } from "@seqno/domain"
 import { configFile, generateGraph, logseqPageFiles, toLogseqFiles } from "@seqno/fixtures"
@@ -183,17 +182,21 @@ export const writeSlicesInFreshProcesses = async (folder: string, years: Years, 
   let version: typeof Version.Type = {}
 
   for (let slice = 0; slice < shapeOf(years).slices; slice++) {
-    const { stdout } = await promisify(execFile)(process.execPath, [
-      heapAboveWasm,
-      import.meta.filename,
-      folder,
-      layout,
-      String(years.years),
-      String(years.density),
-      years.until.toISOString(),
-      String(years.longPage),
-      String(slice),
-    ])
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        heapAboveWasm,
+        import.meta.filename,
+        folder,
+        layout,
+        String(years.years),
+        String(years.density),
+        years.until.toISOString(),
+        String(years.longPage),
+        String(slice),
+      ],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] },
+    )
 
     version = Schema.decodeUnknownSync(Version)(stdout.trim().split("\n").at(-1))
   }
@@ -213,7 +216,8 @@ if (import.meta.main) {
   ] = process.argv.slice(2)
 
   const at = Number(slice)
-  Effect.runPromise(
+
+  const version = await Effect.runPromise(
     Effect.gen(function* () {
       const before =
         at === 0
@@ -240,13 +244,7 @@ if (import.meta.main) {
 
       return Object.fromEntries(written.version)
     }),
-  ).then(
-    (version) => {
-      console.log(JSON.stringify(version))
-    },
-    (error: unknown) => {
-      console.error(error)
-      process.exit(1)
-    },
   )
+
+  console.log(JSON.stringify(version))
 }

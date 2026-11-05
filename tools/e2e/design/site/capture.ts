@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { chromium } from "@playwright/test"
 import type { Locator } from "@playwright/test"
+import { Match } from "effect"
 import { seedOpfs } from "../../src/opfs.ts"
 import { editBlock, openSeqno, scrollToText } from "../seqno.ts"
 import { materializeShowcase } from "../showcase.ts"
@@ -72,9 +73,11 @@ if (!still) {
 }
 
 let pointer = { x: view.width + 40, y: view.height - 60 }
+
 const wait = async (ms: number) => {
   await page.waitForTimeout(ms)
 }
+
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
 
 async function glide(x: number, y: number, ms = 650) {
@@ -98,8 +101,11 @@ async function point(locator: Locator, at: "start" | "end" | "center" | "top" = 
     throw new Error("nothing to point at")
   }
 
-  const x =
-    at === "end" ? box.x + box.width - 2 : at === "start" ? box.x + 4 : box.x + box.width / 2
+  const x = Match.value(at).pipe(
+    Match.when("end", () => box.x + box.width - 2),
+    Match.when("start", () => box.x + 4),
+    Match.orElse(() => box.x + box.width / 2),
+  )
 
   const y = at === "top" ? box.y + 5 : box.y + box.height / 2
 

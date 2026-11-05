@@ -183,7 +183,7 @@ const lastBullet = (markdown: string) => bullets(markdown).at(-1) ?? ""
 const probeText = (markdown: string) =>
   bullets(markdown)
     .filter((bullet) => !bullet.startsWith("{{"))
-    .map((bullet) => lastPlainWords(bullet.replaceAll(/==|~~|[*`]/gu, "").split(/\s+/u)))
+    .map((bullet) => lastPlainWords(bullet.replaceAll(/~~|==|[*`]/gu, "").split(/\s+/u)))
     .findLast((words) => words.length > 0)
     ?.join(" ") ?? ""
 

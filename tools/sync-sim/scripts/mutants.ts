@@ -19,7 +19,7 @@ const Summary = Schema.fromJsonString(
   }),
 )
 
-const run = new URL("./run.ts", import.meta.url).pathname
+const run = new URL("run.ts", import.meta.url).pathname
 
 const report = bugs.map((bug) => {
   const { stdout } = spawnSync(

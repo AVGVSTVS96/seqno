@@ -3,6 +3,12 @@ import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, opfsFiles, seedOpfs } from "../src/opfs.ts"
 import { expect, test } from "../src/test.ts"
 
+declare global {
+  interface Window {
+    lsActivePdfViewer?: { readonly viewer?: object }
+  }
+}
+
 test.skip(!appAvailable, "waits on apps/web")
 
 const key = "Paper_1700000000000_0"
@@ -27,10 +33,17 @@ const openPaper = async (page: Page) => {
   await expect(viewer(page).locator(".textLayer span").first()).toBeVisible()
 }
 
-const assets = async (page: Page): ReturnType<typeof opfsFiles> =>
-  await opfsFiles(page, ["graphs", "demo", "assets"]).catch(async (error: unknown) =>
-    String(error).includes("NotFoundError") ? await assets(page) : await Promise.reject(error),
-  )
+const assets = async (page: Page): ReturnType<typeof opfsFiles> => {
+  try {
+    return await opfsFiles(page, ["graphs", "demo", "assets"])
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("NotFoundError")) {
+      return await assets(page)
+    }
+
+    throw error
+  }
+}
 
 const highlightsFile = async (page: Page) =>
   await page.evaluate(async (name) => {
@@ -38,16 +51,19 @@ const highlightsFile = async (page: Page) =>
     const graph = await (await root.getDirectoryHandle("graphs")).getDirectoryHandle("demo")
     const file = await (await graph.getDirectoryHandle("assets")).getFileHandle(name)
 
-    const read = async (): Promise<string> =>
-      await (
-        await file.getFile()
-      )
-        .text()
-        .catch(async (error: unknown) =>
-          error instanceof DOMException && error.name === "NotReadableError"
-            ? await read()
-            : await Promise.reject(error),
-        )
+    const read = async (): Promise<string> => {
+      const found = await file.getFile()
+
+      try {
+        return await found.text()
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "NotReadableError") {
+          return await read()
+        }
+
+        throw error
+      }
+    }
 
     return await read()
   }, `${key}.edn`)
@@ -106,8 +122,7 @@ test("a PDF link opens Logseq's viewer on the left, at the page and with the hig
   await expect(page.locator(".extensions__pdf-toolbar .buttons")).toHaveCount(1)
   expect(
     await page.evaluate(() => {
-      const active: unknown = Reflect.get(window, "lsActivePdfViewer")
-      const element: unknown = Reflect.get(Object(active), "viewer")
+      const element = window.lsActivePdfViewer?.viewer
 
       return element instanceof HTMLElement && element.ownerDocument === document
     }),
@@ -149,7 +164,9 @@ test("picking a color for selected text makes a highlight, its annotation block 
   await expect(menu(page)).toHaveCount(0)
   const made = pdfPage(page, 1).locator(".seqno-pdf-text-region-item[data-color=yellow]")
   await expect(made).toHaveCount(1)
-  await expect.poll(async () => await clipboard(page)).toMatch(new RegExp(`^\\(\\(${uuid}\\)\\)$`))
+  await expect
+    .poll(async () => await clipboard(page))
+    .toMatch(new RegExp(`^\\(\\(${uuid}\\)\\)$`, "u"))
   const id = (await clipboard(page)).slice(2, -2)
   await viewer(page).getByTitle("Annotations page").click()
   await expect(page).toHaveTitle("Paper")
@@ -237,6 +254,7 @@ test("a saved highlight's menu copies its ref and text, recolors it, links to it
   expect(await exported(page)).toMatch(
     new RegExp(
       `- The quick brown fox jumps\\n  ls-type:: annotation\\n  hl-page:: 1\\n  hl-color:: red\\n  id:: ${green}\\n  hl-stamp:: \\d{13}\\n`,
+      "u",
     ),
   )
   await region.click()
@@ -264,9 +282,11 @@ test("dragging out an area makes an area highlight with its picture, shown in it
   await menu(page).locator("a[data-color=blue]").click()
   const area = pdfPage(page, 2).locator(".seqno-pdf-area-region[data-color=blue]")
   await expect(area).toHaveCount(1)
-  await expect.poll(async () => await clipboard(page)).toMatch(new RegExp(`^\\(\\(${uuid}\\)\\)$`))
+  await expect
+    .poll(async () => await clipboard(page))
+    .toMatch(new RegExp(`^\\(\\(${uuid}\\)\\)$`, "u"))
   const id = (await clipboard(page)).slice(2, -2)
-  const picture = new RegExp(`^${key}/2_${id}_(\\d{13})\\.png$`)
+  const picture = new RegExp(`^${key}/2_${id}_(\\d{13})\\.png$`, "u")
   await expect
     .poll(async () => Object.keys(await assets(page)).filter((path) => picture.test(path)))
     .toHaveLength(1)

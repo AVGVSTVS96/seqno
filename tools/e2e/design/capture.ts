@@ -9,7 +9,7 @@ import { readNotes, writeCompare, writeNotes } from "./compare.ts"
 import type { Notes } from "./compare.ts"
 import * as logseq from "./logseq.ts"
 import { scenes } from "./scenes.ts"
-import type { Scene, Step } from "./scenes.ts"
+import type { Cleanup, Scene, Step } from "./scenes.ts"
 import * as seqno from "./seqno.ts"
 import {
   assetPath,
@@ -35,10 +35,10 @@ const Options = Schema.Struct({
       ),
     ),
   ),
-  theme: Schema.optionalKey(Schema.Literals(themes)),
-  app: Schema.optionalKey(Schema.Literals(["logseq", "seqno"])),
+  theme: Schema.optional(Schema.Literals(themes)),
+  app: Schema.optional(Schema.Literals(["logseq", "seqno"])),
   out: Schema.String,
-  baseURL: Schema.optionalKey(Schema.URLFromString),
+  baseURL: Schema.optional(Schema.URLFromString),
 })
 
 const parsed = parseArgs({
@@ -52,12 +52,10 @@ const parsed = parseArgs({
 
 const options = Schema.decodeUnknownSync(Options)({
   scenes: parsed.positionals,
-  ...(parsed.values.theme === undefined ? {} : { theme: parsed.values.theme }),
-  ...(parsed.values.app === undefined ? {} : { app: parsed.values.app }),
+  theme: parsed.values.theme,
+  app: parsed.values.app,
   out: parsed.values.out,
-  ...(process.env["SEQNO_E2E_BASE_URL"] === undefined
-    ? {}
-    : { baseURL: process.env["SEQNO_E2E_BASE_URL"] }),
+  baseURL: process.env["SEQNO_E2E_BASE_URL"],
 })
 
 const chosenScenes = scenes.filter(
@@ -89,8 +87,14 @@ const noteFor = (scene: Scene, theme: Theme) => {
   return notes[key]
 }
 
-const problem = (error: unknown) =>
-  (error instanceof Error ? error.message : String(error)).split("\n")[0] ?? "unknown error"
+const attempt = async (problems: string[], run: () => Promise<void>) => {
+  try {
+    await run()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    problems.push(message.split("\n")[0] ?? "unknown error")
+  }
+}
 
 const capture = async (page: Page, path: string, caret: boolean) => {
   await page.mouse.move(restingPointer.x, restingPointer.y)
@@ -137,15 +141,14 @@ const captureLogseq = async (browser: Browser, reference: logseq.Reference) => {
   const page = await context.newPage()
   page.setDefaultTimeout(60_000)
   console.log(`${logseq.references[reference].name}: loading and pasting the showcase`)
-  await logseq
-    .openLogseq(page, reference)
-    .then(async () => {
-      await prepare[reference](page)
-    })
-    .catch(async (error: unknown) => {
-      await page.screenshot({ path: join(options.out, `debug-${reference}.png`) })
-      throw error
-    })
+
+  try {
+    await logseq.openLogseq(page, reference)
+    await prepare[reference](page)
+  } catch (error) {
+    await page.screenshot({ path: join(options.out, `debug-${reference}.png`) })
+    throw error
+  }
 
   for (const theme of chosenThemes) {
     await logseq.setTheme(page, theme)
@@ -154,16 +157,14 @@ const captureLogseq = async (browser: Browser, reference: logseq.Reference) => {
       const note = noteFor(scene, theme)
       note.logseq = []
 
-      const cleanup = await logseq
-        .setLeftSidebar(page, scene.leftSidebar)
-        .then(async () => await scene.logseq(page))
-        .catch((error: unknown) => {
-          note.logseq.push(problem(error))
+      let cleanup: Cleanup = async () => {
+        await logseq.leaveEditing(page)
+      }
 
-          return async () => {
-            await logseq.leaveEditing(page)
-          }
-        })
+      await attempt(note.logseq, async () => {
+        await logseq.setLeftSidebar(page, scene.leftSidebar)
+        cleanup = await scene.logseq(page)
+      })
 
       await capture(page, shot(scene, theme, "logseq"), scene.caret)
       await cleanup()
@@ -195,12 +196,12 @@ const captureSeqnoScene = async (
     leftSidebar: scene.leftSidebar,
   })
 
-  const report = (error: unknown) => {
-    note.seqno.push(problem(error))
-  }
-
-  await scene.seqno(page, step).catch(report)
-  await capture(page, shot(scene, theme, "seqno"), scene.caret).catch(report)
+  await attempt(note.seqno, async () => {
+    await scene.seqno(page, step)
+  })
+  await attempt(note.seqno, async () => {
+    await capture(page, shot(scene, theme, "seqno"), scene.caret)
+  })
   await page.context().close()
 }
 

@@ -1,5 +1,5 @@
 declare global {
   interface Window {
-    showDirectoryPicker(): Promise<FileSystemDirectoryHandle>
+    showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>
   }
 }

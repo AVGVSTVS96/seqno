@@ -17,6 +17,8 @@ import { size, yearsOf } from "./size.ts"
 import { writeYears } from "./write-years.ts"
 import type { Layout } from "./years.ts"
 
+const isMeasure = (value: number | string): value is number => typeof value === "number"
+
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
 const budgets = { openMs: 3000, frameP95Ms: 33.4, domNodes: 15_000, jumpMs: 1500 }
 const frames = 600
@@ -126,15 +128,13 @@ test(`${yearsOf(size)} of journals ${way.what} open, and the journals and a ${lo
     console.table(
       rows.map((row) => ({
         ...row,
-        value: typeof row.value === "number" ? Math.round(row.value * 10) / 10 : row.value,
+        value: isMeasure(row.value) ? Math.round(row.value * 10) / 10 : row.value,
       })),
     )
     expect(
-      rows
-        .filter(
-          (row) => typeof row.value === "number" && row.budget !== null && row.value > row.budget,
-        )
-        .map((row) => row.what),
+      rows.flatMap((row) =>
+        isMeasure(row.value) && row.budget !== null && row.value > row.budget ? [row.what] : [],
+      ),
     ).toEqual([])
   } finally {
     await rm(folder, { recursive: true })

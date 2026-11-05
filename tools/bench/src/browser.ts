@@ -1,31 +1,42 @@
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises"
 import { createReadStream } from "node:fs"
+import { once } from "node:events"
 import { createServer } from "node:http"
+import type { AddressInfo } from "node:net"
 import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { chromium, test as playwright } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
+type ContextOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>
+
 export const test = playwright.extend<{ page: Page }>({
-  page: async ({ baseURL, viewport, channel, headless, launchOptions }, use) => {
+  page: async ({ baseURL, viewport, channel, headless, launchOptions }, provide) => {
     const profile = await mkdtemp(join(tmpdir(), "seqno-bench-profile-"))
 
-    const context = await chromium.launchPersistentContext(profile, {
-      ...launchOptions,
-      ...(channel === undefined ? {} : { channel }),
-      ...(baseURL === undefined ? {} : { baseURL }),
-      headless,
-      viewport,
-    })
+    const options: ContextOptions = { ...launchOptions, headless, viewport }
+
+    if (channel !== undefined) {
+      options.channel = channel
+    }
+
+    if (baseURL !== undefined) {
+      options.baseURL = baseURL
+    }
+
+    const context = await chromium.launchPersistentContext(profile, options)
 
     try {
-      await use(context.pages()[0] ?? (await context.newPage()))
+      await provide(context.pages()[0] ?? (await context.newPage()))
     } finally {
       await context.close()
       await rm(profile, { recursive: true })
     }
   },
 })
+
+const isAddressInfo = (address: AddressInfo | string | null): address is AddressInfo =>
+  typeof address === "object" && address !== null
 
 const serveFolder = async (from: string, files: readonly string[]) => {
   const server = createServer((request, response) => {
@@ -39,13 +50,13 @@ const serveFolder = async (from: string, files: readonly string[]) => {
     createReadStream(join(from, file)).pipe(response)
   })
 
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+  server.listen(0, "127.0.0.1")
+  await once(server, "listening")
   const address = server.address()
 
   return {
     server,
-    base:
-      typeof address === "object" && address !== null ? `http://127.0.0.1:${address.port}/` : "",
+    base: isAddressInfo(address) ? `http://127.0.0.1:${address.port}/` : "",
   }
 }
 
@@ -112,11 +123,11 @@ export const keepInBrowser = async (page: Page, from: string, graph: string) => 
   await page.evaluate(async (name) => {
     await new Promise<void>((resolve, reject) => {
       const opening = indexedDB.open("seqno", 1)
-      opening.addEventListener("upgradeneeded", () =>
-        opening.result.createObjectStore("graphs", { keyPath: "name" }),
-      )
+      opening.addEventListener("upgradeneeded", () => {
+        opening.result.createObjectStore("graphs", { keyPath: "name" })
+      })
       opening.addEventListener("error", () => {
-        reject(opening.error)
+        reject(opening.error ?? new Error("could not open seqno's IndexedDB"))
       })
       opening.addEventListener("success", () => {
         const saving = opening.result
@@ -128,7 +139,7 @@ export const keepInBrowser = async (page: Page, from: string, graph: string) => 
           resolve()
         })
         saving.addEventListener("error", () => {
-          reject(saving.error)
+          reject(saving.error ?? new Error(`could not keep ${name} in IndexedDB`))
         })
       })
     })
@@ -157,7 +168,7 @@ export const scrollFrames = async (
         const scroller = document.querySelector(".main-content-container")
 
         if (!(scroller instanceof HTMLElement)) {
-          throw new Error("no scroller")
+          throw new TypeError("no scroller")
         }
 
         const start = scroller.scrollTop
@@ -296,7 +307,7 @@ export const jump = async (page: Page, fraction: number) =>
     const scroller = document.querySelector(".main-content-container")
 
     if (!(scroller instanceof HTMLElement)) {
-      throw new Error("no scroller")
+      throw new TypeError("no scroller")
     }
 
     const started = performance.now()
@@ -311,7 +322,9 @@ export const jump = async (page: Page, fraction: number) =>
       })
 
     for (let frame = 0; frame < 600; frame++) {
-      await new Promise(requestAnimationFrame)
+      await new Promise((resolve) => {
+        requestAnimationFrame(resolve)
+      })
 
       if (rowOnScreen()) {
         return Math.round(performance.now() - started)

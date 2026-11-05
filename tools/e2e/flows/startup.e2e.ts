@@ -5,6 +5,12 @@ import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, openDemo, test } from "../src/test.ts"
 
+declare global {
+  interface Window {
+    heard?: string[]
+  }
+}
+
 test.skip(!appAvailable, "waits on apps/web")
 
 const beds = "Beds run north to south so neither row shades the other."
@@ -143,7 +149,7 @@ test("embedded, the app hands the page around it only the Escapes it doesn't use
     })
   })
   await page.goto(parent)
-  const heard = async () => await page.evaluate(() => Reflect.get(window, "heard"))
+  const heard = async () => await page.evaluate(() => window.heard)
   await expect.poll(heard).toEqual(["seqno:ready"])
   const app = page.frameLocator("iframe")
   await app.getByRole("treeitem").getByText("Open Getting started").click()

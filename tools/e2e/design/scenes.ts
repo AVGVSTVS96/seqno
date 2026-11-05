@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test"
 import * as logseq from "./logseq.ts"
 import * as seqno from "./seqno.ts"
 
-export type Step = (missing: string, run: () => Promise<unknown>) => Promise<void>
+export type Step = (missing: string, run: () => Promise<void>) => Promise<void>
 
 export type Cleanup = () => Promise<void>
 

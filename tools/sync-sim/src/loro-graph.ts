@@ -1,4 +1,4 @@
-import { Clock, Crypto, Effect, Layer, Option } from "effect"
+import { Clock, Crypto, Effect, Layer, Option, Schema } from "effect"
 import { BlockId, Command, PageId, newBlockId, newPageId, normalizePageName } from "@seqno/domain"
 import type { Block, GraphEvent, Page, Props } from "@seqno/domain"
 import { CommandRejected } from "@seqno/rpc"
@@ -9,6 +9,10 @@ import type { Fate, Replica, ReplicaSpec } from "./ports.ts"
 import type { Span, VV } from "./vv.ts"
 
 type Node = LoroTreeNode
+
+const isText = (value: unknown): value is string => typeof value === "string"
+
+const isCount = (value: unknown): value is number => typeof value === "number"
 
 const isTreeId = (value: unknown): value is TreeID =>
   typeof value === "string" && /^\d+@\d+$/u.test(value)
@@ -37,17 +41,35 @@ const blobSpan = (bytes: Uint8Array, checksum: boolean): Option.Option<Span> => 
   }
 }
 
-const sortKeys = (_key: string, value: unknown): unknown =>
-  value !== null && typeof value === "object" && !Array.isArray(value)
-    ? Object.fromEntries(Object.entries(value).toSorted(([a], [b]) => (a < b ? -1 : 1)))
-    : value
+const decodeJson = Schema.decodeUnknownSync(Schema.Json)
+
+const isJsonArray = (json: Schema.Json): json is Schema.JsonArray => Array.isArray(json)
+
+const isJsonObject = (json: Schema.Json): json is Schema.JsonObject =>
+  json !== null && typeof json === "object" && !isJsonArray(json)
+
+const sortedKeys = (json: Schema.Json): Schema.Json => {
+  if (isJsonArray(json)) {
+    return json.map(sortedKeys)
+  }
+
+  if (isJsonObject(json)) {
+    return Object.fromEntries(
+      Object.entries(json)
+        .toSorted(([a], [b]) => (a < b ? -1 : 1))
+        .map(([key, value]) => [key, sortedKeys(value)]),
+    )
+  }
+
+  return json
+}
 
 const reject = (reason: string) => Effect.fail(new CommandRejected({ reason }))
 
 const idOf = (node: Node): string => {
   const id = node.data.get("id")
 
-  return typeof id === "string" ? id : node.id
+  return isText(id) ? id : node.id
 }
 
 const rootOf = (node: Node): Node => {
@@ -74,14 +96,14 @@ const propsOf = (node: Node): Props => {
   }
 
   return Object.fromEntries(
-    props.entries().flatMap(([key, value]) => (typeof value === "string" ? [[key, value]] : [])),
+    props.entries().flatMap(([key, value]) => (isText(value) ? [[key, value]] : [])),
   )
 }
 
 const createdAt = (node: Node): number => {
   const at = node.data.get("created")
 
-  return typeof at === "number" ? at : 0
+  return isCount(at) ? at : 0
 }
 
 const blockOf = (node: Node): Block => {
@@ -100,7 +122,7 @@ const blockOf = (node: Node): Block => {
 
 const pageOf = (node: Node): Page => {
   const title = node.data.get("title")
-  const text = typeof title === "string" ? title : ""
+  const text = isText(title) ? title : ""
 
   return {
     id: PageId.make(idOf(node)),
@@ -311,7 +333,7 @@ const open = (spec: ReplicaSpec) =>
           }),
         SetProperty: ({ target, key, value }) => {
           const write = (node: Node) => {
-            const props = node.data.getOrCreateContainer("props", new LoroMap())
+            const props = node.data.ensureMergeableMap("props")
 
             if (value === null) {
               props.delete(key)
@@ -432,11 +454,7 @@ const open = (spec: ReplicaSpec) =>
         Effect.sync(() =>
           importBlobs([bytes])[0] === true ? Option.some(vvOf(doc.oplogVersion())) : Option.none(),
         ),
-      canonical: Effect.sync(() => {
-        const json: unknown = doc.toJSON()
-
-        return JSON.stringify(json, sortKeys)
-      }),
+      canonical: Effect.sync(() => JSON.stringify(sortedKeys(decodeJson(doc.toJSON())))),
       liveNodes: Effect.sync(() => tree.nodes().filter((node) => !node.isDeleted()).length),
       shape: Effect.sync(() => {
         const alive = tree.nodes().filter((node) => !node.isDeleted())

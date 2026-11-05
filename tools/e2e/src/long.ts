@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { setTimeout as sleep } from "node:timers/promises"
 import type { Page } from "@playwright/test"
 import { seedOpfs } from "./opfs.ts"
 import { expect, openDemo } from "./test.ts"
@@ -16,7 +17,7 @@ export const longOutline = (blocks: number, { pictures = true } = {}) =>
 
 export const latePictures = async (page: Page) =>
   await page.route("https://pictures.seqno.test/**", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    await sleep(250)
     await route.fulfill({
       contentType: "image/svg+xml",
       body: '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"/>',

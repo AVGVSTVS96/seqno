@@ -1,5 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
+import { setTimeout } from "node:timers/promises"
 import { join } from "node:path"
 import { expect } from "@playwright/test"
 import type { Page } from "@playwright/test"
@@ -30,7 +31,7 @@ const indexedLastBlock = async (page: Page) => {
 const indexFile = async (page: Page, graph: string) =>
   await page.evaluate(async (name) => {
     const root = await navigator.storage.getDirectory()
-    const indexes = await root.getDirectoryHandle("indexes").catch(() => undefined)
+    const indexes = await root.getDirectoryHandle("indexes").catch(() => {})
     const names: string[] = []
 
     if (indexes !== undefined) {
@@ -39,7 +40,7 @@ const indexFile = async (page: Page, graph: string) =>
       }
     }
 
-    const file = await indexes?.getFileHandle(`${name}.sqlite`).catch(() => undefined)
+    const file = await indexes?.getFileHandle(`${name}.sqlite`).catch(() => {})
 
     return {
       writing: names.includes(`${name}.sqlite.crswap`),
@@ -47,7 +48,9 @@ const indexFile = async (page: Page, graph: string) =>
     }
   }, graph)
 
-const aFrame = async () => await new Promise((resolve) => setTimeout(resolve, 16))
+const aFrame = async () => {
+  await setTimeout(16)
+}
 
 const saveStarted = async (page: Page, graph: string) => {
   for (;;) {
@@ -185,7 +188,7 @@ test(`${yearsOf(size)} of journals kept in the browser open from their snapshot,
 
     console.table(rows.map((row) => ({ ...row, value: Math.round(row.value * 10) / 10 })))
     expect(
-      rows.filter((row) => row.budget !== null && row.value > row.budget).map((row) => row.what),
+      rows.flatMap((row) => (row.budget !== null && row.value > row.budget ? [row.what] : [])),
     ).toEqual([])
     expect([indexBytes > 0, cutAtMs < fillMs]).toEqual([true, true])
   } finally {

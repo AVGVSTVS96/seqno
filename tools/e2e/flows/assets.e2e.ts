@@ -28,7 +28,7 @@ const fire = async (target: Locator, kind: "paste" | "drop", files: readonly Upl
       const transfer = new DataTransfer()
 
       for (const file of given.files) {
-        const bytes = Uint8Array.from(atob(file.data), (char) => char.charCodeAt(0))
+        const bytes = Uint8Array.from(atob(file.data), (char) => char.codePointAt(0) ?? 0)
         transfer.items.add(new File([bytes], file.name, { type: file.type }))
       }
 
@@ -62,7 +62,7 @@ test("pasting an image saves it in assets/ and links it, as Logseq does", async 
   await page.keyboard.press("End")
   await fire(seqno.editor, "paste", [{ name: "image.png", type: "image/png", bytes: png }])
   await expect(seqno.editor).toHaveText(
-    new RegExp(`^${welcome} !\\[image\\.png\\]\\(\\.\\./assets/image_\\d{13}_0\\.png\\)$`),
+    new RegExp(`^${welcome} !\\[image\\.png\\]\\(\\.\\./assets/image_\\d{13}_0\\.png\\)$`, "u"),
   )
   await page.keyboard.press("Escape")
   const image = welcomeRow(page).getByRole("img", { name: "image.png" })
@@ -110,6 +110,6 @@ test("/Upload an asset picks a file and puts its link where the slash was", asyn
   await page.keyboard.press("Enter")
   await (await chooser).setFiles({ name: "chart.png", mimeType: "image/png", buffer: png })
   await expect(seqno.editor).toHaveText(
-    new RegExp(`^${welcome} !\\[chart\\.png\\]\\(\\.\\./assets/chart_\\d{13}_0\\.png\\)$`),
+    new RegExp(`^${welcome} !\\[chart\\.png\\]\\(\\.\\./assets/chart_\\d{13}_0\\.png\\)$`, "u"),
   )
 })

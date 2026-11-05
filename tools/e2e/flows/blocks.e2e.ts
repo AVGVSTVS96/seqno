@@ -18,7 +18,7 @@ const rowWith = (page: Page, text: string) =>
   page
     .getByRole("main")
     .getByRole("treeitem")
-    .filter({ hasText: new RegExp(`^${text}`) })
+    .filter({ hasText: new RegExp(`^${text}`, "u") })
     .first()
 
 test("right-clicking a bullet selects the block and opens its menu", async ({ page }) => {

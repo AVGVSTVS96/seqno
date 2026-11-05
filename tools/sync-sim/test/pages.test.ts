@@ -107,15 +107,14 @@ const seedPage = (on: Device, title: string, lines: readonly string[]) =>
       const parentId = depth === 0 ? null : (parents[depth - 1] ?? null)
       const after = lastChild.get(parentId)
 
-      const id = createdBlock(
-        yield* on.run({
-          _tag: "InsertBlock",
-          pageId,
-          parentId,
-          text: line.trimStart(),
-          ...(after === undefined ? {} : { after }),
-        }),
-      )
+      const insert = {
+        _tag: "InsertBlock",
+        pageId,
+        parentId,
+        text: line.trimStart(),
+      } satisfies Command
+
+      const id = createdBlock(yield* on.run(after === undefined ? insert : { ...insert, after }))
 
       ids.push(id)
       parents[depth] = id
@@ -220,6 +219,11 @@ interface Ids {
   readonly yy: BlockId
 }
 
+interface DeleteCase {
+  readonly change: (on: Device, ids: Ids) => ReturnType<Device["run"]>
+  readonly after: ReadonlyArray<readonly string[]>
+}
+
 const moveTo = (on: Device, blockId: BlockId, after: BlockId) =>
   on.run({ _tag: "MoveBlocks", blockIds: [blockId], parentId: null, after })
 
@@ -295,13 +299,7 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
   it.effect("a delete keeps what the other device moved, wrote or added meanwhile", () =>
     Effect.scoped(
       Effect.gen(function* () {
-        const cases: Record<
-          string,
-          {
-            readonly change: (on: Device, ids: Ids) => Effect.Effect<unknown>
-            readonly after: ReadonlyArray<readonly string[]>
-          }
-        > = {
+        const cases = {
           moved: {
             change: (on, ids) =>
               on.run({ _tag: "MoveBlocks", blockIds: [ids.b], parentId: null, after: ids.c }),
@@ -327,7 +325,7 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
               on.run({ _tag: "EditText", blockId: ids.b1, from: 2, to: 2, insert: " typed" }),
             after: [["a", "b1 typed", "c"], ["y"]],
           },
-        }
+        } satisfies Record<string, DeleteCase>
 
         for (const [name, { change, after }] of Object.entries(cases)) {
           const { mac, ipad, exchange, x, y, b, b1, yy } = yield* twoDevices

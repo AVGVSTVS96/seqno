@@ -1,11 +1,11 @@
+import type { Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { fixtureGraph, seedOpfs } from "../src/opfs.ts"
 import { expect, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
-const journalOf = (page: import("@playwright/test").Page) =>
-  page.getByRole("article", { name: "Mar 9th, 2025", exact: true })
+const journalOf = (page: Page) => page.getByRole("article", { name: "Mar 9th, 2025", exact: true })
 
 test.beforeEach(async ({ page, seqno }) => {
   await seedOpfs(page, fixtureGraph("graphs/og-syntax-mix"), ["graphs", "demo"])

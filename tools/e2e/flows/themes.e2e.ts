@@ -260,7 +260,7 @@ const themeNamesScreens = async (page: Page, collect: Collect) => {
   for (const level of ["two", "three", "four", "five", "six"]) {
     await main.locator(".seqno-content", { hasText: `Heading ${level}` }).click()
     await expect(page.locator(".seqno-editor-content:focus")).toHaveText(
-      new RegExp(`Heading ${level}`),
+      new RegExp(`Heading ${level}`, "u"),
     )
     await collect()
     await page.keyboard.press("Escape")

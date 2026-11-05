@@ -1,12 +1,12 @@
+import type { Page } from "@playwright/test"
 import { appAvailable } from "../src/env.ts"
 import { pdfWithPages } from "../src/pdf.ts"
 import { expect, saved, test } from "../src/test.ts"
-import { board, fireFiles, firePaste, newBoard, shapes } from "../src/whiteboard.ts"
+import { fireFiles, firePaste, newBoard, shapes } from "../src/whiteboard.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
-const bar = (page: Parameters<typeof board>[0]) =>
-  page.getByRole("toolbar", { name: "Shape style" })
+const bar = (page: Page) => page.getByRole("toolbar", { name: "Shape style" })
 
 test("a pasted YouTube link becomes a YouTube embed you play after a double-click, with its URL in the context bar", async ({
   page,
@@ -64,7 +64,9 @@ test("tweet links embed the tweet, other links become a sandboxed website the Re
     "allow-scripts allow-same-origin allow-presentation",
   )
   await site.locator("iframe").evaluate((node) => {
-    node.setAttribute("data-mark", "old")
+    if (node instanceof HTMLElement) {
+      node.dataset["mark"] = "old"
+    }
   })
   await bar(page).getByRole("button", { name: "Reload" }).click()
   await expect(site.locator("iframe")).not.toHaveAttribute("data-mark", "old")

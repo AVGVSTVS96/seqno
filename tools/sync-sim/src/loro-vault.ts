@@ -435,7 +435,7 @@ const attach =
             }
           }
 
-          const ownCopy = new RegExp(`^${me} \\d+\\.json$`)
+          const ownCopy = new RegExp(`^${me} \\d+\\.json$`, "u")
 
           for (const file of yield* seenFiles) {
             if (ownCopy.test(file.name)) {

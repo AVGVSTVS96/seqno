@@ -99,7 +99,7 @@ const unitEnds = (text: string): readonly number[] => {
   const ends = [0]
 
   for (let i = 0; i < text.length; i++) {
-    if (text.charCodeAt(i) === 32) {
+    if (text.codePointAt(i) === 32) {
       ends.push(i + 1)
     }
   }
@@ -109,7 +109,10 @@ const unitEnds = (text: string): readonly number[] => {
 
 const TOKEN = /\[\d+\.\d+\]/gu
 
-type Parent = { readonly pageId: PageId; readonly parentId: BlockId | null }
+interface Parent {
+  readonly pageId: PageId
+  readonly parentId: BlockId | null
+}
 
 export class Workload {
   private seq = 0
@@ -336,13 +339,14 @@ export class Workload {
       const after = yield* this.pickSlot(replica, parent, undefined)
       const token = this.token(device)
 
-      const sent = yield* this.send(replica, {
+      const insert = {
         _tag: "InsertBlock",
         pageId: parent.pageId,
         parentId: parent.parentId,
-        ...(after === undefined ? {} : { after }),
         text: `${token} `,
-      })
+      } satisfies Command
+
+      const sent = yield* this.send(replica, after === undefined ? insert : { ...insert, after })
 
       for (const event of Option.getOrElse(sent, () => [])) {
         if (event._tag === "BlockUpserted") {
@@ -529,12 +533,13 @@ export class Workload {
 
           const from = yield* replica.block(block.value)
 
-          const sent = yield* this.send(replica, {
+          const move = {
             _tag: "MoveBlocks",
             blockIds: [block.value],
             parentId: parent.value.parentId,
-            ...(after === undefined ? {} : { after }),
-          })
+          } satisfies Command
+
+          const sent = yield* this.send(replica, after === undefined ? move : { ...move, after })
 
           if (
             Option.isSome(sent) &&
