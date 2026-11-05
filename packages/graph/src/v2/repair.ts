@@ -138,7 +138,10 @@ export const spotsOf = (trees: Trees, keys: Iterable<string>): readonly Spot[] =
   )
 
 export const movedHomes = (trees: Trees): readonly Spot[] =>
-  spotsOf(trees, Object.keys(trees.dir.moved.toJSON()))
+  spotsOf(
+    trees,
+    trees.dir.moved.entries().map(([key]) => key),
+  )
 
 interface Unit {
   readonly home: Spot

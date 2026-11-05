@@ -1,10 +1,14 @@
+// oxlint-disable-next-line unicorn/prefer-node-protocol -- this is the npm buffer polyfill for the browser, not Node's module
 import { Buffer } from "buffer"
 import type { FsClient } from "./repo.ts"
 
 // isomorphic-git reads a global Buffer in the browser: https://github.com/isomorphic-git/isomorphic-git/issues/1753
-Object.assign(globalThis, { Buffer: Reflect.get(globalThis, "Buffer") ?? Buffer })
+if (!("Buffer" in globalThis)) {
+  Object.assign(globalThis, { Buffer })
+}
 
 class FsError extends Error {
+  override readonly name = "FsError"
   readonly code: "ENOENT" | "ENOTDIR" | "ENOTEMPTY" | "EISDIR" | "EINVAL" | "EPERM"
   constructor(code: FsError["code"], path: string) {
     super(`${code}: ${path}`)
@@ -14,25 +18,32 @@ class FsError extends Error {
 
 const nameOf = (cause: unknown) => (cause instanceof DOMException ? cause.name : "")
 
-const translated = (path: string) => async (cause: unknown) => {
-  switch (nameOf(cause)) {
-    case "NotFoundError": {
-      return await Promise.reject(new FsError("ENOENT", path))
-    }
+const translated =
+  (path: string) =>
+  (cause: unknown): never => {
+    switch (nameOf(cause)) {
+      case "NotFoundError": {
+        throw new FsError("ENOENT", path)
+      }
 
-    case "TypeMismatchError": {
-      return await Promise.reject(new FsError("ENOTDIR", path))
-    }
+      case "TypeMismatchError": {
+        throw new FsError("ENOTDIR", path)
+      }
 
-    case "InvalidModificationError": {
-      return await Promise.reject(new FsError("ENOTEMPTY", path))
-    }
+      case "InvalidModificationError": {
+        throw new FsError("ENOTEMPTY", path)
+      }
 
-    default: {
-      return await Promise.reject(cause)
+      default: {
+        throw cause
+      }
     }
   }
-}
+
+type ReadOptions = { readonly encoding?: string } | string
+
+const isEncoding = (options: ReadOptions | undefined): options is string =>
+  typeof options === "string"
 
 const segments = (path: string) => path.split("/").filter((part) => part.length > 0 && part !== ".")
 
@@ -70,6 +81,18 @@ const walk = async (root: FileSystemDirectoryHandle, dirs: readonly string[], pa
   return dir
 }
 
+const fileOrDirectory = async (parent: FileSystemDirectoryHandle, name: string) => {
+  try {
+    return await parent.getFileHandle(name)
+  } catch (error) {
+    if (nameOf(error) === "TypeMismatchError") {
+      return await parent.getDirectoryHandle(name)
+    }
+
+    throw error
+  }
+}
+
 export const handleFs = (
   work: FileSystemDirectoryHandle,
   gitdir: FileSystemDirectoryHandle,
@@ -105,10 +128,10 @@ export const handleFs = (
     }
   }
 
-  const readFile = async (path: string, options?: { readonly encoding?: string } | string) => {
+  const readFile = async (path: string, options?: ReadOptions) => {
     const found = await (await file(path)).handle()
     const bytes = new Uint8Array(await (await found.getFile()).arrayBuffer())
-    const encoding = typeof options === "string" ? options : options?.encoding
+    const encoding = isEncoding(options) ? options : options?.encoding
 
     return encoding === undefined ? bytes : new TextDecoder(encoding).decode(bytes)
   }
@@ -119,10 +142,10 @@ export const handleFs = (
     const writable = await handle.createWritable()
 
     try {
-      await writable.write(typeof data === "string" ? data : new Uint8Array(data))
+      await writable.write(data instanceof Uint8Array ? new Uint8Array(data) : data)
       await writable.close()
     } catch (error) {
-      await writable.abort().catch(() => undefined)
+      await writable.abort().catch(() => null)
       throw error
     }
   }
@@ -136,13 +159,7 @@ export const handleFs = (
 
     const parent = await walk(root, dirs, path)
 
-    const found = await parent
-      .getFileHandle(name)
-      .catch(async (error: unknown) =>
-        nameOf(error) === "TypeMismatchError"
-          ? await parent.getDirectoryHandle(name).catch(translated(path))
-          : await translated(path)(error),
-      )
+    const found = await fileOrDirectory(parent, name).catch(translated(path))
 
     if (found.kind === "directory") {
       return stats("dir", 0, 0)
@@ -201,5 +218,7 @@ export const lockIndex = async (gitdir: FileSystemDirectoryHandle) => {
 
   await gitdir.getFileHandle("index.lock", { create: true })
 
-  return async () => await gitdir.removeEntry("index.lock").catch(() => undefined)
+  return async () => {
+    await gitdir.removeEntry("index.lock").catch(() => null)
+  }
 }

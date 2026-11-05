@@ -1,114 +1,123 @@
 import * as fc from "fast-check"
+import { Match } from "effect"
 import { describe, expect, it } from "vitest"
 import { analyzeBlock, parseInline, plainText } from "../src/index.ts"
 import type { Inline } from "../src/index.ts"
 
 const uuid = "650e8f2a-1b2c-4d5e-8f90-123456789abc"
 
-const show = (nodes: readonly Inline[]): readonly string[] =>
-  nodes.map((node) => {
-    const at = `@${node.span.from}-${node.span.to}`
+const showNode = (node: Inline): string => {
+  const at = `@${node.span.from}-${node.span.to}`
 
-    switch (node._tag) {
-      case "Text": {
-        return `Text(${node.text})${at}`
-      }
-
-      case "Code": {
-        return `Code(${node.code})${at}`
-      }
-
-      case "Math": {
-        return `Math(${node.open}|${node.tex})${at}`
-      }
-
-      case "PageRef": {
-        return `PageRef(${node.name}${node.brackets ? "" : ", bare"})${at}`
-      }
-
-      case "Tag": {
-        return `Tag(${node.name})${at}`
-      }
-
-      case "BlockRef": {
-        return `BlockRef(${node.uuid})${at}`
-      }
-
-      case "Macro": {
-        return `Macro(${node.name}|${node.args})${at}`
-      }
-
-      case "Priority": {
-        return `Priority(${node.priority})${at}`
-      }
-
-      case "Bold":
-      case "Italic":
-      case "Strike":
-      case "Underline":
-      case "Highlight": {
-        return `${node._tag}[${show(node.children).join(" ")}]${at}`
-      }
-
-      case "Link": {
-        return `Link(${node.target._tag}:${node.target._tag === "Url" ? node.target.url : node.target._tag === "Page" ? node.target.name : node.target.uuid})[${show(node.label).join(" ")}]${at}`
-      }
-
-      case "Image": {
-        return `Image(${node.alt}|${node.url})${at}`
-      }
+  switch (node._tag) {
+    case "Text": {
+      return `Text(${node.text})${at}`
     }
-  })
 
-const refsOf = (nodes: readonly Inline[]): readonly string[] =>
-  nodes.flatMap((node): readonly string[] => {
-    switch (node._tag) {
-      case "PageRef": {
-        return [`PageRef:${node.name}`]
-      }
-
-      case "Tag": {
-        return [`Tag:${node.name}`]
-      }
-
-      case "BlockRef": {
-        return [`BlockRef:${node.uuid}`]
-      }
-
-      case "Macro": {
-        return node.name === "query" ? [] : refsOf(parseInline(node.args))
-      }
-
-      case "Bold":
-      case "Italic":
-      case "Strike":
-      case "Underline":
-      case "Highlight": {
-        return refsOf(node.children)
-      }
-
-      case "Link": {
-        return [
-          ...refsOf(node.label),
-          ...(node.target._tag === "Page"
-            ? [`PageRef:${node.target.name}`]
-            : node.target._tag === "Block"
-              ? [`BlockRef:${node.target.uuid}`]
-              : []),
-        ]
-      }
-
-      case "Text":
-      case "Code":
-      case "Math":
-      case "Priority":
-      case "Image": {
-        return []
-      }
+    case "Code": {
+      return `Code(${node.code})${at}`
     }
-  })
 
-describe("parseInline", () => {
+    case "Math": {
+      return `Math(${node.open}|${node.tex})${at}`
+    }
+
+    case "PageRef": {
+      return `PageRef(${node.name}${node.brackets ? "" : ", bare"})${at}`
+    }
+
+    case "Tag": {
+      return `Tag(${node.name})${at}`
+    }
+
+    case "BlockRef": {
+      return `BlockRef(${node.uuid})${at}`
+    }
+
+    case "Macro": {
+      return `Macro(${node.name}|${node.args})${at}`
+    }
+
+    case "Priority": {
+      return `Priority(${node.priority})${at}`
+    }
+
+    case "Bold":
+    case "Italic":
+    case "Strike":
+    case "Underline":
+    case "Highlight": {
+      return `${node._tag}[${show(node.children).join(" ")}]${at}`
+    }
+
+    case "Link": {
+      const target = Match.valueTags(node.target, {
+        Url: ({ url }) => url,
+        Page: ({ name }) => name,
+        Block: ({ uuid: id }) => id,
+      })
+
+      return `Link(${node.target._tag}:${target})[${show(node.label).join(" ")}]${at}`
+    }
+
+    case "Image": {
+      return `Image(${node.alt}|${node.url})${at}`
+    }
+  }
+}
+
+const show = (nodes: readonly Inline[]): readonly string[] => nodes.map(showNode)
+
+const nodeRefs = (node: Inline): readonly string[] => {
+  switch (node._tag) {
+    case "PageRef": {
+      return [`PageRef:${node.name}`]
+    }
+
+    case "Tag": {
+      return [`Tag:${node.name}`]
+    }
+
+    case "BlockRef": {
+      return [`BlockRef:${node.uuid}`]
+    }
+
+    case "Macro": {
+      return node.name === "query" ? [] : refsOf(parseInline(node.args))
+    }
+
+    case "Bold":
+    case "Italic":
+    case "Strike":
+    case "Underline":
+    case "Highlight": {
+      return refsOf(node.children)
+    }
+
+    case "Link": {
+      return [
+        ...refsOf(node.label),
+        ...Match.valueTags(node.target, {
+          Page: ({ name }) => [`PageRef:${name}`],
+          Block: ({ uuid: id }) => [`BlockRef:${id}`],
+          Url: () => [],
+        }),
+      ]
+    }
+
+    case "Text":
+    case "Code":
+    case "Math":
+    case "Priority":
+    case "Image": {
+      return []
+    }
+  }
+}
+
+const refsOf = (nodes: readonly Inline[]): readonly string[] => nodes.flatMap(nodeRefs)
+
+describe(parseInline, () => {
   it("reads refs, tags, block refs and macros with their source spans", () => {
     expect(
       show(parseInline(`see [[a [[b]] c]], #tag, #[[multi word]] and ((${uuid})) {{embed [[p]]}}`)),

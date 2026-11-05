@@ -5,7 +5,7 @@ import type { CodeLook } from "../src/index.ts"
 
 const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
 
-describe("logseq", () => {
+describe(logseq, () => {
   it("puts the seqno name first, then Logseq's names, id and attributes", () => {
     expect(logseq("seqno-bullet", { blockId, folded: true, numbered: true })).toEqual({
       className: "seqno-bullet bullet-container bullet-closed as-order-list typed-list",
@@ -91,13 +91,13 @@ describe("palette and page menu", () => {
   })
 })
 
-describe("names", () => {
+describe(names, () => {
   it("joins the tokens that are set", () => {
     expect(names("a", false, null, undefined, "", "b")).toBe("a b")
   })
 })
 
-describe("refsSelf", () => {
+describe(refsSelf, () => {
   it("lists marker, priority, refs with namespace parents and visible property keys", () => {
     expect(
       refsSelf("DONE [#A] see ((6512bd43-d9ca-4f3e-9a2b-000000000001))\nowner:: [[Ana]]"),

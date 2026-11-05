@@ -1,16 +1,18 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Exit, Option, Stream } from "effect"
+import { Effect, Exit, Match, Option, Stream } from "effect"
 import type { GraphEvent, PageId } from "@seqno/domain"
 import { nth, openGraph, outline, seedPage } from "./support.ts"
 
 const upserted = (events: readonly GraphEvent[]) =>
   events
-    .flatMap((event) =>
-      event._tag === "BlockUpserted"
-        ? [`${event.block.pageId} ${event.block.parentId} ${event.block.text}`]
-        : event._tag === "PageUpserted"
-          ? [`page ${event.page.title}`]
-          : [],
+    .flatMap(
+      Match.type<GraphEvent>().pipe(
+        Match.tag("BlockUpserted", ({ block }) => [
+          `${block.pageId} ${block.parentId} ${block.text}`,
+        ]),
+        Match.tag("PageUpserted", ({ page }) => [`page ${page.title}`]),
+        Match.orElse(() => []),
+      ),
     )
     .toSorted()
 

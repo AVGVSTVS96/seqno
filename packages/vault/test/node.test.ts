@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Fiber } from "effect"
 import { layerNode, nodeStorage } from "@seqno/vault/node"
-import { makeDevice } from "./device.ts"
+import { openDevice } from "./device.ts"
 
 const tempRoot = Effect.acquireRelease(
   Effect.promise(async () => await mkdtemp(join(tmpdir(), "seqno-vault-"))),
@@ -65,7 +65,7 @@ describe("two devices sharing a folder on disk", () => {
       const root = yield* tempRoot
       const members = ["mac", "ipad"]
 
-      const mac = yield* makeDevice({
+      const mac = yield* openDevice({
         id: "mac",
         peer: "1",
         members,
@@ -73,7 +73,7 @@ describe("two devices sharing a folder on disk", () => {
         compactAfterFiles: 2,
       })
 
-      const ipad = yield* makeDevice({ id: "ipad", peer: "2", members, storage: layerNode(root) })
+      const ipad = yield* openDevice({ id: "ipad", peer: "2", members, storage: layerNode(root) })
 
       yield* mac.type("one ")
       yield* mac.type("two")
@@ -93,7 +93,7 @@ describe("two devices sharing a folder on disk", () => {
       assert.deepStrictEqual(yield* namesIn(root, "updates/mac"), [])
       assert.deepStrictEqual(yield* namesIn(root, "seen"), ["ipad.json", "mac.json"])
 
-      const phone = yield* makeDevice({ id: "phone", peer: "3", members, storage: layerNode(root) })
+      const phone = yield* openDevice({ id: "phone", peer: "3", members, storage: layerNode(root) })
       yield* phone.sync
       assert.strictEqual(phone.text(), mac.text())
     }),
@@ -103,7 +103,7 @@ describe("two devices sharing a folder on disk", () => {
     Effect.gen(function* () {
       const root = yield* tempRoot
 
-      const ipad = yield* makeDevice({
+      const ipad = yield* openDevice({
         id: "ipad",
         peer: "2",
         members: ["ipad"],

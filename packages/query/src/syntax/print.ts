@@ -1,16 +1,17 @@
-import { Match } from "effect"
+import { Match, Predicate } from "effect"
+import { isScalar } from "../ast.ts"
 import type { CompareOp, Field, Filter, Query, Value, View } from "../ast.ts"
 import { fail } from "../error.ts"
 
 const pad = (n: number, width: number) => String(n).padStart(width, "0")
 
 const value = (v: Value): string => {
-  if (typeof v === "number" || typeof v === "boolean") {
-    return String(v)
+  if (Predicate.isString(v)) {
+    return /^[a-z_][\w./-]*$/iu.test(v) && !/^[+-]?\d/u.test(v) ? v : JSON.stringify(v)
   }
 
-  if (typeof v === "string") {
-    return /^[a-z_][\w./-]*$/iu.test(v) && !/^[+-]?\d/u.test(v) ? v : JSON.stringify(v)
+  if (isScalar(v)) {
+    return String(v)
   }
 
   return Match.valueTags(v, {
@@ -51,6 +52,14 @@ const equals = (field: Field, vs: readonly Value[]): string => {
 const compare = (field: Field, op: CompareOp, v: Value) =>
   op === "=" ? equals(field, [v]) : `(${field} ${op} ${value(v)})`
 
+const pageRef = (v: Value): string => {
+  if (isScalar(v)) {
+    return `[[${String(v)}]]`
+  }
+
+  return v._tag === "Context" ? "@page" : fail("a page reference names a page, not a date")
+}
+
 const filter = (f: Filter): string =>
   Match.valueTags(f, {
     And: (x) => `(and ${x.all.map(filter).join(" ")})`,
@@ -62,9 +71,7 @@ const filter = (f: Filter): string =>
       const a = x.ancestor
 
       if (x.self && !x.direct && a._tag === "Compare" && a.field === "ref" && a.op === "=") {
-        return typeof a.value === "object" && a.value._tag === "Context"
-          ? "@page"
-          : `[[${String(a.value)}]]`
+        return pageRef(a.value)
       }
 
       if (x.self) {
@@ -97,9 +104,9 @@ export const printLogseq = (q: Query): string => {
   const where = q.where ? filter(q.where) : null
 
   const parts = [
-    q.find === "pages" ? `(pages${where ? ` ${where}` : ""})` : where,
+    q.find === "pages" ? `(pages${where === null ? "" : ` ${where}`})` : where,
     ...(q.sort ?? []).map((s) => `(sort-by ${s.field} ${s.dir})`),
-    q.group ? `(group-by ${q.group})` : null,
+    q.group === undefined ? null : `(group-by ${q.group})`,
     q.view ? view(q.view) : null,
     q.limit === undefined ? null : `(limit ${q.limit})`,
   ]

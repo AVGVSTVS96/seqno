@@ -1,3 +1,4 @@
+import { Match } from "effect"
 import type { Span } from "./block.ts"
 
 export type MathOpen = "$" | "$$" | "\\(" | "\\["
@@ -62,7 +63,11 @@ export const inlineMathAt = (source: string, at: number): InlineMath | null => {
     return null
   }
 
-  const open = source[at + 1] === "[" ? "\\[" : source[at + 1] === "(" ? "\\(" : null
+  const open = Match.value(source[at + 1]).pipe(
+    Match.when("[", () => "\\[" as const),
+    Match.when("(", () => "\\(" as const),
+    Match.orElse(() => null),
+  )
 
   if (open === null || at + 2 >= source.length) {
     return null
@@ -73,7 +78,7 @@ export const inlineMathAt = (source: string, at: number): InlineMath | null => {
   return close === -1 ? null : { open, tex: source.slice(at + 2, close), end: close + 2 }
 }
 
-const BEGIN = /\\begin\{([^}]+)\}[ \t\r\n]*/iyu
+const BEGIN = /\\begin\{([^}]+)\}[ \t\r\n]*/iuy
 
 export const latexEnvironment = (name: string, content: string) =>
   name === "equation" ? content : `\\begin{${name}}\n${content}\\end{${name}}`

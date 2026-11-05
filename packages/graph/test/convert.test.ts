@@ -1,7 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option, Schema } from "effect"
-import { BlockId, JournalDay, PageId } from "@seqno/domain"
-import type { GraphEvent } from "@seqno/domain"
+import { BlockId, GraphEvent, JournalDay, PageId } from "@seqno/domain"
 import { compareConverted, convertOneTree, journalPageId, journalsByDay } from "@seqno/graph"
 import { WebCrypto, createdBlock, format, nth, openGraphAs, seedPage } from "./support.ts"
 
@@ -89,8 +88,12 @@ const everything = (graph: Opened) =>
     return yield* Effect.forEach(pages, (page) => graph.pageEvents(page.id))
   })
 
-const renamed = (events: ReadonlyArray<readonly GraphEvent[]>, from: PageId, to: PageId): unknown =>
-  JSON.parse(JSON.stringify(events).replaceAll(from, to))
+const decodeEvents = Schema.decodeUnknownSync(
+  Schema.fromJsonString(Schema.Array(Schema.Array(GraphEvent))),
+)
+
+const renamed = (events: ReadonlyArray<readonly GraphEvent[]>, from: PageId, to: PageId) =>
+  decodeEvents(JSON.stringify(events).replaceAll(from, to))
 
 describe.runIf(format === "v2")("converting one tree to a tree per page", () => {
   it.effect("keeps every live page and block, with ids, props, nesting and times", () =>

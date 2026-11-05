@@ -174,10 +174,14 @@ export type Shape = typeof Shape.Type
 
 export type OtherShape = typeof OtherShape.Type
 
-export const assetTypeOf = (shapeType: unknown): "image" | "video" | "pdf" =>
+export const assetTypeOf = (shapeType: Schema.Json | undefined): "image" | "video" | "pdf" =>
   shapeType === "video" || shapeType === "pdf" ? shapeType : "image"
 
-const RawJson = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown))
+export const ShapeJson = Schema.Record(Schema.String, Schema.Json)
+
+export type ShapeJson = typeof ShapeJson.Type
+
+const RawJson = Schema.fromJsonString(ShapeJson)
 
 const decodeShape = Schema.decodeUnknownOption(Schema.fromJsonString(Shape))
 const decodeOther = Schema.decodeUnknownOption(Schema.fromJsonString(OtherShape))
@@ -192,15 +196,15 @@ export const otherShapeOf = (block: Block): Option.Option<OtherShape> =>
     ? decodeOther(block.props[SHAPE_KEY])
     : Option.none()
 
-export const shapeRaw = (block: Block): Readonly<Record<string, unknown>> =>
+export const shapeRaw = (block: Block): ShapeJson =>
   Option.getOrElse(decodeRaw(block.props[SHAPE_KEY]), () => ({}))
 
-export const shapeValue = (raw: Readonly<Record<string, unknown>>): string => encodeRaw(raw)
+export const shapeValue = (raw: ShapeJson): string => encodeRaw(raw)
 
-export const patchShape = (block: Block, patch: Readonly<Record<string, unknown>>): string =>
+export const patchShape = (block: Block, patch: ShapeJson): string =>
   shapeValue({ ...shapeRaw(block), ...patch })
 
-export const shapeProps = (raw: Readonly<Record<string, unknown>>): Props => ({
+export const shapeProps = (raw: ShapeJson): Props => ({
   [TYPE_KEY]: WHITEBOARD_SHAPE,
   [SHAPE_KEY]: shapeValue(raw),
 })
@@ -260,34 +264,25 @@ export const portalText = (target: PortalTarget): string =>
     BlockPortal: ({ uuid }) => `((${uuid}))`,
   })
 
-export const wordsField = (type: unknown): string | null => {
-  switch (type) {
-    case "text": {
-      return "text"
-    }
+const fieldByType = new Map<Schema.Json | undefined, string>([
+  ["text", "text"],
+  ["box", "label"],
+  ["ellipse", "label"],
+  ["polygon", "label"],
+  ["line", "label"],
+  ["logseq-portal", "pageId"],
+])
 
-    case "box":
-    case "ellipse":
-    case "polygon":
-    case "line": {
-      return "label"
-    }
+export const wordsField = (type: Schema.Json | undefined): string | null =>
+  fieldByType.get(type) ?? null
 
-    case "logseq-portal": {
-      return "pageId"
-    }
+const isText = Schema.is(Schema.String)
 
-    default: {
-      return null
-    }
-  }
-}
-
-export const wordsIn = (shape: Readonly<Record<string, unknown>>): string => {
+export const wordsIn = (shape: ShapeJson): string => {
   const field = wordsField(shape["type"])
   const value = field === null ? undefined : shape[field]
 
-  if (typeof value !== "string") {
+  if (!isText(value)) {
     return ""
   }
 
@@ -302,7 +297,7 @@ export const wordsIn = (shape: Readonly<Record<string, unknown>>): string => {
   )
 }
 
-export const wordsFields = (type: unknown, text: string): Readonly<Record<string, unknown>> => {
+export const wordsFields = (type: Schema.Json | undefined, text: string): ShapeJson => {
   const field = wordsField(type)
 
   if (field === null) {

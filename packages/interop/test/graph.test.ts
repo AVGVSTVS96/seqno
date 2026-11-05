@@ -43,7 +43,7 @@ const projectX = [
 
 const namespaced = "- child of a namespace"
 
-const graphFiles: Record<string, string> = {
+const graphFiles = {
   "logseq/config.edn": '{:file/name-format :triple-lowbar\n :hidden ["/pages/private"]}',
   "journals/2026_10_06.md": journal,
   "pages/Project X.md": projectX,

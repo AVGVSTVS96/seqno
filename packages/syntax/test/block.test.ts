@@ -4,7 +4,7 @@ import { analyzeBlock, applyEdit, setProperty } from "../src/index.ts"
 
 const uuid = "650e8f2a-1b2c-4d5e-8f90-123456789abc"
 
-describe("analyzeBlock", () => {
+describe(analyzeBlock, () => {
   it("reads task, priority, planning, properties and logbook", () => {
     const text = [
       "TODO [#A] ship it",
@@ -21,7 +21,7 @@ describe("analyzeBlock", () => {
     const syntax = analyzeBlock(text)
     expect(syntax.marker).toBe("TODO")
     expect(syntax.priority).toBe("A")
-    expect(syntax.heading).toBe(null)
+    expect(syntax.heading).toBeNull()
     expect(syntax.id).toBe(uuid)
     expect(syntax.collapsed).toBe(true)
     expect(syntax.props).toStrictEqual({ id: uuid.toUpperCase(), collapsed: "true" })
@@ -122,7 +122,7 @@ describe("analyzeBlock", () => {
     expect(syntax.refs.map((ref) => (ref._tag === "BlockRef" ? ref.uuid : ref.name))).toStrictEqual(
       ["one", "Two Words", "three", "mp"],
     )
-    expect(syntax.marker).toBe(null)
+    expect(syntax.marker).toBeNull()
   })
 
   it("does not treat later key:: lines in the body as properties", () => {
@@ -130,7 +130,7 @@ describe("analyzeBlock", () => {
   })
 })
 
-describe("setProperty", () => {
+describe(setProperty, () => {
   it("adds, replaces and removes property lines with minimal edits", () => {
     const text = "DONE task\nSCHEDULED: <2024-01-15 Mon>\nbody"
 
@@ -140,7 +140,7 @@ describe("setProperty", () => {
     )
 
     expect(added).toBe("DONE task\ncollapsed:: true\nSCHEDULED: <2024-01-15 Mon>\nbody")
-    expect(setProperty(added, "collapsed", "true")).toBe(null)
+    expect(setProperty(added, "collapsed", "true")).toBeNull()
     expect(setProperty(added, "collapsed", "false")).toStrictEqual({
       from: 10,
       to: 26,

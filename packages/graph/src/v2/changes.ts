@@ -1,4 +1,5 @@
 import { Option, Schema } from "effect"
+import type { Value } from "loro-crdt"
 import { PageId } from "@seqno/domain"
 import type { BlockId } from "@seqno/domain"
 import { loroVersion } from "../changes.ts"
@@ -25,7 +26,7 @@ export const changedSince = (
 
   const nodes = new Set<string>()
   const pages = new Set<PageId>()
-  const addPage = (id: unknown) => Option.map(decodePageId(id), (page) => pages.add(page))
+  const addPage = (id: Value) => Option.map(decodePageId(id), (page) => pages.add(page))
   const spans = doc.findIdSpansBetween(doc.vvToFrontiers(from), doc.oplogFrontiers()).forward
 
   for (const span of spans) {

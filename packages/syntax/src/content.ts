@@ -93,7 +93,7 @@ const HIDDEN_KEYS = new Set([
 
 const QUOTE = /^[ \t]*>[ \t]?/u
 const PLANNING = /(SCHEDULED|DEADLINE): <([^>\n]*)>/gu
-const CLOCK_DURATION = /=>\s*(\d+):(\d{2})(?::(\d{2}))?\s*$/u
+const CLOCK_DURATION = /[=]>\s*(\d+):(\d{2})(?::(\d{2}))?\s*$/u
 const FENCE_INFO = /^[ \t]*(?:`{3,}|~{3,})[ \t]*([^\s`]*)/u
 
 const LEADING_PRIORITY = /^\[#([ABC])\][ \t]*/u
@@ -387,7 +387,7 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
         index++
       }
 
-      const last = run[run.length - 1] ?? line
+      const last = run.at(-1) ?? line
       body.push({
         _tag: "Quote",
         lines: run.map((entry) => {

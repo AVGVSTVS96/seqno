@@ -118,9 +118,9 @@ const cellsOf = (line: string, dialect: Dialect): readonly Run[] =>
 const tableOf = (level: number, lines: readonly string[], dialect: Dialect): Item => {
   const separated = lines.length > 1 && isTableSeparator(lines[1] ?? "")
 
-  const [header = [], ...rows] = lines
-    .filter((_, index) => !(index === 1 && separated))
-    .map((line) => cellsOf(line, dialect))
+  const [header = [], ...rows] = lines.flatMap((line, index) =>
+    index === 1 && separated ? [] : [cellsOf(line, dialect)],
+  )
 
   return { _tag: "Table", level, header, rows }
 }
@@ -206,8 +206,10 @@ const split = (run: Run, level: number, context: Context): readonly Piece[] => {
       continue
     }
 
-    pieces.push({ _tag: "Run", run: { ...run, from, to: node.span.from, nodes } })
-    pieces.push({ _tag: "Embed", items })
+    pieces.push(
+      { _tag: "Run", run: { ...run, from, to: node.span.from, nodes } },
+      { _tag: "Embed", items },
+    )
     from = node.span.to
     nodes = []
   }

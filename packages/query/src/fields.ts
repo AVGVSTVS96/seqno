@@ -1,5 +1,5 @@
 import { isFixedField } from "./ast.ts"
-import type { Field, FixedField } from "./ast.ts"
+import type { Field, FixedField, Primitive } from "./ast.ts"
 import { fail } from "./error.ts"
 import type { BlockFacets, TaskFacets } from "./facets.ts"
 
@@ -7,7 +7,7 @@ export type FieldType = "name" | "string" | "date" | "time" | "bool" | "any" | "
 
 export type Owner = "block" | "page"
 
-export type Primitive = string | number | boolean
+export type { Primitive } from "./ast.ts"
 
 export type Storage =
   | { readonly _tag: "Column"; readonly expr: (alias: string) => string }
@@ -29,7 +29,7 @@ export interface FieldDef {
   readonly values: (f: BlockFacets) => readonly Primitive[]
 }
 
-const opt = <A>(a: A | null | undefined): readonly A[] => (a == null ? [] : [a])
+const opt = <A>(a: A | null | undefined): readonly A[] => (a === null || a === undefined ? [] : [a])
 const quote = (s: string) => `'${s.replaceAll("'", "''")}'`
 const column = (expr: (alias: string) => string): Storage => ({ _tag: "Column", expr })
 

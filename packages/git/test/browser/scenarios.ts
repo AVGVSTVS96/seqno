@@ -1,4 +1,5 @@
-import { makeCli, makeRepo } from "@seqno/git"
+import { gitCli, openRepo } from "@seqno/git"
+import type { GitConfig, Globals } from "@seqno/git"
 import { handleFs, lockIndex } from "@seqno/git/browser"
 
 const folder = async (name: string) =>
@@ -20,16 +21,13 @@ const put = async (root: FileSystemDirectoryHandle, path: string, text: string) 
   await writable.close()
 }
 
-const globals = () => {
-  let config: Readonly<Record<string, string>> = {
-    "user.name": "Bassim",
-    "user.email": "b@example.com",
-  }
+const globals = (): Globals => {
+  let config: GitConfig = { "user.name": "Bassim", "user.email": "b@example.com" }
 
   return {
-    read: async () => config,
-    write: async (next: Readonly<Record<string, string>>) => {
-      config = next
+    read: async () => await Promise.resolve(config),
+    write: async (next) => {
+      config = await Promise.resolve(next)
     },
   }
 }
@@ -47,13 +45,13 @@ const graph = async (gitInside: boolean) => {
   await put(work, "updates/web-1/0.loro", "binary")
   await put(work, ".gitignore", "updates/\n")
 
-  const repo = makeRepo({
+  const repo = openRepo({
     fs: handleFs(work, gitdir),
     globals: globals(),
     lock: async () => await lockIndex(gitdir),
   })
 
-  return { work, gitdir, repo, run: makeCli(repo, "demo") }
+  return { work, gitdir, repo, run: gitCli(repo, "demo") }
 }
 
 const names = async (dir: FileSystemDirectoryHandle) => {
@@ -66,7 +64,7 @@ const names = async (dir: FileSystemDirectoryHandle) => {
   return found.toSorted()
 }
 
-const scenarios: Readonly<Record<string, () => Promise<unknown>>> = {
+const scenarios = {
   commitsAndReadsBack: async () => {
     const { work, gitdir, repo, run } = await graph(false)
     const before = await run(["status", "--porcelain"])
@@ -111,7 +109,14 @@ const scenarios: Readonly<Record<string, () => Promise<unknown>>> = {
   },
 }
 
+const isScenario = (name: string): name is keyof typeof scenarios => Object.hasOwn(scenarios, name)
+
 Object.assign(globalThis, {
-  gitScenario: async (name: string) =>
-    await (scenarios[name]?.() ?? Promise.reject(new Error(`no scenario ${name}`))),
+  gitScenario: async (name: string) => {
+    if (!isScenario(name)) {
+      throw new Error(`no scenario ${name}`)
+    }
+
+    return await scenarios[name]()
+  },
 })

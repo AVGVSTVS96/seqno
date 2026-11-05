@@ -1,4 +1,5 @@
-import { Option, Schema } from "effect"
+import { Option, Predicate, Schema } from "effect"
+import type { Types } from "effect"
 import { LoroList, LoroMap, LoroText } from "loro-crdt"
 import type { LoroTree, LoroTreeNode, TreeID } from "loro-crdt"
 import { BlockId, JournalDay, PageId, Props, normalizePageName } from "@seqno/domain"
@@ -13,7 +14,7 @@ const TRASH = "trash"
 
 export const isTrash = (node: LoroTreeNode): boolean => node.data.get(TRASH) === true
 
-export const makeTrash = (tree: LoroTree): LoroTreeNode => {
+export const createTrash = (tree: LoroTree): LoroTreeNode => {
   const node = tree.createNode()
   node.data.set(TRASH, true)
 
@@ -44,7 +45,10 @@ const BlockData = Schema.Struct({
 })
 
 const decodePageData = Schema.decodeUnknownOption(PageData)
-const decodeBlockData = Schema.decodeUnknownOption(BlockData)
+
+type BlockData = typeof BlockData.Type
+
+export const decodeBlockData = Schema.decodeUnknownOption(BlockData)
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
 const decodePageId = Schema.decodeUnknownOption(PageId)
 
@@ -61,6 +65,8 @@ export interface BlockState {
 
 export const isTreeId = (value: unknown): value is TreeID =>
   typeof value === "string" && /^\d+@\d+$/u.test(value)
+
+export const isMap = (value: unknown): value is LoroMap => value instanceof LoroMap
 
 export const childrenOf = (node: LoroTreeNode): readonly LoroTreeNode[] => node.children() ?? []
 
@@ -83,13 +89,27 @@ export const inOrder = (props: Props = {}, keys: readonly string[] = []): Props 
   return Object.fromEntries([...listed, ...rest].map((key) => [key, props[key] ?? ""]))
 }
 
-export const fileShape = (data: unknown): Pick<Page, "format" | "frontMatter"> =>
-  typeof data === "object" && data !== null
-    ? {
-        ...(Reflect.get(data, "format") === "org" ? { format: "org" } : {}),
-        ...(Reflect.get(data, "frontMatter") === true ? { frontMatter: true } : {}),
-      }
-    : {}
+export interface FileFields {
+  readonly format?: unknown
+  readonly frontMatter?: unknown
+}
+
+export const fileShape = ({
+  format,
+  frontMatter,
+}: FileFields): Pick<Page, "format" | "frontMatter"> => {
+  const shape: Types.Mutable<Pick<Page, "format" | "frontMatter">> = {}
+
+  if (format === "org") {
+    shape.format = format
+  }
+
+  if (frontMatter === true) {
+    shape.frontMatter = frontMatter
+  }
+
+  return shape
+}
 
 export const writeFileShape = (data: LoroMap, page: Page): void => {
   if (page.format !== undefined) {
@@ -129,22 +149,21 @@ export const livePages = (tree: LoroTree): Array<readonly [LoroTreeNode, Page]> 
         : Option.toArray(Option.map(readPage(root), (page) => [root, page] as const)),
     )
 
-export const readBlock = (node: LoroTreeNode, at: Placement): Option.Option<BlockState> =>
-  blockFromData(node.data.toJSON(), at)
+export const blockState = (data: BlockData, at: Placement): BlockState => ({
+  block: {
+    id: data.uuid,
+    pageId: at.pageId,
+    parentId: at.parentId,
+    text: data.text ?? "",
+    collapsed: data.collapsed ?? false,
+    props: inOrder(data.props, data.propKeys),
+  },
+  createdAt: Math.max(0, data.created ?? 0),
+  updatedAt: Math.max(0, data.updated ?? data.created ?? 0),
+})
 
-export const blockFromData = (json: unknown, at: Placement): Option.Option<BlockState> =>
-  Option.map(decodeBlockData(json), (data) => ({
-    block: {
-      id: data.uuid,
-      pageId: at.pageId,
-      parentId: at.parentId,
-      text: data.text ?? "",
-      collapsed: data.collapsed ?? false,
-      props: inOrder(data.props, data.propKeys),
-    },
-    createdAt: Math.max(0, data.created ?? 0),
-    updatedAt: Math.max(0, data.updated ?? data.created ?? 0),
-  }))
+export const readBlock = (node: LoroTreeNode, at: Placement): Option.Option<BlockState> =>
+  Option.map(decodeBlockData(node.data.toJSON()), (data) => blockState(data, at))
 
 export const textOf = (data: LoroMap): LoroText => {
   const text = data.get("text")
@@ -155,7 +174,7 @@ export const textOf = (data: LoroMap): LoroText => {
 const propsOf = (data: LoroMap): LoroMap => {
   const props = data.get("props")
 
-  return props instanceof LoroMap ? props : data.ensureMergeableMap("props")
+  return isMap(props) ? props : data.ensureMergeableMap("props")
 }
 
 const propKeysOf = (data: LoroMap): LoroList => {
@@ -167,24 +186,20 @@ const propKeysOf = (data: LoroMap): LoroList => {
 export const propKeysIn = (data: LoroMap): readonly string[] => {
   const keys = data.get("propKeys")
 
-  return keys instanceof LoroList
-    ? keys.toArray().flatMap((key) => (typeof key === "string" ? [key] : []))
-    : []
+  return keys instanceof LoroList ? keys.toArray().filter(Predicate.isString) : []
 }
+
+const stringEntries = (map: LoroMap): Props =>
+  Object.fromEntries(
+    map
+      .entries()
+      .flatMap(([key, value]) => (Predicate.isString(value) ? [[key, value] as const] : [])),
+  )
 
 export const readProps = (data: LoroMap): Props => {
   const props = data.get("props")
 
-  return props instanceof LoroMap
-    ? inOrder(
-        Object.fromEntries(
-          Object.entries(props.toJSON()).flatMap(([key, value]) =>
-            typeof value === "string" ? [[key, value]] : [],
-          ),
-        ),
-        propKeysIn(data),
-      )
-    : {}
+  return isMap(props) ? inOrder(stringEntries(props), propKeysIn(data)) : {}
 }
 
 export const setProp = (

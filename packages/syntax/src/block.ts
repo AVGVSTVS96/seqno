@@ -1,4 +1,4 @@
-import { Option, Schema } from "effect"
+import { Match, Option, Schema } from "effect"
 import { parseInline } from "./inline.ts"
 import type { Dialect, Inline } from "./inline.ts"
 import { mathSpans } from "./math.ts"
@@ -159,9 +159,17 @@ const regionsOf = (lines: readonly Line[]): readonly Region[] => {
     const directive = DIRECTIVE.exec(line.text)
     const drawer = DRAWER_OPEN.exec(line.text)
 
-    if (fence !== null && !(fence[1]?.startsWith("`") && fence[2]?.includes("`"))) {
+    if (
+      fence !== null &&
+      !(fence[1]?.startsWith("`") === true && fence[2]?.includes("`") === true)
+    ) {
       const run = fence[1] ?? "```"
-      const closing = new RegExp(`^[ \\t]*${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t\\r]*$`)
+
+      const closing = new RegExp(
+        `^[ \\t]*${run.startsWith("`") ? "`" : "~"}{${run.length},}[ \\t\\r]*$`,
+        "u",
+      )
+
       open = {
         kind: "Fence",
         name: (fence[2] ?? "").trim(),
@@ -193,10 +201,8 @@ const inside = (spans: readonly Span[], at: number) =>
   spans.some((span) => at >= span.from && at < span.to)
 
 const timestampsOf = (lines: readonly Line[]) => {
-  const found: { scheduled: Timestamp | null; deadline: Timestamp | null } = {
-    scheduled: null,
-    deadline: null,
-  }
+  let scheduled: Timestamp | null = null
+  let deadline: Timestamp | null = null
 
   for (const line of lines) {
     for (const match of line.text.matchAll(TIMESTAMP)) {
@@ -209,14 +215,14 @@ const timestampsOf = (lines: readonly Line[]) => {
       }
 
       if (which === "SCHEDULED") {
-        found.scheduled ??= stamp
+        scheduled ??= stamp
       } else {
-        found.deadline ??= stamp
+        deadline ??= stamp
       }
     }
   }
 
-  return found
+  return { scheduled, deadline }
 }
 
 const propertiesOf = (lines: readonly Line[], regions: readonly Region[]): readonly Property[] => {
@@ -299,42 +305,50 @@ const spanOf = (match: RegExpMatchArray): Span => {
 
 const ORG_HEADING_TAGS = /[ \t]+:((?:[^\s:]+:)+)[ \t]*$/u
 
-const inlineRefs = (nodes: readonly Inline[]): readonly Ref[] =>
-  nodes.flatMap((node): readonly Ref[] => {
-    switch (node._tag) {
-      case "PageRef": {
-        return [{ _tag: "PageRef", name: node.name, span: node.span }]
-      }
-
-      case "Tag": {
-        return [{ _tag: "Tag", name: node.name, span: node.span }]
-      }
-
-      case "BlockRef": {
-        return [{ _tag: "BlockRef", uuid: node.uuid, span: node.span }]
-      }
-
-      case "Link": {
-        return node.target._tag === "Page"
-          ? [{ _tag: "PageRef", name: node.target.name, span: node.span }]
-          : node.target._tag === "Block"
-            ? [{ _tag: "BlockRef", uuid: node.target.uuid, span: node.span }]
-            : []
-      }
-
-      case "Bold":
-      case "Italic":
-      case "Strike":
-      case "Underline":
-      case "Highlight": {
-        return inlineRefs(node.children)
-      }
-
-      default: {
-        return []
-      }
+const refsOf = (node: Inline): readonly Ref[] => {
+  switch (node._tag) {
+    case "PageRef": {
+      return [{ _tag: "PageRef", name: node.name, span: node.span }]
     }
-  })
+
+    case "Tag": {
+      return [{ _tag: "Tag", name: node.name, span: node.span }]
+    }
+
+    case "BlockRef": {
+      return [{ _tag: "BlockRef", uuid: node.uuid, span: node.span }]
+    }
+
+    case "Link": {
+      const { span } = node
+
+      return Match.valueTags(node.target, {
+        Page: ({ name }): readonly Ref[] => [{ _tag: "PageRef", name, span }],
+        Block: ({ uuid }): readonly Ref[] => [{ _tag: "BlockRef", uuid, span }],
+        Url: (): readonly Ref[] => [],
+      })
+    }
+
+    case "Bold":
+    case "Italic":
+    case "Strike":
+    case "Underline":
+    case "Highlight": {
+      return inlineRefs(node.children)
+    }
+
+    case "Text":
+    case "Code":
+    case "Image":
+    case "Macro":
+    case "Math":
+    case "Priority": {
+      return []
+    }
+  }
+}
+
+const inlineRefs = (nodes: readonly Inline[]): readonly Ref[] => nodes.flatMap(refsOf)
 
 const orgRefs = (lines: readonly Line[], excluded: readonly Span[]): readonly Ref[] =>
   lines.flatMap((line, index) => {
@@ -371,32 +385,34 @@ export const analyzeBlock = (text: string, dialect: Dialect = "markdown"): Block
   const regions = regionsOf(lines)
 
   const code = [
-    ...regions
-      .filter((region) => region.kind !== "Directive" || VERBATIM.has(region.name))
-      .map((region) => region.span),
+    ...regions.flatMap((region) =>
+      region.kind !== "Directive" || VERBATIM.has(region.name) ? [region.span] : [],
+    ),
     ...(dialect === "org" ? [] : [...text.matchAll(INLINE_CODE)].map(spanOf)),
   ]
 
   const verbatim = [...code, ...mathSpans(text, code)]
 
-  const macros = [...text.matchAll(MACRO)]
-    .filter((match) => !inside(verbatim, match.index ?? 0))
-    .map((match): Macro => ({
-      name: (match[1] ?? "").toLowerCase(),
-      args: (match[2] ?? "").trim(),
-      span: spanOf(match),
-    }))
+  const macros = [...text.matchAll(MACRO)].flatMap((match): readonly Macro[] =>
+    inside(verbatim, match.index ?? 0)
+      ? []
+      : [
+          {
+            name: (match[1] ?? "").toLowerCase(),
+            args: (match[2] ?? "").trim(),
+            span: spanOf(match),
+          },
+        ],
+  )
 
-  const queries = macros.filter((macro) => macro.name === "query").map((macro) => macro.span)
+  const queries = macros.flatMap((macro) => (macro.name === "query" ? [macro.span] : []))
   const excluded = [...verbatim, ...queries]
 
-  const blockRefs = [...text.matchAll(BLOCK_REF)]
-    .filter((match) => !inside(excluded, match.index ?? 0))
-    .map((match): Ref => ({
-      _tag: "BlockRef",
-      uuid: (match[1] ?? "").toLowerCase(),
-      span: spanOf(match),
-    }))
+  const blockRefs = [...text.matchAll(BLOCK_REF)].flatMap((match): readonly Ref[] =>
+    inside(excluded, match.index ?? 0)
+      ? []
+      : [{ _tag: "BlockRef", uuid: (match[1] ?? "").toLowerCase(), span: spanOf(match) }],
+  )
 
   const tags = [...text.matchAll(TAG)].flatMap((match): readonly Ref[] => {
     const name = (match[1] ?? "").replace(TAG_TRAILER, "")

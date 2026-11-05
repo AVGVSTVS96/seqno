@@ -6,8 +6,8 @@ import { isTreeId, readBlock } from "../tree.ts"
 import { WAS } from "../unseen.ts"
 import { AT, REF, feeding, isDirectory, pageOfTree } from "./layout.ts"
 import type { Spot } from "./layout.ts"
-import { homeOf, itemOf, locate, nodeChildren, readView, spotAt, treeRoots } from "./outline.ts"
-import type { Located, Trees, Where } from "./outline.ts"
+import { homeOf, itemOf, locate, nodeChildren, spotAt, treeRoots } from "./outline.ts"
+import type { Located, Trees, Where, readView } from "./outline.ts"
 
 interface Position {
   readonly page: PageId
@@ -68,7 +68,7 @@ export const emptyPending = (): Pending => ({ nodes: new Set(), data: new Set(),
 
 const decodePageId = Schema.decodeUnknownOption(PageId)
 
-const addPage = (pending: Pending, id: unknown) =>
+const addPage = (pending: Pending, id: string | number) =>
   Option.map(decodePageId(id), (page) => pending.pages.add(page))
 
 export const collectChanges = (batch: LoroEventBatch, pending: Pending): boolean => {
@@ -83,7 +83,9 @@ export const collectChanges = (batch: LoroEventBatch, pending: Pending): boolean
       if (below !== undefined) {
         addPage(pending, below)
       } else if (event.diff.type === "map") {
-        Object.keys(event.diff.updated).forEach((id) => addPage(pending, id))
+        for (const id of Object.keys(event.diff.updated)) {
+          addPage(pending, id)
+        }
       }
 
       continue
@@ -190,13 +192,7 @@ export const translate = (trees: Trees, pending: Pending, known: Known): readonl
   const memo: Located = new Map()
   const outcomes: Outcome[] = []
 
-  for (let at = 0; at < queue.length; at++) {
-    const home = queue[at]
-
-    if (home === undefined) {
-      continue
-    }
-
+  for (const home of queue) {
     const id = trees.facts(home).id
 
     if (Option.isNone(id)) {

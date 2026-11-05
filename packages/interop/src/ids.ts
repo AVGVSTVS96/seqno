@@ -31,14 +31,14 @@ const hex = (bytes: Uint8Array) =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
 
 export const seededIds = (seed: Uint8Array): ImportIds => {
-  const next = xoshiro128(seed)
+  const random = xoshiro128(seed)
 
   const uuid = () => {
     const bytes = new Uint8Array(16)
     const view = new DataView(bytes.buffer)
 
     for (let at = 4; at < 16; at += 4) {
-      view.setUint32(at, next())
+      view.setUint32(at, random())
     }
 
     bytes[4] = 0

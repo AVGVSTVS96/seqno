@@ -29,6 +29,7 @@ export {
   PortalShape,
   PortalTarget,
   ScaleLevel,
+  ShapeJson,
   Shape,
   SHAPE_KEY,
   StrokeShape,

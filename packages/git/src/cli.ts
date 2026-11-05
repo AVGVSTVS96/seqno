@@ -1,3 +1,4 @@
+import { Match } from "effect"
 import * as git from "isomorphic-git"
 import { dateStyleOf, medium, pretty, quotePath, short } from "./format.ts"
 import type { CommitInfo, DateStyle } from "./format.ts"
@@ -81,7 +82,8 @@ remove the file manually to continue.
 
 const upstream = /@\{(u|upstream|push)\}$/iu
 
-class Fatal extends Error {
+class FatalError extends Error {
+  override readonly name = "FatalError"
   readonly result: Result
   constructor(result: Result) {
     super(result.stderr)
@@ -97,19 +99,24 @@ const split = (args: readonly string[]) => {
     : { options: args.slice(0, at), paths: args.slice(at + 1) }
 }
 
-const label = (code: string) =>
-  code === "A" ? "new file:   " : code === "D" ? "deleted:    " : "modified:   "
+const labels = new Map([
+  ["A", "new file:   "],
+  ["D", "deleted:    "],
+])
+
+const label = (code: string) => labels.get(code) ?? "modified:   "
+
+const orHead = (rev: string | undefined) => (rev === undefined || rev === "" ? "HEAD" : rev)
+
+interface LogFormat {
+  readonly kind: "medium" | "oneline" | "format" | "tformat"
+  readonly template: string
+}
 
 const logOptions = (args: readonly string[]) => {
   let depth: number | undefined
 
-  let format: {
-    readonly kind: "medium" | "oneline" | "format" | "tformat"
-    readonly template: string
-  } = {
-    kind: "medium",
-    template: "",
-  }
+  let format: LogFormat = { kind: "medium", template: "" }
 
   let date: DateStyle = "default"
   let patch = false
@@ -153,7 +160,7 @@ const logOptions = (args: readonly string[]) => {
     ) {
       continue
     } else if (arg.startsWith("-")) {
-      throw new Fatal(unsupported(`log ${arg}`))
+      throw new FatalError(unsupported(`log ${arg}`))
     } else {
       revs.push(arg)
     }
@@ -162,10 +169,10 @@ const logOptions = (args: readonly string[]) => {
   return { depth, format, date, patch, nameOnly, revs, named }
 }
 
-export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => new Date()) => {
+export const gitCli = (repo: Repo, graphPath: string, now: () => Date = () => new Date()) => {
   const resolve = async (rev: string): Promise<string> => {
     if (upstream.test(rev)) {
-      throw new Fatal(fatal(`no upstream configured for branch '${await repo.branch()}'`))
+      throw new FatalError(fatal(`no upstream configured for branch '${await repo.branch()}'`))
     }
 
     const match = /^(.*?)((?:[~^]\d*)*)$/u.exec(rev)
@@ -183,7 +190,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
         : null)
 
     if (found === null) {
-      throw new Fatal(
+      throw new FatalError(
         fatal(`ambiguous argument '${rev}': unknown revision or path not in the working tree.`),
       )
     }
@@ -199,7 +206,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
         ]
 
         if (parent === undefined) {
-          throw new Fatal(
+          throw new FatalError(
             fatal(`ambiguous argument '${rev}': unknown revision or path not in the working tree.`),
           )
         }
@@ -218,7 +225,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
 
   const needCommits = async () => {
     if ((await repo.head()) === null) {
-      throw new Fatal(
+      throw new FatalError(
         fatal(`your current branch '${await repo.branch()}' does not have any commits yet`),
       )
     }
@@ -239,8 +246,8 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
     }
 
     const entries = lines.split("\n").filter((line) => line.length > 0)
-    const toCommit = entries.filter((line) => line[0] !== " " && line[0] !== "?")
-    const notStaged = entries.filter((line) => line[1] !== " " && line[0] !== "?")
+    const toCommit = entries.filter((line) => !line.startsWith(" ") && !line.startsWith("?"))
+    const notStaged = entries.filter((line) => line[1] !== " " && !line.startsWith("?"))
     const untracked = entries.filter((line) => line.startsWith("??"))
     const out = [`On branch ${await repo.branch()}`]
 
@@ -421,7 +428,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
 
         const unstaged = lines
           .split("\n")
-          .some((line) => line.length > 1 && line[1] !== " " && line[0] !== "?")
+          .some((line) => line.length > 1 && line[1] !== " " && !line.startsWith("?"))
 
         return fail(
           "",
@@ -488,33 +495,29 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
 
     const range = refs[0]?.split("..")
 
-    const tip =
-      range === undefined ? "HEAD" : range.length === 2 ? range[1] || "HEAD" : (range[0] ?? "HEAD")
-
-    const tipOid = await resolve(tip)
+    const tipOid = await resolve(orHead(range?.length === 2 ? range[1] : range?.[0]))
 
     const excluded =
-      range?.length === 2 ? await reachable(await resolve(range[0] || "HEAD")) : new Set<string>()
+      range?.length === 2 ? await reachable(await resolve(orHead(range[0]))) : new Set<string>()
 
-    const found = (
-      await repo.commits(
-        tipOid,
-        paths.length === 1 && paths[0] !== undefined
-          ? { filepath: paths[0].replace(/^\.\//u, "") }
-          : {},
-      )
-    ).filter((entry) => !excluded.has(entry.oid))
+    const filepath = paths.length === 1 ? paths[0]?.replace(/^\.\//u, "") : undefined
+
+    const found = (await repo.commits(tipOid, { filepath })).filter(
+      (entry) => !excluded.has(entry.oid),
+    )
 
     const picked = depth === undefined ? found : found.slice(0, depth)
     const blocks: string[] = []
 
     for (const entry of picked) {
-      const head =
-        format.kind === "medium"
-          ? medium(entry, date, now())
-          : format.kind === "oneline"
-            ? `${short(entry.oid)} ${entry.message.trimEnd().split("\n")[0] ?? ""}`
-            : pretty(format.template, entry, date, now())
+      const head = Match.value(format.kind).pipe(
+        Match.when("medium", () => medium(entry, date, now())),
+        Match.when(
+          "oneline",
+          () => `${short(entry.oid)} ${entry.message.trimEnd().split("\n")[0] ?? ""}`,
+        ),
+        Match.orElse(() => pretty(format.template, entry, date, now())),
+      )
 
       if (!patch && !nameOnly) {
         blocks.push(head)
@@ -592,7 +595,8 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
       return unsupported(`diff ${unknown}`)
     }
 
-    const pair = revs.length === 1 && revs[0]?.includes("..") ? revs[0].split("..") : revs
+    const [only] = revs
+    const pair = revs.length === 1 && only?.includes("..") === true ? only.split("..") : revs
     const empty = { _tag: "Empty" as const }
     const headTree = async () => ((await repo.head()) === null ? empty : await tree("HEAD"))
 
@@ -626,6 +630,18 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
     )
   }
 
+  const verified = async (rev: string, quietly: boolean) => {
+    try {
+      return await resolve(rev)
+    } catch (error) {
+      if (quietly && !(error instanceof FatalError && error.result.stderr.includes("upstream"))) {
+        return null
+      }
+
+      throw error
+    }
+  }
+
   const revParse = async (args: readonly string[]) => {
     const quiet = args.includes("-q") || args.includes("--quiet")
     const verify = args.includes("--verify")
@@ -652,11 +668,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
       } else if (abbrev && arg === "HEAD") {
         out.push(await repo.branch())
       } else {
-        const oid = await resolve(arg).catch((error: unknown) =>
-          verify && quiet && !(error instanceof Fatal && error.result.stderr.includes("upstream"))
-            ? null
-            : Promise.reject(error),
-        )
+        const oid = await verified(arg, verify && quiet)
 
         if (oid === null) {
           return fail("", 1)
@@ -685,11 +697,11 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
       const [left, right] = rev.split("..")
 
       if (right !== undefined) {
-        for (const oid of await reachable(await resolve(left || "HEAD"))) {
+        for (const oid of await reachable(await resolve(orHead(left)))) {
           excluded.add(oid)
         }
 
-        for (const oid of await reachable(await resolve(right || "HEAD"))) {
+        for (const oid of await reachable(await resolve(orHead(right)))) {
           included.add(oid)
         }
       } else if (rev.startsWith("^")) {
@@ -757,11 +769,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
     }
 
     if (unset || value !== undefined) {
-      if (global) {
-        await repo.setGlobal(key, unset ? undefined : value)
-      } else {
-        await repo.setRepoConfig(key, unset ? undefined : value)
-      }
+      await (global ? repo.setGlobal : repo.setRepoConfig)(key, unset ? undefined : value)
 
       return ok()
     }
@@ -971,7 +979,7 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
         ? await repo.locked(async () => await command(name, rest, overrides), indexLocked)
         : await command(name, rest, overrides)
     } catch (error) {
-      if (error instanceof Fatal) {
+      if (error instanceof FatalError) {
         return error.result
       }
 
@@ -980,4 +988,4 @@ export const makeCli = (repo: Repo, graphPath: string, now: () => Date = () => n
   }
 }
 
-export type Cli = ReturnType<typeof makeCli>
+export type Cli = ReturnType<typeof gitCli>

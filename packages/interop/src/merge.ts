@@ -111,7 +111,16 @@ const namedIn = (command: Command): readonly BlockId[] => {
       return command.blockIds
     }
 
-    default: {
+    case "CreatePage":
+    case "DeletePage":
+    case "RenamePage":
+    case "InsertBlock":
+    case "SplitBlock":
+    case "MergeWithPrevious":
+    case "Indent":
+    case "Outdent":
+    case "Undo":
+    case "Redo": {
       return []
     }
   }
@@ -168,7 +177,7 @@ class Tree {
     const siblings = this.kids(this.parentOf(id))
     const at = siblings.indexOf(id)
 
-    if (at >= 0) {
+    if (at !== -1) {
       siblings.splice(at, 1)
     }
   }
@@ -625,7 +634,9 @@ export const mergePage = ({
       batches.at(-1)?.push(command)
 
       if (command._tag === "InsertBlocks") {
-        draftIds(command.blocks).forEach((id) => createdNow.add(id))
+        for (const id of draftIds(command.blocks)) {
+          createdNow.add(id)
+        }
       }
     },
   }
@@ -667,24 +678,15 @@ export const mergePage = ({
         continue
       }
 
-      commands.push({
-        _tag: "MoveBlocks",
-        blockIds: [id],
-        parentId: parent,
-        ...(after === null ? {} : { after }),
-      })
+      const move: Command = { _tag: "MoveBlocks", blockIds: [id], parentId: parent }
+      commands.push(after === null ? move : { ...move, after })
       sim.move(id, parent, after)
       continue
     }
 
     const draft = draftOf(id)
-    commands.push({
-      _tag: "InsertBlocks",
-      pageId,
-      parentId: parent,
-      ...(after === null ? {} : { after }),
-      blocks: [draft],
-    })
+    const insert: Command = { _tag: "InsertBlocks", pageId, parentId: parent, blocks: [draft] }
+    commands.push(after === null ? insert : { ...insert, after })
 
     const placeDraft = (one: BlockDraft, under: BlockId | null, before: BlockId | null) => {
       const made = M.nodes.get(one.id ?? id)

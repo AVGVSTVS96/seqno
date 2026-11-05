@@ -1,4 +1,5 @@
 import { Match, Schema } from "effect"
+import type { Mutable } from "effect/Types"
 
 export const FIELD_PATTERN =
   /^(id|ref|tag|created|updated|task\.(status|priority|scheduled|deadline)|property\.[a-z0-9_-]+|page|page\.(journal|day|tag|alias|namespace)|page\.property\.[a-z0-9_-]+)$/u
@@ -59,6 +60,10 @@ export const Value = Schema.Union([
 ])
 
 export type Value = typeof Value.Type
+
+export type Primitive = string | number | boolean
+
+export const isScalar = (value: Value): value is Primitive => typeof value !== "object"
 
 export const CompareOp = Schema.Literals(["=", "!=", "<", "<=", ">", ">="])
 
@@ -206,12 +211,32 @@ export const childrenOf = (f: Filter): readonly Filter[] =>
 
 const decodeQuery = Schema.decodeUnknownSync(Query)
 
-export const finishQuery = (input: Query): Query => {
-  const { view, where, ...rest } = decodeQuery(input)
+export type QueryDraft = Pick<Query, "find"> & {
+  readonly [K in Exclude<keyof Query, "find">]?: Query[K] | undefined
+}
 
-  return {
-    ...rest,
-    ...(where ? { where: normalizeFilter(where) } : {}),
-    ...(view && view._tag !== "List" ? { view } : {}),
+export const finishQuery = ({ find, where, sort, group, view, limit }: QueryDraft): Query => {
+  const query: Mutable<Query> = { find }
+
+  if (where !== undefined) {
+    query.where = normalizeFilter(where)
   }
+
+  if (sort !== undefined && sort.length > 0) {
+    query.sort = sort
+  }
+
+  if (group !== undefined) {
+    query.group = group
+  }
+
+  if (view !== undefined && view._tag !== "List") {
+    query.view = view
+  }
+
+  if (limit !== undefined) {
+    query.limit = limit
+  }
+
+  return decodeQuery(query)
 }

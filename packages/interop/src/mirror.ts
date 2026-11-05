@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Struct } from "effect"
 import { isWhiteboard } from "@seqno/domain"
 import type { Block, BlockId, Page, Props } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
@@ -88,8 +88,7 @@ export const printPage = (
     : syntax.print({
         props: pageProps(page, options.fileNameFormat),
         blocks: outlineOf(blocks, options),
-        ...(page.frontMatter === true ? { frontMatter: true } : {}),
-        ...(page.format === undefined ? {} : { format: page.format }),
+        ...Struct.pick(page, ["frontMatter", "format"]),
       })
 
 export const renderPage = (tree: PageTree, options: RenderOptions) =>
@@ -103,11 +102,15 @@ export const renderMirror = (pages: readonly PageTree[], config: LogseqConfig) =
     const referenced = referencedIds(pages)
 
     return new Map(
-      pages
-        .filter(hasFile)
-        .map((tree) => [
-          mirrorPath(tree.page, config),
-          printPage(syntax, tree, { referenced, fileNameFormat: config.fileNameFormat }),
-        ]),
+      pages.flatMap((tree) =>
+        hasFile(tree)
+          ? [
+              [
+                mirrorPath(tree.page, config),
+                printPage(syntax, tree, { referenced, fileNameFormat: config.fileNameFormat }),
+              ] as const,
+            ]
+          : [],
+      ),
     )
   })

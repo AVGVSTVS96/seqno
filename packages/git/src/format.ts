@@ -249,17 +249,17 @@ export const medium = (commit: CommitInfo, style: DateStyle, now: Date) =>
       .map((line) => `    ${line}`),
   ].join("\n")
 
-const escapes: Readonly<Record<string, string>> = {
-  "\u0007": "\\a",
-  "\b": "\\b",
-  "\t": "\\t",
-  "\n": "\\n",
-  "\u000b": "\\v",
-  "\f": "\\f",
-  "\r": "\\r",
-  '"': '\\"',
-  "\\": "\\\\",
-}
+const escapes = new Map([
+  ["\u0007", "\\a"],
+  ["\b", "\\b"],
+  ["\t", "\\t"],
+  ["\n", "\\n"],
+  ["\u000B", "\\v"],
+  ["\f", "\\f"],
+  ["\r", "\\r"],
+  ['"', '\\"'],
+  ["\\", "\\\\"],
+])
 
 export const quotePath = (
   path: string,
@@ -270,7 +270,7 @@ export const quotePath = (
 
   for (const char of path) {
     const code = char.codePointAt(0) ?? 0
-    const escape = escapes[char]
+    const escape = escapes.get(char)
 
     if (escape !== undefined) {
       quoted = true

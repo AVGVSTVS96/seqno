@@ -1,16 +1,16 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Match } from "effect"
 import type { GraphEvent } from "@seqno/domain"
 import type { LocalUpdate } from "@seqno/graph"
 import { createdBlock, nth, openGraph, outline, seedPage } from "./support.ts"
 
 const upsertOrder = (events: readonly GraphEvent[]) =>
-  events.flatMap((event) =>
-    event._tag === "PageUpserted"
-      ? [`page ${event.page.title}`]
-      : event._tag === "BlockUpserted"
-        ? [event.block.text]
-        : [],
+  events.flatMap(
+    Match.type<GraphEvent>().pipe(
+      Match.tag("PageUpserted", (event) => [`page ${event.page.title}`]),
+      Match.tag("BlockUpserted", (event) => [event.block.text]),
+      Match.orElse(() => []),
+    ),
   )
 
 describe("reopening a graph", () => {

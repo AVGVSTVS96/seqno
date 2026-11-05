@@ -1,7 +1,7 @@
 import { Effect, Layer } from "effect"
 import type { Scope } from "effect"
 import { Storage, layerDirectoryHandle, layerOpfs } from "@seqno/vault"
-import { makeDevice } from "../device.ts"
+import { openDevice } from "../device.ts"
 
 const freshGraph = Effect.acquireRelease(
   Effect.sync(() => `graph-${crypto.randomUUID()}`),
@@ -57,8 +57,8 @@ const threeDevices = Effect.gen(function* () {
   const context = yield* Layer.build(layerOpfs(yield* freshGraph))
   const storage = Layer.succeedContext(context)
   const members = ["mac", "ipad"]
-  const mac = yield* makeDevice({ id: "mac", peer: "1", members, storage, compactAfterFiles: 2 })
-  const ipad = yield* makeDevice({ id: "ipad", peer: "2", members, storage })
+  const mac = yield* openDevice({ id: "mac", peer: "1", members, storage, compactAfterFiles: 2 })
+  const ipad = yield* openDevice({ id: "ipad", peer: "2", members, storage })
   yield* mac.type("hello ")
   yield* mac.type("opfs")
   yield* ipad.sync
@@ -66,7 +66,7 @@ const threeDevices = Effect.gen(function* () {
   const compacted = yield* mac.sync
   yield* ipad.sync
   const collected = yield* mac.sync
-  const phone = yield* makeDevice({ id: "phone", peer: "3", members, storage })
+  const phone = yield* openDevice({ id: "phone", peer: "3", members, storage })
   yield* phone.sync
 
   return {
@@ -79,13 +79,17 @@ const threeDevices = Effect.gen(function* () {
 
 const scenario =
   <A, E>(effect: Effect.Effect<A, E, Scope.Scope>) =>
-  async (): Promise<unknown> =>
+  async () =>
     await Effect.runPromise(Effect.scoped(effect))
 
-const scenarios: Record<string, () => Promise<unknown>> = {
+const scenarios = {
   storageRoundTrip: scenario(storageRoundTrip),
   grantedHandle: scenario(grantedHandle),
   threeDevices: scenario(threeDevices),
 }
 
-Object.assign(globalThis, { vaultScenario: (name: string) => scenarios[name]?.() })
+const isScenario = (name: string): name is keyof typeof scenarios => Object.hasOwn(scenarios, name)
+
+Object.assign(globalThis, {
+  vaultScenario: async (name: string) => (isScenario(name) ? await scenarios[name]() : undefined),
+})

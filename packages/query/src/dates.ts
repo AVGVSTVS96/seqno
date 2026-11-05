@@ -1,4 +1,5 @@
 import { Schema } from "effect"
+import { isScalar } from "./ast.ts"
 import type { RelDate, Value } from "./ast.ts"
 
 const DAY = 86_400_000
@@ -16,7 +17,7 @@ export const msToYmd = (ms: number) => {
   return d.getUTCFullYear() * 10_000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()
 }
 
-const shift: Record<RelDate["unit"], (d: Date, n: number) => void> = {
+const shift: Record<RelDate["unit"], (d: Date, n: number) => number> = {
   d: (d, n) => d.setUTCDate(d.getUTCDate() + n),
   w: (d, n) => d.setUTCDate(d.getUTCDate() + 7 * n),
   m: (d, n) => d.setUTCMonth(d.getUTCMonth() + n),
@@ -24,7 +25,7 @@ const shift: Record<RelDate["unit"], (d: Date, n: number) => void> = {
 }
 
 export const resolveDay = (value: Value, today: number): number | null => {
-  if (typeof value !== "object" || value._tag === "Context") {
+  if (isScalar(value) || value._tag === "Context") {
     return null
   }
 
@@ -32,10 +33,7 @@ export const resolveDay = (value: Value, today: number): number | null => {
     return value.ymd
   }
 
-  const d = new Date(ymdToMs(today))
-  shift[value.unit](d, value.amount)
-
-  return msToYmd(d.getTime())
+  return msToYmd(shift[value.unit](new Date(ymdToMs(today)), value.amount))
 }
 
 export const dayStart = (ymd: number) => ymdToMs(ymd)

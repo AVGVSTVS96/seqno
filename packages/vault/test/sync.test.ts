@@ -3,7 +3,7 @@ import { Effect, Layer } from "effect"
 import { LoroDoc } from "loro-crdt"
 import { Storage, makeFakeCloud, snapshotName } from "@seqno/vault"
 import type { PlaceholderStyle } from "@seqno/vault"
-import { makeDevice } from "./device.ts"
+import { openDevice } from "./device.ts"
 
 const cloudOf = (placeholders: PlaceholderStyle, autoDownload: boolean, deliverChance = 1) =>
   makeFakeCloud({ seed: 7, placeholders, autoDownload, deliverChance })
@@ -14,14 +14,14 @@ const pair = (
   macCompactsAfter = 1_000_000,
 ) =>
   Effect.all({
-    mac: makeDevice({
+    mac: openDevice({
       id: "mac",
       peer: "1",
       members,
       storage: cloud.layer("mac"),
       compactAfterFiles: macCompactsAfter,
     }),
-    ipad: makeDevice({ id: "ipad", peer: "2", members, storage: cloud.layer("ipad") }),
+    ipad: openDevice({ id: "ipad", peer: "2", members, storage: cloud.layer("ipad") }),
   })
 
 describe("update files", () => {
@@ -62,14 +62,14 @@ describe("update files", () => {
     Effect.gen(function* () {
       const cloud = cloudOf("dataless", true)
 
-      const first = yield* makeDevice({
+      const first = yield* openDevice({
         id: "mac",
         peer: "1",
         members: ["mac"],
         storage: cloud.layer("mac"),
       })
 
-      const reinstall = yield* makeDevice({
+      const reinstall = yield* openDevice({
         id: "mac",
         peer: "1",
         members: ["mac"],
@@ -111,7 +111,7 @@ describe("files that are not downloaded yet", () => {
       const { mac, ipad } = yield* pair(cloud)
       yield* mac.type("hello")
       const whole = mac.doc.export({ mode: "update" })
-      cloud.put("updates/mac/40.loro", whole.slice(0, whole.length - 3))
+      cloud.put("updates/mac/40.loro", whole.slice(0, -3))
       cloud.settle()
       const report = yield* ipad.sync
       assert.deepStrictEqual(report.merged, ["updates/mac/1-0.loro"])
@@ -139,7 +139,7 @@ describe("delays and reordering", () => {
           const members = ["mac", "ipad", "phone"]
 
           const devices = yield* Effect.forEach(members, (id, index) =>
-            makeDevice({
+            openDevice({
               id,
               peer: `${index + 1}`,
               members,
@@ -164,7 +164,7 @@ describe("delays and reordering", () => {
             }
           }
 
-          const fresh = yield* makeDevice({
+          const fresh = yield* openDevice({
             id: "laptop",
             peer: "4",
             members,
@@ -227,7 +227,7 @@ describe("compaction", () => {
       cloud.settle()
       assert.deepStrictEqual(cloud.files(), ["seen/ipad.json", "seen/mac.json", snapshot])
 
-      const phone = yield* makeDevice({
+      const phone = yield* openDevice({
         id: "phone",
         peer: "3",
         members: ["mac", "ipad", "phone"],
@@ -290,7 +290,7 @@ describe("compaction", () => {
           ),
         ).pipe(Layer.provide(cloud.layer("phone")))
 
-        const phone = yield* makeDevice({
+        const phone = yield* openDevice({
           id: "phone",
           peer: "3",
           members: ["mac", "phone"],
@@ -330,7 +330,7 @@ describe("compaction", () => {
       const name = yield* Effect.promise(async () => await snapshotName("1", bytes))
       cloud.put(`snapshots/${name}`, bytes)
 
-      const mac = yield* makeDevice({
+      const mac = yield* openDevice({
         id: "mac",
         peer: "7",
         formerPeers: ["1"],
@@ -364,7 +364,7 @@ describe("compaction", () => {
         Effect.gen(function* () {
           const cloud = cloudOf("dataless", true)
 
-          const mac = yield* makeDevice({
+          const mac = yield* openDevice({
             id: "mac",
             peer: "1",
             synced,
@@ -397,7 +397,7 @@ describe("compaction", () => {
                 ],
           )
 
-          const phone = yield* makeDevice({
+          const phone = yield* openDevice({
             id: "phone",
             peer: "3",
             members: ["mac", "phone"],

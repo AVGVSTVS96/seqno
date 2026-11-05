@@ -9,14 +9,14 @@ type Tok =
   | { readonly [K in Text]: { readonly _tag: K; readonly v: string } }[Text]
   | { readonly _tag: "Num"; readonly v: number }
 
-const TOKEN =
-  /\s+|"((?:[^"\\]|\\.)*)"|#?\[\[([^\]]+)\]\]|#([\w/.-]+)|(<=|>=|!=|=|<|>)|([(),])|(-)(?=[#["(])|([^\s(),"=<>!]+)/gyu
+const token = () =>
+  /\s+|"((?:[^"\\]|\\.)*)"|#?\[\[([^\]]+)\]\]|#([\w/.-]+)|(<=|>=|!=|=|<|>)|([(),])|(-)(?=[#["(])|([^\s(),"=<>!]+)/guy
 
 const NUMBER = /^[+-]?\d+(\.\d+)?$/u
 
 const lex = (src: string): Tok[] => {
   const out: Tok[] = []
-  const re = new RegExp(TOKEN)
+  const re = token()
   let pos = 0
 
   for (let m = re.exec(src); m !== null && m[0] !== ""; m = re.exec(src)) {
@@ -81,16 +81,16 @@ export const readDataview = (src: string): Query => {
     return true
   }
 
-  const next = (): Tok => toks[i++] ?? fail("unexpected end of query")
+  const take = (): Tok => toks[i++] ?? fail("unexpected end of query")
 
   const fieldTok = (): Field => {
-    const t = next()
+    const t = take()
 
     return t._tag === "Word" ? field(t.v) : fail(`expected a field, got "${String(t.v)}"`)
   }
 
   const value = (of: Field): Value => {
-    const t = next()
+    const t = take()
 
     if (t._tag === "Num") {
       return t.v
@@ -142,7 +142,7 @@ export const readDataview = (src: string): Query => {
       return { _tag: "Not", filter: sourceUnary() }
     }
 
-    const t = next()
+    const t = take()
 
     if (t._tag === "Tag" || t._tag === "Wiki") {
       return pathRef(t.v)
@@ -207,7 +207,7 @@ export const readDataview = (src: string): Query => {
 
     if (isKw("TEXT") && isKw("MATCHES", i + 1)) {
       i += 2
-      const s = next()
+      const s = take()
 
       return s._tag === "Str"
         ? { _tag: "Search", text: s.v }
@@ -310,7 +310,7 @@ export const readDataview = (src: string): Query => {
   let limit: number | undefined
 
   if (accept("LIMIT")) {
-    const n = next()
+    const n = take()
     limit =
       n._tag === "Num" && Number.isInteger(n.v) && n.v >= 0
         ? n.v
@@ -323,14 +323,12 @@ export const readDataview = (src: string): Query => {
     fail(`unexpected "${String(rest.v)}"`)
   }
 
-  const where = and(filters)
-
   return finishQuery({
     find,
-    ...(where ? { where } : {}),
-    ...(sort.length > 0 ? { sort } : {}),
-    ...(group ? { group } : {}),
-    ...(view ? { view } : {}),
-    ...(limit === undefined ? {} : { limit }),
+    where: and(filters),
+    sort,
+    group,
+    view,
+    limit,
   })
 }

@@ -1,3 +1,4 @@
+import { Predicate } from "effect"
 import { normalizePageName } from "@seqno/domain"
 import type { Block, BlockId, PageId } from "@seqno/domain"
 import { joinProperties, parseInline, propertyKey } from "@seqno/syntax"
@@ -6,7 +7,7 @@ import { propertyLines } from "./items.ts"
 import type { PropertyLine } from "./items.ts"
 import { shelve } from "./library.ts"
 import type { Library, PageBlocks, Shelf } from "./library.ts"
-import { propertyValue } from "./values.ts"
+import { isList, propertyValue } from "./values.ts"
 import type { PropertyValue } from "./values.ts"
 
 type Edn =
@@ -47,11 +48,11 @@ const flat = (value: Edn): string => {
     return "nil"
   }
 
-  if (typeof value === "string") {
+  if (Predicate.isString(value)) {
     return ednString(value)
   }
 
-  if (typeof value === "number" || typeof value === "boolean") {
+  if (Predicate.isNumber(value) || Predicate.isBoolean(value)) {
     return String(value)
   }
 
@@ -85,7 +86,7 @@ const flat = (value: Edn): string => {
 const printEdn = (value: Edn, column: number, tail: number): string => {
   const one = flat(value)
 
-  if (column + one.length + tail < MARGIN || value === null || typeof value !== "object") {
+  if (column + one.length + tail < MARGIN || !Predicate.isObject(value)) {
     return one
   }
 
@@ -134,10 +135,13 @@ const VALID_KEY = /^[^\s"|^(){}#,][^\s"|^(){},]*$/u
 type Properties = ReadonlyArray<readonly [string, PropertyValue]> | null
 
 const typed = (lines: ReadonlyArray<readonly [string, string]>, config: PropertyConfig) =>
-  lines
-    .map(([key, value]) => [propertyKey(key), value] as const)
-    .filter(([key]) => key !== "id" && VALID_KEY.test(key))
-    .map(([key, value]) => [key, propertyValue(key, value, config)] as const)
+  lines.flatMap(([raw, value]) => {
+    const key = propertyKey(raw)
+
+    return key !== "id" && VALID_KEY.test(key)
+      ? [[key, propertyValue(key, value, config)] as const]
+      : []
+  })
 
 const pagePropertiesOf = (
   props: Readonly<Record<string, string>>,
@@ -217,16 +221,22 @@ const lastBlock = (shelf: Shelf, pageId: PageId, parentId: BlockId | null): Bloc
 export const hasFile = ({ page, blocks }: PageBlocks) =>
   blocks.length > 0 || Object.keys(page.props).length > 0
 
-const derivedUuid = (seed: string) => {
-  const half = (salt: string) => {
-    let hash = 0xcb_f2_9c_e4_84_22_23_25n
+const fnv1a = (text: string) => {
+  let hash = 0xcb_f2_9c_e4_84_22_23_25n
 
-    for (const char of salt + seed) {
-      hash = BigInt.asUintN(64, (hash ^ BigInt(char.charCodeAt(0))) * 0x1_00_00_00_01_b3n)
-    }
-
-    return hash.toString(16).padStart(16, "0")
+  for (const char of text) {
+    // oxlint-disable-next-line unicorn/prefer-code-point -- hashes each character's first UTF-16 unit, so ids written by earlier exports stay stable
+    hash = BigInt.asUintN(64, (hash ^ BigInt(char.charCodeAt(0))) * 0x1_00_00_00_01_b3n)
   }
+
+  return hash
+}
+
+const derivedUuid = (seed: string) => {
+  const half = (salt: string) =>
+    fnv1a(salt + seed)
+      .toString(16)
+      .padStart(16, "0")
 
   const hex = half("a") + half("b")
 
@@ -285,7 +295,7 @@ export const exportedPages = (library: Library): readonly ExportedPage[] => {
 }
 
 const ednValue = (value: PropertyValue): Edn =>
-  typeof value === "object" ? { _tag: "Set", items: value } : value
+  isList(value) ? { _tag: "Set", items: value } : value
 
 const ednProperties = (properties: Properties): Edn =>
   properties === null
@@ -361,12 +371,7 @@ export const jsonOf = (pages: readonly ExportedPage[]): string =>
 const UID_CHARS = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 const uidOf = (uuid: string) => {
-  let hash = 0xcb_f2_9c_e4_84_22_23_25n
-
-  for (const char of uuid) {
-    hash = BigInt.asUintN(64, (hash ^ BigInt(char.charCodeAt(0))) * 0x1_00_00_00_01_b3n)
-  }
-
+  let hash = fnv1a(uuid)
   let uid = ""
 
   for (let index = 0; index < 9; index++) {
@@ -406,8 +411,10 @@ const linkedNames = (pages: readonly ExportedPage[]): ReadonlySet<string> => {
     }
 
     for (const [, value] of block.properties ?? []) {
-      if (typeof value === "object") {
-        value.forEach(add)
+      if (isList(value)) {
+        for (const name of value) {
+          add(name)
+        }
       }
     }
 
@@ -440,19 +447,22 @@ export const roamJsonOf = (pages: readonly ExportedPage[], referenced: ReadonlyS
       .replaceAll("{{embed ", "{{embed: ")
       .trim()
 
-  const roamBlock = (block: ExportedBlock): RoamBlock => ({
-    string: roamString(block),
-    ...(referenced.has(block.id) ? { uid: uidOf(block.id) } : {}),
-    children: block.children.map(roamBlock),
-  })
+  const roamBlock = (block: ExportedBlock): RoamBlock => {
+    const string = roamString(block)
+    const children = block.children.map(roamBlock)
+
+    return referenced.has(block.id)
+      ? { string, uid: uidOf(block.id), children }
+      : { string, children }
+  }
 
   const linked = linkedNames(pages)
 
   return JSON.stringify(
-    pages.map((page) => ({
-      title: page.title,
-      ...(linked.has(normalizePageName(page.title)) ? { uid: uidOf(page.id) } : {}),
-      children: page.children.map(roamBlock),
-    })),
+    pages.map(({ title, id, children }) =>
+      linked.has(normalizePageName(title))
+        ? { title, uid: uidOf(id), children: children.map(roamBlock) }
+        : { title, children: children.map(roamBlock) },
+    ),
   )
 }

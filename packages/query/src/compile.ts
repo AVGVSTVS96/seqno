@@ -1,4 +1,4 @@
-import { Match, Schema } from "effect"
+import { Match, Predicate, Schema } from "effect"
 import { Field } from "./ast.ts"
 import type { CompareOp, Filter, Query, QueryContext, Under, Value } from "./ast.ts"
 import { fail } from "./error.ts"
@@ -32,7 +32,7 @@ interface State {
 }
 
 const param = (st: State, v: Primitive) =>
-  `?${st.params.push(typeof v === "boolean" ? (v ? 1 : 0) : v)}`
+  `?${st.params.push(Predicate.isBoolean(v) ? Number(v) : v)}`
 
 const NAME_SET = (k: string) =>
   `SELECT ${k} UNION SELECT n2.name FROM page_names n1 JOIN page_names n2 ON n2.page = n1.page WHERE n1.name = ${k}`
@@ -58,11 +58,11 @@ const onField = (field: Field, a: Aliases, test: (col: string, num?: string) => 
   const ownerCol = def.owner === "page" ? "page" : "block"
   const cond = s.cond ? `${s.cond("x")} AND ` : ""
 
-  return `${alias}.rid IN (SELECT x.${ownerCol} FROM ${s.table} x WHERE ${cond}${test(`x.${s.col}`, s.num && `x.${s.num}`)})`
+  return `${alias}.rid IN (SELECT x.${ownerCol} FROM ${s.table} x WHERE ${cond}${test(`x.${s.col}`, s.num === undefined ? undefined : `x.${s.num}`)})`
 }
 
 const pick = (lit: Primitive, col: string, num?: string) =>
-  typeof lit === "number" && num ? num : col
+  Predicate.isNumber(lit) && num !== undefined ? num : col
 
 const compare = (field: Field, op: CompareOp, value: Value, a: Aliases, st: State): string => {
   const def = fieldDef(field)
@@ -186,7 +186,11 @@ export const projectionsOf = (q: Query): Field[] => {
       : Match.valueTags(view, { List: () => [], Table: (t) => t.columns, Board: (b) => [b.by] })
 
   return [
-    ...new Set([...(q.group ? [q.group] : []), ...shown, ...(q.sort ?? []).map((s) => s.field)]),
+    ...new Set([
+      ...(q.group === undefined ? [] : [q.group]),
+      ...shown,
+      ...(q.sort ?? []).map((s) => s.field),
+    ]),
   ]
 }
 

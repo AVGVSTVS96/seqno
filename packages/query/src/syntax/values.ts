@@ -20,12 +20,12 @@ export const word = (s: string, f?: Field): Value => {
 
 export const field = (s: string): Field => (isField(s) ? s : fail(`unknown field "${s}"`))
 
-const LEGACY: Record<string, Field> = {
-  "created-at": "created",
-  "updated-at": "updated",
-  page: "page",
-  priority: "task.priority",
-}
+const LEGACY = new Map<string, Field>([
+  ["created-at", "created"],
+  ["updated-at", "updated"],
+  ["page", "page"],
+  ["priority", "task.priority"],
+])
 
 export const sortField = (s: string): Field =>
-  LEGACY[s] ?? (isField(s) ? s : field(`property.${s.toLowerCase()}`))
+  LEGACY.get(s) ?? (isField(s) ? s : field(`property.${s.toLowerCase()}`))

@@ -213,9 +213,11 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
 
         const counts = Effect.map(index.pageStats, (stats) =>
           Object.fromEntries(
-            stats
-              .filter((stat) => stat.backlinks > 0)
-              .map((stat) => [titles.get(stat.pageId), stat.backlinks]),
+            stats.flatMap((stat) =>
+              stat.backlinks > 0
+                ? [[String(titles.get(stat.pageId)), stat.backlinks] as const]
+                : [],
+            ),
           ),
         )
 
@@ -417,7 +419,7 @@ FROM pages p ORDER BY p.id`
           ],
         )
         assert.deepStrictEqual(
-          links.toSorted((left, right) => left.join().localeCompare(right.join())),
+          links.toSorted((left, right) => left.join(",").localeCompare(right.join(","))),
           [
             ["notes", "other"],
             ["notes", "project"],

@@ -1,5 +1,5 @@
-import { Data, Match, Schema } from "effect"
-import { and, finishQuery, or, pathRef, Query } from "./ast.ts"
+import { Data, Match, Predicate, Schema } from "effect"
+import { and, finishQuery, isScalar, or, pathRef, Query } from "./ast.ts"
 import type { CompareOp, Field, Filter, Sort, Value } from "./ast.ts"
 import { parseDateWord } from "./dates.ts"
 import { readLogseq } from "./syntax/logseq.ts"
@@ -179,35 +179,35 @@ const inputValue = (f: Form): Bound => {
   return unsupported(`input ${show(f)}`)
 }
 
-const SORT_ATTRS: Record<string, Field> = {
-  "block/priority": "task.priority",
-  "block/created-at": "created",
-  "block/updated-at": "updated",
-  "block/scheduled": "task.scheduled",
-  "block/deadline": "task.deadline",
-}
+const SORT_ATTRS = new Map<string, Field>([
+  ["block/priority", "task.priority"],
+  ["block/created-at", "created"],
+  ["block/updated-at", "updated"],
+  ["block/scheduled", "task.scheduled"],
+  ["block/deadline", "task.deadline"],
+])
 
 const SORT_TRANSFORM =
-  /^\(fn \[(\S+)\] (\(reverse )?\(sort-by \(fn \[(\S+)\] \(get \3 :(block\/[\w-]+)(?: [^)]*)?\)\) \1\)\)?\)$/u
+  /^\(fn \[(\S+)\] (?<reverse>\(reverse )?\(sort-by \(fn \[(\S+)\] \(get \3 :(?<attr>block\/[\w-]+)(?: [^)]*)?\)\) \1\)\)?\)$/u
 
 const sortOf = (f: Form): Sort => {
   const src = show(f)
-  const [, , reverse, , attr] = SORT_TRANSFORM.exec(src) ?? []
-  const field = attr === undefined ? undefined : SORT_ATTRS[attr]
+  const { reverse, attr } = SORT_TRANSFORM.exec(src)?.groups ?? {}
+  const field = attr === undefined ? undefined : SORT_ATTRS.get(attr)
 
   return field === undefined
     ? unsupported(`:result-transform ${src}`)
-    : { field, dir: reverse ? "desc" : "asc" }
+    : { field, dir: reverse === undefined ? "asc" : "desc" }
 }
 
-const OPS: Record<string, CompareOp> = {
-  ">": ">",
-  "<": "<",
-  ">=": ">=",
-  "<=": "<=",
-  "=": "=",
-  "not=": "!=",
-}
+const OPS = new Map<string, CompareOp>([
+  [">", ">"],
+  ["<", "<"],
+  [">=", ">="],
+  ["<=", "<="],
+  ["=", "="],
+  ["not=", "!="],
+])
 
 const FLIP: Record<CompareOp, CompareOp> = {
   ">": "<",
@@ -239,6 +239,11 @@ const preds = (s: Scope, v: string) =>
 const patterns = (s: Scope, v: string) =>
   chain(s).filter((c): c is Pattern => c._tag === "Pattern" && isVar(c.e, v))
 
+const callArg = (c: Call, i: number): Term => c.args[i] ?? unsupported(show(c.form))
+
+const textOf = (v: Value): string =>
+  isScalar(v) ? String(v) : unsupported("a date where text belongs")
+
 const translateDatalog = (
   spec: ReadonlyMap<string, Form>,
   items: readonly Form[],
@@ -247,13 +252,13 @@ const translateDatalog = (
   const section = (name: string) => {
     const start = items.findIndex((f) => f._tag === "Kw" && f.v === name)
 
-    if (start < 0) {
+    if (start === -1) {
       return []
     }
 
     const end = items.findIndex((f, i) => i > start && f._tag === "Kw")
 
-    return items.slice(start + 1, end < 0 ? undefined : end)
+    return items.slice(start + 1, end === -1 ? undefined : end)
   }
 
   const env = new Map<string, Value>()
@@ -362,11 +367,13 @@ const translateDatalog = (
     return v._tag === "One" ? v.value : unsupported("set used as a scalar")
   }
 
+  const textArg = (t: Term): string => textOf(scalar(t))
+
   const setOf = (t: Term): Value[] => {
     const v = constValue(t)
 
     return (v._tag === "One" ? [v.value] : v.forms.map((x) => scalar(term(x)))).map((x) =>
-      typeof x === "string" ? x.toLowerCase() : x,
+      Predicate.isString(x) ? x.toLowerCase() : x,
     )
   }
 
@@ -422,7 +429,7 @@ const translateDatalog = (
     for (const p of preds(s, name)) {
       take(p)
       const [a, b] = p.args
-      const op = OPS[p.fn]
+      const op = OPS.get(p.fn)
 
       if (p.fn === "contains?" && a !== undefined && isVar(b, name)) {
         parts.push({ _tag: "In", field, values: setOf(a) })
@@ -439,7 +446,7 @@ const translateDatalog = (
         field === "page" &&
         b?._tag === "Const"
       ) {
-        const prefix = String(scalar(b))
+        const prefix = textArg(b)
 
         if (!prefix.endsWith("/")) {
           return unsupported(show(p.form))
@@ -462,7 +469,7 @@ const translateDatalog = (
 
   const contentFilter = (s: Scope, t: Term): Filter => {
     if (t._tag === "Const") {
-      const text = String(scalar(t))
+      const text = textArg(t)
       warnings.push(`exact content match "${text}" became a word search`)
 
       return { _tag: "Search", text }
@@ -480,13 +487,11 @@ const translateDatalog = (
     }
 
     take(p)
-    const text = String(scalar(p.args[1] ?? unsupported(show(p.form))))
+    const text = textArg(p.args[1] ?? unsupported(show(p.form)))
     warnings.push(`substring match "${text}" became a word search`)
 
     return { _tag: "Search", text }
   }
-
-  const callArg = (c: Call, i: number): Term => c.args[i] ?? unsupported(show(c.form))
 
   const pageFilter = (s: Scope, p: string): Filter | null => {
     const parts: Filter[] = []
@@ -514,12 +519,12 @@ const translateDatalog = (
             _tag: "Compare",
             field: "page.namespace",
             op: "=",
-            value: String(nameOf(s, callArg(c, 1))).toLowerCase(),
+            value: textOf(nameOf(s, callArg(c, 1))).toLowerCase(),
           })
         } else if (c.name === "page-tags") {
           parts.push({ _tag: "In", field: "page.tag", values: setOf(callArg(c, 1)) })
         } else {
-          const key = String(scalar(callArg(c, 1)))
+          const key = textArg(callArg(c, 1))
           parts.push({
             _tag: "Compare",
             field: `page.property.${key}`,
@@ -590,11 +595,11 @@ const translateDatalog = (
       const r = f._tag === "Sym" ? rename.get(f.v) : undefined
 
       if (r !== undefined) {
-        return r._tag === "Var"
-          ? { _tag: "Sym", v: r.name }
-          : r._tag === "Const"
-            ? r.form
-            : { _tag: "Sym", v: "_" }
+        return Match.valueTags(r, {
+          Var: (x): Form => ({ _tag: "Sym", v: x.name }),
+          Const: (x): Form => x.form,
+          Blank: (): Form => ({ _tag: "Sym", v: "_" }),
+        })
       }
 
       return isColl(f) ? { ...f, items: f.items.map(sub) } : f
@@ -627,14 +632,14 @@ const translateDatalog = (
       case "property": {
         return {
           _tag: "Compare",
-          field: `property.${String(scalar(arg(1)))}`,
+          field: `property.${textArg(arg(1))}`,
           op: "=",
           value: scalar(arg(2)),
         }
       }
 
       case "block-content": {
-        const text = String(scalar(arg(1)))
+        const text = textArg(arg(1))
         warnings.push(`substring match "${text}" became a word search`)
 
         return { _tag: "Search", text }
@@ -650,7 +655,7 @@ const translateDatalog = (
     const recursive = bodies.findIndex((b) => b.some((x) => x._tag === "Call" && x.name === c.name))
     const [onlyBody] = rule.bodies
 
-    if (bodies.length === 1 && recursive < 0 && onlyBody !== undefined) {
+    if (bodies.length === 1 && recursive === -1 && onlyBody !== undefined) {
       const inner = scope(
         onlyBody.map((f) => parseClause(substitute(rule, c)(f))),
         s,
@@ -817,7 +822,7 @@ const translateDatalog = (
     return and(parts) ?? NONE
   }
 
-  const target = (root: Scope): { readonly name: string; readonly pages: boolean } => {
+  const target = (root: Scope) => {
     const find = section("find")
     const [first] = find
     const [head, pulled] = first?._tag === "List" ? first.items : []
@@ -858,7 +863,7 @@ const translateDatalog = (
   const root = scope(section("where").map(parseClause), null)
   const { name, pages } = target(root)
   const where = pages ? pageFilter(root, name) : blockFilter(root, name)
-  const [left] = all.filter((c) => !used.has(c))
+  const left = all.find((c) => !used.has(c))
 
   if (left !== undefined) {
     return unsupported(`clause ${show(left.form)}`)
@@ -868,8 +873,8 @@ const translateDatalog = (
 
   return finishQuery({
     find: pages ? "pages" : "blocks",
-    ...(where && where !== NONE ? { where } : {}),
-    ...(transform ? { sort: [sortOf(transform)] } : {}),
+    where: where === null || where === NONE ? undefined : where,
+    sort: transform === undefined ? undefined : [sortOf(transform)],
   })
 }
 

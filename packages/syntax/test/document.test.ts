@@ -180,7 +180,7 @@ describe("parse and print", () => {
   it("keeps the 50k-line flat file shape without recursion limits", () => {
     const source = Array.from({ length: 50_000 }, (_, i) => `- block ${i}`).join("\n")
     const outline = read(source)
-    expect(outline.blocks.length).toBe(50_000)
+    expect(outline.blocks).toHaveLength(50_000)
     expect(outline.blocks[49_999]).toStrictEqual({ text: "block 49999", children: [] })
     expect(render(outline)).toBe(source)
   })

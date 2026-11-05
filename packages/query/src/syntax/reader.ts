@@ -64,7 +64,7 @@ export const read = (src: string, options: { readonly wiki: boolean }): Form[] =
       const start = src.indexOf("[[", i) + 2
       const end = src.indexOf("]]", start)
 
-      if (end < 0) {
+      if (end === -1) {
         return fail("unclosed [[")
       }
 
@@ -80,12 +80,15 @@ export const read = (src: string, options: { readonly wiki: boolean }): Form[] =
       i += open.length
       const items: Form[] = []
 
-      for (skip(); src[i] !== close; skip()) {
+      skip()
+
+      while (src[i] !== close) {
         if (i >= src.length) {
           return fail(`missing ${close}`)
         }
 
         items.push(form())
+        skip()
       }
 
       i++
@@ -130,8 +133,11 @@ export const read = (src: string, options: { readonly wiki: boolean }): Form[] =
 
   const out: Form[] = []
 
-  for (skip(); i < src.length; skip()) {
+  skip()
+
+  while (i < src.length) {
     out.push(form())
+    skip()
   }
 
   return out

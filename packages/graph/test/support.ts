@@ -101,14 +101,10 @@ export const seedPage = (graph: Graph["Service"], title: string, lines: readonly
       const parentId = depth === 0 ? null : (parents[depth - 1] ?? null)
       const after = lastChild.get(parentId)
 
+      const insert = { _tag: "InsertBlock", pageId, parentId, text: line.trimStart() } as const
+
       const id = createdBlock(
-        yield* graph.dispatch({
-          _tag: "InsertBlock",
-          pageId,
-          parentId,
-          text: line.trimStart(),
-          ...(after === undefined ? {} : { after }),
-        }),
+        yield* graph.dispatch(after === undefined ? insert : { ...insert, after }),
       )
 
       ids.push(id)

@@ -63,8 +63,10 @@ export const patch = ({ path, before, after }: Change, quote: (path: string) => 
     return `${head.join("\n")}\n`
   }
 
-  head.push(before === null ? "--- /dev/null" : `--- ${named(a)}`)
-  head.push(after === null ? "+++ /dev/null" : `+++ ${named(b)}`)
+  head.push(
+    before === null ? "--- /dev/null" : `--- ${named(a)}`,
+    after === null ? "+++ /dev/null" : `+++ ${named(b)}`,
+  )
 
   return `${[...head, ...body].join("\n")}\n`
 }

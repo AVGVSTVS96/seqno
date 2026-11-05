@@ -65,7 +65,7 @@ describe("page file names", () => {
 
   it("reads legacy dot namespaces and NFD names", () => {
     assert.strictEqual(titleFromFileBody("work.projects%2Fq4", "legacy"), "work/projects/q4")
-    assert.strictEqual(titleFromFileBody("Cafe\u0301", "triple-lowbar"), "Caf\u00e9")
+    assert.strictEqual(titleFromFileBody("Cafe\u0301", "triple-lowbar"), "Caf\u00E9")
     assert.strictEqual(
       titleFromFileBody("bad %E0%A4%A escape", "triple-lowbar"),
       "bad %E0%A4%A escape",

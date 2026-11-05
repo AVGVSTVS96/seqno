@@ -17,7 +17,7 @@ import {
   GraphFolder,
   whiteboardBlocks,
 } from "@seqno/interop"
-import type { Edn } from "@seqno/interop"
+import { entriesOf, itemsOf } from "../src/edn.ts"
 
 const Node = Layer.merge(NodeFileSystem.layer, NodePath.layer)
 const fixture = new URL("../../../fixtures/graphs/whiteboards/", import.meta.url).pathname
@@ -41,23 +41,12 @@ const must = <A>(value: A | undefined): A => {
 const boardNamed = (pages: readonly PageTree[], name: string) =>
   must(pages.find(({ page }) => page.name === name))
 
-const entries = (value: Edn): ReadonlyArray<readonly [Edn, Edn]> =>
-  value !== null && typeof value === "object" && value._tag === "Map" ? value.entries : []
-
-const field = (value: Edn, name: string): Edn =>
-  entries(value).find(
-    ([key]) => key !== null && typeof key === "object" && "name" in key && key.name === name,
-  )?.[1] ?? null
-
-const items = (value: Edn): readonly Edn[] =>
-  value !== null && typeof value === "object" && value._tag === "List" ? value.items : []
-
 const fileParts = (text: string) => {
   const edn = Result.getOrElse(readEdn(text), () => null)
 
   return {
-    blocks: items(field(edn, "blocks")).map(printEdn).toSorted(),
-    pages: items(field(edn, "pages")).map(printEdn),
+    blocks: itemsOf(entriesOf(edn).get("blocks")).map(printEdn).toSorted(),
+    pages: itemsOf(entriesOf(edn).get("pages")).map(printEdn),
   }
 }
 
@@ -151,7 +140,7 @@ describe("whiteboard import", () => {
           canBind: true,
           point: [0, 0.29],
           bindingId: "07b8823c-ca6a-11ed-8caa-efa6679223ca",
-          bindTo: target?.id,
+          bindTo: must(target).id,
         },
       })
     }).pipe(Effect.provide(Node)),
@@ -269,7 +258,7 @@ describe("whiteboard mirror", () => {
       assert.deepStrictEqual(after.pages, before.pages)
       const changed = after.blocks.filter((block) => !before.blocks.includes(block))
       assert.deepStrictEqual(
-        changed.map((block) => block.match(/:block\/uuid #uuid "([^"]+)"\}$/u)?.[1]),
+        changed.map((block) => /:block\/uuid #uuid "([^"]+)"\}$/u.exec(block)?.[1]),
         [
           "67b22d63-71b5-4393-bfc9-8e2ce5190d9c",
           "67b87c75-abde-4c73-8d14-ce3da4a40003",

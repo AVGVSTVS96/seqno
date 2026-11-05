@@ -360,7 +360,11 @@ const make = (config: VaultConfig) =>
 
             const ack = acks.get(device.value) ?? { vv: {}, verified: new Set<string>() }
             ack.vv = join(ack.vv, seen.value.vv)
-            seen.value.verified.forEach((name) => ack.verified.add(name))
+
+            for (const name of seen.value.verified) {
+              ack.verified.add(name)
+            }
+
             acks.set(device.value, ack)
           }
 
@@ -489,9 +493,12 @@ const make = (config: VaultConfig) =>
 
                 if (!allowed) {
                   foreign.push(file.key)
-                  found
-                    .filter((root) => root.imported && root.peer !== lineage)
-                    .forEach((root) => foreignRoots.add(root.peer))
+
+                  for (const root of found) {
+                    if (root.imported && root.peer !== lineage) {
+                      foreignRoots.add(root.peer)
+                    }
+                  }
                 }
 
                 return allowed

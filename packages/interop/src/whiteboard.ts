@@ -1,4 +1,4 @@
-import { Option, Result, Schema } from "effect"
+import { Option, Predicate, Result, Schema } from "effect"
 import {
   SHAPE_KEY,
   TYPE_KEY,
@@ -13,10 +13,13 @@ import {
 } from "@seqno/domain"
 import type { Block, BlockId, Page, PageId, Props } from "@seqno/domain"
 import { propertyValue } from "@seqno/export"
+import type { PropertyValue } from "@seqno/export"
 import {
   entriesOf,
   fromJson,
   hashOrder,
+  isJsonArray,
+  isJsonObject,
   mapEntries,
   itemsOf,
   keyword,
@@ -32,7 +35,9 @@ import {
 import type { Edn } from "./edn.ts"
 import { blockContent, contentBlock } from "./outline.ts"
 
-type Raw = Readonly<Record<string, unknown>>
+type Json = Schema.Json
+
+type JsonObject = Readonly<Record<string, Json>>
 
 const TLDRAW_PAGE = "logseq.tldraw.page"
 const CREATED = "created-at"
@@ -50,20 +55,18 @@ const PAGE_FIELDS = new Set([
   "block/original-name",
 ])
 
-const decodeRecord = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown))
-const decodeText = Schema.decodeUnknownOption(Schema.String)
 const decodeNumber = Schema.decodeUnknownOption(Schema.Finite)
-const decodeArray = Schema.decodeUnknownOption(Schema.Array(Schema.Unknown))
 
 const decodeRaw = Schema.decodeUnknownOption(
-  Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+  Schema.fromJsonString(Schema.Record(Schema.String, Schema.Json)),
 )
 
-const recordOf = (value: unknown): Raw => Option.getOrElse(decodeRecord(value), () => ({}))
-const textIn = (value: unknown): string | undefined => Option.getOrUndefined(decodeText(value))
+const recordOf = (value: Json | undefined): JsonObject => (isJsonObject(value) ? value : {})
 
-const arrayOf = (value: unknown): readonly unknown[] =>
-  Option.getOrElse(decodeArray(value), () => [])
+const textIn = (value: Json | undefined): string | undefined =>
+  Predicate.isString(value) ? value : undefined
+
+const arrayOf = (value: Json | undefined): readonly Json[] => (isJsonArray(value) ? value : [])
 
 const TIMES = [
   ["block/created-at", CREATED],
@@ -75,13 +78,13 @@ const stamps = (fields: ReadonlyMap<string, Edn>): Props =>
     TIMES.flatMap(([field, key]) => {
       const value = fields.get(field)
 
-      return typeof value === "number" ? [[key, String(value)]] : []
+      return Predicate.isNumber(value) ? [[key, String(value)]] : []
     }),
   )
 
 interface ShapeEntry {
   readonly id: string | undefined
-  readonly shape: Raw
+  readonly shape: JsonObject
   readonly stamps: Props
 }
 
@@ -98,15 +101,15 @@ export interface Whiteboard {
   readonly title: string | undefined
   readonly props: Props
   readonly uuid: string | undefined
-  readonly bindings: Raw
-  readonly assets: readonly unknown[]
+  readonly bindings: JsonObject
+  readonly assets: readonly Json[]
   readonly shapes: readonly ShapeEntry[]
   readonly normals: readonly NormalEntry[]
 }
 
 const propertyText = (value: Edn): string =>
   textOf(value) ??
-  (typeof value === "number" || typeof value === "boolean"
+  (Predicate.isNumber(value) || Predicate.isBoolean(value)
     ? String(value)
     : itemsOf(value)
         .map((item) => textOf(item) ?? printEdn(item))
@@ -171,27 +174,33 @@ export const readWhiteboard = (text: string): Result.Result<Whiteboard, string> 
     const tldrawId = textIn(tldraw["id"])
     const extra = [...page].filter(([key]) => !PAGE_FIELDS.has(key))
 
+    const props = new Map<string, string>([
+      [TYPE_KEY, WHITEBOARD_PAGE],
+      ...[...pageProps].map(([key, value]): readonly [string, string] => [
+        key,
+        key === TYPE_KEY
+          ? WHITEBOARD_PAGE
+          : key === TLDRAW_PAGE
+            ? JSON.stringify(tldraw)
+            : propertyText(value),
+      ]),
+    ])
+
+    if (Object.keys(tldraw).length > 0 && !pageProps.has(TLDRAW_PAGE)) {
+      props.set(TLDRAW_PAGE, JSON.stringify(tldraw))
+    }
+
+    if (pageUuid !== undefined && pageUuid !== tldrawId) {
+      props.set("id", pageUuid)
+    }
+
+    if (extra.length > 0) {
+      props.set(FIELDS, printEdn(map(extra)).trimStart())
+    }
+
     return {
       title: textOf(page.get("block/original-name")) ?? textOf(page.get("block/name")) ?? undefined,
-      props: {
-        [TYPE_KEY]: WHITEBOARD_PAGE,
-        ...Object.fromEntries(
-          [...pageProps].map(([key, value]) => [
-            key,
-            key === TYPE_KEY
-              ? WHITEBOARD_PAGE
-              : key === TLDRAW_PAGE
-                ? JSON.stringify(tldraw)
-                : propertyText(value),
-          ]),
-        ),
-        ...(Object.keys(tldraw).length === 0 || pageProps.has(TLDRAW_PAGE)
-          ? {}
-          : { [TLDRAW_PAGE]: JSON.stringify(tldraw) }),
-        ...(pageUuid !== undefined && pageUuid !== tldrawId ? { id: pageUuid } : {}),
-        ...(extra.length === 0 ? {} : { [FIELDS]: printEdn(map(extra)).trimStart() }),
-        ...stamps(page),
-      },
+      props: { ...Object.fromEntries(props), ...stamps(page) },
       uuid: pageUuid ?? tldrawId,
       bindings: recordOf(tldraw["bindings"]),
       assets: arrayOf(tldraw["assets"]),
@@ -217,18 +226,16 @@ const treeOrder = (
   const walk = (parent: string | undefined): readonly NormalEntry[] => {
     const siblings = groups.get(parent) ?? []
     const chain: NormalEntry[] = []
-    let left = parent
 
-    for (;;) {
-      const next = siblings.find((entry) => entry.left === left && !placed.has(entry))
+    const following = (left: string | undefined) =>
+      siblings.find((entry) => entry.left === left && !placed.has(entry))
 
-      if (next === undefined) {
-        break
-      }
+    let next = following(parent)
 
+    while (next !== undefined) {
       placed.add(next)
       chain.push(next)
-      left = next.id
+      next = following(next.id)
     }
 
     for (const entry of siblings) {
@@ -246,55 +253,65 @@ const treeOrder = (
   return [...ordered, ...normals.filter((entry) => !placed.has(entry))]
 }
 
-const withoutKey = (raw: Raw, key: string): Record<string, unknown> =>
+const withoutKey = (raw: JsonObject, key: string): JsonObject =>
   Object.fromEntries(Object.entries(raw).filter(([name]) => name !== key))
+
+interface ImportedShape {
+  readonly text: string
+  readonly shape: JsonObject
+}
 
 const importShape = (
   entry: ShapeEntry,
   board: Whiteboard,
   resolve: (logseqId: string | undefined) => BlockId | undefined,
-): { readonly text: string; readonly shape: Record<string, unknown> } => {
-  const type = textIn(entry.shape["type"])
-  const words = wordsField(type)
-  const shape: Record<string, unknown> = { ...entry.shape }
+): ImportedShape => {
+  const words = wordsField(textIn(entry.shape["type"]))
+  const shape = new Map(Object.entries(entry.shape))
 
   if (words !== null) {
-    delete shape[words]
+    shape.delete(words)
   }
 
-  const handles = decodeRecord(shape["handles"])
+  const handles = shape.get("handles")
 
-  if (Option.isSome(handles)) {
-    shape["handles"] = Object.fromEntries(
-      Object.entries(handles.value).map(([name, handle]) => {
-        const raw = recordOf(handle)
-        const binding = recordOf(board.bindings[textIn(raw["bindingId"]) ?? ""])
-        const target = resolve(textIn(binding["toId"]))
+  if (isJsonObject(handles)) {
+    shape.set(
+      "handles",
+      Object.fromEntries(
+        Object.entries(handles).map(([name, handle]) => {
+          const raw = recordOf(handle)
+          const binding = recordOf(board.bindings[textIn(raw["bindingId"]) ?? ""])
+          const target = resolve(textIn(binding["toId"]))
 
-        return [name, target === undefined ? raw : { ...raw, bindTo: target }]
+          return [name, target === undefined ? raw : { ...raw, bindTo: target }]
+        }),
+      ),
+    )
+  }
+
+  const children = shape.get("children")
+
+  if (isJsonArray(children)) {
+    shape.set(
+      "children",
+      children.map((child) => {
+        const written = textIn(child)
+
+        return written === undefined ? child : (resolve(written) ?? child)
       }),
     )
   }
 
-  const children = shape["children"]
-
-  if (Array.isArray(children)) {
-    shape["children"] = children.map((child) => {
-      const written = textIn(child)
-
-      return written === undefined ? child : (resolve(written) ?? child)
-    })
-  }
-
-  const assetId = textIn(shape["assetId"])
+  const assetId = textIn(shape.get("assetId"))
   const asset = board.assets.map(recordOf).find((item) => textIn(item["id"]) === assetId)
   const src = asset === undefined ? undefined : textIn(asset["src"])
 
-  if (src !== undefined && shape["src"] === undefined) {
-    shape["src"] = src
+  if (src !== undefined && shape.get("src") === undefined) {
+    shape.set("src", src)
   }
 
-  return { text: wordsIn(entry.shape), shape }
+  return { text: wordsIn(entry.shape), shape: Object.fromEntries(shape) }
 }
 
 const keptId = (written: string | undefined, id: BlockId): Props =>
@@ -367,9 +384,9 @@ export const clonedWhiteboard = (board: Whiteboard, freshId: () => string): Whit
     ),
   )
 
-  const bindings: Record<string, unknown> = {}
+  const bindings = new Map<string, Json>()
 
-  const rebound = (line: string | undefined, handle: unknown) => {
+  const rebound = (line: string | undefined, handle: Json): Json => {
     const raw = recordOf(handle)
     const binding = recordOf(board.bindings[textIn(raw["bindingId"]) ?? ""])
     const from = ids.get(textIn(binding["fromId"]) ?? "")
@@ -380,34 +397,32 @@ export const clonedWhiteboard = (board: Whiteboard, freshId: () => string): Whit
     }
 
     const id = freshId()
-    bindings[id] = { ...binding, id, fromId: from, toId: to }
+    bindings.set(id, { ...binding, id, fromId: from, toId: to })
 
     return { ...raw, bindingId: id }
   }
 
   const shapes = board.shapes.map((entry): ShapeEntry => {
     const id = entry.id === undefined ? freshId() : (ids.get(entry.id) ?? freshId())
-    const handles = decodeRecord(entry.shape["handles"])
+    const handles = entry.shape["handles"]
+    const shape = { ...entry.shape, id }
 
     return {
       ...entry,
       id,
       stamps: {},
-      shape: {
-        ...entry.shape,
-        id,
-        ...(Option.isSome(handles)
-          ? {
-              handles: Object.fromEntries(
-                Object.entries(handles.value).map(([name, handle]) => [name, rebound(id, handle)]),
-              ),
-            }
-          : {}),
-      },
+      shape: isJsonObject(handles)
+        ? {
+            ...shape,
+            handles: Object.fromEntries(
+              Object.entries(handles).map(([name, handle]) => [name, rebound(id, handle)]),
+            ),
+          }
+        : shape,
     }
   })
 
-  return { ...board, uuid: undefined, bindings, shapes, normals: [] }
+  return { ...board, uuid: undefined, bindings: Object.fromEntries(bindings), shapes, normals: [] }
 }
 
 const derivedUuid = (seed: string) => {
@@ -438,10 +453,12 @@ const VALID_KEY = /^[^\s"|^(){}#,][^\s"|^(){},]*$/u
 const HEADING = /^(#{1,6})[ \t]/u
 const PAGE_OWN = new Set([TYPE_KEY, TLDRAW_PAGE, "id", FIELDS, CREATED, UPDATED])
 
+const isTextList = (value: PropertyValue): value is readonly string[] => Array.isArray(value)
+
 const typedValue = (key: string, raw: string): Edn => {
   const value = propertyValue(key, raw)
 
-  return typeof value === "object" ? { _tag: "Set", items: value } : value
+  return isTextList(value) ? { _tag: "Set", items: value } : value
 }
 
 const typedEntries = (props: Props): ReadonlyArray<readonly [string, Edn]> =>
@@ -460,13 +477,13 @@ const blockProperties = (text: string, props: Props): Edn => {
 
 interface Binding {
   readonly id: string
-  readonly raw: Raw
+  readonly raw: JsonObject
 }
 
 const logseqIdOf = (block: Block) => block.props["id"] ?? block.id
 
 export const renderWhiteboard = (page: Page, blocks: readonly Block[]): string => {
-  const tldraw = Option.getOrElse(decodeRaw(page.props[TLDRAW_PAGE]), (): Raw => ({}))
+  const tldraw = Option.getOrElse(decodeRaw(page.props[TLDRAW_PAGE]), (): JsonObject => ({}))
   const pageUuid = page.props["id"] ?? textIn(tldraw["id"]) ?? page.id
   const byId = new Map<string, Block>(blocks.map((block) => [block.id, block]))
   const shapes = blocks.filter(isShapeBlock)
@@ -477,12 +494,12 @@ export const renderWhiteboard = (page: Page, blocks: readonly Block[]): string =
   const usedBindings = new Set<string>()
   const created: Binding[] = []
   const usedAssets = new Set<string>()
-  const newAssets: Raw[] = []
+  const newAssets: JsonObject[] = []
 
-  const handleOut = (shapeId: string, name: string, handle: unknown): Raw => {
-    const merged: Raw = { id: name, canBind: true, ...recordOf(handle) }
-    const raw = withoutKey(merged, "bindTo")
-    const target = shapeById.get(textIn(merged["bindTo"]) ?? "")
+  const handleOut = (shapeId: string, name: string, handle: Json) => {
+    const fields = recordOf(handle)
+    const raw = withoutKey({ id: name, canBind: true, ...fields }, "bindTo")
+    const target = shapeById.get(textIn(fields["bindTo"]) ?? "")
     const bindingId = textIn(raw["bindingId"])
 
     if (target === undefined) {
@@ -519,16 +536,16 @@ export const renderWhiteboard = (page: Page, blocks: readonly Block[]): string =
     return { ...raw, bindingId: id }
   }
 
-  const assetOut = (shapeId: string, shape: Record<string, unknown>) => {
-    const src = textIn(shape["src"])
+  const assetOut = (shapeId: string, shape: Map<string, Json>) => {
+    const src = textIn(shape.get("src"))
 
     if (src === undefined) {
       return
     }
 
-    const assetId = textIn(shape["assetId"])
+    const assetId = textIn(shape.get("assetId"))
     const asset = originalAssets.find((item) => textIn(item["id"]) === assetId)
-    delete shape["src"]
+    shape.delete("src")
 
     if (assetId !== undefined && asset !== undefined && textIn(asset["src"]) === src) {
       usedAssets.add(assetId)
@@ -539,12 +556,12 @@ export const renderWhiteboard = (page: Page, blocks: readonly Block[]): string =
     const id =
       assetId !== undefined && asset === undefined ? assetId : derivedUuid(`${shapeId}/${src}`)
 
-    shape["assetId"] = id
+    shape.set("assetId", id)
     newAssets.push({
       id,
-      type: assetTypeOf(shape["type"]),
+      type: assetTypeOf(shape.get("type")),
       src,
-      size: shape["size"] ?? [0, 0],
+      size: shape.get("size") ?? [0, 0],
     })
   }
 
@@ -552,30 +569,39 @@ export const renderWhiteboard = (page: Page, blocks: readonly Block[]): string =
     const raw = shapeRaw(block)
     const type = textIn(raw["type"])
     const id = logseqIdOf(block)
-    const shape: Record<string, unknown> = { ...raw, id, index }
+    const shape = new Map<string, Json>([...Object.entries(raw), ["id", id], ["index", index]])
 
     if (Option.isNone(decodeNumber(raw["nonce"]))) {
-      shape["nonce"] = 1
+      shape.set("nonce", 1)
     }
 
-    Object.assign(shape, wordsFields(type, block.text))
-    const handles = decodeRecord(raw["handles"])
+    for (const [key, value] of Object.entries(wordsFields(type, block.text))) {
+      shape.set(key, value)
+    }
 
-    if (Option.isSome(handles)) {
-      shape["handles"] = Object.fromEntries(
-        Object.entries(handles.value).map(([name, handle]) => [name, handleOut(id, name, handle)]),
+    const handles = raw["handles"]
+
+    if (isJsonObject(handles)) {
+      shape.set(
+        "handles",
+        Object.fromEntries(
+          Object.entries(handles).map(([name, handle]) => [name, handleOut(id, name, handle)]),
+        ),
       )
     }
 
     assetOut(id, shape)
     const children = raw["children"]
 
-    if (Array.isArray(children)) {
-      shape["children"] = children.map((child) => {
-        const member = shapeById.get(textIn(child) ?? "")
+    if (isJsonArray(children)) {
+      shape.set(
+        "children",
+        children.map((child) => {
+          const member = shapeById.get(textIn(child) ?? "")
 
-        return member === undefined ? child : logseqIdOf(member)
-      })
+          return member === undefined ? child : logseqIdOf(member)
+        }),
+      )
     }
 
     return sortedMap([
@@ -584,7 +610,7 @@ export const renderWhiteboard = (page: Page, blocks: readonly Block[]): string =
         "block/properties",
         map([
           [TYPE_KEY, keyword(WHITEBOARD_SHAPE)],
-          [SHAPE_KEY, fromJson(shape)],
+          [SHAPE_KEY, fromJson(Object.fromEntries(shape))],
         ]),
       ],
     ])
@@ -641,13 +667,20 @@ export const renderWhiteboard = (page: Page, blocks: readonly Block[]): string =
 
   const order = list(shapes.map((block) => logseqIdOf(block)))
 
-  const base: Record<string, unknown> =
-    Object.keys(tldraw).length > 0
-      ? { ...tldraw }
-      : { id: pageUuid, name: page.name, bindings: {}, nonce: 1, assets: [], [SHAPES_INDEX]: [] }
+  const fresh = {
+    id: pageUuid,
+    name: page.name,
+    bindings: {},
+    nonce: 1,
+    assets: [],
+    [SHAPES_INDEX]: [],
+  }
 
-  base["bindings"] = Object.fromEntries(bindings.map(({ id, raw }) => [id, raw]))
-  base["assets"] = assets
+  const base = {
+    ...(Object.keys(tldraw).length > 0 ? tldraw : fresh),
+    bindings: Object.fromEntries(bindings.map(({ id, raw }) => [id, raw])),
+    assets,
+  }
 
   const tldrawEdn: Edn = {
     _tag: "Map",

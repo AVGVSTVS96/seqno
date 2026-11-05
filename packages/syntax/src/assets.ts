@@ -122,12 +122,7 @@ const concatWithoutSpaces = (left: string, right: string) => {
   return `${trimmed}${gap}${right.replace(/^[ \t\r]+/u, "")}`
 }
 
-export const insertAsset = (
-  text: string,
-  from: number,
-  to: number,
-  link: string,
-): { readonly text: string; readonly caret: number } => {
+export const insertAsset = (text: string, from: number, to: number, link: string) => {
   const prefix = concatWithoutSpaces(text.slice(0, from), link)
   const after = text.slice(to)
 
@@ -150,7 +145,7 @@ export const assetPageName = (name: string): string => {
     return name
   }
 
-  return (localAsset ? name.slice(0, name.length - 15) : name)
+  return (localAsset ? name.slice(0, -15) : name)
     .replace(/^hls__/u, "")
     .replace(/__[-\d]+$/u, "")
     .replaceAll("_", " ")

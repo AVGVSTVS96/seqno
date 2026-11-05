@@ -4,8 +4,8 @@ import { basename, dirname, join } from "node:path"
 import { Effect, Layer } from "effect"
 import { Entry, FileUnavailable, Storage, StorageFailed } from "./storage.ts"
 
-const codeOf = (cause: unknown): unknown =>
-  cause instanceof Error && "code" in cause ? cause.code : undefined
+const isMissing = (cause: unknown): boolean =>
+  cause instanceof Error && "code" in cause && cause.code === "ENOENT"
 
 const failed = (path: string) => (cause: unknown) =>
   new StorageFailed({ path, reason: cause instanceof Error ? cause.message : String(cause) })
@@ -31,13 +31,23 @@ const writeAtomically = async (target: string, bytes: Uint8Array) => {
   }
 }
 
+const readEntries = async (path: string) => {
+  try {
+    return await readdir(path, { withFileTypes: true })
+  } catch (error) {
+    if (isMissing(error)) {
+      return []
+    }
+
+    throw error
+  }
+}
+
 export const nodeStorage = (root: string): Storage["Service"] => ({
   list: (dir) =>
     Effect.tryPromise({
       try: async () => {
-        const entries = await readdir(join(root, dir), { withFileTypes: true }).catch(
-          (error: unknown) => (codeOf(error) === "ENOENT" ? [] : Promise.reject(error)),
-        )
+        const entries = await readEntries(join(root, dir))
 
         return entries.flatMap((entry): Entry[] => {
           if (entry.isDirectory()) {
@@ -57,9 +67,7 @@ export const nodeStorage = (root: string): Storage["Service"] => ({
     Effect.tryPromise({
       try: async () => new Uint8Array(await readFile(join(root, path))),
       catch: (cause) =>
-        codeOf(cause) === "ENOENT"
-          ? new FileUnavailable({ path, reason: "missing" })
-          : failed(path)(cause),
+        isMissing(cause) ? new FileUnavailable({ path, reason: "missing" }) : failed(path)(cause),
     }),
   write: (path, bytes) =>
     Effect.uninterruptible(

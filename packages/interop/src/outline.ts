@@ -186,7 +186,9 @@ const topHeading = (block: Syntax.Block): Syntax.Block => {
   const [first = "", ...rest] = block.text.split("\n")
   const plain = rest.every((line) => !Syntax.startsBlock(line) && !/^[ \t]/u.test(line))
 
-  return heading.test(first) && plain ? { ...block, bare: true } : block
+  return heading.test(first) && plain
+    ? { text: block.text, children: block.children, bare: true }
+    : block
 }
 
 const frontMatterLines = (props: Props) =>

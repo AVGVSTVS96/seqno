@@ -1,4 +1,4 @@
-import { Match } from "effect"
+import { Match, Predicate } from "effect"
 import type {
   ContainerID,
   LoroDoc,
@@ -159,12 +159,17 @@ export interface Recorder {
   readonly prop: (data: LoroMap, key: string, value: string | null, after?: string | null) => void
 }
 
-const scalar = (value: unknown): Value =>
-  typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-    ? value
-    : value === null
-      ? null
-      : undefined
+const isScalar = (value: unknown): value is string | number | boolean | null =>
+  Predicate.isString(value) ||
+  Predicate.isNumber(value) ||
+  Predicate.isBoolean(value) ||
+  value === null
+
+const scalarAt = (map: LoroMap, key: string): Value => {
+  const value = map.get(key)
+
+  return isScalar(value) ? value : undefined
+}
 
 const sameNode = (a: LoroTreeNode | undefined, b: LoroTreeNode | undefined) => a?.id === b?.id
 
@@ -325,7 +330,7 @@ const recorder = (place: Place, step: Step, lists: Listed): Restorer => {
       }
     },
     set: (map, key, value) => {
-      const old = scalar(map.get(key))
+      const old = scalarAt(map, key)
 
       if (old === value) {
         return
@@ -366,7 +371,7 @@ const revertOne = (undo: Undo, record: Restorer, into: Step): void => {
       }
     },
     Value: ({ map, key, value, expect }) => {
-      if (!map.isDeleted() && scalar(map.get(key)) === expect) {
+      if (!map.isDeleted() && scalarAt(map, key) === expect) {
         record.set(map, key, value)
       }
     },
@@ -624,7 +629,11 @@ export const histories = () => {
       },
       abort: () => {
         revert(draft, lists)
-        reverted.toReversed().forEach(({ inverse }) => revert(inverse, lists))
+
+        for (const { inverse } of reverted.toReversed()) {
+          revert(inverse, lists)
+        }
+
         muted = true
         commit()
         muted = false

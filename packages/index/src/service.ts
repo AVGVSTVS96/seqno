@@ -1,7 +1,17 @@
-import { Array as Arr, Context, Effect, Layer, Option, Schema, Semaphore, Stream } from "effect"
+import {
+  Array as Arr,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  Predicate,
+  Schema,
+  Semaphore,
+  Stream,
+} from "effect"
 import { Reactivity } from "effect/reactivity"
-import { BlockId, GraphEvent, PageId, normalizePageName } from "@seqno/domain"
-import type { Page } from "@seqno/domain"
+import { BlockId, PageId, normalizePageName } from "@seqno/domain"
+import type { Page, GraphEvent } from "@seqno/domain"
 import { defaultPropertyConfig } from "@seqno/syntax"
 import type { PropertyConfig } from "@seqno/syntax"
 import { titleIn } from "./facets.ts"
@@ -16,8 +26,8 @@ import {
   schemaVersion,
   writeStamp,
 } from "./schema.ts"
-import { IndexError, Sqlite } from "./sqlite.ts"
-import type { Row, SqlValue, Statements } from "./sqlite.ts"
+import { Sqlite } from "./sqlite.ts"
+import type { Row, SqlValue, Statements, IndexError } from "./sqlite.ts"
 
 export interface LiveQuery {
   readonly sql: string
@@ -143,7 +153,7 @@ const referencedOf = (db: Statements) =>
     decodeReferencedPage({
       name,
       title:
-        typeof name === "string" && typeof content === "string" ? titleIn(content, name) : name,
+        Predicate.isString(name) && Predicate.isString(content) ? titleIn(content, name) : name,
       tag: tag === 1,
       backlinks,
       created,
@@ -256,11 +266,11 @@ const BLOCK_REF_SOURCES = `SELECT content FROM blocks WHERE instr(content, '((')
 
 const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)/giu
 
-const blockRefCountsOf = (db: Statements): Readonly<Record<string, number>> => {
+const blockRefCountsOf = (db: Statements) => {
   const counts: Record<string, number> = {}
 
   for (const [content] of db.all(BLOCK_REF_SOURCES)) {
-    if (typeof content !== "string") {
+    if (!Predicate.isString(content)) {
       continue
     }
 
@@ -286,13 +296,16 @@ const blockReferencesOf = (db: Statements, blockId: string) =>
 const phrase = (text: string) => `"${text.replaceAll('"', '""')}"`
 
 const anyPhrase = (names: readonly string[]): string | null => {
-  const phrases = names.filter((name) => /[\p{L}\p{N}]/u.test(name)).map(phrase)
+  const phrases = names.flatMap((name) => (/[\p{L}\p{N}]/u.test(name) ? [phrase(name)] : []))
 
   return phrases.length === 0 ? null : phrases.join(" OR ")
 }
 
 const namesOf = (db: Statements, pageId: PageId) =>
-  db.all(PAGE_NAMES, [pageId]).flatMap(([name]) => (typeof name === "string" ? [name] : []))
+  db
+    .all(PAGE_NAMES, [pageId])
+    .map(([name]) => name)
+    .filter(Predicate.isString)
 
 const unlinkedOf = (db: Statements, pageId: PageId) => {
   const match = anyPhrase(namesOf(db, pageId))

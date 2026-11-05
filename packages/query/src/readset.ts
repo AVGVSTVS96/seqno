@@ -91,11 +91,15 @@ export const readSet = (q: Query, ctx: QueryContext, names: Names): string[] => 
       }
 
       if (f._tag === "Under") {
-        ;["tree", "exist", "move"].forEach((k) => keys.add(k))
+        for (const k of ["tree", "exist", "move"]) {
+          keys.add(k)
+        }
       }
 
       if (f._tag === "HasBlock") {
-        ;["exist", "move"].forEach((k) => keys.add(k))
+        for (const k of ["exist", "move"]) {
+          keys.add(k)
+        }
       }
     })
   }

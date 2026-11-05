@@ -1,3 +1,4 @@
+import { Schema } from "effect"
 import { strFromU8, unzipSync } from "fflate"
 import { describe, expect, it } from "vitest"
 import { BlockId, PageId } from "@seqno/domain"
@@ -6,6 +7,35 @@ import { readPropertyConfig } from "@seqno/syntax"
 import { exportGraph } from "../src/index.ts"
 import type { PageBlocks } from "../src/index.ts"
 import { pageId, pagesOf } from "./graph.ts"
+
+interface JsonBlock {
+  readonly format: string
+  readonly content: string
+  readonly properties: Schema.Json
+  readonly children: readonly JsonBlock[]
+}
+
+const JsonBlock = Schema.Struct({
+  format: Schema.String,
+  content: Schema.String,
+  properties: Schema.Json,
+  children: Schema.Array(Schema.suspend((): Schema.Codec<JsonBlock> => JsonBlock)),
+})
+
+const JsonGraph = Schema.fromJsonString(
+  Schema.Struct({
+    blocks: Schema.NonEmptyArray(
+      Schema.Struct({ properties: Schema.Json, children: Schema.Array(JsonBlock) }),
+    ),
+  }),
+)
+
+const firstPage = (
+  graph: Parameters<typeof exportGraph>[0],
+  settings: Parameters<typeof exportGraph>[2],
+) =>
+  Schema.decodeUnknownSync(JsonGraph)(strFromU8(exportGraph(graph, "json", settings).bytes))
+    .blocks[0]
 
 const pages = pagesOf({
   Ada: `alias:: Countess
@@ -163,10 +193,9 @@ describe("graph export", () => {
       ].join("\n"),
     })
 
-    const blocks = JSON.parse(strFromU8(exportGraph(typed, "json", options).bytes)).blocks[0]
-      .children
+    const blocks = firstPage(typed, options).children
 
-    expect(blocks.map((entry: { properties: unknown }) => entry.properties)).toEqual([
+    expect(blocks.map((entry) => entry.properties)).toEqual([
       {
         done: true,
         shown: false,
@@ -204,13 +233,9 @@ describe("graph export", () => {
       '{:property/separated-by-commas #{:genre}\n :ignored-page-references-keywords #{:author "website"}}',
     )
 
-    const page = JSON.parse(strFromU8(exportGraph(books, "json", { ...options, properties }).bytes))
-      .blocks[0]
+    const page = firstPage(books, { ...options, properties })
 
-    expect([
-      page.properties,
-      ...page.children.map((entry: { properties: unknown }) => entry.properties),
-    ]).toEqual([
+    expect([page.properties, ...page.children.map((entry) => entry.properties)]).toEqual([
       { genre: ["poetry", "prose"] },
       { genre: ["poetry", "prose"] },
       {
@@ -282,10 +307,7 @@ describe("graph export", () => {
 
   it("keeps property names in any script, and drops ones EDN can't read", () => {
     const named = pagesOf({ Notes: `- read\n  作者:: Ada\n  état:: done\n  a(b):: no` })
-    expect(
-      JSON.parse(strFromU8(exportGraph(named, "json", options).bytes)).blocks[0].children[0]
-        .properties,
-    ).toEqual({
+    expect(firstPage(named, options).children[0]?.properties).toEqual({
       作者: "Ada",
       état: "done",
     })
@@ -308,11 +330,7 @@ describe("graph export", () => {
   })
 })
 
-const flat = (entry: {
-  format: string
-  content: string
-  children: readonly never[]
-}): ReadonlyArray<readonly [string, string]> => [
+const flat = (entry: JsonBlock): ReadonlyArray<readonly [string, string]> => [
   [entry.format, entry.content],
   ...entry.children.flatMap(flat),
 ]
@@ -354,7 +372,7 @@ describe("Org pages in the graph exports", () => {
   }
 
   it("writes Org blocks with :org format and the content Logseq keeps for them", () => {
-    const page = JSON.parse(strFromU8(exportGraph([org], "json", orgOptions).bytes)).blocks[0]
+    const page = firstPage([org], orgOptions)
     expect(page.children.flatMap(flat)).toEqual([
       ["org", "#+title: Reading list\n#+tags: books\n\n"],
       ["org", "TODO Finish /Dune/\nSCHEDULED: <2026-11-05 Thu>\n"],

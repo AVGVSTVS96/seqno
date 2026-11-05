@@ -1,4 +1,5 @@
-import { Clock, Crypto, Effect, Option } from "effect"
+import type { Crypto } from "effect"
+import { Clock, Effect, Option } from "effect"
 import type { LoroTreeNode } from "loro-crdt"
 import { Command, newBlockId, newPageId, normalizePageName } from "@seqno/domain"
 import type { BlockDraft, BlockId, PageId } from "@seqno/domain"
@@ -192,7 +193,7 @@ const reader = ({ trees, homes }: Lookup) => {
 
   const children = (parent: Parent): Item[] => siblings(parent).items
 
-  const indexOf = (parent: Parent, item: Item): number => indexIn(siblings(parent), item)
+  const childIndex = (parent: Parent, item: Item): number => indexIn(siblings(parent), item)
 
   const parentOf = (item: Item): Parent => {
     const above = item.at.node.parent()
@@ -212,12 +213,12 @@ const reader = ({ trees, homes }: Lookup) => {
     })
   }
 
-  return { lists, children, parentOf, indexOf, rankOf }
+  return { lists, children, parentOf, childIndex, rankOf }
 }
 
 export const outliner = (ws: Workspace) => {
   const { trees } = ws
-  const { lists, children, parentOf, indexOf, rankOf } = reader(ws)
+  const { lists, children, parentOf, childIndex, rankOf } = reader(ws)
 
   const forget = (item: Item): boolean => {
     const list = lists.get(parentKey(parentOf(item)))
@@ -232,7 +233,7 @@ export const outliner = (ws: Workspace) => {
 
   const slotIn = (parent: Parent, index: number, moving: Item | undefined): Slot => {
     const all = children(parent)
-    const skip = moving === undefined ? -1 : indexOf(parent, moving)
+    const skip = moving === undefined ? -1 : childIndex(parent, moving)
     const count = all.length - (skip === -1 ? 0 : 1)
     const nth = (at: number) => all[skip !== -1 && at >= skip ? at + 1 : at]
     const previous = index <= 0 ? undefined : nth(Math.min(index, count) - 1)
@@ -356,10 +357,10 @@ export const outliner = (ws: Workspace) => {
       return item
     })
 
-  return { children, parentOf, indexOf, rankOf, place, trash, create }
+  return { children, parentOf, childIndex, rankOf, place, trash, create }
 }
 
-type Outliner = Pick<ReturnType<typeof reader>, "children" | "parentOf" | "indexOf" | "rankOf">
+type Outliner = Pick<ReturnType<typeof reader>, "children" | "parentOf" | "childIndex" | "rankOf">
 
 type Writer = ReturnType<typeof outliner>
 
@@ -468,8 +469,11 @@ const selection = (ws: Workspace, out: Outliner, ids: readonly BlockId[]) => {
       const chosen = new Map(items.map((item) => [item.key, item]))
 
       return [...chosen.values()]
-        .filter((item) => !ancestors(out, item).some((up) => chosen.has(up.key)))
-        .map((item) => ({ item, at: position(out, item) }))
+        .flatMap((item) =>
+          ancestors(out, item).some((up) => chosen.has(up.key))
+            ? []
+            : [{ item, at: position(out, item) }],
+        )
         .toSorted((a, b) => byPosition(a.at, b.at))
         .map(({ item }) => item)
     },
@@ -507,7 +511,7 @@ const lastVisible = (out: Outliner, item: Item): Item => {
 
 const mergeTarget = (out: Outliner, item: Item): Item | undefined => {
   const parent = out.parentOf(item)
-  const previous = out.children(parent)[out.indexOf(parent, item) - 1]
+  const previous = out.children(parent)[out.childIndex(parent, item) - 1]
 
   if (previous !== undefined) {
     return lastVisible(out, previous)
@@ -525,7 +529,7 @@ const childAfter = (ws: Workspace, out: Outliner, parent: Parent, after: BlockId
   after === undefined
     ? Effect.succeed(0)
     : Effect.flatMap(blockItem(ws, after), (sibling) => {
-        const at = out.indexOf(parent, sibling)
+        const at = out.childIndex(parent, sibling)
 
         return at === -1
           ? reject(`block ${after} is not a child of the target parent`)
@@ -652,13 +656,13 @@ export const applyCommand = (
         }
 
         const parent = out.parentOf(item)
-        const index = out.indexOf(parent, item)
+        const index = out.childIndex(parent, item)
 
         if (at === 0 && text.length > 0) {
           return yield* createBlock(out, parent, index, "")
         }
 
-        const tail = text.slice(at, text.length)
+        const tail = text.toString().slice(at)
         ws.record(item.home.page).edit(data, at, text.length - at, "")
         yield* touch(ws, item)
         const own: Parent = { _tag: "Block", item }
@@ -689,9 +693,11 @@ export const applyCommand = (
         const own: Parent = { _tag: "Block", item }
         const intoParent = parent._tag === "Block" && sameItem(parent.item, target)
 
-        for (const child of out.children(own).slice()) {
+        const moving = [...out.children(own)]
+
+        for (const child of moving) {
           if (intoParent) {
-            out.place(child, parent, out.indexOf(parent, item))
+            out.place(child, parent, out.childIndex(parent, item))
           } else {
             const under: Parent = { _tag: "Block", item: target }
             out.place(child, under, out.children(under).length)
@@ -705,13 +711,13 @@ export const applyCommand = (
       Effect.gen(function* () {
         const roots = yield* selection(ws, out, blockIds)
 
-        if (roots.some((item) => out.indexOf(out.parentOf(item), item) === 0)) {
+        if (roots.some((item) => out.childIndex(out.parentOf(item), item) === 0)) {
           return yield* reject("a block without a previous sibling cannot be indented")
         }
 
         for (const item of roots) {
           const parent = out.parentOf(item)
-          const previous = out.children(parent)[out.indexOf(parent, item) - 1]
+          const previous = out.children(parent)[out.childIndex(parent, item) - 1]
 
           if (previous === undefined) {
             continue
@@ -738,12 +744,12 @@ export const applyCommand = (
 
           const own: Parent = { _tag: "Block", item }
 
-          for (const sibling of out.children(parent).slice(out.indexOf(parent, item) + 1)) {
+          for (const sibling of out.children(parent).slice(out.childIndex(parent, item) + 1)) {
             out.place(sibling, own, out.children(own).length)
           }
 
           const above = out.parentOf(parent.item)
-          out.place(item, above, out.indexOf(above, parent.item) + 1)
+          out.place(item, above, out.childIndex(above, parent.item) + 1)
         }
       }),
     MoveBlocks: ({ blockIds, parentId, after }) =>
@@ -757,10 +763,9 @@ export const applyCommand = (
             ? anchor === undefined
               ? first === undefined
                 ? undefined
-                : Option.match(pageOfItem(ws, first), {
-                    onNone: () => undefined,
-                    onSome: (page): Parent => ({ _tag: "Page", page }),
-                  })
+                : Option.getOrUndefined(
+                    Option.map(pageOfItem(ws, first), (page): Parent => ({ _tag: "Page", page })),
+                  )
               : out.parentOf(anchor)
             : { _tag: "Block", item: yield* blockItem(ws, parentId) }
 
@@ -781,7 +786,7 @@ export const applyCommand = (
 
         if (
           anchor !== undefined &&
-          (out.indexOf(target, anchor) === -1 || roots.some((item) => sameItem(item, anchor)))
+          (out.childIndex(target, anchor) === -1 || roots.some((item) => sameItem(item, anchor)))
         ) {
           return yield* reject(`block ${after} is not a child of the target parent`)
         }
@@ -791,8 +796,8 @@ export const applyCommand = (
             return out.place(item, target, 0)
           }
 
-          const before = out.indexOf(target, previous)
-          const moving = out.indexOf(target, item)
+          const before = out.childIndex(target, previous)
+          const moving = out.childIndex(target, item)
 
           return out.place(item, target, before + (moving !== -1 && moving < before ? 0 : 1))
         }, anchor)

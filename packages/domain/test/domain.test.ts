@@ -27,10 +27,8 @@ const blockA = "01920000-0000-7000-8000-000000000001"
 const blockB = "01920000-0000-7000-8000-000000000002"
 const pageA = "01920000-0000-7000-8000-0000000000aa"
 
-const accepts = <S extends Schema.Top & { readonly DecodingServices: never }>(
-  schema: S,
-  input: unknown,
-) => Result.isSuccess(Schema.decodeUnknownResult(schema)(input))
+const accepts = (schema: Schema.Decoder<unknown>, input: Schema.Json) =>
+  Result.isSuccess(Schema.decodeUnknownResult(schema)(input))
 
 describe("ids", () => {
   it.effect("mints distinct UUIDv7 block and page ids", () =>
@@ -76,7 +74,7 @@ describe("pages", () => {
   })
 })
 
-const roundTrip = (input: unknown) =>
+const roundTrip = (input: Schema.Json) =>
   Schema.encodeSync(Command)(Schema.decodeUnknownSync(Command)(input))
 
 describe("commands", () => {

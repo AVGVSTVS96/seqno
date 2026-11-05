@@ -253,7 +253,7 @@ export const pdfParts: Table<PdfParts> = {
   "seqno-annotation": ({ color }) => ({
     className: "",
     "data-type": "annotation",
-    ...(color === undefined || color.trim() === "" ? {} : { "data-hl-color": color }),
+    "data-hl-color": color === undefined || color.trim() === "" ? undefined : color,
   }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L1963
   "seqno-annotation-title": ({ area }) => ({

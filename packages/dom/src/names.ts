@@ -1,7 +1,8 @@
 type Token = string | false | null | undefined
 
-export const names = (...tokens: readonly Token[]) =>
-  tokens.filter((token) => typeof token === "string" && token !== "").join(" ")
+const isName = (token: Token): token is string => typeof token === "string" && token !== ""
+
+export const names = (...tokens: readonly Token[]) => tokens.filter(isName).join(" ")
 
 export interface LogseqNames {
   readonly className: string

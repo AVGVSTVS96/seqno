@@ -1,7 +1,11 @@
+import { Match } from "effect"
 import { defaultPropertyConfig, parseInline } from "@seqno/syntax"
 import type { Inline, PropertyConfig } from "@seqno/syntax"
 
 export type PropertyValue = string | number | boolean | readonly string[]
+
+export const isList = (value: PropertyValue): value is readonly string[] =>
+  typeof value === "object"
 
 const linkable = new Set(["alias", "aliases", "tags"])
 
@@ -36,22 +40,12 @@ const unparsed = new Set([
   "logseq.table.max-width",
 ])
 
-const refOf = (node: Inline): string | null => {
-  switch (node._tag) {
-    case "PageRef":
-    case "Tag": {
-      return node.name.trim()
-    }
-
-    case "Link": {
-      return node.target._tag === "Page" ? node.target.name.trim() : null
-    }
-
-    default: {
-      return null
-    }
-  }
-}
+const refOf = (node: Inline): string | null =>
+  Match.value(node).pipe(
+    Match.tag("PageRef", "Tag", ({ name }) => name.trim()),
+    Match.tag("Link", ({ target }) => (target._tag === "Page" ? target.name.trim() : null)),
+    Match.orElse(() => null),
+  )
 
 const refsOf = (
   key: string,

@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Crypto, Effect, Layer, Option } from "effect"
+import { Context, Crypto, Effect, Layer, Option, Order } from "effect"
 import type { BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import { Graph, PeerId, graphV2Layer } from "@seqno/graph"
 import { format } from "./support.ts"
@@ -18,11 +18,11 @@ const random = (seed: number) => {
   }
 }
 
-const seededCrypto = (next: () => number) =>
+const seededCrypto = (draw: () => number) =>
   Layer.succeed(
     Crypto.Crypto,
     Crypto.make({
-      randomBytes: (size) => Uint8Array.from({ length: size }, () => Math.floor(next() * 256)),
+      randomBytes: (size) => Uint8Array.from({ length: size }, () => Math.floor(draw() * 256)),
       digest: () => Effect.die("digest is not used by the graph"),
     }),
   )
@@ -107,15 +107,17 @@ const replay = (model: Model, event: GraphEvent): void => {
         }
       }
 
-      gone.forEach((id) => model.blocks.delete(id))
+      for (const id of gone) {
+        model.blocks.delete(id)
+      }
     }
   }
 }
 
-const open = (peer: string, next: () => number) =>
+const open = (peer: string, draw: () => number) =>
   Layer.build(
     graphV2Layer({ peer: PeerId.make(peer), snapshot: Option.none(), updates: [] }).pipe(
-      Layer.provide(seededCrypto(next)),
+      Layer.provide(seededCrypto(draw)),
     ),
   ).pipe(Effect.map((context) => Context.get(context, Graph)))
 
@@ -128,14 +130,14 @@ const view = (graph: Graph["Service"]) =>
 
 const run = (seed: number) =>
   Effect.gen(function* () {
-    const next = random(seed)
+    const draw = random(seed)
 
-    const pick = <A>(items: readonly A[]): A | undefined => items[Math.floor(next() * items.length)]
+    const pick = <A>(items: readonly A[]): A | undefined => items[Math.floor(draw() * items.length)]
 
     const devices = yield* Effect.forEach(
       Array.from({ length: DEVICES }, (_, at) => at),
       (at) =>
-        Effect.map(open(String(at + 1), next), (graph) => ({
+        Effect.map(open(String(at + 1), draw), (graph) => ({
           graph,
           model: { pages: new Map(), blocks: new Map() } satisfies Model,
           seen: 0,
@@ -144,17 +146,15 @@ const run = (seed: number) =>
 
     const log: Uint8Array[] = []
 
-    const record = (device: (typeof devices)[number], events: readonly GraphEvent[]) => {
-      events.forEach((event) => {
-        replay(device.model, event)
+    const record = (device: (typeof devices)[number], events: readonly GraphEvent[]) =>
+      Effect.sync(() => {
+        for (const event of events) {
+          replay(device.model, event)
+        }
       })
-    }
 
     const save = (device: (typeof devices)[number]) =>
-      Effect.map(
-        device.graph.flush((update) => Effect.sync(() => void log.push(update.bytes))),
-        () => undefined,
-      )
+      Effect.asVoid(device.graph.flush((update) => Effect.sync(() => void log.push(update.bytes))))
 
     const catchUp = (device: (typeof devices)[number]) =>
       Effect.gen(function* () {
@@ -163,7 +163,7 @@ const run = (seed: number) =>
         device.seen = log.length
 
         if (fresh.length > 0) {
-          record(device, yield* device.graph.merge(fresh))
+          yield* record(device, yield* device.graph.merge(fresh))
         }
 
         yield* save(device)
@@ -171,9 +171,7 @@ const run = (seed: number) =>
 
     const send = (device: (typeof devices)[number], command: Command) =>
       device.graph.dispatch(command).pipe(
-        Effect.map((events) => {
-          record(device, events)
-        }),
+        Effect.flatMap((events) => record(device, events)),
         Effect.catchTag("CommandRejected", () => Effect.void),
       )
 
@@ -184,7 +182,7 @@ const run = (seed: number) =>
         continue
       }
 
-      if (next() < 0.15) {
+      if (draw() < 0.15) {
         yield* catchUp(device)
         continue
       }
@@ -194,22 +192,28 @@ const run = (seed: number) =>
       const page = pick(trees)
       const block = pick(blocks)
       const other = pick(blocks)
-      const roll = next()
+      const roll = draw()
 
       if (page === undefined || roll < 0.06) {
-        const title = `page ${Math.floor(next() * 6)}`
+        const title = `page ${Math.floor(draw() * 6)}`
         yield* send(device, { _tag: "CreatePage", title })
         continue
       }
 
       if (block === undefined || roll < 0.2) {
-        yield* send(device, {
+        const insert = {
           _tag: "InsertBlock",
           pageId: page.page.id,
           parentId: null,
-          ...(block === undefined || block.pageId !== page.page.id ? {} : { after: block.id }),
           text: `t${step}`,
-        })
+        } as const
+
+        yield* send(
+          device,
+          block === undefined || block.pageId !== page.page.id
+            ? insert
+            : { ...insert, after: block.id },
+        )
         continue
       }
 
@@ -219,7 +223,7 @@ const run = (seed: number) =>
           : roll < 0.42
             ? other === undefined || other.id === block.id
               ? undefined
-              : next() < 0.5
+              : draw() < 0.5
                 ? { _tag: "MoveBlocks", blockIds: [block.id], parentId: other.id }
                 : { _tag: "MoveBlocks", blockIds: [block.id], parentId: null, after: other.id }
             : roll < 0.5
@@ -240,7 +244,7 @@ const run = (seed: number) =>
                             ? {
                                 _tag: "RenamePage",
                                 pageId: page.page.id,
-                                title: `page ${Math.floor(next() * 6)}`,
+                                title: `page ${Math.floor(draw() * 6)}`,
                               }
                             : roll < 0.93
                               ? { _tag: "DeletePage", pageId: page.page.id }
@@ -278,8 +282,8 @@ const run = (seed: number) =>
         `two live pages share a name on device ${at}`,
       )
       assert.deepStrictEqual(
-        [...device.model.pages.keys()].toSorted(),
-        trees.map((tree) => tree.page.id).toSorted(),
+        [...device.model.pages.keys()].toSorted(Order.String),
+        trees.map((tree) => tree.page.id).toSorted(Order.String),
         `pages from events on device ${at}`,
       )
 

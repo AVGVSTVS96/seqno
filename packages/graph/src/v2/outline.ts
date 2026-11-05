@@ -1,7 +1,14 @@
-import { Option } from "effect"
+import { Option, Predicate } from "effect"
 import type { LoroDoc, LoroTree, LoroTreeNode, TreeID } from "loro-crdt"
 import type { BlockId, PageId } from "@seqno/domain"
-import { blockFromData, blockIdOf, childrenOf, isTrash, makeTrash } from "../tree.ts"
+import {
+  blockIdOf,
+  blockState,
+  childrenOf,
+  createTrash,
+  decodeBlockData,
+  isTrash,
+} from "../tree.ts"
 import type { BlockState } from "../tree.ts"
 import {
   AT,
@@ -53,7 +60,7 @@ export interface Trees {
   readonly relist: () => void
 }
 
-export const makeTrees = (doc: LoroDoc): Trees => {
+export const treesOf = (doc: LoroDoc): Trees => {
   const dir = directoryOf(doc)
   const trees = new Map<PageId, LoroTree>()
   const trashes = new Map<PageId, LoroTreeNode>()
@@ -79,7 +86,7 @@ export const makeTrees = (doc: LoroDoc): Trees => {
     return read
   }
 
-  const moved = () => (movedHomes ??= new Set(Object.keys(dir.moved.toJSON())))
+  const moved = () => (movedHomes ??= new Set(dir.moved.entries().map(([key]) => key)))
 
   const tree = (page: PageId) => {
     const known = trees.get(page)
@@ -114,7 +121,7 @@ export const makeTrees = (doc: LoroDoc): Trees => {
           const spot = spotOf(page, root)
 
           return !blocks.has(spot.key) && facts(spot).trash
-        }) ?? makeTrash(inTree)
+        }) ?? createTrash(inTree)
 
       trashes.set(page, found)
 
@@ -151,7 +158,7 @@ export interface Item {
   readonly at: Spot
 }
 
-export const spotAt = (trees: Trees, key: unknown): Option.Option<Spot> =>
+export const spotAt = (trees: Trees, key: string): Option.Option<Spot> =>
   Option.flatMap(parseKey(key), ([page, id]) =>
     Option.map(trees.node(page, id), (node) => spotOf(page, node)),
   )
@@ -159,7 +166,7 @@ export const spotAt = (trees: Trees, key: unknown): Option.Option<Spot> =>
 export const homeOf = (trees: Trees, spot: Spot): Spot => {
   const { ref } = trees.facts(spot)
 
-  return ref === undefined ? spot : Option.getOrElse(spotAt(trees, ref), () => spot)
+  return Predicate.isString(ref) ? Option.getOrElse(spotAt(trees, ref), () => spot) : spot
 }
 
 export const placementOf = (trees: Trees, home: Spot): Spot => {
@@ -169,7 +176,7 @@ export const placementOf = (trees: Trees, home: Spot): Spot => {
 
   const at = home.node.data.get(AT)
 
-  return at === undefined ? home : Option.getOrElse(spotAt(trees, at), () => home)
+  return Predicate.isString(at) ? Option.getOrElse(spotAt(trees, at), () => home) : home
 }
 
 export const sameSpot = (a: Spot, b: Spot): boolean => a.key === b.key
@@ -310,16 +317,13 @@ export interface Read extends BlockState {
   readonly at: Spot
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null
-
 export const readView = (trees: Trees, page: PageId): Read[] => {
   const out: Read[] = []
 
   const visit = (spot: Spot, parentId: BlockId | null) => {
     const json: unknown = spot.node.data.toJSON()
 
-    if (!isRecord(json) || json["trash"] === true) {
+    if (!Predicate.isObject(json) || json["trash"] === true) {
       return
     }
 
@@ -335,14 +339,15 @@ export const readView = (trees: Trees, page: PageId): Read[] => {
 
       content = home.node.data.toJSON()
 
-      if (!isRecord(content) || content[AT] !== spot.key) {
+      if (!Predicate.isObject(content) || content[AT] !== spot.key) {
         return
       }
-    } else if (json[AT] !== undefined && Option.isSome(spotAt(trees, json[AT]))) {
+    } else if (Predicate.isString(json[AT]) && Option.isSome(spotAt(trees, json[AT]))) {
       return
     }
 
-    Option.map(blockFromData(content, { pageId: page, parentId }), (state) => {
+    Option.map(decodeBlockData(content), (data) => {
+      const state = blockState(data, { pageId: page, parentId })
       out.push({ ...state, home, at: spot })
 
       for (const child of nodeChildren({ home, at: spot })) {

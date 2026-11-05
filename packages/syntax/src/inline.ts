@@ -58,8 +58,8 @@ const BLOCK_REF_AT = sticky(BLOCK_REF)
 const TAG_AT = sticky(TAG)
 const MACRO_AT = sticky(MACRO)
 const PRIORITY_AT = sticky(PRIORITY)
-const URL_AT = /https?:\/\/[^\s<>()[\]{}"'`]+/yu
-const IMAGE_SIZE_AT = /\{\s*:(?:width|height)\b[^}\n]*\}/yu
+const URL_AT = /https?:\/\/[^\s<>()[\]{}"'`]+/uy
+const IMAGE_SIZE_AT = /\{\s*:(?:width|height)\b[^}\n]*\}/uy
 const URL_TRAILER = /[.,;:!?]+$/u
 const UUID_REF = /^\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\)$/iu
 const PAGE_TARGET = /^\[\[(.+)\]\]$/u
@@ -73,7 +73,7 @@ const orgDelimiters: ReadonlyArray<readonly [string, Emphasis]> = [
   ["+", "Strike"],
 ]
 
-const ORG_LINK_AT = /\[\[([^\]\n]+)\](?:\[([^\]\n]*)\])?\]/yu
+const ORG_LINK_AT = /\[\[([^\]\n]+)\](?:\[([^\]\n]*)\])?\]/uy
 const ORG_PROTOCOL = /^([a-zA-Z][\w+.-]*):(.*)$/u
 
 const LOCAL_ASSET = /^[./]*assets\//u

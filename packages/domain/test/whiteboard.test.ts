@@ -11,9 +11,9 @@ import {
   shapeOf,
   shapeProps,
 } from "@seqno/domain"
-import type { Block } from "@seqno/domain"
+import type { Block, ShapeJson } from "@seqno/domain"
 
-const shapeBlock = (raw: Readonly<Record<string, unknown>>, text = ""): Block => ({
+const shapeBlock = (raw: ShapeJson, text = ""): Block => ({
   id: BlockId.make("01920000-0000-7000-8000-000000000001"),
   pageId: PageId.make("01920000-0000-7000-8000-0000000000aa"),
   parentId: null,

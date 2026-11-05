@@ -1,10 +1,10 @@
-import { Option, Schema } from "effect"
+import { Option, Predicate, Schema } from "effect"
 import { LoroMap } from "loro-crdt"
 import type { LoroDoc, LoroTreeNode, TreeID } from "loro-crdt"
 import { JournalDay, PageId, Props, normalizePageName } from "@seqno/domain"
 import type { Page } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
-import { fileShape, inOrder, isTreeId, readProps } from "../tree.ts"
+import { fileShape, inOrder, isMap, isTreeId, readProps } from "../tree.ts"
 
 export const TITLES = "titles"
 export const DAYS = "days"
@@ -25,8 +25,19 @@ const decodeDay = Schema.decodeUnknownOption(JournalDay)
 const decodeProps = Schema.decodeUnknownOption(Props)
 const decodeKeys = Schema.decodeUnknownOption(Schema.Array(Schema.String))
 
-export const pageOfTree = (name: unknown): Option.Option<PageId> =>
-  typeof name === "string" && name.startsWith(TREE_PREFIX)
+const OwnData = Schema.Struct({
+  props: Schema.optionalKey(Schema.Unknown),
+  propKeys: Schema.optionalKey(Schema.Unknown),
+  format: Schema.optionalKey(Schema.Unknown),
+  frontMatter: Schema.optionalKey(Schema.Unknown),
+})
+
+const decodeOwnData = Schema.decodeUnknownOption(OwnData)
+
+type PathItem = string | number | undefined
+
+export const pageOfTree = (name: PathItem): Option.Option<PageId> =>
+  Predicate.isString(name) && name.startsWith(TREE_PREFIX)
     ? decodePageId(name.slice(TREE_PREFIX.length))
     : Option.none()
 
@@ -81,11 +92,7 @@ export const spotOf = (page: PageId, node: LoroTreeNode): Spot => ({
   key: `${page}|${node.id}`,
 })
 
-export const parseKey = (key: unknown): Option.Option<readonly [PageId, TreeID]> => {
-  if (typeof key !== "string") {
-    return Option.none()
-  }
-
+export const parseKey = (key: string): Option.Option<readonly [PageId, TreeID]> => {
   const bar = key.indexOf("|")
   const id = key.slice(bar + 1)
 
@@ -112,7 +119,7 @@ export const directoryOf = (doc: LoroDoc): Directory => ({
   moved: doc.getMap(MOVED),
 })
 
-export const isDirectory = (name: unknown): boolean =>
+export const isDirectory = (name: PathItem): boolean =>
   name === TITLES || name === DAYS || name === TRASHED || name === MERGED || name === PAGE_DATA
 
 export const pageData = (dir: Directory, page: PageId): Option.Option<LoroMap> => {
@@ -135,7 +142,7 @@ export interface Listing {
 }
 
 const entries = (map: LoroMap): ReadonlyArray<readonly [string, unknown]> =>
-  Object.entries(map.toJSON())
+  map.entries().map(([key, value]) => [key, isMap(value) ? value.toJSON() : value])
 
 export const listPages = (dir: Directory): Listing => {
   const days = new Map(entries(dir.days))
@@ -155,14 +162,14 @@ export const listPages = (dir: Directory): Listing => {
     )
   }
 
-  const data = dir.pageData.toJSON()
+  const data = new Map(entries(dir.pageData))
   const live = new Map<PageId, Page>()
   const titled = new Set<PageId>()
 
   for (const [id, title] of entries(dir.titles)) {
     const page = decodePageId(id)
 
-    if (Option.isNone(page) || typeof title !== "string") {
+    if (Option.isNone(page) || !Predicate.isString(title)) {
       continue
     }
 
@@ -173,22 +180,17 @@ export const listPages = (dir: Directory): Listing => {
       continue
     }
 
-    const own: unknown = data[id]
-
-    const props =
-      typeof own === "object" && own !== null
-        ? inOrder(
-            Option.getOrElse(decodeProps(Reflect.get(own, "props")), () => ({})),
-            Option.getOrElse(decodeKeys(Reflect.get(own, "propKeys")), () => []),
-          )
-        : {}
+    const own = Option.getOrElse(decodeOwnData(data.get(id)), (): typeof OwnData.Type => ({}))
 
     live.set(page.value, {
       id: page.value,
       name,
       title,
       journalDay: Option.getOrNull(decodeDay(days.get(id))),
-      props,
+      props: inOrder(
+        Option.getOrElse(decodeProps(own.props), () => ({})),
+        Option.getOrElse(decodeKeys(own.propKeys), () => []),
+      ),
       ...fileShape(own),
     })
   }

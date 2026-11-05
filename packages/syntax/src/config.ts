@@ -1,4 +1,4 @@
-import { Result } from "effect"
+import { Predicate, Result } from "effect"
 import { readEdn } from "./edn.ts"
 
 export interface PropertyConfig {
@@ -13,7 +13,12 @@ export const defaultPropertyConfig: PropertyConfig = {
   unparsedKeys: new Set(),
 }
 
-const closers: Readonly<Record<string, string>> = { "#{": "}", "[": "]", "(": ")" }
+const closers = new Map([
+  ["#{", "}"],
+  ["[", "]"],
+  ["(", ")"],
+])
+
 const entry = /"((?:[^"\\]|\\.)*)"|:([^\s,"[\](){}]+)/gu
 
 const entriesOf = (edn: string, key: string) => {
@@ -25,7 +30,7 @@ const entriesOf = (edn: string, key: string) => {
   }
 
   const start = at + key.length + open[0].length
-  const end = edn.indexOf(closers[open[1] ?? ""] ?? "}", start)
+  const end = edn.indexOf(closers.get(open[1] ?? "") ?? "}", start)
   const found = [...edn.slice(start, end === -1 ? undefined : end).matchAll(entry)]
 
   return {
@@ -50,7 +55,7 @@ export const propertyConfigKey = ({ listKeys, unparsedKeys }: PropertyConfig): s
   JSON.stringify([[...listKeys].toSorted(), [...unparsedKeys].toSorted()])
 
 const flagPattern = (key: string) =>
-  new RegExp(`^([^;\\n]*?)${key.replaceAll(/[?/.]/gu, "\\$&")}\\s+(true|false)\\b`, "m")
+  new RegExp(`^([^;\\n]*?)${key.replaceAll(/[?/.]/gu, "\\$&")}\\s+(true|false)\\b`, "mu")
 
 export const readConfigFlag = (configEdn: string, key: string, fallback: boolean): boolean => {
   const found = flagPattern(key).exec(configEdn)
@@ -75,17 +80,13 @@ export const writeConfigFlag = (configEdn: string, key: string, value: boolean):
 export const readConfigString = (configEdn: string, key: string): string | null => {
   const edn = Result.getOrElse(readEdn(configEdn), () => null)
 
-  if (edn === null || typeof edn !== "object" || edn._tag !== "Map") {
+  if (!Predicate.isObject(edn) || edn._tag !== "Map") {
     return null
   }
 
   const found = edn.entries.find(
-    ([name]) =>
-      name !== null &&
-      typeof name === "object" &&
-      name._tag === "Keyword" &&
-      `:${name.name}` === key,
+    ([name]) => Predicate.isObject(name) && name._tag === "Keyword" && `:${name.name}` === key,
   )?.[1]
 
-  return typeof found === "string" ? found : null
+  return Predicate.isString(found) ? found : null
 }

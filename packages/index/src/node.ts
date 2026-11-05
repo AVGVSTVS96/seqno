@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite"
 import type { StatementSync } from "node:sqlite"
-import { Effect, Layer } from "effect"
-import { Sqlite, makeSqlite, toIndexError } from "./sqlite.ts"
+import { Effect } from "effect"
+import { layerDriver, toIndexError } from "./sqlite.ts"
 import type { Driver } from "./sqlite.ts"
 
 const statementCache = (db: DatabaseSync, configure: (statement: StatementSync) => void) => {
@@ -64,13 +64,12 @@ const driverOf = (db: DatabaseSync): Driver => {
 }
 
 export const layerNode = (path = ":memory:") =>
-  Layer.effect(
-    Sqlite,
+  layerDriver(
     Effect.acquireRelease(
       Effect.try({ try: () => new DatabaseSync(path), catch: toIndexError }),
       (db) =>
         Effect.sync(() => {
           db.close()
         }),
-    ).pipe(Effect.map((db) => makeSqlite(driverOf(db)))),
+    ).pipe(Effect.map(driverOf)),
   )

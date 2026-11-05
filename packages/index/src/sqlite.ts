@@ -1,4 +1,4 @@
-import { Context, Effect, Schema } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
 
 export const SqlValue = Schema.Union([Schema.String, Schema.Number, Schema.Null])
 
@@ -38,9 +38,9 @@ export class Sqlite extends Context.Service<
 
 const isRow = Schema.is(Row)
 
-const toRow = (row: unknown): Row => {
-  if (isRow(row)) {
-    return row
+const toRows = (rows: readonly unknown[]): readonly Row[] => {
+  if (rows.every(isRow)) {
+    return rows
   }
 
   throw new IndexError({ message: "SQLite returned a value that is not text, a number or null" })
@@ -53,13 +53,13 @@ export const toIndexError = (cause: unknown): IndexError =>
 
 const attempt = <A>(body: () => A) => Effect.try({ try: body, catch: toIndexError })
 
-export const makeSqlite = (driver: Driver) => {
+const sqliteOf = (driver: Driver) => {
   const db: Statements = {
     exec: driver.exec,
     run: (sql, params = []) => {
       driver.run(sql, params)
     },
-    all: (sql, params = []) => driver.all(sql, params).map(toRow),
+    all: (sql, params = []) => toRows(driver.all(sql, params)),
   }
 
   return Sqlite.of({
@@ -85,3 +85,6 @@ export const makeSqlite = (driver: Driver) => {
       }),
   })
 }
+
+export const layerDriver = <E, R>(driver: Effect.Effect<Driver, E, R>) =>
+  Layer.effect(Sqlite, Effect.map(driver, sqliteOf))

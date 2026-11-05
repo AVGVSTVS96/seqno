@@ -1,4 +1,4 @@
-import { Option, Schema } from "effect"
+import { Predicate, Schema } from "effect"
 
 export const LogseqConfig = Schema.Struct({
   journalTitleFormat: Schema.String,
@@ -29,13 +29,19 @@ const ednToken = /"(?:[^"\\]|\\.)*"|;[^\n]*|#\{|[{}[\]()]|[^\s,{}[\]()";]+/gu
 const unquote = (token: string): string =>
   token.slice(1, -1).replaceAll(/\\(.)/gu, (_, char: string) => (char === "n" ? "\n" : char))
 
-const topLevelEntries = (source: string): ReadonlyMap<string, unknown> => {
-  const tokens = [...source.matchAll(ednToken)]
-    .map((match) => match[0])
-    .filter((token) => !token.startsWith(";") && !/^#[^{]/u.test(token))
+type ConfigValue = string | readonly string[]
 
-  const entries = new Map<string, unknown>()
-  const values: unknown[] = []
+const isList = (value: ConfigValue | undefined): value is readonly string[] => Array.isArray(value)
+
+const isSkipped = (token: string) => token.startsWith(";") || /^#[^{]/u.test(token)
+
+const topLevelEntries = (source: string): ReadonlyMap<string, ConfigValue> => {
+  const tokens = [...source.matchAll(ednToken)].flatMap(([token]) =>
+    isSkipped(token) ? [] : [token],
+  )
+
+  const entries = new Map<string, ConfigValue>()
+  const values: ConfigValue[] = []
   let depth = 0
   let collection: string[] = []
 
@@ -61,25 +67,28 @@ const topLevelEntries = (source: string): ReadonlyMap<string, unknown> => {
 
   for (let index = 0; index + 1 < values.length; index += 2) {
     const key = values[index]
+    const value = values[index + 1]
 
-    if (typeof key === "string") {
-      entries.set(key, values[index + 1])
+    if (Predicate.isString(key) && value !== undefined) {
+      entries.set(key, value)
     }
   }
 
   return entries
 }
 
-const decodeString = Schema.decodeUnknownOption(Schema.String)
-const decodeStrings = Schema.decodeUnknownOption(Schema.Array(Schema.String))
-
 const directory = (value: string): string => value.replaceAll(/^\.?\/+|\/+$/gu, "")
 
 export const parseConfig = (source: string): LogseqConfig => {
   const entries = topLevelEntries(source)
 
-  const text = (key: string, fallback: string) =>
-    Option.getOrElse(decodeString(entries.get(key)), () => fallback)
+  const text = (key: string, fallback: string) => {
+    const value = entries.get(key)
+
+    return Predicate.isString(value) ? value : fallback
+  }
+
+  const hidden = entries.get(":hidden")
 
   return {
     journalTitleFormat: text(":journal/page-title-format", defaultConfig.journalTitleFormat),
@@ -91,7 +100,7 @@ export const parseConfig = (source: string): LogseqConfig => {
     whiteboardsDirectory: directory(
       text(":whiteboards-directory", defaultConfig.whiteboardsDirectory),
     ),
-    hidden: Option.getOrElse(decodeStrings(entries.get(":hidden")), () => []).map(directory),
+    hidden: (isList(hidden) ? hidden : []).map(directory),
     preferredFormat:
       text(":preferred-format", "Markdown").toLowerCase() === "org" ? "org" : "markdown",
   }

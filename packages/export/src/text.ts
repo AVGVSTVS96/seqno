@@ -18,9 +18,9 @@ interface Line {
 }
 
 const dedent = (lines: readonly string[]) => {
-  const widths = lines
-    .filter((line) => line.trim() !== "")
-    .map((line) => line.length - line.trimStart().length)
+  const widths = lines.flatMap((line) =>
+    line.trim() === "" ? [] : [line.length - line.trimStart().length],
+  )
 
   const common = widths.length === 0 ? 0 : Math.min(...widths)
 
@@ -194,9 +194,11 @@ export const textOf = (
           })
         } else {
           item.lines.forEach((line, index) => {
-            index === 0 || index === item.lines.length - 1
-              ? push(`${flush}${line.trimStart()}`)
-              : raw(line)
+            if (index === 0 || index === item.lines.length - 1) {
+              push(`${flush}${line.trimStart()}`)
+            } else {
+              raw(line)
+            }
           })
         }
 

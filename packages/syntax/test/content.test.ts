@@ -9,6 +9,34 @@ import {
 } from "../src/index.ts"
 import type { Body, BlockContent } from "../src/index.ts"
 
+const showBody = (body: Body): string => {
+  switch (body._tag) {
+    case "Paragraph": {
+      return `p: ${plainText(body.inline)}`
+    }
+
+    case "Heading": {
+      return `h${body.level}: ${plainText(body.inline)}`
+    }
+
+    case "Code": {
+      return `code ${body.language}: ${body.code}`
+    }
+
+    case "Quote": {
+      return `quote: ${body.lines.map(plainText).join(" / ")}`
+    }
+
+    case "Admonition": {
+      return `${body.kind}: ${body.lines.map(plainText).join(" / ")}`
+    }
+
+    case "Math": {
+      return `math: ${body.tex}`
+    }
+  }
+}
+
 const summary = (content: BlockContent) => ({
   marker: content.marker,
   heading: content.heading,
@@ -16,37 +44,11 @@ const summary = (content: BlockContent) => ({
   properties: content.properties.map((property) => `${property.key}: ${plainText(property.value)}`),
   planning: content.planning.map((entry) => `${entry.kind} <${entry.date}>`),
   logbook: content.logbook === null ? null : clockTotal(content.logbook.seconds),
-  body: content.body.map((body: Body) => {
-    switch (body._tag) {
-      case "Paragraph": {
-        return `p: ${plainText(body.inline)}`
-      }
-
-      case "Heading": {
-        return `h${body.level}: ${plainText(body.inline)}`
-      }
-
-      case "Code": {
-        return `code ${body.language}: ${body.code}`
-      }
-
-      case "Quote": {
-        return `quote: ${body.lines.map(plainText).join(" / ")}`
-      }
-
-      case "Admonition": {
-        return `${body.kind}: ${body.lines.map(plainText).join(" / ")}`
-      }
-
-      case "Math": {
-        return `math: ${body.tex}`
-      }
-    }
-  }),
+  body: content.body.map(showBody),
   numbered: content.numbered,
 })
 
-describe("blockContent", () => {
+describe(blockContent, () => {
   it("reads Logseq's admonitions, in either case, and keeps other directives as code", () => {
     expect(
       summary(blockContent("Before planting\n#+BEGIN_TIP\nwater the **seedlings**\n#+end_tip"))
@@ -115,7 +117,7 @@ describe("blockContent", () => {
 
   it("turns tags and alias values into bare page refs", () => {
     const content = blockContent("alias:: Kitchen Sink\ntags:: design, [[visual check]]")
-    expect(content.title).toBe(null)
+    expect(content.title).toBeNull()
     expect(
       content.properties.map((property) =>
         property.value.map((node) =>
@@ -158,7 +160,7 @@ const shape = (key: string, value: string) =>
     node._tag === "PageRef" ? `${node._tag}:${node.name}:${node.brackets}` : node._tag,
   )
 
-describe("propertyValue", () => {
+describe(propertyValue, () => {
   it("reads tags and alias as bare page refs and other values as inline text", () => {
     expect(shape("tags", "design, [[visual check]]")).toStrictEqual([
       "PageRef:design:false",
@@ -172,7 +174,7 @@ describe("propertyValue", () => {
   })
 })
 
-describe("clockTotal", () => {
+describe(clockTotal, () => {
   it("formats seconds like Logseq", () => {
     expect([35, 300, 5675, 7210, 90_061].map(clockTotal)).toStrictEqual([
       "35s",
@@ -190,13 +192,13 @@ const apply = (text: string, marker: Parameters<typeof setMarker>[1]) => {
   return edit === null ? text : applyEdit(text, edit)
 }
 
-describe("setMarker", () => {
+describe(setMarker, () => {
   it("adds, replaces and removes the task marker", () => {
     expect(apply("Paint the door", "TODO")).toBe("TODO Paint the door")
     expect(apply("TODO Paint the door\nbody", "DONE")).toBe("DONE Paint the door\nbody")
     expect(apply("DONE Paint the door", null)).toBe("Paint the door")
     expect(apply("", "TODO")).toBe("TODO")
-    expect(setMarker("TODO x", "TODO")).toBe(null)
-    expect(setMarker("x", null)).toBe(null)
+    expect(setMarker("TODO x", "TODO")).toBeNull()
+    expect(setMarker("x", null)).toBeNull()
   })
 })

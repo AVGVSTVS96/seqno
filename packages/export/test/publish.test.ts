@@ -30,7 +30,7 @@ const graph = pagesOf({
 const titles = (pages: ReadonlyArray<{ readonly page: { readonly title: string } }>) =>
   pages.map(({ page }) => page.title)
 
-describe("publicPages", () => {
+describe(publicPages, () => {
   it("keeps public:: true pages and their aliases both ways, as Logseq does", () => {
     expect(titles(publicPages(graph, false))).toEqual(["Garden", "Allotment", "Plot", "Notes"])
   })
@@ -46,7 +46,7 @@ describe("publicPages", () => {
   })
 })
 
-describe("allPagesPublic", () => {
+describe(allPagesPublic, () => {
   it("reads :publishing/all-pages-public? and the old key from config.edn", () => {
     expect(allPagesPublic("{:publishing/all-pages-public? true}")).toBe(true)
     expect(allPagesPublic("{:all-pages-public? true\n}")).toBe(true)
@@ -84,7 +84,7 @@ describe("namesLinked and publishedReferences", () => {
   })
 })
 
-describe("publicSite", () => {
+describe(publicSite, () => {
   const data: Published = {
     graph: "My <Graph>",
     theme: "light",

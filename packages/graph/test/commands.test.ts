@@ -723,12 +723,12 @@ describe("events", () => {
 })
 
 const typed = (blockId: BlockId, at: number, text: string): readonly Command[] =>
-  [...text].map((char, offset) => ({
+  [...new Intl.Segmenter().segment(text)].map(({ segment, index }) => ({
     _tag: "EditText",
     blockId,
-    from: at + offset,
-    to: at + offset,
-    insert: char,
+    from: at + index,
+    to: at + index,
+    insert: segment,
   }))
 
 describe("undo steps", () => {

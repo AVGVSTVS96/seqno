@@ -62,12 +62,11 @@ const devices = (peers: readonly string[]) =>
 
 type On = Effect.Success<ReturnType<typeof devices>>
 
-const move = (blockId: BlockId, parentId: BlockId | null, after?: BlockId): Command => ({
-  _tag: "MoveBlocks",
-  blockIds: [blockId],
-  parentId,
-  ...(after === undefined ? {} : { after }),
-})
+const move = (blockId: BlockId, parentId: BlockId | null, after?: BlockId): Command => {
+  const command = { _tag: "MoveBlocks", blockIds: [blockId], parentId } as const
+
+  return after === undefined ? command : { ...command, after }
+}
 
 const remove = (blockId: BlockId): Command => ({ _tag: "DeleteBlocks", blockIds: [blockId] })
 
@@ -88,7 +87,7 @@ interface Case {
 
 const deletePage = (pageId: PageId): Command => ({ _tag: "DeletePage", pageId })
 
-const cases: Record<string, Case> = {
+const cases = {
   "a block dragged below its sibling stays where it was dragged": {
     change: ({ b, c }) => move(b, null, c),
     remove: ({ b }) => remove(b),
@@ -181,10 +180,10 @@ const cases: Record<string, Case> = {
     remove: ({ b }) => remove(b),
     after: "X a c | Y y",
   },
-}
+} satisfies Record<string, Case>
 
 describe("a delete removes only what the deleting device saw", () => {
-  for (const [name, one] of Object.entries(cases)) {
+  for (const [name, one] of Object.entries<Case>(cases)) {
     it.effect(name, () =>
       Effect.scoped(
         Effect.gen(function* () {

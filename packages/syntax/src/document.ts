@@ -42,8 +42,15 @@ interface Open {
 
 export const startsBlock = (line: string): boolean => BULLET.test(line) || HEADING.test(line)
 
-export const width = (indent: string): number =>
-  [...indent].reduce((column, char) => (char === "\t" ? column + 4 - (column % 4) : column + 1), 0)
+export const width = (indent: string): number => {
+  let column = 0
+
+  for (const char of indent) {
+    column = char === "\t" ? column + 4 - (column % 4) : column + 1
+  }
+
+  return column
+}
 
 const fenceOpenedBy = (line: string, ownerWidth: number): Fence | null => {
   const fence = FENCE_OPEN.exec(line)
@@ -56,7 +63,10 @@ const fenceOpenedBy = (line: string, ownerWidth: number): Fence | null => {
       return null
     }
 
-    const closing = new RegExp(`^[ \\t]*${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t\\r]*$`)
+    const closing = new RegExp(
+      `^[ \\t]*${run.startsWith("`") ? "`" : "~"}{${run.length},}[ \\t\\r]*$`,
+      "u",
+    )
 
     return { close: (next) => closing.test(next), ownerWidth }
   }
@@ -72,12 +82,11 @@ const fenceOpenedBy = (line: string, ownerWidth: number): Fence | null => {
   return { close: (next) => next.trimStart().toUpperCase().startsWith(end), ownerWidth }
 }
 
-const freeze = (open: Open): Node => ({
-  indent: open.indent,
-  lines: open.lines,
-  children: open.children.map(freeze),
-  ...(open.bare ? { bare: true } : {}),
-})
+const freeze = (open: Open): Node => {
+  const node = { indent: open.indent, lines: open.lines, children: open.children.map(freeze) }
+
+  return open.bare ? { ...node, bare: true } : node
+}
 
 const frontMatterEnd = (lines: readonly string[]): number => {
   if (lines[0] !== "---" && lines[0] !== "---\r") {

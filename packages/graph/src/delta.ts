@@ -48,7 +48,7 @@ const reader = (ops: TextDelta) => {
 const builder = () => {
   const ops: Op[] = []
 
-  const push = (op: Op): void => {
+  const add = (op: Op): void => {
     if (lengthOf(op) === 0) {
       return
     }
@@ -57,7 +57,7 @@ const builder = () => {
 
     if (op.insert !== undefined && last?.delete !== undefined) {
       ops.pop()
-      push(op)
+      add(op)
       ops.push(last)
 
       return
@@ -76,14 +76,14 @@ const builder = () => {
 
   const done = (): TextDelta => (ops.at(-1)?.retain === undefined ? ops : ops.slice(0, -1))
 
-  return { push, done }
+  return { add, done }
 }
 
 export const splice = (from: number, remove: number, insert: string): TextDelta => {
   const out = builder()
-  out.push({ retain: from })
-  out.push({ insert })
-  out.push({ delete: remove })
+  out.add({ retain: from })
+  out.add({ insert })
+  out.add({ delete: remove })
 
   return out.done()
 }
@@ -95,18 +95,18 @@ export const compose = (first: TextDelta, second: TextDelta): TextDelta => {
 
   while (a.more() || b.more()) {
     if (b.isInsert()) {
-      out.push(b.next())
+      out.add(b.next())
     } else if (a.isDelete()) {
-      out.push(a.next())
+      out.add(a.next())
     } else {
       const length = Math.min(a.peekLength(), b.peekLength())
       const left = a.next(length)
       const right = b.next(length)
 
       if (right.retain !== undefined) {
-        out.push(left)
+        out.add(left)
       } else if (left.retain !== undefined) {
-        out.push(right)
+        out.add(right)
       }
     }
   }
@@ -121,16 +121,16 @@ export const transform = (applied: TextDelta, pending: TextDelta): TextDelta => 
 
   while (a.more() || b.more()) {
     if (a.isInsert()) {
-      out.push({ retain: lengthOf(a.next()) })
+      out.add({ retain: lengthOf(a.next()) })
     } else if (b.isInsert()) {
-      out.push(b.next())
+      out.add(b.next())
     } else {
       const length = Math.min(a.peekLength(), b.peekLength())
       const left = a.next(length)
       const right = b.next(length)
 
       if (left.delete === undefined) {
-        out.push(right)
+        out.add(right)
       }
     }
   }
@@ -147,12 +147,12 @@ export const invert = (delta: TextDelta, base: string): TextDelta => {
 
   for (const op of delta) {
     if (op.insert !== undefined) {
-      out.push({ delete: op.insert.length })
+      out.add({ delete: op.insert.length })
     } else if (op.delete === undefined) {
-      out.push({ retain: lengthOf(op) })
+      out.add({ retain: lengthOf(op) })
       at += lengthOf(op)
     } else {
-      out.push({ insert: base.slice(at, at + op.delete) })
+      out.add({ insert: base.slice(at, at + op.delete) })
       at += op.delete
     }
   }

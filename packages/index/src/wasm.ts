@@ -1,8 +1,8 @@
 import init from "@sqlite.org/sqlite-wasm"
 import type { Database, PreparedStatement } from "@sqlite.org/sqlite-wasm"
-import { Effect, Layer } from "effect"
-import { IndexError, Sqlite, makeSqlite, toIndexError } from "./sqlite.ts"
-import type { Driver } from "./sqlite.ts"
+import { Effect } from "effect"
+import { layerDriver, toIndexError } from "./sqlite.ts"
+import type { Driver, IndexError } from "./sqlite.ts"
 
 const sqlite3 = Effect.tryPromise({ try: async () => await init(), catch: toIndexError })
 
@@ -77,7 +77,10 @@ const driverOf = (module: Module, db: Database): Driver => {
         scratch.close()
       }
 
-      cache.forEach((statement) => statement.finalize())
+      for (const statement of cache.values()) {
+        statement.finalize()
+      }
+
       cache.clear()
       into(db, image)
     },
@@ -85,14 +88,13 @@ const driverOf = (module: Module, db: Database): Driver => {
 }
 
 const layerOf = (open: (module: Module) => Effect.Effect<Database, IndexError>) =>
-  Layer.effect(
-    Sqlite,
+  layerDriver(
     Effect.flatMap(sqlite3, (module) =>
       Effect.acquireRelease(open(module), (db) =>
         Effect.sync(() => {
           db.close()
         }),
-      ).pipe(Effect.map((db) => makeSqlite(driverOf(module, db)))),
+      ).pipe(Effect.map((db) => driverOf(module, db))),
     ),
   )
 

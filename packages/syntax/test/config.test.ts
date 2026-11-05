@@ -32,8 +32,8 @@ describe("config strings", () => {
       '{:meta/version 1\n ;; :custom-css-url "commented"\n :custom-css-url "https://example.com/theme.css"}'
 
     expect(readConfigString(source, ":custom-css-url")).toBe("https://example.com/theme.css")
-    expect(readConfigString(source, ":meta/version")).toBe(null)
-    expect(readConfigString("{:meta/version 1}", ":custom-css-url")).toBe(null)
-    expect(readConfigString('{:custom-css-url "x"', ":custom-css-url")).toBe(null)
+    expect(readConfigString(source, ":meta/version")).toBeNull()
+    expect(readConfigString("{:meta/version 1}", ":custom-css-url")).toBeNull()
+    expect(readConfigString('{:custom-css-url "x"', ":custom-css-url")).toBeNull()
   })
 })

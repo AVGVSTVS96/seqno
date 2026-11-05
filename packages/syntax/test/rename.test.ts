@@ -8,7 +8,7 @@ const isBeds = (name: string) => name === "beds"
 const renamed = (text: string, title: string) =>
   renameRefs(text, isGardenPlan, title).reduce(applyEdit, text)
 
-describe("renameRefs", () => {
+describe(renameRefs, () => {
   it("rewrites links, tags and bracketed tags to the new title", () => {
     expect(
       renamed(
@@ -34,7 +34,7 @@ describe("renameRefs", () => {
   })
 })
 
-describe("renameInProperty", () => {
+describe(renameInProperty, () => {
   it("rewrites list items in tags and alias, and links in other values", () => {
     expect(renameInProperty("tags", "Garden Plan, compost", isGardenPlan, "Garden Plan X")).toBe(
       "Garden Plan X, compost",

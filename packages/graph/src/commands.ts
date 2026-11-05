@@ -1,4 +1,5 @@
-import { Clock, Crypto, Data, Effect, Option } from "effect"
+import type { Crypto } from "effect"
+import { Clock, Data, Effect, Option } from "effect"
 import type { LoroTree, LoroTreeNode, TreeID } from "loro-crdt"
 import { Command, newBlockId, newPageId, normalizePageName } from "@seqno/domain"
 import type { BlockDraft, BlockId, Page, PageId, PropertyTarget } from "@seqno/domain"
@@ -10,7 +11,7 @@ import {
   blockIdOf,
   isCollapsed,
   isTrash,
-  makeTrash,
+  createTrash,
   readPage,
   readProps,
   textOf,
@@ -73,7 +74,7 @@ export const trashOf = (ws: Places): LoroTreeNode => {
 
   const found =
     ws.tree.roots().find((root) => !ws.tree.isNodeDeleted(root.id) && isTrash(root)) ??
-    makeTrash(ws.tree)
+    createTrash(ws.tree)
 
   ws.registry.trash = found.id
 
@@ -110,8 +111,9 @@ const selection = (ws: Workspace, ids: readonly BlockId[]) =>
       const chosen = new Map(nodes.map((node) => [node.id, node]))
 
       return [...chosen.values()]
-        .filter((node) => !ancestors(node).some((up) => chosen.has(up.id)))
-        .map((node) => ({ node, at: position(node) }))
+        .flatMap((node) =>
+          ancestors(node).some((up) => chosen.has(up.id)) ? [] : [{ node, at: position(node) }],
+        )
         .toSorted((a, b) => byPosition(a.at, b.at))
         .map(({ node }) => node)
     },
@@ -295,7 +297,7 @@ export const applyCommand = (ws: Workspace, command: Command) =>
           return yield* createBlock(ws, parent, index, "")
         }
 
-        const tail = text.slice(at, text.length)
+        const tail = text.toString().slice(at)
         ws.record.edit(node.data, at, text.length - at, "")
         yield* touch(ws, node)
         const nests = childrenOf(node).length > 0 && !isCollapsed(node)

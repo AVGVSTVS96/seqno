@@ -48,13 +48,13 @@ export interface PluginParts {
   readonly "plugin-setting-choice-input": readonly [boolean]
 }
 
-const settingKinds: Readonly<Record<string, string>> = {
-  string: "as-input",
-  number: "as-input",
-  boolean: "as-toggle",
-  enum: "as-enum",
-  object: "as-object",
-}
+const settingKinds: ReadonlyMap<string, string> = new Map([
+  ["string", "as-input"],
+  ["number", "as-input"],
+  ["boolean", "as-toggle"],
+  ["enum", "as-enum"],
+  ["object", "as-object"],
+])
 
 export const pluginParts: Table<PluginParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/libs/src/LSPlugin.caller.ts#L234
@@ -154,7 +154,7 @@ export const pluginParts: Table<PluginParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins_settings.cljs#L119
   "plugin-settings-inner": () => ({ className: "cp__plugins-settings-inner" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins_settings.cljs#L31-L86
-  "plugin-setting": (type) => ({ className: names("desc-item", settingKinds[type]) }),
+  "plugin-setting": (type) => ({ className: names("desc-item", settingKinds.get(type)) }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins_settings.cljs#L97
   "plugin-setting-heading-item": () => ({ className: "heading-item" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/plugins_settings.cljs#L40-L41

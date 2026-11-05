@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { parseTimestamp, parseVideo } from "../src/index.ts"
 
-describe("parseVideo", () => {
+describe(parseVideo, () => {
   it.each([
     ["https://www.youtube.com/watch?v=dQw4w9WgXcQ", 0],
     ["https://youtube.com/watch?feature=share&v=dQw4w9WgXcQ&t=42", 42],
@@ -57,7 +57,7 @@ describe("parseVideo", () => {
   })
 })
 
-describe("parseTimestamp", () => {
+describe(parseTimestamp, () => {
   it.each([
     ["90", 90],
     ["1:30", 90],

@@ -1,4 +1,4 @@
-import { Option, Result } from "effect"
+import { Option, Result, Struct } from "effect"
 import type { Block, BlockId, JournalDay, Page, PageId } from "@seqno/domain"
 import { defaultConfig } from "./config.ts"
 import type { LogseqConfig } from "./config.ts"
@@ -127,6 +127,12 @@ const outlineBlocks = (
   return flatten(outline, null)
 }
 
+const trimmed = (text: string | undefined): string | undefined => {
+  const value = text?.trim()
+
+  return value === "" ? undefined : value
+}
+
 export const readFile = (
   file: PageFile,
   text: string,
@@ -137,7 +143,7 @@ export const readFile = (
 
   if (file.kind === "whiteboard") {
     return Result.map(readWhiteboard(text), (board) => ({
-      page: { title: board.title?.trim() || fileTitle, journalDay: null, props: board.props },
+      page: { title: trimmed(board.title) ?? fileTitle, journalDay: null, props: board.props },
       blocks: (pageId, idFor) => whiteboardBlocks(board, pageId, idFor),
     }))
   }
@@ -146,7 +152,7 @@ export const readFile = (
   const journalDay = journalDayOf(file, config)
 
   const title =
-    outline.props[titleKey(outline.props) ?? "title"]?.trim() ||
+    trimmed(outline.props[titleKey(outline.props) ?? "title"]) ??
     Option.match(journalDay, {
       onNone: () => fileTitle,
       onSome: (day) => formatJournalDay(day, config.journalTitleFormat),
@@ -157,8 +163,8 @@ export const readFile = (
       title,
       journalDay: Option.getOrNull(journalDay),
       props: outline.props,
-      ...(outline.frontMatter === true ? { frontMatter: true } : {}),
-      ...(file.format === undefined ? {} : { format: file.format }),
+      ...Struct.pick(outline, ["frontMatter"]),
+      ...Struct.pick(file, ["format"]),
     },
     blocks: (pageId, idFor) => outlineBlocks(outline.blocks, pageId, idFor),
   })

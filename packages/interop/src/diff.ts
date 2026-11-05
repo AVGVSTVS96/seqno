@@ -18,9 +18,7 @@ const myers = (
   const goesDown = (row: Int32Array, k: number, d: number) =>
     k === -d || (k !== d && at(row, k - 1) < at(row, k + 1))
 
-  outer: for (let d = 0; d <= max; d++) {
-    trace.push(v.slice())
-
+  const reachesEnd = (d: number) => {
     for (let k = -d; k <= d; k += 2) {
       let x = goesDown(v, k, d) ? at(v, k + 1) : at(v, k - 1) + 1
       let y = x - k
@@ -33,8 +31,18 @@ const myers = (
       v[offset + k] = x
 
       if (x >= n && y >= m) {
-        break outer
+        return true
       }
+    }
+
+    return false
+  }
+
+  for (let d = 0; d <= max; d++) {
+    trace.push(new Int32Array(v))
+
+    if (reachesEnd(d)) {
+      break
     }
   }
 
@@ -214,6 +222,16 @@ const hunksOf = (base: readonly string[], other: readonly string[]) => {
   return out
 }
 
+const characters = (text: string): readonly string[] => {
+  const points: string[] = []
+
+  for (const point of text) {
+    points.push(point)
+  }
+
+  return points
+}
+
 const touches = (hunk: Hunk, from: number, to: number) =>
   (hunk.from < to && hunk.to > from) ||
   hunk.from === from ||
@@ -228,9 +246,9 @@ export const merge3Text = (base: string, disk: string, page: string): string => 
     return page
   }
 
-  const points = [...base]
-  const fromDisk = hunksOf(points, [...disk])
-  const fromPage = hunksOf(points, [...page])
+  const points = characters(base)
+  const fromDisk = hunksOf(points, characters(disk))
+  const fromPage = hunksOf(points, characters(page))
   const out: string[] = []
   let position = 0
   let d = 0
@@ -293,8 +311,8 @@ export const merge3Text = (base: string, disk: string, page: string): string => 
     const diskText = rebuilt(disks)
     const pageText = rebuilt(pages)
     const inserts = span.from === span.to
-    out.push(points.slice(position, span.from).join(""))
     out.push(
+      points.slice(position, span.from).join(""),
       pages.length === 0
         ? diskText
         : disks.length === 0

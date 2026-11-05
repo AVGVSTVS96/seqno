@@ -1,7 +1,13 @@
-import { javaHash, murmurChars, murmurInt, readEdn } from "@seqno/syntax"
+import { javaHash, murmurChars, murmurInt } from "@seqno/syntax"
 import type { Edn } from "@seqno/syntax"
+import { Predicate } from "effect"
+import type { Schema } from "effect"
 
-export { murmurChars, readEdn, type Edn }
+export { murmurChars, readEdn, type Edn } from "@seqno/syntax"
+
+type EdnNode = Exclude<Edn, string | number | boolean | null>
+
+const isNode = (value: Edn | undefined): value is EdnNode => Predicate.isObject(value)
 
 export const keyword = (name: string): Edn => ({ _tag: "Keyword", name })
 export const uuid = (value: string): Edn => ({ _tag: "Tagged", tag: "uuid", value })
@@ -29,17 +35,17 @@ const keywordHash = (name: string) => {
   const parts = name.split("/")
   const [ns, local] = parts.length === 2 ? parts : [null, name]
 
-  return (
-    (hashCombine(murmurChars(local ?? name), ns === null ? 0 : javaHash(ns)) + 0x9e_37_79_b9) | 0
+  return Math.trunc(
+    hashCombine(murmurChars(local ?? name), ns === null ? 0 : javaHash(ns)) + 0x9e_37_79_b9,
   )
 }
 
 const keyHash = (key: Edn): number | null => {
-  if (typeof key === "string") {
+  if (Predicate.isString(key)) {
     return murmurInt(javaHash(key))
   }
 
-  if (key !== null && typeof key === "object" && key._tag === "Keyword") {
+  if (isNode(key) && key._tag === "Keyword") {
     return keywordHash(key.name)
   }
 
@@ -78,32 +84,32 @@ export const hashOrder = (
 
 const QUOTED = /["\\\b\f\n\r\t]/gu
 
-const QUOTES: Readonly<Record<string, string>> = {
-  '"': '\\"',
-  "\\": "\\\\",
-  "\b": "\\b",
-  "\f": "\\f",
-  "\n": "\\n",
-  "\r": "\\r",
-  "\t": "\\t",
-}
+const QUOTES = new Map([
+  ['"', '\\"'],
+  ["\\", "\\\\"],
+  ["\b", "\\b"],
+  ["\f", "\\f"],
+  ["\n", "\\n"],
+  ["\r", "\\r"],
+  ["\t", "\\t"],
+])
 
-const quote = (text: string) => `"${text.replaceAll(QUOTED, (char) => QUOTES[char] ?? char)}"`
+const quote = (text: string) => `"${text.replaceAll(QUOTED, (char) => QUOTES.get(char) ?? char)}"`
 
 export const printEdn = (value: Edn): string => {
   if (value === null) {
     return "nil"
   }
 
-  if (typeof value === "string") {
+  if (Predicate.isString(value)) {
     return quote(value)
   }
 
-  if (typeof value === "number") {
+  if (Predicate.isNumber(value)) {
     return printNumber(value)
   }
 
-  if (typeof value === "boolean") {
+  if (Predicate.isBoolean(value)) {
     return String(value)
   }
 
@@ -141,11 +147,11 @@ export const printEdn = (value: Edn): string => {
 }
 
 export const mapEntries = (value: Edn): ReadonlyArray<readonly [Edn, Edn]> =>
-  value !== null && typeof value === "object" && value._tag === "Map" ? value.entries : []
+  isNode(value) && value._tag === "Map" ? value.entries : []
 
 export const entriesOf = (value: Edn): ReadonlyMap<string, Edn> =>
   new Map(
-    value !== null && typeof value === "object" && value._tag === "Map"
+    isNode(value) && value._tag === "Map"
       ? value.entries.flatMap(([key, item]) => {
           const name = textOf(key)
 
@@ -155,11 +161,11 @@ export const entriesOf = (value: Edn): ReadonlyMap<string, Edn> =>
   )
 
 export const textOf = (value: Edn | undefined): string | null => {
-  if (typeof value === "string") {
+  if (Predicate.isString(value)) {
     return value
   }
 
-  if (value === null || value === undefined || typeof value !== "object") {
+  if (!isNode(value)) {
     return null
   }
 
@@ -171,21 +177,12 @@ export const textOf = (value: Edn | undefined): string | null => {
 }
 
 export const itemsOf = (value: Edn | undefined): readonly Edn[] =>
-  value !== null &&
-  value !== undefined &&
-  typeof value === "object" &&
-  (value._tag === "List" || value._tag === "Vector" || value._tag === "Set")
+  isNode(value) && (value._tag === "List" || value._tag === "Vector" || value._tag === "Set")
     ? value.items
     : []
 
-export type Json = string | number | boolean | null | readonly Json[] | JsonObject
-
-export interface JsonObject {
-  readonly [key: string]: Json
-}
-
-export const toJson = (value: Edn): Json => {
-  if (value === null || typeof value !== "object") {
+export const toJson = (value: Edn): Schema.Json => {
+  if (!isNode(value)) {
     return value
   }
 
@@ -213,26 +210,24 @@ export const toJson = (value: Edn): Json => {
   }
 }
 
-export const fromJson = (value: unknown): Edn => {
-  if (value === null || value === undefined) {
-    return null
-  }
+export const isJsonArray = (value: Schema.Json | undefined): value is Schema.JsonArray =>
+  Array.isArray(value)
 
-  if (typeof value === "string" || typeof value === "boolean") {
-    return value
-  }
+export const isJsonObject = (value: Schema.Json | undefined): value is Schema.JsonObject =>
+  Predicate.isObject(value)
 
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null
-  }
-
-  if (Array.isArray(value)) {
+export const fromJson = (value: Schema.Json): Edn => {
+  if (isJsonArray(value)) {
     return vector(value.map(fromJson))
   }
 
-  if (typeof value === "object") {
+  if (isJsonObject(value)) {
     return map(Object.entries(value).map(([key, item]) => [key, fromJson(item)]))
   }
 
-  return null
+  if (Predicate.isNumber(value)) {
+    return Number.isFinite(value) ? value : null
+  }
+
+  return value
 }

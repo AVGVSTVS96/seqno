@@ -1,3 +1,4 @@
+import { Predicate } from "effect"
 import { SCHEMA as QUERY_SCHEMA } from "@seqno/query"
 import type { Statements } from "./sqlite.ts"
 
@@ -20,7 +21,7 @@ const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`
 export const schemaVersion = (db: Statements): number => {
   const version = db.all("PRAGMA user_version")[0]?.[0]
 
-  return typeof version === "number" ? version : 0
+  return Predicate.isNumber(version) ? version : 0
 }
 
 export const recreate = (db: Statements): void => {
@@ -39,7 +40,7 @@ export const recreate = (db: Statements): void => {
 export const readStamp = (db: Statements): string | null => {
   const stamp = db.all("SELECT value FROM meta WHERE key = 'stamp'")[0]?.[0]
 
-  return typeof stamp === "string" ? stamp : null
+  return Predicate.isString(stamp) ? stamp : null
 }
 
 export const writeStamp = (db: Statements, stamp: string | null): void => {

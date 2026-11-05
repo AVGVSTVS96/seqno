@@ -1,12 +1,7 @@
-import { Effect, Layer, Queue, Schema, Stream } from "effect"
+import { Effect, Layer, Match, Option, Queue, Schema, Stream } from "effect"
 import { Entry, FileUnavailable, Storage, StorageFailed } from "./storage.ts"
 
 declare global {
-  // https://wicg.github.io/file-system-access/#api-filesystemhandle-querypermission is Chrome-only and missing from lib.dom
-  interface FileSystemHandle {
-    queryPermission(descriptor: { mode: "read" | "readwrite" }): Promise<PermissionState>
-  }
-
   // https://github.com/whatwg/fs/pull/165 adds FileSystemObserver, which lib.dom doesn't have yet
   interface FileSystemChangeRecord {
     readonly type: "appeared" | "disappeared" | "errored" | "modified" | "moved" | "unknown"
@@ -14,8 +9,8 @@ declare global {
   }
 
   interface FileSystemObserver {
-    observe(handle: FileSystemHandle, options?: { readonly recursive?: boolean }): Promise<void>
-    disconnect(): void
+    observe: (handle: FileSystemHandle, options?: { readonly recursive?: boolean }) => Promise<void>
+    disconnect: () => void
   }
 
   interface Window {
@@ -37,7 +32,7 @@ const failed = (path: string) => (cause: unknown) =>
 const segments = (path: string): readonly string[] =>
   path.split("/").filter((part) => part.length > 0)
 
-const split = (path: string): { readonly dirs: readonly string[]; readonly name: string } => {
+const split = (path: string) => {
   const parts = segments(path)
 
   return { dirs: parts.slice(0, -1), name: parts.at(-1) ?? "" }
@@ -57,18 +52,30 @@ const walk = async (
   return dir
 }
 
-const listDir = async (root: FileSystemDirectoryHandle, path: string) => {
-  const dir = await walk(root, segments(path), false).catch((error: unknown) =>
-    nameOf(error) === "NotFoundError" ? undefined : Promise.reject(error),
-  )
+const openDir = async (
+  root: FileSystemDirectoryHandle,
+  path: string,
+): Promise<Option.Option<FileSystemDirectoryHandle>> => {
+  try {
+    return Option.some(await walk(root, segments(path), false))
+  } catch (error) {
+    if (nameOf(error) === "NotFoundError") {
+      return Option.none()
+    }
 
+    throw error
+  }
+}
+
+const listDir = async (root: FileSystemDirectoryHandle, path: string) => {
+  const dir = await openDir(root, path)
   const entries: Entry[] = []
 
-  if (dir === undefined) {
+  if (Option.isNone(dir)) {
     return entries
   }
 
-  for await (const handle of dir.values()) {
+  for await (const handle of dir.value.values()) {
     entries.push(
       handle.kind === "directory"
         ? Entry.Directory({ name: handle.name })
@@ -90,11 +97,11 @@ const readFile = async (root: FileSystemDirectoryHandle, path: string) =>
   new Uint8Array(await (await openFile(root, path)).arrayBuffer())
 
 const unavailable = (path: string) => (cause: unknown) =>
-  nameOf(cause) === "NotFoundError"
-    ? new FileUnavailable({ path, reason: "missing" })
-    : nameOf(cause) === "NotReadableError"
-      ? new FileUnavailable({ path, reason: "not-downloaded" })
-      : failed(path)(cause)
+  Match.value(nameOf(cause)).pipe(
+    Match.when("NotFoundError", () => new FileUnavailable({ path, reason: "missing" })),
+    Match.when("NotReadableError", () => new FileUnavailable({ path, reason: "not-downloaded" })),
+    Match.orElse(() => failed(path)(cause)),
+  )
 
 const writeFile = async (root: FileSystemDirectoryHandle, path: string, bytes: Uint8Array) => {
   const { dirs, name } = split(path)
@@ -105,7 +112,7 @@ const writeFile = async (root: FileSystemDirectoryHandle, path: string, bytes: U
     await writable.write(new Uint8Array(bytes))
     await writable.close()
   } catch (error) {
-    await writable.abort().catch(() => undefined)
+    await writable.abort().catch(() => {})
     throw error
   }
 }
@@ -163,7 +170,7 @@ export const directoryChanges = (
     : Stream.callback<readonly string[]>((queue) =>
         Effect.acquireRelease(
           Effect.promise(async () => {
-            const observer = new Observer((records) =>
+            const observer = new Observer((records) => {
               Queue.offerUnsafe(
                 queue,
                 records.map((record) =>
@@ -171,10 +178,10 @@ export const directoryChanges = (
                     ? ""
                     : record.relativePathComponents.join("/"),
                 ),
-              ),
-            )
+              )
+            })
 
-            await observer.observe(root, { recursive: true }).catch(() => undefined)
+            await observer.observe(root, { recursive: true }).catch(() => {})
 
             return observer
           }),
@@ -202,6 +209,17 @@ export const layerOpfs = (graph: string): Layer.Layer<Storage, StorageFailed> =>
     }),
   )
 
+interface PermissionQuery {
+  readonly queryPermission: (descriptor: { mode: "readwrite" }) => Promise<PermissionState>
+}
+
+const canQueryPermission = (
+  handle: FileSystemHandle,
+): handle is FileSystemHandle & PermissionQuery => "queryPermission" in handle
+
+const permissionOf = async (handle: FileSystemHandle): Promise<PermissionState> =>
+  canQueryPermission(handle) ? await handle.queryPermission({ mode: "readwrite" }) : "granted"
+
 export const layerDirectoryHandle = (
   folder: FileSystemDirectoryHandle,
 ): Layer.Layer<Storage, PermissionNeeded | StorageFailed> =>
@@ -209,7 +227,7 @@ export const layerDirectoryHandle = (
     Storage,
     Effect.flatMap(
       Effect.tryPromise({
-        try: async () => await folder.queryPermission({ mode: "readwrite" }),
+        try: async () => await permissionOf(folder),
         catch: failed(folder.name),
       }),
       (state) =>

@@ -7,8 +7,8 @@ Real git over a graph's markdown files, in the browser, with isomorphic-git. It'
 | Export                          | What it does                                                                                                                                                       |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `makeGit(options)`              | The Effect API the core worker uses: `run(args)`, `commitAll(message, only?)` and `history(path)`, one operation at a time.                                        |
-| `makeRepo(options)`             | The operations underneath: init, stage everything (`git add -A`), commit, `status --porcelain`, a file's log, a blob at a commit, and two-tree diffs.              |
-| `makeCli(repo, graphPath)`      | Runs git's command line: `{ stdout, stderr, exitCode }` the way dugite returns them to Logseq.                                                                     |
+| `openRepo(options)`             | The operations underneath: init, stage everything (`git add -A`), commit, `status --porcelain`, a file's log, a blob at a commit, and two-tree diffs.              |
+| `gitCli(repo, graphPath)`       | Runs git's command line: `{ stdout, stderr, exitCode }` the way dugite returns them to Logseq.                                                                     |
 | `@seqno/git/browser` `handleFs` | isomorphic-git's file system over two File System Access folders: the graph folder is the work tree, and `/.git` maps to whichever folder holds the git directory. |
 | `lockIndex(gitdir)`             | Takes `.git/index.lock` the way git does, so seqno and Logseq desktop's git never write one index at once. Returns `null` while someone else holds it.             |
 

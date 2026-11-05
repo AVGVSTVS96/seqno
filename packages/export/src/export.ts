@@ -38,7 +38,7 @@ const inlinesOf = (shelf: Shelf, options: BlockOptions): Inlines => ({
     const block = shelf.block(uuid)
 
     if (block === undefined) {
-      return undefined
+      return
     }
 
     return shelf.dialect(block.pageId) === "org"

@@ -237,10 +237,10 @@ export const readLogseq = (src: string): Query => {
 
   return finishQuery({
     find: acc.pages ? "pages" : "blocks",
-    ...(where ? { where } : {}),
-    ...(acc.sort.length > 0 ? { sort: acc.sort } : {}),
-    ...(acc.group ? { group: acc.group } : {}),
-    ...(acc.view ? { view: acc.view } : {}),
-    ...(acc.limit === undefined ? {} : { limit: acc.limit }),
+    where,
+    sort: acc.sort,
+    group: acc.group,
+    view: acc.view,
+    limit: acc.limit,
   })
 }

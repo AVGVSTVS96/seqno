@@ -16,7 +16,7 @@ export {
   Row,
   Sqlite,
   SqlValue,
-  makeSqlite,
+  layerDriver,
   type Driver,
   type Statements,
 } from "./sqlite.ts"

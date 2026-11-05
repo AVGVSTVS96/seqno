@@ -1,4 +1,4 @@
-import { Result } from "effect"
+import { Predicate, Result } from "effect"
 
 export type Edn =
   | string
@@ -17,21 +17,21 @@ const SPACE = /[\s,]/u
 const DELIMITER = /[\s,()[\]{}"\\;]/u
 const NUMBER = /^[+-]?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?M?$|^[+-]?\d+N$/u
 
-const ESCAPES: Readonly<Record<string, string>> = {
-  n: "\n",
-  t: "\t",
-  r: "\r",
-  b: "\b",
-  f: "\f",
-  '"': '"',
-  "\\": "\\",
-}
+const ESCAPES = new Map([
+  ["n", "\n"],
+  ["t", "\t"],
+  ["r", "\r"],
+  ["b", "\b"],
+  ["f", "\f"],
+  ['"', '"'],
+  ["\\", "\\"],
+])
 
-const SYMBOLIC: Readonly<Record<string, number>> = {
-  NaN: Number.NaN,
-  Inf: Number.POSITIVE_INFINITY,
-  "-Inf": Number.NEGATIVE_INFINITY,
-}
+const SYMBOLIC = new Map([
+  ["NaN", Number.NaN],
+  ["Inf", Number.POSITIVE_INFINITY],
+  ["-Inf", Number.NEGATIVE_INFINITY],
+])
 
 class Reader {
   at = 0
@@ -108,10 +108,12 @@ class Reader {
         const next = this.text[this.at + 1] ?? ""
 
         if (next === "u") {
-          out += String.fromCharCode(Number.parseInt(this.text.slice(this.at + 2, this.at + 6), 16))
+          out += String.fromCodePoint(
+            Number.parseInt(this.text.slice(this.at + 2, this.at + 6), 16) & 0xff_ff,
+          )
           this.at += 6
         } else {
-          out += ESCAPES[next] ?? next
+          out += ESCAPES.get(next) ?? next
           this.at += 2
         }
       } else {
@@ -176,7 +178,7 @@ class Reader {
 
     if (char === "#" && this.text[this.at + 1] === "#") {
       this.at += 2
-      const symbolic = SYMBOLIC[this.token()]
+      const symbolic = SYMBOLIC.get(this.token())
 
       return symbolic ?? this.fail("unknown ## value")
     }
@@ -197,7 +199,16 @@ class Reader {
     if (char === "\\") {
       this.at += 1
 
-      return this.token() || this.text[this.at++] || ""
+      const name = this.token()
+
+      if (name !== "") {
+        return name
+      }
+
+      const single = this.text[this.at] ?? ""
+      this.at += 1
+
+      return single
     }
 
     const token = this.token()
@@ -255,18 +266,18 @@ type Doc =
 
 const textDoc = (value: string): Doc => ({ _tag: "Text", text: value })
 
-const FIPP_QUOTES: Readonly<Record<string, string>> = {
-  '"': '\\"',
-  "\\": "\\\\",
-  "\b": "\\b",
-  "\f": "\\f",
-  "\n": "\\n",
-  "\r": "\\r",
-  "\t": "\\t",
-}
+const FIPP_QUOTES = new Map([
+  ['"', '\\"'],
+  ["\\", "\\\\"],
+  ["\b", "\\b"],
+  ["\f", "\\f"],
+  ["\n", "\\n"],
+  ["\r", "\\r"],
+  ["\t", "\\t"],
+])
 
 const prString = (value: string) =>
-  `"${value.replaceAll(/["\\\b\f\n\r\t]/gu, (char) => FIPP_QUOTES[char] ?? char)}"`
+  `"${value.replaceAll(/["\\\b\f\n\r\t]/gu, (char) => FIPP_QUOTES.get(char) ?? char)}"`
 
 const prNumber = (value: number) =>
   Number.isNaN(value)
@@ -295,15 +306,15 @@ const docOf = (value: Edn): Doc => {
     return textDoc("nil")
   }
 
-  if (typeof value === "string") {
+  if (Predicate.isString(value)) {
     return textDoc(prString(value))
   }
 
-  if (typeof value === "number") {
+  if (Predicate.isNumber(value)) {
     return textDoc(prNumber(value))
   }
 
-  if (typeof value === "boolean") {
+  if (Predicate.isBoolean(value)) {
     return textDoc(String(value))
   }
 
@@ -320,8 +331,7 @@ const docOf = (value: Edn): Doc => {
       const form = value.value
 
       const compound =
-        form !== null &&
-        typeof form === "object" &&
+        Predicate.isObject(form) &&
         (form._tag === "Vector" ||
           form._tag === "List" ||
           form._tag === "Set" ||
@@ -429,30 +439,32 @@ export const printFipp = (value: Edn, width = 70): string => {
 
 const imul = Math.imul
 const rotl = (x: number, k: number) => (x << k) | (x >>> (32 - k))
-const mixK1 = (k1: number) => imul(rotl(imul(k1 | 0, 0xcc_9e_2d_51 | 0), 15), 0x1b_87_35_93)
+const mixK1 = (k1: number) => imul(rotl(imul(k1, 0xcc_9e_2d_51), 15), 0x1b_87_35_93)
 
-const mixH1 = (h1: number, k1: number) =>
-  (imul(rotl((h1 | 0) ^ (k1 | 0), 13), 5) + 0xe6_54_6b_64) | 0
+const mixH1 = (h1: number, k1: number) => imul(rotl(h1 ^ k1, 13), 5) + 0xe6_54_6b_64
 
 const fmix = (start: number, length: number) => {
-  let h1 = (start | 0) ^ length
+  let h1 = start ^ length
   h1 ^= h1 >>> 16
-  h1 = imul(h1, 0x85_eb_ca_6b | 0)
+  h1 = imul(h1, 0x85_eb_ca_6b)
   h1 ^= h1 >>> 13
-  h1 = imul(h1, 0xc2_b2_ae_35 | 0)
+  h1 = imul(h1, 0xc2_b2_ae_35)
 
   return h1 ^ (h1 >>> 16)
 }
+
+// oxlint-disable-next-line unicorn/prefer-code-point -- ClojureScript hashes UTF-16 code units, which codePointAt merges for astral characters
+const unitAt = (text: string, index: number) => text.charCodeAt(index)
 
 export const murmurChars = (text: string): number => {
   let h1 = 0
 
   for (let index = 1; index < text.length; index += 2) {
-    h1 = mixH1(h1, mixK1(text.charCodeAt(index - 1) | (text.charCodeAt(index) << 16)))
+    h1 = mixH1(h1, mixK1(unitAt(text, index - 1) | (unitAt(text, index) << 16)))
   }
 
   if (text.length % 2 === 1) {
-    h1 ^= mixK1(text.charCodeAt(text.length - 1))
+    h1 ^= mixK1(unitAt(text, text.length - 1))
   }
 
   return fmix(h1, imul(2, text.length))
@@ -464,7 +476,7 @@ export const javaHash = (text: string) => {
   let hash = 0
 
   for (let index = 0; index < text.length; index += 1) {
-    hash = imul(31, hash) + text.charCodeAt(index)
+    hash = imul(31, hash) + unitAt(text, index)
   }
 
   return hash

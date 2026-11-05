@@ -1,11 +1,12 @@
 import { Effect, Option } from "effect"
 import { LoroDoc } from "loro-crdt"
-import { ImportFailed, PeerId, peerOf } from "../graph.ts"
+import type { PeerId } from "../graph.ts"
+import { ImportFailed, peerOf } from "../graph.ts"
 import { loader } from "../loader.ts"
 import { TREE, livePages, readBlock, walkBlocks } from "../tree.ts"
 import type { BlockState } from "../tree.ts"
 import { dayIds } from "./layout.ts"
-import { makeTrees } from "./outline.ts"
+import { treesOf } from "./outline.ts"
 import { writePage } from "./write.ts"
 import type { PageState } from "./write.ts"
 
@@ -87,7 +88,7 @@ export const convertOneTree = (files: readonly Uint8Array[]) =>
 
       try {
         doc.setPeerId(BigInt(peer))
-        const trees = makeTrees(doc)
+        const trees = treesOf(doc)
 
         for (const state of pages) {
           writePage(trees, state.page.id, state)

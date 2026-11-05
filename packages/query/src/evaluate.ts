@@ -1,4 +1,4 @@
-import { Match } from "effect"
+import { Match, Predicate } from "effect"
 import type { CompareOp, Field, Filter, QueryContext, Under, Value } from "./ast.ts"
 import { tokenize } from "./facets.ts"
 import type { BlockFacets } from "./facets.ts"
@@ -19,8 +19,9 @@ const toNum = (value: string): number | null => {
 }
 
 const cmp = (a: Primitive, op: CompareOp, b: Primitive) => {
-  const x = typeof a === "boolean" || typeof b === "boolean" ? Number(a) : a
-  const y = typeof a === "boolean" || typeof b === "boolean" ? Number(b) : b
+  const numeric = Predicate.isBoolean(a) || Predicate.isBoolean(b)
+  const x = numeric ? Number(a) : a
+  const y = numeric ? Number(b) : b
 
   switch (op) {
     case "=": {
@@ -50,7 +51,7 @@ const cmp = (a: Primitive, op: CompareOp, b: Primitive) => {
 }
 
 const operand = (v: Primitive, lit: Primitive): Primitive | null =>
-  typeof lit === "number" && typeof v === "string" ? toNum(v) : v
+  Predicate.isNumber(lit) && Predicate.isString(v) ? toNum(v) : v
 
 const compare = (
   field: Field,
@@ -170,20 +171,23 @@ export const evaluate = (
   })
 
 const nodes = (f: Filter): Filter[] =>
-  f._tag === "And"
-    ? f.all.flatMap(nodes)
-    : f._tag === "Or"
-      ? f.any.flatMap(nodes)
-      : f._tag === "Not"
-        ? nodes(f.filter)
-        : [f]
+  Match.value(f).pipe(
+    Match.tag("And", (x) => x.all.flatMap(nodes)),
+    Match.tag("Or", (x) => x.any.flatMap(nodes)),
+    Match.tag("Not", (x) => nodes(x.filter)),
+    Match.orElse((x) => [x]),
+  )
 
 export const isLocal = (f: Filter): boolean =>
   nodes(f).every((n) => n._tag !== "Under" && n._tag !== "HasBlock")
 
 export const undersOf = (f: Filter): Under[] | null => {
   const found = nodes(f).flatMap((n): Array<Under | null> =>
-    n._tag === "Under" ? [n] : n._tag === "HasBlock" ? [null] : [],
+    Match.value(n).pipe(
+      Match.tag("Under", (u) => [u]),
+      Match.tag("HasBlock", () => [null]),
+      Match.orElse(() => []),
+    ),
   )
 
   const unders = found.filter((n): n is Under => n !== null)

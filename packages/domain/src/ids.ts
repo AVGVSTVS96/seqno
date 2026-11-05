@@ -16,6 +16,6 @@ export type DeviceId = typeof DeviceId.Type
 
 const uuidV7 = Effect.flatMap(Crypto.Crypto, (crypto) => crypto.randomUUIDv7)
 
-export const newBlockId = Effect.map(uuidV7, BlockId.make)
+export const newBlockId = Effect.map(uuidV7, (id) => BlockId.make(id))
 
-export const newPageId = Effect.map(uuidV7, PageId.make)
+export const newPageId = Effect.map(uuidV7, (id) => PageId.make(id))

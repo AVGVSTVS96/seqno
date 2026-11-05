@@ -181,19 +181,19 @@ const repairTouched = (tree: LoroTree, touched: Touched, pages: LivePages): bool
   }
 
   for (const id of touched.filled) {
-    Option.map(liveNode(tree, id), (node) =>
-      Option.map(
-        Option.flatMap(mergedInto(node), (target) => targetOf(tree, target)),
-        (target) => {
-          if (childrenOf(node).length === 0) {
-            return
-          }
-
-          moveChildren(tree, node, target)
-          repaired = true
-        },
-      ),
+    const move = Option.flatMap(liveNode(tree, id), (node) =>
+      childrenOf(node).length === 0
+        ? Option.none()
+        : Option.map(
+            Option.flatMap(mergedInto(node), (target) => targetOf(tree, target)),
+            (target) => [node, target] as const,
+          ),
     )
+
+    if (Option.isSome(move)) {
+      moveChildren(tree, ...move.value)
+      repaired = true
+    }
   }
 
   return repaired

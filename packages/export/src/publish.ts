@@ -134,9 +134,7 @@ const pageRefs = (text: string) =>
     ref._tag === "BlockRef" ? [] : [[normalizePageName(ref.name), ref.name.trim()] as const],
   )
 
-export const namesLinked = <P extends PageBlocks>(
-  pages: readonly P[],
-): readonly PublishedName[] => {
+export const namesLinked = (pages: readonly PageBlocks[]): readonly PublishedName[] => {
   const published = new Set(pages.flatMap(({ page }) => [page.name, ...aliasesOf(page)]))
   const found = new Map<string, string>()
 
@@ -149,7 +147,9 @@ export const namesLinked = <P extends PageBlocks>(
       ]),
     ]) {
       for (const [name, title] of pageRefs(text)) {
-        if (name !== "" && !published.has(name) && !found.has(name)) found.set(name, title)
+        if (name !== "" && !published.has(name) && !found.has(name)) {
+          found.set(name, title)
+        }
       }
     }
   }

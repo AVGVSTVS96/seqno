@@ -33,7 +33,8 @@ const conflictSuffix = / \d+(\.[a-z]+)$/u
 
 export const originalName = (name: string): string => name.replace(conflictSuffix, "$1")
 
-export const isUpdateName = (name: string): boolean => /^(\d+-)?\d+\.loro$/u.test(originalName(name))
+export const isUpdateName = (name: string): boolean =>
+  /^(\d+-)?\d+\.loro$/u.test(originalName(name))
 
 export const isSnapshotName = (name: string): boolean =>
   /^[0-9a-f]{32}\.loro$/u.test(originalName(name))

@@ -26,10 +26,14 @@ const isToken = (index: number) => index % 2 === 1
 
 const quoted = (piece: string) => (piece.startsWith("'") ? piece.slice(1, -1) : piece)
 
-const suffixes: Record<number, string> = { 1: "st", 2: "nd", 3: "rd" }
+const suffixes = new Map([
+  [1, "st"],
+  [2, "nd"],
+  [3, "rd"],
+])
 
 const ordinal = (date: number): string =>
-  `${date}${date >= 11 && date <= 13 ? "th" : (suffixes[date % 10] ?? "th")}`
+  `${date}${date >= 11 && date <= 13 ? "th" : (suffixes.get(date % 10) ?? "th")}`
 
 const two = (value: number): string => String(value).padStart(2, "0")
 
@@ -40,43 +44,43 @@ export const formatJournalDay = (day: JournalDay, format: string): string => {
   const monthName = months[month - 1] ?? ""
   const weekdayName = weekdays[new Date(Date.UTC(year, month - 1, date)).getUTCDay()] ?? ""
 
-  const render: Record<string, string> = {
-    yyyy: String(year),
-    MMMM: monthName,
-    MMM: monthName.slice(0, 3),
-    MM: two(month),
-    M: String(month),
-    do: ordinal(date),
-    dd: two(date),
-    d: String(date),
-    EEEE: weekdayName,
-    EEE: weekdayName.slice(0, 3),
-    EE: weekdayName.slice(0, 3),
-    E: weekdayName.slice(0, 3),
-  }
+  const render = new Map([
+    ["yyyy", String(year)],
+    ["MMMM", monthName],
+    ["MMM", monthName.slice(0, 3)],
+    ["MM", two(month)],
+    ["M", String(month)],
+    ["do", ordinal(date)],
+    ["dd", two(date)],
+    ["d", String(date)],
+    ["EEEE", weekdayName],
+    ["EEE", weekdayName.slice(0, 3)],
+    ["EE", weekdayName.slice(0, 3)],
+    ["E", weekdayName.slice(0, 3)],
+  ])
 
   return format
     .split(tokenGroup)
-    .map((piece, index) => (isToken(index) ? (render[piece] ?? quoted(piece)) : piece))
+    .map((piece, index) => (isToken(index) ? (render.get(piece) ?? quoted(piece)) : piece))
     .join("")
 }
 
 type Part = "year" | "month" | "monthName" | "date" | "weekday"
 
-const matchers: Record<string, readonly [pattern: string, part: Part]> = {
-  yyyy: ["(\\d{4})", "year"],
-  MMMM: [`(${months.join("|")})`, "monthName"],
-  MMM: [`(${short(months).join("|")})`, "monthName"],
-  MM: ["(\\d{2})", "month"],
-  M: ["(\\d{1,2})", "month"],
-  do: ["(\\d{1,2})(?:st|nd|rd|th)", "date"],
-  dd: ["(\\d{2})", "date"],
-  d: ["(\\d{1,2})", "date"],
-  EEEE: [`(${weekdays.join("|")})`, "weekday"],
-  EEE: [`(${short(weekdays).join("|")})`, "weekday"],
-  EE: [`(${short(weekdays).join("|")})`, "weekday"],
-  E: [`(${short(weekdays).join("|")})`, "weekday"],
-}
+const matchers = new Map<string, readonly [pattern: string, part: Part]>([
+  ["yyyy", ["(\\d{4})", "year"]],
+  ["MMMM", [`(${months.join("|")})`, "monthName"]],
+  ["MMM", [`(${short(months).join("|")})`, "monthName"]],
+  ["MM", ["(\\d{2})", "month"]],
+  ["M", ["(\\d{1,2})", "month"]],
+  ["do", ["(\\d{1,2})(?:st|nd|rd|th)", "date"]],
+  ["dd", ["(\\d{2})", "date"]],
+  ["d", ["(\\d{1,2})", "date"]],
+  ["EEEE", [`(${weekdays.join("|")})`, "weekday"]],
+  ["EEE", [`(${short(weekdays).join("|")})`, "weekday"]],
+  ["EE", [`(${short(weekdays).join("|")})`, "weekday"]],
+  ["E", [`(${short(weekdays).join("|")})`, "weekday"]],
+])
 
 const escapeRegExp = (text: string): string => text.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 
@@ -90,17 +94,19 @@ export const parseJournalDay = (text: string, format: string): Option.Option<Jou
 
   const source = pieces
     .map((piece, index) =>
-      isToken(index) ? (matchers[piece]?.[0] ?? escapeRegExp(quoted(piece))) : escapeRegExp(piece),
+      isToken(index)
+        ? (matchers.get(piece)?.[0] ?? escapeRegExp(quoted(piece)))
+        : escapeRegExp(piece),
     )
     .join("")
 
   const parts = pieces.flatMap((piece, index) => {
-    const matcher = isToken(index) ? matchers[piece] : undefined
+    const matcher = isToken(index) ? matchers.get(piece) : undefined
 
     return matcher === undefined ? [] : [matcher[1]]
   })
 
-  const match = new RegExp(`^${source}$`, "i").exec(text.normalize("NFC"))
+  const match = new RegExp(`^${source}$`, "iu").exec(text.normalize("NFC"))
 
   if (match === null) {
     return Option.none()

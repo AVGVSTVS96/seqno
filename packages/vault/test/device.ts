@@ -16,7 +16,7 @@ export interface DeviceOptions {
   readonly compactAfterFiles?: number
 }
 
-export const makeDevice = (options: DeviceOptions) =>
+export const openDevice = (options: DeviceOptions) =>
   Effect.gen(function* () {
     const doc = new LoroDoc()
     doc.setPeerId(options.peer)

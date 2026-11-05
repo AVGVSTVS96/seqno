@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite"
-import { Result } from "effect"
+import { Result, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 import { compileQuery, parseDataviewQuery, parseLogseqQuery, SCHEMA } from "../src/index.ts"
 import type { Query, QueryContext } from "../src/index.ts"
@@ -139,7 +139,11 @@ const open = () => {
     }
 
     for (const r of b.refs ?? []) {
-      db.prepare("INSERT INTO refs VALUES (?, ?, ?)").run(rid, r, b.tags?.includes(r) ? 1 : 0)
+      db.prepare("INSERT INTO refs VALUES (?, ?, ?)").run(
+        rid,
+        r,
+        b.tags?.includes(r) === true ? 1 : 0,
+      )
     }
 
     for (const [k, v] of b.props ?? []) {
@@ -152,10 +156,14 @@ const open = () => {
 
 const db = open()
 
-const label = (q: Query, rid: unknown) =>
-  q.find === "blocks" ? BLOCKS[Number(rid) - 1]?.id : PAGES[Number(rid) - 1]?.name
+const decodeRid = Schema.decodeUnknownSync(Schema.Int)
 
-const rows = (parsed: Result.Result<Query, unknown>, ctx: QueryContext = { today: TODAY }) => {
+const label = (q: Query, rid: number) =>
+  q.find === "blocks" ? BLOCKS[rid - 1]?.id : PAGES[rid - 1]?.name
+
+const CTX: QueryContext = { today: TODAY }
+
+const rows = (parsed: Result.Result<Query, unknown>, ctx = CTX) => {
   const query = Result.getOrThrow(parsed)
   const compiled = Result.getOrThrow(compileQuery(query, ctx))
 
@@ -165,7 +173,7 @@ const rows = (parsed: Result.Result<Query, unknown>, ctx: QueryContext = { today
     .map((row) => {
       const [rid, ...shown] = Object.values(row)
 
-      return [label(query, rid), ...shown]
+      return [label(query, decodeRid(rid)), ...shown]
     })
 }
 

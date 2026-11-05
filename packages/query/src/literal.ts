@@ -1,14 +1,16 @@
-import type { CompareOp, QueryContext, Value } from "./ast.ts"
+import { Predicate } from "effect"
+import { isScalar } from "./ast.ts"
+import type { CompareOp, Primitive, QueryContext, Value } from "./ast.ts"
 import { dayEnd, dayStart, resolveDay } from "./dates.ts"
 import { fail } from "./error.ts"
-import type { FieldDef, Primitive } from "./fields.ts"
+import type { FieldDef } from "./fields.ts"
 
 export type Edge = "start" | "end"
 
 export const edgeOf = (op: CompareOp): Edge => (op === "<=" || op === ">" ? "end" : "start")
 
 const contextValue = (value: Value, ctx: QueryContext): Value => {
-  if (typeof value !== "object" || value._tag !== "Context") {
+  if (isScalar(value) || value._tag !== "Context") {
     return value
   }
 
@@ -19,33 +21,32 @@ const contextValue = (value: Value, ctx: QueryContext): Value => {
 
 export const literal = (def: FieldDef, raw: Value, ctx: QueryContext, edge: Edge): Primitive => {
   const value = contextValue(raw, ctx)
-  const scalar = typeof value !== "object"
 
   switch (def.type) {
     case "name":
     case "string": {
-      return scalar ? String(value).toLowerCase() : fail("expected a name, got a date")
+      return isScalar(value) ? String(value).toLowerCase() : fail("expected a name, got a date")
     }
 
     case "id": {
-      return typeof value === "string" ? value : fail("expected a block id")
+      return Predicate.isString(value) ? value : fail("expected a block id")
     }
 
     case "bool": {
-      return typeof value === "boolean" ? value : fail("expected true or false")
+      return Predicate.isBoolean(value) ? value : fail("expected true or false")
     }
 
     case "any": {
-      if (!scalar) {
+      if (!isScalar(value)) {
         return fail("dates on untyped properties are not supported")
       }
 
-      return typeof value === "number" ? value : String(value).toLowerCase()
+      return Predicate.isNumber(value) ? value : String(value).toLowerCase()
     }
 
     case "date":
     case "time": {
-      const day = typeof value === "number" ? value : resolveDay(value, ctx.today)
+      const day = Predicate.isNumber(value) ? value : resolveDay(value, ctx.today)
 
       if (day === null) {
         return fail(`expected a date, got ${JSON.stringify(value)}`)

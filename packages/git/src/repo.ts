@@ -1,3 +1,4 @@
+import { Match } from "effect"
 import * as git from "isomorphic-git"
 import type { PromiseFsClient, WalkerEntry } from "isomorphic-git"
 import { patch } from "./diff.ts"
@@ -5,11 +6,15 @@ import type { Change, Side } from "./diff.ts"
 import { formatDate, quotePath, subjectOf } from "./format.ts"
 import type { CommitInfo } from "./format.ts"
 
-export type FsClient = PromiseFsClient
+export type FsClient = PromiseFsClient & {
+  readonly promises: { readonly stat: (path: string) => Promise<object> }
+}
+
+export type GitConfig = Readonly<Record<string, string>>
 
 export interface Globals {
-  readonly read: () => Promise<Readonly<Record<string, string>>>
-  readonly write: (config: Readonly<Record<string, string>>) => Promise<void>
+  readonly read: () => Promise<GitConfig>
+  readonly write: (config: GitConfig) => Promise<void>
 }
 
 export interface RepoOptions {
@@ -50,8 +55,20 @@ export const gitdir = "/.git"
 const notFound = (cause: unknown) =>
   cause instanceof Error && "code" in cause && cause.code === "NotFoundError"
 
-const orNull = async <A>(promise: Promise<A>) =>
-  await promise.catch((error: unknown) => (notFound(error) ? null : Promise.reject(error)))
+const isScalar = (value: unknown): value is string | number | boolean =>
+  typeof value === "string" || typeof value === "boolean" || typeof value === "number"
+
+const orNull = async <A>(promise: Promise<A>) => {
+  try {
+    return await promise
+  } catch (error) {
+    if (notFound(error)) {
+      return null
+    }
+
+    throw error
+  }
+}
 
 const staged = (rows: readonly Row[]) =>
   rows.some(
@@ -60,18 +77,18 @@ const staged = (rows: readonly Row[]) =>
   )
 
 const walkerOf = (target: Exclude<Target, { readonly _tag: "Empty" }>) =>
-  target._tag === "Tree"
-    ? git.TREE({ ref: target.ref })
-    : target._tag === "Stage"
-      ? git.STAGE()
-      : git.WORKDIR()
+  Match.valueTags(target, {
+    Tree: ({ ref }) => git.TREE({ ref }),
+    Stage: () => git.STAGE(),
+    Workdir: () => git.WORKDIR(),
+  })
 
-export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOptions) => {
+export const openRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOptions) => {
   const cache = {}
   const at = { fs, dir, gitdir, cache }
 
-  const exists = () =>
-    fs.promises.stat(`${gitdir}/HEAD`).then(
+  const exists = async () =>
+    await fs.promises.stat(`${gitdir}/HEAD`).then(
       () => true,
       () => false,
     )
@@ -87,28 +104,19 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
   }
 
   const repoConfig = async (key: string) => {
-    const value: unknown = await git
-      .getConfig({ fs, dir, gitdir, path: key })
-      .catch(() => undefined)
+    const value: unknown = await git.getConfig({ fs, dir, gitdir, path: key }).catch(() => null)
 
-    return typeof value === "string" || typeof value === "boolean" || typeof value === "number"
-      ? String(value)
-      : undefined
+    return isScalar(value) ? String(value) : undefined
   }
 
   const config = async (key: string) =>
     (await repoConfig(key)) ?? (await globals.read())[key.toLowerCase()]
 
   const setGlobal = async (key: string, value: string | undefined) => {
-    const current = { ...(await globals.read()) }
+    const name = key.toLowerCase()
+    const kept = Object.entries(await globals.read()).filter(([other]) => other !== name)
 
-    if (value === undefined) {
-      delete current[key.toLowerCase()]
-    } else {
-      current[key.toLowerCase()] = value
-    }
-
-    await globals.write(current)
+    await globals.write(Object.fromEntries(value === undefined ? kept : [...kept, [name, value]]))
   }
 
   const setRepoConfig = async (key: string, value: string | undefined) => {
@@ -127,13 +135,12 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
   const head = async () => await orNull(git.resolveRef({ fs, dir, gitdir, ref: "HEAD" }))
 
   const branch = async () =>
-    (await git.currentBranch({ fs, dir, gitdir, fullname: false }).catch(() => undefined)) ??
-    "master"
+    (await git.currentBranch({ fs, dir, gitdir, fullname: false }).catch(() => null)) ?? "master"
 
   const matrix = async (filepaths?: readonly string[]): Promise<readonly Row[]> =>
     await git.statusMatrix({
       ...at,
-      ...(filepaths === undefined ? {} : { filepaths: [...filepaths] }),
+      filepaths: filepaths === undefined ? undefined : [...filepaths],
     })
 
   const stage = async (rows: readonly Row[]) => {
@@ -182,7 +189,7 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
   }
 
   const locked = async <A>(run: () => Promise<A>, busy: A) => {
-    const release = lock === undefined ? async () => undefined : await lock()
+    const release = lock === undefined ? undefined : await lock()
 
     if (release === null) {
       return busy
@@ -191,7 +198,7 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     try {
       return await run()
     } finally {
-      await release()
+      await release?.()
     }
   }
 
@@ -219,15 +226,10 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
 
   const commits = async (
     ref: string,
-    options: { readonly depth?: number; readonly filepath?: string } = {},
+    options: { readonly depth?: number; readonly filepath?: string | undefined } = {},
   ) => {
     const found = await orNull(
-      git.log({
-        ...at,
-        ref,
-        ...(options.depth === undefined ? {} : { depth: options.depth }),
-        ...(options.filepath === undefined ? {} : { filepath: options.filepath }),
-      }),
+      git.log({ ...at, ref, depth: options.depth, filepath: options.filepath }),
     )
 
     return (found ?? []).map((entry): CommitInfo => ({ oid: entry.oid, ...entry.commit }))
@@ -248,9 +250,7 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
   }
 
   const readBlob = async (oid: string, filepath?: string) => {
-    const found = await orNull(
-      git.readBlob({ ...at, oid, ...(filepath === undefined ? {} : { filepath }) }),
-    )
+    const found = await orNull(git.readBlob({ ...at, oid, filepath }))
 
     return found === null ? null : { oid: found.oid, bytes: found.blob }
   }
@@ -273,7 +273,7 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     const quote = (path: string) => quotePath(path, { quoteNonAscii, quoteSpace: true })
     const indexed = new Set<string>()
 
-    for (const [path, , , stageState] of rows) {
+    for (const [path, _head, _workdir, stageState] of rows) {
       if (stageState === 0) {
         continue
       }
@@ -450,4 +450,4 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
   }
 }
 
-export type Repo = ReturnType<typeof makeRepo>
+export type Repo = ReturnType<typeof openRepo>

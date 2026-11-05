@@ -128,11 +128,11 @@ export const blockParts: Table<BlockParts> = {
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/page.cljs#L164
   "seqno-add-block-link": () => ({ className: "add-button-link" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L2309-L2320
-  "seqno-block": (host) => ({
-    className: "block-content",
-    "data-type": "default",
-    ...(host === null ? {} : { id: `block-content-${host}`, blockid: host }),
-  }),
+  "seqno-block": (host) => {
+    const content = { className: "block-content", "data-type": "default" }
+
+    return host === null ? content : { ...content, id: `block-content-${host}`, blockid: host }
+  },
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L2337
   "seqno-title-row": () => ({ className: "block-content-inner" }),
   // https://github.com/logseq/logseq/blob/0.10.9/src/main/frontend/components/block.cljs#L1955-L1966

@@ -1,23 +1,26 @@
+import { Match } from "effect"
 import { describe, expect, it } from "vitest"
 import { analyzeBlock, blockContent, parseInline } from "../src/index.ts"
 import type { Body, Inline } from "../src/index.ts"
 
 const math = (nodes: readonly Inline[]): readonly string[] =>
   nodes.map((node) =>
-    node._tag === "Math"
-      ? `${node.open === "$" || node.open === "\\(" ? "Inline" : "Displayed"}(${node.tex})`
-      : node._tag === "Text"
-        ? `Plain(${node.text})`
-        : node._tag,
+    Match.value(node).pipe(
+      Match.tag("Math", ({ open, tex }) =>
+        open === "$" || open === "\\(" ? `Inline(${tex})` : `Displayed(${tex})`,
+      ),
+      Match.tag("Text", ({ text }) => `Plain(${text})`),
+      Match.orElse(({ _tag }) => _tag),
+    ),
   )
 
 const bodies = (text: string): readonly string[] =>
   blockContent(text).body.map((body: Body) =>
-    body._tag === "Math"
-      ? `Math(${body.tex})`
-      : body._tag === "Paragraph"
-        ? `Paragraph[${math(body.inline).join(" ")}]`
-        : body._tag,
+    Match.value(body).pipe(
+      Match.tag("Math", ({ tex }) => `Math(${tex})`),
+      Match.tag("Paragraph", ({ inline }) => `Paragraph[${math(inline).join(" ")}]`),
+      Match.orElse(({ _tag }) => _tag),
+    ),
   )
 
 describe("inline math, as mldoc 1.5.7 reads it", () => {

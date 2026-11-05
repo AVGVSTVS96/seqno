@@ -57,12 +57,15 @@ const roles: ReadonlyArray<readonly [string, Scale, number, "alpha"?]> = [
   ["--ls-a-chosen-bg", "gray", 1],
 ]
 
+const isColor = (value: string | Readonly<Record<string, string>>): value is string =>
+  typeof value === "string"
+
 const steps = (name: string, dark: boolean, alpha: boolean) =>
   Object.values(
     Object.entries(radix).find(
       ([key]) => key === `${name}${dark ? "Dark" : ""}${alpha ? "A" : ""}`,
     )?.[1] ?? {},
-  )
+  ).filter(isColor)
 
 const two = (step: number) => String(step).padStart(2, "0")
 

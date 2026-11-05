@@ -12,12 +12,12 @@ const flushed = (graph: Opened) =>
   )
 
 const typed = (blockId: BlockId, at: number, text: string): readonly Command[] =>
-  [...text].map((char, offset) => ({
+  [...new Intl.Segmenter().segment(text)].map(({ segment, index }) => ({
     _tag: "EditText",
     blockId,
-    from: at + offset,
-    to: at + offset,
-    insert: char,
+    from: at + index,
+    to: at + index,
+    insert: segment,
   }))
 
 const type = (graph: Opened, blockId: BlockId, at: number, text: string, client?: string) =>
@@ -229,7 +229,11 @@ describe("undo against random edits", () => {
           const session = yield* randomSession(seed, 12, true)
           const { edited, undone, redone, typedByRight, onRight } = session
           assert.deepStrictEqual(
-            [seed, undone.replaceAll(/[^0-3]/gu, "").length, undone.replaceAll(/[^X]/gu, "").length],
+            [
+              seed,
+              undone.replaceAll(/[^0-3]/gu, "").length,
+              undone.replaceAll(/[^X]/gu, "").length,
+            ],
             [seed, 4, typedByRight],
           )
           assert.deepStrictEqual([redone, onRight], [edited, edited])

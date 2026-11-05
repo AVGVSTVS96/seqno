@@ -31,7 +31,7 @@ import { applyCommand, mergeTargetOf, outliner } from "./commands.ts"
 import type { Lookup, Workspace } from "./commands.ts"
 import { collectChanges, emptyKnown, emptyPending, remember, translate } from "./events.ts"
 import { parseKey, spotOf } from "./layout.ts"
-import { locate, makeTrees, pageTrees, readView } from "./outline.ts"
+import { locate, treesOf, pageTrees, readView } from "./outline.ts"
 import { movedHomes, repairCycles, repairNames, repairUnseen, spotsOf } from "./repair.ts"
 import { writePage } from "./write.ts"
 
@@ -42,7 +42,7 @@ const make = (source: GraphSource) =>
     doc.setPeerId(BigInt(source.peer))
     const importAll = importer(doc)
     yield* importAll([...Option.toArray(source.snapshot), ...source.updates])
-    const trees = makeTrees(doc)
+    const trees = treesOf(doc)
     const known = emptyKnown()
 
     const lookup: Lookup = {
@@ -549,7 +549,7 @@ const make = (source: GraphSource) =>
         serial(
           Effect.sync(() =>
             atVersion(doc, version, (fork) => {
-              const then = makeTrees(fork)
+              const then = treesOf(fork)
 
               return [...then.listing().live.entries()].flatMap(([id, found]) =>
                 wanted(found)
@@ -562,7 +562,7 @@ const make = (source: GraphSource) =>
       origin: serial(Effect.sync(() => originOf(doc))),
       roots: serial(Effect.sync(() => rootsOf(doc))),
       rootsIn: (bytes) =>
-        rootsInBlob(bytes, (scratch) => [...makeTrees(scratch).listing().live.values()]),
+        rootsInBlob(bytes, (scratch) => [...treesOf(scratch).listing().live.values()]),
       loaded: filled.await,
     })
   })

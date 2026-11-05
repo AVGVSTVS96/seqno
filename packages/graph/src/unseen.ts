@@ -1,4 +1,4 @@
-import { Option } from "effect"
+import { Option, Predicate } from "effect"
 import { VersionVector } from "loro-crdt"
 import type {
   ContainerID,
@@ -44,7 +44,7 @@ export const markWas = (node: LoroTreeNode): void => {
 export const wasOf = (node: LoroTreeNode): Option.Option<Spot> => {
   const was: unknown = node.data.get(WAS)
 
-  if (typeof was !== "string") {
+  if (!Predicate.isString(was)) {
     return Option.none()
   }
 
@@ -159,7 +159,7 @@ export const unseenSince = (doc: LoroDoc, keyed: ReadonlySet<string>): Option.Op
 
         const [root, below, key] = pathOf(op.container)
 
-        if (typeof root !== "string") {
+        if (!Predicate.isString(root)) {
           continue
         }
 
@@ -190,7 +190,7 @@ export const unseenSince = (doc: LoroDoc, keyed: ReadonlySet<string>): Option.Op
         } else if (isTreeId(below) && content.type === "insert") {
           const written = key === undefined && "key" in content ? content.key : key
 
-          if (typeof written === "string" && UNWRITTEN.has(written)) {
+          if (Predicate.isString(written) && UNWRITTEN.has(written)) {
             continue
           }
 

@@ -41,7 +41,7 @@ const random = (seed: number) => {
 }
 
 export const makeFakeCloud = (options: FakeCloudOptions): FakeCloud => {
-  const next = random(options.seed)
+  const draw = random(options.seed)
   const server = new Map<string, Uint8Array>()
   const views = new Map<string, Map<string, Uint8Array | undefined>>()
   const jobs: Job[] = []
@@ -106,7 +106,7 @@ export const makeFakeCloud = (options: FakeCloudOptions): FakeCloud => {
     const due = jobs.splice(0).filter((job) => {
       const key = `${job._tag}:${job.device}:${job.path}`
 
-      if (!held.has(key) && next() < options.deliverChance) {
+      if (!held.has(key) && draw() < options.deliverChance) {
         return true
       }
 
@@ -150,10 +150,10 @@ export const makeFakeCloud = (options: FakeCloudOptions): FakeCloud => {
             const rest = path.slice(prefix.length)
             const slash = rest.indexOf("/")
 
-            if (slash >= 0) {
-              dirs.add(rest.slice(0, slash))
-            } else {
+            if (slash === -1) {
               files.push(listed(rest, bytes))
+            } else {
+              dirs.add(rest.slice(0, slash))
             }
           }
 
