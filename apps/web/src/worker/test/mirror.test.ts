@@ -102,7 +102,7 @@ const pageFiles = (root: string) =>
   Effect.promise(async () => {
     const entries = await readdir(root, { recursive: true, withFileTypes: true })
     const files = entries
-      .filter((entry) => entry.isFile())
+      .filter((entry) => entry.isFile() && !entry.name.startsWith("."))
       .map((entry) => relative(root, join(entry.parentPath, entry.name)).split("\\").join("/"))
       .filter((path) => /^(journals|pages|whiteboards|logseq)\//.test(path))
       .toSorted()
