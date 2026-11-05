@@ -1,16 +1,11 @@
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { IconChevronRight, IconCode, IconDots, IconRoute } from "@tabler/icons-react"
 import { AsyncResult } from "effect/reactivity"
-import { useId, type ReactNode } from "react"
+import { useId } from "react"
+import type { ReactNode } from "react"
 import { attemptedGraph, forgetGraph, graphsOpenedAt, openGraph, recentGraphs } from "../atoms.ts"
-import {
-  demoDescriptions,
-  demoGraph,
-  demoGraphs,
-  graphTitle,
-  type DemoGraph,
-  type GraphLocation,
-} from "../graph-locations.ts"
+import { demoDescriptions, demoGraph, demoGraphs, graphTitle } from "../graph-locations.ts"
+import type { DemoGraph, GraphLocation } from "../graph-locations.ts"
 import { canPickFolders } from "../embed.ts"
 import { homepage } from "../version.ts"
 import { useSwitchGraph } from "./shell/GraphSwitcher.tsx"
@@ -32,6 +27,7 @@ const GraphRow = ({
   const forget = useAtomSet(forgetGraph)
   const menu = usePopover({ placement: { align: "end", gap: 4, inset: 8 }, kind: "menu" })
   const title = graphTitle(location.name)
+
   return (
     <li className="graphs-list-item">
       <div className="graphs-list-main">
@@ -39,7 +35,9 @@ const GraphRow = ({
           type="button"
           className="graphs-list-name"
           disabled={disabled}
-          onClick={() => open({ _tag: "Recent", name: location.name })}
+          onClick={() => {
+            open({ _tag: "Recent", name: location.name })
+          }}
         >
           {title}
         </button>
@@ -60,7 +58,13 @@ const GraphRow = ({
         <IconDots size={15} aria-hidden />
       </button>
       <Menu handle={menu} label={title} className="graphs-list-menu">
-        <MenuItem onSelect={() => forget(location.name)}>Remove from the list</MenuItem>
+        <MenuItem
+          onSelect={() => {
+            forget(location.name)
+          }}
+        >
+          Remove from the list
+        </MenuItem>
       </Menu>
     </li>
   )
@@ -70,9 +74,11 @@ const RecentGraphs = ({ disabled }: { readonly disabled: boolean }) => {
   const locations = AsyncResult.getOrElse(useAtomValue(recentGraphs), () => [])
   const openedAt = useAtomValue(graphsOpenedAt)
   const title = useId()
+
   const listed = locations.toSorted(
     (left, right) => (openedAt[right.name] ?? 0) - (openedAt[left.name] ?? 0),
   )
+
   return listed.length === 0 ? null : (
     <section className="graphs-list" aria-labelledby={title}>
       <h2 id={title} className="graphs-list-title">
@@ -95,6 +101,7 @@ const RecentGraphs = ({ disabled }: { readonly disabled: boolean }) => {
 export const AllGraphs = ({ problem }: { readonly problem: string | null }) => {
   const open = useSwitchGraph()
   const opening = AsyncResult.isWaiting(useAtomValue(openGraph))
+
   return (
     <div className="welcome-main">
       <title>Graphs</title>
@@ -105,7 +112,9 @@ export const AllGraphs = ({ problem }: { readonly problem: string | null }) => {
             type="button"
             className="button-primary"
             disabled={opening}
-            onClick={() => open({ _tag: "PickFolder" })}
+            onClick={() => {
+              open({ _tag: "PickFolder" })
+            }}
           >
             Open a folder
           </button>
@@ -116,7 +125,9 @@ export const AllGraphs = ({ problem }: { readonly problem: string | null }) => {
             type="button"
             className="button-secondary"
             disabled={opening}
-            onClick={() => open({ _tag: "Demo", name })}
+            onClick={() => {
+              open({ _tag: "Demo", name })
+            }}
           >
             Open {graphTitle(name)}
           </button>
@@ -136,6 +147,7 @@ export const OpenFailed = ({ problem }: { readonly problem: string }) => {
   const attempted = useAtomValue(attemptedGraph)
   const open = useSwitchGraph()
   const opening = AsyncResult.isWaiting(useAtomValue(openGraph))
+
   return (
     <div className="seqno-all-graphs">
       <div className="welcome-main">
@@ -152,7 +164,9 @@ export const OpenFailed = ({ problem }: { readonly problem: string }) => {
               type="button"
               className="button-primary"
               disabled={opening}
-              onClick={() => open({ _tag: "Recent", name: attempted })}
+              onClick={() => {
+                open({ _tag: "Recent", name: attempted })
+              }}
             >
               Retry
             </button>
@@ -162,7 +176,9 @@ export const OpenFailed = ({ problem }: { readonly problem: string }) => {
               type="button"
               className="button-secondary"
               disabled={opening}
-              onClick={() => open({ _tag: "Demo", name: demoGraph })}
+              onClick={() => {
+                open({ _tag: "Demo", name: demoGraph })
+              }}
             >
               Open {graphTitle(demoGraph)}
             </button>
@@ -190,6 +206,7 @@ const DemoChoice = ({
 }) => {
   const title = useId()
   const description = useId()
+
   return (
     <li>
       <button
@@ -219,6 +236,7 @@ export const GraphChooser = () => {
   const open = useAtomSet(openGraph)
   const opening = AsyncResult.isWaiting(useAtomValue(openGraph))
   const heading = useId()
+
   return (
     <div className="welcome">
       <div className="welcome-main">
@@ -239,7 +257,9 @@ export const GraphChooser = () => {
               key={name}
               name={name}
               disabled={opening}
-              onChoose={() => open({ _tag: "Demo", name })}
+              onChoose={() => {
+                open({ _tag: "Demo", name })
+              }}
             />
           ))}
         </ul>
@@ -250,7 +270,9 @@ export const GraphChooser = () => {
               type="button"
               className="chooser-folder-button"
               disabled={opening}
-              onClick={() => open({ _tag: "PickFolder" })}
+              onClick={() => {
+                open({ _tag: "PickFolder" })
+              }}
             >
               Open a folder
             </button>{" "}

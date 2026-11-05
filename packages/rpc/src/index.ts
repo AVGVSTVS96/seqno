@@ -8,7 +8,9 @@ export {
   WatchAssets,
   WriteAsset,
 } from "./assets.ts"
+
 export { CoreClient } from "./client.ts"
+
 export {
   BlockNotFound,
   BlockRefNotFound,
@@ -20,6 +22,7 @@ export {
   QueryInvalid,
   WhiteboardUnreadable,
 } from "./errors.ts"
+
 export {
   Ancestors,
   GraphNode,
@@ -37,6 +40,7 @@ export {
   WatchReferences,
   WatchUnlinkedReferences,
 } from "./pages.ts"
+
 export {
   AppFile,
   AppFilePath,
@@ -76,6 +80,7 @@ export {
   WriteFilesHere,
   tabLock,
 } from "./rpcs.ts"
+
 export {
   defaultGitSettings,
   GitClient,

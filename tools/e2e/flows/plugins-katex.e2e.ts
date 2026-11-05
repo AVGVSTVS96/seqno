@@ -21,7 +21,7 @@ const install = async (page: Page, name: string) => {
   await page.keyboard.press("Escape")
 }
 
-const openPage = async (page: Page, folder: string, lines: ReadonlyArray<string>) => {
+const openPage = async (page: Page, folder: string, lines: readonly string[]) => {
   await mkdir(join(folder, "pages"), { recursive: true })
   await writeFile(join(folder, "pages", "Calculus.md"), lines.join("\n"))
   await seedOpfs(page, folder, ["graphs", "demo"])

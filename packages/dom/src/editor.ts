@@ -1,12 +1,21 @@
-import { names, type Table } from "./names.ts"
+import { names } from "./names.ts"
+import type { Table } from "./names.ts"
 
 const headingPrefix = /^(#{1,6}) /
 
 const editorStyle = (content: string, heading: string | undefined) => {
   const level = Number(heading)
-  if (Number.isInteger(level) && level >= 1 && level <= 6) return `h${level}`
+
+  if (Number.isInteger(level) && level >= 1 && level <= 6) {
+    return `h${level}`
+  }
+
   const prefix = headingPrefix.exec(content)?.[1]
-  if (prefix !== undefined) return `h${prefix.length}`
+
+  if (prefix !== undefined) {
+    return `h${prefix.length}`
+  }
+
   return content.startsWith("---\n") && content.endsWith("\n---")
     ? "page-properties"
     : "normal-block"

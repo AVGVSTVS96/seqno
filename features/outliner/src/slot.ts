@@ -17,12 +17,13 @@ export const EditorIntent = Schema.TaggedUnion({
   Expand: {},
   NewBlock: { below: Schema.Boolean },
 })
+
 export type EditorIntent = typeof EditorIntent.Type
 
 export interface EditorSlotProps {
   readonly block: Block
   readonly caret: number
   readonly dispatch: (command: Command) => void
-  readonly dispatchAll: (commands: ReadonlyArray<Command>) => Promise<boolean>
+  readonly dispatchAll: (commands: readonly Command[]) => Promise<boolean>
   readonly onIntent: (intent: EditorIntent) => void
 }

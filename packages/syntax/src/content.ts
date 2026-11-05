@@ -1,15 +1,18 @@
-import { analyzeBlock, type Marker, type Region, type Span, type TextEdit } from "./block.ts"
-import { parseInline, type Dialect, type Inline } from "./inline.ts"
-import { defaultPropertyConfig, type PropertyConfig } from "./config.ts"
+import { analyzeBlock } from "./block.ts"
+import type { Marker, Region, Span, TextEdit } from "./block.ts"
+import { parseInline } from "./inline.ts"
+import type { Dialect, Inline } from "./inline.ts"
+import { defaultPropertyConfig } from "./config.ts"
+import type { PropertyConfig } from "./config.ts"
 import { mathBlockAt } from "./math.ts"
 import { HEADING, MARKER, PLANNING_LINE } from "./patterns.ts"
 
 export type Body =
-  | { readonly _tag: "Paragraph"; readonly inline: ReadonlyArray<Inline>; readonly span: Span }
+  | { readonly _tag: "Paragraph"; readonly inline: readonly Inline[]; readonly span: Span }
   | {
       readonly _tag: "Heading"
       readonly level: number
-      readonly inline: ReadonlyArray<Inline>
+      readonly inline: readonly Inline[]
       readonly span: Span
     }
   | {
@@ -21,13 +24,13 @@ export type Body =
     }
   | {
       readonly _tag: "Quote"
-      readonly lines: ReadonlyArray<ReadonlyArray<Inline>>
+      readonly lines: ReadonlyArray<readonly Inline[]>
       readonly span: Span
     }
   | {
       readonly _tag: "Admonition"
       readonly kind: AdmonitionKind
-      readonly lines: ReadonlyArray<ReadonlyArray<Inline>>
+      readonly lines: ReadonlyArray<readonly Inline[]>
       readonly span: Span
     }
   | { readonly _tag: "Math"; readonly tex: string; readonly span: Span }
@@ -45,7 +48,7 @@ const admonitions: ReadonlyMap<string, AdmonitionKind> = new Map([
 
 export interface ShownProperty {
   readonly key: string
-  readonly value: ReadonlyArray<Inline>
+  readonly value: readonly Inline[]
   readonly span: Span
 }
 
@@ -56,7 +59,7 @@ export interface Planning {
 }
 
 export interface Logbook {
-  readonly entries: ReadonlyArray<string>
+  readonly entries: readonly string[]
   readonly seconds: number
   readonly span: Span
 }
@@ -64,11 +67,11 @@ export interface Logbook {
 export interface BlockContent {
   readonly marker: Marker | null
   readonly heading: number | null
-  readonly title: ReadonlyArray<Inline> | null
-  readonly properties: ReadonlyArray<ShownProperty>
-  readonly planning: ReadonlyArray<Planning>
+  readonly title: readonly Inline[] | null
+  readonly properties: readonly ShownProperty[]
+  readonly planning: readonly Planning[]
   readonly logbook: Logbook | null
-  readonly body: ReadonlyArray<Body>
+  readonly body: readonly Body[]
   readonly numbered: boolean
 }
 
@@ -87,6 +90,7 @@ const HIDDEN_KEYS = new Set([
   "background_color",
   "ls-type",
 ])
+
 const QUOTE = /^[ \t]*>[ \t]?/
 const PLANNING = /(SCHEDULED|DEADLINE): <([^>\n]*)>/g
 const CLOCK_DURATION = /=>\s*(\d+):(\d{2})(?::(\d{2}))?\s*$/
@@ -99,14 +103,17 @@ const EXPORT_LANGUAGE = /^[ \t]*#\+BEGIN_EXPORT[ \t]+(\S+)/i
 const OPENS_MATH = /\\[[(]/
 const ORG_HIDDEN = /^[ \t]*(?:#\+(?!BEGIN_|END_)\S*:|#(?:[ \t]|$))/i
 
-const titleOf = (line: string, start: number, dialect: Dialect): ReadonlyArray<Inline> => {
+const titleOf = (line: string, start: number, dialect: Dialect): readonly Inline[] => {
   const own = dialect === "org" ? line.replace(ORG_HEADING_TAGS, "") : line
   const leading = LEADING_PRIORITY.exec(own.slice(start))
   const priority = leading?.[1]
+
   if (leading === null || (priority !== "A" && priority !== "B" && priority !== "C")) {
     return parseInline(own.slice(start), start, dialect)
   }
+
   const rest = start + leading[0].length
+
   return [
     { _tag: "Priority", priority, span: { from: start, to: start + 4 } },
     ...parseInline(own.slice(rest), rest, dialect),
@@ -116,26 +123,32 @@ const titleOf = (line: string, start: number, dialect: Dialect): ReadonlyArray<I
 export const isHiddenProperty = (key: string) =>
   HIDDEN_KEYS.has(key) || key.startsWith("logseq.") || key.startsWith("hl-")
 
-const linesOf = (text: string): ReadonlyArray<Line> => {
+const linesOf = (text: string): readonly Line[] => {
   let from = 0
+
   return text.split("\n").map((line) => {
     const entry = { text: line, from }
     from += line.length + 1
+
     return entry
   })
 }
 
-const listValue = (value: string, from: number): ReadonlyArray<Inline> => {
-  const nodes: Array<Inline> = []
+const listValue = (value: string, from: number): readonly Inline[] => {
+  const nodes: Inline[] = []
   let at = 0
+
   for (const item of value.split(",")) {
     const name = item.trim()
     const start = from + at + item.indexOf(name)
+
     if (nodes.length > 0 && name !== "") {
       nodes.push({ _tag: "Text", text: ", ", span: { from: from + at - 1, to: start } })
     }
-    if (name.startsWith("[[") || name.startsWith("#")) nodes.push(...parseInline(name, start))
-    else if (name !== "") {
+
+    if (name.startsWith("[[") || name.startsWith("#")) {
+      nodes.push(...parseInline(name, start))
+    } else if (name !== "") {
       nodes.push({
         _tag: "PageRef",
         name,
@@ -143,8 +156,10 @@ const listValue = (value: string, from: number): ReadonlyArray<Inline> => {
         span: { from: start, to: start + name.length },
       })
     }
+
     at += item.length + 1
   }
+
   return nodes
 }
 
@@ -153,11 +168,12 @@ export const propertyValue = (
   value: string,
   from = 0,
   config: PropertyConfig = defaultPropertyConfig,
-): ReadonlyArray<Inline> =>
+): readonly Inline[] =>
   config.listKeys.has(key.toLowerCase()) ? listValue(value, from) : parseInline(value, from)
 
 const durationOf = (entry: string): number => {
   const match = CLOCK_DURATION.exec(entry)
+
   return match === null
     ? 0
     : Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3] ?? 0)
@@ -167,15 +183,17 @@ export const clockTotal = (seconds: number): string => {
   const days = Math.floor(seconds / 86_400)
   const hours = Math.floor((seconds % 86_400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
+
   const parts = [
     days > 0 ? `${days}d` : "",
     hours > 0 ? `${hours}h` : "",
     minutes > 0 ? `${minutes}m` : "",
   ].join("")
+
   return parts === "" ? `${seconds % 60}s` : parts
 }
 
-const regionAt = (regions: ReadonlyArray<Region>, line: Line) =>
+const regionAt = (regions: readonly Region[], line: Line) =>
   regions.find((region) => region.span.from === line.from)
 
 const within = (span: Span, line: Line) => line.from >= span.from && line.from < span.to
@@ -195,50 +213,83 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
   const titleStart = titleFrom + (titleText.length - titleText.trimStart().length)
   const titleMath = hasTitle ? mathBlockAt(text, titleStart) : null
 
-  const planning: Array<Planning> = []
-  const body: Array<Body> = []
+  const planning: Planning[] = []
+  const body: Body[] = []
   let logbook: Logbook | null = null
   const rest = hasTitle ? lines.slice(1) : lines
-  const queue: Array<Line> =
+
+  const queue: Line[] =
     titleMath === null
       ? [...rest]
       : [{ text: first.text.slice(titleStart), from: titleStart }, ...rest]
+
   const plainLine = (line: Line) =>
     regionAt(syntax.regions, line) === undefined &&
     !syntax.properties.some((property) => within(property.span, line)) &&
     !PLANNING_LINE.test(line.text) &&
     (org || (!QUOTE.test(line.text) && !HEADING.test(line.text))) &&
     mathBlockAt(text, line.from) === null
+
   const mathThrough = (line: Line, index: number): number => {
-    if (!OPENS_MATH.test(line.text)) return index
+    if (!OPENS_MATH.test(line.text)) {
+      return index
+    }
+
     let last = index
-    while (queue[last + 1] !== undefined && plainLine(queue[last + 1] ?? line)) last++
-    if (last === index) return index
+
+    while (queue[last + 1] !== undefined && plainLine(queue[last + 1] ?? line)) {
+      last++
+    }
+
+    if (last === index) {
+      return index
+    }
+
     const lineEnd = line.from + line.text.length
     const tail = queue[last] ?? line
+
     const crossing = parseInline(
       text.slice(line.from, tail.from + tail.text.length),
       line.from,
       dialect,
     ).find((node) => node.span.to > lineEnd)
-    if (crossing?._tag !== "Math" || crossing.span.from >= lineEnd) return index
+
+    if (crossing?._tag !== "Math" || crossing.span.from >= lineEnd) {
+      return index
+    }
+
     let through = index
-    while ((queue[through + 1]?.from ?? Number.POSITIVE_INFINITY) < crossing.span.to) through++
+
+    while ((queue[through + 1]?.from ?? Number.POSITIVE_INFINITY) < crossing.span.to) {
+      through++
+    }
+
     return through
   }
+
   for (let index = 0; index < queue.length; index++) {
     const line = queue[index]
-    if (line === undefined) continue
-    if (syntax.properties.some((property) => within(property.span, line))) continue
+
+    if (line === undefined) {
+      continue
+    }
+
+    if (syntax.properties.some((property) => within(property.span, line))) {
+      continue
+    }
+
     const region = regionAt(syntax.regions, line)
+
     if (region !== undefined) {
       const inner = rest.filter(
         (candidate) =>
           candidate.from > region.span.from &&
           candidate.from + candidate.text.length < region.span.to,
       )
+
       index += inner.length + 1
       const span = region.span
+
       if (region.kind === "Drawer") {
         if (region.name === "LOGBOOK") {
           const entries = inner.map((entry) => entry.text.trim())
@@ -281,8 +332,10 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
           span,
         })
       }
+
       continue
     }
+
     if (PLANNING_LINE.test(line.text)) {
       for (const match of line.text.matchAll(PLANNING)) {
         const from = line.from + (match.index ?? 0)
@@ -292,37 +345,61 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
           span: { from, to: from + match[0].length },
         })
       }
+
       continue
     }
-    if (org && ORG_HIDDEN.test(line.text)) continue
+
+    if (org && ORG_HIDDEN.test(line.text)) {
+      continue
+    }
+
     const math = mathBlockAt(text, line.from)
+
     if (math !== null) {
       body.push({ _tag: "Math", tex: math.tex, span: math.span })
-      while ((queue[index + 1]?.from ?? Number.POSITIVE_INFINITY) <= math.span.to) index++
-      const last = queue[index] ?? line
-      const tail = last.text.slice(math.span.to - last.from)
-      if (tail.trim() !== "") queue[index--] = { text: tail, from: math.span.to }
-      continue
-    }
-    const quote = org ? null : QUOTE.exec(line.text)
-    if (quote !== null) {
-      const run = [line]
-      while (QUOTE.test(queue[index + 1]?.text ?? "")) {
-        const next = queue[index + 1]
-        if (next !== undefined) run.push(next)
+
+      while ((queue[index + 1]?.from ?? Number.POSITIVE_INFINITY) <= math.span.to) {
         index++
       }
+
+      const last = queue[index] ?? line
+      const tail = last.text.slice(math.span.to - last.from)
+
+      if (tail.trim() !== "") {
+        queue[index--] = { text: tail, from: math.span.to }
+      }
+
+      continue
+    }
+
+    const quote = org ? null : QUOTE.exec(line.text)
+
+    if (quote !== null) {
+      const run = [line]
+
+      while (QUOTE.test(queue[index + 1]?.text ?? "")) {
+        const next = queue[index + 1]
+
+        if (next !== undefined) {
+          run.push(next)
+        }
+
+        index++
+      }
+
       const last = run[run.length - 1] ?? line
       body.push({
         _tag: "Quote",
         lines: run.map((entry) => {
           const prefix = QUOTE.exec(entry.text)?.[0] ?? ""
+
           return parseInline(entry.text.slice(prefix.length), entry.from + prefix.length)
         }),
         span: { from: line.from, to: last.from + last.text.length },
       })
       continue
     }
+
     const hashes = org ? undefined : HEADING.exec(line.text)?.[0]
     const through = hashes === undefined ? mathThrough(line, index) : index
     const end = queue[through] ?? line
@@ -343,15 +420,17 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
           },
     )
   }
+
   return {
     marker: hasTitle ? syntax.marker : null,
     heading: heading === "" ? null : heading.trim().length,
-    title: !hasTitle ? null : titleMath === null ? titleOf(first.text, titleStart, dialect) : [],
+    title: hasTitle ? (titleMath === null ? titleOf(first.text, titleStart, dialect) : []) : null,
     properties: syntax.properties
       .filter((property) => !isHiddenProperty(property.key))
       .map((property) => {
         const line = text.slice(property.span.from, property.span.to)
         const valueFrom = property.span.from + line.indexOf(property.value, line.indexOf("::") + 2)
+
         return {
           key: property.key,
           value: propertyValue(property.key, property.value, valueFrom),
@@ -368,11 +447,20 @@ export const blockContent = (text: string, dialect: Dialect = "markdown"): Block
 export const setMarker = (text: string, marker: Marker | null): TextEdit | null => {
   const line = text.split("\n")[0] ?? ""
   const current = MARKER.exec(line)?.[0]
+
   if (current === undefined) {
     return marker === null ? null : { from: 0, to: 0, insert: line === "" ? marker : `${marker} ` }
   }
-  if (marker === current) return null
-  if (marker !== null) return { from: 0, to: current.length, insert: marker }
+
+  if (marker === current) {
+    return null
+  }
+
+  if (marker !== null) {
+    return { from: 0, to: current.length, insert: marker }
+  }
+
   const spaces = /^[ \t]*/.exec(line.slice(current.length))?.[0].length ?? 0
+
   return { from: 0, to: current.length + spaces, insert: "" }
 }

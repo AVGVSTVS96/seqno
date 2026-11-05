@@ -11,20 +11,23 @@ import { SiteView } from "./Site.tsx"
 const data = Schema.decodeUnknownOption(Schema.fromJsonString(Published))(
   document.getElementById(publishedDataId)?.textContent ?? "",
 )
+
 const container = document.getElementById("root")
 
-if (container !== null)
+if (container !== null) {
   Option.match(data, {
     onNone: () => {
       container.textContent = "This published graph could not be read."
     },
     onSome: (published) => {
       document.documentElement.dataset["theme"] = published.theme
+
       const registry = AtomRegistry.make({
         scheduleTask,
         defaultIdleTTL: 400,
         initialValues: [[coreLayer, publishedCore(published)]],
       })
+
       createRoot(container).render(
         <StrictMode>
           <RegistryContext.Provider value={registry}>
@@ -34,3 +37,4 @@ if (container !== null)
       )
     },
   })
+}

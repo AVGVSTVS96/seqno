@@ -22,9 +22,11 @@ test("the first board you create is filled with Logseq's own onboarding board, o
   })
   await newBoard(page)
   const counts = { text: 32, line: 19, image: 19, box: 6, highlighter: 1, youtube: 1, iframe: 1 }
+
   for (const [type, count] of Object.entries(counts)) {
     await expect(shapes(page, type)).toHaveCount(count)
   }
+
   await expect(page.getByText("Loading onboarding whiteboard ...")).toHaveCount(0)
   await expect(
     shapes(page, "text").locator(".wb-text").filter({ hasText: "Welcome to" }),
@@ -53,7 +55,9 @@ test("the first board you create is filled with Logseq's own onboarding board, o
 })
 
 test("when the onboarding file can't be fetched, the board opens empty", async ({ page }) => {
-  await page.route(onboardingFile, (route) => route.abort())
+  await page.route(onboardingFile, async (route) => {
+    await route.abort()
+  })
   await newBoard(page)
   await expect(page.getByText("Loading onboarding whiteboard ...")).toHaveCount(0)
   await expect(board(page).locator(".wb-shape")).toHaveCount(0)
@@ -67,9 +71,9 @@ test("the first click on Whiteboards in the sidebar welcomes you, and Start whit
   await mkdir(join(graph, "pages"), { recursive: true })
   await writeFile(join(graph, "pages", "ideas.md"), "- sketch the [[Garden]]")
   await Promise.all(
-    Array.from({ length: 1500 }, (_, i) =>
-      writeFile(join(graph, "pages", `note ${i}.md`), `- planted [[Garden]] bed ${i}`),
-    ),
+    Array.from({ length: 1500 }, async (_, i) => {
+      await writeFile(join(graph, "pages", `note ${i}.md`), `- planted [[Garden]] bed ${i}`)
+    }),
   )
   await loadGraphFolder(page, graph)
   await page.goto("/")

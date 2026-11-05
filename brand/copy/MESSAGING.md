@@ -131,32 +131,32 @@ Plain, direct, warm. Short sentences anyone can follow. The work is good; say wh
 
 **Examples**
 
-| Don't | Do |
-|---|---|
-| The powerful, privacy-first knowledge platform. | A local-first outliner. |
-| Seamless sync across all your devices. | Every edit goes into a log built to merge across devices without conflicts. Two real devices are next. |
-| Lightning fast. | A keystroke costs 0.14 ms in the engine, about 100 times under a 16 ms frame. |
-| 100% Logseq compatible. | Opens your Logseq graphs. Logseq's simple queries run unchanged. |
-| Logseq, but finally done right. | Looks and feels like Logseq, rebuilt to be minimal, solid and clean. |
-| Beta! Join the waitlist. | It's early. Try it in your browser. |
-| Military-grade privacy. | No account, no seqno server. Your notes stay on your device. |
+| Don't                                           | Do                                                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| The powerful, privacy-first knowledge platform. | A local-first outliner.                                                                                |
+| Seamless sync across all your devices.          | Every edit goes into a log built to merge across devices without conflicts. Two real devices are next. |
+| Lightning fast.                                 | A keystroke costs 0.14 ms in the engine, about 100 times under a 16 ms frame.                          |
+| 100% Logseq compatible.                         | Opens your Logseq graphs. Logseq's simple queries run unchanged.                                       |
+| Logseq, but finally done right.                 | Looks and feels like Logseq, rebuilt to be minimal, solid and clean.                                   |
+| Beta! Join the waitlist.                        | It's early. Try it in your browser.                                                                    |
+| Military-grade privacy.                         | No account, no seqno server. Your notes stay on your device.                                           |
 
 ## Facts we can use
 
 Every number here is from the docs, with what it measures. Use the qualifier with the number.
 
-| Fact | Where |
-|---|---|
-| Runs in Chrome and Edge; iOS and desktop come later | README, roadmap |
-| Opens Logseq folders and reads `journals/`, `pages/` and `config.edn` formats | architecture |
-| Edits save to the edit log every 250 ms and survive a reload | roadmap |
-| Logseq's simple queries paste in and run unchanged; Dataview-style also works | architecture, roadmap |
-| "TODOs not under a DOING task": 20 lines of Datalog rules in Logseq, one line here: `{{query (and (task todo) (not (under (task doing))))}}` | decisions |
-| A keystroke costs 0.14 ms p95 in the engine on the web, on a 50k-block graph | decisions (phase 0 benchmark) |
-| Sync simulator: 1,000 runs of 1k edits and 100 runs of 10k edits, 5 devices, 0 lost | decisions |
-| Web and iOS applied the same 10k edits and ended identical | decisions (phase 0 benchmark) |
-| About 490 unit and component tests, 56 Playwright flows against a production build | roadmap |
-| 12 screens checked next to Logseq, light and dark | roadmap |
-| Every design value measured from the live Logseq apps | design-spec |
-| No seqno server; everything runs on your device | architecture |
-| MIT | README |
+| Fact                                                                                                                                         | Where                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Runs in Chrome and Edge; iOS and desktop come later                                                                                          | README, roadmap               |
+| Opens Logseq folders and reads `journals/`, `pages/` and `config.edn` formats                                                                | architecture                  |
+| Edits save to the edit log every 250 ms and survive a reload                                                                                 | roadmap                       |
+| Logseq's simple queries paste in and run unchanged; Dataview-style also works                                                                | architecture, roadmap         |
+| "TODOs not under a DOING task": 20 lines of Datalog rules in Logseq, one line here: `{{query (and (task todo) (not (under (task doing))))}}` | decisions                     |
+| A keystroke costs 0.14 ms p95 in the engine on the web, on a 50k-block graph                                                                 | decisions (phase 0 benchmark) |
+| Sync simulator: 1,000 runs of 1k edits and 100 runs of 10k edits, 5 devices, 0 lost                                                          | decisions                     |
+| Web and iOS applied the same 10k edits and ended identical                                                                                   | decisions (phase 0 benchmark) |
+| About 490 unit and component tests, 56 Playwright flows against a production build                                                           | roadmap                       |
+| 12 screens checked next to Logseq, light and dark                                                                                            | roadmap                       |
+| Every design value measured from the live Logseq apps                                                                                        | design-spec                   |
+| No seqno server; everything runs on your device                                                                                              | architecture                  |
+| MIT                                                                                                                                          | README                        |

@@ -8,6 +8,7 @@
     "../../features/plugins/src/datascript.d.ts"
   ],
   "compilerOptions": {
+    "rootDir": ".",
     "lib": ["es2024", "dom", "dom.iterable", "dom.asynciterable"],
     "jsx": "react-jsx",
     "types": ["vite/client", "wicg-file-system-access"]

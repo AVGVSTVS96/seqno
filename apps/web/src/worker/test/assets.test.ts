@@ -14,13 +14,18 @@ const graphFolder = Effect.acquireRelease(
     await writeFile(join(root, "assets", "storages", "plugin", "notes.json"), "{}")
     await mkdir(join(root, "pages"))
     await writeFile(join(root, "pages", "page.md"), "- ![cat](../assets/cat_1700000000000_0.png)")
+
     return root
   }),
-  (root) => Effect.promise(() => rm(root, { recursive: true, force: true })),
+  (root) =>
+    Effect.promise(async () => {
+      await rm(root, { recursive: true, force: true })
+    }),
 )
 
-const filesOf = (root: string, wrote?: (paths: ReadonlyArray<string>) => Effect.Effect<void>) => {
+const filesOf = (root: string, wrote?: (paths: readonly string[]) => Effect.Effect<void>) => {
   const storage = nodeStorage(root)
+
   return makeAssetFiles(
     storage,
     (path) => Effect.map(storage.read(path), (bytes) => new File([new Uint8Array(bytes)], path)),
@@ -28,7 +33,7 @@ const filesOf = (root: string, wrote?: (paths: ReadonlyArray<string>) => Effect.
   )
 }
 
-const text = (url: string) => Effect.promise(async () => (await fetch(url)).text())
+const text = (url: string) => Effect.promise(async () => await (await fetch(url)).text())
 
 const bytes = (value: string) => new TextEncoder().encode(value)
 
@@ -50,12 +55,14 @@ describe("a graph's assets", () => {
 
   it.effect("tells git about every file it saves, writes or removes, as page writes do", () =>
     Effect.gen(function* () {
-      const told: Array<ReadonlyArray<string>> = []
+      const told: Array<readonly string[]> = []
+
       const assets = yield* filesOf(yield* graphFolder, (paths) =>
         Effect.sync(() => {
           told.push(paths)
         }),
       )
+
       const saved = yield* assets.save("seed tray.png", bytes("png"))
       yield* assets.write("assets/storages/plugin/notes.json", bytes("{}"))
       yield* assets.remove(saved.path)
@@ -79,7 +86,7 @@ describe("a graph's assets", () => {
       )
       assert.strictEqual(yield* text(second.url), "third")
       assert.deepStrictEqual(
-        (yield* Effect.promise(() => readdir(join(root, "assets")))).toSorted(),
+        (yield* Effect.promise(async () => await readdir(join(root, "assets")))).toSorted(),
         [
           "cat_1700000000000_0.png",
           "cat_1700000000000_0_1.png",
@@ -102,9 +109,10 @@ describe("a graph's assets", () => {
         (yield* SubscriptionRef.get(assets.listed)).map((asset) => asset.path),
         ["assets/storages/plugin/notes.json"],
       )
-      assert.deepStrictEqual(yield* Effect.promise(() => readdir(join(root, "assets"))), [
-        "storages",
-      ])
+      assert.deepStrictEqual(
+        yield* Effect.promise(async () => await readdir(join(root, "assets"))),
+        ["storages"],
+      )
     }).pipe(Effect.scoped),
   )
 
@@ -117,7 +125,7 @@ describe("a graph's assets", () => {
       const removed = yield* Effect.flip(assets.remove("pages/page.md"))
       assert.strictEqual(removed.reason, "not a path inside assets/")
       assert.strictEqual(
-        yield* Effect.promise(() => readFile(join(root, "pages", "page.md"), "utf8")),
+        yield* Effect.promise(async () => await readFile(join(root, "pages", "page.md"), "utf-8")),
         "- ![cat](../assets/cat_1700000000000_0.png)",
       )
     }).pipe(Effect.scoped),
@@ -127,8 +135,12 @@ describe("a graph's assets", () => {
     Effect.gen(function* () {
       const root = yield* graphFolder
       const assets = yield* filesOf(root)
-      yield* Effect.promise(() => writeFile(join(root, "assets", "synced.pdf"), "pdf"))
-      yield* Effect.promise(() => rm(join(root, "assets", "cat_1700000000000_0.png")))
+      yield* Effect.promise(async () => {
+        await writeFile(join(root, "assets", "synced.pdf"), "pdf")
+      })
+      yield* Effect.promise(async () => {
+        await rm(join(root, "assets", "cat_1700000000000_0.png"))
+      })
       yield* assets.refresh
       assert.deepStrictEqual(
         (yield* SubscriptionRef.get(assets.listed)).map((asset) => asset.path),

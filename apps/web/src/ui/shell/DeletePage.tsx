@@ -19,6 +19,7 @@ export const DeletePage = ({
 }) => {
   const run = useAtomSet(dispatch, { mode: "promiseExit" })
   const title = useId()
+
   return (
     <Dialog
       id={id}
@@ -26,7 +27,9 @@ export const DeletePage = ({
       className="confirm"
       onClose={onClose}
       ref={(dialog) => {
-        if (dialog !== null && !dialog.open) dialog.showModal()
+        if (dialog !== null && !dialog.open) {
+          dialog.showModal()
+        }
       }}
     >
       <div className="confirm-body" aria-labelledby={title}>
@@ -49,7 +52,9 @@ export const DeletePage = ({
             onClick={(event) => {
               closeDialogOf(event.currentTarget)
               void run({ _tag: "DeletePage", pageId: page.id }).then((exit) => {
-                if (Exit.isSuccess(exit)) onDeleted()
+                if (Exit.isSuccess(exit)) {
+                  onDeleted()
+                }
               })
             }}
           >

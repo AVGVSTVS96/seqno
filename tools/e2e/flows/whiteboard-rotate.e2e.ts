@@ -5,8 +5,10 @@ import { board, drag, newBoard, shapes } from "../src/whiteboard.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
-const turn = (page: Page) =>
-  shapes(page, "box").evaluate((node) => (node instanceof HTMLElement ? node.style.transform : ""))
+const turn = async (page: Page) =>
+  await shapes(page, "box").evaluate((node) =>
+    node instanceof HTMLElement ? node.style.transform : "",
+  )
 
 const radiansOf = (transform: string) => Number.parseFloat(transform.replace("rotate(", ""))
 
@@ -59,6 +61,7 @@ test("Shift snaps the turn to 15 degrees, and Escape mid-drag puts the shape bac
   await expect
     .poll(async () => {
       const radians = radiansOf(await turn(page))
+
       return Math.abs(radians / (Math.PI / 12) - Math.round(radians / (Math.PI / 12))) < 1e-4
     })
     .toBe(true)

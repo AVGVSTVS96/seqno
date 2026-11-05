@@ -14,13 +14,17 @@ export const PageLink = ({
   readonly children?: ReactNode
 }) => {
   const updateSidebar = useAtomSet(rightSidebar)
+
   return (
     <Link
       to="/page/$name"
       params={{ name: page.name }}
       className={className}
       onClick={(event) => {
-        if (!event.shiftKey) return
+        if (!event.shiftKey) {
+          return
+        }
+
         event.preventDefault()
         updateSidebar({ _tag: "Open", item: { _tag: "Page", name: page.name } })
       }}

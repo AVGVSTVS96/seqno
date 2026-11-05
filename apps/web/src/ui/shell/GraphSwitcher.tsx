@@ -10,7 +10,8 @@ import {
 import { useNavigate } from "@tanstack/react-router"
 import { Exit } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { openGraph, recentGraphs, rightSidebar, type GraphSource } from "../../atoms.ts"
+import { openGraph, recentGraphs, rightSidebar } from "../../atoms.ts"
+import type { GraphSource } from "../../atoms.ts"
 import { canPickFolders } from "../../embed.ts"
 import { demoGraphs, graphTitle, isDemoGraph } from "../../graph-locations.ts"
 import { Menu, MenuItem, usePopover } from "./popover.tsx"
@@ -19,9 +20,13 @@ export const useSwitchGraph = () => {
   const open = useAtomSet(openGraph, { mode: "promiseExit" })
   const updateSidebar = useAtomSet(rightSidebar)
   const navigate = useNavigate()
+
   return (source: GraphSource) =>
     void open(source).then((exit) => {
-      if (!Exit.isSuccess(exit)) return
+      if (!Exit.isSuccess(exit)) {
+        return
+      }
+
       updateSidebar({ _tag: "Clear" })
       void navigate({ to: "/" })
     })
@@ -29,16 +34,20 @@ export const useSwitchGraph = () => {
 
 export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
   const refreshRecent = useAtomRefresh(recentGraphs)
+
   const others = AsyncResult.getOrElse(useAtomValue(recentGraphs), () => []).filter(
     (location) => location.name !== graph && !isDemoGraph(location.name),
   )
+
   const switchTo = useSwitchGraph()
   const navigate = useNavigate()
+
   const menu = usePopover({
     placement: { align: "start", gap: 4, inset: 8 },
     kind: "menu",
     onOpen: refreshRecent,
   })
+
   return (
     <div {...logseq("graph-switcher")}>
       <button
@@ -62,7 +71,9 @@ export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
             {others.map((location) => (
               <MenuItem
                 key={location.name}
-                onSelect={() => switchTo({ _tag: "Recent", name: location.name })}
+                onSelect={() => {
+                  switchTo({ _tag: "Recent", name: location.name })
+                }}
               >
                 {graphTitle(location.name)}
               </MenuItem>
@@ -76,7 +87,9 @@ export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
             checked={name === graph}
             hint={name === graph ? <IconCheck size={16} aria-hidden /> : undefined}
             onSelect={() => {
-              if (name !== graph) switchTo({ _tag: "Demo", name })
+              if (name !== graph) {
+                switchTo({ _tag: "Demo", name })
+              }
             }}
           >
             {graphTitle(name)}
@@ -86,7 +99,9 @@ export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {
           {canPickFolders ? (
             <MenuItem
               icon={<IconFolderOpen size={18} aria-hidden />}
-              onSelect={() => switchTo({ _tag: "PickFolder" })}
+              onSelect={() => {
+                switchTo({ _tag: "PickFolder" })
+              }}
             >
               Open a folder
             </MenuItem>

@@ -13,8 +13,12 @@ export const customStyleHref = (
 ): string | null => {
   const style =
     readConfigString(configEdn, ":custom-css-url") ??
-    customCss.replace(relativeAsset, (link) => resolveAsset(link) ?? link)
-  if (style.trim() === "") return null
+    customCss.replaceAll(relativeAsset, (link) => resolveAsset(link) ?? link)
+
+  if (style.trim() === "") {
+    return null
+  }
+
   return style.startsWith("http")
     ? style
     : `data:text/css;charset=utf-8,${encodeURIComponent(style)}`
@@ -30,6 +34,7 @@ const customStyle = Atom.make((get) =>
 
 export const CustomCss = () => {
   const href = useAtomValue(customStyle)
+
   return href === null ? null : (
     <link
       {...logseq("seqno-custom-css")}

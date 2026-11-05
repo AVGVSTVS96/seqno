@@ -148,11 +148,12 @@ const Q17 = `{:title "Count number of blocks in the current page"
 
 const NAMESPACE_WARNING =
   "namespace matches every depth (Logseq's :block/namespace only matched direct children)"
+
 const VIEW_WARNING =
   "custom :view dropped (views are declared, never code); showing the default list"
 
 const translated: ReadonlyArray<
-  readonly [name: string, source: string, printed: string, warnings: ReadonlyArray<string>]
+  readonly [name: string, source: string, printed: string, warnings: readonly string[]]
 > = [
   [
     "docs: all tasks",

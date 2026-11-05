@@ -2,7 +2,8 @@ import { Context, Effect, Layer, Option } from "effect"
 import { decodeImportBlobMeta } from "loro-crdt"
 import type { PageId } from "@seqno/domain"
 import { Graph, PeerId, graphV2Layer, vaultReplica } from "@seqno/graph"
-import { Graphs, type Replica, type ReplicaSpec } from "./ports.ts"
+import { Graphs } from "./ports.ts"
+import type { Replica, ReplicaSpec } from "./ports.ts"
 import type { Span, VV } from "./vv.ts"
 
 const vvOf = (version: ReadonlyMap<string, number>): VV => Object.fromEntries(version)
@@ -10,6 +11,7 @@ const vvOf = (version: ReadonlyMap<string, number>): VV => Object.fromEntries(ve
 const blobSpan = (bytes: Uint8Array, checksum: boolean): Option.Option<Span> => {
   try {
     const meta = decodeImportBlobMeta(bytes, checksum)
+
     return Option.some({
       start:
         meta.mode === "snapshot" ? {} : Object.fromEntries(meta.partialStartVersionVector.toJSON()),
@@ -34,6 +36,7 @@ const opener = (layerOf: typeof Graph.layer) => (spec: ReplicaSpec) =>
       ),
       Graph,
     )
+
     const synced = vaultReplica({
       ...graph,
       merge: (blobs) =>
@@ -41,10 +44,13 @@ const opener = (layerOf: typeof Graph.layer) => (spec: ReplicaSpec) =>
           version.size === 0 ? Effect.as(graph.restore(blobs), []) : graph.merge(blobs),
         ),
     })
+
     const pages = Effect.map(graph.pages, (all) => all.toSorted((a, b) => (a.id < b.id ? -1 : 1)))
+
     const trees = Effect.flatMap(pages, (all) =>
       Effect.forEach(all, (page) => Effect.orDie(graph.page(page.id))),
     )
+
     const replica: Replica = {
       peer: String(spec.peer),
       dispatch: graph.dispatch,
@@ -75,6 +81,7 @@ const opener = (layerOf: typeof Graph.layer) => (spec: ReplicaSpec) =>
         blocks: all.flatMap((tree) => tree.blocks.map((block) => block.id)),
       })),
     }
+
     return replica
   })
 

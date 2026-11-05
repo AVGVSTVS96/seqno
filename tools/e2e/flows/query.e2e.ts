@@ -12,8 +12,8 @@ const openShowcase = async (page: Page) => {
   await scrollToText(page, "Live query", 100)
 }
 
-const groupNames = (query: ReturnType<Page["getByRole"]>) =>
-  query
+const groupNames = async (query: ReturnType<Page["getByRole"]>) =>
+  await query
     .getByRole("region")
     .evaluateAll((groups) => groups.map((group) => group.getAttribute("aria-label")))
 

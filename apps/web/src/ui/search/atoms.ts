@@ -1,10 +1,12 @@
 import { Effect } from "effect"
-import { Atom, type AtomRegistry } from "effect/reactivity"
+import { Atom } from "effect/reactivity"
+import type { AtomRegistry } from "effect/reactivity"
 import type { PageId } from "@seqno/domain"
 import { CoreClient, PageClient } from "@seqno/rpc"
 import { searchOpen } from "../../atoms.ts"
 import { viewRuntime } from "../pages/atoms.ts"
-import { noHits, type Filter, type Hits } from "./model.ts"
+import { noHits } from "./model.ts"
+import type { Filter, Hits } from "./model.ts"
 
 export const paletteQuery = Atom.make("").pipe(Atom.keepAlive)
 
@@ -12,7 +14,11 @@ export const paletteFilter = Atom.make<Filter | null>(null).pipe(Atom.keepAlive)
 
 export const openPalette = (registry: AtomRegistry.AtomRegistry, filter: Filter | null) => {
   registry.set(paletteFilter, filter)
-  if (filter !== null) registry.set(paletteQuery, "")
+
+  if (filter !== null) {
+    registry.set(paletteQuery, "")
+  }
+
   registry.set(searchOpen, true)
 }
 
@@ -21,19 +27,23 @@ const hitsOf = (text: string, pageId?: PageId, code?: boolean) =>
     const hits = yield* (yield* CoreClient).Search(
       code === true ? { text, code } : pageId === undefined ? { text } : { text, pageId },
     )
+
     const ancestors = yield* (yield* PageClient).Ancestors({
       blockIds: hits.blocks.map((block) => block.id),
     })
+
     return { pages: hits.pages, blocks: hits.blocks, ancestors } satisfies Hits
   })
 
 export const paletteHits = viewRuntime.atom((get) => {
   const text = get(paletteQuery).trim()
+
   return text === "" ? Effect.succeed(noHits) : hitsOf(text)
 })
 
 export const codeHits = viewRuntime.atom((get) => {
   const text = get(paletteQuery).trim()
+
   return text === "" || get(paletteFilter) !== "codes"
     ? Effect.succeed(noHits)
     : hitsOf(text, undefined, true)
@@ -48,6 +58,7 @@ export const searchHits = Atom.family((text: string) => viewRuntime.atom(hitsOf(
 export const pageHits = Atom.family((pageId: PageId | null) =>
   viewRuntime.atom((get) => {
     const text = get(paletteQuery).trim()
+
     return text === "" || pageId === null ? Effect.succeed(noHits) : hitsOf(text, pageId)
   }),
 )
@@ -80,10 +91,17 @@ export const paletteKey = (event: KeyPress): Filter | null | undefined =>
 export const searchShortcut = Atom.make((get) => {
   const onKeyDown = (event: KeyboardEvent) => {
     const filter = paletteKey(event)
-    if (filter === undefined || get.registry.get(searchOpen)) return
+
+    if (filter === undefined || get.registry.get(searchOpen)) {
+      return
+    }
+
     event.preventDefault()
     openPalette(get.registry, filter)
   }
+
   window.addEventListener("keydown", onKeyDown, { capture: true })
-  get.addFinalizer(() => window.removeEventListener("keydown", onKeyDown, { capture: true }))
+  get.addFinalizer(() => {
+    window.removeEventListener("keydown", onKeyDown, { capture: true })
+  })
 })

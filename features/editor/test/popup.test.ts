@@ -10,16 +10,25 @@ const popupOf = (popups: MountedEditor["popups"]) => popups.frame()?.popup ?? nu
 const labels = (popups: MountedEditor["popups"]) =>
   popupOf(popups)?.choices.map((choice) => {
     switch (choice._tag) {
-      case "Command":
+      case "Command": {
         return choice.command.label
-      case "Block":
+      }
+
+      case "Block": {
         return choice.text
-      case "NewPage":
+      }
+
+      case "NewPage": {
         return `New page ${choice.title}`
-      case "Journal":
+      }
+
+      case "Journal": {
         return choice.label
-      case "Page":
+      }
+
+      case "Page": {
         return choice.title
+      }
     }
   }) ?? null
 
@@ -42,9 +51,11 @@ describe("slash menu", () => {
   it("opens after a space with Logseq's groups in Logseq's order", () => {
     const { view, popups } = mount("", { _tag: "End" })
     typeKeys(view, "x /")
+
     const groups = popupOf(popups)?.choices.flatMap((choice) =>
       choice._tag === "Command" ? [choice.command.group] : [],
     )
+
     assert.deepStrictEqual(
       [...new Set(groups)],
       [
@@ -161,9 +172,9 @@ describe("page search", () => {
   it("ranks pages and offers a new page right after a close match", async () => {
     const { view, popups, searches } = mount("see ", { _tag: "End" })
     typeKeys(view, "[[proj")
-    await vi.waitFor(() =>
-      assert.deepStrictEqual(labels(popups), ["Projects", "New page proj", "Project X"]),
-    )
+    await vi.waitFor(() => {
+      assert.deepStrictEqual(labels(popups), ["Projects", "New page proj", "Project X"])
+    })
     assert.deepStrictEqual(searches.at(-1), "page:proj")
     press(view, "Enter")
     assert.deepStrictEqual(
@@ -177,7 +188,9 @@ describe("page search", () => {
     typeKeys(view, "[[proj")
     assert.strictEqual(press(view, "Enter"), true)
     assert.deepStrictEqual([text(view), labels(popups)], ["see [[proj]]", relativeDates])
-    await vi.waitFor(() => assert.strictEqual(text(view), "see [[Projects]]"))
+    await vi.waitFor(() => {
+      assert.strictEqual(text(view), "see [[Projects]]")
+    })
     assert.deepStrictEqual([caret(view), popupOf(popups)], [16, null])
   })
 
@@ -186,12 +199,12 @@ describe("page search", () => {
     typeKeys(plan.view, "[[plan")
     const exact = mount("", { _tag: "End" })
     typeKeys(exact.view, "[[projects")
-    await vi.waitFor(() =>
+    await vi.waitFor(() => {
       assert.deepStrictEqual(
         [labels(plan.popups), labels(exact.popups)],
         [["New page plan", "Garden Plan"], ["Projects"]],
-      ),
-    )
+      )
+    })
   })
 
   it("lists a tag-only page first for #, and leaves out pages matched only by scattered letters", async () => {
@@ -199,15 +212,17 @@ describe("page search", () => {
     pages.push({ name: "projects/greenhouse", title: "projects/Greenhouse" })
     pages.push({ name: "greenhouse", title: "greenhouse" })
     typeKeys(view, "#gre")
-    await vi.waitFor(() =>
-      assert.deepStrictEqual(labels(popups), ["greenhouse", "New page gre", "projects/Greenhouse"]),
-    )
+    await vi.waitFor(() => {
+      assert.deepStrictEqual(labels(popups), ["greenhouse", "New page gre", "projects/Greenhouse"])
+    })
   })
 
   it("opens the chosen page in the sidebar on Shift+Enter and keeps the popup", async () => {
     const { view, popups, actions } = mount("see ", { _tag: "End" })
     typeKeys(view, "[[proj")
-    await vi.waitFor(() => assert.strictEqual(labels(popups)?.[0], "Projects"))
+    await vi.waitFor(() => {
+      assert.strictEqual(labels(popups)?.[0], "Projects")
+    })
     press(view, "Enter", { shiftKey: true })
     assert.deepStrictEqual(
       [actions, text(view), labels(popups)],
@@ -222,7 +237,9 @@ describe("page search", () => {
   it("brackets a tag with spaces", async () => {
     const { view, popups } = mount("todo ", { _tag: "End" })
     typeKeys(view, "#pro")
-    await vi.waitFor(() => assert.strictEqual(labels(popups)?.[2], "Project X"))
+    await vi.waitFor(() => {
+      assert.strictEqual(labels(popups)?.[2], "Project X")
+    })
     press(view, "ArrowUp")
     press(view, "Enter")
     assert.strictEqual(text(view), "todo #[[Project X]]")
@@ -239,7 +256,9 @@ describe("block search", () => {
   it("inserts the chosen block's id", async () => {
     const { view, popups } = mount("", { _tag: "End" })
     typeKeys(view, "((ship")
-    await vi.waitFor(() => assert.deepStrictEqual(labels(popups), ["ship the editor"]))
+    await vi.waitFor(() => {
+      assert.deepStrictEqual(labels(popups), ["ship the editor"])
+    })
     press(view, "Enter")
     assert.deepStrictEqual([text(view), caret(view)], [`((${otherBlockId}))`, 40])
   })

@@ -7,7 +7,8 @@ import { Effect, Schema } from "effect"
 import { bugs } from "../src/loro-vault.ts"
 import type { SeedResult } from "../src/sim.ts"
 import { decodeSeedJob, runJob, SeedJob, suites } from "../src/suite.ts"
-import { summarize, type Finished } from "../src/summary.ts"
+import { summarize } from "../src/summary.ts"
+import type { Finished } from "../src/summary.ts"
 
 const childJob = process.env["SYNC_SIM_JOB"]
 
@@ -15,6 +16,7 @@ const send = (message: unknown) => process.send?.(message, () => process.exit(0)
 
 const runChild = async (raw: string) => {
   const job = decodeSeedJob(raw)
+
   try {
     const result = await Effect.runPromise(runJob(job))
     send({ ...result, rssMB: Math.round(process.resourceUsage().maxRSS / 1024) })
@@ -65,9 +67,11 @@ const runParent = async () => {
       "heap-mb": { type: "string", default: "1024" },
     },
   })
+
   const options = Schema.decodeUnknownSync(Options)(values)
   const preset = suites[options.suite ?? "ci"]
   const count = options.seeds ?? preset.seeds
+
   const base = {
     ops: options.ops ?? preset.ops,
     hours: options.hours ?? preset.hours,
@@ -77,48 +81,59 @@ const runParent = async () => {
     vault: options.graph === "stand-in" ? options.vault : "real",
     graph: options.graph,
   }
+
   const workers = Math.min(4, options.workers, count)
   const started = performance.now()
   const out = options.out
+
   if (out !== undefined) {
     mkdirSync(dirname(out), { recursive: true })
     writeFileSync(out, "")
   }
+
   const stream = (line: object) => {
     if (out !== undefined) {
       appendFileSync(out, `${JSON.stringify(line)}\n`)
     }
   }
+
   const results: Finished[] = []
   const crashes: Array<{ readonly seed: number; readonly crash: string }> = []
   const queue = Array.from({ length: count }, (_, i) => options.from + i)
+
   const report = () =>
     process.stderr.write(
       `${results.length + crashes.length}/${count} seeds, ${results.filter((r) => !r.ok).length} failed, ${crashes.length} crashed, ${((performance.now() - started) / 1000).toFixed(0)}s, max seed rss ${Math.max(0, ...results.map((r) => r.rssMB))}MB\n`,
     )
 
-  const runOne = (seed: number) =>
-    new Promise<void>((resolve) => {
+  const runOne = async (seed: number) => {
+    await new Promise<void>((resolve) => {
       const job: SeedJob = { ...base, seed }
+
       const child = fork(fileURLToPath(import.meta.url), [], {
         env: { ...process.env, SYNC_SIM_JOB: JSON.stringify(Schema.encodeSync(SeedJob)(job)) },
         stdio: ["ignore", "ignore", "inherit", "ipc"],
         execArgv: [`--max-old-space-size=${options["heap-mb"]}`],
       })
+
       let reported = false
+
       const crash = (message: string) => {
         if (reported) {
           return
         }
+
         reported = true
         crashes.push({ seed, crash: message })
         stream({ seed, crash: message })
         process.stderr.write(`seed ${seed} CRASHED: ${message}\n`)
       }
+
       const timer = setTimeout(() => {
         crash(`still running after ${options["timeout-s"]}s`)
         child.kill("SIGKILL")
       }, options["timeout-s"] * 1000)
+
       child.on(
         "message",
         (
@@ -128,30 +143,39 @@ const runParent = async () => {
         ) => {
           if ("crash" in message) {
             crash(message.crash)
+
             return
           }
+
           reported = true
           results.push(message)
           stream(message)
+
           if (!message.ok) {
             process.stderr.write(
               `seed ${message.seed} FAILED: ${message.problems.slice(0, 3).join(" | ")}\n`,
             )
           }
+
           if (results.length % 10 === 0) {
             report()
           }
         },
       )
-      child.on("error", (error) => crash(String(error)))
+      child.on("error", (error) => {
+        crash(String(error))
+      })
       child.on("exit", (code, signal) => {
         clearTimeout(timer)
+
         if (!reported) {
           crash(`seed process exited with ${code ?? signal}`)
         }
+
         resolve()
       })
     })
+  }
 
   await Promise.all(
     Array.from({ length: workers }, async () => {
@@ -161,12 +185,14 @@ const runParent = async () => {
     }),
   )
   report()
+
   const summary = summarize(
     { ...base, seeds: `${options.from}..${options.from + count - 1}`, workers },
     results,
     crashes,
     (performance.now() - started) / 1000,
   )
+
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`)
   process.exitCode = summary.passed === count ? 0 : 1
 }

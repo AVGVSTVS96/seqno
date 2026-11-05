@@ -1,4 +1,5 @@
-import { Context, Deferred, Effect, Exit, Layer, Option, type Scope } from "effect"
+import { Context, Deferred, Effect, Exit, Layer, Option } from "effect"
+import type { Scope } from "effect"
 import { tabLock } from "@seqno/rpc"
 
 export class GraphLocks extends Context.Service<
@@ -17,17 +18,17 @@ const handoverLock = (graph: string) => `seqno/graph/${graph}/handover`
 
 type Mode = "now" | "wait" | "steal"
 
-const ask = (
+const ask = async (
   name: string,
   mode: Mode,
   signal: AbortSignal,
   granted: LockGrantedCallback<unknown>,
 ) =>
   mode === "now"
-    ? navigator.locks.request(name, { ifAvailable: true }, granted)
+    ? await navigator.locks.request(name, { ifAvailable: true }, granted)
     : mode === "steal"
-      ? navigator.locks.request(name, { steal: true }, granted)
-      : navigator.locks.request(name, { signal }, granted)
+      ? await navigator.locks.request(name, { steal: true }, granted)
+      : await navigator.locks.request(name, { signal }, granted)
 
 const lock = (name: string, mode: Mode) =>
   Effect.gen(function* () {
@@ -35,29 +36,35 @@ const lock = (name: string, mode: Mode) =>
     const settled = Promise.withResolvers<void>()
     const lost = yield* Deferred.make<void>()
     yield* Effect.addFinalizer(() =>
-      Effect.promise(() => {
+      Effect.promise(async () => {
         release.resolve()
-        return settled.promise
+
+        await settled.promise
       }),
     )
+
     const held = yield* Effect.callback<boolean>((resume, signal) => {
       ask(name, mode, signal, (granted) => {
         resume(Effect.succeed(granted !== null))
+
         return granted === null ? undefined : release.promise
       }).then(
-        () => settled.resolve(),
+        () => {
+          settled.resolve()
+        },
         () => {
           settled.resolve()
           Deferred.doneUnsafe(lost, Exit.void)
         },
       )
     })
+
     return { held, lost: Deferred.await(lost) }
   })
 
 const handsOver = (graph: string) =>
   Effect.map(
-    Effect.promise(() => navigator.locks.query()),
+    Effect.promise(async () => await navigator.locks.query()),
     ({ held }) => (held ?? []).some((info) => info.name === handoverLock(graph)),
   )
 
@@ -67,14 +74,21 @@ export const layerWebLocks = Layer.succeed(
     hold: (graph, wait) =>
       Effect.gen(function* () {
         if (!(yield* lock(graphLock(graph), "now")).held) {
-          if (!wait && !(yield* handsOver(graph))) return Option.none()
+          if (!wait && !(yield* handsOver(graph))) {
+            return Option.none()
+          }
+
           yield* Effect.scoped(lock(handoverLock(graph), "steal"))
           yield* lock(graphLock(graph), "wait")
         }
+
         const handover = yield* lock(handoverLock(graph), "wait")
+
         return Option.some(handover.lost)
       }),
     tabClosed: (tab) =>
-      Effect.promise(() => navigator.locks.request(tabLock(tab), () => undefined)),
+      Effect.promise(async () => {
+        await navigator.locks.request(tabLock(tab), () => undefined)
+      }),
   }),
 )

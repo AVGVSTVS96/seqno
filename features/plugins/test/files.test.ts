@@ -19,6 +19,7 @@ describe("referencesIn", () => {
     const html = `<!doctype html><link rel="icon" href="./favicon.ico"/>
       <script type="module" crossorigin src="./assets/index-D8E5Vyeo.js"></script>
       <link rel="stylesheet" href=assets/index.css><script src="data:text/javascript,1"></script>`
+
     expect(referencesIn(`${root}dist/index.html`, html)).toEqual([
       `${root}dist/favicon.ico`,
       `${root}dist/assets/index-D8E5Vyeo.js`,
@@ -53,6 +54,7 @@ describe("elsewhereIn", () => {
   it("finds the scripts an entry page loads from another site, not its links", () => {
     const html = `<link rel="icon" href="https://example.test/icon.png">
       <script src="https://cdn.jsdelivr.net/npm/@logseq/libs"></script><script src="./index.js"></script>`
+
     expect(elsewhereIn(`${root}index.html`, html)).toEqual([
       "https://cdn.jsdelivr.net/npm/@logseq/libs",
     ])
@@ -61,6 +63,7 @@ describe("elsewhereIn", () => {
   it("follows a theme's font stylesheets and keeps only the WOFF2 files Chrome loads", () => {
     const css = `@import url("https://fonts.googleapis.com/css2?family=Fira+Code");
       @font-face { src: url('WOFF2/A.woff2') format('woff2'), url('WOFF/A.woff') format('woff') }`
+
     expect(elsewhereIn("https://cdn.jsdelivr.net/gh/adobe-fonts/source-sans/a.css", css)).toEqual([
       "https://fonts.googleapis.com/css2?family=Fira+Code",
       "https://cdn.jsdelivr.net/gh/adobe-fonts/source-sans/WOFF2/A.woff2",

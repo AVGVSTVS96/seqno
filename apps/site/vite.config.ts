@@ -2,7 +2,8 @@ import react from "@vitejs/plugin-react"
 import { rm } from "node:fs/promises"
 import { resolve } from "node:path"
 import { pathToFileURL } from "node:url"
-import { defineConfig, type Plugin } from "vite"
+import { defineConfig } from "vite"
+import type { Plugin } from "vite"
 import { fetchCommits } from "./src/github.ts"
 
 const prerendered = resolve(import.meta.dirname, "node_modules/.prerender")
@@ -18,8 +19,12 @@ function prerender(): Plugin {
         async buildApp(builder) {
           for (const name of ["ssr", "client"]) {
             const environment = builder.environments[name]
-            if (environment) await builder.build(environment)
+
+            if (environment) {
+              await builder.build(environment)
+            }
           }
+
           await rm(prerendered, { recursive: true, force: true })
         },
       },
@@ -27,8 +32,12 @@ function prerender(): Plugin {
     transformIndexHtml: {
       order: "post",
       async handler(html, { server }) {
-        if (server) return html
+        if (server) {
+          return html
+        }
+
         const { render } = await import(pathToFileURL(resolve(prerendered, "render.js")).href)
+
         return html.replace("<!--app-->", render())
       },
     },
@@ -38,6 +47,7 @@ function prerender(): Plugin {
 function siteUrl(): Plugin {
   const host = process.env["VERCEL_PROJECT_PRODUCTION_URL"]
   const url = process.env["SITE_URL"] ?? (host ? `https://${host}` : "")
+
   return {
     name: "seqno:site-url",
     transformIndexHtml: (html) => html.replaceAll("%SITE_URL%", url),
@@ -46,6 +56,7 @@ function siteUrl(): Plugin {
 
 export default defineConfig(async () => {
   const token = process.env["GITHUB_TOKEN"]
+
   const { count } = await fetchCommits(
     token ? { headers: { authorization: `Bearer ${token}` } } : {},
   ).catch((error: unknown) => {
@@ -53,6 +64,7 @@ export default defineConfig(async () => {
       `Couldn't read seqno's commit count from GitHub (${String(error)}). Set GITHUB_TOKEN if it's rate limiting.`,
     )
   })
+
   return {
     plugins: [react(), prerender(), siteUrl()],
     define: { __COMMIT_COUNT__: String(count) },

@@ -7,9 +7,11 @@ import {
 } from "@effect/atom-react"
 import { Effect, Option, Stream } from "effect"
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity"
-import { useContext, useId, useState, type ReactNode } from "react"
+import { useContext, useId, useState } from "react"
+import type { ReactNode } from "react"
 import { logseq } from "@seqno/dom"
-import { GitClient, type GitSettings } from "@seqno/rpc"
+import { GitClient } from "@seqno/rpc"
+import type { GitSettings } from "@seqno/rpc"
 import { gitRuntime, mirrorStatus, writeFilesHere } from "../../atoms.ts"
 import { SwitchButton } from "./Appearance.tsx"
 import { notify } from "./Notices.tsx"
@@ -25,11 +27,11 @@ export const gitDialog = Atom.make<GitDialog | null>(null).pipe(Atom.keepAlive)
 
 const client = Effect.service(GitClient)
 
-export const runGit = <A, E>(
+export const runGit = async <A, E>(
   registry: AtomRegistry.AtomRegistry,
   effect: Effect.Effect<A, E, GitClient>,
 ) =>
-  Effect.runPromise(
+  await Effect.runPromise(
     Effect.flatMap(AtomRegistry.getResult(registry, gitRuntime), (context) =>
       Effect.provide(effect, context),
     ),
@@ -50,11 +52,11 @@ const gitNotices = gitRuntime
   .atom((get) =>
     Stream.unwrap(Effect.map(client, (git) => git.WatchGitNotices())).pipe(
       Stream.tap((notice) =>
-        Effect.sync(() =>
+        Effect.sync(() => {
           notice._tag === "IdentityNeeded"
             ? get.registry.set(gitDialog, { _tag: "Identity" })
-            : notify(get.registry, notice.reason),
-        ),
+            : notify(get.registry, notice.reason)
+        }),
       ),
     ),
   )
@@ -66,8 +68,11 @@ const commitOnClose = Atom.make((get) => {
       get.registry,
       Effect.flatMap(client, (git) => git.GitClosing()),
     ).catch(() => undefined)
+
   addEventListener("pagehide", closing)
-  get.addFinalizer(() => removeEventListener("pagehide", closing))
+  get.addFinalizer(() => {
+    removeEventListener("pagehide", closing)
+  })
 }).pipe(Atom.keepAlive)
 
 const gitStatus = gitRuntime
@@ -105,16 +110,22 @@ const commitAll = (registry: AtomRegistry.AtomRegistry, message: string) =>
     Effect.flatMap(client, (git) => git.GitCommit({ message })),
   ).then(
     (done) => {
-      if (done._tag === "NoIdentity") registry.set(gitDialog, { _tag: "Identity" })
+      if (done._tag === "NoIdentity") {
+        registry.set(gitDialog, { _tag: "Identity" })
+      }
     },
-    (cause: unknown) => notify(registry, `${reasonOf(cause)}${commitHint}`),
+    (error: unknown) => {
+      notify(registry, `${reasonOf(error)}${commitHint}`)
+    },
   )
 
 const revert = (registry: AtomRegistry.AtomRegistry, oid: string, path: string) =>
   void runGit(
     registry,
     Effect.flatMap(client, (git) => git.GitRevert({ oid, path })),
-  ).catch((cause: unknown) => notify(registry, reasonOf(cause)))
+  ).catch((error: unknown) => {
+    notify(registry, reasonOf(error))
+  })
 
 const statusKind = (line: string) => line.trim()[0] ?? ""
 
@@ -132,19 +143,27 @@ const StatusLines = ({ status }: { readonly status: string }) => (
 )
 
 const dialogRef = (dialog: HTMLDialogElement | null) => {
-  if (dialog !== null && !dialog.open) dialog.showModal()
+  if (dialog !== null && !dialog.open) {
+    dialog.showModal()
+  }
 }
 
 const CommitDialog = ({ onClose }: { readonly onClose: () => void }) => {
   const registry = useContext(RegistryContext)
   const status = useAtomValue(gitStatus)
   const [message, setMessage] = useState("")
+
   const commit = (from: HTMLElement) => {
-    if (message.length < 1) return
+    if (message.length < 1) {
+      return
+    }
+
     closeDialogOf(from)
     commitAll(registry, message)
   }
+
   const value = AsyncResult.isSuccess(status) ? status.value : null
+
   const body: ReactNode =
     value === null ? (
       <div>Loading...</div>
@@ -172,7 +191,9 @@ const CommitDialog = ({ onClose }: { readonly onClose: () => void }) => {
           aria-label="Your commit message:"
           autoFocus
           value={message}
-          onChange={(event) => setMessage(event.currentTarget.value)}
+          onChange={(event) => {
+            setMessage(event.currentTarget.value)
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.nativeEvent.isComposing) {
               event.preventDefault()
@@ -184,13 +205,16 @@ const CommitDialog = ({ onClose }: { readonly onClose: () => void }) => {
           <button
             type="button"
             className="button-primary"
-            onClick={(event) => commit(event.currentTarget)}
+            onClick={(event) => {
+              commit(event.currentTarget)
+            }}
           >
             Commit
           </button>
         </div>
       </>
     )
+
   return (
     <Dialog
       id="seqno-git-commit"
@@ -210,17 +234,26 @@ const IdentityDialog = ({ onClose }: { readonly onClose: () => void }) => {
   const [email, setEmail] = useState("")
   const nameLabel = useId()
   const emailLabel = useId()
+
   const submit = (from: HTMLElement) => {
-    if (name.trim() === "" || email.trim() === "") return
+    if (name.trim() === "" || email.trim() === "") {
+      return
+    }
+
     closeDialogOf(from)
     void runGit(
       registry,
       Effect.flatMap(client, (git) => git.GitSetIdentity({ name, email })),
     ).then(
-      () => notify(registry, "git config successfully!"),
-      (cause: unknown) => notify(registry, reasonOf(cause)),
+      () => {
+        notify(registry, "git config successfully!")
+      },
+      (error: unknown) => {
+        notify(registry, reasonOf(error))
+      },
     )
   }
+
   return (
     <Dialog
       id="seqno-git-identity"
@@ -243,7 +276,9 @@ const IdentityDialog = ({ onClose }: { readonly onClose: () => void }) => {
           aria-labelledby={nameLabel}
           autoFocus
           value={name}
-          onChange={(event) => setName(event.currentTarget.value)}
+          onChange={(event) => {
+            setName(event.currentTarget.value)
+          }}
         />
         <h3 id={emailLabel} className="git-heading">
           Your email address:
@@ -253,13 +288,17 @@ const IdentityDialog = ({ onClose }: { readonly onClose: () => void }) => {
           type="text"
           aria-labelledby={emailLabel}
           value={email}
-          onChange={(event) => setEmail(event.currentTarget.value)}
+          onChange={(event) => {
+            setEmail(event.currentTarget.value)
+          }}
         />
         <div className="confirm-actions">
           <button
             type="button"
             className="button-primary"
-            onClick={(event) => submit(event.currentTarget)}
+            onClick={(event) => {
+              submit(event.currentTarget)
+            }}
           >
             Submit
           </button>
@@ -271,9 +310,10 @@ const IdentityDialog = ({ onClose }: { readonly onClose: () => void }) => {
 
 const quoted = /"[^"]+"/g
 
-export const splitArgs = (text: string): ReadonlyArray<string> => {
+export const splitArgs = (text: string): readonly string[] => {
   const quotes = text.match(quoted) ?? []
   const rest = text.split(quoted)
+
   return rest.flatMap((part, at) => [
     ...part.split(/\s/).filter((word) => word.trim() !== ""),
     ...(at < quotes.length ? [(quotes[at] ?? "").slice(1, -1).trim()] : []),
@@ -282,35 +322,54 @@ export const splitArgs = (text: string): ReadonlyArray<string> => {
 
 const denied = new Set(["rm", "mv", "rename", "dd", ">", "command", "sudo"])
 
-const runCommand = (registry: AtomRegistry.AtomRegistry, input: string) => {
+const runCommand = async (registry: AtomRegistry.AtomRegistry, input: string) => {
   const trimmed = input.trim()
   const space = trimmed.indexOf(" ")
   const command = (space === -1 ? trimmed : trimmed.slice(0, space)).toLowerCase()
   const rest = space === -1 ? "" : trimmed.slice(space + 1).trim()
-  if (command === "") return Promise.resolve()
-  if (denied.has(command)) return Promise.resolve(notify(registry, `${command} is too dangerous!`))
-  if (command !== "git") {
-    return Promise.resolve(notify(registry, `seqno runs only git commands, not ${command}`))
+
+  if (command === "") {
+    await Promise.resolve()
+    return
   }
+
+  if (denied.has(command)) {
+    await Promise.resolve(notify(registry, `${command} is too dangerous!`))
+    return
+  }
+
+  if (command !== "git") {
+    await Promise.resolve(notify(registry, `seqno runs only git commands, not ${command}`))
+    return
+  }
+
   const args = splitArgs(rest)
-  return runGit(
+
+  await runGit(
     registry,
     Effect.gen(function* () {
       const git = yield* client
-      if (args[0] === "commit") yield* git.GitRun({ args: ["add", "--ignore-errors", "./*"] })
+
+      if (args[0] === "commit") {
+        yield* git.GitRun({ args: ["add", "--ignore-errors", "./*"] })
+      }
+
       return yield* git.GitRun({ args })
     }),
   ).then(
-    (result) =>
+    (result) => {
       notify(
         registry,
-        result.exitCode !== 0
-          ? `${args[0] ?? ""} error: ${result.stderr || result.stdout}`
-          : result.stdout.trim() === ""
+        result.exitCode === 0
+          ? result.stdout.trim() === ""
             ? `git ${rest} was executed successfully!`
-            : result.stdout,
-      ),
-    (cause: unknown) => notify(registry, reasonOf(cause)),
+            : result.stdout
+          : `${args[0] ?? ""} error: ${result.stderr || result.stdout}`,
+      )
+    },
+    (error: unknown) => {
+      notify(registry, reasonOf(error))
+    },
   )
 }
 
@@ -319,10 +378,14 @@ const RunDialog = ({ onClose }: { readonly onClose: () => void }) => {
   const [command, setCommand] = useState("")
   const [running, setRunning] = useState(false)
   const title = useId()
+
   const run = () => {
     setRunning(true)
-    void runCommand(registry, command).finally(() => setRunning(false))
+    void runCommand(registry, command).finally(() => {
+      setRunning(false)
+    })
   }
+
   return (
     <Dialog
       id="seqno-git-run"
@@ -342,9 +405,12 @@ const RunDialog = ({ onClose }: { readonly onClose: () => void }) => {
           autoFocus
           placeholder="git commit -m ..."
           value={command}
-          onChange={(event) => setCommand(event.currentTarget.value)}
+          onChange={(event) => {
+            setCommand(event.currentTarget.value)
+          }}
           onKeyDown={(event) => {
             event.stopPropagation()
+
             if (event.key === "Enter" && !event.nativeEvent.isComposing) {
               event.preventDefault()
               run()
@@ -380,6 +446,7 @@ const HistoryDialog = ({
   const [hash, setHash] = useState("HEAD")
   const found = AsyncResult.getOrElse(history, () => ({ path: null, versions: [] }))
   const path = found.path ?? page
+
   return (
     <Dialog
       id="seqno-git-history"
@@ -393,6 +460,7 @@ const HistoryDialog = ({
           <div className="git-history-heading">File history - {path}</div>
           {found.versions.map((version) => {
             const short = version.oid.slice(0, 7)
+
             return (
               <div key={version.oid} className="git-history-version">
                 <hr />
@@ -423,7 +491,9 @@ const HistoryDialog = ({
               <button
                 type="button"
                 className="button-primary"
-                onClick={() => revert(registry, hash, path)}
+                onClick={() => {
+                  revert(registry, hash, path)
+                }}
               >
                 Revert
               </button>
@@ -439,17 +509,31 @@ export const GitDialogs = () => {
   useAtomMount(gitNotices)
   useAtomMount(commitOnClose)
   const [open, setOpen] = useAtom(gitDialog)
-  const close = () => setOpen(null)
-  if (open === null) return null
+
+  const close = () => {
+    setOpen(null)
+  }
+
+  if (open === null) {
+    return null
+  }
+
   switch (open._tag) {
-    case "Commit":
+    case "Commit": {
       return <CommitDialog key="commit" onClose={close} />
-    case "Identity":
+    }
+
+    case "Identity": {
       return <IdentityDialog key="identity" onClose={close} />
-    case "Run":
+    }
+
+    case "Run": {
       return <RunDialog key="run" onClose={close} />
-    case "History":
+    }
+
+    case "History": {
       return <HistoryDialog key={`history ${open.page}`} page={open.page} onClose={close} />
+    }
   }
 }
 
@@ -457,7 +541,9 @@ export const saveGitSettings = (registry: AtomRegistry.AtomRegistry, settings: G
   void runGit(
     registry,
     Effect.flatMap(client, (git) => git.SetGitSettings(settings)),
-  ).catch((cause: unknown) => notify(registry, reasonOf(cause)))
+  ).catch((error: unknown) => {
+    notify(registry, reasonOf(error))
+  })
 
 const Row = ({
   label,
@@ -479,6 +565,7 @@ const Row = ({
 const Seconds = ({ settings }: { readonly settings: GitSettings }) => {
   const registry = useContext(RegistryContext)
   const label = useId()
+
   return (
     <Row label="Git auto commit seconds" labelId={label}>
       <input
@@ -491,9 +578,10 @@ const Seconds = ({ settings }: { readonly settings: GitSettings }) => {
         onBlur={(event) => {
           const input = event.currentTarget
           const value = /^\d+$/.test(input.value.trim()) ? Number(input.value.trim()) : Number.NaN
-          if (value > 0 && value <= 86400)
+
+          if (value > 0 && value <= 86_400) {
             saveGitSettings(registry, { ...settings, seconds: value })
-          else {
+          } else {
             notify(registry, "Invalid value! Must be a number between 1 and 86400")
             input.value = String(settings.seconds)
           }
@@ -509,9 +597,14 @@ const FilesWriter = () => {
       Option.fromNullishOr(status.writer),
     ),
   )
+
   const writeHere = useAtomSet(writeFilesHere)
   const labelId = useId()
-  if (writer === null) return null
+
+  if (writer === null) {
+    return null
+  }
+
   return (
     <Row label="Logseq's files" labelId={labelId}>
       {writer.here ? (
@@ -523,7 +616,9 @@ const FilesWriter = () => {
             type="button"
             className="button-secondary"
             aria-describedby={labelId}
-            onClick={() => writeHere()}
+            onClick={() => {
+              writeHere()
+            }}
           >
             Write them from this device
           </button>
@@ -538,8 +633,13 @@ export const VersionControl = () => {
   const autoLabel = useId()
   const closeLabel = useId()
   const settings = AsyncResult.value(useAtomValue(gitSettings))
-  if (settings._tag === "None") return null
+
+  if (settings._tag === "None") {
+    return null
+  }
+
   const current = settings.value
+
   return (
     <div className="git-settings">
       <div {...logseq("seqno-git-tip")}>
@@ -564,18 +664,18 @@ export const VersionControl = () => {
         <SwitchButton
           on={current.autoCommit}
           labelledBy={autoLabel}
-          onToggle={() =>
+          onToggle={() => {
             saveGitSettings(registry, { ...current, autoCommit: !current.autoCommit })
-          }
+          }}
         />
       </Row>
       <Row label="Git commit on window close" labelId={closeLabel}>
         <SwitchButton
           on={current.commitOnClose}
           labelledBy={closeLabel}
-          onToggle={() =>
+          onToggle={() => {
             saveGitSettings(registry, { ...current, commitOnClose: !current.commitOnClose })
-          }
+          }}
         />
       </Row>
       <Seconds settings={current} />

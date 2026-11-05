@@ -12,17 +12,20 @@ import { y2025 } from "./developer/y2025.ts"
 import { y2026 } from "./developer/y2026.ts"
 import type { StarterFile } from "./place.ts"
 
-const oneFilePerPath = (files: ReadonlyArray<StarterFile>) => {
+const oneFilePerPath = (files: readonly StarterFile[]) => {
   const merged = new Map<string, string>()
+
   for (const file of files) {
     const before = merged.get(file.path)
     merged.set(file.path, before === undefined ? file.text : `${before}\n${file.text}`)
   }
+
   return [...merged].map(([path, text]) => ({ path, text }))
 }
 
-export const developerGraph = (today: JournalDay): ReadonlyArray<StarterFile> => {
+export const developerGraph = (today: JournalDay): readonly StarterFile[] => {
   const d = days(today)
+
   return oneFilePerPath([
     ...fall,
     ...y2026,

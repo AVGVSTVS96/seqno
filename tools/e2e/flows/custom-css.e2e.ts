@@ -18,21 +18,26 @@ const seedGraph = async (page: Page, folder: string) => {
   await seedOpfs(page, folder, ["graphs", "demo"])
 }
 
-const blockOutline = (page: Page) =>
-  page
+const blockOutline = async (page: Page) =>
+  await page
     .getByRole("main")
     .getByRole("treeitem")
     .first()
     .evaluate((row) => {
       const block = row.closest(".ls-block") ?? row.querySelector(".ls-block")
+
       return block === null ? "" : getComputedStyle(block).outlineColor
     })
 
-const writeOpfs = (page: Page, path: ReadonlyArray<string>, text: string) =>
-  page.evaluate(
+const writeOpfs = async (page: Page, path: readonly string[], text: string) => {
+  await page.evaluate(
     async ({ parts, body }) => {
       let dir = await navigator.storage.getDirectory()
-      for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part)
+
+      for (const part of parts.slice(0, -1)) {
+        dir = await dir.getDirectoryHandle(part)
+      }
+
       const file = await dir.getFileHandle(parts.at(-1) ?? "")
       const writable = await file.createWritable()
       await writable.write(body)
@@ -40,10 +45,12 @@ const writeOpfs = (page: Page, path: ReadonlyArray<string>, text: string) =>
     },
     { parts: path, body: text },
   )
+}
 
 const openSettings = async (page: Page) => {
   await page.getByRole("banner").getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Settings" }).click()
+
   return page.getByRole("dialog", { name: "Settings" })
 }
 
@@ -56,11 +63,15 @@ const replaceFile = async (page: Page, text: string) => {
   await page.getByRole("main").getByRole("heading", { level: 1 }).click()
 }
 
-const readOpfs = (page: Page, path: ReadonlyArray<string>) =>
-  page.evaluate(async (parts) => {
+const readOpfs = async (page: Page, path: readonly string[]) =>
+  await page.evaluate(async (parts) => {
     let dir = await navigator.storage.getDirectory()
-    for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part)
-    return (await (await dir.getFileHandle(parts.at(-1) ?? "")).getFile()).text()
+
+    for (const part of parts.slice(0, -1)) {
+      dir = await dir.getDirectoryHandle(part)
+    }
+
+    return await (await (await dir.getFileHandle(parts.at(-1) ?? "")).getFile()).text()
   }, path)
 
 const appFile = (name: string) => ["graphs", "demo", "logseq", name]
@@ -70,7 +81,7 @@ test("the graph's custom.css restyles Logseq's classes, and follows edits on its
 }, info) => {
   await seedGraph(page, info.outputPath("graph"))
   await openDemo(page, "/page/garden")
-  await expect.poll(() => blockOutline(page)).toBe("rgb(255, 0, 0)")
+  await expect.poll(async () => await blockOutline(page)).toBe("rgb(255, 0, 0)")
   await page.evaluate(() => Object.assign(window, { e2eSameLoad: true }))
 
   const settings = await openSettings(page)
@@ -82,14 +93,14 @@ test("the graph's custom.css restyles Logseq's classes, and follows edits on its
   await expect(fileEditor(page)).toHaveText(outline("rgb(255, 0, 0)"))
   await replaceFile(page, outline("rgb(0, 0, 255)"))
   await expect
-    .poll(() => readOpfs(page, appFile("custom.css")))
+    .poll(async () => await readOpfs(page, appFile("custom.css")))
     .toBe(`${outline("rgb(0, 0, 255)")}\n`)
 
   await page.goBack()
-  await expect.poll(() => blockOutline(page)).toBe("rgb(0, 0, 255)")
+  await expect.poll(async () => await blockOutline(page)).toBe("rgb(0, 0, 255)")
 
   await writeOpfs(page, appFile("custom.css"), outline("rgb(0, 128, 0)"))
-  await expect.poll(() => blockOutline(page)).toBe("rgb(0, 128, 0)")
+  await expect.poll(async () => await blockOutline(page)).toBe("rgb(0, 128, 0)")
   expect(await page.evaluate(() => "e2eSameLoad" in window)).toBe(true)
 })
 
@@ -119,7 +130,7 @@ test("Edit config.edn opens Logseq's file page, and its edits apply live", async
   expect(await readOpfs(page, appFile("config.edn"))).toBe("{:meta/version 1}\n")
   await replaceFile(page, "{:meta/version 1\n :ui/show-brackets? false}")
   await expect
-    .poll(() => readOpfs(page, appFile("config.edn")))
+    .poll(async () => await readOpfs(page, appFile("config.edn")))
     .toBe("{:meta/version 1\n :ui/show-brackets? false}\n")
   await page.goBack()
   await expect(ref).toBeVisible()

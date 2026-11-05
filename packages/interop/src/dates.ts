@@ -15,9 +15,10 @@ const months = [
   "November",
   "December",
 ]
+
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-const short = (names: ReadonlyArray<string>) => names.map((name) => name.slice(0, 3))
+const short = (names: readonly string[]) => names.map((name) => name.slice(0, 3))
 
 const tokenGroup = /(yyyy|MMMM|MMM|MM|M|do|dd|d|EEEE|EEE|EE|E|'[^']*')/
 
@@ -33,11 +34,12 @@ const ordinal = (date: number): string =>
 const two = (value: number): string => String(value).padStart(2, "0")
 
 export const formatJournalDay = (day: JournalDay, format: string): string => {
-  const year = Math.floor(day / 10000)
+  const year = Math.floor(day / 10_000)
   const month = Math.floor(day / 100) % 100
   const date = day % 100
   const monthName = months[month - 1] ?? ""
   const weekdayName = weekdays[new Date(Date.UTC(year, month - 1, date)).getUTCDay()] ?? ""
+
   const render: Record<string, string> = {
     yyyy: String(year),
     MMMM: monthName,
@@ -52,6 +54,7 @@ export const formatJournalDay = (day: JournalDay, format: string): string => {
     EE: weekdayName.slice(0, 3),
     E: weekdayName.slice(0, 3),
   }
+
   return format
     .split(tokenGroup)
     .map((piece, index) => (isToken(index) ? (render[piece] ?? quoted(piece)) : piece))
@@ -75,7 +78,7 @@ const matchers: Record<string, readonly [pattern: string, part: Part]> = {
   E: [`(${short(weekdays).join("|")})`, "weekday"],
 }
 
-const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const escapeRegExp = (text: string): string => text.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 const decodeJournalDay = Schema.decodeUnknownOption(JournalDay)
 
@@ -84,20 +87,32 @@ const monthNumber = (name: string): number =>
 
 export const parseJournalDay = (text: string, format: string): Option.Option<JournalDay> => {
   const pieces = format.split(tokenGroup)
+
   const source = pieces
     .map((piece, index) =>
       isToken(index) ? (matchers[piece]?.[0] ?? escapeRegExp(quoted(piece))) : escapeRegExp(piece),
     )
     .join("")
+
   const parts = pieces.flatMap((piece, index) => {
     const matcher = isToken(index) ? matchers[piece] : undefined
+
     return matcher === undefined ? [] : [matcher[1]]
   })
+
   const match = new RegExp(`^${source}$`, "i").exec(text.normalize("NFC"))
-  if (match === null) return Option.none()
+
+  if (match === null) {
+    return Option.none()
+  }
+
   const captured = (part: Part): string => match[parts.indexOf(part) + 1] ?? ""
+
   const month = parts.includes("month")
     ? Number(captured("month"))
     : monthNumber(captured("monthName"))
-  return decodeJournalDay(Number(captured("year")) * 10000 + month * 100 + Number(captured("date")))
+
+  return decodeJournalDay(
+    Number(captured("year")) * 10_000 + month * 100 + Number(captured("date")),
+  )
 }

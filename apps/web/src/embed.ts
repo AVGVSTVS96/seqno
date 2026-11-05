@@ -3,12 +3,15 @@ export const embedded =
 
 export const canPickFolders = "showDirectoryPicker" in window && !embedded
 
-export const toParent = (type: "ready" | "escape") =>
+export const toParent = (type: "ready" | "escape") => {
   window.parent.postMessage({ type: `seqno:${type}` }, location.origin)
+}
 
 const closesNatively = () =>
   document.querySelector("[popover=auto]:popover-open, dialog:modal") !== null
 
 export const forwardEscape = (event: KeyboardEvent) => {
-  if (event.key === "Escape" && !event.defaultPrevented && !closesNatively()) toParent("escape")
+  if (event.key === "Escape" && !event.defaultPrevented && !closesNatively()) {
+    toParent("escape")
+  }
 }

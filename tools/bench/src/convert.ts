@@ -5,7 +5,7 @@ import { emptyGraph, emptyPagesGraph } from "./graph.ts"
 
 const maxRssMB = () => Math.round(process.resourceUsage().maxRSS / 1024)
 
-const read = (file: string) => Effect.promise(() => readFile(file))
+const read = (file: string) => Effect.promise(async () => await readFile(file))
 
 export const convertFile = (from: string, to: string) =>
   Effect.gen(function* () {
@@ -13,7 +13,10 @@ export const convertFile = (from: string, to: string) =>
     const started = performance.now()
     const converted = yield* convertOneTree([source])
     const convertMs = Math.round(performance.now() - started)
-    yield* Effect.promise(() => writeFile(to, converted.snapshot))
+    yield* Effect.promise(async () => {
+      await writeFile(to, converted.snapshot)
+    })
+
     return {
       pages: converted.pages,
       blocks: converted.blocks,
@@ -34,15 +37,21 @@ export const compareFiles = (oneTree: string, treePerPage: string) =>
       const pages = yield* v1.pages
       const converted = new Set((yield* v2.pages).map((page) => page.id))
       let blocks = 0
-      const different: Array<string> = []
+      const different: string[] = []
+
       for (const page of pages) {
         const journal = page.journalDay === null ? page.id : journalPageId(page.journalDay)
         const target = converted.has(journal) ? journal : page.id
         const events = yield* v1.pageEvents(page.id)
         const before = JSON.stringify(events).replaceAll(page.id, target)
-        if (before !== JSON.stringify(yield* v2.pageEvents(target))) different.push(page.title)
+
+        if (before !== JSON.stringify(yield* v2.pageEvents(target))) {
+          different.push(page.title)
+        }
+
         blocks += events.length - 1
       }
+
       return {
         pages: pages.length,
         convertedPages: converted.size,
@@ -56,10 +65,14 @@ export const compareFiles = (oneTree: string, treePerPage: string) =>
 
 if (import.meta.main) {
   const [step = "", first = "", second = ""] = process.argv.slice(2)
+
   const run: Effect.Effect<unknown, unknown> =
     step === "compare" ? compareFiles(first, second) : convertFile(first, second)
+
   Effect.runPromise(run).then(
-    (result) => console.log(JSON.stringify(result)),
+    (result) => {
+      console.log(JSON.stringify(result))
+    },
     (error: unknown) => {
       console.error(error)
       process.exit(1)

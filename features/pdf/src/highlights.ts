@@ -1,5 +1,6 @@
 import { Option, Result, Schema } from "effect"
-import { printFipp, readEdn, type Edn } from "@seqno/syntax"
+import { printFipp, readEdn } from "@seqno/syntax"
+import type { Edn } from "@seqno/syntax"
 import type { Scaled } from "./model.ts"
 
 const Rect = Schema.Struct({
@@ -25,6 +26,7 @@ export const Highlight = Schema.Struct({
   }),
   properties: Schema.Struct({ color: Schema.optionalKey(Schema.String) }),
 })
+
 export type Highlight = typeof Highlight.Type
 
 const HighlightsFile = Schema.Struct({
@@ -35,7 +37,7 @@ const HighlightsFile = Schema.Struct({
 })
 
 export interface Highlights {
-  readonly highlights: ReadonlyArray<Highlight>
+  readonly highlights: readonly Highlight[]
   readonly page: number | null
 }
 
@@ -44,29 +46,44 @@ export const emptyHighlightsFile = "{:highlights []}"
 export const isArea = (highlight: Highlight) => highlight.content.image !== undefined
 
 const plain = (value: Edn): unknown => {
-  if (value === null || typeof value !== "object") return value
+  if (value === null || typeof value !== "object") {
+    return value
+  }
+
   switch (value._tag) {
     case "Keyword":
-    case "Symbol":
+    case "Symbol": {
       return value.name
-    case "Tagged":
+    }
+
+    case "Tagged": {
       return plain(value.value)
+    }
+
     case "Vector":
     case "List":
-    case "Set":
+    case "Set": {
       return value.items.map(plain)
-    case "Map":
+    }
+
+    case "Map": {
       return Object.fromEntries(
         value.entries.map(([key, item]) => [String(plain(key)), plain(item)]),
       )
+    }
   }
 }
 
 export const readHighlights = (text: string): Result.Result<Highlights, string> =>
   Result.flatMap(readEdn(text), (edn) => {
     const file = Schema.decodeUnknownOption(HighlightsFile)(plain(edn))
-    if (Option.isNone(file)) return Result.fail("not a highlights map")
+
+    if (Option.isNone(file)) {
+      return Result.fail("not a highlights map")
+    }
+
     const decode = Schema.decodeUnknownOption(Highlight)
+
     return Result.succeed({
       highlights: (file.value.highlights ?? []).flatMap((item) => Option.toArray(decode(item))),
       page: file.value.extra?.page ?? null,

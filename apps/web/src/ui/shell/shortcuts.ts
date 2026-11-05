@@ -73,7 +73,7 @@ const bindings: ReadonlyArray<readonly [string, ShortcutAction]> = [
   ["mod shift 1", "RunCommand"],
 ]
 
-export const keysOf = (action: ShortcutAction): ReadonlyArray<string> =>
+export const keysOf = (action: ShortcutAction): readonly string[] =>
   bindings.find(([, bound]) => bound === action)?.[0].split(" ") ?? []
 
 const actionFor = (keys: string) => bindings.find(([bound]) => bound === keys)?.[1] ?? null
@@ -106,26 +106,51 @@ const modPressed = (press: KeyPress) => (onMac ? press.metaKey : press.ctrlKey)
 const modifierKeys = new Set(["Control", "Meta", "Shift", "Alt"])
 
 export const nextKeyState = (state: KeyState, press: KeyPress): KeyState => {
-  if (modifierKeys.has(press.key)) return { ...state, action: null }
+  if (modifierKeys.has(press.key)) {
+    return { ...state, action: null }
+  }
+
   const letter = letterOf(press)
+
   if (press.ctrlKey || press.metaKey) {
-    if (!modPressed(press) || press.altKey) return idle
+    if (!modPressed(press) || press.altKey) {
+      return idle
+    }
+
     const step = `mod ${press.shiftKey ? "shift " : ""}${letter}`
     const chord = state.pending === null ? null : actionFor(`${state.pending} then ${step}`)
-    if (chord !== null) return { pending: null, action: chord }
+
+    if (chord !== null) {
+      return { pending: null, action: chord }
+    }
+
     const starts = bindings.some(([keys]) => keys.startsWith(`${step} then `))
+
     return { pending: starts ? step : null, action: actionFor(step) }
   }
-  if (press.key === "?") return { pending: null, action: actionFor("?") }
+
+  if (press.key === "?") {
+    return { pending: null, action: actionFor("?") }
+  }
+
   if (press.altKey) {
     return { pending: null, action: actionFor(`alt ${press.shiftKey ? "shift " : ""}${letter}`) }
   }
-  if (press.shiftKey || letter.length !== 1) return idle
+
+  if (press.shiftKey || letter.length !== 1) {
+    return idle
+  }
+
   const action =
     state.pending === null
       ? null
       : (actionFor(`${state.pending} ${letter}`) ?? actionFor(`${state.pending} then ${letter}`))
-  if (action !== null) return { pending: null, action }
+
+  if (action !== null) {
+    return { pending: null, action }
+  }
+
   const starts = bindings.some(([keys]) => keys.startsWith(`${letter} `))
+
   return { pending: starts ? letter : null, action: null }
 }

@@ -97,9 +97,14 @@ const sameNamePages = Effect.gen(function* () {
   const fromLeft = yield* seedPage(left, "Groceries", ["milk"])
   const fromRight = yield* seedPage(right, "groceries", ["eggs"])
   const [winner, loser] = [fromLeft, fromRight].toSorted((a, b) => (a.pageId < b.pageId ? -1 : 1))
-  if (winner === undefined || loser === undefined) return assert.fail("two pages were seeded")
+
+  if (winner === undefined || loser === undefined) {
+    return assert.fail("two pages were seeded")
+  }
+
   const [first, second] = winner === fromLeft ? ["milk", "eggs"] : ["eggs", "milk"]
   const [winnerGraph, loserGraph] = winner === fromLeft ? [left, right] : [right, left]
+
   return { left, right, winner, loser, first, second, winnerGraph, loserGraph }
 })
 
@@ -116,14 +121,19 @@ describe("a block stamped before 1970 by a wrong clock", () => {
         other.setPeerId(77n)
         other.import(yield* graph.snapshot)
         const from = other.oplogVersion()
+
         const trees = Object.keys(other.getShallowValue()).filter((name) =>
           name.startsWith("blocks"),
         )
+
         for (const name of trees) {
           for (const node of other.getTree(name).getNodes()) {
-            if (node.data.get("uuid") === nth(ids, 0)) node.data.set("created", -5)
+            if (node.data.get("uuid") === nth(ids, 0)) {
+              node.data.set("created", -5)
+            }
           }
         }
+
         other.commit()
         yield* graph.merge([other.export({ mode: "update", from })])
         assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a", "  a1"])
@@ -262,7 +272,7 @@ describe("persistence", () => {
         Effect.gen(function* () {
           const graph = yield* openGraph("7")
           const { pageId } = yield* seedPage(graph, "Saved", ["one"])
-          const files: Array<LocalUpdate> = []
+          const files: LocalUpdate[] = []
           const save = (update: LocalUpdate) => Effect.sync(() => void files.push(update))
 
           const first = yield* graph.flush(save)
@@ -297,7 +307,7 @@ describe("persistence", () => {
       Effect.gen(function* () {
         const graph = yield* openGraph("7")
         yield* seedPage(graph, "Saved", ["one"])
-        const files: Array<LocalUpdate> = []
+        const files: LocalUpdate[] = []
         const save = (update: LocalUpdate) => Effect.sync(() => void files.push(update))
         const first = yield* graph.flush(save)
 
@@ -320,9 +330,11 @@ describe("lazy open", () => {
     Effect.scoped(
       Effect.gen(function* () {
         const origin = yield* openGraph("1")
+
         const pages = yield* Effect.forEach(["Alpha", "Beta", "Gamma"], (title) =>
           seedPage(origin, title, [`${title} root`, `  ${title} child`]),
         )
+
         const snapshot = yield* origin.snapshot
         const graph = yield* openGraph("2", { snapshot })
         assert.deepStrictEqual((yield* graph.pages).map((page) => page.title).toSorted(), [
@@ -340,6 +352,7 @@ describe("lazy open", () => {
           collapsed: false,
           props: {},
         })
+
         const edited = yield* graph.dispatch({
           _tag: "EditText",
           blockId: nth(nth(pages, 1).ids, 0),
@@ -347,6 +360,7 @@ describe("lazy open", () => {
           to: 4,
           insert: "B",
         })
+
         assert.strictEqual(createdBlock(edited), nth(nth(pages, 1).ids, 0))
         yield* graph.loaded
         assert.deepStrictEqual(outline(yield* graph.page(nth(pages, 1).pageId)), [

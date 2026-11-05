@@ -8,7 +8,7 @@ import { viewer } from "./viewer.ts"
 
 const revision =
   process.env["VERCEL_GIT_COMMIT_SHA"]?.slice(0, 7) ??
-  execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim()
+  execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf-8" }).trim()
 
 export default defineConfig({
   plugins: [

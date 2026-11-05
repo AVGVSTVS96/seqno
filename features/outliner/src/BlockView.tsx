@@ -6,20 +6,19 @@ import {
   IconInfoCircleFilled,
   IconPinnedFilled,
 } from "@tabler/icons-react"
-import { use, useState, type MouseEvent, type ReactNode } from "react"
+import { use, useState } from "react"
+import type { MouseEvent, ReactNode } from "react"
 import { Match } from "effect"
 import { logseq, names } from "@seqno/dom"
 import type { Block, Props } from "@seqno/domain"
-import {
-  clockTotal,
-  isHiddenProperty,
-  propertyValue,
-  type AdmonitionKind,
-  type BlockContent,
-  type Body,
-  type Inline,
-  type Marker,
-  type PropertyConfig,
+import { clockTotal, isHiddenProperty, propertyValue } from "@seqno/syntax"
+import type {
+  AdmonitionKind,
+  BlockContent,
+  Body,
+  Inline,
+  Marker,
+  PropertyConfig,
 } from "@seqno/syntax"
 import { AnnotationPrefix, annotationNames, isAnnotation, isAreaAnnotation } from "./Annotation.tsx"
 import { CodeBlock } from "./CodeBlock.tsx"
@@ -36,7 +35,9 @@ import {
 } from "./render.ts"
 import { isCanceled, switchable, taskState } from "./tasks.ts"
 
-const stop = (event: MouseEvent) => event.stopPropagation()
+const stop = (event: MouseEvent) => {
+  event.stopPropagation()
+}
 
 const Heading = ({
   level,
@@ -51,6 +52,7 @@ const Heading = ({
     className: names(logseq("seqno-heading", marker).className, `seqno-h${Math.min(level, 6)}`),
     "data-task": taskState(marker),
   }
+
   return Match.value(level).pipe(
     Match.when(1, () => <h1 {...props}>{children}</h1>),
     Match.when(2, () => <h2 {...props}>{children}</h2>),
@@ -77,9 +79,10 @@ const Admonition = ({
   lines,
 }: {
   readonly kind: AdmonitionKind
-  readonly lines: ReadonlyArray<ReadonlyArray<Inline>>
+  readonly lines: ReadonlyArray<readonly Inline[]>
 }) => {
   const Icon = admonitionIcons[kind]
+
   return (
     <div {...logseq("seqno-admonition", kind)} data-kind={kind}>
       <div {...logseq("seqno-admonition-icon")} title={`${kind[0]?.toUpperCase()}${kind.slice(1)}`}>
@@ -98,6 +101,7 @@ const Admonition = ({
 
 const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: CodeChange }) => {
   const Rendered = use(CodeSlot)
+
   return Match.valueTags(body, {
     Paragraph: ({ inline }) => (
       <div className="seqno-line">
@@ -116,9 +120,14 @@ const BodyView = ({ body, onCode }: { readonly body: Body; readonly onCode?: Cod
           code={code}
           {...(onCode === undefined
             ? {}
-            : { onEdit: (next: string) => onCode(codeFrom, codeFrom + code.length, next) })}
+            : {
+                onEdit: (next: string) => {
+                  onCode(codeFrom, codeFrom + code.length, next)
+                },
+              })}
         />
       )
+
       return Rendered === null ? (
         source
       ) : (
@@ -151,6 +160,7 @@ const TaskControls = ({
   const { readOnly } = use(RenderContext)
   const next = readOnly ? undefined : switchable[marker]
   const done = marker === "DONE"
+
   return (
     <>
       {isCanceled(marker) ? null : (
@@ -161,7 +171,9 @@ const TaskControls = ({
           checked={done}
           disabled={readOnly}
           onClick={stop}
-          onChange={(event) => onMarker(event.currentTarget.checked ? "DONE" : "TODO")}
+          onChange={(event) => {
+            onMarker(event.currentTarget.checked ? "DONE" : "TODO")
+          }}
         />
       )}
       {done || isCanceled(marker) ? null : next === undefined ? (
@@ -191,7 +203,11 @@ const namedColors = new Set(["yellow", "red", "pink", "green", "blue", "purple",
 
 const backgroundOf = (props: Props): string | null => {
   const value = (props["background-color"] ?? props["background_color"] ?? "").trim()
-  if (namedColors.has(value)) return `var(--bg-highlight-${value})`
+
+  if (namedColors.has(value)) {
+    return `var(--bg-highlight-${value})`
+  }
+
   return /^#[0-9a-f]{3,8}$/i.test(value) ? value : null
 }
 
@@ -203,13 +219,14 @@ const Title = ({
   annotation,
 }: {
   readonly content: BlockContent
-  readonly title: ReadonlyArray<Inline>
+  readonly title: readonly Inline[]
   readonly background: string | null
   readonly onMarker: (marker: Marker | null) => void
   readonly annotation: Block | null
 }) => {
   const area = annotation !== null && isAreaAnnotation(annotation.props)
   const prefix = annotation === null ? null : <AnnotationPrefix block={annotation} />
+
   const parts = (
     <>
       {content.marker === null ? null : (
@@ -220,6 +237,7 @@ const Title = ({
       {area ? prefix : null}
     </>
   )
+
   const inner =
     background === null ? (
       parts
@@ -228,6 +246,7 @@ const Title = ({
         {parts}
       </span>
     )
+
   return content.heading === null ? (
     <div {...logseq("seqno-title", content.marker)} data-task={taskState(content.marker)}>
       {inner}
@@ -239,7 +258,7 @@ const Title = ({
   )
 }
 
-const Logbook = ({ entries }: { readonly entries: ReadonlyArray<string> }) => (
+const Logbook = ({ entries }: { readonly entries: readonly string[] }) => (
   <div className="seqno-drawer" onClick={stop}>
     <div className="seqno-drawer-name">:LOGBOOK:</div>
     {entries.map((entry, index) => (
@@ -276,10 +295,12 @@ export const BlockView = ({
   const annotation = block !== undefined && isAnnotation(block.props) ? block : null
   const title = annotation !== null && blankAreaTitle(annotation) ? [] : content.title
   const marks = annotation === null ? null : annotationNames(annotation.props)
+
   const titleNames =
     annotation === null
       ? null
       : logseq("seqno-annotation-title", { area: isAreaAnnotation(annotation.props) })
+
   const renderer = use(RenderContext)
   const host = use(HostBlock)
   const blockNames = logseq("seqno-block", host)
@@ -288,11 +309,13 @@ export const BlockView = ({
   const logbook = content.logbook
   const clocked = logbook !== null && logbook.seconds > 0
   const properties = shownProperties(props, content, use(PropertySettings))
+
   const empty =
     content.title === null &&
     content.body.length === 0 &&
     properties.length === 0 &&
     content.planning.length === 0
+
   return (
     <BlockSource value={onCode ?? null}>
       <div

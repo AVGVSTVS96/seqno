@@ -19,17 +19,19 @@ interface Upload {
   readonly bytes: Buffer
 }
 
-const sent = (files: ReadonlyArray<Upload>) =>
+const sent = (files: readonly Upload[]) =>
   files.map(({ name, type, bytes }) => ({ name, type, data: bytes.toString("base64") }))
 
-const fire = (target: Locator, kind: "paste" | "drop", files: ReadonlyArray<Upload>) =>
-  target.evaluate(
+const fire = async (target: Locator, kind: "paste" | "drop", files: readonly Upload[]) => {
+  await target.evaluate(
     (element, given) => {
       const transfer = new DataTransfer()
+
       for (const file of given.files) {
         const bytes = Uint8Array.from(atob(file.data), (char) => char.charCodeAt(0))
         transfer.items.add(new File([bytes], file.name, { type: file.type }))
       }
+
       const event =
         given.kind === "paste"
           ? new ClipboardEvent("paste", {
@@ -38,10 +40,12 @@ const fire = (target: Locator, kind: "paste" | "drop", files: ReadonlyArray<Uplo
               cancelable: true,
             })
           : new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true })
+
       element.dispatchEvent(event)
     },
     { kind, files: sent(files) },
   )
+}
 
 const assetNames = async (page: Page) =>
   Object.keys(await opfsFiles(page, ["graphs", "demo", "assets"])).toSorted()

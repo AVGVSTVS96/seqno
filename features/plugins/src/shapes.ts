@@ -1,24 +1,31 @@
-import { blockRefId, type Block, type Page, type Props } from "@seqno/domain"
-import { analyzeBlock, joinProperties, type PropertyLine } from "@seqno/syntax"
+import { blockRefId } from "@seqno/domain"
+import type { Block, Page, Props } from "@seqno/domain"
+import { analyzeBlock, joinProperties } from "@seqno/syntax"
+import type { PropertyLine } from "@seqno/syntax"
 
 const numbers = new Map<string, number>()
 const uuids = new Map<number, string>()
 
 export const numberOf = (uuid: string) => {
   const known = numbers.get(uuid)
-  if (known !== undefined) return known
+
+  if (known !== undefined) {
+    return known
+  }
+
   const fresh = numbers.size + 1
   numbers.set(uuid, fresh)
   uuids.set(fresh, uuid)
+
   return fresh
 }
 
 export const uuidOfNumber = (id: number) => uuids.get(id) ?? null
 
 const camel = (key: string) =>
-  key.replace(/[-_]+([a-z0-9])/g, (_, letter: string) => letter.toUpperCase())
+  key.replaceAll(/[-_]+([a-z0-9])/g, (_, letter: string) => letter.toUpperCase())
 
-export const propertyLines = (props: Props): ReadonlyArray<PropertyLine> => Object.entries(props)
+export const propertyLines = (props: Props): readonly PropertyLine[] => Object.entries(props)
 
 export const properties = (props: Props) =>
   Object.fromEntries(Object.entries(props).map(([key, value]) => [camel(key), value]))
@@ -68,7 +75,7 @@ export const pageJson = (page: Page): PageJson => ({
 
 export interface Tree {
   readonly page: Page
-  readonly blocks: ReadonlyArray<Block>
+  readonly blocks: readonly Block[]
 }
 
 const childrenIn = (tree: Tree, parentId: string | null) =>
@@ -77,10 +84,12 @@ const childrenIn = (tree: Tree, parentId: string | null) =>
 const levelOf = (tree: Tree, block: Block) => {
   let level = 1
   let parent = block.parentId
+
   while (parent !== null) {
     level += 1
     parent = tree.blocks.find((candidate) => candidate.id === parent)?.parentId ?? null
   }
+
   return level
 }
 
@@ -90,6 +99,7 @@ export const blockJson = (tree: Tree, block: Block, nested: boolean): BlockJson 
   const parent = block.parentId ?? tree.page.id
   const syntax = analyzeBlock(block.text)
   const children = childrenIn(tree, block.id)
+
   return {
     id: numberOf(block.id),
     uuid: blockRefId(block),
@@ -111,6 +121,7 @@ export const blockJson = (tree: Tree, block: Block, nested: boolean): BlockJson 
 
 export const changedBlock = (block: Block) => {
   const syntax = analyzeBlock(block.text)
+
   return {
     id: numberOf(block.id),
     uuid: blockRefId(block),

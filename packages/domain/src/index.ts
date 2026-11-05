@@ -1,4 +1,5 @@
 export { BlockId, DeviceId, PageId, newBlockId, newPageId } from "./ids.ts"
+
 export {
   Block,
   JournalDay,
@@ -9,8 +10,11 @@ export {
   isBlockRefTo,
   normalizePageName,
 } from "./model.ts"
+
 export { BlockDraft, Command, PropertyTarget } from "./command.ts"
+
 export { GraphEvent } from "./event.ts"
+
 export {
   BoxShape,
   EllipseShape,
@@ -55,4 +59,5 @@ export {
   type Handle,
   type Vec,
 } from "./whiteboard.ts"
+
 export { importMessage, type Root } from "./lineage.ts"

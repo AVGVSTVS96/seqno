@@ -6,8 +6,8 @@ import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
-const groupNames = (query: Locator) =>
-  query
+const groupNames = async (query: Locator) =>
+  await query
     .getByRole("region")
     .evaluateAll((groups) => groups.map((group) => group.getAttribute("aria-label")))
 
@@ -63,6 +63,7 @@ test("a new project's page shows its decisions, and the one he changed his mind 
 test("systems of power reads in six places, each with its own days", async ({ page }) => {
   await openDemo(page, "/page/systems%20of%20power", "Developer graph")
   const main = page.getByRole("main")
+
   for (const heading of [
     "who gets power, and what it does to them",
     "designing the rules",
@@ -70,8 +71,10 @@ test("systems of power reads in six places, each with its own days", async ({ pa
     "systems that correct themselves",
     "in fiction",
     "in software",
-  ])
+  ]) {
     await expect(main.getByRole("heading", { name: heading })).toBeVisible()
+  }
+
   await expect(main.getByText("positions of power are inherently corrupting").first()).toBeVisible()
 })
 

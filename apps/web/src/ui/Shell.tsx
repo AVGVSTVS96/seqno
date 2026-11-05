@@ -70,11 +70,12 @@ const boards = { Board: BoardEmbed }
 
 const problemOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
+
   return error instanceof Error ? error.message : String(error)
 }
 
 const content = (ready: boolean, problem: string | null) =>
-  problem !== null ? <OpenFailed problem={problem} /> : ready ? <Outlet /> : null
+  problem === null ? ready ? <Outlet /> : null : <OpenFailed problem={problem} />
 
 const Layout = ({
   graph,
@@ -95,11 +96,17 @@ const Layout = ({
   const registry = useContext(RegistryContext)
   const colored = useAtomValue(blockColored)
   const inner = logseq("seqno-theme-inner", { leftOpen, rightOpen, wide })
+
   const assets: AssetActions = {
-    saveFiles: (files, dialect) => saveAssets(registry, files, dialect),
-    openPdf: (url) => openPdf(registry, url),
-    openAnnotation: (block) => openAnnotationBlock(registry, block),
+    saveFiles: async (files, dialect) => await saveAssets(registry, files, dialect),
+    openPdf: (url) => {
+      openPdf(registry, url)
+    },
+    openAnnotation: (block) => {
+      openAnnotationBlock(registry, block)
+    },
   }
+
   return (
     <AssetActions value={assets}>
       <MacroSlot value={pluginMacros}>
@@ -167,6 +174,7 @@ const pickerCancelled = (cause: Cause.Cause<unknown>) =>
 const Screen = () => {
   const last = useAtomValue(lastGraph)
   const attempted = useAtomValue(attemptedGraph)
+
   return AsyncResult.match(useAtomValue(openGraph), {
     onInitial: (initial) =>
       initial.waiting ? (
@@ -195,8 +203,10 @@ const Screen = () => {
 
 export const Shell = () => {
   const org = useAtomValue(orgPages)
+
   const dialectOf = (pageId: PageId) =>
     org.some((page) => page.id === pageId) ? "org" : "markdown"
+
   return (
     <PropertySettings value={useAtomValue(propertyConfig)}>
       <PageDialects value={dialectOf}>

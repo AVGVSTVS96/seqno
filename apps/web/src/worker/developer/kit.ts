@@ -31,12 +31,12 @@ export const ids = {
 
 export const ref = (id: string) => `((${id}))`
 
-export const page = (title: string, ...lines: ReadonlyArray<string>): StarterFile => ({
+export const page = (title: string, ...lines: readonly string[]): StarterFile => ({
   path: `pages/${fileBodyFromTitle(title, defaultConfig.fileNameFormat)}.md`,
   text: lines.join("\n"),
 })
 
-export const on = (day: JournalDay, ...lines: ReadonlyArray<string>): StarterFile => ({
+export const on = (day: JournalDay, ...lines: readonly string[]): StarterFile => ({
   path: journalFile(day),
   text: lines.join("\n"),
 })
@@ -46,12 +46,13 @@ export const dated = (day: JournalDay) =>
 
 export const days = (today: JournalDay) => {
   const day = (offset: number) => shiftDay(today, offset)
+
   return {
     day,
     date: (offset: number) => dated(day(offset)),
     stamp: (offset: number, repeat = "") =>
       `<${formatJournalDay(day(offset), "yyyy-MM-dd EEE")}${repeat}>`,
-    journal: (offset: number, ...lines: ReadonlyArray<string>) => on(day(offset), ...lines),
+    journal: (offset: number, ...lines: readonly string[]) => on(day(offset), ...lines),
   }
 }
 

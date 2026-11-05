@@ -10,12 +10,19 @@ import { readLogseq } from "./syntax/logseq.ts"
 import { printLogseq } from "./syntax/print.ts"
 
 export { CompareOp, Field, Filter, Query, QueryContext, Sort, Value, View } from "./ast.ts"
+
 export { Compiled, SqlValue } from "./compile.ts"
+
 export { QueryError } from "./error.ts"
+
 export type { Names } from "./evaluate.ts"
+
 export { BlockFacets, PageFacets, TaskFacets } from "./facets.ts"
+
 export { blockTouches, pageTouches } from "./readset.ts"
+
 export { ALIASES_SQL, SCHEMA } from "./schema.ts"
+
 export { Translation, translateLogseq as translateAdvancedQuery } from "./translate.ts"
 
 export const parseLogseqQuery = (text: string) => attempt(() => readLogseq(text))

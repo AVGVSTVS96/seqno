@@ -1,6 +1,7 @@
 import { BlockId, PageId } from "@seqno/domain"
 import { describe, expect, it } from "vitest"
-import { logseq, names, refsSelf, type CodeLook } from "../src/index.ts"
+import { logseq, names, refsSelf } from "../src/index.ts"
+import type { CodeLook } from "../src/index.ts"
 
 const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
 
@@ -50,6 +51,7 @@ describe("logseq", () => {
       collapsed: true,
       props: {},
     }
+
     expect(
       logseq("seqno-row", {
         block,

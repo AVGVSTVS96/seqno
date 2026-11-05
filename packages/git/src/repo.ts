@@ -1,7 +1,9 @@
 import * as git from "isomorphic-git"
 import type { PromiseFsClient, WalkerEntry } from "isomorphic-git"
-import { patch, type Change, type Side } from "./diff.ts"
-import { formatDate, quotePath, subjectOf, type CommitInfo } from "./format.ts"
+import { patch } from "./diff.ts"
+import type { Change, Side } from "./diff.ts"
+import { formatDate, quotePath, subjectOf } from "./format.ts"
+import type { CommitInfo } from "./format.ts"
 
 export type FsClient = PromiseFsClient
 
@@ -48,10 +50,10 @@ export const gitdir = "/.git"
 const notFound = (cause: unknown) =>
   cause instanceof Error && "code" in cause && cause.code === "NotFoundError"
 
-const orNull = <A>(promise: Promise<A>) =>
-  promise.catch((cause: unknown) => (notFound(cause) ? null : Promise.reject(cause)))
+const orNull = async <A>(promise: Promise<A>) =>
+  await promise.catch((error: unknown) => (notFound(error) ? null : Promise.reject(error)))
 
-const staged = (rows: ReadonlyArray<Row>) =>
+const staged = (rows: readonly Row[]) =>
   rows.some(
     ([, headState, , stage]) =>
       !(headState === 1 && stage === 1) && !(headState === 0 && stage === 0),
@@ -75,8 +77,12 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     )
 
   const ensure = async () => {
-    if (await exists()) return false
+    if (await exists()) {
+      return false
+    }
+
     await git.init({ fs, dir, gitdir, defaultBranch: "master" })
+
     return true
   }
 
@@ -84,6 +90,7 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     const value: unknown = await git
       .getConfig({ fs, dir, gitdir, path: key })
       .catch(() => undefined)
+
     return typeof value === "string" || typeof value === "boolean" || typeof value === "number"
       ? String(value)
       : undefined
@@ -94,51 +101,73 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
 
   const setGlobal = async (key: string, value: string | undefined) => {
     const current = { ...(await globals.read()) }
-    if (value === undefined) delete current[key.toLowerCase()]
-    else current[key.toLowerCase()] = value
+
+    if (value === undefined) {
+      delete current[key.toLowerCase()]
+    } else {
+      current[key.toLowerCase()] = value
+    }
+
     await globals.write(current)
   }
 
-  const setRepoConfig = (key: string, value: string | undefined) =>
-    git.setConfig({ fs, dir, gitdir, path: key, value })
+  const setRepoConfig = async (key: string, value: string | undefined) => {
+    await git.setConfig({ fs, dir, gitdir, path: key, value })
+  }
 
   const identity = async (): Promise<Identity | null> => {
     const name = await config("user.name")
     const email = await config("user.email")
+
     return name === undefined || email === undefined || name.trim() === "" || email.trim() === ""
       ? null
       : { name, email }
   }
 
-  const head = () => orNull(git.resolveRef({ fs, dir, gitdir, ref: "HEAD" }))
+  const head = async () => await orNull(git.resolveRef({ fs, dir, gitdir, ref: "HEAD" }))
 
   const branch = async () =>
     (await git.currentBranch({ fs, dir, gitdir, fullname: false }).catch(() => undefined)) ??
     "master"
 
-  const matrix = async (filepaths?: ReadonlyArray<string>): Promise<ReadonlyArray<Row>> =>
-    git.statusMatrix({ ...at, ...(filepaths === undefined ? {} : { filepaths: [...filepaths] }) })
+  const matrix = async (filepaths?: readonly string[]): Promise<readonly Row[]> =>
+    await git.statusMatrix({
+      ...at,
+      ...(filepaths === undefined ? {} : { filepaths: [...filepaths] }),
+    })
 
-  const stage = async (rows: ReadonlyArray<Row>) => {
+  const stage = async (rows: readonly Row[]) => {
     for (const [filepath, , workdir, stageState] of rows) {
       if (workdir === 0) {
-        if (stageState !== 0) await git.remove({ ...at, filepath })
+        if (stageState !== 0) {
+          await git.remove({ ...at, filepath })
+        }
       } else if (workdir === 1 ? stageState !== 1 : stageState !== 2) {
         await git.add({ ...at, filepath })
       }
     }
   }
 
-  const stageAll = async () => stage(await matrix())
+  const stageAll = async () => {
+    await stage(await matrix())
+  }
 
   const commit = async (
     message: string,
     options: { readonly allowEmpty?: boolean } = {},
   ): Promise<Committed> => {
     const author = await identity()
-    if (author === null) return { _tag: "NoIdentity" }
-    if (options.allowEmpty !== true && !staged(await matrix())) return { _tag: "NothingToCommit" }
+
+    if (author === null) {
+      return { _tag: "NoIdentity" }
+    }
+
+    if (options.allowEmpty !== true && !staged(await matrix())) {
+      return { _tag: "NothingToCommit" }
+    }
+
     const date = now()
+
     const oid = await git.commit({
       ...at,
       message,
@@ -148,12 +177,17 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
         timezoneOffset: date.getTimezoneOffset(),
       },
     })
+
     return { _tag: "Committed", oid }
   }
 
   const locked = async <A>(run: () => Promise<A>, busy: A) => {
     const release = lock === undefined ? async () => undefined : await lock()
-    if (release === null) return busy
+
+    if (release === null) {
+      return busy
+    }
+
     try {
       return await run()
     } finally {
@@ -161,19 +195,25 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     }
   }
 
-  const commitAll = (message: string, only?: ReadonlyArray<string>): Promise<Committed> =>
-    locked(
+  const commitAll = async (message: string, only?: readonly string[]): Promise<Committed> =>
+    await locked(
       async () => {
         await ensure()
-        if (only === undefined || (await head()) === null) await stageAll()
-        else if (only.length > 0) await stage(await matrix(only))
-        return commit(message.trim() === "" ? "Auto saved by Logseq" : message)
+
+        if (only === undefined || (await head()) === null) {
+          await stageAll()
+        } else if (only.length > 0) {
+          await stage(await matrix(only))
+        }
+
+        return await commit(message.trim() === "" ? "Auto saved by Logseq" : message)
       },
       { _tag: "Busy" },
     )
 
   const readCommit = async (oid: string): Promise<CommitInfo> => {
     const { commit: object } = await git.readCommit({ ...at, oid })
+
     return { oid, ...object }
   }
 
@@ -189,12 +229,17 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
         ...(options.filepath === undefined ? {} : { filepath: options.filepath }),
       }),
     )
+
     return (found ?? []).map((entry): CommitInfo => ({ oid: entry.oid, ...entry.commit }))
   }
 
-  const history = async (path: string, depth = 100): Promise<ReadonlyArray<Version>> => {
-    if ((await head()) === null) return []
+  const history = async (path: string, depth = 100): Promise<readonly Version[]> => {
+    if ((await head()) === null) {
+      return []
+    }
+
     const found = await commits("HEAD", { depth, filepath: path }).catch(() => [])
+
     return found.map((entry) => ({
       oid: entry.oid,
       subject: subjectOf(entry.message.trimEnd()),
@@ -206,16 +251,19 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     const found = await orNull(
       git.readBlob({ ...at, oid, ...(filepath === undefined ? {} : { filepath }) }),
     )
+
     return found === null ? null : { oid: found.oid, bytes: found.blob }
   }
 
   const show = async (oid: string, path: string) => {
     const blob = await readBlob(oid, path)
+
     return blob === null ? null : new TextDecoder().decode(blob.bytes)
   }
 
   const quoting = async (overrides: ReadonlyMap<string, string>) => {
     const value = overrides.get("core.quotepath") ?? (await config("core.quotepath"))
+
     return value === undefined || !["false", "no", "off", "0"].includes(value.toLowerCase())
   }
 
@@ -224,25 +272,47 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
     const quoteNonAscii = await quoting(overrides)
     const quote = (path: string) => quotePath(path, { quoteNonAscii, quoteSpace: true })
     const indexed = new Set<string>()
+
     for (const [path, , , stageState] of rows) {
-      if (stageState === 0) continue
+      if (stageState === 0) {
+        continue
+      }
+
       const parts = path.split("/")
-      for (let n = 1; n < parts.length; n += 1) indexed.add(`${parts.slice(0, n).join("/")}/`)
+
+      for (let n = 1; n < parts.length; n += 1) {
+        indexed.add(`${parts.slice(0, n).join("/")}/`)
+      }
     }
+
     const shownAs = (path: string) => {
       const parts = path.split("/")
+
       for (let n = 1; n < parts.length; n += 1) {
         const prefix = `${parts.slice(0, n).join("/")}/`
-        if (!indexed.has(prefix)) return prefix
+
+        if (!indexed.has(prefix)) {
+          return prefix
+        }
       }
+
       return path
     }
-    const changed: Array<string> = []
+
+    const changed: string[] = []
     const untracked = new Set<string>()
+
     for (const [path, headState, workdir, stageState] of rows) {
-      if (stageState === 0 && workdir !== 0) untracked.add(shownAs(path))
-      if (headState === 0 && stageState === 0) continue
+      if (stageState === 0 && workdir !== 0) {
+        untracked.add(shownAs(path))
+      }
+
+      if (headState === 0 && stageState === 0) {
+        continue
+      }
+
       const x = headState === 0 ? "A" : stageState === 0 ? "D" : stageState === 1 ? " " : "M"
+
       const y =
         stageState === 0
           ? " "
@@ -251,31 +321,43 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
             : stageState === 2 || (stageState === 1 && workdir === 1)
               ? " "
               : "M"
-      if (x !== " " || y !== " ") changed.push(`${x}${y} ${quote(path)}\n`)
+
+      if (x !== " " || y !== " ") {
+        changed.push(`${x}${y} ${quote(path)}\n`)
+      }
     }
+
     return [...changed, ...[...untracked].toSorted().map((path) => `?? ${quote(path)}\n`)].join("")
   }
 
   const blobOf = async (entry: WalkerEntry | null, fromWorkdir: boolean): Promise<Side | null> => {
-    if (entry === null) return null
+    if (entry === null) {
+      return null
+    }
+
     const oid = await entry.oid()
+
     if (fromWorkdir) {
       const content = await entry.content()
+
       return { oid, bytes: content ?? new Uint8Array() }
     }
+
     const blob = await readBlob(oid)
+
     return blob === null ? null : { oid, bytes: blob.bytes }
   }
 
   const changes = async (
     from: Target,
     to: Exclude<Target, { readonly _tag: "Empty" }>,
-    paths: ReadonlyArray<string>,
+    paths: readonly string[],
   ) => {
     const inside = (path: string) =>
       paths.length === 0 ||
       paths.some((wanted) => {
         const clean = wanted.replace(/^\.\//, "").replace(/\/+$/, "")
+
         return (
           clean === "" ||
           clean === "." ||
@@ -284,7 +366,8 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
           clean.startsWith(`${path}/`)
         )
       })
-    const found: Array<Change> = []
+
+    const found: Change[] = []
     await git.walk({
       ...at,
       trees:
@@ -294,22 +377,42 @@ export const makeRepo = ({ fs, globals, now = () => new Date(), lock }: RepoOpti
       map: async (path, entries) => {
         const [a = null, b = null, indexed = null] =
           from._tag === "Empty" ? [null, ...entries] : entries
-        if (path === ".") return true
-        if (!inside(path)) return null
-        if (to._tag === "Workdir" && a === null && indexed === null) return null
+
+        if (path === ".") {
+          return true
+        }
+
+        if (!inside(path)) {
+          return null
+        }
+
+        if (to._tag === "Workdir" && a === null && indexed === null) {
+          return null
+        }
+
         const [kindA, kindB] = await Promise.all([a?.type(), b?.type()])
-        if (kindA !== "blob" && kindB !== "blob") return true
+
+        if (kindA !== "blob" && kindB !== "blob") {
+          return true
+        }
+
         const before = kindA === "blob" ? await blobOf(a, from._tag === "Workdir") : null
         const after = kindB === "blob" ? await blobOf(b, to._tag === "Workdir") : null
-        if (before?.oid !== after?.oid) found.push({ path, before, after })
+
+        if (before?.oid !== after?.oid) {
+          found.push({ path, before, after })
+        }
+
         return kindA === "tree" || kindB === "tree" ? true : undefined
       },
     })
+
     return found.toSorted((x, y) => (x.path < y.path ? -1 : x.path > y.path ? 1 : 0))
   }
 
-  const patches = async (list: ReadonlyArray<Change>, overrides: ReadonlyMap<string, string>) => {
+  const patches = async (list: readonly Change[], overrides: ReadonlyMap<string, string>) => {
     const quoteNonAscii = await quoting(overrides)
+
     return list
       .map((change) =>
         patch(change, (path) => quotePath(path, { quoteNonAscii, quoteSpace: false })),

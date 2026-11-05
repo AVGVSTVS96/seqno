@@ -2,7 +2,8 @@ import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { useContext } from "react"
 import { AsyncResult } from "effect/reactivity"
 import { useNavigate } from "@tanstack/react-router"
-import { normalizePageName, type BlockId, type Page } from "@seqno/domain"
+import { normalizePageName } from "@seqno/domain"
+import type { BlockId, Page } from "@seqno/domain"
 import { Board } from "@seqno/whiteboard"
 import { assetResolver, rightSidebar } from "../../atoms.ts"
 import { saveAssetFiles } from "../assets.ts"
@@ -32,6 +33,7 @@ export const BoardPage = ({
   const setExported = useAtomSet(exported)
   const registry = useContext(RegistryContext)
   const onboarding = useAtomValue(onboardingBoard) === page.id
+
   const references = AsyncResult.getOrElse(
     AsyncResult.map(
       useAtomValue(pageStats),
@@ -39,11 +41,17 @@ export const BoardPage = ({
     ),
     () => 0,
   )
+
   const openPage = (title: string, sidebar: boolean) => {
     const name = normalizePageName(title)
-    if (sidebar) updateSidebar({ _tag: "Open", item: { _tag: "Page", name } })
-    else void navigate({ to: "/page/$name", params: { name } })
+
+    if (sidebar) {
+      updateSidebar({ _tag: "Open", item: { _tag: "Page", name } })
+    } else {
+      void navigate({ to: "/page/$name", params: { name } })
+    }
   }
+
   return (
     <div
       className="seqno-board-view"
@@ -77,19 +85,19 @@ export const BoardPage = ({
         focus={zoom}
         outliner={{ onNavigate: navigateTo, editor: EditorSlot, resolveAsset, onBlockMenu, vim }}
         resolveAsset={resolveAsset}
-        saveFiles={(files) => saveAssetFiles(registry, files)}
+        saveFiles={async (files) => await saveAssetFiles(registry, files)}
         openPage={openPage}
         references={references}
         referencesPanel={<References page={page} unlinked={false} />}
         onRenamed={(name) => void navigate({ to: "/page/$name", params: { name }, replace: true })}
-        onExport={(ids) =>
+        onExport={(ids) => {
           setExported({
             name: page.name,
             target: { _tag: "Page", pageId: page.id },
             pages: [page.id],
             shapes: ids,
           })
-        }
+        }}
       />
     </div>
   )

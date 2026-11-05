@@ -7,15 +7,14 @@ import {
   pageTouches,
   parseLogseqQuery,
   readSet,
-  type BlockFacets,
-  type PageFacets,
-  type QueryContext,
-  type TaskFacets,
 } from "../src/index.ts"
+import type { BlockFacets, PageFacets, QueryContext, TaskFacets } from "../src/index.ts"
 
-const ctx: QueryContext = { today: 20261006 }
+const ctx: QueryContext = { today: 20_261_006 }
+
 const names = (name: string): ReadonlySet<string> =>
   new Set(name === "database" ? ["database", "db"] : [name])
+
 const query = (text: string) => Result.getOrThrow(parseLogseqQuery(text))
 const reads = (text: string) => new Set(Result.getOrThrow(readSet(query(text), ctx, names)))
 
@@ -27,6 +26,7 @@ const PAGE: PageFacets = {
   namespaces: ["projects"],
   props: [],
 }
+
 const TODO: TaskFacets = { status: "todo", priority: null, scheduled: null, deadline: null }
 
 const block = (content: string, over: Partial<BlockFacets> = {}): BlockFacets => ({
@@ -83,6 +83,7 @@ describe("read set: the keys a live query listens to", () => {
 
 describe("touches: the keys an edit invalidates", () => {
   const before = block("TODO plan", { task: TODO })
+
   const tagged = block("TODO plan #database", {
     task: TODO,
     refs: ["database"],
@@ -108,6 +109,7 @@ describe("touches: the keys an edit invalidates", () => {
       parent: "b",
       page: { ...PAGE, name: "inbox", namespaces: [] },
     })
+
     expect(new Set(blockTouches(before, moved))).toEqual(new Set(["tree", "move"]))
   })
 
@@ -122,7 +124,7 @@ describe("touches: the keys an edit invalidates", () => {
 
   it("a query wakes only when its read set meets the touches", () => {
     const listening = reads("(and (tag database) (task todo))")
-    const wakes = (touches: ReadonlyArray<string>) => touches.filter((k) => listening.has(k))
+    const wakes = (touches: readonly string[]) => touches.filter((k) => listening.has(k))
     expect(
       wakes(blockTouches(before, block("TODO plan more", { task: TODO, updated: 2 }))),
     ).toEqual([])
@@ -158,6 +160,7 @@ describe("row check: a woken query re-runs only if the edited block's result cha
       tags: ["database"],
       updated: 2,
     })
+
     expect(
       blockChangeAffects(query("(and (tag database) (task todo))"), ctx, names, before, tagged),
     ).toBe(true)

@@ -17,6 +17,7 @@ describe("analyzeBlock", () => {
       "body text",
       "late:: not a property",
     ].join("\n")
+
     const syntax = analyzeBlock(text)
     expect(syntax.marker).toBe("TODO")
     expect(syntax.priority).toBe("A")
@@ -25,12 +26,12 @@ describe("analyzeBlock", () => {
     expect(syntax.collapsed).toBe(true)
     expect(syntax.props).toStrictEqual({ id: uuid.toUpperCase(), collapsed: "true" })
     expect(syntax.scheduled).toStrictEqual({
-      day: 20240115,
+      day: 20_240_115,
       time: "10:30",
       repeater: { kind: ".+", amount: 1, unit: "w" },
     })
     expect(syntax.deadline).toStrictEqual({
-      day: 20240201,
+      day: 20_240_201,
       time: null,
       repeater: { kind: "++", amount: 2, unit: "d" },
     })
@@ -95,6 +96,7 @@ describe("analyzeBlock", () => {
       "quoted [[kept]]",
       "#+END_QUOTE",
     ].join("\n")
+
     const syntax = analyzeBlock(text)
     expect(syntax.heading).toBe(2)
     expect(syntax.refs.map((ref) => (ref._tag === "BlockRef" ? ref.uuid : ref.name))).toStrictEqual(
@@ -131,10 +133,12 @@ describe("analyzeBlock", () => {
 describe("setProperty", () => {
   it("adds, replaces and removes property lines with minimal edits", () => {
     const text = "DONE task\nSCHEDULED: <2024-01-15 Mon>\nbody"
+
     const added = applyEdit(
       text,
       setProperty(text, "collapsed", "true") ?? { from: 0, to: 0, insert: "" },
     )
+
     expect(added).toBe("DONE task\ncollapsed:: true\nSCHEDULED: <2024-01-15 Mon>\nbody")
     expect(setProperty(added, "collapsed", "true")).toBe(null)
     expect(setProperty(added, "collapsed", "false")).toStrictEqual({
@@ -161,7 +165,11 @@ describe("setProperty", () => {
     fc.assert(
       fc.property(text, key, value, (original, k, v) => {
         const edit = setProperty(original, k, v)
-        if (edit === null || analyzeBlock(original).props[k] !== undefined) return
+
+        if (edit === null || analyzeBlock(original).props[k] !== undefined) {
+          return
+        }
+
         const withProperty = applyEdit(original, edit)
         expect(analyzeBlock(withProperty).props[k]).toBe(v)
         const cleared = setProperty(withProperty, k, null)

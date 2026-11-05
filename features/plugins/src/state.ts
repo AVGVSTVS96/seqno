@@ -3,6 +3,7 @@ import { Schema } from "effect"
 import { Atom } from "effect/reactivity"
 
 export const ThemeMode = Schema.Literals(["light", "dark"])
+
 export type ThemeMode = typeof ThemeMode.Type
 
 export const PluginTheme = Schema.Struct({
@@ -12,6 +13,7 @@ export const PluginTheme = Schema.Struct({
   mode: Schema.NullOr(ThemeMode),
   description: Schema.String,
 })
+
 export type PluginTheme = typeof PluginTheme.Type
 
 export const PluginInfo = Schema.Struct({
@@ -27,9 +29,11 @@ export const PluginInfo = Schema.Struct({
   themes: Schema.Array(PluginTheme),
   package: Schema.Record(Schema.String, Schema.Unknown),
 })
+
 export type PluginInfo = typeof PluginInfo.Type
 
 export const Settings = Schema.Record(Schema.String, Schema.Unknown)
+
 export type Settings = typeof Settings.Type
 
 const storage = Atom.runtime(BrowserKeyValueStore.layerLocalStorage)
@@ -44,7 +48,7 @@ const stored = <S extends Schema.ConstraintCodec<unknown, unknown>>(
 export const installedPlugins = stored(
   "seqno.plugins.installed",
   Schema.Array(PluginInfo),
-  [] satisfies ReadonlyArray<PluginInfo>,
+  [] satisfies readonly PluginInfo[],
 )
 
 export const pluginSettings = Atom.family((pid: string) =>
@@ -65,6 +69,7 @@ export const mainUILayout = Atom.family((pid: string) =>
 )
 
 export const ChosenTheme = Schema.Struct({ pid: Schema.String, url: Schema.String })
+
 export type ChosenTheme = typeof ChosenTheme.Type
 
 export const chosenThemes = stored(
@@ -86,17 +91,17 @@ export interface UIItem {
   readonly template: string
 }
 
-export type SlashAction = ReadonlyArray<unknown>
+export type SlashAction = readonly unknown[]
 
 export interface PluginSlashCommand {
   readonly pid: string
   readonly label: string
-  readonly actions: ReadonlyArray<SlashAction>
+  readonly actions: readonly SlashAction[]
 }
 
 export interface Keybinding {
-  readonly binding: ReadonlyArray<string>
-  readonly mac: ReadonlyArray<string>
+  readonly binding: readonly string[]
+  readonly mac: readonly string[]
   readonly mode: "global" | "non-editing" | "editing"
 }
 
@@ -118,7 +123,7 @@ export interface SettingItem {
   readonly description: string
   readonly default: unknown
   readonly inputAs: string | null
-  readonly enumChoices: ReadonlyArray<string>
+  readonly enumChoices: readonly string[]
   readonly enumPicker: string | null
   readonly buttonAction: string | null
 }
@@ -130,7 +135,7 @@ export type Status =
 
 export interface Running {
   readonly status: Status
-  readonly schema: ReadonlyArray<SettingItem>
+  readonly schema: readonly SettingItem[]
   readonly mainUI: boolean
 }
 
@@ -142,17 +147,17 @@ export interface ComingUpdate {
   readonly failed: string | null
 }
 
-export const updatesComing = Atom.make<ReadonlyArray<ComingUpdate>>([]).pipe(Atom.keepAlive)
+export const updatesComing = Atom.make<readonly ComingUpdate[]>([]).pipe(Atom.keepAlive)
 
 export const running = Atom.make<Readonly<Record<string, Running>>>({}).pipe(Atom.keepAlive)
 
-export const uiItems = Atom.make<ReadonlyArray<UIItem>>([]).pipe(Atom.keepAlive)
+export const uiItems = Atom.make<readonly UIItem[]>([]).pipe(Atom.keepAlive)
 
-export const slashCommands = Atom.make<ReadonlyArray<PluginSlashCommand>>([]).pipe(Atom.keepAlive)
+export const slashCommands = Atom.make<readonly PluginSlashCommand[]>([]).pipe(Atom.keepAlive)
 
-export const pluginCommands = Atom.make<ReadonlyArray<PluginCommand>>([]).pipe(Atom.keepAlive)
+export const pluginCommands = Atom.make<readonly PluginCommand[]>([]).pipe(Atom.keepAlive)
 
-export const runtimeThemes = Atom.make<ReadonlyArray<PluginTheme>>([]).pipe(Atom.keepAlive)
+export const runtimeThemes = Atom.make<readonly PluginTheme[]>([]).pipe(Atom.keepAlive)
 
 export const settingsFor = Atom.make<string | null>(null).pipe(Atom.keepAlive)
 
@@ -163,4 +168,4 @@ export interface FencedRenderer {
   readonly render: unknown
 }
 
-export const fencedRenderers = Atom.make<ReadonlyArray<FencedRenderer>>([]).pipe(Atom.keepAlive)
+export const fencedRenderers = Atom.make<readonly FencedRenderer[]>([]).pipe(Atom.keepAlive)

@@ -13,6 +13,7 @@ test.beforeEach(async ({ context }) => {
 const openPlugins = async (page: Page) => {
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Plugins" }).click()
+
   return page.getByRole("dialog", { name: "Plugins" })
 }
 
@@ -29,8 +30,8 @@ const install = async (page: Page, name: string, kind: "Plugins" | "Themes" = "P
   await page.keyboard.press("Escape")
 }
 
-const keptCalendarFiles = (page: Page) => () =>
-  page.evaluate(
+const keptCalendarFiles = (page: Page) => async () =>
+  await page.evaluate(
     async () =>
       (await (await caches.open("seqno-plugins")).keys()).filter((request) =>
         request.url.includes("/logseq-journals-calendar/"),
@@ -148,10 +149,12 @@ test("Word count's slash command puts a live count in the block, which follows e
   await page.keyboard.press("Tab")
   await page.keyboard.type("one two three")
   await page.keyboard.press("Escape")
+
   const count = seqno.today
     .getByRole("treeitem")
     .filter({ hasText: "Beds" })
     .locator(".wordcount-btn")
+
   await expect(count).toHaveText("Words: 3")
   await seqno.today.getByRole("treeitem").filter({ hasText: "one two three" }).click()
   await page.keyboard.press("End")
@@ -298,7 +301,7 @@ test("a marketplace theme restyles seqno through Logseq's variables, and the def
   seqno,
 }) => {
   await seqno.openDemoGraph()
-  const font = () => page.evaluate(() => getComputedStyle(document.body).fontFamily)
+  const font = async () => await page.evaluate(() => getComputedStyle(document.body).fontFamily)
   await expect.poll(font).toMatch(/^"Inter Variable"/)
   await install(page, "Dev theme", "Themes")
   const dialog = await openPlugins(page)
@@ -346,7 +349,7 @@ test("installed plugins and themes keep working offline, with a theme's own font
   test.slow()
   await seqno.openDemoGraph()
   await expect
-    .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
+    .poll(async () => await page.evaluate(() => navigator.serviceWorker.controller !== null))
     .toBe(true)
   await install(page, "Journals calendar")
   await install(page, "logseq-wordcount-plugin")
@@ -357,18 +360,24 @@ test("installed plugins and themes keep working offline, with a theme's own font
   await dialog.getByRole("radio", { name: "Dev theme", exact: true }).click()
   await page.keyboard.press("Escape")
   await context.unrouteAll()
-  await context.route("**", (route) => route.abort("internetdisconnected"))
+  await context.route("**", async (route) => {
+    await route.abort("internetdisconnected")
+  })
   await context.setOffline(true)
   await page.reload()
-  const font = () => page.evaluate(() => getComputedStyle(document.body).fontFamily)
+  const font = async () => await page.evaluate(() => getComputedStyle(document.body).fontFamily)
   await expect.poll(font).toMatch(/^"Only Emoji", "Source Sans 3 VF"/)
-  const themeFont = () =>
-    page.evaluate(async () => (await document.fonts.load('16px "Source Sans 3 VF"')).length)
+
+  const themeFont = async () =>
+    await page.evaluate(async () => (await document.fonts.load('16px "Source Sans 3 VF"')).length)
+
   await expect.poll(themeFont).toBeGreaterThan(0)
+
   const catppuccinSdk = () =>
     page
       .frame({ url: /\/lsp\/catppuccin\/logseq\// })
       ?.evaluate(() => typeof Reflect.get(window, "logseq"))
+
   await expect.poll(catppuccinSdk).toBe("object")
   await page.locator("#open-calendar-button").click()
   const yesterday = new Date()
@@ -403,15 +412,19 @@ const writeCalls = [
   "insert_block",
 ]
 
-const countPluginWrites = (context: BrowserContext) =>
-  context.addInitScript((methods) => {
-    if (window !== window.top) return
-    const writes: Array<string> = []
+const countPluginWrites = async (context: BrowserContext) =>
+  await context.addInitScript((methods) => {
+    if (window !== window.top) {
+      return
+    }
+
+    const writes: string[] = []
     Reflect.set(window, "pluginWrites", writes)
     addEventListener("message", (event: MessageEvent<unknown>) => {
       const call = Reflect.get(Object(Reflect.get(Object(event.data), "value")), "data")
       const method = String(Reflect.get(Object(Reflect.get(Object(call), "payload")), "method"))
-      const name = method.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+      const name = method.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+
       if (Reflect.get(Object(call), "type") === "api:call" && methods.includes(name)) {
         writes.push(name)
       }
@@ -432,13 +445,15 @@ const markDone = async (tab: Page, text: string) => {
     .getByRole("checkbox", { name: "Mark as done" })
     .click()
 }
+
 const doneTime = (tab: Page, text: string) =>
   todayOn(tab)
     .getByRole("treeitem")
     .filter({ hasText: text })
     .getByText(/^done-ms/)
 
-const pluginWrites = (page: Page) => () => page.evaluate(() => Reflect.get(window, "pluginWrites"))
+const pluginWrites = (page: Page) => async () =>
+  await page.evaluate(() => Reflect.get(window, "pluginWrites"))
 
 test("with two tabs open, a plugin that writes on every change writes once per change", async ({
   page,

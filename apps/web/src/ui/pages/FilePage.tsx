@@ -1,6 +1,7 @@
 import { RegistryContext, useAtomValue } from "@effect/atom-react"
 import { Result, Schema } from "effect"
-import { AsyncResult, type AtomRegistry } from "effect/reactivity"
+import { AsyncResult } from "effect/reactivity"
+import type { AtomRegistry } from "effect/reactivity"
 import { useContext, useId } from "react"
 import { logseq } from "@seqno/dom"
 import { CodeFile } from "@seqno/outliner"
@@ -15,11 +16,18 @@ const isAppFile = Schema.is(AppFilePath)
 const extensionOf = (path: string) => path.slice(path.lastIndexOf(".") + 1).toLowerCase()
 
 const configProblem = (text: string): string | null => {
-  if (text.trim() === "") return null
+  if (text.trim() === "") {
+    return null
+  }
+
   const read = readEdn(text)
-  if (Result.isFailure(read))
+
+  if (Result.isFailure(read)) {
     return "Failed to read file logseq/config.edn. Make sure your config is wrapped in {}. Also make sure that the characters '( { [' have their corresponding closing character ') } ]'."
+  }
+
   const edn = read.success
+
   return edn !== null && typeof edn === "object" && edn._tag === "Map"
     ? null
     : "The file logseq/config.edn is not valid."
@@ -31,9 +39,18 @@ const save = (
   before: string,
   after: string,
 ) => {
-  if (after.trim() === before.trim()) return
+  if (after.trim() === before.trim()) {
+    return
+  }
+
   const problem = path === "logseq/config.edn" ? configProblem(after) : null
-  if (problem !== null) return notify(registry, problem)
+
+  if (problem !== null) {
+    notify(registry, problem)
+
+    return
+  }
+
   registry.set(writeAppFile, { path, text: `${after.trim()}\n` })
 }
 
@@ -41,18 +58,22 @@ const Editor = ({ path }: { readonly path: AppFilePath }) => {
   const registry = useContext(RegistryContext)
   const loaded = AsyncResult.isSuccess(useAtomValue(appFilesWatch))
   const text = useAtomValue(appFileText(path)) ?? ""
+
   return loaded ? (
     <CodeFile
       key={text}
       code={text.trim()}
       language={extensionOf(path)}
-      onSave={(next) => save(registry, path, text, next)}
+      onSave={(next) => {
+        save(registry, path, text, next)
+      }}
     />
   ) : null
 }
 
 export const FilePage = ({ path }: { readonly path: string }) => {
-  const id = useId().replace(/[^a-z0-9]/gi, "")
+  const id = useId().replaceAll(/[^a-z0-9]/gi, "")
+
   return (
     <div {...logseq("seqno-file", id)}>
       <PagesStyle />

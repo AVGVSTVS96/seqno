@@ -1,5 +1,6 @@
 import { Clock, Crypto, Effect, Layer, Option, Schema } from "effect"
-import { DeviceId, type JournalDay } from "@seqno/domain"
+import { DeviceId } from "@seqno/domain"
+import type { JournalDay } from "@seqno/domain"
 import { handleFs, lockIndex } from "@seqno/git/browser"
 import { layerWasmMemory } from "@seqno/index/wasm"
 import { StorageFailed, directoryChanges, directoryFile, directoryStorage } from "@seqno/vault"
@@ -9,18 +10,12 @@ import { journalDayOf } from "./journal.ts"
 import type { Layout } from "./layout.ts"
 import { indexedDbMirrorStore } from "./mirror-store.ts"
 import { GraphLocation, GraphLocations } from "./locations.ts"
-import {
-  Device,
-  GraphPlaces,
-  Identity,
-  type IndexFile,
-  type Starter,
-  type StarterFile,
-} from "./place.ts"
+import { Device, GraphPlaces, Identity } from "./place.ts"
+import type { IndexFile, Starter, StarterFile } from "./place.ts"
 
 const starters = new Map<
   string,
-  { readonly version: number; readonly files: (today: JournalDay) => ReadonlyArray<StarterFile> }
+  { readonly version: number; readonly files: (today: JournalDay) => readonly StarterFile[] }
 >([
   ["demo", { version: 1, files: demoGraph }],
   ["developer", { version: 7, files: developerGraph }],
@@ -34,43 +29,47 @@ interface Found {
   readonly ownGit: boolean
 }
 
-const opfsFolder = (path: ReadonlyArray<string>) =>
-  Effect.promise(() =>
-    path.reduce(
-      async (dir, part) => (await dir).getDirectoryHandle(part, { create: true }),
-      navigator.storage.getDirectory(),
-    ),
+const opfsFolder = (path: readonly string[]) =>
+  Effect.promise(
+    async () =>
+      await path.reduce(
+        async (dir, part) => await (await dir).getDirectoryHandle(part, { create: true }),
+        navigator.storage.getDirectory(),
+      ),
   )
 
 const gitPlace = (graph: string, work: FileSystemDirectoryHandle, ownGit: boolean) =>
   Effect.gen(function* () {
     const dotGit = ownGit
-      ? yield* Effect.promise(() => work.getDirectoryHandle(".git").catch(() => null))
+      ? yield* Effect.promise(async () => await work.getDirectoryHandle(".git").catch(() => null))
       : null
+
     const gitdir = dotGit ?? (yield* opfsFolder(["git", encodeURIComponent(graph)]))
+
     return {
       fs: handleFs(work, gitdir),
-      lock: dotGit === null ? async () => async () => undefined : () => lockIndex(dotGit),
+      lock:
+        dotGit === null ? async () => async () => undefined : async () => await lockIndex(dotGit),
       graphPath: graph,
     }
   })
 
 const indexName = (graph: string) => `${encodeURIComponent(graph)}.sqlite`
 
-const indexFile = (
-  graph: string,
-  listed: Effect.Effect<ReadonlyArray<string>, Error>,
-): IndexFile => {
+const indexFile = (graph: string, listed: Effect.Effect<readonly string[], Error>): IndexFile => {
   const name = indexName(graph)
+
   const attempt = <A>(run: () => Promise<A>) =>
     Effect.tryPromise({
       try: run,
       catch: (cause) => new StorageFailed({ path: `indexes/${name}`, reason: String(cause) }),
     })
+
   const handle = (create: boolean) =>
     Effect.flatMap(opfsFolder(["indexes"]), (folder) =>
-      attempt(() => folder.getFileHandle(name, { create })),
+      attempt(async () => await folder.getFileHandle(name, { create })),
     )
+
   return {
     read: handle(false).pipe(
       Effect.flatMap((file) =>
@@ -86,9 +85,9 @@ const indexFile = (
             ? Effect.flatMap(handle(true), (file) =>
                 attempt(async () => {
                   const writable = await file.createWritable()
-                  await writable.write(image).catch(async (cause: unknown) => {
+                  await writable.write(image).catch(async (error: unknown) => {
                     await writable.abort()
-                    throw cause
+                    throw error
                   })
                   await writable.close()
                 }),
@@ -99,19 +98,28 @@ const indexFile = (
 }
 
 const namesIn = async (folder: FileSystemDirectoryHandle) => {
-  const names: Array<string> = []
-  for await (const name of folder.keys()) names.push(name)
+  const names: string[] = []
+
+  for await (const name of folder.keys()) {
+    names.push(name)
+  }
+
   return names
 }
 
-const dropOrphans = (listed: Effect.Effect<ReadonlyArray<string>, Error>) =>
+const dropOrphans = (listed: Effect.Effect<readonly string[], Error>) =>
   Effect.gen(function* () {
     const folder = yield* opfsFolder(["indexes"])
-    const files = yield* Effect.tryPromise(() => namesIn(folder))
+    const files = yield* Effect.tryPromise(async () => await namesIn(folder))
     const kept = new Set((yield* listed).map(indexName))
     yield* Effect.forEach(
       files.filter((file) => file.endsWith(".sqlite") && !kept.has(file)),
-      (file) => Effect.ignore(Effect.tryPromise(() => folder.removeEntry(file))),
+      (file) =>
+        Effect.ignore(
+          Effect.tryPromise(async () => {
+            await folder.removeEntry(file)
+          }),
+        ),
       { discard: true },
     )
   }).pipe(Effect.ignore)
@@ -122,6 +130,7 @@ export const BrowserGraphPlaces = Layer.effect(
     const locations = yield* GraphLocations
     const orphansDropped = dropOrphans(locations.listed)
     yield* Effect.forkScoped(orphansDropped)
+
     return GraphPlaces.of({
       open: (graph) =>
         Effect.flatMap(locations.resolve(graph), (location) =>
@@ -143,6 +152,7 @@ export const BrowserGraphPlaces = Layer.effect(
                   ownGit: Effect.succeed(false),
                   starter: Effect.map(Clock.currentTimeMillis, (now): Starter | null => {
                     const starter = starters.get(name)
+
                     return starter === undefined
                       ? null
                       : { version: starter.version, files: starter.files(journalDayOf(now)) }
@@ -174,7 +184,8 @@ const IdentityJson = Schema.fromJsonString(Identity)
 const readIdentity = (root: FileSystemDirectoryHandle) =>
   Effect.promise(async () => {
     const file = await root.getFileHandle(identityFile).catch(() => undefined)
-    return file === undefined ? undefined : (await file.getFile()).text()
+
+    return file === undefined ? undefined : await (await file.getFile()).text()
   }).pipe(
     Effect.map((text) =>
       Option.flatMap(Option.fromUndefinedOr(text), Schema.decodeUnknownOption(IdentityJson)),
@@ -186,6 +197,7 @@ const writeIdentity = (root: FileSystemDirectoryHandle, text: string) =>
     const writable = await (
       await root.getFileHandle(identityFile, { create: true })
     ).createWritable()
+
     await writable.write(text)
     await writable.close()
   })
@@ -194,6 +206,7 @@ const mintIdentity = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto
   const bytes = yield* crypto.randomBytes(6)
   const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
+
   return Identity.make({ device: DeviceId.make(`web-${hex}`) })
 })
 
@@ -208,9 +221,14 @@ export const BrowserDevice = Layer.effect(
   Effect.gen(function* () {
     const root = yield* opfsFolder([])
     const stored = yield* readIdentity(root)
-    if (Option.isSome(stored)) return deviceOf(stored.value)
+
+    if (Option.isSome(stored)) {
+      return deviceOf(stored.value)
+    }
+
     const minted = yield* mintIdentity
     yield* writeIdentity(root, Schema.encodeSync(IdentityJson)(minted))
+
     return deviceOf(minted)
   }),
 )

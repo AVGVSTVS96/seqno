@@ -22,20 +22,26 @@ import {
   IconSquare,
   IconTriangle,
 } from "@tabler/icons-react"
-import { useId, type ComponentType, type CSSProperties, type ReactNode } from "react"
+import { useId } from "react"
+import type { ComponentType, CSSProperties, ReactNode } from "react"
 import type { ScaleLevel } from "@seqno/domain"
-import { COLORS, colorVar, type Color, type ShapeTool, type Tool } from "./tools.ts"
+import { COLORS, colorVar } from "./tools.ts"
+import type { Color, ShapeTool, Tool } from "./tools.ts"
 
-export const anchorOf = (id: string) => `--wb-${id.replace(/[^a-zA-Z0-9]/g, "")}`
+export const anchorOf = (id: string) => `--wb-${id.replaceAll(/[^a-zA-Z0-9]/g, "")}`
 
 export const closePopover = (target: EventTarget) => {
   const popover = target instanceof Element ? target.closest("[popover]") : null
-  if (popover instanceof HTMLElement) popover.hidePopover()
+
+  if (popover instanceof HTMLElement) {
+    popover.hidePopover()
+  }
 }
 
 export const usePopoverIds = () => {
   const id = useId()
   const anchor = anchorOf(id)
+
   return {
     id: `wb-popover-${anchor.slice(5)}`,
     trigger: { anchorName: anchor } satisfies CSSProperties,
@@ -81,7 +87,7 @@ export const SCALE_LABELS: Record<ScaleLevel, readonly [string, string]> = {
   xxl: ["XXL", "Huge"],
 }
 
-export const SCALES: ReadonlyArray<ScaleLevel> = ["xs", "sm", "md", "lg", "xl", "xxl"]
+export const SCALES: readonly ScaleLevel[] = ["xs", "sm", "md", "lg", "xl", "xxl"]
 
 const geometryIcon = (shape: ShapeTool) =>
   shape === "box" ? (
@@ -144,18 +150,23 @@ export const PrimaryTools = ({
 }) => {
   const shapes = usePopoverIds()
   const colors = usePopoverIds()
+
   const button = ([value, label, keys, Icon]: ToolEntry) => (
     <ToolButton
       key={value}
       label={label}
       keys={keys}
       pressed={tool === value}
-      onClick={() => onTool(value)}
+      onClick={() => {
+        onTool(value)
+      }}
     >
       <Icon size={16} />
     </ToolButton>
   )
+
   const shapePressed = tool === "box" || tool === "ellipse" || tool === "polygon"
+
   return (
     <div className="wb-primary" data-tooltip-side="left">
       <div
@@ -163,7 +174,9 @@ export const PrimaryTools = ({
         role="toolbar"
         aria-label="Whiteboard tools"
         aria-orientation="vertical"
-        onPointerDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => {
+          event.stopPropagation()
+        }}
       >
         {NAVIGATION_TOOLS.map(button)}
         <span className="wb-separator" />
@@ -192,7 +205,9 @@ export const PrimaryTools = ({
               label={label}
               {...(keys === undefined ? {} : { keys })}
               pressed={tool === value}
-              onClick={() => onTool(value)}
+              onClick={() => {
+                onTool(value)
+              }}
             >
               {geometryIcon(value)}
             </ToolButton>
@@ -235,7 +250,10 @@ export const PrimaryTools = ({
           value={scale}
           onChange={(event) => {
             const picked = SCALES.find((level) => level === event.currentTarget.value)
-            if (picked !== undefined) onScale(picked)
+
+            if (picked !== undefined) {
+              onScale(picked)
+            }
           }}
         >
           {SCALES.map((level) => (
@@ -251,12 +269,12 @@ export const PrimaryTools = ({
 
 type ToolEntry = readonly [Tool, string, string, ComponentType<{ readonly size: number }>]
 
-const NAVIGATION_TOOLS: ReadonlyArray<ToolEntry> = [
+const NAVIGATION_TOOLS: readonly ToolEntry[] = [
   ["select", "Select", "1", IconPointer],
   ["move", "Pan", "2", IconHandStop],
 ]
 
-const DRAWING_TOOLS: ReadonlyArray<ToolEntry> = [
+const DRAWING_TOOLS: readonly ToolEntry[] = [
   ["portal", "Add block or page", "3", IconCirclePlus],
   ["pencil", "Draw", "4", IconBallpen],
   ["highlighter", "Highlight", "5", IconHighlight],
@@ -293,6 +311,7 @@ export const ActionBar = ({
   readonly onPen: () => void
 }) => {
   const menu = usePopoverIds()
+
   const item = (action: ZoomAction, label: string, keys: string, disabled = false) => (
     <button
       type="button"
@@ -308,8 +327,14 @@ export const ActionBar = ({
       <span className="wb-menu-keys">{keys}</span>
     </button>
   )
+
   return (
-    <div className="wb-action-bar" onPointerDown={(event) => event.stopPropagation()}>
+    <div
+      className="wb-action-bar"
+      onPointerDown={(event) => {
+        event.stopPropagation()
+      }}
+    >
       <div className="wb-panel" role="toolbar" aria-label="History">
         <ToolButton label="Undo" keys="Mod+Z" onClick={onUndo}>
           <IconArrowBackUp size={16} />
@@ -319,10 +344,22 @@ export const ActionBar = ({
         </ToolButton>
       </div>
       <div className="wb-panel" role="toolbar" aria-label="Zoom">
-        <ToolButton label="Zoom in" keys="Shift+=" onClick={() => onZoom("in")}>
+        <ToolButton
+          label="Zoom in"
+          keys="Shift+="
+          onClick={() => {
+            onZoom("in")
+          }}
+        >
           <IconPlus size={16} />
         </ToolButton>
-        <ToolButton label="Zoom out" keys="Shift+-" onClick={() => onZoom("out")}>
+        <ToolButton
+          label="Zoom out"
+          keys="Shift+-"
+          onClick={() => {
+            onZoom("out")
+          }}
+        >
           <IconMinus size={16} />
         </ToolButton>
         <span className="wb-separator" />

@@ -2,11 +2,14 @@ import { mkdir, rm } from "node:fs/promises"
 import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { parseArgs } from "node:util"
-import { chromium, type Browser, type Page } from "@playwright/test"
+import { chromium } from "@playwright/test"
+import type { Browser, Page } from "@playwright/test"
 import { Schema } from "effect"
-import { readNotes, writeCompare, writeNotes, type Notes } from "./compare.ts"
+import { readNotes, writeCompare, writeNotes } from "./compare.ts"
+import type { Notes } from "./compare.ts"
 import * as logseq from "./logseq.ts"
-import { scenes, type Scene, type Step } from "./scenes.ts"
+import { scenes } from "./scenes.ts"
+import type { Scene, Step } from "./scenes.ts"
 import * as seqno from "./seqno.ts"
 import {
   assetPath,
@@ -15,7 +18,8 @@ import {
   showcasePage,
   withoutPageProperties,
 } from "./showcase.ts"
-import { themes, type Theme } from "./theme.ts"
+import { themes } from "./theme.ts"
+import type { Theme } from "./theme.ts"
 
 const viewport = { width: 1440, height: 900 }
 const assetHost = "https://showcase.seqno.invalid/"
@@ -59,23 +63,29 @@ const options = Schema.decodeUnknownSync(Options)({
 const chosenScenes = scenes.filter(
   (scene) => options.scenes.length === 0 || options.scenes.includes(scene.id),
 )
+
 const chosenThemes = themes.filter(
   (theme) => options.theme === undefined || options.theme === theme,
 )
+
 const wants = (app: "logseq" | "seqno") => options.app === undefined || options.app === app
+
 const shot = (scene: Scene, theme: Theme, app: "logseq" | "seqno") =>
   join(options.out, `${scene.id}-${theme}.${app}.png`)
 
 const today = new Date()
-const notes: Record<string, { logseq: Array<string>; seqno: Array<string> }> = Object.fromEntries(
+
+const notes: Record<string, { logseq: string[]; seqno: string[] }> = Object.fromEntries(
   Object.entries(await readNotes(options.out).catch((): Notes => ({}))).map(([key, value]) => [
     key,
     { logseq: [...value.logseq], seqno: [...value.seqno] },
   ]),
 )
+
 const noteFor = (scene: Scene, theme: Theme) => {
   const key = `${scene.id}-${theme}`
   notes[key] ??= { logseq: [], seqno: [] }
+
   return notes[key]
 }
 
@@ -94,10 +104,12 @@ const prepare: Record<logseq.Reference, (page: Page) => Promise<void>> = {
     const [latest, ...earlier] = await showcaseJournals(today)
     await logseq.goHome(page, "test")
     await logseq.pasteMarkdown(page, latest?.markdown ?? "")
+
     for (const journal of earlier) {
       await logseq.openBlankPage(page, journal.title)
       await logseq.pasteMarkdown(page, journal.markdown)
     }
+
     for (const file of ["Garden Plan.md", "Reading List.md"]) {
       await logseq.openBlankPage(page, file.replace(/\.md$/, ""))
       await logseq.pasteMarkdown(page, withoutPageProperties(await showcasePage(file)))
@@ -118,36 +130,47 @@ const captureLogseq = async (browser: Browser, reference: logseq.Reference) => {
     viewport,
     permissions: ["clipboard-read", "clipboard-write"],
   })
-  await context.route(`${assetHost}**`, (route) =>
-    route.fulfill({ path: assetPath(basename(new URL(route.request().url()).pathname)) }),
-  )
+
+  await context.route(`${assetHost}**`, async (route) => {
+    await route.fulfill({ path: assetPath(basename(new URL(route.request().url()).pathname)) })
+  })
   const page = await context.newPage()
   page.setDefaultTimeout(60_000)
   console.log(`${logseq.references[reference].name}: loading and pasting the showcase`)
   await logseq
     .openLogseq(page, reference)
-    .then(() => prepare[reference](page))
+    .then(async () => {
+      await prepare[reference](page)
+    })
     .catch(async (error: unknown) => {
       await page.screenshot({ path: join(options.out, `debug-${reference}.png`) })
       throw error
     })
+
   for (const theme of chosenThemes) {
     await logseq.setTheme(page, theme)
+
     for (const scene of chosenScenes.filter((candidate) => candidate.reference === reference)) {
       const note = noteFor(scene, theme)
       note.logseq = []
+
       const cleanup = await logseq
         .setLeftSidebar(page, scene.leftSidebar)
-        .then(() => scene.logseq(page))
+        .then(async () => await scene.logseq(page))
         .catch((error: unknown) => {
           note.logseq.push(problem(error))
-          return () => logseq.leaveEditing(page)
+
+          return async () => {
+            await logseq.leaveEditing(page)
+          }
         })
+
       await capture(page, shot(scene, theme, "logseq"), scene.caret)
       await cleanup()
       await logseq.closeRightSidebar(page)
     }
   }
+
   await context.close()
 }
 
@@ -160,18 +183,22 @@ const captureSeqnoScene = async (
 ) => {
   const note = noteFor(scene, theme)
   note.seqno = []
+
   const step: Step = async (missing, run) => {
     await run().catch(() => note.seqno.push(`missing: ${missing}`))
   }
+
   const page = await seqno.seqnoPage(browser, {
     baseURL: baseURL.href,
     showcase,
     theme,
     leftSidebar: scene.leftSidebar,
   })
+
   const report = (error: unknown) => {
     note.seqno.push(problem(error))
   }
+
   await scene.seqno(page, step).catch(report)
   await capture(page, shot(scene, theme, "seqno"), scene.caret).catch(report)
   await page.context().close()
@@ -180,6 +207,7 @@ const captureSeqnoScene = async (
 const captureSeqno = async (browser: Browser, baseURL: URL) => {
   const showcase = await materializeShowcase(today)
   console.log(`seqno at ${baseURL.href}`)
+
   try {
     for (const theme of chosenThemes) {
       for (const scene of chosenScenes) {
@@ -192,18 +220,25 @@ const captureSeqno = async (browser: Browser, baseURL: URL) => {
 }
 
 await mkdir(options.out, { recursive: true })
+
 const browser = await chromium.launch({ channel: "chrome", headless: true })
+
 try {
   if (wants("logseq")) {
     const used = new Set(chosenScenes.map((scene) => scene.reference))
-    for (const reference of used) await captureLogseq(browser, reference)
+
+    for (const reference of used) {
+      await captureLogseq(browser, reference)
+    }
   }
+
   if (wants("seqno")) {
     if (options.baseURL === undefined) {
       throw new Error(
         "Set SEQNO_E2E_BASE_URL to your running seqno preview, for example http://localhost:4181/",
       )
     }
+
     await captureSeqno(browser, options.baseURL)
   }
 } finally {

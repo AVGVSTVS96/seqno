@@ -17,13 +17,16 @@ import {
   updatesDir,
 } from "./layout.ts"
 import type { Replica } from "./replica.ts"
-import { Entry, Storage, type StorageFailed } from "./storage.ts"
-import { covers, inspectBlob, isEmpty, join, Version, type BlobKind, type Span } from "./version.ts"
+import { Entry, Storage } from "./storage.ts"
+import type { StorageFailed } from "./storage.ts"
+import { covers, inspectBlob, isEmpty, join, Version } from "./version.ts"
+import type { BlobKind, Span } from "./version.ts"
 
 export const MirrorClaim = Schema.Struct({
   claim: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   version: Version,
 })
+
 export type MirrorClaim = typeof MirrorClaim.Type
 
 export const SeenFile = Schema.Struct({
@@ -32,6 +35,7 @@ export const SeenFile = Schema.Struct({
   snapshots: Schema.Array(Schema.Tuple([Schema.String, Version])),
   mirror: Schema.optionalKey(MirrorClaim),
 })
+
 export type SeenFile = typeof SeenFile.Type
 
 const SeenJson = Schema.fromJsonString(SeenFile)
@@ -44,9 +48,9 @@ export class UpdateRejected extends Schema.TaggedError<UpdateRejected>()("Update
 
 export interface VaultConfig {
   readonly device: DeviceId
-  readonly formerPeers?: ReadonlyArray<string>
+  readonly formerPeers?: readonly string[]
   readonly synced?: boolean
-  readonly members: ReadonlyArray<DeviceId>
+  readonly members: readonly DeviceId[]
   readonly compactAfterFiles: number
   readonly compactEvery: Duration.Input
 }
@@ -58,15 +62,15 @@ export interface SeenDevice {
 }
 
 export interface SyncReport {
-  readonly merged: ReadonlyArray<string>
-  readonly waiting: ReadonlyArray<string>
-  readonly foreign: ReadonlyArray<string>
-  readonly foreignRoots: ReadonlyArray<string>
-  readonly devices: ReadonlyArray<SeenDevice>
+  readonly merged: readonly string[]
+  readonly waiting: readonly string[]
+  readonly foreign: readonly string[]
+  readonly foreignRoots: readonly string[]
+  readonly devices: readonly SeenDevice[]
   readonly unread: number
   readonly behind: boolean
-  readonly written: ReadonlyArray<string>
-  readonly deleted: ReadonlyArray<string>
+  readonly written: readonly string[]
+  readonly deleted: readonly string[]
 }
 
 export class Vault extends Context.Service<
@@ -106,6 +110,7 @@ const byName = new Intl.Collator("en", { numeric: true })
 const lineageOf = (replica: Replica) =>
   Effect.map(replica.roots, (roots) => {
     const [only, ...rest] = roots.filter((root) => root.imported)
+
     return only !== undefined && rest.length === 0 ? only.peer : null
   })
 
@@ -134,6 +139,7 @@ const make = (config: VaultConfig) =>
     const checked = new Set<string>()
     const verified = new Set<string>()
     const mine = new Set<string>()
+
     const state = {
       lastSeen: "",
       lastSnapshotAt: Option.none<number>(),
@@ -141,12 +147,19 @@ const make = (config: VaultConfig) =>
       mirror: Option.none<MirrorClaim>(),
       abandoned: false,
     }
-    const blobRoots = new Map<string, ReadonlyArray<Root>>()
+
+    const blobRoots = new Map<string, readonly Root[]>()
+
     const rootsOf = (replica: Replica, key: string, bytes: Uint8Array) => {
       const known = blobRoots.get(key)
-      if (known !== undefined) return known
+
+      if (known !== undefined) {
+        return known
+      }
+
       const found = replica.rootsIn(bytes)
       blobRoots.set(key, found)
+
       return found
     }
 
@@ -156,6 +169,7 @@ const make = (config: VaultConfig) =>
           .filter(Entry.$is("File"))
           .map((entry): Listed => {
             const listed = readName(entry.name)
+
             return {
               key: `${keyDir}/${listed.name}`,
               path: `${dir}/${listed.raw}`,
@@ -170,6 +184,7 @@ const make = (config: VaultConfig) =>
       Effect.map(
         Effect.forEach(entries.filter(Entry.$is("Directory")), (entry) => {
           const listed = readName(entry.name)
+
           return Option.match(deviceOfDir(listed.name), {
             onNone: () => Effect.succeed([]),
             onSome: (device) => filesIn(`${updatesDir}/${listed.raw}`, `${updatesDir}/${device}`),
@@ -188,7 +203,11 @@ const make = (config: VaultConfig) =>
         const bytes = file.placeholder
           ? Option.none<Uint8Array>()
           : yield* Effect.option(storage.read(file.path))
-        if (Option.isNone(bytes)) yield* storage.download(file.path)
+
+        if (Option.isNone(bytes)) {
+          yield* storage.download(file.path)
+        }
+
         return bytes
       })
 
@@ -200,18 +219,27 @@ const make = (config: VaultConfig) =>
             (meta): Fetched => ({ bytes, span: meta.span }),
           ),
         )
-        if (Option.isNone(blob) && !file.placeholder) yield* storage.download(file.path)
+
+        if (Option.isNone(blob) && !file.placeholder) {
+          yield* storage.download(file.path)
+        }
+
         return blob
       })
 
     const owners = [me, ...(config.formerPeers ?? [])]
+
     const isMine = (bytes: Uint8Array, name: string) =>
       Effect.map(
-        Effect.promise(() => Promise.all(owners.map((owner) => snapshotName(owner, bytes)))),
+        Effect.promise(
+          async () =>
+            await Promise.all(owners.map(async (owner) => await snapshotName(owner, bytes))),
+        ),
         (expected) => expected.includes(originalName(name)),
       )
 
     const local = config.synced === false
+
     const confirmed = (name: string) =>
       (local && checked.has(name)) ||
       (!mine.has(originalName(name)) && verified.has(name)) ||
@@ -223,26 +251,34 @@ const make = (config: VaultConfig) =>
           if (state.abandoned) {
             return yield* new UpdateRejected({ reason: "this device gave the folder up" })
           }
+
           const meta = Option.filter(inspectBlob(bytes), (blob) => blob.kind === "update")
+
           if (Option.isNone(meta)) {
             return yield* new UpdateRejected({ reason: "bytes are not a Loro update" })
           }
+
           const { start, end } = meta.value.span
           const authors = Object.keys(end).filter((peer) => (end[peer] ?? 0) > (start[peer] ?? 0))
           const [author] = authors
+
           if (author === undefined || authors.length > 1) {
             return yield* new UpdateRejected({
               reason: `an update file holds one peer's ops, found peers [${authors.join(", ")}]`,
             })
           }
+
           const path = updatePath(me, author, start[author] ?? 0)
           const existing = yield* filesIn(myUpdates, myUpdates)
+
           if (existing.some((file) => file.key === path)) {
             return yield* new UpdateRejected({ reason: `${path} already exists` })
           }
+
           yield* storage.write(path, bytes)
           spans.set(path, meta.value.span)
           consumed.add(path)
+
           return path
         }),
       )
@@ -250,29 +286,39 @@ const make = (config: VaultConfig) =>
     const sync = (replica: Replica): Effect.Effect<SyncReport, StorageFailed> =>
       lock.withPermits(1)(
         Effect.gen(function* () {
-          if (state.abandoned) return given
+          if (state.abandoned) {
+            return given
+          }
+
           const snapshots = yield* listSnapshots
           const updates = yield* listUpdates
           const seenFiles = yield* filesIn(seenDir, seenDir)
-          const merged: Array<string> = []
-          const waiting: Array<string> = []
-          const written: Array<string> = []
-          const deleted: Array<string> = []
+          const merged: string[] = []
+          const waiting: string[] = []
+          const written: string[] = []
+          const deleted: string[] = []
           const inHand = new Map<string, readonly [Listed, Uint8Array]>()
           const listedBy = new Map<string, DeviceId>()
 
-          const devices: Array<SeenDevice> = []
+          const devices: SeenDevice[] = []
           let unread = 0
+
           for (const file of seenFiles) {
             const device = deviceOfSeen(file.name)
-            if (Option.isNone(device)) continue
+
+            if (Option.isNone(device)) {
+              continue
+            }
+
             const seen = Option.flatMap(yield* readBytes(file), (bytes) =>
               decodeSeen(decoder.decode(bytes)),
             )
+
             if (Option.isNone(seen)) {
               unread++
               continue
             }
+
             if (originalName(file.name) === file.name) {
               if (
                 device.value === me &&
@@ -281,6 +327,7 @@ const make = (config: VaultConfig) =>
               ) {
                 state.mirror = Option.some(seen.value.mirror)
               }
+
               devices.push({
                 device: device.value,
                 vv: seen.value.vv,
@@ -290,14 +337,27 @@ const make = (config: VaultConfig) =>
                     : (seen.value.mirror ?? null),
               })
             }
+
             const canonical = originalName(file.name) === file.name
+
             for (const [name, vv] of seen.value.snapshots) {
               snapshotVersions.set(name, join(snapshotVersions.get(name) ?? {}, vv))
-              if (!canonical) continue
+
+              if (!canonical) {
+                continue
+              }
+
               listedBy.set(name, device.value)
-              if (device.value === me) mine.add(originalName(name))
+
+              if (device.value === me) {
+                mine.add(originalName(name))
+              }
             }
-            if (device.value === me) continue
+
+            if (device.value === me) {
+              continue
+            }
+
             const ack = acks.get(device.value) ?? { vv: {}, verified: new Set<string>() }
             ack.vv = join(ack.vv, seen.value.vv)
             seen.value.verified.forEach((name) => ack.verified.add(name))
@@ -310,35 +370,47 @@ const make = (config: VaultConfig) =>
               checked.add(file.name)
               const owner = listedBy.get(file.name)
               const own = owner === undefined ? yield* isMine(bytes, file.name) : owner === me
-              if (own) mine.add(originalName(file.name))
-              else verified.add(file.name)
+
+              if (own) {
+                mine.add(originalName(file.name))
+              } else {
+                verified.add(file.name)
+              }
             })
 
           const direct = !state.merged && isEmpty(yield* replica.version)
           const tried = new Set<string>()
+
           if (direct) {
             const ops = (file: Listed) =>
               Object.values(snapshotVersions.get(file.name) ?? {}).reduce((a, b) => a + b, 0)
+
             const unchecked = snapshots.filter((file) => !checked.has(file.name))
+
             const newestFirst = [
               ...unchecked
                 .filter((file) => listedBy.has(file.name))
                 .toSorted((a, b) => ops(b) - ops(a)),
               ...unchecked.filter((file) => !listedBy.has(file.name)),
             ]
+
             for (const file of newestFirst) {
               tried.add(file.name)
               const bytes = yield* readBytes(file)
+
               if (Option.isNone(bytes)) {
                 waiting.push(file.key)
                 continue
               }
+
               const restored = yield* replica.restore(bytes.value)
+
               if (Option.isNone(restored)) {
                 yield* storage.download(file.path)
                 waiting.push(file.key)
                 continue
               }
+
               yield* settle(file, bytes.value, restored.value)
               consumed.add(file.key)
               merged.push(file.key)
@@ -347,22 +419,32 @@ const make = (config: VaultConfig) =>
           }
 
           for (const file of snapshots) {
-            if (checked.has(file.name) || tried.has(file.name)) continue
-            if (direct && listedBy.has(file.name)) continue
+            if (checked.has(file.name) || tried.has(file.name)) {
+              continue
+            }
+
+            if (direct && listedBy.has(file.name)) {
+              continue
+            }
+
             const blob = yield* fetchBlob(file, "snapshot")
+
             if (Option.isNone(blob)) {
               waiting.push(file.key)
               continue
             }
+
             yield* settle(file, blob.value.bytes, blob.value.span.end)
             inHand.set(file.name, [file, blob.value.bytes])
           }
 
-          const foreign: Array<string> = []
+          const foreign: string[] = []
           const foreignRoots = new Set<string>()
+
           const mergeAll = (offered: ReadonlyArray<readonly [Listed, Uint8Array]>) =>
             Effect.gen(function* () {
               const have = yield* replica.version
+
               const rooted = offered.flatMap(([file, bytes]) =>
                 Option.isSome(Option.filter(inspectBlob(bytes), (meta) => meta.rooted))
                   ? [
@@ -376,7 +458,9 @@ const make = (config: VaultConfig) =>
                     ]
                   : [],
               )
+
               const roots = new Map(rooted.map((blob) => [blob.key, blob.roots]))
+
               const lineage =
                 (yield* lineageOf(replica)) ??
                 (isEmpty(have)
@@ -385,10 +469,16 @@ const make = (config: VaultConfig) =>
                       .flatMap((blob) => blob.roots.filter((root) => root.imported))[0]?.peer ??
                     null)
                   : null)
+
               const hasPages = yield* replica.hasPages
+
               const batch = offered.filter(([file]) => {
                 const found = roots.get(file.key)
-                if (found === undefined) return true
+
+                if (found === undefined) {
+                  return true
+                }
+
                 const allowed = !found.some(
                   (root) =>
                     root.imported &&
@@ -396,24 +486,34 @@ const make = (config: VaultConfig) =>
                     (have[root.peer] ?? 0) === 0 &&
                     (lineage !== null || hasPages),
                 )
+
                 if (!allowed) {
                   foreign.push(file.key)
                   found
                     .filter((root) => root.imported && root.peer !== lineage)
                     .forEach((root) => foreignRoots.add(root.peer))
                 }
+
                 return allowed
               })
-              if (batch.length === 0) return 0
+
+              if (batch.length === 0) {
+                return 0
+              }
+
               state.merged = true
               const results = yield* replica.merge(batch.map(([, bytes]) => bytes))
+
               return batch.filter(([file], index) => {
                 if (results[index] !== true) {
                   waiting.push(file.key)
+
                   return true
                 }
+
                 consumed.add(file.key)
                 merged.push(file.key)
+
                 return false
               }).length
             })
@@ -432,24 +532,38 @@ const make = (config: VaultConfig) =>
                   : Option.some(entry),
               Option.none(),
             )
-            if (Option.isSome(newest)) yield* mergeAll([newest.value])
+
+            if (Option.isSome(newest)) {
+              yield* mergeAll([newest.value])
+            }
           }
 
           const have = yield* replica.version
           const batch: Array<readonly [Listed, Uint8Array]> = []
           let updatesWaiting = 0
+
           for (const file of updates) {
-            if (consumed.has(file.key)) continue
+            if (consumed.has(file.key)) {
+              continue
+            }
+
             const blob = yield* fetchBlob(file, "update")
+
             if (Option.isNone(blob)) {
               waiting.push(file.key)
               updatesWaiting++
               continue
             }
+
             spans.set(file.key, blob.value.span)
-            if (covers(have, blob.value.span.end)) consumed.add(file.key)
-            else batch.push([file, blob.value.bytes])
+
+            if (covers(have, blob.value.span.end)) {
+              consumed.add(file.key)
+            } else {
+              batch.push([file, blob.value.bytes])
+            }
           }
+
           updatesWaiting += yield* mergeAll(batch)
 
           const live = () =>
@@ -464,10 +578,17 @@ const make = (config: VaultConfig) =>
 
           if (updatesWaiting === 0) {
             for (const [file, vv] of live()) {
-              if (covers(yield* replica.version, vv)) continue
+              if (covers(yield* replica.version, vv)) {
+                continue
+              }
+
               const held = inHand.get(file.name)
               const bytes = held === undefined ? yield* readBytes(file) : Option.some(held[1])
-              if (Option.isNone(bytes)) continue
+
+              if (Option.isNone(bytes)) {
+                continue
+              }
+
               if ((yield* mergeAll([[file, bytes.value]])) > 0) {
                 yield* storage.download(file.path)
               } else if (!checked.has(file.name)) {
@@ -478,6 +599,7 @@ const make = (config: VaultConfig) =>
 
           const version = yield* replica.version
           const present = new Set(snapshots.map((file) => file.name))
+
           const seen = encodeSeen({
             vv: version,
             verified: [...verified].filter((name) => present.has(name)).toSorted(),
@@ -487,6 +609,7 @@ const make = (config: VaultConfig) =>
               .map((name) => [name, snapshotVersions.get(name) ?? {}] as const),
             ...Option.match(state.mirror, { onNone: () => ({}), onSome: (mirror) => ({ mirror }) }),
           })
+
           if (seen !== state.lastSeen) {
             yield* storage.write(seenPath(me), encoder.encode(seen))
             state.lastSeen = seen
@@ -494,20 +617,26 @@ const make = (config: VaultConfig) =>
 
           const behind = live().some(([, vv]) => !covers(version, vv))
           const now = yield* Clock.currentTimeMillis
+
           const rested = Option.match(state.lastSnapshotAt, {
             onNone: () => true,
             onSome: (at) => now < at || now - at >= Duration.toMillis(config.compactEvery),
           })
+
           if (updatesWaiting === 0 && !behind && rested) {
             const newest = live().reduce<Version>((acc, [, vv]) => join(acc, vv), {})
+
             const uncovered = updates.filter((file) => {
               const span = spans.get(file.key)
+
               return span === undefined || !covers(newest, span.end)
             }).length
+
             if (uncovered >= config.compactAfterFiles) {
               const bytes = yield* replica.snapshot
               const meta = Option.filter(inspectBlob(bytes), (blob) => blob.kind === "snapshot")
-              const name = yield* Effect.promise(() => snapshotName(me, bytes))
+              const name = yield* Effect.promise(async () => await snapshotName(me, bytes))
+
               if (Option.isSome(meta) && !present.has(name)) {
                 yield* storage.write(snapshotPath(name), bytes)
                 mine.add(name)
@@ -520,9 +649,11 @@ const make = (config: VaultConfig) =>
           }
 
           const witnesses = live().filter(([file]) => confirmed(file.name))
+
           const memberAcks = config.members.map((member) =>
             member === me ? version : (acks.get(member)?.vv ?? {}),
           )
+
           const remove = (file: Listed) =>
             Effect.map(storage.remove(file.path), () => {
               spans.delete(file.key)
@@ -531,25 +662,40 @@ const make = (config: VaultConfig) =>
 
           for (const file of updates) {
             const span = spans.get(file.key)
-            if (!file.key.startsWith(`${myUpdates}/`) || span === undefined) continue
+
+            if (!file.key.startsWith(`${myUpdates}/`) || span === undefined) {
+              continue
+            }
+
             const acked = memberAcks.every((ack) => covers(ack, span.end))
             const witnessed = witnesses.some(([, vv]) => covers(vv, span.end))
-            if (acked && witnessed) yield* remove(file)
+
+            if (acked && witnessed) {
+              yield* remove(file)
+            }
           }
 
           for (const [file, vv] of live()) {
-            if (!mine.has(originalName(file.name))) continue
+            if (!mine.has(originalName(file.name))) {
+              continue
+            }
+
             const above = witnesses.some(
               ([other, w]) =>
                 other.name !== file.name &&
                 covers(w, vv) &&
                 (!covers(vv, w) || other.name > file.name),
             )
-            if (above) yield* remove(file)
+
+            if (above) {
+              yield* remove(file)
+            }
           }
 
           for (const file of seenFiles) {
-            if (isSeenConflictOf(me, file.name)) yield* remove(file)
+            if (isSeenConflictOf(me, file.name)) {
+              yield* remove(file)
+            }
           }
 
           return {
@@ -575,9 +721,11 @@ const make = (config: VaultConfig) =>
       Effect.gen(function* () {
         const own = (yield* listUpdates).filter((file) => file.key.startsWith(`${myUpdates}/`))
         const snapshots = (yield* listSnapshots).filter((file) => mine.has(originalName(file.name)))
+
         const seen = (yield* filesIn(seenDir, seenDir)).filter(
           (file) => originalName(file.name) === `${me}.json`,
         )
+
         yield* Effect.forEach(
           [...own, ...snapshots, ...seen],
           (file) => storage.remove(file.path),

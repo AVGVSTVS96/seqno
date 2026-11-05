@@ -1,10 +1,13 @@
 import { Array as Arr, Context, Effect, Layer, Option, Schema, Semaphore, Stream } from "effect"
 import { Reactivity } from "effect/reactivity"
-import { BlockId, GraphEvent, PageId, normalizePageName, type Page } from "@seqno/domain"
-import { defaultPropertyConfig, type PropertyConfig } from "@seqno/syntax"
+import { BlockId, GraphEvent, PageId, normalizePageName } from "@seqno/domain"
+import type { Page } from "@seqno/domain"
+import { defaultPropertyConfig } from "@seqno/syntax"
+import type { PropertyConfig } from "@seqno/syntax"
 import { titleIn } from "./facets.ts"
 import { indexer } from "./indexer.ts"
-import { REBUILT, toInvalidation, type Changes, type ReadKey } from "./keys.ts"
+import { REBUILT, toInvalidation } from "./keys.ts"
+import type { Changes, ReadKey } from "./keys.ts"
 import {
   RELAXED,
   SCHEMA_VERSION,
@@ -13,23 +16,26 @@ import {
   schemaVersion,
   writeStamp,
 } from "./schema.ts"
-import { IndexError, Sqlite, type Row, type SqlValue, type Statements } from "./sqlite.ts"
+import { IndexError, Sqlite } from "./sqlite.ts"
+import type { Row, SqlValue, Statements } from "./sqlite.ts"
 
 export interface LiveQuery {
   readonly sql: string
-  readonly params: ReadonlyArray<SqlValue>
-  readonly reads: ReadonlyArray<ReadKey>
+  readonly params: readonly SqlValue[]
+  readonly reads: readonly ReadKey[]
 }
 
 export const BlockHit = Schema.Struct({ blockId: BlockId, pageId: PageId, text: Schema.String })
+
 export type BlockHit = typeof BlockHit.Type
 
 export const PageHit = Schema.Struct({ pageId: PageId, title: Schema.String })
+
 export type PageHit = typeof PageHit.Type
 
 export interface SearchResult {
-  readonly pages: ReadonlyArray<PageHit>
-  readonly blocks: ReadonlyArray<BlockHit>
+  readonly pages: readonly PageHit[]
+  readonly blocks: readonly BlockHit[]
 }
 
 export const PageStat = Schema.Struct({
@@ -38,6 +44,7 @@ export const PageStat = Schema.Struct({
   created: Schema.NullOr(Schema.Number),
   updated: Schema.NullOr(Schema.Number),
 })
+
 export type PageStat = typeof PageStat.Type
 
 export const ReferencedPage = Schema.Struct({
@@ -48,6 +55,7 @@ export const ReferencedPage = Schema.Struct({
   created: Schema.NullOr(Schema.Number),
   updated: Schema.NullOr(Schema.Number),
 })
+
 export type ReferencedPage = typeof ReferencedPage.Type
 
 export const GraphPage = Schema.Struct({
@@ -58,14 +66,15 @@ export const GraphPage = Schema.Struct({
   tag: Schema.Boolean,
   created: Schema.NullOr(Schema.Number),
 })
+
 export type GraphPage = typeof GraphPage.Type
 
 export interface PagesGraph {
-  readonly pages: ReadonlyArray<GraphPage>
+  readonly pages: readonly GraphPage[]
   readonly links: ReadonlyArray<readonly [string, string]>
 }
 
-const REBUILD_BATCH = 2_000
+const REBUILD_BATCH = 2000
 const NAMES_PER_WRITE = 250
 
 const decodeBlockHit = Schema.decodeUnknownSync(BlockHit)
@@ -75,7 +84,7 @@ const decodeReferencedPage = Schema.decodeUnknownSync(ReferencedPage)
 const decodeGraphPage = Schema.decodeUnknownSync(GraphPage)
 const decodeName = Schema.decodeUnknownSync(Schema.String)
 
-const blockHits = (rows: ReadonlyArray<Row>) =>
+const blockHits = (rows: readonly Row[]) =>
   rows.map(([blockId, pageId, text]) => decodeBlockHit({ blockId, pageId, text }))
 
 const REFERENCE_ORDER = "ORDER BY p.day IS NULL, p.day DESC, p.name_lc, b.rid"
@@ -164,11 +173,13 @@ WHERE coalesce(dst.name_lc, e.target) != src.name_lc`
 
 const namespaceParent = (name: string) => {
   const slash = name.lastIndexOf("/")
+
   return slash > 0 ? name.slice(0, slash) : null
 }
 
 const graphOf = (db: Statements): PagesGraph => {
   const tags = new Set(db.all(GRAPH_TAGS).map(([name]) => decodeName(name)))
+
   const pages = [
     ...db.all(GRAPH_PAGES).map(([name, title, day, created]) =>
       decodeGraphPage({
@@ -191,21 +202,33 @@ const graphOf = (db: Statements): PagesGraph => {
       }),
     ),
   ]
+
   const names = new Set(pages.map((page) => page.name))
+
   const references = db
     .all(GRAPH_LINKS)
     .map(([source, target]): readonly [string, string] => [decodeName(source), decodeName(target)])
+
   const namespaces = pages.flatMap((page): ReadonlyArray<readonly [string, string]> => {
     const parent = namespaceParent(page.name)
+
     return parent !== null && names.has(parent) ? [[page.name, parent]] : []
   })
+
   const seen = new Set<string>()
+
   const links = [...references, ...namespaces].filter(([source, target]) => {
     const key = `${source}\u0000${target}`
-    if (seen.has(key)) return false
+
+    if (seen.has(key)) {
+      return false
+    }
+
     seen.add(key)
+
     return true
   })
+
   return { pages, links }
 }
 
@@ -214,6 +237,7 @@ const samePagesGraph = (left: PagesGraph, right: PagesGraph) =>
   left.links.length === right.links.length &&
   left.pages.every((page, at) => {
     const other = right.pages[at]
+
     return (
       other !== undefined &&
       page.name === other.name &&
@@ -234,11 +258,19 @@ const blockRef = /\(\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 const blockRefCountsOf = (db: Statements): Readonly<Record<string, number>> => {
   const counts: Record<string, number> = {}
+
   for (const [content] of db.all(BLOCK_REF_SOURCES)) {
-    if (typeof content !== "string") continue
+    if (typeof content !== "string") {
+      continue
+    }
+
     const targets = new Set([...content.matchAll(blockRef)].map((m) => (m[1] ?? "").toLowerCase()))
-    for (const target of targets) counts[target] = (counts[target] ?? 0) + 1
+
+    for (const target of targets) {
+      counts[target] = (counts[target] ?? 0) + 1
+    }
   }
+
   return counts
 }
 
@@ -253,8 +285,9 @@ const blockReferencesOf = (db: Statements, blockId: string) =>
 
 const phrase = (text: string) => `"${text.replaceAll('"', '""')}"`
 
-const anyPhrase = (names: ReadonlyArray<string>): string | null => {
+const anyPhrase = (names: readonly string[]): string | null => {
   const phrases = names.filter((name) => /[\p{L}\p{N}]/u.test(name)).map(phrase)
+
   return phrases.length === 0 ? null : phrases.join(" OR ")
 }
 
@@ -263,6 +296,7 @@ const namesOf = (db: Statements, pageId: PageId) =>
 
 const unlinkedOf = (db: Statements, pageId: PageId) => {
   const match = anyPhrase(namesOf(db, pageId))
+
   return match === null ? [] : blockHits(db.all(UNLINKED, [pageId, match]))
 }
 
@@ -273,16 +307,17 @@ const statsOf = (db: Statements) =>
       decodePageStat({ pageId, backlinks, created, updated }),
     )
 
-const sameBlocks = (left: ReadonlyArray<BlockHit>, right: ReadonlyArray<BlockHit>) =>
+const sameBlocks = (left: readonly BlockHit[], right: readonly BlockHit[]) =>
   left.length === right.length &&
   left.every((hit, at) => hit.blockId === right[at]?.blockId && hit.pageId === right[at]?.pageId)
 
-const NAME_READS: ReadonlyArray<ReadKey> = ["page.name", "page.alias"]
-const UNLINKED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "text", "ref", "move", "exist"]
-const REFERENCED_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "ref", "exist", "updated"]
-const GRAPH_READS: ReadonlyArray<ReadKey> = [...NAME_READS, "ref", "move", "exist", "page.tag"]
-const BLOCK_REF_READS: ReadonlyArray<ReadKey> = ["text", "exist"]
-const STATS_READS: ReadonlyArray<ReadKey> = [
+const NAME_READS: readonly ReadKey[] = ["page.name", "page.alias"]
+const UNLINKED_READS: readonly ReadKey[] = [...NAME_READS, "text", "ref", "move", "exist"]
+const REFERENCED_READS: readonly ReadKey[] = [...NAME_READS, "ref", "exist", "updated"]
+const GRAPH_READS: readonly ReadKey[] = [...NAME_READS, "ref", "move", "exist", "page.tag"]
+const BLOCK_REF_READS: readonly ReadKey[] = ["text", "exist"]
+
+const STATS_READS: readonly ReadKey[] = [
   ...NAME_READS,
   "ref",
   "move",
@@ -312,6 +347,7 @@ const ftsQuery = (text: string): string | null => {
     .split(/\s+/)
     .filter((term) => term !== "")
     .map((term) => `"${term.replaceAll('"', '""')}"`)
+
   return terms.length === 0 ? null : `${terms.join(" ")}*`
 }
 
@@ -323,16 +359,21 @@ const decodePageId = Schema.decodeUnknownOption(PageId)
 const refreshed = (
   db: Statements,
   pageId: PageId,
-  events: ReadonlyArray<GraphEvent>,
-): ReadonlyArray<GraphEvent> => {
-  if (events.length === 0) return [{ _tag: "PageDeleted", pageId }]
+  events: readonly GraphEvent[],
+): readonly GraphEvent[] => {
+  if (events.length === 0) {
+    return [{ _tag: "PageDeleted", pageId }]
+  }
+
   const kept = new Set(
     events.flatMap((event) => (event._tag === "BlockUpserted" ? [event.block.id] : [])),
   )
+
   const stale = db
     .all(PAGE_BLOCKS, [pageId])
     .flatMap(([id]) => Option.toArray(decodeBlockId(id)))
     .filter((id) => !kept.has(id))
+
   return [
     ...stale.map((blockId): GraphEvent => ({ _tag: "BlockDeleted", blockId, pageId })),
     ...events,
@@ -350,20 +391,27 @@ const applyAll = (
 ): Changes => {
   const changes: Changes = new Map()
   const { index, settle } = indexer(db, changes, properties)
-  for (const event of events) index(event)
+
+  for (const event of events) {
+    index(event)
+  }
+
   settle()
+
   return changes
 }
 
-const writeNames = (db: Statements, pages: ReadonlyArray<Page>, properties: PropertyConfig) =>
+const writeNames = (db: Statements, pages: readonly Page[], properties: PropertyConfig) =>
   void applyAll(
     db,
     pages.map((page): GraphEvent => ({ _tag: "PageUpserted", page })),
     properties,
   )
 
-const markUnwritten = (db: Statements, ids: ReadonlyArray<PageId>) => {
-  for (const id of ids) db.run("INSERT OR IGNORE INTO unwritten VALUES (?)", [id])
+const markUnwritten = (db: Statements, ids: readonly PageId[]) => {
+  for (const id of ids) {
+    db.run("INSERT OR IGNORE INTO unwritten VALUES (?)", [id])
+  }
 }
 
 const make = Effect.gen(function* () {
@@ -374,18 +422,23 @@ const make = Effect.gen(function* () {
 
   const opened = sqlite.use((db) => {
     db.exec(RELAXED)
+
     return schemaVersion(db) === SCHEMA_VERSION ? readStamp(db) : null
   })
 
-  yield* sqlite.use((db) => db.exec(RELAXED))
+  yield* sqlite.use((db) => {
+    db.exec(RELAXED)
+  })
   yield* sqlite.transaction((db) => {
-    if (schemaVersion(db) !== SCHEMA_VERSION) recreate(db)
+    if (schemaVersion(db) !== SCHEMA_VERSION) {
+      recreate(db)
+    }
   })
 
-  const query = (sql: string, params: ReadonlyArray<SqlValue> = []) =>
+  const query = (sql: string, params: readonly SqlValue[] = []) =>
     sqlite.use((db) => db.all(sql, params))
 
-  const watching = <A>(reads: ReadonlyArray<string>, read: Effect.Effect<A, IndexError>) =>
+  const watching = <A>(reads: readonly string[], read: Effect.Effect<A, IndexError>) =>
     reactivity.stream([...reads, REBUILT], read)
 
   const backlinks = (pageId: PageId) => sqlite.use((db) => blockHits(db.all(BACKLINKS, [pageId])))
@@ -396,20 +449,22 @@ const make = Effect.gen(function* () {
 
   const referencedPages = sqlite.use(referencedOf)
 
-  const inWrites = <A>(items: ReadonlyArray<A>, write: (db: Statements, step: Array<A>) => void) =>
+  const inWrites = <A>(items: readonly A[], write: (db: Statements, step: A[]) => void) =>
     Effect.forEach(
       Arr.chunksOf(items, NAMES_PER_WRITE),
       (step) =>
         Effect.andThen(
           Effect.yieldNow,
-          sqlite.transaction((db) => write(db, step)),
+          sqlite.transaction((db) => {
+            write(db, step)
+          }),
         ),
       { discard: true },
     )
 
   const naming = <E, R>(
-    pages: Effect.Effect<ReadonlyArray<Page>, E, R>,
-    write: (read: ReadonlyArray<Page>) => Effect.Effect<void, IndexError>,
+    pages: Effect.Effect<readonly Page[], E, R>,
+    write: (read: readonly Page[]) => Effect.Effect<void, IndexError>,
   ) =>
     writer
       .withPermits(1)(Effect.flatMap(pages, write))
@@ -418,7 +473,7 @@ const make = Effect.gen(function* () {
   return {
     stamp: sqlite.use(readStamp).pipe(Effect.map(Option.fromNullOr)),
 
-    apply: (events: ReadonlyArray<GraphEvent>) =>
+    apply: (events: readonly GraphEvent[]) =>
       sqlite
         .transaction((db) => applyAll(db, events, properties))
         .pipe(
@@ -435,7 +490,7 @@ const make = Effect.gen(function* () {
         )
       }).pipe(Effect.ensuring(reactivity.invalidate([REBUILT])), writer.withPermits(1)),
 
-    start: <E, R>(pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
+    start: <E, R>(pages: Effect.Effect<readonly Page[], E, R>) =>
       naming(pages, (read) =>
         Effect.andThen(
           sqlite.transaction(recreate),
@@ -449,11 +504,13 @@ const make = Effect.gen(function* () {
         ),
       ),
 
-    owe: <E, R>(ids: ReadonlyArray<PageId>, pages: Effect.Effect<ReadonlyArray<Page>, E, R>) =>
+    owe: <E, R>(ids: readonly PageId[], pages: Effect.Effect<readonly Page[], E, R>) =>
       naming(pages, (read) =>
         Effect.andThen(
           inWrites(ids, markUnwritten),
-          inWrites(read, (db, step) => writeNames(db, step, properties)),
+          inWrites(read, (db, step) => {
+            writeNames(db, step, properties)
+          }),
         ),
       ),
 
@@ -462,7 +519,7 @@ const make = Effect.gen(function* () {
     ),
 
     refresh: <E, R, E2 = never, R2 = never>(
-      contents: Stream.Stream<readonly [PageId, ReadonlyArray<GraphEvent>], E, R>,
+      contents: Stream.Stream<readonly [PageId, readonly GraphEvent[]], E, R>,
       written: (pageId: PageId) => Effect.Effect<void, E2, R2> = () => Effect.void,
     ) =>
       Stream.runForEach(contents, ([pageId, events]) =>
@@ -480,7 +537,9 @@ const make = Effect.gen(function* () {
     image: (stamp: string) =>
       writer.withPermits(1)(
         Effect.andThen(
-          sqlite.transaction((db) => writeStamp(db, stamp)),
+          sqlite.transaction((db) => {
+            writeStamp(db, stamp)
+          }),
           sqlite.serialize,
         ),
       ),
@@ -490,18 +549,22 @@ const make = Effect.gen(function* () {
         const stamp = yield* Effect.andThen(sqlite.deserialize(image), opened).pipe(
           Effect.orElseSucceed(() => null),
         )
-        if (stamp === null) yield* sqlite.transaction(recreate)
+
+        if (stamp === null) {
+          yield* sqlite.transaction(recreate)
+        }
+
         return Option.fromNullOr(stamp)
       }).pipe(writer.withPermits(1), Effect.ensuring(reactivity.invalidate([REBUILT]))),
 
     query,
 
-    watch: (live: LiveQuery): Stream.Stream<ReadonlyArray<Row>, IndexError> =>
+    watch: (live: LiveQuery): Stream.Stream<readonly Row[], IndexError> =>
       reactivity.stream([...live.reads, REBUILT], query(live.sql, live.params)),
 
     backlinks,
 
-    watchBacklinks: (pageId: PageId): Stream.Stream<ReadonlyArray<BlockHit>, IndexError> =>
+    watchBacklinks: (pageId: PageId): Stream.Stream<readonly BlockHit[], IndexError> =>
       watching(
         NAME_READS,
         sqlite.use((db) => namesOf(db, pageId)),
@@ -515,8 +578,9 @@ const make = Effect.gen(function* () {
         Stream.changesWith(sameBlocks),
       ),
 
-    watchBacklinksToName: (name: string): Stream.Stream<ReadonlyArray<BlockHit>, IndexError> => {
+    watchBacklinksToName: (name: string): Stream.Stream<readonly BlockHit[], IndexError> => {
       const target = normalizePageName(name)
+
       return watching(
         [...NAME_READS, "move", `ref:${target}`],
         sqlite.use((db) => blockHits(db.all(BACKLINKS_TO_NAME, [target]))),
@@ -525,7 +589,7 @@ const make = Effect.gen(function* () {
 
     unlinkedReferences,
 
-    watchUnlinkedReferences: (pageId: PageId): Stream.Stream<ReadonlyArray<BlockHit>, IndexError> =>
+    watchUnlinkedReferences: (pageId: PageId): Stream.Stream<readonly BlockHit[], IndexError> =>
       watching(UNLINKED_READS, unlinkedReferences(pageId)).pipe(Stream.changesWith(sameBlocks)),
 
     pageStats,
@@ -546,7 +610,7 @@ const make = Effect.gen(function* () {
 
     watchBlockRefCounts: watching(BLOCK_REF_READS, sqlite.use(blockRefCountsOf)),
 
-    watchBlockReferences: (blockId: string): Stream.Stream<ReadonlyArray<BlockHit>, IndexError> =>
+    watchBlockReferences: (blockId: string): Stream.Stream<readonly BlockHit[], IndexError> =>
       watching(
         [...BLOCK_REF_READS, "move"],
         sqlite.use((db) => blockReferencesOf(db, blockId)),
@@ -567,6 +631,7 @@ const make = Effect.gen(function* () {
       sqlite.use((db) => {
         const name = normalizePageName(text)
         const match = ftsQuery(text)
+
         return {
           pages:
             name === "" || page !== null || code

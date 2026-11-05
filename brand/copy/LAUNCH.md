@@ -6,7 +6,7 @@ Everything here is true today per the seqno docs. Swap `<live url>` for the web 
 
 ## The post
 
-*(Long post. Attach the launch video, or `showcase-dark.png` if the video isn't ready.)*
+_(Long post. Attach the launch video, or `showcase-dark.png` if the video isn't ready.)_
 
 ```
 introducing seqno, a local-first outliner
@@ -72,7 +72,7 @@ next: sync on two real macs
 
 **4. Queries**
 
-*(Attach a screenshot of the query block and its results from the Showcase page.)*
+_(Attach a screenshot of the query block and its results from the Showcase page.)_
 
 ```
 logseq's simple queries paste in and run unchanged, and stay live as you type. dataview-style works too
@@ -98,24 +98,24 @@ Bassim reads the voiceover in his own voice, unhurried. The picture is the real 
 
 One thread runs through the whole video: a small mono counter in the top right, `no. 0`, that counts every edit typed on screen. It's the real count from the recording (read it from the session's update file names afterwards), and in beat 09 it turns out to be the name.
 
-| # | time | picture | voiceover |
-|---|---|---|---|
-| 01 | 0:00 | Today's journal in seqno, light. One empty block, cursor blinking. As Bassim speaks, his words type into the block. The counter starts rolling. | A couple of years ago, I watched my favorite note-taking app get worse and worse. |
-| 02 | 0:06 | Enter, Tab. His next line types into a child block. | So I decided to rebuild it, on a stack of really nice technologies. |
-| 03 | 0:11 | Cut to the site's hero. The label, then the huge wordmark, then the first line rise in, exactly as on the site. | This is seqno. |
-| 04 | 0:15 | The Showcase page fades in and scrolls slowly: properties, headings, links, tags. | It looks and feels like Logseq, and it opens your Logseq graphs. |
-| 05 | 0:21 | The Structure section. Tab, Shift+Tab, a drag, a fold, a zoom. Each key shows briefly as a mono chip, bottom left. | Every page is an outline. Indent, drag, fold or zoom into any block. |
-| 06 | 0:28 | Back on the journal: `[[Gar`, the popup offers Garden Plan, Enter. Garden Plan opens in the right sidebar with its linked references. | Type two brackets to link a page, and that page shows everything that links back. |
-| 07 | 0:35 | The Queries section: `{{query (task NOW DOING)}}` and its results. Above it, a TODO becomes DOING, and it joins the results. | Logseq's simple queries run unchanged, and stay live as you type. |
-| 08 | 0:42 | No voice, just the music. Mod+K, "greenhouse", results fill in as the word is typed. | |
-| 09 | 0:46 | The app slides left. On the right, the graph folder in mono. As a block is typed, update files appear one by one: `0.loro`, `412.loro`, `577.loro`. The corner counter moves to the center beside them and reads `seq. no.`, then closes up into `seqno`. | Every edit seqno saves gets a number in its edit log. A sequence number. That's the name. |
-| 10 | 0:55 | A second device's column of files appears beside the first, and both flow into one page. A small mono tag: `next · two Macs, one graph, through iCloud Drive`. | Those logs are built to merge across devices without conflicts, and there's no seqno server. |
-| 11 | 1:03 | The built-with names rise one at a time in one mono line: TypeScript 7 · Effect 4 · Loro · SQLite · React 19 · CodeMirror 6 · Vite 8. | The goal is to keep it as minimal as possible, while making it as solid and clean as I can. |
-| 12 | 1:10 | The site's roadmap rows: now, next, later. | It's a work in progress. Web only for now, in Chrome and Edge. iOS and desktop come later. And it's not ready for your real notes yet. |
-| 13 | 1:19 | The whole hero, as on the site. The label's number rolls up to today's real commit count. The button, the address, github.com/AVGVSTVS96/seqno. Hold for two seconds of quiet. | But you can try it today, right in your browser. Your notes never leave your device. |
+| #   | time | picture                                                                                                                                                                                                                                                   | voiceover                                                                                                                              |
+| --- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | 0:00 | Today's journal in seqno, light. One empty block, cursor blinking. As Bassim speaks, his words type into the block. The counter starts rolling.                                                                                                           | A couple of years ago, I watched my favorite note-taking app get worse and worse.                                                      |
+| 02  | 0:06 | Enter, Tab. His next line types into a child block.                                                                                                                                                                                                       | So I decided to rebuild it, on a stack of really nice technologies.                                                                    |
+| 03  | 0:11 | Cut to the site's hero. The label, then the huge wordmark, then the first line rise in, exactly as on the site.                                                                                                                                           | This is seqno.                                                                                                                         |
+| 04  | 0:15 | The Showcase page fades in and scrolls slowly: properties, headings, links, tags.                                                                                                                                                                         | It looks and feels like Logseq, and it opens your Logseq graphs.                                                                       |
+| 05  | 0:21 | The Structure section. Tab, Shift+Tab, a drag, a fold, a zoom. Each key shows briefly as a mono chip, bottom left.                                                                                                                                        | Every page is an outline. Indent, drag, fold or zoom into any block.                                                                   |
+| 06  | 0:28 | Back on the journal: `[[Gar`, the popup offers Garden Plan, Enter. Garden Plan opens in the right sidebar with its linked references.                                                                                                                     | Type two brackets to link a page, and that page shows everything that links back.                                                      |
+| 07  | 0:35 | The Queries section: `{{query (task NOW DOING)}}` and its results. Above it, a TODO becomes DOING, and it joins the results.                                                                                                                              | Logseq's simple queries run unchanged, and stay live as you type.                                                                      |
+| 08  | 0:42 | No voice, just the music. Mod+K, "greenhouse", results fill in as the word is typed.                                                                                                                                                                      |                                                                                                                                        |
+| 09  | 0:46 | The app slides left. On the right, the graph folder in mono. As a block is typed, update files appear one by one: `0.loro`, `412.loro`, `577.loro`. The corner counter moves to the center beside them and reads `seq. no.`, then closes up into `seqno`. | Every edit seqno saves gets a number in its edit log. A sequence number. That's the name.                                              |
+| 10  | 0:55 | A second device's column of files appears beside the first, and both flow into one page. A small mono tag: `next · two Macs, one graph, through iCloud Drive`.                                                                                            | Those logs are built to merge across devices without conflicts, and there's no seqno server.                                           |
+| 11  | 1:03 | The built-with names rise one at a time in one mono line: TypeScript 7 · Effect 4 · Loro · SQLite · React 19 · CodeMirror 6 · Vite 8.                                                                                                                     | The goal is to keep it as minimal as possible, while making it as solid and clean as I can.                                            |
+| 12  | 1:10 | The site's roadmap rows: now, next, later.                                                                                                                                                                                                                | It's a work in progress. Web only for now, in Chrome and Edge. iOS and desktop come later. And it's not ready for your real notes yet. |
+| 13  | 1:19 | The whole hero, as on the site. The label's number rolls up to today's real commit count. The button, the address, github.com/AVGVSTVS96/seqno. Hold for two seconds of quiet.                                                                            | But you can try it today, right in your browser. Your notes never leave your device.                                                   |
 
 **60-second cut:** drop 05 and 08, and end 12 after "Web only for now, in Chrome and Edge."
 
-*(Record on the Showcase graph, `fixtures/graphs/showcase`, with its journal dates moved to launch day. That isn't the demo graph visitors get today, which is three short pages. Either ship the Showcase graph as the demo before launch, or keep the video from implying it's what they'll open.)*
+_(Record on the Showcase graph, `fixtures/graphs/showcase`, with its journal dates moved to launch day. That isn't the demo graph visitors get today, which is three short pages. Either ship the Showcase graph as the demo before launch, or keep the video from implying it's what they'll open.)_
 
-*(Sound: soft key clicks under the typing, quiet music under the voice, nothing on the counter. No whooshes.)*
+_(Sound: soft key clicks under the typing, quiet music under the voice, nothing on the counter. No whooshes.)_

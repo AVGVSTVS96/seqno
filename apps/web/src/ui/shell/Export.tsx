@@ -5,17 +5,11 @@ import { AsyncResult, Atom } from "effect/reactivity"
 import { domToBlob } from "modern-screenshot"
 import { useId, useRef, useState } from "react"
 import type { Block, BlockId, Page, PageId, Props } from "@seqno/domain"
-import {
-  exportBlocks,
-  exportGraph,
-  referencedIds,
-  type BlockFormat,
-  type ExportTarget,
-  type GraphFormat,
-  type IndentStyle,
-} from "@seqno/export"
+import { exportBlocks, exportGraph, referencedIds } from "@seqno/export"
+import type { BlockFormat, ExportTarget, GraphFormat, IndentStyle } from "@seqno/export"
 import { Outliner, PlainTextEditor } from "@seqno/outliner"
-import { CoreClient, type ExportedTree } from "@seqno/rpc"
+import { CoreClient } from "@seqno/rpc"
+import type { ExportedTree } from "@seqno/rpc"
 import { isHiddenProperty, joinProperties } from "@seqno/syntax"
 import { appRuntime, assetResolver, openGraph, propertyConfig, settingsLayer } from "../../atoms.ts"
 import { closeDialogOf, Dialog, openDialog } from "./popover.tsx"
@@ -25,31 +19,38 @@ import { publishPages } from "./publish.ts"
 export interface ExportRequest {
   readonly name: string
   readonly target: ExportTarget
-  readonly pages: ReadonlyArray<PageId>
-  readonly shapes?: ReadonlyArray<BlockId>
+  readonly pages: readonly PageId[]
+  readonly shapes?: readonly BlockId[]
 }
 
 export const exported = Atom.make<ExportRequest | null>(null).pipe(Atom.keepAlive)
 
 const shown = (props: Props) => Object.entries(props).filter(([key]) => !isHiddenProperty(key))
 
-export const childrenOf = (blocks: ReadonlyArray<Block>) => {
-  const map = new Map<BlockId | null, Array<Block>>()
+export const childrenOf = (blocks: readonly Block[]) => {
+  const map = new Map<BlockId | null, Block[]>()
+
   for (const block of blocks) {
     const siblings = map.get(block.parentId)
-    if (siblings === undefined) map.set(block.parentId, [block])
-    else siblings.push(block)
+
+    if (siblings === undefined) {
+      map.set(block.parentId, [block])
+    } else {
+      siblings.push(block)
+    }
   }
-  return (id: BlockId | null): ReadonlyArray<Block> => map.get(id) ?? []
+
+  return (id: BlockId | null): readonly Block[] => map.get(id) ?? []
 }
 
 export const markdownOf = (
-  children: (id: BlockId | null) => ReadonlyArray<Block>,
+  children: (id: BlockId | null) => readonly Block[],
   block: Block,
   level = 0,
 ): string => {
   const pad = "\t".repeat(level)
   const text = joinProperties(block.text, shown(block.props))
+
   return [
     `${pad}- ${text.replaceAll("\n", `\n${pad}  `)}`,
     ...children(block.id).map((child) => markdownOf(children, child, level + 1)),
@@ -66,6 +67,7 @@ const formats: ReadonlyArray<readonly [Format, string]> = [
 ]
 
 const Removal = Schema.Literals(["page-ref", "emphasis", "tag", "property"])
+
 type Removal = typeof Removal.Type
 
 const settingsRuntime = Atom.runtime((get) => get(settingsLayer))
@@ -81,7 +83,7 @@ const removals = Atom.kvs({
   runtime: settingsRuntime,
   key: "seqno.export.removals",
   schema: Schema.Array(Removal),
-  defaultValue: (): ReadonlyArray<Removal> => [],
+  defaultValue: (): readonly Removal[] => [],
 }).pipe(Atom.keepAlive)
 
 const format = Atom.make<Format>("text").pipe(Atom.keepAlive)
@@ -90,8 +92,9 @@ const level = Atom.make<number | null>(null).pipe(Atom.keepAlive)
 
 const exportTrees = appRuntime.atom((get) => {
   const request = get(exported)
+
   return request === null
-    ? Effect.succeed<ReadonlyArray<ExportedTree>>([])
+    ? Effect.succeed<readonly ExportedTree[]>([])
     : Effect.flatMap(CoreClient, (core) => core.ExportPages({ from: request.pages }))
 })
 
@@ -109,8 +112,10 @@ const save = (blob: Blob, name: string) => {
 const typeOf = { text: "text/plain", opml: "text/x-opml", html: "text/html" } as const
 const extensionOf = { text: "txt", opml: "opml", html: "html", png: "png" } as const
 
-const pictureOf = (element: HTMLElement | null) =>
-  element === null ? Promise.resolve(null) : domToBlob(element, { scale: window.devicePixelRatio })
+const pictureOf = async (element: HTMLElement | null) =>
+  element === null
+    ? await Promise.resolve(null)
+    : await domToBlob(element, { scale: window.devicePixelRatio })
 
 const Picture = ({
   target,
@@ -119,11 +124,12 @@ const Picture = ({
   pictured,
 }: {
   readonly target: ExportTarget
-  readonly shapes: ReadonlyArray<BlockId> | undefined
+  readonly shapes: readonly BlockId[] | undefined
   readonly transparent: boolean
   readonly pictured: (element: HTMLDivElement | null) => void
 }) => {
   const resolveAsset = useAtomValue(assetResolver)
+
   const outline = (pageId: Page["id"], zoom: BlockId | null) => (
     <Outliner
       key={zoom ?? pageId}
@@ -135,9 +141,12 @@ const Picture = ({
       resolveAsset={resolveAsset}
     />
   )
+
   const trees = AsyncResult.getOrElse(useAtomValue(exportTrees), () => [])
+
   const pageOf = (id: BlockId) =>
     trees.find((tree) => tree.blocks.some((block) => block.id === id))?.page.id
+
   return (
     <div className="export-dialog-picture" aria-label="Exported picture" role="img">
       <div
@@ -161,6 +170,7 @@ const Picture = ({
         ) : (
           target.blockIds.flatMap((id) => {
             const pageId = pageOf(id)
+
             return pageId === undefined ? [] : [outline(pageId, id)]
           })
         )}
@@ -182,7 +192,9 @@ const Check = ({
     <input
       type="checkbox"
       checked={checked}
-      onChange={(event) => onChange(event.currentTarget.checked)}
+      onChange={(event) => {
+        onChange(event.currentTarget.checked)
+      }}
     />
     {label}
   </label>
@@ -195,15 +207,17 @@ const Options = ({ kind }: { readonly kind: BlockFormat }) => {
   const [upTo, setUpTo] = useAtom(level)
   const indentLabel = useId()
   const levelLabel = useId()
+
   const removal = (key: Removal, label: string) => (
     <Check
       label={label}
       checked={removed.includes(key)}
-      onChange={(checked) =>
+      onChange={(checked) => {
         setRemoved(checked ? [...removed, key] : removed.filter((entry) => entry !== key))
-      }
+      }}
     />
   )
+
   return (
     <div className="export-dialog-options">
       {kind === "text" ? (
@@ -214,8 +228,10 @@ const Options = ({ kind }: { readonly kind: BlockFormat }) => {
             value={indent}
             onChange={(event) => {
               const value = event.currentTarget.value
-              if (value === "dashes" || value === "spaces" || value === "no-indent")
+
+              if (value === "dashes" || value === "spaces" || value === "no-indent") {
                 setIndent(value)
+              }
             }}
           >
             <option value="dashes">dashes</option>
@@ -262,7 +278,11 @@ const useExportText = (request: ExportRequest, kind: Format) => {
   const removed = useAtomValue(removals)
   const newline = useAtomValue(newlineAfterBlock)
   const upTo = useAtomValue(level)
-  if (kind === "png") return null
+
+  if (kind === "png") {
+    return null
+  }
+
   return AsyncResult.match(trees, {
     onInitial: () => null,
     onFailure: () => "",
@@ -286,26 +306,42 @@ const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
   const [copied, setCopied] = useState(false)
   const picture = useRef<HTMLDivElement | null>(null)
   const text = useExportText(request, kind)
-  const blob = () =>
+
+  const blob = async () =>
     kind === "png"
-      ? pictureOf(picture.current)
-      : Promise.resolve(text === null ? null : new Blob([text], { type: typeOf[kind] }))
+      ? await pictureOf(picture.current)
+      : await Promise.resolve(text === null ? null : new Blob([text], { type: typeOf[kind] }))
+
   const copy = () => {
     if (kind === "png") {
       void navigator.clipboard
         .write([new ClipboardItem({ "image/png": blob().then((png) => png ?? new Blob()) })])
-        .then(() => setCopied(true))
+        .then(() => {
+          setCopied(true)
+        })
         .catch(() => undefined)
+
       return
     }
-    if (text === null) return
+
+    if (text === null) {
+      return
+    }
+
     const items: Record<string, Blob> = { "text/plain": new Blob([text], { type: "text/plain" }) }
-    if (kind === "html") items["text/html"] = new Blob([text], { type: "text/html" })
+
+    if (kind === "html") {
+      items["text/html"] = new Blob([text], { type: "text/html" })
+    }
+
     void navigator.clipboard
       .write([new ClipboardItem(items)])
-      .then(() => setCopied(true))
+      .then(() => {
+        setCopied(true)
+      })
       .catch(() => undefined)
   }
+
   return (
     <>
       <div className="export-dialog-head">
@@ -377,7 +413,10 @@ const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
           onClick={() =>
             void blob().then((file) => {
               const stamp = request.target._tag === "Page" ? request.name : new Date().toISOString()
-              if (file !== null) save(file, fileName(stamp, extensionOf[kind]))
+
+              if (file !== null) {
+                save(file, fileName(stamp, extensionOf[kind]))
+              }
             })
           }
         >
@@ -390,17 +429,27 @@ const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
 
 export const ExportDialog = () => {
   const [value, setValue] = useAtom(exported)
-  if (value === null) return null
+
+  if (value === null) {
+    return null
+  }
+
   return (
     <dialog
       className="dialog export-dialog"
       aria-label="Export"
       ref={(dialog) => {
-        if (dialog !== null && !dialog.open) dialog.showModal()
+        if (dialog !== null && !dialog.open) {
+          dialog.showModal()
+        }
       }}
-      onClose={() => setValue(null)}
+      onClose={() => {
+        setValue(null)
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) event.currentTarget.close()
+        if (event.target === event.currentTarget) {
+          event.currentTarget.close()
+        }
       }}
     >
       <ExportBody request={value} />
@@ -427,18 +476,21 @@ const exportGraphAs = appRuntime.fn((kind: GraphFormat, get) =>
       onNone: () => "graph",
       onSome: (opened) => opened.graph,
     })
+
     const trees = yield* Effect.flatMap(CoreClient, (core) => core.ExportPages({}))
     const paths = new Map(trees.map((tree) => [tree.page.id, tree.path]))
     const millis = yield* Clock.currentTimeMillis
+
     const file = exportGraph(trees, kind, {
       graph,
       seconds: Math.floor(millis / 1000),
       path: (page) => paths.get(page.id) ?? `pages/${page.name}.md`,
       properties: get(propertyConfig),
     })
-    yield* Effect.sync(() =>
-      save(new Blob([new Uint8Array(file.bytes)], { type: file.type }), file.name),
-    )
+
+    yield* Effect.sync(() => {
+      save(new Blob([new Uint8Array(file.bytes)], { type: file.type }), file.name)
+    })
   }),
 )
 
@@ -447,7 +499,11 @@ export const GraphExportDialog = () => {
   const publishing = useAtomValue(publishPages)
   const publish = useAtomSet(publishPages)
   const busy = AsyncResult.isWaiting(running) || AsyncResult.isWaiting(publishing)
-  const choose = (kind: GraphChoice) => (kind === "public-pages" ? publish() : run(kind))
+
+  const choose = (kind: GraphChoice) => {
+    kind === "public-pages" ? publish() : run(kind)
+  }
+
   return (
     <Dialog id={graphExportDialogId} label="Export graph" className="export-graph-dialog">
       <div className="export-dialog-head">
@@ -468,7 +524,9 @@ export const GraphExportDialog = () => {
               type="button"
               className="export-graph-choice"
               disabled={busy}
-              onClick={() => choose(kind)}
+              onClick={() => {
+                choose(kind)
+              }}
             >
               {label}
             </button>
@@ -479,4 +537,6 @@ export const GraphExportDialog = () => {
   )
 }
 
-export const openGraphExport = () => openDialog(graphExportDialogId)
+export const openGraphExport = () => {
+  openDialog(graphExportDialogId)
+}

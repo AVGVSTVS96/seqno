@@ -6,6 +6,7 @@ export const TaskFacets = Schema.Struct({
   scheduled: Schema.NullOr(Schema.Int),
   deadline: Schema.NullOr(Schema.Int),
 })
+
 export type TaskFacets = typeof TaskFacets.Type
 
 const Props = Schema.Array(Schema.Tuple([Schema.String, Schema.String]))
@@ -18,6 +19,7 @@ export const PageFacets = Schema.Struct({
   namespaces: Schema.Array(Schema.String),
   props: Props,
 })
+
 export type PageFacets = typeof PageFacets.Type
 
 export const BlockFacets = Schema.Struct({
@@ -32,6 +34,7 @@ export const BlockFacets = Schema.Struct({
   updated: Schema.Finite,
   page: PageFacets,
 })
+
 export type BlockFacets = typeof BlockFacets.Type
 
 export const tokenize = (text: string): string[] | null =>

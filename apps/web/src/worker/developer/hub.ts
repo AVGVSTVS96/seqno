@@ -2,10 +2,10 @@ import type { StarterFile } from "../place.ts"
 import type { Days } from "./kit.ts"
 import { dated, ids, page, ref, yt } from "./kit.ts"
 
-const person = (name: string, ...lines: ReadonlyArray<string>) =>
+const person = (name: string, ...lines: readonly string[]) =>
   page(name, "type:: [[person]]", "", ...lines)
 
-export const hub = (d: Days): ReadonlyArray<StarterFile> => [
+export const hub = (d: Days): readonly StarterFile[] => [
   page(
     "Contents",
     "- [[About this graph]]",
@@ -54,7 +54,7 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "- ## due in the next two weeks",
     "\t- {{query (and (task NOW DOING TODO) (task.deadline <= +14d))}}",
     "- ## decisions this fall",
-    `\t- {{query (and [[decision]] (between ${dated(20260915)} today))}}`,
+    `\t- {{query (and [[decision]] (between ${dated(20_260_915)} today))}}`,
     "- ## every decision",
     "  collapsed:: true",
     "\t- {{query [[decision]]}}",
@@ -84,7 +84,7 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "- LATER [How Instinct's memory works](https://supermemory.ai/blog/reverse-engineering-instinct-memory/)",
     "  why:: ideas for hex's memory",
     "- DONE The Three-Body Problem trilogy, Cixin Liu [[sci-fi]]",
-    `  why:: found it through [[Quinn's Ideas]], ${dated(20220528)}`,
+    `  why:: found it through [[Quinn's Ideas]], ${dated(20_220_528)}`,
     "- There Is No Antimemetics Division, qntm [[sci-fi]]",
     `\t- ${ref(ids.antimemetics)}`,
     "- Corruptible: Who Gets Power and How It Changes Us, the audiobook [[systems of power]]",
@@ -122,7 +122,7 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "\t- ```sh",
     '\t  nvim --listen /tmp/nvim-$(tmux display-message -p "#S-#I-#P")',
     "\t  ```",
-    `- the gradient border on my 2023 site, panning forever. ${dated(20230326)}`,
+    `- the gradient border on my 2023 site, panning forever. ${dated(20_230_326)}`,
     "\t- ```css",
     "\t  @keyframes background-pan {",
     "\t    from { background-position: 0% center; }",
@@ -134,7 +134,7 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "\t    background-size: 200% auto;",
     "\t  }",
     "\t  ```",
-    `- move a folder into its own repo, history included. ${dated(20230429)}`,
+    `- move a folder into its own repo, history included. ${dated(20_230_429)}`,
     "\t- ```sh",
     "\t  git filter-repo --subdirectory-filter projectCSS",
     "\t  ```",
@@ -168,12 +168,12 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
     "Theo Browne",
     "- T3 Code. found react-shiki early. [site](https://t3.gg)",
     "- his videos, most days since January 2024. a big part of why I'm the engineer I am",
-    `\t- ${dated(20260915)}`,
+    `\t- ${dated(20_260_915)}`,
     "- it was a combination of all of his videos at the time. it was such a massive point for me, and set me directly on the right track",
-    `\t- three of them were huge. I can't even express how much I learned from them: Rethinking React (${dated(20240108)}), Don't Contribute to Open Source (${dated(20240124)}), Unexpected Lessons I've Learned After 15 Years Of Coding (${dated(20240902)})`,
+    `\t- three of them were huge. I can't even express how much I learned from them: Rethinking React (${dated(20_240_108)}), Don't Contribute to Open Source (${dated(20_240_124)}), Unexpected Lessons I've Learned After 15 Years Of Coding (${dated(20_240_902)})`,
     "- I think I would die happy if my work gave even one person the amount of value Theo's work has given me",
-    `- he found react-shiki, and reached out: ${dated(20250222)}`,
-    `- the first of his videos in my history: ${dated(20230201)}`,
+    `- he found react-shiki, and reached out: ${dated(20_250_222)}`,
+    `- the first of his videos in my history: ${dated(20_230_201)}`,
     "- liked, 2026",
     `\t- ${yt("Realistic advice about software dev right now", "88qc67oYDl4")} · ${yt("I miss when programmers were lazy.", "iN_9aH3VuzU")} · ${yt("I don't have time to build these things, will you?", "wEAb0x3wTRc")}`,
     `\t- ${yt("Everything we knew about software has changed", "xUnRQ9vLXxo")} · ${yt("My AGENTS.md & SKILLS.md Breakdown (Don't copy them)", "e1snsuY4lTI")} · ${yt("Did AI Kill React Native?", "oPZLPUtmROo")}`,
@@ -185,13 +185,13 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
   person(
     "ThePrimeagen",
     "- vim, hot takes, The PrimeTime. [youtube](https://www.youtube.com/@ThePrimeagen)",
-    `- one of the first dev channels I watched, three weeks into CS50: ${dated(20230130)}`,
+    `- one of the first dev channels I watched, three weeks into CS50: ${dated(20_230_130)}`,
   ),
   person(
     "exurb1a",
     "- philosophy, space and dread, with jokes. [youtube](https://www.youtube.com/@exurb1a)",
     "- watching since 2018",
-    `- ${dated(20260509)}: this is what exurb1a is really about`,
+    `- ${dated(20_260_509)}: this is what exurb1a is really about`,
   ),
   person(
     "Historia Civilis",
@@ -206,13 +206,13 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
   person(
     "Quinn's Ideas",
     "- sci-fi books, explained and argued about. [youtube](https://www.youtube.com/@QuinnsIdeas)",
-    `- how I found the Three-Body books: ${dated(20220528)}`,
+    `- how I found the Three-Body books: ${dated(20_220_528)}`,
   ),
   person(
     "CGP Grey",
     "- explainers. Rules for Rulers, and the rest. [youtube](https://www.youtube.com/@CGPGrey)",
     "- Rules for Rulers, about ten times: 2018-07-15, 2018-12-07, 2018-12-10, 2019-02-28, 2019-06-13, 2020-01-16, 2021-04-18, 2022-02-16, then as Try to Rule Fairly and You'll Be Overthrown",
-    `\t- ${dated(20260710)} · ${dated(20260713)}`,
+    `\t- ${dated(20_260_710)} · ${dated(20_260_713)}`,
     `\t- with the Cortex discussion (${yt("Rules for Rulers Discussion", "ILvD7zVN2jo")}, 2021) and the sequel on succession (${yt("Every Ruler Makes the Same Mistake When They Die", "ig_qpNfXHIU")}, 2022)`,
     "- on institutions, 2018 to 2020: The Pope Is a King With Absolute Power, The Royal Family Runs on Rules You've Never Heard Of, Your State Could Give Your Vote to the Other Side [[systems of power]]",
   ),
@@ -226,6 +226,6 @@ export const hub = (d: Days): ReadonlyArray<StarterFile> => [
   ),
   person(
     "Ryan Norbauer",
-    `- makes keyboards. [Forgotten Futures](https://www.youtube.com/watch?v=EYGoXXNhj4U), on what makes them magic: ${dated(20230407)}`,
+    `- makes keyboards. [Forgotten Futures](https://www.youtube.com/watch?v=EYGoXXNhj4U), on what makes them magic: ${dated(20_230_407)}`,
   ),
 ]

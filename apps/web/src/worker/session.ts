@@ -16,9 +16,11 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect"
-import { BlockId, GraphEvent, PageId, type Block } from "@seqno/domain"
+import { BlockId, GraphEvent, PageId } from "@seqno/domain"
+import type { Block } from "@seqno/domain"
 import { Graph, inBackground, newPeerId, vaultReplica } from "@seqno/graph"
-import { Index, PropertySettings, type IndexError } from "@seqno/index"
+import { Index, PropertySettings } from "@seqno/index"
+import type { IndexError } from "@seqno/index"
 import {
   defaultPropertyConfig,
   propertyConfigKey,
@@ -36,20 +38,27 @@ import {
   refsIn,
 } from "@seqno/interop"
 import type { SkippedFile } from "@seqno/rpc"
-import { Storage, type StorageFailed, Vault, layer as vaultLayer } from "@seqno/vault"
-import { makeAssetFiles, type AssetFiles } from "./assets.ts"
-import { makeAppFiles, type AppFiles } from "./files.ts"
-import { openGit, type GraphGit } from "./git.ts"
+import { Storage, Vault, layer as vaultLayer } from "@seqno/vault"
+import type { StorageFailed } from "@seqno/vault"
+import { makeAssetFiles } from "./assets.ts"
+import type { AssetFiles } from "./assets.ts"
+import { makeAppFiles } from "./files.ts"
+import type { AppFiles } from "./files.ts"
+import { openGit } from "./git.ts"
+import type { GraphGit } from "./git.ts"
 import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
 import { makeMergeBack } from "./merge-back.ts"
-import { makeMirror, type Mirror } from "./mirror.ts"
-import { makeSaveLog, type SaveLog } from "./saving.ts"
+import { makeMirror } from "./mirror.ts"
+import type { Mirror } from "./mirror.ts"
+import { makeSaveLog } from "./saving.ts"
+import type { SaveLog } from "./saving.ts"
 import { makeWriters, outweighed, staleSince } from "./writer.ts"
-import { Device, layerFolder, type GraphPlace, type Starter } from "./place.ts"
+import { Device, layerFolder } from "./place.ts"
+import type { GraphPlace, Starter } from "./place.ts"
 
 export interface Committed {
-  readonly events: ReadonlyArray<GraphEvent>
+  readonly events: readonly GraphEvent[]
   readonly client: number | null
   readonly pages: ReadonlySet<PageId>
 }
@@ -57,19 +66,19 @@ export interface Committed {
 export interface Session {
   readonly graph: Graph["Service"]
   readonly index: Index["Service"]
-  readonly blocks: (ids: ReadonlyArray<BlockId>) => Effect.Effect<ReadonlyArray<Block>>
-  readonly blocksByRef: (uuids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<Block>>
+  readonly blocks: (ids: readonly BlockId[]) => Effect.Effect<readonly Block[]>
+  readonly blocksByRef: (uuids: readonly string[]) => Effect.Effect<readonly Block[]>
   readonly touched: SubscriptionRef.SubscriptionRef<Touched>
   readonly changes: PubSub.PubSub<Committed>
   readonly saving: SaveLog
   readonly assets: AssetFiles
   readonly appFiles: AppFiles
-  readonly skipped: ReadonlyArray<SkippedFile>
+  readonly skipped: readonly SkippedFile[]
   readonly newPageFormat: "org" | undefined
   readonly record: <E, R>(
-    change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>,
+    change: Effect.Effect<readonly GraphEvent[], E, R>,
     client?: number,
-  ) => Effect.Effect<ReadonlyArray<GraphEvent>, E, R>
+  ) => Effect.Effect<readonly GraphEvent[], E, R>
   readonly indexed: Effect.Effect<void>
   readonly rebuildIndex: Effect.Effect<void>
   readonly setConfigFlag: (key: string, value: boolean) => Effect.Effect<void, StorageFailed>
@@ -94,7 +103,7 @@ const skippedFile = ImportIssue.match({
   }),
 })
 
-const refsOf = (event: GraphEvent): ReadonlyArray<string> =>
+const refsOf = (event: GraphEvent): readonly string[] =>
   event._tag === "BlockUpserted"
     ? [event.block.text, ...Object.values(event.block.props)].flatMap(refsIn)
     : []
@@ -146,6 +155,7 @@ const IndexStamp = Schema.fromJsonString(
     properties: Schema.optionalKey(Schema.String),
   }),
 )
+
 const decodeIndexStamp = Schema.decodeUnknownOption(IndexStamp)
 const encodeIndexStamp = Schema.encodeSync(IndexStamp)
 
@@ -153,6 +163,7 @@ const timed = <A, E>(effect: Effect.Effect<A, E>) =>
   Effect.gen(function* () {
     const started = yield* Clock.currentTimeMillis
     const value = yield* effect
+
     return [value, (yield* Clock.currentTimeMillis) - started] as const
   })
 
@@ -170,9 +181,17 @@ const stampOf = (storage: Storage["Service"]) =>
 const layStarter = (storage: Storage["Service"], starter: Starter) =>
   Effect.gen(function* () {
     const stamp = yield* stampOf(storage)
-    if (Option.contains(stamp, starter.version)) return
+
+    if (Option.contains(stamp, starter.version)) {
+      return
+    }
+
     const stale = Option.isSome(stamp) || (yield* hasEditLog(storage))
-    if (stale) yield* removeFiles(storage, "")
+
+    if (stale) {
+      yield* removeFiles(storage, "")
+    }
+
     if (stale || (yield* storage.list("")).length === 0) {
       yield* Effect.forEach(
         starter.files,
@@ -180,6 +199,7 @@ const layStarter = (storage: Storage["Service"], starter: Starter) =>
         { discard: true },
       )
     }
+
     yield* storage.write(starterStamp, encoder.encode(String(starter.version)))
   })
 
@@ -192,18 +212,25 @@ export const openSession = (place: GraphPlace) =>
     const saving = yield* makeSaveLog
     const unsaved = yield* Latch.make(false)
     const filling = { running: false, marked: false }
-    if (place.starter !== null) yield* layStarter(place.storage, place.starter)
+
+    if (place.starter !== null) {
+      yield* layStarter(place.storage, place.starter)
+    }
+
     const log = yield* openEditLog(place.storage, place.layout, device)
     const graph = yield* serviceOf(Graph, log.graph({ peer, snapshot: Option.none(), updates: [] }))
+
     const configFile = yield* place.storage.read(configPath).pipe(
       Effect.map((bytes) => decoder.decode(bytes)),
       Effect.option,
     )
+
     const configText = Option.getOrElse(configFile, () => "")
     const config = Option.match(configFile, { onNone: () => defaultConfig, onSome: parseConfig })
     const properties = readPropertyConfig(configText)
     const newPageFormat = config.preferredFormat === "org" ? "org" : undefined
     const propertiesKey = propertyConfigKey(properties)
+
     const index = yield* serviceOf(
       Index,
       Index.layer.pipe(
@@ -211,7 +238,9 @@ export const openSession = (place: GraphPlace) =>
         Layer.provide(Layer.succeed(PropertySettings, properties)),
       ),
     )
+
     const storage = Layer.succeed(Storage, log.storage)
+
     const vault = yield* serviceOf(
       Vault,
       vaultLayer({
@@ -224,14 +253,14 @@ export const openSession = (place: GraphPlace) =>
       }).pipe(Layer.provide(storage)),
     )
 
-    const pagesOfBlocks = (blocks: ReadonlyArray<string>) =>
+    const pagesOfBlocks = (blocks: readonly string[]) =>
       blocks.length === 0
         ? Effect.succeed([])
         : Effect.map(index.query(PAGES_OF_BLOCKS, [JSON.stringify(blocks)]), (rows) =>
             rows.flatMap(([id]) => Option.toArray(decodePageId(id))),
           )
 
-    const blocks = (ids: ReadonlyArray<BlockId>) =>
+    const blocks = (ids: readonly BlockId[]) =>
       Effect.gen(function* () {
         const rows =
           ids.length === 0
@@ -239,18 +268,21 @@ export const openSession = (place: GraphPlace) =>
             : yield* index
                 .query(BLOCK_PAGES, [JSON.stringify(ids)])
                 .pipe(Effect.orElseSucceed(() => []))
+
         const pageOf = new Map(
           rows.flatMap(([block, page]) =>
             Option.toArray(Option.map(decodePageId(page), (id) => [block, id] as const)),
           ),
         )
+
         const found = yield* Effect.forEach(ids, (id) =>
           Effect.option(graph.block(id, pageOf.get(id))),
         )
+
         return found.flatMap(Option.toArray)
       })
 
-    const movedFrom = (events: ReadonlyArray<GraphEvent>) =>
+    const movedFrom = (events: readonly GraphEvent[]) =>
       pagesOfBlocks(events.flatMap((event) => (event._tag === "BlockMoved" ? [event.blockId] : [])))
 
     const indexing = yield* Semaphore.make(1)
@@ -259,7 +291,7 @@ export const openSession = (place: GraphPlace) =>
     const sinceSave = { pages: new Set<PageId>(), rewritten: 0 }
     const costs = { pageMs: Option.none<number>(), saveMs: Option.none<number>() }
 
-    const indexEvents = (events: ReadonlyArray<GraphEvent>, client: number | null) =>
+    const indexEvents = (events: readonly GraphEvent[], client: number | null) =>
       events.length === 0
         ? Effect.void
         : Effect.gen(function* () {
@@ -278,12 +310,10 @@ export const openSession = (place: GraphPlace) =>
             yield* unsaved.open
           }).pipe(Effect.orDie)
 
-    const record = <E, R>(
-      change: Effect.Effect<ReadonlyArray<GraphEvent>, E, R>,
-      client?: number,
-    ) =>
+    const record = <E, R>(change: Effect.Effect<readonly GraphEvent[], E, R>, client?: number) =>
       Effect.suspend(() => {
         recording.pending += 1
+
         return indexing.withPermits(1)(
           Effect.tap(change, (events) => indexEvents(events, client ?? null)),
         )
@@ -291,6 +321,7 @@ export const openSession = (place: GraphPlace) =>
         Effect.ensuring(
           Effect.suspend(() => {
             recording.pending -= 1
+
             return recording.pending === 0 ? quiet.open : Effect.void
           }),
         ),
@@ -307,8 +338,10 @@ export const openSession = (place: GraphPlace) =>
               ) {
                 return Option.none<Uint8Array<ArrayBuffer>>()
               }
+
               const version = yield* graph.version
               const pageMs = Option.getOrElse(costs.pageMs, () => 0)
+
               const bytes = yield* index.image(
                 encodeIndexStamp({
                   version: Object.fromEntries(version),
@@ -316,16 +349,25 @@ export const openSession = (place: GraphPlace) =>
                   properties: propertiesKey,
                 }),
               )
+
               sinceSave.pages.clear()
               sinceSave.rewritten = 0
+
               return Option.some(bytes)
             }),
           )
-          if (Option.isSome(image)) yield* place.indexFile.write(image.value)
+
+          if (Option.isSome(image)) {
+            yield* place.indexFile.write(image.value)
+          }
+
           return image
         }),
       )
-      if (Option.isSome(saved)) costs.saveMs = Option.some(ms)
+
+      if (Option.isSome(saved)) {
+        costs.saveMs = Option.some(ms)
+      }
     }).pipe(logged)
 
     const savingIndex = yield* Semaphore.make(1)
@@ -346,23 +388,44 @@ export const openSession = (place: GraphPlace) =>
     const loaded = Effect.gen(function* () {
       const [image, ms] = yield* timed(place.indexFile.read)
       yield* opened.await
-      if (Option.isNone(image)) return false
+
+      if (Option.isNone(image)) {
+        return false
+      }
+
       return yield* indexing.withPermits(1)(
         Effect.gen(function* () {
           const stamp = Option.flatMap(yield* index.load(image.value), decodeIndexStamp)
-          if (Option.isNone(stamp)) return false
+
+          if (Option.isNone(stamp)) {
+            return false
+          }
+
           const builtWith = stamp.value.properties ?? propertyConfigKey(defaultPropertyConfig)
-          if (builtWith !== propertiesKey) return false
+
+          if (builtWith !== propertiesKey) {
+            return false
+          }
+
           const changed = yield* graph.changedSince(new Map(Object.entries(stamp.value.version)))
-          if (Option.isNone(changed)) return false
+
+          if (Option.isNone(changed)) {
+            return false
+          }
+
           const pages = new Set([
             ...changed.value.pages,
             ...(yield* pagesOfBlocks([...changed.value.blocks])),
           ])
-          if (pages.size > 0) yield* index.owe([...pages], pagesIn(pages))
+
+          if (pages.size > 0) {
+            yield* index.owe([...pages], pagesIn(pages))
+          }
+
           costs.saveMs = Option.some(ms)
           costs.pageMs = Option.some(stamp.value.pageMs)
           filling.marked = true
+
           return true
         }),
       )
@@ -378,15 +441,19 @@ export const openSession = (place: GraphPlace) =>
     )
 
     const progress = { written: 0, savedAt: 0, saving: false }
+
     const wrote = (savesProgress: boolean) =>
       Effect.suspend(() => {
         sinceSave.rewritten += 1
         progress.written += 1
+
         if (!savesProgress || progress.saving || progress.written < 2 * progress.savedAt) {
           return Effect.void
         }
+
         progress.saving = true
         progress.savedAt = progress.written
+
         return Effect.forkIn(
           Effect.ensuring(
             saveIndexNow,
@@ -401,24 +468,33 @@ export const openSession = (place: GraphPlace) =>
     const owed = indexing.withPermits(1)(
       Effect.gen(function* () {
         const unwritten = new Set(yield* index.unwritten)
-        if (unwritten.size === 0) filling.running = false
+
+        if (unwritten.size === 0) {
+          filling.running = false
+        }
+
         const inOrder = (yield* graph.pages).flatMap((page) =>
           unwritten.delete(page.id) ? [page.id] : [],
         )
+
         return [...inOrder, ...unwritten]
       }),
     )
 
     const writeOwed: Effect.Effect<void, IndexError> = Effect.gen(function* () {
       let pages = yield* owed
+
       while (pages.length > 0) {
         const count = pages.length
+
         const long = Option.match(Option.all([costs.pageMs, costs.saveMs]), {
           onNone: () => true,
           onSome: ([pageMs, saveMs]) => count * pageMs > saveMs,
         })
+
         progress.written = 0
         progress.savedAt = Math.ceil(count / 32)
+
         const [, ms] = yield* timed(
           index.refresh(
             Stream.fromIterable(pages).pipe(
@@ -429,7 +505,11 @@ export const openSession = (place: GraphPlace) =>
             () => wrote(long),
           ),
         )
-        if (long) costs.pageMs = Option.some(ms / count)
+
+        if (long) {
+          costs.pageMs = Option.some(ms / count)
+        }
+
         pages = yield* owed
       }
     })
@@ -463,8 +543,10 @@ export const openSession = (place: GraphPlace) =>
           scope,
         ),
       )
+
     const openIndex = fillIndex(false)
-    const restore = (blobs: ReadonlyArray<Uint8Array>) =>
+
+    const restore = (blobs: readonly Uint8Array[]) =>
       graph
         .restore(blobs)
         .pipe(
@@ -472,6 +554,7 @@ export const openSession = (place: GraphPlace) =>
             Effect.flatMap(graph.version, (now) => (now.size > 0 ? openIndex : Effect.void)),
           ),
         )
+
     const replica = vaultReplica({
       ...graph,
       restore,
@@ -480,11 +563,14 @@ export const openSession = (place: GraphPlace) =>
           version.size === 0 ? Effect.as(restore(blobs), []) : record(graph.merge(blobs)),
         ),
     })
+
     const save = graph.flush((update) => vault.writeUpdate(update.bytes))
+
     const saveNow = Effect.gen(function* () {
       yield* unsaved.close
       const at = yield* saving.started
       const exit = yield* Effect.exit(save)
+
       if (Exit.isFailure(exit)) {
         yield* Effect.logError(exit.cause)
         yield* saving.failed(reasonOf(Cause.squash(exit.cause)))
@@ -498,19 +584,24 @@ export const openSession = (place: GraphPlace) =>
       synced: place.synced,
       setMirror: vault.setMirror,
     })
+
     const lineage = Effect.map(graph.roots, (roots) => {
       const imported = roots.filter((root) => root.imported)
       const [only, ...rest] = imported.length > 0 ? imported : roots
+
       return only !== undefined && rest.length === 0 ? only.peer : null
     })
+
     const gaveWay = yield* Deferred.make<void>()
     const synced = yield* vault.sync(replica)
     yield* writers.heard(synced, yield* lineage)
-    const skipped: Array<SkippedFile> = []
+    const skipped: SkippedFile[] = []
+
     if (synced.merged.length === 0 && synced.waiting.length === 0) {
       const imported = yield* importGraph.pipe(
         Effect.provide(Layer.merge(layerFolder(place.storage), LogseqSyntaxLive)),
       )
+
       skipped.push(
         ...imported.issues
           .map(skippedFile)
@@ -518,9 +609,14 @@ export const openSession = (place: GraphPlace) =>
       )
       yield* place.mirrorStore.clear
       const seeded = yield* graph.seed(log.incoming(imported.pages))
-      if (Option.isSome(seeded.update)) yield* vault.writeUpdate(seeded.update.value.bytes)
+
+      if (Option.isSome(seeded.update)) {
+        yield* vault.writeUpdate(seeded.update.value.bytes)
+      }
+
       yield* record(Effect.succeed(seeded.events))
     }
+
     yield* record(
       Effect.flatMap(todaysJournal(graph, newPageFormat), (pages) =>
         graph.load(log.incoming(pages)),
@@ -530,8 +626,10 @@ export const openSession = (place: GraphPlace) =>
 
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(unsaved.await, saveNow)))
     const mayWrite = Effect.map(SubscriptionRef.get(writers.state), (state) => state.mayWrite)
+
     const git =
       place.git === undefined ? null : yield* openGit(yield* place.git, place.storage, mayWrite)
+
     const assets = yield* makeAssetFiles(place.storage, place.file, git?.touched)
     const appFiles = yield* makeAppFiles(place.storage, place.changed, git?.touched)
     yield* Effect.forkScoped(
@@ -539,35 +637,56 @@ export const openSession = (place: GraphPlace) =>
         Effect.gen(function* () {
           yield* quiet.await
           yield* quiet.close
-          if (worthSaving()) yield* saveIndexNow
+
+          if (worthSaving()) {
+            yield* saveIndexNow
+          }
         }),
       ),
     )
     yield* Effect.addFinalizer(() => Effect.andThen(logged(save), saveIndexNow))
 
-    const blocksByRef = (uuids: ReadonlyArray<string>) =>
+    const blocksByRef = (uuids: readonly string[]) =>
       Effect.gen(function* () {
         const wanted = [...new Set(uuids.map((uuid) => uuid.toLowerCase()))]
         const direct = yield* blocks(wanted.flatMap((uuid) => Option.toArray(decodeBlockId(uuid))))
         const missing = wanted.filter((uuid) => !direct.some((block) => block.id === uuid))
-        if (missing.length === 0) return direct
+
+        if (missing.length === 0) {
+          return direct
+        }
+
         yield* indexed.await
+
         const rows = yield* index
           .query(BLOCKS_WITH_ID_PROPERTY, [JSON.stringify(missing)])
           .pipe(Effect.orElseSucceed(() => []))
+
         const written = yield* blocks(rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))))
+
         return [...direct, ...written]
       })
 
     const crypto = yield* Crypto.Crypto
+
     const baseVersion = Effect.gen(function* () {
       const stored = yield* place.mirrorStore.version
-      if (Option.isSome(stored)) return stored
+
+      if (Option.isSome(stored)) {
+        return stored
+      }
+
       const { previous } = yield* SubscriptionRef.get(writers.state)
-      if (Option.isSome(previous)) return previous
+
+      if (Option.isSome(previous)) {
+        return previous
+      }
+
       return Option.map(yield* graph.origin, (origin) => Object.fromEntries(origin))
     })
+
     const mergeBack = makeMergeBack({ graph, record, blocks, synced: place.synced, baseVersion })
+
     const mirrored = yield* makeMirror({
       graph,
       index,
@@ -583,6 +702,7 @@ export const openSession = (place: GraphPlace) =>
       baseVersion,
       ...(git === null ? {} : { wrote: git.touched }),
     })
+
     yield* Effect.forkScoped(
       Stream.runForEach(place.changed, (paths) =>
         Effect.andThen(
@@ -598,6 +718,7 @@ export const openSession = (place: GraphPlace) =>
           const batch = yield* PubSub.takeAll(committed)
           yield* mirrored.mirror.touch(batch.flatMap((one) => [...one.pages]))
           const refs = batch.flatMap((one) => one.events.flatMap(refsOf))
+
           if (refs.length > 0) {
             const targets = yield* blocksByRef(refs)
             yield* mirrored.mirror.touch(targets.map((block) => block.pageId))
@@ -612,10 +733,13 @@ export const openSession = (place: GraphPlace) =>
       const report = yield* vault.sync(replica)
       const became = yield* writers.heard(report, yield* lineage)
       const now = yield* SubscriptionRef.get(writers.state)
+
       if (became && staleSince(yield* place.mirrorStore.version, now.previous)) {
         yield* mirrored.mirror.forget
       }
+
       const root = yield* lineage
+
       if (
         root !== null &&
         now.mayWrite &&
@@ -629,13 +753,17 @@ export const openSession = (place: GraphPlace) =>
         })
         yield* place.mirrorStore.clear
         yield* Deferred.succeed(gaveWay, undefined)
+
         return
       }
+
       yield* mirrored.mirror.check([])
     })
+
     const syncPass = place.synced
       ? Effect.andThen(logged(syncOnce), assets.refresh)
       : logged(syncOnce)
+
     yield* Effect.forkScoped(Effect.forever(Effect.andThen(Effect.sleep("5 seconds"), syncPass)))
 
     const session: Session = {
@@ -667,6 +795,8 @@ export const openSession = (place: GraphPlace) =>
       closing: saveIndexNow,
       git,
     }
+
     yield* opened.open
+
     return session
   })

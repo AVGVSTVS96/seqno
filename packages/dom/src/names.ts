@@ -1,6 +1,6 @@
 type Token = string | false | null | undefined
 
-export const names = (...tokens: ReadonlyArray<Token>) =>
+export const names = (...tokens: readonly Token[]) =>
   tokens.filter((token) => typeof token === "string" && token !== "").join(" ")
 
 export interface LogseqNames {
@@ -12,7 +12,7 @@ export interface LogseqNames {
   readonly [data: `data-${string}`]: string | true | undefined
 }
 
-export type Table<P extends { readonly [K in keyof P]: ReadonlyArray<unknown> }> = {
+export type Table<P extends { readonly [K in keyof P]: readonly unknown[] }> = {
   readonly [K in keyof P]: (...state: P[K]) => LogseqNames
 }
 

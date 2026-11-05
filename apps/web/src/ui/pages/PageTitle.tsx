@@ -2,8 +2,10 @@ import { logseq } from "@seqno/dom"
 import { useAtomSet } from "@effect/atom-react"
 import { useMatchRoute, useNavigate } from "@tanstack/react-router"
 import { Cause, Exit } from "effect"
-import { useState, type MouseEvent } from "react"
-import { normalizePageName, type Page } from "@seqno/domain"
+import { useState } from "react"
+import type { MouseEvent } from "react"
+import { normalizePageName } from "@seqno/domain"
+import type { Page } from "@seqno/domain"
 import { assetPageName, hlsPagePrefix } from "@seqno/syntax"
 import { dispatch } from "../../atoms.ts"
 import { pageMenu } from "../shell/PageMenu.tsx"
@@ -16,6 +18,7 @@ interface Draft {
 
 const caretAt = (event: MouseEvent<HTMLElement>, fallback: number) => {
   const position = document.caretPositionFromPoint(event.clientX, event.clientY)
+
   return position !== null && event.currentTarget.contains(position.offsetNode)
     ? position.offset
     : fallback
@@ -23,6 +26,7 @@ const caretAt = (event: MouseEvent<HTMLElement>, fallback: number) => {
 
 const problemOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
+
   return typeof error === "object" && error !== null && "reason" in error
     ? String(error.reason)
     : "The page could not be renamed."
@@ -44,6 +48,7 @@ export const PageTitle = ({
   const openMenu = useAtomSet(pageMenu)
   const hls = page.title.startsWith(hlsPagePrefix)
   const editable = page.journalDay === null && !hls
+
   const onContextMenu = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault()
     openMenu({ page, x: event.clientX, y: event.clientY })
@@ -59,13 +64,24 @@ export const PageTitle = ({
 
   const commit = async (text: string) => {
     const title = text.replaceAll(/\s+/g, " ").trim()
-    if (title === "" || title === page.title) return setDraft(null)
+
+    if (title === "" || title === page.title) {
+      setDraft(null)
+
+      return
+    }
+
     const showing = matchRoute({ to: "/page/$name", params: { name: page.name } }) !== false
     const renamed = await rename({ _tag: "RenamePage", pageId: page.id, title })
+
     if (Exit.isFailure(renamed)) {
-      return setDraft({ caret: text.length, problem: problemOf(renamed.cause) })
+      setDraft({ caret: text.length, problem: problemOf(renamed.cause) })
+
+      return
     }
+
     setDraft(null)
+
     if (showing) {
       await navigate({
         to: "/page/$name",
@@ -84,7 +100,9 @@ export const PageTitle = ({
         tabIndex={editable ? 0 : undefined}
         onContextMenu={onContextMenu}
         onClick={(event) => {
-          if (editable) setDraft({ caret: caretAt(event, page.title.length), problem: null })
+          if (editable) {
+            setDraft({ caret: caretAt(event, page.title.length), problem: null })
+          }
         }}
         onKeyDown={(event) => {
           if (editable && event.key === "Enter") {
@@ -114,15 +132,20 @@ export const PageTitle = ({
               rows={1}
               autoFocus
               spellCheck={false}
-              onFocus={(event) => event.currentTarget.setSelectionRange(draft.caret, draft.caret)}
+              onFocus={(event) => {
+                event.currentTarget.setSelectionRange(draft.caret, draft.caret)
+              }}
               onChange={() => {
-                if (draft.problem !== null) setDraft({ caret: draft.caret, problem: null })
+                if (draft.problem !== null) {
+                  setDraft({ caret: draft.caret, problem: null })
+                }
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault()
                   event.currentTarget.blur()
                 }
+
                 if (event.key === "Escape") {
                   event.preventDefault()
                   event.currentTarget.value = page.title

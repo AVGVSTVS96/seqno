@@ -15,15 +15,10 @@ import {
   Stream,
   SubscriptionRef,
 } from "effect"
-import {
-  BlockId,
-  PageId,
-  normalizePageName,
-  type Block,
-  type Command,
-  type Page,
-} from "@seqno/domain"
-import { isReadKey, type BlockHit, type GraphPage, type Row } from "@seqno/index"
+import { BlockId, PageId, normalizePageName } from "@seqno/domain"
+import type { Block, Command, Page } from "@seqno/domain"
+import { isReadKey } from "@seqno/index"
+import type { BlockHit, GraphPage, Row } from "@seqno/index"
 import { defaultConfig, mirrorPath } from "@seqno/interop"
 import {
   ALIASES_SQL,
@@ -34,8 +29,8 @@ import {
   QueryError,
   readSet,
   translateAdvancedQuery,
-  type Query,
 } from "@seqno/query"
+import type { Query } from "@seqno/query"
 import {
   AssetRpcs,
   GitFailed,
@@ -49,12 +44,8 @@ import {
   GraphUnavailable,
   PageRpcs,
   QueryInvalid,
-  type GraphMoved,
-  type GraphNode,
-  type GraphOpened,
-  type QueryResult,
-  type Reference,
 } from "@seqno/rpc"
+import type { GraphMoved, GraphNode, GraphOpened, QueryResult, Reference } from "@seqno/rpc"
 import { everyPage, pagesReached } from "./exporting.ts"
 import { journalDayOf, journalDayOfTitle, todayDeleted, withJournalDay } from "./journal.ts"
 import { GraphLocks } from "./lock.ts"
@@ -62,7 +53,8 @@ import { GitDevice } from "./git.ts"
 import { Device, GraphPlaces } from "./place.ts"
 import { withReferenceEdits } from "./rename.ts"
 import { whiteboardDrafts } from "./whiteboard.ts"
-import { openSession, type Session } from "./session.ts"
+import { openSession } from "./session.ts"
+import type { Session } from "./session.ts"
 
 const decodeBlockId = Schema.decodeUnknownOption(BlockId)
 const decodePageId = Schema.decodeUnknownOption(PageId)
@@ -72,6 +64,7 @@ const reasonOf = (error: { readonly _tag: string }) =>
 
 const parseAdvanced = (text: string): Result.Result<Query, QueryError> => {
   const translated = translateAdvancedQuery(text)
+
   return translated._tag === "Translated"
     ? Result.succeed(translated.query)
     : Result.fail(new QueryError({ message: translated.reason }))
@@ -84,26 +77,34 @@ const parseQuery = (text: string) =>
         Result.mapError(parseDataviewQuery(text), () => logseq),
       )
 
-const pagesOf = (session: Session, ids: ReadonlyArray<PageId>) =>
-  Effect.map(session.graph.pages, (pages): ReadonlyArray<Page> => {
+const pagesOf = (session: Session, ids: readonly PageId[]) =>
+  Effect.map(session.graph.pages, (pages): readonly Page[] => {
     const byId = new Map(pages.map((page) => [page.id, page]))
+
     return ids.flatMap((id) => Option.toArray(Option.fromUndefinedOr(byId.get(id))))
   })
 
-const idsOfRows = (session: Session, table: "blocks" | "pages", rows: ReadonlyArray<Row>) =>
+const idsOfRows = (session: Session, table: "blocks" | "pages", rows: readonly Row[]) =>
   Effect.gen(function* () {
     const rids = rows.flatMap(([rid]) => (typeof rid === "number" ? [rid] : []))
-    if (rids.length === 0) return []
+
+    if (rids.length === 0) {
+      return []
+    }
+
     const marks = rids.map(() => "?").join(",")
+
     const pairs = yield* session.index.query(
       `SELECT rid, id FROM ${table} WHERE rid IN (${marks})`,
       rids,
     )
+
     const idOf = new Map(pairs.map(([rid, id]) => [rid, id]))
+
     return rids.map((rid) => idOf.get(rid))
   })
 
-const resultOf = (session: Session, query: Query, rows: ReadonlyArray<Row>) =>
+const resultOf = (session: Session, query: Query, rows: readonly Row[]) =>
   query.find === "blocks"
     ? idsOfRows(session, "blocks", rows).pipe(
         Effect.flatMap((ids) =>
@@ -125,10 +126,12 @@ const watchQuery = (session: Session, text: string) =>
   Effect.gen(function* () {
     const invalid = (error: { readonly message: string }) =>
       new QueryInvalid({ query: text, reason: error.message })
+
     const query = yield* Effect.mapError(Effect.fromResult(parseQuery(text)), invalid)
     const ctx = { today: journalDayOf(yield* Clock.currentTimeMillis) }
     const compiled = yield* Effect.mapError(Effect.fromResult(compileQuery(query, ctx)), invalid)
     const asked = yield* Effect.mapError(Effect.fromResult(namesRead(query, ctx)), invalid)
+
     const names = new Map(
       yield* Effect.forEach(asked, (name) =>
         Effect.map(
@@ -141,10 +144,12 @@ const watchQuery = (session: Session, text: string) =>
         ),
       ),
     )
+
     const reads = yield* Effect.mapError(
       Effect.fromResult(readSet(query, ctx, (name) => names.get(name) ?? new Set([name]))),
       invalid,
     )
+
     return session.index
       .watch({ sql: compiled.sql, params: compiled.params, reads: reads.filter(isReadKey) })
       .pipe(
@@ -153,23 +158,29 @@ const watchQuery = (session: Session, text: string) =>
       )
   })
 
-const ancestorsOf = (session: Session, ids: ReadonlyArray<BlockId>) =>
+const ancestorsOf = (session: Session, ids: readonly BlockId[]) =>
   Effect.gen(function* () {
     const found = new Map<BlockId, Block>()
     let level = yield* session.blocks(ids)
+
     while (level.length > 0) {
       const parents = new Set(
         level.flatMap((block) =>
           block.parentId === null || found.has(block.parentId) ? [] : [block.parentId],
         ),
       )
+
       level = yield* session.blocks([...parents])
-      for (const block of level) found.set(block.id, block)
+
+      for (const block of level) {
+        found.set(block.id, block)
+      }
     }
+
     return [...found.values()]
   })
 
-const referencesOf = (hits: ReadonlyArray<BlockHit>): ReadonlyArray<Reference> =>
+const referencesOf = (hits: readonly BlockHit[]): readonly Reference[] =>
   hits.map(({ blockId, pageId }) => ({ blockId, pageId }))
 
 type View = Data.TaggedEnum<{
@@ -178,6 +189,7 @@ type View = Data.TaggedEnum<{
   Moved: { readonly graph: string }
   Gone: {}
 }>
+
 const View = Data.taggedEnum<View>()
 
 interface Shared {
@@ -222,6 +234,7 @@ const SessionsLive = Layer.effect(
     const viewIn = (client: number) =>
       Effect.suspend(() => {
         const found = views.get(client)
+
         return found === undefined
           ? Effect.tap(SubscriptionRef.make<View>(View.Idle()), (view) =>
               Effect.sync(() => views.set(client, view)),
@@ -245,7 +258,10 @@ const SessionsLive = Layer.effect(
 
     const forget = (shared: Shared) =>
       Effect.sync(() => {
-        if (graphs.get(shared.graph) === shared) graphs.delete(shared.graph)
+        if (graphs.get(shared.graph) === shared) {
+          graphs.delete(shared.graph)
+        }
+
         closing.add(shared)
       })
 
@@ -255,13 +271,17 @@ const SessionsLive = Layer.effect(
       Effect.flatMap(
         guarded(
           Effect.gen(function* () {
-            if (graphs.get(shared.graph) !== shared) return false
+            if (graphs.get(shared.graph) !== shared) {
+              return false
+            }
+
             yield* forget(shared)
             const users = [...shared.users]
             shared.users.clear()
             yield* Effect.forEach(users, (client) =>
               show(client, View.Moved({ graph: shared.graph })),
             )
+
             return true
           }),
         ),
@@ -272,11 +292,16 @@ const SessionsLive = Layer.effect(
       Effect.gen(function* () {
         const { graph } = shared
         const place = yield* places.open(graph)
+
         const held = yield* Scope.provide(
           locks.hold(graph, wait || closingHere(graph)),
           shared.scope,
         )
-        if (Option.isNone(held)) return yield* new GraphLocked({ graph })
+
+        if (Option.isNone(held)) {
+          return yield* new GraphLocked({ graph })
+        }
+
         const session = yield* openSession(place).pipe(
           Scope.provide(shared.scope),
           Effect.provideService(Device, device),
@@ -284,6 +309,7 @@ const SessionsLive = Layer.effect(
           Effect.provideService(GitDevice, gitDevice),
           Effect.mapError((error) => new GraphUnavailable({ graph, reason: reasonOf(error) })),
         )
+
         yield* Effect.forkIn(
           Effect.andThen(
             Effect.raceFirst(held.value, session.gaveWay),
@@ -291,22 +317,27 @@ const SessionsLive = Layer.effect(
           ),
           shared.scope,
         )
+
         return session
       })
 
     const join = (client: number, graph: string, wait: boolean) =>
       Effect.gen(function* () {
         const found = graphs.get(graph)
+
         if (found !== undefined) {
           found.users.add(client)
+
           return { shared: found, first: false }
         }
+
         const shared: Shared = {
           graph,
           users: new Set([client]),
           opened: yield* Deferred.make<Session, GraphUnavailable | GraphLocked>(),
           scope: yield* Scope.make(),
         }
+
         graphs.set(graph, shared)
         yield* Effect.forkIn(
           start(shared, wait).pipe(
@@ -315,6 +346,7 @@ const SessionsLive = Layer.effect(
           ),
           scope,
         )
+
         return { shared, first: true }
       })
 
@@ -338,6 +370,7 @@ const SessionsLive = Layer.effect(
               was.filter((shared) => shared.users.size === 0),
               forget,
             )
+
             return was
           }),
         ),
@@ -374,6 +407,7 @@ const SessionsLive = Layer.effect(
               ),
               scope,
             )
+
             return SubscriptionRef.changes(view).pipe(
               Stream.takeWhile((now) => now._tag !== "Gone"),
               Stream.filter(View.$is("Moved")),
@@ -384,6 +418,7 @@ const SessionsLive = Layer.effect(
       open: (client, graph, wait) =>
         Effect.gen(function* () {
           const now = yield* SubscriptionRef.get(yield* viewOf(client))
+
           if (now._tag !== "Open" || now.graph !== graph) {
             yield* leave(client, View.Idle())
             const { shared, first } = yield* guarded(join(client, graph, wait))
@@ -391,8 +426,10 @@ const SessionsLive = Layer.effect(
             yield* guarded(
               shared.users.has(client) ? show(client, View.Open({ graph, session })) : Effect.void,
             )
+
             return { graph, skipped: first ? session.skipped : [] }
           }
+
           return { graph, skipped: [] }
         }),
       current: (client) =>
@@ -421,23 +458,33 @@ const CoreHandlers = CoreRpcs.toLayer(
   Effect.gen(function* () {
     const { attach, open, current, following } = yield* Sessions
     const places = yield* GraphPlaces
-    const dispatchAll = (client: number, commands: ReadonlyArray<Command>, seq?: number) =>
+
+    const dispatchAll = (client: number, commands: readonly Command[], seq?: number) =>
       Effect.flatMap(current(client), (session) =>
         Effect.gen(function* () {
           const expanded = yield* Effect.forEach(commands, (command) =>
             withReferenceEdits(session, withJournalDay(command, session.newPageFormat)),
           )
+
           const today = yield* todayDeleted(session.graph, commands)
-          const dispatch = (batch: ReadonlyArray<Command>) =>
+
+          const dispatch = (batch: readonly Command[]) =>
             session.record(session.graph.dispatchAll(batch, String(client)), client)
+
           const events = yield* dispatch(expanded.flat())
-          if (Option.isNone(today)) return events
+
+          if (Option.isNone(today)) {
+            return events
+          }
+
           const again = yield* dispatch([withJournalDay(today.value, session.newPageFormat)])
+
           return [...events, ...again]
         }).pipe(
           Effect.ensuring(seq === undefined ? Effect.void : session.saving.handled(client, seq)),
         ),
       )
+
     return CoreRpcs.of({
       Attach: ({ tab }, { client }) => attach(client.id, tab),
       OpenGraph: ({ graph, wait }, { client }) => open(client.id, graph, wait ?? false),
@@ -528,6 +575,7 @@ const CoreHandlers = CoreRpcs.toLayer(
       Search: ({ text, pageId, code }, { client }) =>
         Effect.gen(function* () {
           const session = yield* current(client.id)
+
           const hits = yield* Effect.orDie(
             session.index.search(
               text,
@@ -538,6 +586,7 @@ const CoreHandlers = CoreRpcs.toLayer(
                   : { limit: 100, page: pageId },
             ),
           )
+
           return {
             pages: yield* pagesOf(
               session,
@@ -564,6 +613,7 @@ const graphNodeOf = (page: GraphPage): GraphNode => ({
 const PageHandlers = PageRpcs.toLayer(
   Effect.gen(function* () {
     const { current, following } = yield* Sessions
+
     return PageRpcs.of({
       WatchReferences: ({ pageId }, { client }) =>
         following(client.id, (session) =>
@@ -610,6 +660,7 @@ const AssetHandlers = AssetRpcs.toLayer(
   Effect.gen(function* () {
     const { current, following } = yield* Sessions
     const assetsOf = (client: number) => Effect.map(current(client), (session) => session.assets)
+
     return AssetRpcs.of({
       WatchAssets: (_, { client }) =>
         following(client.id, (session) => SubscriptionRef.changes(session.assets.listed)),
@@ -631,6 +682,7 @@ const pathOf = (session: Session, name: string) =>
   Effect.map(session.graph.pages, (pages) => {
     const wanted = normalizePageName(name)
     const page = pages.find((one) => one.name === wanted)
+
     return page
   }).pipe(
     Effect.flatMap((page) =>
@@ -642,10 +694,12 @@ const GitHandlers = GitRpcs.toLayer(
   Effect.gen(function* () {
     const { current } = yield* Sessions
     const device = yield* GitDevice
+
     const gitOf = (client: number) =>
       Effect.flatMap(current(client), (session) =>
         session.git === null ? Effect.fail(noGit) : Effect.succeed(session.git),
       )
+
     return GitRpcs.of({
       GitRun: ({ args }, { client }) =>
         Effect.flatMap(current(client.id), (session) =>
@@ -660,6 +714,7 @@ const GitHandlers = GitRpcs.toLayer(
           const session = yield* current(client.id)
           const graph = yield* gitOf(client.id)
           const path = yield* pathOf(session, page)
+
           return { path, versions: path === null ? [] : yield* graph.git.history(path) }
         }),
       GitRevert: ({ oid, path }, { client }) =>
@@ -680,6 +735,7 @@ const GitHandlers = GitRpcs.toLayer(
               "user.name": name,
               "user.email": email,
             }
+
             await device.globals.write(config)
           },
           catch: (cause) => new GitFailed({ reason: String(cause) }),

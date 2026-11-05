@@ -11,6 +11,7 @@ export const covers = (a: VV, b: VV): boolean => {
       return false
     }
   }
+
   return true
 }
 
@@ -18,9 +19,11 @@ export const vvEqual = (a: VV, b: VV): boolean => covers(a, b) && covers(b, a)
 
 export const vvMax = (a: VV, b: VV): VV => {
   const out: Record<string, number> = { ...a }
+
   for (const peer in b) {
     out[peer] = Math.max(out[peer] ?? 0, b[peer] ?? 0)
   }
+
   return out
 }
 
@@ -31,15 +34,17 @@ export class Coverage {
     for (const peer in end) {
       const from = start[peer] ?? 0
       const to = end[peer] ?? 0
+
       if (to > from) {
         this.addRange(peer, from, to)
       }
     }
   }
 
-  missingFrom(other: Coverage): ReadonlyArray<string> {
+  missingFrom(other: Coverage): readonly string[] {
     return [...this.peers].flatMap(([peer, ranges]) => {
       const theirs = other.peers.get(peer) ?? []
+
       return ranges
         .filter(([a, b]) => !theirs.some(([c, d]) => c <= a && d >= b))
         .map(([a, b]) => `${peer}:[${a},${b})`)
@@ -50,6 +55,7 @@ export class Coverage {
     let lo = from
     let hi = to
     const kept: Array<readonly [number, number]> = []
+
     for (const [a, b] of this.peers.get(peer) ?? []) {
       if (b < lo || a > hi) {
         kept.push([a, b])
@@ -58,6 +64,7 @@ export class Coverage {
         hi = Math.max(hi, b)
       }
     }
+
     kept.push([lo, hi])
     this.peers.set(
       peer,

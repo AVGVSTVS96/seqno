@@ -42,6 +42,7 @@ const stored = <S extends Schema.ConstraintCodec<unknown, unknown>>(
   Atom.kvs({ runtime: storage, key, schema, defaultValue: () => defaultValue }).pipe(Atom.keepAlive)
 
 export const ViewerTheme = Schema.Literals(["light", "warm", "dark"])
+
 export type ViewerTheme = typeof ViewerTheme.Type
 
 export const viewerTheme = stored("ls-pdf-viewer-theme", ViewerTheme, "light")
@@ -55,7 +56,7 @@ export const lastColor = Atom.make<Color>("yellow").pipe(Atom.keepAlive)
 
 export interface LiveHighlights {
   readonly key: string
-  readonly highlights: ReadonlyArray<Highlight>
+  readonly highlights: readonly Highlight[]
 }
 
 export const liveHighlights = Atom.make<LiveHighlights | null>(null).pipe(Atom.keepAlive)

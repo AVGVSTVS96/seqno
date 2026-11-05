@@ -1,14 +1,16 @@
-import { editorBindings, type Binding } from "@seqno/editor"
-import { keysOf, onMac, type ShortcutAction } from "./shortcuts.ts"
+import { editorBindings } from "@seqno/editor"
+import type { Binding } from "@seqno/editor"
+import { keysOf, onMac } from "./shortcuts.ts"
+import type { ShortcutAction } from "./shortcuts.ts"
 
 export interface Shortcut {
   readonly label: string
-  readonly combos: ReadonlyArray<ReadonlyArray<string>>
+  readonly combos: ReadonlyArray<readonly string[]>
 }
 
 export interface ShortcutGroup {
   readonly title: string
-  readonly shortcuts: ReadonlyArray<Shortcut>
+  readonly shortcuts: readonly Shortcut[]
 }
 
 const keysIn = (codeMirrorKey: string) =>
@@ -24,14 +26,14 @@ const app = (label: string, action: ShortcutAction): Shortcut => ({
   combos: [keysOf(action)],
 })
 
-const keys = (label: string, ...combos: ReadonlyArray<string>): Shortcut => ({
+const keys = (label: string, ...combos: readonly string[]): Shortcut => ({
   label,
   combos: combos.map((combo) => combo.split(" ")),
 })
 
 const moveChord = onMac ? "mod shift" : "alt shift"
 
-export const shortcutGroups: ReadonlyArray<ShortcutGroup> = [
+export const shortcutGroups: readonly ShortcutGroup[] = [
   {
     title: "Basics",
     shortcuts: [
@@ -172,12 +174,14 @@ export const shortcutGroups: ReadonlyArray<ShortcutGroup> = [
   },
 ]
 
-export const matchingGroups = (query: string): ReadonlyArray<ShortcutGroup> => {
+export const matchingGroups = (query: string): readonly ShortcutGroup[] => {
   const wanted = query.trim().toLowerCase()
+
   return shortcutGroups.flatMap((group) => {
     const shortcuts = group.shortcuts.filter(
       (shortcut) => wanted === "" || shortcut.label.toLowerCase().includes(wanted),
     )
+
     return shortcuts.length === 0 ? [] : [{ ...group, shortcuts }]
   })
 }

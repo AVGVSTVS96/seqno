@@ -2,10 +2,12 @@ import { Effect, Option } from "effect"
 import { LoroDoc } from "loro-crdt"
 import { ImportFailed, PeerId, peerOf } from "../graph.ts"
 import { loader } from "../loader.ts"
-import { TREE, livePages, readBlock, walkBlocks, type BlockState } from "../tree.ts"
+import { TREE, livePages, readBlock, walkBlocks } from "../tree.ts"
+import type { BlockState } from "../tree.ts"
 import { dayIds } from "./layout.ts"
 import { makeTrees } from "./outline.ts"
-import { writePage, type PageState } from "./write.ts"
+import { writePage } from "./write.ts"
+import type { PageState } from "./write.ts"
 
 const FORMAT = "seqno-pages-1"
 const CONVERTED = "seqno:convert"
@@ -17,23 +19,30 @@ export interface Converted {
   readonly blocks: number
 }
 
-const readOneTree = (doc: LoroDoc): Array<PageState> =>
+const readOneTree = (doc: LoroDoc): PageState[] =>
   livePages(doc.getTree(TREE)).map(([root, page]) => {
-    const blocks: Array<BlockState> = []
+    const blocks: BlockState[] = []
     walkBlocks(root, { pageId: page.id, parentId: null }, (child, at) =>
       Option.map(readBlock(child, at), (state) => {
         blocks.push(state)
+
         return state.block.id
       }),
     )
+
     return { page, blocks }
   })
 
-const withJournalIds = (pages: ReadonlyArray<PageState>): ReadonlyArray<PageState> => {
+const withJournalIds = (pages: readonly PageState[]): readonly PageState[] => {
   const ids = dayIds(pages.map(({ page }) => page))
+
   return pages.map((state) => {
     const id = ids.get(state.page.id)
-    if (id === undefined) return state
+
+    if (id === undefined) {
+      return state
+    }
+
     return {
       page: { ...state.page, id },
       blocks: state.blocks.map((read) => ({ ...read, block: { ...read.block, pageId: id } })),
@@ -41,12 +50,14 @@ const withJournalIds = (pages: ReadonlyArray<PageState>): ReadonlyArray<PageStat
   })
 }
 
-const readV1 = (files: ReadonlyArray<Uint8Array>) =>
+const readV1 = (files: readonly Uint8Array[]) =>
   Effect.try({
     try: () => {
       const doc = new LoroDoc()
+
       try {
         loader(doc)(files)
+
         return withJournalIds(readOneTree(doc)).toSorted((a, b) =>
           a.page.id < b.page.id ? -1 : a.page.id > b.page.id ? 1 : 0,
         )
@@ -57,25 +68,32 @@ const readV1 = (files: ReadonlyArray<Uint8Array>) =>
     catch: (cause) => new ImportFailed({ reason: String(cause) }),
   })
 
-export const convertOneTree = (files: ReadonlyArray<Uint8Array>) =>
+export const convertOneTree = (files: readonly Uint8Array[]) =>
   Effect.gen(function* () {
     const pages = yield* readV1(files)
-    const digest = yield* Effect.promise(() =>
-      globalThis.crypto.subtle.digest(
-        "SHA-256",
-        new TextEncoder().encode(JSON.stringify([FORMAT, pages])),
-      ),
+
+    const digest = yield* Effect.promise(
+      async () =>
+        await globalThis.crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(JSON.stringify([FORMAT, pages])),
+        ),
     )
+
     const peer = peerOf(new Uint8Array(digest))
+
     return yield* Effect.sync((): Converted => {
       const doc = new LoroDoc()
+
       try {
         doc.setPeerId(BigInt(peer))
         const trees = makeTrees(doc)
+
         for (const state of pages) {
           writePage(trees, state.page.id, state)
           doc.commit({ origin: CONVERTED })
         }
+
         return {
           snapshot: doc.export({ mode: "snapshot" }),
           peer,

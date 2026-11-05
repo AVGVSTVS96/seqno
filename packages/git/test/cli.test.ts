@@ -4,35 +4,50 @@ import * as fsp from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
-import { makeCli, makeRepo, type FsClient, type Globals } from "../src/index.ts"
+import { makeCli, makeRepo } from "../src/index.ts"
+import type { FsClient, Globals } from "../src/index.ts"
 
-const roots: Array<string> = []
+const roots: string[] = []
 
 afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  for (const root of roots.splice(0)) {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
 
 const rooted = (root: string): FsClient => {
   const at = (file: string) => path.join(root, file)
+
   return {
     promises: {
-      readFile: async (file: string, options?: { readonly encoding?: "utf8" }) =>
-        fsp.readFile(at(file), options ?? null),
-      writeFile: async (file: string, data: Uint8Array | string) => fsp.writeFile(at(file), data),
-      unlink: async (file: string) => fsp.unlink(at(file)),
-      readdir: async (file: string) => fsp.readdir(at(file)),
-      mkdir: async (file: string) => fsp.mkdir(at(file)),
-      rmdir: async (file: string) => fsp.rmdir(at(file)),
-      stat: async (file: string) => fsp.stat(at(file)),
-      lstat: async (file: string) => fsp.lstat(at(file)),
-      readlink: async (file: string) => fsp.readlink(at(file)),
-      symlink: async (target: string, file: string) => fsp.symlink(target, at(file)),
+      readFile: async (file: string, options?: { readonly encoding?: "utf-8" }) =>
+        await fsp.readFile(at(file), options ?? null),
+      writeFile: async (file: string, data: Uint8Array | string) => {
+        await fsp.writeFile(at(file), data)
+      },
+      unlink: async (file: string) => {
+        await fsp.unlink(at(file))
+      },
+      readdir: async (file: string) => await fsp.readdir(at(file)),
+      mkdir: async (file: string) => {
+        await fsp.mkdir(at(file))
+      },
+      rmdir: async (file: string) => {
+        await fsp.rmdir(at(file))
+      },
+      stat: async (file: string) => await fsp.stat(at(file)),
+      lstat: async (file: string) => await fsp.lstat(at(file)),
+      readlink: async (file: string) => await fsp.readlink(at(file)),
+      symlink: async (target: string, file: string) => {
+        await fsp.symlink(target, at(file))
+      },
     },
   }
 }
 
 const memoryGlobals = (initial: Record<string, string> = {}): Globals => {
   let config: Readonly<Record<string, string>> = initial
+
   return {
     read: async () => config,
     write: async (next) => {
@@ -53,40 +68,45 @@ const env = {
   LC_ALL: "C",
 }
 
-const realGit = (root: string, ...args: ReadonlyArray<string>) => {
+const realGit = (root: string, ...args: readonly string[]) => {
   try {
     return {
       stdout: execFileSync("git", ["-c", "commit.gpgsign=false", ...args], {
         cwd: root,
         env,
-        encoding: "utf8",
+        encoding: "utf-8",
         stdio: ["ignore", "pipe", "pipe"],
       }),
       stderr: "",
       exitCode: 0,
     }
-  } catch (cause) {
+  } catch (error) {
     if (
-      typeof cause === "object" &&
-      cause !== null &&
-      "status" in cause &&
-      "stdout" in cause &&
-      "stderr" in cause
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      "stdout" in error &&
+      "stderr" in error
     ) {
       return {
-        stdout: String(cause.stdout),
-        stderr: String(cause.stderr),
-        exitCode: Number(cause.status),
+        stdout: String(error.stdout),
+        stderr: String(error.stderr),
+        exitCode: Number(error.status),
       }
     }
-    throw cause
+
+    throw error
   }
 }
 
 const folder = (files: Readonly<Record<string, string>>) => {
   const root = mkdtempSync(path.join(tmpdir(), "seqno-git-"))
   roots.push(root)
-  for (const [file, text] of Object.entries(files)) put(root, file, text)
+
+  for (const [file, text] of Object.entries(files)) {
+    put(root, file, text)
+  }
+
   return root
 }
 
@@ -102,6 +122,7 @@ const seqno = (
   globals = memoryGlobals({ "user.name": "Bassim", "user.email": "b@example.com" }),
 ) => {
   const repo = makeRepo({ fs: rooted(root), globals, now: () => new Date("2026-11-03T19:21:15Z") })
+
   return { repo, run: makeCli(repo, "demo", () => new Date("2026-11-03T19:21:15Z")) }
 }
 
@@ -234,6 +255,7 @@ describe("answers plugins as git does", () => {
       "pages/b.md": "x\n",
       "pages/c.md": "1\n2\n3\n4\n5\n6\n7\n8\n9\n",
     })
+
     realGit(root, "init", "-q", "-b", "master")
     realGit(root, "add", "-A")
     realGit(root, "commit", "-q", "-m", "one")
@@ -293,6 +315,6 @@ describe("answers plugins as git does", () => {
       stderr: "fatal: cannot change to '/elsewhere': No such file or directory\n",
       exitCode: 128,
     })
-    expect(readFileSync(path.join(root, ".git", "HEAD"), "utf8")).toBe("ref: refs/heads/master\n")
+    expect(readFileSync(path.join(root, ".git", "HEAD"), "utf-8")).toBe("ref: refs/heads/master\n")
   })
 })

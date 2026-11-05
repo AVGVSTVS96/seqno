@@ -11,6 +11,7 @@ export const CursorPlacement = Schema.TaggedUnion({
   FirstLine: { column: Offset },
   LastLine: { column: Offset },
 })
+
 export type CursorPlacement = typeof CursorPlacement.Type
 
 export const LinkTarget = Schema.TaggedUnion({
@@ -18,6 +19,7 @@ export const LinkTarget = Schema.TaggedUnion({
   Page: { name: Schema.String },
   Block: { uuid: Schema.String },
 })
+
 export type LinkTarget = typeof LinkTarget.Type
 
 export const EditorAction = Schema.TaggedUnion({
@@ -38,20 +40,21 @@ export const EditorAction = Schema.TaggedUnion({
   Open: { target: LinkTarget, sidebar: Schema.Boolean },
   Notify: { message: Schema.String },
 })
+
 export type EditorAction = typeof EditorAction.Type
 
 export interface BlockHit {
   readonly block: Block
-  readonly path: ReadonlyArray<string>
+  readonly path: readonly string[]
 }
 
 export type PageName = Pick<Page, "name" | "title">
 
 export interface EditorHost {
   readonly dispatch: (command: Command) => void
-  readonly dispatchAll: (commands: ReadonlyArray<Command>) => Promise<boolean>
+  readonly dispatchAll: (commands: readonly Command[]) => Promise<boolean>
   readonly act: (action: EditorAction) => void
-  readonly searchPages: (query: string) => Effect.Effect<ReadonlyArray<PageName>>
-  readonly searchBlocks: (query: string) => Effect.Effect<ReadonlyArray<BlockHit>>
-  readonly saveAssets: (files: ReadonlyArray<File>) => Promise<ReadonlyArray<string>>
+  readonly searchPages: (query: string) => Effect.Effect<readonly PageName[]>
+  readonly searchBlocks: (query: string) => Effect.Effect<readonly BlockHit[]>
+  readonly saveAssets: (files: readonly File[]) => Promise<readonly string[]>
 }

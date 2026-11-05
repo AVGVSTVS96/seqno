@@ -16,8 +16,8 @@ export type SceneLink = readonly [source: number, target: number]
 
 export interface Scene {
   readonly mode: GraphMode
-  readonly nodes: ReadonlyArray<SceneNode>
-  readonly links: ReadonlyArray<SceneLink>
+  readonly nodes: readonly SceneNode[]
+  readonly links: readonly SceneLink[]
 }
 
 export interface Point {
@@ -42,25 +42,31 @@ export const nodeRadius = (kind: GraphNodeKind, degree: number) =>
 
 const sceneOf = (
   mode: GraphMode,
-  nodes: ReadonlyArray<GraphNode>,
+  nodes: readonly GraphNode[],
   links: ReadonlyArray<readonly [string, string]>,
   root: string | null,
 ): Scene => {
   const indexOf = new Map(nodes.map((node, at) => [node.name, at]))
-  const kept = links.flatMap(([source, target]): ReadonlyArray<SceneLink> => {
+
+  const kept = links.flatMap(([source, target]): readonly SceneLink[] => {
     const from = indexOf.get(source)
     const to = indexOf.get(target)
+
     return from === undefined || to === undefined || from === to ? [] : [[from, to]]
   })
+
   const degrees = nodes.map(() => 0)
+
   for (const [from, to] of kept) {
     degrees[from] = (degrees[from] ?? 0) + 1
     degrees[to] = (degrees[to] ?? 0) + 1
   }
+
   return {
     mode,
     nodes: nodes.map((node, at) => {
       const degree = degrees[at] ?? 0
+
       return { ...node, degree, radius: nodeRadius(node.kind, degree), root: node.name === root }
     }),
     links: kept,
@@ -73,14 +79,24 @@ export const allPagesScene = (graph: PagesGraph): Scene =>
 export const pageScene = (graph: PagesGraph, name: string): Scene => {
   const byName = new Map(graph.nodes.map((node) => [node.name, node]))
   const root = byName.get(name)
-  if (root === undefined) return { mode: "page", nodes: [], links: [] }
-  const around = new Set<string>()
-  for (const [source, target] of graph.links) {
-    if (source === name) around.add(target)
-    else if (target === name && byName.get(source)?.kind !== "journal") around.add(source)
+
+  if (root === undefined) {
+    return { mode: "page", nodes: [], links: [] }
   }
+
+  const around = new Set<string>()
+
+  for (const [source, target] of graph.links) {
+    if (source === name) {
+      around.add(target)
+    } else if (target === name && byName.get(source)?.kind !== "journal") {
+      around.add(source)
+    }
+  }
+
   around.delete(name)
   const nodes = [root, ...[...around].flatMap((other) => byName.get(other) ?? [])]
+
   return sceneOf("page", nodes, graph.links, name)
 }
 
@@ -90,6 +106,7 @@ export const sameScene = (left: Scene, right: Scene) =>
   left.links.length === right.links.length &&
   left.nodes.every((node, at) => {
     const other = right.nodes[at]
+
     return (
       other !== undefined &&
       node.name === other.name &&
@@ -102,42 +119,54 @@ export const sameScene = (left: Scene, right: Scene) =>
   }) &&
   left.links.every(([from, to], at) => right.links[at]?.[0] === from && right.links[at]?.[1] === to)
 
-export const neighborsOf = (scene: Scene): ReadonlyArray<ReadonlyArray<number>> => {
-  const neighbors = scene.nodes.map((): Array<number> => [])
+export const neighborsOf = (scene: Scene): ReadonlyArray<readonly number[]> => {
+  const neighbors = scene.nodes.map((): number[] => [])
+
   for (const [from, to] of scene.links) {
     neighbors[from]?.push(to)
     neighbors[to]?.push(from)
   }
+
   return neighbors
 }
 
 export const hopsFrom = (
-  neighbors: ReadonlyArray<ReadonlyArray<number>>,
+  neighbors: ReadonlyArray<readonly number[]>,
   starts: Iterable<number>,
   depth: number,
   limit = Number.POSITIVE_INFINITY,
 ): ReadonlyMap<number, number> => {
   const hops = new Map<number, number>()
-  const queue: Array<number> = []
+  const queue: number[] = []
+
   for (const start of starts) {
     hops.set(start, 0)
     queue.push(start)
   }
+
   for (let at = 0; at < queue.length && hops.size < limit; at++) {
     const node = queue[at] ?? 0
     const hop = hops.get(node) ?? 0
-    if (hop >= depth) continue
+
+    if (hop >= depth) {
+      continue
+    }
+
     for (const next of neighbors[node] ?? []) {
-      if (hops.has(next)) continue
+      if (hops.has(next)) {
+        continue
+      }
+
       hops.set(next, hop + 1)
       queue.push(next)
     }
   }
+
   return hops
 }
 
 export const dragWeights = (
-  neighbors: ReadonlyArray<ReadonlyArray<number>>,
+  neighbors: ReadonlyArray<readonly number[]>,
   start: number,
   depth: number,
 ): ReadonlyMap<number, number> =>
@@ -157,7 +186,7 @@ export interface Visibility {
 export const visibleOf = (
   scene: Scene,
   { journals, orphans, until }: Visibility,
-): ReadonlyArray<boolean> =>
+): readonly boolean[] =>
   scene.nodes.map(
     (node) =>
       node.root ||
@@ -166,7 +195,7 @@ export const visibleOf = (
         (until === null || node.created === null || node.created <= until)),
   )
 
-export const countVisible = (scene: Scene, visible: ReadonlyArray<boolean>) => ({
+export const countVisible = (scene: Scene, visible: readonly boolean[]) => ({
   nodes: visible.filter(Boolean).length,
   links: scene.links.filter(([from, to]) => visible[from] === true && visible[to] === true).length,
 })
@@ -178,9 +207,14 @@ export interface TimeRange {
 
 export const createdRange = (scene: Scene): TimeRange | null => {
   const times = scene.nodes.flatMap((node) => (node.created === null ? [] : [node.created]))
-  if (times.length === 0) return null
+
+  if (times.length === 0) {
+    return null
+  }
+
   const first = Math.min(...times)
   const last = Math.max(...times)
+
   return last > first ? { first, last } : null
 }
 
@@ -196,9 +230,18 @@ export const clickAction = (
   click: Click,
   { shift, selected }: { readonly shift: boolean; readonly selected: boolean },
 ): ClickAction => {
-  if (shift) return "sidebar"
-  if (previous !== null && previous.node === click.node && click.at - previous.at <= doubleClickMs)
+  if (shift) {
+    return "sidebar"
+  }
+
+  if (
+    previous !== null &&
+    previous.node === click.node &&
+    click.at - previous.at <= doubleClickMs
+  ) {
     return "open"
+  }
+
   return selected ? "unselect" : "select"
 }
 
@@ -208,6 +251,7 @@ export const zoomAt = (camera: Camera, screen: Point, factor: number): Camera =>
   const scale = clampScale(camera.scale * factor)
   const worldX = (screen.x - camera.x) / camera.scale
   const worldY = (screen.y - camera.y) / camera.scale
+
   return { x: screen.x - worldX * scale, y: screen.y - worldY * scale, scale }
 }
 
@@ -218,22 +262,27 @@ export interface Box {
 }
 
 export const fitCamera = (
-  boxes: ReadonlyArray<Box>,
+  boxes: readonly Box[],
   width: number,
   height: number,
   padding = 72,
 ): Camera => {
-  if (boxes.length === 0) return { x: width / 2, y: height / 2, scale: 1 }
+  if (boxes.length === 0) {
+    return { x: width / 2, y: height / 2, scale: 1 }
+  }
+
   let left = Number.POSITIVE_INFINITY
   let top = Number.POSITIVE_INFINITY
   let right = Number.NEGATIVE_INFINITY
   let bottom = Number.NEGATIVE_INFINITY
+
   for (const { x, y, radius } of boxes) {
     left = Math.min(left, x - radius)
     top = Math.min(top, y - radius)
     right = Math.max(right, x + radius)
     bottom = Math.max(bottom, y + radius)
   }
+
   const scale = clampScale(
     Math.min(
       1,
@@ -241,6 +290,7 @@ export const fitCamera = (
       Math.max(1, height - 2 * padding) / Math.max(1, bottom - top),
     ),
   )
+
   return {
     x: width / 2 - ((left + right) / 2) * scale,
     y: height / 2 - ((top + bottom) / 2) * scale,
@@ -250,6 +300,7 @@ export const fitCamera = (
 
 export const labelText = (title: string, full: boolean) => {
   const most = full ? 96 : 19
+
   return title.length > most ? `${title.slice(0, most)}...` : title
 }
 
@@ -263,9 +314,9 @@ export interface LabelCandidate {
 }
 
 export const pickLabels = (
-  candidates: ReadonlyArray<LabelCandidate>,
+  candidates: readonly LabelCandidate[],
   most: number,
-): ReadonlyArray<number> => {
+): readonly number[] => {
   const ranked = candidates.toSorted(
     (left, right) =>
       Number(right.pinned) - Number(left.pinned) ||
@@ -273,28 +324,41 @@ export const pickLabels = (
       right.degree - left.degree ||
       left.node - right.node,
   )
+
   const taken = new Set<string>()
-  const picked: Array<number> = []
+  const picked: number[] = []
+
   for (const candidate of ranked) {
-    if (picked.length >= most) break
+    if (picked.length >= most) {
+      break
+    }
+
     const cell = `${Math.floor(candidate.x / 140)}:${Math.floor(candidate.y / 26)}`
-    if (taken.has(cell) && !candidate.pinned) continue
+
+    if (taken.has(cell) && !candidate.pinned) {
+      continue
+    }
+
     taken.add(cell)
     picked.push(candidate.node)
   }
+
   return picked
 }
 
-export const ringPositions = (count: number, from: number): ReadonlyArray<Point> => {
-  const points: Array<Point> = []
+export const ringPositions = (count: number, from: number): readonly Point[] => {
+  const points: Point[] = []
+
   for (let ring = 0; points.length < count; ring++) {
     const radius = from + ring * 58
     const room = Math.max(14, Math.floor((2 * Math.PI * radius) / 42))
     const here = Math.min(room, count - points.length)
+
     for (let at = 0; at < here; at++) {
       const angle = ring * 0.41 + (at * 2 * Math.PI) / here
       points.push({ x: radius * Math.cos(angle), y: radius * Math.sin(angle) })
     }
   }
+
   return points
 }

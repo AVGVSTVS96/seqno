@@ -37,9 +37,11 @@ const report = bugs.map((bug) => {
       "--workers",
       values.workers,
     ],
-    { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 64 << 20 },
+    { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 64 << 20 },
   )
+
   const summary = Schema.decodeUnknownSync(Summary)(stdout)
+
   return {
     bug,
     seeds: summary.seeds,
@@ -49,5 +51,7 @@ const report = bugs.map((bug) => {
 })
 
 const allCaught = report.every((r) => r.seedsCaught > 0)
+
 process.stdout.write(`${JSON.stringify({ allCaught, bugs: report }, null, 2)}\n`)
+
 process.exitCode = allCaught ? 0 : 1

@@ -11,12 +11,12 @@ Open `specimen.html` to see all of it working, including the hero. `shots/` has 
 - **Honest about being early.** Work in progress is shown as a number that goes up, not hidden behind "coming soon".
 - **One person's careful rebuild.** First person when Bassim speaks. No "we", no company voice.
 
-| it is | it isn't |
-| --- | --- |
-| a local-first outliner | a second brain, a knowledge platform |
-| Logseq's way of working, rebuilt clean | a Logseq fork, a Logseq theme |
-| early, and numbered | "coming soon" |
-| the bullet and the guide line | graphs of glowing nodes |
+| it is                                  | it isn't                             |
+| -------------------------------------- | ------------------------------------ |
+| a local-first outliner                 | a second brain, a knowledge platform |
+| Logseq's way of working, rebuilt clean | a Logseq fork, a Logseq theme        |
+| early, and numbered                    | "coming soon"                        |
+| the bullet and the guide line          | graphs of glowing nodes              |
 
 ## Name and voice
 
@@ -57,27 +57,27 @@ Rules:
 
 All three families are under the SIL Open Font License and self-hosted from `fonts/` (latin subset, woff2, licenses next to them).
 
-| family | file | use |
-| --- | --- | --- |
-| **Wix Madefor Display** | `wix-madefor-display.woff2` (variable wght 400–800) | logo, headlines, taglines |
-| **Wix Madefor Text** | `wix-madefor-text.woff2`, `-italic.woff2` (variable wght 400–800) | body, UI, buttons |
-| **Commit Mono** | `commit-mono-400.woff2`, `commit-mono-500.woff2` | labels, numbers, the odometer, code |
+| family                  | file                                                              | use                                 |
+| ----------------------- | ----------------------------------------------------------------- | ----------------------------------- |
+| **Wix Madefor Display** | `wix-madefor-display.woff2` (variable wght 400–800)               | logo, headlines, taglines           |
+| **Wix Madefor Text**    | `wix-madefor-text.woff2`, `-italic.woff2` (variable wght 400–800) | body, UI, buttons                   |
+| **Commit Mono**         | `commit-mono-400.woff2`, `commit-mono-500.woff2`                  | labels, numbers, the odometer, code |
 
 Display and Text were drawn as one family: Display is tighter for big sizes, Text is opened up for small ones. The Display's round o and q are the same circle as the bullet, which is why the wordmark and the creatures belong together. Commit Mono has the warmth of a typewriter, fixed-width figures for the odometer, and is a face Bassim saved himself.
 
-| role | family · weight | size / line | tracking | notes |
-| --- | --- | --- | --- | --- |
-| display | Display 700 | 64/72 (mobile 44/48) | −0.035em | one per page at most |
-| h1 | Display 650 | 44/48 (mobile 32/40) | −0.03em | section titles |
-| lede | Display 450 | 30/48 (mobile 22/36) | −0.02em | taglines; 48 = two grid rows |
-| h2 | Display 600 | 24/32 | −0.015em | |
-| h3 | Display 600 | 20/28 | −0.012em | card titles |
-| body | Text 400 | 17/28 | −0.005em | measure 36em |
-| small | Text 400 | 15/24 | 0 | ink-2 |
-| ui | Text 550 | 15/20 | 0 | buttons, nav |
-| label | Mono 400 uppercase | 11/16 | +0.14em | "Work in progress" |
-| number | Mono 500 | 13/22 | 0 | odometer, stats |
-| code | Mono 400 | 14/24 | 0 | paths, commands |
+| role    | family · weight    | size / line          | tracking | notes                        |
+| ------- | ------------------ | -------------------- | -------- | ---------------------------- |
+| display | Display 700        | 64/72 (mobile 44/48) | −0.035em | one per page at most         |
+| h1      | Display 650        | 44/48 (mobile 32/40) | −0.03em  | section titles               |
+| lede    | Display 450        | 30/48 (mobile 22/36) | −0.02em  | taglines; 48 = two grid rows |
+| h2      | Display 600        | 24/32                | −0.015em |                              |
+| h3      | Display 600        | 20/28                | −0.012em | card titles                  |
+| body    | Text 400           | 17/28                | −0.005em | measure 36em                 |
+| small   | Text 400           | 15/24                | 0        | ink-2                        |
+| ui      | Text 550           | 15/20                | 0        | buttons, nav                 |
+| label   | Mono 400 uppercase | 11/16                | +0.14em  | "Work in progress"           |
+| number  | Mono 500           | 13/22                | 0        | odometer, stats              |
+| code    | Mono 400           | 14/24                | 0        | paths, commands              |
 
 - Load with `font-display: swap` and metric-adjusted fallbacks (`size-adjust`, `ascent-override`) so the hero doesn't shift. The hero draws its canvas after `document.fonts.ready`, because the bullets avoid the text boxes.
 - Trim display type to the grid with `text-box: trim-both cap alphabetic` where it matters (headlines next to a bullet).
@@ -88,24 +88,24 @@ Paper, ink and one field color. **Apricot** is seqno's: warm, light and friendly
 
 Dusk comes from the product, not from apricot. seqno's dark theme is Logseq's Solarized dark, so every dark screenshot on the page is deep blue (`#002B36`, `oklch(0.27 0.05 220)`). Darkening apricot gave a brown at the same lightness as those screenshots and the opposite hue, and the two cancelled into mud. Dusk is the screenshots' own blue one step darker, so they sit on it like lit windows, and apricot plays the part Solarized gives its orange: small, light and bright on the deep blue.
 
-| token | light | dark | use |
-| --- | --- | --- | --- |
-| `--paper` | `#FDF9F4` | `#02141B` | page |
-| `--surface` | `#FFFFFF` | `#002B36` | cards, screenshot frames (by night the app's own background) |
-| `--sunk` | `#F8F1EA` | `#01222C` | quiet panels, window bars (by night the same as the field) |
-| `--ink` | `#25170D` (16.6:1) | `#F1EAE3` (15.8:1) | text, bullets |
-| `--ink-2` | `#655449` (6.9:1) | `#A3B5B8` (8.8:1) | secondary text |
-| `--ink-3` | `#7A6C61` (4.8:1) | `#7E9094` (5.6:1) | labels, hints |
-| `--hair` | `rgb(37 23 13 / .12)` | `rgb(241 234 227 / .12)` | 1px rules, card rings |
-| `--hair-2` | `rgb(37 23 13 / .06)` | `rgb(241 234 227 / .06)` | row dividers |
-| `--rust` | `#AE4819` (5.4:1) | `#F8AA6D` (9.8:1) | links, the one highlighted path |
-| `--field` | `#F8AA6D` apricot | `#01222C` dusk | hero, link preview, field swatches |
-| `--field-ink` | `#25170D` (9.1:1) | `#F8AA6D` (8.7:1) | wordmark, tagline and pills on the field |
-| `--field-faint` | `#25170D` | `#F1EAE3` | what faint lines on the field are mixed from: outlines, the guide, the small print |
-| `--bullet` | `#FFF8ED` | `#F4D9C0` | bullets swimming on the field |
-| `--grid-dot` | `rgb(37 23 13 / .2)` | `rgb(241 234 227 / .14)` | the field's dot grid |
-| `--line-opacity` | `0.5` | `0.8` | the hero's text bars and tails |
-| `--selection` | apricot at 55% | `#094B5A` | selected text |
+| token            | light                 | dark                     | use                                                                                |
+| ---------------- | --------------------- | ------------------------ | ---------------------------------------------------------------------------------- |
+| `--paper`        | `#FDF9F4`             | `#02141B`                | page                                                                               |
+| `--surface`      | `#FFFFFF`             | `#002B36`                | cards, screenshot frames (by night the app's own background)                       |
+| `--sunk`         | `#F8F1EA`             | `#01222C`                | quiet panels, window bars (by night the same as the field)                         |
+| `--ink`          | `#25170D` (16.6:1)    | `#F1EAE3` (15.8:1)       | text, bullets                                                                      |
+| `--ink-2`        | `#655449` (6.9:1)     | `#A3B5B8` (8.8:1)        | secondary text                                                                     |
+| `--ink-3`        | `#7A6C61` (4.8:1)     | `#7E9094` (5.6:1)        | labels, hints                                                                      |
+| `--hair`         | `rgb(37 23 13 / .12)` | `rgb(241 234 227 / .12)` | 1px rules, card rings                                                              |
+| `--hair-2`       | `rgb(37 23 13 / .06)` | `rgb(241 234 227 / .06)` | row dividers                                                                       |
+| `--rust`         | `#AE4819` (5.4:1)     | `#F8AA6D` (9.8:1)        | links, the one highlighted path                                                    |
+| `--field`        | `#F8AA6D` apricot     | `#01222C` dusk           | hero, link preview, field swatches                                                 |
+| `--field-ink`    | `#25170D` (9.1:1)     | `#F8AA6D` (8.7:1)        | wordmark, tagline and pills on the field                                           |
+| `--field-faint`  | `#25170D`             | `#F1EAE3`                | what faint lines on the field are mixed from: outlines, the guide, the small print |
+| `--bullet`       | `#FFF8ED`             | `#F4D9C0`                | bullets swimming on the field                                                      |
+| `--grid-dot`     | `rgb(37 23 13 / .2)`  | `rgb(241 234 227 / .14)` | the field's dot grid                                                               |
+| `--line-opacity` | `0.5`                 | `0.8`                    | the hero's text bars and tails                                                     |
+| `--selection`    | apricot at 55%        | `#094B5A`                | selected text                                                                      |
 
 Contrast ratios are against `--paper` (or the field, for field tokens). OKLCH sources: apricot `oklch(0.80 0.12 58)`, dusk `oklch(0.23 0.04 222)`, dark paper `oklch(0.18 0.03 224)`, ink `oklch(0.22 0.03 55)`, paper `oklch(0.985 0.008 75)`.
 
@@ -150,9 +150,9 @@ Tokens for motion/react:
 
 ```ts
 export const spring = {
-  fast: { type: "spring", visualDuration: 0.2, bounce: 0 },     // press, hover, toggles, popovers. ≈330 ms to settle
+  fast: { type: "spring", visualDuration: 0.2, bounce: 0 }, // press, hover, toggles, popovers. ≈330 ms to settle
   base: { type: "spring", visualDuration: 0.35, bounce: 0.15 }, // enter, layout, menus. ≈540 ms
-  slow: { type: "spring", visualDuration: 0.6, bounce: 0.25 },  // odometer digits, outlines landing. ≈890 ms
+  slow: { type: "spring", visualDuration: 0.6, bounce: 0.25 }, // odometer digits, outlines landing. ≈890 ms
 } as const
 
 export const fade = { duration: 0.16, ease: [0.23, 1, 0.32, 1] } as const // color and opacity only

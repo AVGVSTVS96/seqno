@@ -5,6 +5,7 @@ const loadModules = async () => {
   })
   Reflect.set(globalThis, "pdfjsLib", lib)
   const viewer = await import("pdfjs-dist/web/pdf_viewer.mjs")
+
   return { lib, viewer }
 }
 
@@ -12,9 +13,10 @@ export type Pdfjs = Awaited<ReturnType<typeof loadModules>>
 
 let loading: Promise<Pdfjs> | null = null
 
-export const loadPdfjs = (): Promise<Pdfjs> => {
+export const loadPdfjs = async (): Promise<Pdfjs> => {
   loading ??= loadModules()
-  return loading
+
+  return await loading
 }
 
 export const pdfjsAssets = `${import.meta.env.BASE_URL}pdfjs/`

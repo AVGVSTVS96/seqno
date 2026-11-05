@@ -1,13 +1,6 @@
 import { Option } from "effect"
-import {
-  otherShapeOf,
-  shapeOf,
-  type Block,
-  type BlockId,
-  type LineShape,
-  type Shape,
-  type Vec,
-} from "@seqno/domain"
+import { otherShapeOf, shapeOf } from "@seqno/domain"
+import type { Block, BlockId, LineShape, Shape, Vec } from "@seqno/domain"
 import { portalScale } from "./tools.ts"
 import {
   BINDING_GAP,
@@ -25,8 +18,8 @@ import {
   rotatedBox,
   toward,
   union,
-  type Bounds,
 } from "./geometry.ts"
+import type { Bounds } from "./geometry.ts"
 
 export interface Unsupported {
   readonly type: "unsupported"
@@ -50,17 +43,17 @@ export type Line = typeof LineShape.Type
 export type Measured = ReadonlyMap<BlockId, Vec>
 
 export interface Scene {
-  readonly items: ReadonlyArray<Item>
+  readonly items: readonly Item[]
   readonly byId: ReadonlyMap<BlockId, Item>
   readonly bounds: ReadonlyMap<BlockId, Bounds>
   readonly turned: ReadonlyMap<BlockId, Bounds>
   readonly ends: ReadonlyMap<BlockId, readonly [Vec, Vec]>
   readonly measured: Measured
-  readonly members: ReadonlyMap<BlockId, ReadonlyArray<BlockId>>
+  readonly members: ReadonlyMap<BlockId, readonly BlockId[]>
   readonly groupOf: ReadonlyMap<BlockId, BlockId>
 }
 
-const unsupported = (block: Block): ReadonlyArray<Item> =>
+const unsupported = (block: Block): readonly Item[] =>
   Option.match(otherShapeOf(block), {
     onNone: () => [],
     onSome: (other) => [
@@ -79,7 +72,7 @@ const unsupported = (block: Block): ReadonlyArray<Item> =>
     ],
   })
 
-export const itemsOf = (blocks: ReadonlyArray<Block>): ReadonlyArray<Item> =>
+export const itemsOf = (blocks: readonly Block[]): readonly Item[] =>
   blocks
     .filter((block) => block.parentId === null)
     .flatMap((block) =>
@@ -93,46 +86,65 @@ export const PORTAL_HEADER = 40
 
 export const COLLAPSED_PORTAL = 40
 
-const strokePoints = (
-  shape: Drawable & { readonly points: ReadonlyArray<ReadonlyArray<number>> },
-) => shape.points.map(([x = 0, y = 0]): Vec => [shape.point[0] + x, shape.point[1] + y])
+const strokePoints = (shape: Drawable & { readonly points: ReadonlyArray<readonly number[]> }) =>
+  shape.points.map(([x = 0, y = 0]): Vec => [shape.point[0] + x, shape.point[1] + y])
 
 export const absolutePoints = strokePoints
 
 export const sizeOfItem = (item: Item, measured: Measured): Vec => {
   const { shape } = item
   const seen = measured.get(item.block.id)
+
   if (shape.type === "logseq-portal") {
-    if (shape.collapsed === true) return [shape.size[0], seen?.[1] ?? COLLAPSED_PORTAL]
-    if (seen !== undefined && shape.isAutoResizing !== false) return [shape.size[0], seen[1]]
+    if (shape.collapsed === true) {
+      return [shape.size[0], seen?.[1] ?? COLLAPSED_PORTAL]
+    }
+
+    if (seen !== undefined && shape.isAutoResizing !== false) {
+      return [shape.size[0], seen[1]]
+    }
+
     return [shape.size[0], Math.max(shape.size[1], PORTAL_HEADER)]
   }
-  if (shape.type === "text" && shape.isSizeLocked !== false && seen !== undefined) return seen
+
+  if (shape.type === "text" && shape.isSizeLocked !== false && seen !== undefined) {
+    return seen
+  }
+
   if (shape.type === "tweet") {
     const width = Math.min(Math.max(shape.size[0], 300), 550)
+
     return [width, seen === undefined || seen[1] === 0 ? shape.size[1] : seen[1]]
   }
+
   if (shape.type === "html" && shape.size[1] === 0 && seen !== undefined) {
     return [shape.size[0], seen[1] * portalScale[shape.scaleLevel ?? "md"]]
   }
+
   return "size" in shape ? shape.size : [0, 0]
 }
 
 const ownBounds = (item: Item, measured: Measured): Bounds => {
   const { shape } = item
+
   switch (shape.type) {
-    case "line":
+    case "line": {
       return boundsOfPoints([
         add(shape.point, shape.handles.start.point),
         add(shape.point, shape.handles.end.point),
       ])
+    }
+
     case "pencil":
-    case "highlighter":
+    case "highlighter": {
       return shape.points.length === 0
         ? boxBounds(shape.point, [0, 0])
         : boundsOfPoints(strokePoints(shape))
-    default:
+    }
+
+    default: {
       return boxBounds(shape.point, sizeOfItem(item, measured))
+    }
   }
 }
 
@@ -144,23 +156,32 @@ const edgeOf = (item: Item, box: Bounds, from: Vec): Vec => {
   const middle = centerOf(box)
   const local = rotateAround(from, middle, -r)
   const edge = item.shape.type === "ellipse" ? ellipseEdge(box, local) : rectEdge(box, local)
+
   return rotateAround(edge, middle, r)
 }
 
 const turnedBounds = (item: Item, box: Bounds): Bounds => {
   const r = rotationOf(item)
-  if (r === 0) return box
+
+  if (r === 0) {
+    return box
+  }
+
   const { shape } = item
+
   if (shape.type === "pencil" || shape.type === "highlighter") {
     const middle = centerOf(box)
+
     return boundsOfPoints(strokePoints(shape).map((point) => rotateAround(point, middle, r)))
   }
+
   if (shape.type === "ellipse") {
     const [cx, cy] = centerOf(box)
     const rx = (box.maxX - box.minX) / 2
     const ry = (box.maxY - box.minY) / 2
     const halfWidth = Math.hypot(rx * Math.cos(r), ry * Math.sin(r))
     const halfHeight = Math.hypot(rx * Math.sin(r), ry * Math.cos(r))
+
     return {
       minX: cx - halfWidth,
       minY: cy - halfHeight,
@@ -168,6 +189,7 @@ const turnedBounds = (item: Item, box: Bounds): Bounds => {
       maxY: cy + halfHeight,
     }
   }
+
   return rotatedBox(box, r)
 }
 
@@ -179,51 +201,79 @@ const lineEnds = (
   const anchor = (handle: Line["handles"]["start"]) => {
     const target = handle.bindTo === undefined ? undefined : byId.get(handle.bindTo)
     const box = handle.bindTo === undefined ? undefined : bounds.get(handle.bindTo)
+
     return target === undefined || box === undefined
       ? { point: add(line.point, handle.point), target: null }
       : { point: [(box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2] satisfies Vec, target }
   }
+
   const start = anchor(line.handles.start)
   const end = anchor(line.handles.end)
+
   const clip = (own: typeof start, other: typeof start): Vec => {
-    if (own.target === null) return own.point
+    if (own.target === null) {
+      return own.point
+    }
+
     const box = bounds.get(own.target.block.id)
-    if (box === undefined) return own.point
+
+    if (box === undefined) {
+      return own.point
+    }
+
     const edge = edgeOf(own.target, box, other.point)
+
     return toward(edge, other.point, BINDING_GAP)
   }
+
   return [clip(start, end), clip(end, start)]
 }
 
-const membership = (items: ReadonlyArray<Item>, byId: ReadonlyMap<BlockId, Item>) => {
+const membership = (items: readonly Item[], byId: ReadonlyMap<BlockId, Item>) => {
   const written = new Map<string, BlockId>()
+
   for (const item of items) {
     written.set(item.block.id, item.block.id)
     const own = item.block.props["id"]
-    if (own !== undefined) written.set(own.toLowerCase(), item.block.id)
+
+    if (own !== undefined) {
+      written.set(own.toLowerCase(), item.block.id)
+    }
   }
-  const members = new Map<BlockId, ReadonlyArray<BlockId>>()
+
+  const members = new Map<BlockId, readonly BlockId[]>()
   const groupOf = new Map<BlockId, BlockId>()
+
   for (const item of items) {
-    if (item.shape.type !== "group") continue
+    if (item.shape.type !== "group") {
+      continue
+    }
+
     const ids = item.shape.children.flatMap((child) => {
       const id = written.get(child.toLowerCase())
       const member = id === undefined ? undefined : byId.get(id)
+
       return member === undefined || member.shape.type === "group" || groupOf.has(member.block.id)
         ? []
         : [member.block.id]
     })
+
     members.set(item.block.id, ids)
-    for (const id of ids) groupOf.set(id, item.block.id)
+
+    for (const id of ids) {
+      groupOf.set(id, item.block.id)
+    }
   }
+
   return { members, groupOf }
 }
 
-export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene => {
+export const sceneOf = (items: readonly Item[], measured: Measured): Scene => {
   const byId = new Map(items.map((item) => [item.block.id, item]))
   const { members, groupOf } = membership(items, byId)
   const bounds = new Map<BlockId, Bounds>()
   const turned = new Map<BlockId, Bounds>()
+
   for (const item of items) {
     if (item.shape.type !== "line" && item.shape.type !== "group") {
       const box = ownBounds(item, measured)
@@ -231,9 +281,11 @@ export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene =
       turned.set(item.block.id, turnedBounds(item, box))
     }
   }
+
   const groupBounds = () => {
     for (const [group, ids] of members) {
       const box = union(ids.flatMap((id) => turned.get(id) ?? []))
+
       if (box === null) {
         bounds.delete(group)
         turned.delete(group)
@@ -243,8 +295,10 @@ export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene =
       }
     }
   }
+
   groupBounds()
   const ends = new Map<BlockId, readonly [Vec, Vec]>()
+
   for (const item of items) {
     if (item.shape.type === "line") {
       const both = lineEnds(item.shape, byId, bounds)
@@ -253,13 +307,15 @@ export const sceneOf = (items: ReadonlyArray<Item>, measured: Measured): Scene =
       turned.set(item.block.id, boundsOfPoints(both))
     }
   }
+
   groupBounds()
+
   return { items, byId, bounds, turned, ends, measured, members, groupOf }
 }
 
 export const GROUP_PADDING = 8
 
-export const withMembers = (scene: Scene, ids: ReadonlyArray<BlockId>): ReadonlyArray<BlockId> => [
+export const withMembers = (scene: Scene, ids: readonly BlockId[]): readonly BlockId[] => [
   ...new Set(ids.flatMap((id) => [id, ...(scene.members.get(id) ?? [])])),
 ]
 
@@ -270,17 +326,27 @@ export const LINE_TOLERANCE = 8
 export const hits = (scene: Scene, item: Item, point: Vec, zoom: number): boolean => {
   const tolerance = LINE_TOLERANCE / zoom
   const { shape } = item
+
   if (shape.type === "line") {
     const both = scene.ends.get(item.block.id)
+
     return both !== undefined && distanceToSegment(point, both[0], both[1]) <= tolerance
   }
+
   const box = scene.bounds.get(item.block.id)
-  if (box === undefined) return false
+
+  if (box === undefined) {
+    return false
+  }
+
   const local = rotateAround(point, centerOf(box), -rotationOf(item))
+
   if (shape.type === "pencil" || shape.type === "highlighter") {
     const width = shape.strokeWidth ?? 2
+
     return distanceToPolyline(local, strokePoints(shape)) <= Math.max(tolerance, width * 2)
   }
+
   return contains(expand(box, 1 / zoom), local)
 }
 
@@ -293,9 +359,10 @@ const INTERACTIVE = new Set(["video", "youtube", "tweet", "iframe", "html", "pdf
 
 export const isInteractive = (item: Item) => INTERACTIVE.has(item.shape.type)
 
-export const ratioLocked = (scene: Scene, ids: ReadonlyArray<BlockId>) => {
+export const ratioLocked = (scene: Scene, ids: readonly BlockId[]) => {
   const [only, ...rest] = ids
   const item = only === undefined || rest.length > 0 ? undefined : scene.byId.get(only)
+
   return (
     item !== undefined &&
     (item.shape.type === "youtube" ||

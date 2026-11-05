@@ -35,6 +35,7 @@ describe("Org and front matter pages", () => {
       const graph = yield* imported
       const files = yield* Effect.provide(renderMirror(graph.pages, graph.config), LogseqSyntaxLive)
       const fs = yield* FileSystem.FileSystem
+
       for (const path of [
         "pages/field.md",
         "pages/Reading list.org",

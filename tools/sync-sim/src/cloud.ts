@@ -1,5 +1,6 @@
 import { Data, Effect, Match, Option } from "effect"
-import { tiered, type Rng } from "./rng.ts"
+import { tiered } from "./rng.ts"
+import type { Rng } from "./rng.ts"
 import type { Scheduler } from "./scheduler.ts"
 import { at, splitPath, stubTarget } from "./util.ts"
 
@@ -41,7 +42,7 @@ export class NotDownloaded extends Data.TaggedError("NotDownloaded")<{ readonly 
 export class NotFound extends Data.TaggedError("NotFound")<{ readonly path: string }> {}
 
 export interface CloudFs {
-  readonly list: (dir: string) => Effect.Effect<ReadonlyArray<string>>
+  readonly list: (dir: string) => Effect.Effect<readonly string[]>
   readonly stat: (path: string) => Effect.Effect<Option.Option<Stat>>
   readonly read: (path: string) => Effect.Effect<Uint8Array, NotDownloaded | NotFound>
   readonly write: (path: string, bytes: Uint8Array) => Effect.Effect<void>
@@ -98,6 +99,7 @@ interface DeviceState {
 export const conflictCopyName = (path: string, n: number): string => {
   const [dir, name] = splitPath(path)
   const dot = name.lastIndexOf(".")
+
   return `${dir}/${name.slice(0, dot)} ${n}${name.slice(dot)}`
 }
 
@@ -116,7 +118,7 @@ export class FakeICloud {
   }
   private version = 0
   private inFlight = 0
-  private readonly devices: ReadonlyArray<DeviceState>
+  private readonly devices: readonly DeviceState[]
   private readonly sched: Scheduler
   private readonly rng: Rng
   private readonly cfg: CloudConfig
@@ -126,7 +128,7 @@ export class FakeICloud {
     sched: Scheduler,
     rng: Rng,
     cfg: CloudConfig,
-    deviceConfigs: ReadonlyArray<CloudDeviceConfig>,
+    deviceConfigs: readonly CloudDeviceConfig[],
     hooks: CloudHooks,
   ) {
     this.sched = sched
@@ -145,6 +147,7 @@ export class FakeICloud {
       wantDownload: new Set(),
       downloading: new Set(),
     }))
+
     for (const device of this.devices) {
       this.scheduleEviction(device)
     }
@@ -165,37 +168,49 @@ export class FakeICloud {
 
   setOnline(id: number, online: boolean) {
     const d = at(this.devices, id)
+
     if (d.online === online) {
       return
     }
+
     d.online = online
+
     if (!online) {
       return
     }
+
     this.pump(d)
+
     for (const path of d.deferredNotify) {
       this.notify(d, path)
     }
+
     d.deferredNotify.clear()
+
     for (const path of d.wantDownload) {
       this.startDownload(d, path)
     }
+
     this.hooks.onViewChange(d.id)
   }
 
   fs(id: number): CloudFs {
     const d = at(this.devices, id)
     const stub = d.cfg.style === "stub"
+
     const placeholderOf = (path: string) => {
       const [dir, name] = splitPath(path)
       const target = stub ? stubTarget(name) : undefined
+
       return target === undefined ? undefined : `${dir}/${target}`
     }
+
     return {
       list: (dir) =>
         Effect.sync(() => {
           const prefix = `${dir}/`
           const out: string[] = []
+
           for (const [sub, names] of d.dirs) {
             if (
               names.size > 0 &&
@@ -205,25 +220,32 @@ export class FakeICloud {
               out.push(sub.slice(prefix.length))
             }
           }
+
           for (const name of d.dirs.get(dir) ?? []) {
             const entry = d.view.get(`${dir}/${name}`)
             out.push(stub && entry?.bytes === null ? `.${name}.icloud` : name)
           }
+
           return out
         }),
       stat: (path) =>
         Effect.sync(() => {
           const real = placeholderOf(path)
+
           if (real !== undefined) {
             const entry = d.view.get(real)
+
             return entry !== undefined && entry.bytes === null
               ? Option.some({ size: STUB_PLIST.length, mtime: entry.mtime, dataless: false })
               : Option.none()
           }
+
           const entry = d.view.get(path)
+
           if (entry === undefined || (entry.bytes === null && stub)) {
             return Option.none()
           }
+
           return Option.some({
             size: entry.size,
             mtime: entry.mtime,
@@ -233,23 +255,32 @@ export class FakeICloud {
       read: (path) =>
         Effect.suspend((): Effect.Effect<Uint8Array, NotDownloaded | NotFound> => {
           const real = placeholderOf(path)
+
           if (real !== undefined) {
             const entry = d.view.get(real)
+
             if (entry === undefined || entry.bytes !== null) {
               return Effect.fail(new NotFound({ path }))
             }
+
             this.stats.stubReads++
+
             return Effect.succeed(STUB_PLIST)
           }
+
           const entry = d.view.get(path)
+
           if (entry === undefined || (entry.bytes === null && stub)) {
             return Effect.fail(new NotFound({ path }))
           }
+
           if (entry.bytes === null) {
             this.stats.datalessReads++
             this.requestDownload(d, path)
+
             return Effect.fail(new NotDownloaded({ path }))
           }
+
           return Effect.succeed(entry.bytes)
         }),
       write: (path, bytes) =>
@@ -270,6 +301,7 @@ export class FakeICloud {
       download: (path) =>
         Effect.sync(() => {
           const real = placeholderOf(path) ?? path
+
           if (d.view.get(real)?.bytes === null) {
             this.requestDownload(d, real)
           }
@@ -295,6 +327,7 @@ export class FakeICloud {
     if (!d.online) {
       return
     }
+
     for (const [path, op] of d.outbox) {
       if (!d.uploading.has(path)) {
         this.startUpload(d, path, op)
@@ -305,22 +338,28 @@ export class FakeICloud {
   private startUpload(d: DeviceState, path: string, op: Pending) {
     d.uploading.add(path)
     this.inFlight++
+
     const delay = tiered(this.rng, [
-      [0.85, 500, 5_000],
-      [0.13, 5_000, 120_000],
+      [0.85, 500, 5000],
+      [0.13, 5000, 120_000],
       [0.02, 120_000, 1_800_000],
     ])
+
     this.sched.soon(delay, () => {
       this.inFlight--
       d.uploading.delete(path)
+
       if (!d.online) {
         return
       }
+
       if (d.outbox.get(path) === op) {
         d.outbox.delete(path)
       }
+
       this.applyToServer(d, path, op)
       const next = d.outbox.get(path)
+
       if (next !== undefined) {
         this.startUpload(d, path, next)
       }
@@ -335,7 +374,9 @@ export class FakeICloud {
           this.notifyAll(path, d)
         }
       },
-      Write: ({ bytes, mtime }) => this.writeToServer(d, path, bytes, mtime),
+      Write: ({ bytes, mtime }) => {
+        this.writeToServer(d, path, bytes, mtime)
+      },
     })
   }
 
@@ -346,18 +387,24 @@ export class FakeICloud {
     this.stats.uploads++
     this.stats.uploadBytes += bytes.length
     const local = d.view.get(path)
+
     if (local !== undefined && !d.outbox.has(path)) {
       local.version = version
     }
+
     this.hooks.onServerWrite(path, bytes, d.id, false)
     this.notifyAll(path, d)
+
     if (!this.rng.chance(this.cfg.conflictCopyRate)) {
       return
     }
+
     let n = 2
+
     while (this.server.has(conflictCopyName(path, n))) {
       n++
     }
+
     const copy = conflictCopyName(path, n)
     const copyBytes = previous?.bytes ?? bytes
     this.server.set(copy, { bytes: copyBytes, version: ++this.version, mtime })
@@ -377,16 +424,21 @@ export class FakeICloud {
   private notify(d: DeviceState, path: string) {
     if (!d.online) {
       d.deferredNotify.add(path)
+
       return
     }
+
     this.inFlight++
+
     const delay = tiered(this.rng, [
-      [0.8, 1_000, 15_000],
+      [0.8, 1000, 15_000],
       [0.17, 15_000, 300_000],
       [0.03, 300_000, 3_600_000],
     ])
+
     this.sched.soon(delay, () => {
       this.inFlight--
+
       if (d.online) {
         this.refresh(d, path)
       } else {
@@ -399,27 +451,34 @@ export class FakeICloud {
     if (d.outbox.has(path)) {
       return
     }
+
     const remote = this.server.get(path)
     const local = d.view.get(path)
+
     if (remote === undefined) {
       if (local !== undefined) {
         this.removeEntry(d, path)
         this.hooks.onViewChange(d.id)
       }
+
       return
     }
+
     if (local !== undefined && local.version === remote.version) {
       return
     }
+
     this.setEntry(d, path, {
       version: remote.version,
       size: remote.bytes.length,
       mtime: remote.mtime,
       bytes: null,
     })
+
     if (d.cfg.autoDownload) {
       this.requestDownload(d, path)
     }
+
     this.hooks.onViewChange(d.id)
   }
 
@@ -427,6 +486,7 @@ export class FakeICloud {
     if (d.wantDownload.has(path)) {
       return
     }
+
     d.wantDownload.add(path)
     this.startDownload(d, path)
   }
@@ -435,29 +495,39 @@ export class FakeICloud {
     if (!d.online || d.downloading.has(path)) {
       return
     }
+
     d.downloading.add(path)
     this.inFlight++
+
     const delay = tiered(this.rng, [
-      [0.85, 300, 5_000],
-      [0.13, 5_000, 120_000],
+      [0.85, 300, 5000],
+      [0.13, 5000, 120_000],
       [0.02, 120_000, 900_000],
     ])
+
     this.sched.soon(delay, () => {
       this.inFlight--
       d.downloading.delete(path)
+
       if (!d.online) {
         return
       }
+
       d.wantDownload.delete(path)
+
       if (this.rng.chance(this.cfg.downloadFailRate)) {
         this.stats.downloadFailures++
         this.hooks.onViewChange(d.id)
+
         return
       }
+
       if (d.outbox.has(path)) {
         return
       }
+
       const remote = this.server.get(path)
+
       if (remote === undefined) {
         this.removeEntry(d, path)
       } else {
@@ -470,6 +540,7 @@ export class FakeICloud {
           bytes: remote.bytes,
         })
       }
+
       this.hooks.onViewChange(d.id)
     })
   }
@@ -486,6 +557,7 @@ export class FakeICloud {
           this.stats.evictions++
         }
       }
+
       this.scheduleEviction(d)
     })
   }

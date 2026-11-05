@@ -4,7 +4,8 @@ import { IconAdjustmentsHorizontal, IconHistory, IconKeyboard, IconX } from "@ta
 import { Link } from "@tanstack/react-router"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { useId, type ReactNode } from "react"
+import { useId } from "react"
+import type { ReactNode } from "react"
 import type { AppFilePath } from "@seqno/rpc"
 import { openGraph, resolvedTheme } from "../../atoms.ts"
 import { revision } from "../../version.ts"
@@ -15,7 +16,8 @@ import { VersionControl } from "./Git.tsx"
 import { closeDialogOf, Dialog } from "./popover.tsx"
 import { ShortcutList } from "./ShortcutList.tsx"
 import { keysOf } from "./shortcuts.ts"
-import { settingsDialogId, settingsTab, vimMode, wideMode, type SettingsTab } from "./state.ts"
+import { settingsDialogId, settingsTab, vimMode, wideMode } from "./state.ts"
+import type { SettingsTab } from "./state.ts"
 
 const tabs: ReadonlyArray<readonly [SettingsTab, string, ReactNode]> = [
   ["general", "General", <IconAdjustmentsHorizontal key="general" size={16} aria-hidden />],
@@ -48,6 +50,7 @@ const appFileRows: ReadonlyArray<readonly [string, AppFilePath]> = [
 
 const EditFile = ({ label, path }: { readonly label: string; readonly path: AppFilePath }) => {
   const labelId = useId()
+
   return (
     <Row label={label} labelId={labelId}>
       <Link
@@ -71,6 +74,7 @@ const General = () => {
   const wideLabel = useId()
   const vimLabel = useId()
   const accentLabel = useId()
+
   return (
     <>
       <Row label="Current version" labelId={versionLabel}>
@@ -103,6 +107,7 @@ const General = () => {
 export const Settings = () => {
   const [tab, setTab] = useAtom(settingsTab)
   const title = tabs.find(([id]) => id === tab)?.[1] ?? "General"
+
   return (
     <Dialog
       id={settingsDialogId}
@@ -120,7 +125,9 @@ export const Settings = () => {
               role="tab"
               aria-selected={tab === id}
               className="settings-tab"
-              onClick={() => setTab(id)}
+              onClick={() => {
+                setTab(id)
+              }}
             >
               {icon}
               {label}

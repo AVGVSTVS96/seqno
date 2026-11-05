@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { analyzeBlock, blockContent, parseInline, type Body, type Inline } from "../src/index.ts"
+import { analyzeBlock, blockContent, parseInline } from "../src/index.ts"
+import type { Body, Inline } from "../src/index.ts"
 
-const math = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
+const math = (nodes: readonly Inline[]): readonly string[] =>
   nodes.map((node) =>
     node._tag === "Math"
       ? `${node.open === "$" || node.open === "\\(" ? "Inline" : "Displayed"}(${node.tex})`
@@ -10,7 +11,7 @@ const math = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
         : node._tag,
   )
 
-const bodies = (text: string): ReadonlyArray<string> =>
+const bodies = (text: string): readonly string[] =>
   blockContent(text).body.map((body: Body) =>
     body._tag === "Math"
       ? `Math(${body.tex})`

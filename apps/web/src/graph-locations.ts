@@ -9,14 +9,16 @@ export const GraphLocation = Schema.TaggedUnion({
   FolderGraph: { name: Schema.NonEmptyString, handle: DirectoryHandle },
   OpfsGraph: { name: Schema.NonEmptyString },
 })
+
 export type GraphLocation = typeof GraphLocation.Type
 
 export const DemoGraph = Schema.Literals(["demo", "developer"])
+
 export type DemoGraph = typeof DemoGraph.Type
 
 export const demoGraph: DemoGraph = "demo"
 
-export const demoGraphs: ReadonlyArray<DemoGraph> = DemoGraph.literals
+export const demoGraphs: readonly DemoGraph[] = DemoGraph.literals
 
 const demoTitles: Record<DemoGraph, string> = {
   demo: "Getting started",
@@ -39,7 +41,7 @@ export class GraphNotPicked extends Schema.TaggedError<GraphNotPicked>()("GraphN
 export class GraphLocations extends Context.Service<
   GraphLocations,
   {
-    readonly recent: Effect.Effect<ReadonlyArray<GraphLocation>>
+    readonly recent: Effect.Effect<readonly GraphLocation[]>
     readonly pickFolder: Effect.Effect<GraphLocation, GraphNotPicked>
     readonly demo: (name: DemoGraph) => Effect.Effect<GraphLocation, GraphNotPicked>
     readonly reopen: (name: string) => Effect.Effect<GraphLocation, GraphNotPicked>
@@ -54,8 +56,12 @@ const notPicked = (cause: unknown) =>
 const request = <A>(make: () => IDBRequest<A>) =>
   Effect.callback<A, GraphNotPicked>((resume) => {
     const pending = make()
-    pending.addEventListener("success", () => resume(Effect.succeed(pending.result)))
-    pending.addEventListener("error", () => resume(Effect.fail(notPicked(pending.error))))
+    pending.addEventListener("success", () => {
+      resume(Effect.succeed(pending.result))
+    })
+    pending.addEventListener("error", () => {
+      resume(Effect.fail(notPicked(pending.error)))
+    })
   })
 
 const openDatabase = Effect.callback<IDBDatabase, GraphNotPicked>((resume) => {
@@ -63,8 +69,12 @@ const openDatabase = Effect.callback<IDBDatabase, GraphNotPicked>((resume) => {
   opening.addEventListener("upgradeneeded", () =>
     opening.result.createObjectStore("graphs", { keyPath: "name" }),
   )
-  opening.addEventListener("success", () => resume(Effect.succeed(opening.result)))
-  opening.addEventListener("error", () => resume(Effect.fail(notPicked(opening.error))))
+  opening.addEventListener("success", () => {
+    resume(Effect.succeed(opening.result))
+  })
+  opening.addEventListener("error", () => {
+    resume(Effect.fail(notPicked(opening.error)))
+  })
 })
 
 const graphs = (mode: IDBTransactionMode) =>
@@ -85,7 +95,7 @@ const permitted = (
   GraphLocation.match(location, {
     FolderGraph: ({ handle }) =>
       Effect.tryPromise({
-        try: () => ask(handle),
+        try: async () => await ask(handle),
         catch: notPicked,
       }).pipe(
         Effect.flatMap((state) =>
@@ -99,23 +109,33 @@ const permitted = (
     OpfsGraph: () => Effect.succeed(location),
   })
 
-const folderOf = (location: GraphLocation) =>
-  GraphLocation.match(location, {
-    FolderGraph: ({ handle }) => Promise.resolve(handle),
+const folderOf = async (location: GraphLocation) =>
+  await GraphLocation.match(location, {
+    FolderGraph: async ({ handle }) => await Promise.resolve(handle),
     OpfsGraph: async ({ name }) => {
       const root = await navigator.storage.getDirectory()
       const folder = await root.getDirectoryHandle("graphs")
-      return folder.getDirectoryHandle(name)
+
+      return await folder.getDirectoryHandle(name)
     },
   })
 
 const readFile = async (folder: FileSystemDirectoryHandle, path: string) => {
   const parts = path.split("/").filter((part) => part !== "" && part !== ".")
   const name = parts.pop()
-  if (name === undefined || parts.includes("..")) return null
+
+  if (name === undefined || parts.includes("..")) {
+    return null
+  }
+
   let at = folder
-  for (const part of parts) at = await at.getDirectoryHandle(part)
+
+  for (const part of parts) {
+    at = await at.getDirectoryHandle(part)
+  }
+
   const file = await (await at.getFileHandle(name)).getFile()
+
   return new Uint8Array(await file.arrayBuffer())
 }
 
@@ -130,7 +150,7 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
     Effect.orElseSucceed(() => []),
   ),
   pickFolder: Effect.tryPromise({
-    try: () => window.showDirectoryPicker({ id: "seqno-graph", mode: "readwrite" }),
+    try: async () => await window.showDirectoryPicker({ id: "seqno-graph", mode: "readwrite" }),
     catch: notPicked,
   }).pipe(Effect.flatMap((handle) => save({ _tag: "FolderGraph", name: handle.name, handle }))),
   demo: (name) =>
@@ -144,17 +164,17 @@ export const BrowserGraphLocations = Layer.succeed(GraphLocations, {
     }).pipe(Effect.flatMap(() => save({ _tag: "OpfsGraph", name }))),
   reopen: (name) =>
     Effect.flatMap(stored(name), (location) =>
-      permitted(location, (handle) => handle.requestPermission({ mode: "readwrite" })),
+      permitted(location, async (handle) => await handle.requestPermission({ mode: "readwrite" })),
     ),
   resume: (name) =>
     Effect.flatMap(stored(name), (location) =>
-      permitted(location, (handle) => handle.queryPermission({ mode: "readwrite" })),
+      permitted(location, async (handle) => await handle.queryPermission({ mode: "readwrite" })),
     ),
   file: (name, path) =>
     stored(name).pipe(
       Effect.flatMap((location) =>
         Effect.tryPromise({
-          try: async () => readFile(await folderOf(location), path),
+          try: async () => await readFile(await folderOf(location), path),
           catch: notPicked,
         }),
       ),

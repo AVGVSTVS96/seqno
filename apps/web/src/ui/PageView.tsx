@@ -3,7 +3,8 @@ import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
-import { isWhiteboard, normalizePageName, type BlockId, type Page } from "@seqno/domain"
+import { isWhiteboard, normalizePageName } from "@seqno/domain"
+import type { BlockId, Page } from "@seqno/domain"
 import { Outliner } from "@seqno/outliner"
 import { journalDate, journalTitle } from "@seqno/editor"
 import { assetResolver, createPage, pages } from "../atoms.ts"
@@ -37,6 +38,7 @@ export const PageView = ({
   const openMenu = useAtomSet(blockMenu)
   const vim = useAtomValue(vimMode)
   const zoomed = zoom !== null
+
   return (
     <div {...logseq("seqno-page", inJournals === true)} data-zoomed={zoomed}>
       <PagesStyle />
@@ -67,7 +69,7 @@ export const PageView = ({
   )
 }
 
-const named = (all: ReadonlyArray<Page>, name: string) =>
+const named = (all: readonly Page[], name: string) =>
   Option.orElse(Option.fromNullishOr(all.find((page) => page.name === name)), () =>
     Option.fromNullishOr(
       all.find((page) =>
@@ -80,9 +82,11 @@ const MissingPage = ({ name }: { readonly name: string }) => {
   const heading = useId()
   const create = useAtomSet(createPage)
   const day = journalDate(name)
+
   const title =
     useAtomValue(referencedOnly).find((page) => page.name === name)?.title ??
     (day === null ? name : journalTitle(day))
+
   return (
     <div {...logseq("seqno-page", false)}>
       <PagesStyle />
@@ -97,7 +101,9 @@ const MissingPage = ({ name }: { readonly name: string }) => {
             type="button"
             className="seqno-page-create"
             aria-label="Click here to start writing"
-            onClick={() => create(title)}
+            onClick={() => {
+              create(title)
+            }}
           >
             <span className="seqno-page-create-bullet" />
           </button>

@@ -1,14 +1,16 @@
 import { logseq, names } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import type { Atom } from "effect/reactivity"
-import { useId, type ReactNode } from "react"
-import { resolvedTheme, theme, type ThemeChoice } from "../../atoms.ts"
+import { useId } from "react"
+import type { ReactNode } from "react"
+import { resolvedTheme, theme } from "../../atoms.ts"
+import type { ThemeChoice } from "../../atoms.ts"
 import { Keys } from "./Keys.tsx"
 import type { PopoverHandle } from "./popover.tsx"
 import { keysOf } from "./shortcuts.ts"
 import { wideMode } from "./state.ts"
 
-const choices: ReadonlyArray<ThemeChoice> = ["light", "dark", "system"]
+const choices: readonly ThemeChoice[] = ["light", "dark", "system"]
 
 const Row = ({
   label,
@@ -18,7 +20,7 @@ const Row = ({
 }: {
   readonly label: string
   readonly labelId: string
-  readonly keys: ReadonlyArray<string>
+  readonly keys: readonly string[]
   readonly children: ReactNode
 }) => (
   <div className="appearance-row">
@@ -44,6 +46,7 @@ const Preview = ({ choice }: { readonly choice: ThemeChoice }) => (
 
 export const ThemeChoices = ({ labelledBy }: { readonly labelledBy: string }) => {
   const [choice, setChoice] = useAtom(theme)
+
   return (
     <div role="radiogroup" aria-labelledby={labelledBy} className="theme-choices">
       {choices.map((option) => (
@@ -53,7 +56,9 @@ export const ThemeChoices = ({ labelledBy }: { readonly labelledBy: string }) =>
           role="radio"
           aria-checked={choice === option}
           className="theme-choice"
-          onClick={() => setChoice(option)}
+          onClick={() => {
+            setChoice(option)
+          }}
         >
           <Preview choice={option} />
           <span className="theme-choice-label">{option}</span>
@@ -92,7 +97,16 @@ export const SettingSwitch = ({
   readonly labelledBy: string
 }) => {
   const [on, setOn] = useAtom(setting)
-  return <SwitchButton on={on} labelledBy={labelledBy} onToggle={() => setOn(!on)} />
+
+  return (
+    <SwitchButton
+      on={on}
+      labelledBy={labelledBy}
+      onToggle={() => {
+        setOn(!on)
+      }}
+    />
+  )
 }
 
 export const themeLabelOf = (resolved: "light" | "dark") =>
@@ -102,6 +116,7 @@ export const Appearance = ({ handle }: { readonly handle: PopoverHandle }) => {
   const resolved = useAtomValue(resolvedTheme)
   const themeLabel = useId()
   const wideLabel = useId()
+
   return (
     <div
       id={handle.id}

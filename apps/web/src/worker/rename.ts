@@ -1,12 +1,6 @@
 import { Effect, Option, Schema } from "effect"
-import {
-  BlockId,
-  normalizePageName,
-  type Command,
-  type PageId,
-  type PropertyTarget,
-  type Props,
-} from "@seqno/domain"
+import { BlockId, normalizePageName } from "@seqno/domain"
+import type { Command, PageId, PropertyTarget, Props } from "@seqno/domain"
 import { renameInProperty, renameRefs } from "@seqno/syntax"
 import type { Session } from "./session.ts"
 
@@ -20,9 +14,10 @@ const propertyEdits = (
   props: Props,
   renamed: (name: string) => boolean,
   title: string,
-): ReadonlyArray<Command> =>
-  Object.entries(props).flatMap(([key, value]): ReadonlyArray<Command> => {
+): readonly Command[] =>
+  Object.entries(props).flatMap(([key, value]): readonly Command[] => {
     const next = renameInProperty(key, value, renamed, title)
+
     return next === value ? [] : [{ _tag: "SetProperty", target, key, value: next }]
   })
 
@@ -30,11 +25,16 @@ const referenceEdits = (session: Session, pageId: PageId, title: string) =>
   Effect.gen(function* () {
     const pages = yield* session.graph.pages
     const page = pages.find((candidate) => candidate.id === pageId)
-    if (page === undefined) return []
+
+    if (page === undefined) {
+      return []
+    }
+
     const renamed = (name: string) => normalizePageName(name) === page.name
     yield* session.indexed
     const rows = yield* Effect.orDie(session.index.query(REFERRING_BLOCKS, [page.name]))
     const blocks = yield* session.blocks(rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))))
+
     const blockEdits = blocks.flatMap((block) => [
       ...renameRefs(block.text, renamed, title).map((edit): Command => ({
         _tag: "EditText",
@@ -43,9 +43,11 @@ const referenceEdits = (session: Session, pageId: PageId, title: string) =>
       })),
       ...propertyEdits({ _tag: "BlockTarget", blockId: block.id }, block.props, renamed, title),
     ])
+
     const pageEdits = pages.flatMap((other) =>
       propertyEdits({ _tag: "PageTarget", pageId: other.id }, other.props, renamed, title),
     )
+
     return [...blockEdits, ...pageEdits]
   })
 
@@ -54,7 +56,9 @@ SELECT b.id FROM blocks b WHERE instr(lower(b.content), ?1) > 0
 UNION SELECT b.id FROM props p JOIN blocks b ON b.rid = p.block WHERE instr(lower(p.value), ?1) > 0`
 
 const spansOf = (text: string, needle: string) =>
-  [...text.matchAll(new RegExp(needle.replace(/[()]/g, "\\$&"), "gi"))].map((match) => match.index)
+  [...text.matchAll(new RegExp(needle.replaceAll(/[()]/g, "\\$&"), "gi"))].map(
+    (match) => match.index,
+  )
 
 const reRef = (text: string, from: string, to: string) =>
   spansOf(text, from).reduce(
@@ -65,19 +69,25 @@ const reRef = (text: string, from: string, to: string) =>
 const blockRefEdits = (session: Session, blockId: BlockId) =>
   Effect.gen(function* () {
     const target = yield* session.graph.mergeTarget(blockId)
-    if (Option.isNone(target)) return []
+
+    if (Option.isNone(target)) {
+      return []
+    }
+
     const from = `((${blockId.toLowerCase()}))`
     const to = `((${target.value}))`
     yield* session.indexed
     const rows = yield* Effect.orDie(session.index.query(BLOCKS_CITING, [from]))
     const blocks = yield* session.blocks(rows.flatMap(([id]) => Option.toArray(decodeBlockId(id))))
     const pages = yield* session.graph.pages
-    const propertyRefs = (owner: PropertyTarget, props: Props): ReadonlyArray<Command> =>
-      Object.entries(props).flatMap(([key, value]): ReadonlyArray<Command> =>
+
+    const propertyRefs = (owner: PropertyTarget, props: Props): readonly Command[] =>
+      Object.entries(props).flatMap(([key, value]): readonly Command[] =>
         spansOf(value, from).length === 0
           ? []
           : [{ _tag: "SetProperty", target: owner, key, value: reRef(value, from, to) }],
       )
+
     return [
       ...blocks
         .filter((block) => block.id !== blockId)
@@ -98,7 +108,7 @@ const blockRefEdits = (session: Session, blockId: BlockId) =>
 export const withReferenceEdits = (
   session: Session,
   command: Command,
-): Effect.Effect<ReadonlyArray<Command>> =>
+): Effect.Effect<readonly Command[]> =>
   command._tag === "RenamePage"
     ? Effect.map(referenceEdits(session, command.pageId, command.title), (edits) => [
         command,

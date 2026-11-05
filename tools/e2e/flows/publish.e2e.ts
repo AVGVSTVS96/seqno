@@ -7,8 +7,9 @@ import { expect, openDemo, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
-const markPublic = async (file: string) =>
-  writeFile(file, `public:: true\n${await readFile(file, "utf8")}`)
+const markPublic = async (file: string) => {
+  await writeFile(file, `public:: true\n${await readFile(file, "utf-8")}`)
+}
 
 test("Export public pages writes a site that opens from disk", async ({ page, browser }, info) => {
   const graph = info.outputPath("graph")
@@ -25,12 +26,14 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   const plan = join(graph, "pages", "Garden Plan.md")
   await writeFile(
     plan,
-    `${await readFile(plan, "utf8")}- Rotation\n  crops:: garlic, broad beans\n- Rows sit $30\\,\\text{cm}$ apart`,
+    `${await readFile(plan, "utf-8")}- Rotation\n  crops:: garlic, broad beans\n- Rows sit $30\\,\\text{cm}$ apart`,
   )
   await seedOpfs(page, graph, ["graphs", "demo"])
   await page.addInitScript(() => {
     window.showDirectoryPicker = async () =>
-      (await navigator.storage.getDirectory()).getDirectoryHandle("published", { create: true })
+      await (
+        await navigator.storage.getDirectory()
+      ).getDirectoryHandle("published", { create: true })
   })
   await openDemo(page, "/page/garden%20plan")
   await page.getByRole("button", { name: "More" }).click()
@@ -47,11 +50,12 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   await page.keyboard.insertText(".ls-block { outline: 3px solid rgb(1, 2, 3) }")
   await page.getByRole("main").getByRole("heading", { level: 1 }).click()
   await expect
-    .poll(() =>
-      opfsFiles(page, ["graphs", "demo", "logseq"]).then(
-        (files) => Buffer.from(files["export.css"] ?? new Uint8Array()).toString(),
-        () => "",
-      ),
+    .poll(
+      async () =>
+        await opfsFiles(page, ["graphs", "demo", "logseq"]).then(
+          (files) => Buffer.from(files["export.css"] ?? new Uint8Array()).toString(),
+          () => "",
+        ),
     )
     .toBe(".ls-block { outline: 3px solid rgb(1, 2, 3) }\n")
   await page.goBack()
@@ -79,10 +83,12 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
     "static/js/seqno.js",
   ])
   const site = info.outputPath("site")
+
   for (const [path, bytes] of Object.entries(files)) {
     await mkdir(dirname(join(site, path)), { recursive: true })
     await writeFile(join(site, path), bytes)
   }
+
   const index = Buffer.from(files["index.html"] ?? new Uint8Array()).toString()
   expect(index).toContain("Broad beans under fleece")
   expect(index).not.toContain("San Marzano tomatoes. #greenhouse")
@@ -91,7 +97,7 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   )
 
   const viewer = await browser.newPage()
-  const errors: Array<string> = []
+  const errors: string[] = []
   viewer.on("pageerror", (error) => errors.push(error.message))
   await viewer.goto(`${pathToFileURL(join(site, "index.html")).href}#/page/garden%20plan`)
   await expect(viewer).toHaveTitle("Garden Plan")
@@ -122,10 +128,11 @@ test("Export public pages writes a site that opens from disk", async ({ page, br
   await table.getByRole("link", { name: "Showcase" }).click()
   await expect(main.getByRole("img", { name: "Greenhouse sketch" })).toBeVisible()
   await expect
-    .poll(() =>
-      main
-        .getByRole("img", { name: "Greenhouse sketch" })
-        .evaluate((image) => image instanceof HTMLImageElement && image.naturalWidth > 0),
+    .poll(
+      async () =>
+        await main
+          .getByRole("img", { name: "Greenhouse sketch" })
+          .evaluate((image) => image instanceof HTMLImageElement && image.naturalWidth > 0),
     )
     .toBe(true)
 

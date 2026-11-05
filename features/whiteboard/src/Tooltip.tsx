@@ -12,6 +12,7 @@ const isSide = (value: string | undefined): value is Side =>
 
 const triggerOf = (target: EventTarget | null, root: HTMLElement) => {
   const trigger = target instanceof Element ? target.closest<HTMLElement>("[data-tooltip]") : null
+
   return trigger !== null && root.contains(trigger) ? trigger : null
 }
 
@@ -22,6 +23,7 @@ const fits = (side: Side, at: DOMRect, size: DOMRect) => {
     left: at.left,
     right: innerWidth - at.right,
   }[side]
+
   return room >= (side === "top" || side === "bottom" ? size.height : size.width) + OFFSET
 }
 
@@ -32,19 +34,24 @@ const place = (trigger: HTMLElement, tip: HTMLElement) => {
   const wanted = isSide(asked) ? asked : "top"
   const at = trigger.getBoundingClientRect()
   const size = tip.getBoundingClientRect()
+
   const side =
     fits(wanted, at, size) || !fits(OPPOSITE[wanted], at, size) ? wanted : OPPOSITE[wanted]
+
   const vertical = side === "top" || side === "bottom"
+
   const left = vertical
     ? clamp(at.left + at.width / 2 - size.width / 2, MARGIN, innerWidth - size.width - MARGIN)
     : side === "left"
       ? at.left - OFFSET - size.width
       : at.right + OFFSET
+
   const top = vertical
     ? side === "top"
       ? at.top - OFFSET - size.height
       : at.bottom + OFFSET
     : clamp(at.top + at.height / 2 - size.height / 2, MARGIN, innerHeight - size.height - MARGIN)
+
   const arrow = vertical ? at.left + at.width / 2 - left : at.top + at.height / 2 - top
   tip.dataset["side"] = side
   tip.style.left = `${left}px`
@@ -56,12 +63,19 @@ const attach = (tip: HTMLDivElement | null) => {
   const root = tip?.parentElement
   const label = tip?.querySelector<HTMLElement>(".wb-tooltip-label")
   const keys = tip?.querySelector<HTMLElement>(".wb-tooltip-keys")
-  if (tip == null || root == null || label == null || keys == null) return
+
+  if (tip == null || root == null || label == null || keys == null) {
+    return
+  }
+
   let timer: ReturnType<typeof setTimeout> | undefined
   let current: HTMLElement | null = null
 
   const show = (trigger: HTMLElement, delayed: boolean) => {
-    if (!trigger.isConnected) return
+    if (!trigger.isConnected) {
+      return
+    }
+
     label.textContent = trigger.dataset["tooltip"] ?? ""
     keys.textContent = trigger.dataset["tooltipKeys"] ?? ""
     keys.hidden = trigger.dataset["tooltipKeys"] === undefined
@@ -69,37 +83,67 @@ const attach = (tip: HTMLDivElement | null) => {
     tip.showPopover()
     place(trigger, tip)
   }
+
   const hide = () => {
     clearTimeout(timer)
     current = null
     tip.dataset["state"] = "closed"
-    if (tip.matches(":popover-open")) tip.hidePopover()
+
+    if (tip.matches(":popover-open")) {
+      tip.hidePopover()
+    }
   }
+
   const over = (event: PointerEvent) => {
-    if (event.pointerType === "touch") return
+    if (event.pointerType === "touch") {
+      return
+    }
+
     const trigger = triggerOf(event.target, root)
-    if (trigger === current) return
+
+    if (trigger === current) {
+      return
+    }
+
     hide()
-    if (trigger === null) return
+
+    if (trigger === null) {
+      return
+    }
+
     current = trigger
-    timer = setTimeout(() => show(trigger, true), DELAY_MS)
+    timer = setTimeout(() => {
+      show(trigger, true)
+    }, DELAY_MS)
   }
+
   const leave = (event: PointerEvent) => {
-    if (!(event.relatedTarget instanceof Node && root.contains(event.relatedTarget))) hide()
+    if (!(event.relatedTarget instanceof Node && root.contains(event.relatedTarget))) {
+      hide()
+    }
   }
+
   const press = (event: PointerEvent) => {
     hide()
     current = triggerOf(event.target, root)
   }
+
   const focus = (event: FocusEvent) => {
     const trigger = triggerOf(event.target, root)
-    if (trigger === null || !trigger.matches(":focus-visible")) return
+
+    if (trigger === null || !trigger.matches(":focus-visible")) {
+      return
+    }
+
     hide()
     current = trigger
     show(trigger, false)
   }
+
   const key = (event: KeyboardEvent) => {
-    if (event.key === "Escape") hide()
+    if (event.key === "Escape") {
+      hide()
+    }
   }
 
   root.addEventListener("pointerover", over)
@@ -109,6 +153,7 @@ const attach = (tip: HTMLDivElement | null) => {
   root.addEventListener("focusin", focus)
   root.addEventListener("focusout", hide)
   root.addEventListener("keydown", key, true)
+
   return () => {
     clearTimeout(timer)
     root.removeEventListener("pointerover", over)

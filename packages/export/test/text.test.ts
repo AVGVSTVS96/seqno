@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { exportBlocks, type BlockOptions } from "../src/index.ts"
+import { exportBlocks } from "../src/index.ts"
+import type { BlockOptions } from "../src/index.ts"
 import { blockOf, libraryOf, pageId } from "./graph.ts"
 
 const logseq = libraryOf({
@@ -93,6 +94,7 @@ describe("text export options", () => {
 	- spaced
 	  more`,
   })
+
   const page = (options: Partial<BlockOptions>) =>
     exportBlocks(notes, { _tag: "Page", pageId: pageId(1) }, "text", { ...defaults, ...options })
 
@@ -168,6 +170,7 @@ describe("text export options", () => {
         "  last line",
       ].join("\n"),
     })
+
     expect(exportBlocks(shaped, { _tag: "Page", pageId: pageId(1) }, "text", defaults)).toBe(
       [
         "- Steps",
@@ -209,6 +212,7 @@ describe("text export options", () => {
 
 describe("a front matter page", () => {
   const base = libraryOf({ notes: "- Pressed three ferns\n\t- the third one" })
+
   const front = {
     ...base,
     pages: base.pages.map((entry) => ({
@@ -216,6 +220,7 @@ describe("a front matter page", () => {
       page: { ...entry.page, props: { title: "Notes", rating: "4" }, frontMatter: true as const },
     })),
   }
+
   const page = (format: "text" | "opml" | "html", indent: BlockOptions["indent"] = "dashes") =>
     exportBlocks(front, { _tag: "Page", pageId: pageId(1) }, format, { ...defaults, indent })
 

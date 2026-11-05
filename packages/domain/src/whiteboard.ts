@@ -14,9 +14,11 @@ export const isWhiteboard = (page: Page): boolean => page.props[TYPE_KEY] === WH
 export const isShapeBlock = (block: Block): boolean => block.props[TYPE_KEY] === WHITEBOARD_SHAPE
 
 const Vec = Schema.Tuple([Schema.Finite, Schema.Finite])
+
 export type Vec = typeof Vec.Type
 
 export const ScaleLevel = Schema.Literals(["xs", "sm", "md", "lg", "xl", "xxl"])
+
 export type ScaleLevel = typeof ScaleLevel.Type
 
 const placed = {
@@ -40,6 +42,7 @@ const lettered = {
 }
 
 const Handle = Schema.Struct({ point: Vec, bindTo: Schema.optionalKey(BlockId) })
+
 export type Handle = typeof Handle.Type
 
 const Arrowhead = Schema.optionalKey(Schema.Literals(["arrow", ""]))
@@ -166,6 +169,7 @@ export const Shape = Schema.Union([
   PdfShape,
   GroupShape,
 ])
+
 export type Shape = typeof Shape.Type
 
 export type OtherShape = typeof OtherShape.Type
@@ -205,9 +209,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export const isBlockLink = (link: string): boolean => UUID.test(link)
 
-export const shapeLinks = (block: Block): ReadonlyArray<string> => {
-  if (!isShapeBlock(block)) return []
+export const shapeLinks = (block: Block): readonly string[] => {
+  if (!isShapeBlock(block)) {
+    return []
+  }
+
   const refs = shapeRaw(block)["refs"]
+
   return Array.isArray(refs)
     ? refs.filter((ref): ref is string => typeof ref === "string" && ref !== "")
     : []
@@ -218,6 +226,7 @@ export const linkText = (link: string): string =>
 
 export const indexedText = (block: Block): string => {
   const links = shapeLinks(block)
+
   return links.length === 0 ? block.text : `${block.text}\n${links.map(linkText).join(" ")}`
 }
 
@@ -225,6 +234,7 @@ export const PortalTarget = Schema.TaggedUnion({
   PagePortal: { name: Schema.String },
   BlockPortal: { uuid: Schema.String },
 })
+
 export type PortalTarget = typeof PortalTarget.Type
 
 const PAGE_PORTAL = /^\[\[([^\]\n]+)\]\]$/
@@ -232,8 +242,13 @@ const BLOCK_PORTAL = /^\(\(([0-9a-fA-F-]{36})\)\)$/
 
 export const portalTarget = (text: string): Option.Option<PortalTarget> => {
   const page = PAGE_PORTAL.exec(text.trim())?.[1]
-  if (page !== undefined) return Option.some({ _tag: "PagePortal", name: page })
+
+  if (page !== undefined) {
+    return Option.some({ _tag: "PagePortal", name: page })
+  }
+
   const uuid = BLOCK_PORTAL.exec(text.trim())?.[1]
+
   return uuid === undefined
     ? Option.none()
     : Option.some({ _tag: "BlockPortal", uuid: uuid.toLowerCase() })
@@ -247,25 +262,39 @@ export const portalText = (target: PortalTarget): string =>
 
 export const wordsField = (type: unknown): string | null => {
   switch (type) {
-    case "text":
+    case "text": {
       return "text"
+    }
+
     case "box":
     case "ellipse":
     case "polygon":
-    case "line":
+    case "line": {
       return "label"
-    case "logseq-portal":
+    }
+
+    case "logseq-portal": {
       return "pageId"
-    default:
+    }
+
+    default: {
       return null
+    }
   }
 }
 
 export const wordsIn = (shape: Readonly<Record<string, unknown>>): string => {
   const field = wordsField(shape["type"])
   const value = field === null ? undefined : shape[field]
-  if (typeof value !== "string") return ""
-  if (field !== "pageId" || value === "") return value
+
+  if (typeof value !== "string") {
+    return ""
+  }
+
+  if (field !== "pageId" || value === "") {
+    return value
+  }
+
   return portalText(
     shape["blockType"] === "P"
       ? { _tag: "PagePortal", name: value }
@@ -275,8 +304,15 @@ export const wordsIn = (shape: Readonly<Record<string, unknown>>): string => {
 
 export const wordsFields = (type: unknown, text: string): Readonly<Record<string, unknown>> => {
   const field = wordsField(type)
-  if (field === null) return {}
-  if (field !== "pageId") return { [field]: text }
+
+  if (field === null) {
+    return {}
+  }
+
+  if (field !== "pageId") {
+    return { [field]: text }
+  }
+
   return Option.match(portalTarget(text), {
     onNone: () => ({ pageId: text }),
     onSome: (target) =>

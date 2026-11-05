@@ -1,8 +1,10 @@
 import { strFromU8, unzipSync } from "fflate"
 import { describe, expect, it } from "vitest"
-import { BlockId, PageId, type Block, type Page } from "@seqno/domain"
+import { BlockId, PageId } from "@seqno/domain"
+import type { Block, Page } from "@seqno/domain"
 import { readPropertyConfig } from "@seqno/syntax"
-import { exportGraph, type PageBlocks } from "../src/index.ts"
+import { exportGraph } from "../src/index.ts"
+import type { PageBlocks } from "../src/index.ts"
 import { pageId, pagesOf } from "./graph.ts"
 
 const pages = pagesOf({
@@ -160,8 +162,10 @@ describe("graph export", () => {
         "- ####### Seven hashes",
       ].join("\n"),
     })
+
     const blocks = JSON.parse(strFromU8(exportGraph(typed, "json", options).bytes)).blocks[0]
       .children
+
     expect(blocks.map((entry: { properties: unknown }) => entry.properties)).toEqual([
       {
         done: true,
@@ -195,11 +199,14 @@ describe("graph export", () => {
         "  genre:: [[Space Opera]], hard sf",
       ].join("\n"),
     })
+
     const properties = readPropertyConfig(
       '{:property/separated-by-commas #{:genre}\n :ignored-page-references-keywords #{:author "website"}}',
     )
+
     const page = JSON.parse(strFromU8(exportGraph(books, "json", { ...options, properties }).bytes))
       .blocks[0]
+
     expect([
       page.properties,
       ...page.children.map((entry: { properties: unknown }) => entry.properties),
@@ -246,9 +253,11 @@ describe("graph export", () => {
   it("zips one standard Markdown file per page, properties kept as Logseq does", () => {
     const file = exportGraph(pages, "markdown", options)
     expect(file.name).toBe("demo_markdown_1761120000.zip")
+
     const files = Object.fromEntries(
       Object.entries(unzipSync(file.bytes)).map(([path, bytes]) => [path, strFromU8(bytes)]),
     )
+
     expect(files).toEqual({
       "demo_markdown_1761120000/pages/Ada.md": [
         "  alias:: Countess",
@@ -302,7 +311,7 @@ describe("graph export", () => {
 const flat = (entry: {
   format: string
   content: string
-  children: ReadonlyArray<never>
+  children: readonly never[]
 }): ReadonlyArray<readonly [string, string]> => [
   [entry.format, entry.content],
   ...entry.children.flatMap(flat),
@@ -310,6 +319,7 @@ const flat = (entry: {
 
 describe("Org pages in the graph exports", () => {
   const orgId = PageId.make("01900000-0000-7000-8000-00000000000f")
+
   const orgBlock = (n: number, content: string, extra: Partial<Block> = {}): Block => ({
     id: BlockId.make(block(100 + n)),
     pageId: orgId,
@@ -319,6 +329,7 @@ describe("Org pages in the graph exports", () => {
     props: {},
     ...extra,
   })
+
   const org: PageBlocks = {
     page: {
       id: orgId,
@@ -336,6 +347,7 @@ describe("Org pages in the graph exports", () => {
       orgBlock(5, "last one"),
     ],
   }
+
   const orgOptions = {
     ...options,
     path: (page: Page) => `pages/${page.title}.${page.format === "org" ? "org" : "md"}`,

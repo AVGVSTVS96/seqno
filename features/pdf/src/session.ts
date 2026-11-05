@@ -11,7 +11,8 @@ import type {
   PDFViewer,
 } from "pdfjs-dist/web/pdf_viewer.mjs"
 import { deleteRefBlock, ensureRefBlock, runCore, updateRefBlock } from "./annotations.ts"
-import { isArea, printHighlights, type Highlight, type Highlights } from "./highlights.ts"
+import { isArea, printHighlights } from "./highlights.ts"
+import type { Highlight, Highlights } from "./highlights.ts"
 import type { HighlightMenuItem, PdfFiles } from "./host.ts"
 import type { Navigate } from "@seqno/outliner"
 import {
@@ -25,10 +26,8 @@ import {
   viewportToScaled,
   zoomIn,
   zoomOut,
-  type Box,
-  type Color,
-  type PdfAsset,
 } from "./model.ts"
+import type { Box, Color, PdfAsset } from "./model.ts"
 import { closePdf } from "./open.ts"
 import type { Pdfjs } from "./pdfjs.ts"
 import {
@@ -68,7 +67,7 @@ export interface Snapshot {
   readonly pages: number
   readonly scale: number
   readonly layers: ReadonlyMap<number, HTMLElement>
-  readonly highlights: ReadonlyArray<Highlight>
+  readonly highlights: readonly Highlight[]
   readonly menu: Menu | null
   readonly area: Box | null
   readonly resizing: { readonly id: string; readonly box: Box } | null
@@ -81,6 +80,7 @@ const PageEvent = Schema.Struct({ pageNumber: Schema.Number })
 const ScaleEvent = Schema.Struct({ scale: Schema.Number })
 const Matches = Schema.Struct({ current: Schema.Number, total: Schema.Number })
 const MatchesEvent = Schema.Struct({ matchesCount: Matches })
+
 const ControlEvent = Schema.Struct({
   state: Schema.Number,
   matchesCount: Matches,
@@ -156,11 +156,15 @@ export class Session {
       finder: false,
       broken: highlights === null,
     }
-    if (highlights !== null) this.written = printHighlights(highlights)
+
+    if (highlights !== null) {
+      this.written = printHighlights(highlights)
+    }
   }
 
   readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener)
+
     return () => {
       this.listeners.delete(listener)
     }
@@ -170,11 +174,15 @@ export class Session {
 
   private set(patch: Partial<Snapshot>) {
     this.state = { ...this.state, ...patch }
-    for (const listener of this.listeners) listener()
+
+    for (const listener of this.listeners) {
+      listener()
+    }
   }
 
   pageView(page: number): PDFPageView | undefined {
     const view: unknown = this.viewer?.getPageView(page - 1)
+
     return view instanceof this.pdfjs.viewer.PDFPageView ? view : undefined
   }
 
@@ -183,11 +191,15 @@ export class Session {
   }
 
   readonly attach = (container: HTMLDivElement | null) => {
-    if (container === null) return
+    if (container === null) {
+      return
+    }
+
     const { EventBus, PDFFindController, PDFLinkService, PDFViewer, LinkTarget } = this.pdfjs.viewer
     const bus = new EventBus()
     const linkService = new PDFLinkService({ eventBus: bus, externalLinkTarget: LinkTarget.BLANK })
     const findController: PDFFindController = new PDFFindController({ linkService, eventBus: bus })
+
     const viewer = new PDFViewer({
       container,
       eventBus: bus,
@@ -197,6 +209,7 @@ export class Session {
       annotationMode: 2,
       removePageBorders: true,
     })
+
     linkService.setDocument(this.document)
     linkService.setViewer(viewer)
     this.viewer = viewer
@@ -209,9 +222,9 @@ export class Session {
       this.findReference(500)
     })
     bus.on("textlayerrendered", (event: unknown) =>
-      Option.map(Schema.decodeUnknownOption(PageEvent)(event), ({ pageNumber }) =>
-        this.resolveLayer(pageNumber),
-      ),
+      Option.map(Schema.decodeUnknownOption(PageEvent)(event), ({ pageNumber }) => {
+        this.resolveLayer(pageNumber)
+      }),
     )
     bus.on("pagechanging", (event: unknown) =>
       Option.map(Schema.decodeUnknownOption(PageEvent)(event), ({ pageNumber }) => {
@@ -220,52 +233,75 @@ export class Session {
       }),
     )
     bus.on("scalechanging", (event: unknown) =>
-      Option.map(Schema.decodeUnknownOption(ScaleEvent)(event), ({ scale }) => this.set({ scale })),
+      Option.map(Schema.decodeUnknownOption(ScaleEvent)(event), ({ scale }) => {
+        this.set({ scale })
+      }),
     )
     bus.on("updatefindmatchescount", (event: unknown) =>
-      Option.map(Schema.decodeUnknownOption(MatchesEvent)(event), ({ matchesCount }) =>
-        this.set({ find: { ...this.state.find, ...matchesCount } }),
-      ),
+      Option.map(Schema.decodeUnknownOption(MatchesEvent)(event), ({ matchesCount }) => {
+        this.set({ find: { ...this.state.find, ...matchesCount } })
+      }),
     )
     bus.on("updatefindcontrolstate", (event: unknown) =>
-      Option.map(Schema.decodeUnknownOption(ControlEvent)(event), (control) =>
+      Option.map(Schema.decodeUnknownOption(ControlEvent)(event), (control) => {
         this.set({
           find: {
             status: statuses[control.state] ?? null,
             query: control.rawQuery ?? "",
             ...control.matchesCount,
           },
-        }),
-      ),
+        })
+      }),
     )
     viewer.setDocument(this.document)
     this.registry.set(liveHighlights, { key: this.asset.key, highlights: this.state.highlights })
+
     const stopRef = this.registry.subscribe(refHighlight, (wanted) => {
-      if (wanted !== null && this.state.ready) this.findReference(50)
+      if (wanted !== null && this.state.ready) {
+        this.findReference(50)
+      }
     })
-    const onResize = () => this.fitSoon()
-    const onKey = (event: KeyboardEvent) => this.onKey(event)
-    const onCopy = (event: ClipboardEvent) => this.onCopy(event)
+
+    const onResize = () => {
+      this.fitSoon()
+    }
+
+    const onKey = (event: KeyboardEvent) => {
+      this.onKey(event)
+    }
+
+    const onCopy = (event: ClipboardEvent) => {
+      this.onCopy(event)
+    }
+
     window.addEventListener("resize", onResize)
     document.addEventListener("keydown", onKey)
     container.addEventListener("copy", onCopy)
     document.body.classList.add(...classesOf("seqno-pdf-open"))
     Reflect.set(window, "lsActivePdfViewer", viewer)
+
     return () => {
       stopRef()
       window.removeEventListener("resize", onResize)
       document.removeEventListener("keydown", onKey)
       container.removeEventListener("copy", onCopy)
       document.body.classList.remove(...classesOf("seqno-pdf-open"))
+
       if (Reflect.get(window, "lsActivePdfViewer") === viewer) {
         Reflect.deleteProperty(window, "lsActivePdfViewer")
       }
+
       this.closeMenu()
       this.flush()
-      if (this.resizeTimer !== null) clearTimeout(this.resizeTimer)
+
+      if (this.resizeTimer !== null) {
+        clearTimeout(this.resizeTimer)
+      }
+
       if (this.registry.get(liveHighlights)?.key === this.asset.key) {
         this.registry.set(liveHighlights, null)
       }
+
       viewer.cleanup()
       void this.document.loadingTask.destroy()
       this.viewer = null
@@ -276,14 +312,23 @@ export class Session {
 
   private resolveLayer(page: number) {
     const host = this.pageView(page)?.textLayer?.div
-    if (host === undefined) return
+
+    if (host === undefined) {
+      return
+    }
+
     const existing = host.querySelector(":scope > .seqno-pdf-highlights-layer")
     const layer = existing instanceof HTMLElement ? existing : document.createElement("div")
+
     if (existing === null) {
       layer.className = classesOf("seqno-pdf-highlights-layer").join(" ")
       host.append(layer)
     }
-    if (this.state.layers.get(page) === layer) return
+
+    if (this.state.layers.get(page) === layer) {
+      return
+    }
+
     const layers = new Map(this.state.layers)
     layers.set(page, layer)
     this.set({ layers })
@@ -291,27 +336,39 @@ export class Session {
 
   private findReference(delay: number) {
     const wanted = this.registry.get(refHighlight)
+
     if (wanted === null) {
       setTimeout(() => {
         if (this.viewer !== null && this.registry.get(refHighlight) === null) {
           this.viewer.currentPageNumber = Math.min(Math.max(1, this.initialPage), this.state.pages)
         }
       }, 16)
+
       return
     }
+
     setTimeout(() => {
-      if (wanted.highlight !== null) this.scrollTo(wanted.highlight)
-      else if (this.viewer !== null) this.viewer.currentPageNumber = wanted.page
+      if (wanted.highlight !== null) {
+        this.scrollTo(wanted.highlight)
+      } else if (this.viewer !== null) {
+        this.viewer.currentPageNumber = wanted.page
+      }
     }, delay)
     setTimeout(() => {
-      if (this.registry.get(refHighlight) === wanted) this.registry.set(refHighlight, null)
+      if (this.registry.get(refHighlight) === wanted) {
+        this.registry.set(refHighlight, null)
+      }
     }, 1000)
   }
 
   scrollTo(highlight: Highlight) {
     const viewer = this.viewer
     const viewport = this.viewportOf(highlight.position.page)
-    if (viewer === null || viewport === undefined) return
+
+    if (viewer === null || viewport === undefined) {
+      return
+    }
+
     const top = scaledToViewport(highlight.position.bounding, viewport).top - 200
     viewer.scrollPageIntoView({
       pageNumber: highlight.position.page,
@@ -325,35 +382,51 @@ export class Session {
     })
     setTimeout(() => {
       const region = this.container?.querySelector(`[data-highlight-id="${highlight.id}"]`)
-      if (region === null || region === undefined) return
+
+      if (region === null || region === undefined) {
+        return
+      }
+
       const flash = classesOf("seqno-pdf-flash")
       region.classList.add(...flash)
-      setTimeout(() => region.classList.remove(...flash), 1200)
+      setTimeout(() => {
+        region.classList.remove(...flash)
+      }, 1200)
     }, 200)
   }
 
   fitSoon() {
-    if (this.resizeTimer !== null) clearTimeout(this.resizeTimer)
+    if (this.resizeTimer !== null) {
+      clearTimeout(this.resizeTimer)
+    }
+
     this.resizeTimer = setTimeout(() => {
-      if (this.viewer !== null) this.viewer.currentScaleValue = "auto"
+      if (this.viewer !== null) {
+        this.viewer.currentScaleValue = "auto"
+      }
     }, 200)
   }
 
   zoomIn() {
     const viewer = this.viewer
-    if (viewer !== null && viewer.currentScale < 5)
+
+    if (viewer !== null && viewer.currentScale < 5) {
       viewer.currentScale = zoomIn(viewer.currentScale)
+    }
   }
 
   zoomOut() {
     const viewer = this.viewer
+
     if (viewer !== null && viewer.currentScale > 0.25) {
       viewer.currentScale = zoomOut(viewer.currentScale)
     }
   }
 
   goToPage(page: number) {
-    if (this.viewer !== null) this.viewer.currentPageNumber = Math.min(page, this.state.pages)
+    if (this.viewer !== null) {
+      this.viewer.currentPageNumber = Math.min(page, this.state.pages)
+    }
   }
 
   nextPage() {
@@ -365,7 +438,10 @@ export class Session {
   }
 
   setFinder(open: boolean) {
-    if (!open) this.bus?.dispatch("findbarclose", { source: null })
+    if (!open) {
+      this.bus?.dispatch("findbarclose", { source: null })
+    }
+
     this.set({ finder: open, find: open ? this.state.find : noFind })
   }
 
@@ -388,65 +464,111 @@ export class Session {
   }
 
   private onKey(event: KeyboardEvent) {
-    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-    if (isEditable(document.activeElement)) return
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return
+    }
+
+    if (isEditable(document.activeElement)) {
+      return
+    }
+
     const action =
       event.code === "KeyP"
-        ? () => this.previousPage()
+        ? () => {
+            this.previousPage()
+          }
         : event.code === "KeyN"
-          ? () => this.nextPage()
+          ? () => {
+              this.nextPage()
+            }
           : event.code === "KeyX"
-            ? () => closePdf(this.registry)
+            ? () => {
+                closePdf(this.registry)
+              }
             : event.code === "KeyF"
-              ? () => this.setFinder(true)
+              ? () => {
+                  this.setFinder(true)
+                }
               : null
-    if (action === null) return
+
+    if (action === null) {
+      return
+    }
+
     event.preventDefault()
     action()
   }
 
   private onCopy(event: ClipboardEvent) {
     const selection = document.getSelection()
-    if (selection === null || selection.isCollapsed || selection.rangeCount === 0) return
+
+    if (selection === null || selection.isCollapsed || selection.rangeCount === 0) {
+      return
+    }
+
     const within = selection.getRangeAt(0).commonAncestorContainer
     const viewerElement = this.viewer?.viewer
+
     if (viewerElement === null || viewerElement === undefined || !viewerElement.contains(within)) {
       return
     }
+
     event.clipboardData?.setData("text/plain", fixSelectionText(selection.toString()))
     event.preventDefault()
   }
 
-  private updateHighlights(highlights: ReadonlyArray<Highlight>) {
+  private updateHighlights(highlights: readonly Highlight[]) {
     this.set({ highlights })
     this.registry.set(liveHighlights, { key: this.asset.key, highlights })
     this.scheduleSave()
   }
 
   private scheduleSave() {
-    if (this.state.broken || !this.state.ready) return
-    if (this.saveTimer !== null) clearTimeout(this.saveTimer)
-    this.saveTimer = setTimeout(() => this.flush(), saveDelay)
+    if (this.state.broken || !this.state.ready) {
+      return
+    }
+
+    if (this.saveTimer !== null) {
+      clearTimeout(this.saveTimer)
+    }
+
+    this.saveTimer = setTimeout(() => {
+      this.flush()
+    }, saveDelay)
   }
 
   flush() {
-    if (this.saveTimer !== null) clearTimeout(this.saveTimer)
+    if (this.saveTimer !== null) {
+      clearTimeout(this.saveTimer)
+    }
+
     this.saveTimer = null
-    if (this.state.broken || !this.state.ready) return
+
+    if (this.state.broken || !this.state.ready) {
+      return
+    }
+
     const text = printHighlights({ highlights: this.state.highlights, page: this.state.page })
-    if (text === this.written) return
+
+    if (text === this.written) {
+      return
+    }
+
     this.written = text
-    this.host
-      .writeAsset(this.asset.hlsFile, new Blob([text]))
-      .catch((cause: unknown) =>
-        this.host.notify(`Couldn't save ${this.asset.hlsFile}: ${messageOf(cause)}`),
-      )
+    this.host.writeAsset(this.asset.hlsFile, new Blob([text])).catch((error: unknown) => {
+      this.host.notify(`Couldn't save ${this.asset.hlsFile}: ${messageOf(error)}`)
+    })
   }
 
   private menuAt(point: Point) {
     const container = this.container
-    if (container === null) return { top: point.y, left: point.x }
+
+    if (container === null) {
+      return { top: point.y, left: point.x }
+    }
+
     const rect = container.getBoundingClientRect()
+
     return {
       top: point.y - rect.top + container.scrollTop,
       left: point.x - rect.left + container.scrollLeft,
@@ -455,46 +577,76 @@ export class Session {
 
   openMenu(highlight: Highlight, point: Point, fresh: boolean, selection: string | null) {
     this.closeMenu()
+
     const hidden =
       fresh &&
       (this.registry.get(highlightMode) || (selection !== null && !this.registry.get(autoOpenMenu)))
+
     this.set({
       menu: { highlight, fresh, point, ...this.menuAt(point), selection, hidden },
     })
+
     if (fresh && this.registry.get(highlightMode)) {
-      setTimeout(() => this.applyColor(this.registry.get(lastColor)), 300)
+      setTimeout(() => {
+        this.applyColor(this.registry.get(lastColor))
+      }, 300)
+
       return
     }
-    const close = () => this.closeMenu()
+
+    const close = () => {
+      this.closeMenu()
+    }
+
     setTimeout(() => {
-      if (this.state.menu?.highlight !== highlight) return
+      if (this.state.menu?.highlight !== highlight) {
+        return
+      }
+
       document.addEventListener("click", close)
-      this.closeMenuListener = () => document.removeEventListener("click", close)
+      this.closeMenuListener = () => {
+        document.removeEventListener("click", close)
+      }
     })
   }
 
   closeMenu() {
     this.closeMenuListener?.()
     this.closeMenuListener = null
-    if (this.state.menu !== null) this.set({ menu: null })
+
+    if (this.state.menu !== null) {
+      this.set({ menu: null })
+    }
   }
 
   closeMenuSoon() {
-    setTimeout(() => this.closeMenu(), 68)
+    setTimeout(() => {
+      this.closeMenu()
+    }, 68)
   }
 
   applyColor(color: Color) {
     const menu = this.state.menu
-    if (menu === null) return
+
+    if (menu === null) {
+      return
+    }
+
     this.registry.set(lastColor, color)
+
     if (menu.fresh) {
       const highlight: Highlight = {
         ...menu.highlight,
         id: newHighlightId(),
         properties: { color },
       }
+
       this.updateHighlights([...this.state.highlights, highlight])
-      if (isArea(highlight)) this.captureArea(highlight, null)
+
+      if (isArea(highlight)) {
+        this.captureArea(highlight, null)
+      }
+
       document.getSelection()?.removeAllRanges()
       this.copyRef(highlight)
     } else {
@@ -502,6 +654,7 @@ export class Session {
       this.replace(highlight)
       this.runCore(updateRefBlock(highlight, Date.now()))
     }
+
     this.closeMenuSoon()
   }
 
@@ -511,20 +664,24 @@ export class Session {
     )
   }
 
-  private runCore<A, E>(effect: Effect.Effect<A, E, CoreClient>) {
-    return runCore(this.registry, effect).catch((cause: unknown) => {
-      this.host.notify(`Couldn't update ${hlsPageTitle(this.asset.key)}: ${messageOf(cause)}`)
+  private async runCore<A, E>(effect: Effect.Effect<A, E, CoreClient>) {
+    return await runCore(this.registry, effect).catch((error: unknown) => {
+      this.host.notify(`Couldn't update ${hlsPageTitle(this.asset.key)}: ${messageOf(error)}`)
+
       return null
     })
   }
 
-  ensureBlock(highlight: Highlight) {
-    return this.runCore(ensureRefBlock(this.asset, highlight))
+  async ensureBlock(highlight: Highlight) {
+    return await this.runCore(ensureRefBlock(this.asset, highlight))
   }
 
   copyRef(highlight: Highlight) {
     void this.ensureBlock(highlight).then((block) => {
-      if (block === null) return
+      if (block === null) {
+        return
+      }
+
       return navigator.clipboard.writeText(`((${highlight.id}))`).catch(() => undefined)
     })
   }
@@ -538,7 +695,9 @@ export class Session {
 
   linkedReferences(highlight: Highlight, navigate: Navigate) {
     void this.ensureBlock(highlight).then((block) => {
-      if (block !== null) navigate({ _tag: "Zoom", pageId: block.pageId, blockId: block.id })
+      if (block !== null) {
+        navigate({ _tag: "Zoom", pageId: block.pageId, blockId: block.id })
+      }
     })
     this.closeMenuSoon()
   }
@@ -546,6 +705,7 @@ export class Session {
   remove(highlight: Highlight) {
     this.updateHighlights(this.state.highlights.filter((other) => other.id !== highlight.id))
     this.runCore(deleteRefBlock(highlight))
+
     if (highlight.content.image !== undefined) {
       this.host
         .removeAsset(
@@ -553,27 +713,49 @@ export class Session {
         )
         .catch(() => undefined)
     }
+
     this.closeMenuSoon()
   }
 
   runItem(item: HighlightMenuItem, menu: Menu) {
     item.run({ text: menu.highlight.content.text ?? "", x: menu.point.x, y: menu.point.y })
-    if (item.clearSelection) document.getSelection()?.removeAllRanges()
+
+    if (item.clearSelection) {
+      document.getSelection()?.removeAllRanges()
+    }
+
     this.closeMenuSoon()
   }
 
   selectionEnded(point: Point) {
     const selection = document.getSelection()
-    if (selection === null || selection.isCollapsed || selection.rangeCount === 0) return
+
+    if (selection === null || selection.isCollapsed || selection.rangeCount === 0) {
+      return
+    }
+
     const range = selection.getRangeAt(0)
     const container = this.container
-    if (container === null || !container.contains(range.commonAncestorContainer)) return
+
+    if (container === null || !container.contains(range.commonAncestorContainer)) {
+      return
+    }
+
     const pageElement = range.startContainer.parentElement?.closest(".page")
-    if (!(pageElement instanceof HTMLElement)) return
+
+    if (!(pageElement instanceof HTMLElement)) {
+      return
+    }
+
     const page = Number(pageElement.dataset["pageNumber"])
     const viewport = this.viewportOf(page)
-    if (viewport === undefined) return
+
+    if (viewport === undefined) {
+      return
+    }
+
     const box = pageElement.getBoundingClientRect()
+
     const rects = optimizeClientRects(
       [...range.getClientRects()]
         .filter((rect) => rect.width !== 0 && rect.height !== 0)
@@ -584,8 +766,13 @@ export class Session {
           height: rect.height,
         })),
     )
-    if (rects.length === 0) return
+
+    if (rects.length === 0) {
+      return
+    }
+
     const text = fixSelectionText(selection.toString())
+
     const highlight: Highlight = {
       id: "",
       page,
@@ -597,41 +784,66 @@ export class Session {
       content: { text },
       properties: {},
     }
-    setTimeout(() => this.openMenu(highlight, point, true, text))
+
+    setTimeout(() => {
+      this.openMenu(highlight, point, true, text)
+    })
   }
 
   startArea(event: MouseEvent): boolean {
     const target = event.target
-    if (!(target instanceof Element)) return false
-    if (target.closest(".seqno-pdf-area-region") !== null) return false
+
+    if (!(target instanceof Element)) {
+      return false
+    }
+
+    if (target.closest(".seqno-pdf-area-region") !== null) {
+      return false
+    }
+
     const pageElement = target.closest(".page")
     const container = this.container
-    if (!(pageElement instanceof HTMLElement) || container === null) return false
-    if (!(event.metaKey || event.shiftKey || this.registry.get(areaMode))) return false
+
+    if (!(pageElement instanceof HTMLElement) || container === null) {
+      return false
+    }
+
+    if (!(event.metaKey || event.shiftKey || this.registry.get(areaMode))) {
+      return false
+    }
+
     event.preventDefault()
     const page = Number(pageElement.dataset["pageNumber"])
     const start = { x: event.clientX, y: event.clientY }
+
     const clamp = (point: Point) => {
       const box = pageElement.getBoundingClientRect()
+
       return {
         x: Math.min(Math.max(point.x, box.left), box.right),
         y: Math.min(Math.max(point.y, box.top), box.bottom),
       }
     }
+
     const inContainer = (box: Box): Box => {
       const frame = container.getBoundingClientRect()
+
       return {
         ...box,
         left: box.left - frame.left + container.scrollLeft,
         top: box.top - frame.top + container.scrollTop,
       }
     }
+
     const viewerElement = this.viewer?.viewer
     viewerElement?.classList.add(...classesOf("seqno-pdf-picking"))
-    const move = (moved: MouseEvent) =>
+
+    const move = (moved: MouseEvent) => {
       this.set({
         area: inContainer(boxBetween(start, clamp({ x: moved.clientX, y: moved.clientY }))),
       })
+    }
+
     const end = (ended: MouseEvent) => {
       container.removeEventListener("mousemove", move)
       viewerElement?.classList.remove(...classesOf("seqno-pdf-picking"))
@@ -639,8 +851,13 @@ export class Session {
       const box = boxBetween(start, clamp({ x: ended.clientX, y: ended.clientY }))
       const pageBox = pageElement.getBoundingClientRect()
       const viewport = this.viewportOf(page)
-      if (box.width <= 10 || box.height <= 10 || viewport === undefined) return
+
+      if (box.width <= 10 || box.height <= 10 || viewport === undefined) {
+        return
+      }
+
       const local = { ...box, left: box.left - pageBox.left, top: box.top - pageBox.top }
+
       const highlight: Highlight = {
         id: "",
         page,
@@ -648,11 +865,14 @@ export class Session {
         content: { text: "[:span]", image: Date.now() },
         properties: {},
       }
+
       this.registry.set(areaMode, false)
       this.openMenu(highlight, { x: ended.clientX, y: ended.clientY }, true, null)
     }
+
     container.addEventListener("mousemove", move)
     document.addEventListener("mouseup", end, { once: true })
+
     return true
   }
 
@@ -663,12 +883,17 @@ export class Session {
   finishResize(highlight: Highlight, box: Box) {
     const viewport = this.viewportOf(highlight.page)
     this.set({ resizing: null })
-    if (viewport === undefined) return
+
+    if (viewport === undefined) {
+      return
+    }
+
     const resized: Highlight = {
       ...highlight,
       position: { ...highlight.position, bounding: viewportToScaled(box, viewport) },
       content: { ...highlight.content, image: Date.now() },
     }
+
     this.captureArea(resized, highlight)
     this.replace(resized)
     this.runCore(updateRefBlock(resized, Date.now()))
@@ -678,7 +903,11 @@ export class Session {
     const view = this.pageView(highlight.page)
     const canvas = view?.div.querySelector("canvas")
     const stamp = highlight.content.image
-    if (view === undefined || !(canvas instanceof HTMLCanvasElement) || stamp === undefined) return
+
+    if (view === undefined || !(canvas instanceof HTMLCanvasElement) || stamp === undefined) {
+      return
+    }
+
     const box = scaledToViewport(highlight.position.bounding, view.viewport)
     const ratio = canvas.width / view.viewport.width
     const dpr = window.devicePixelRatio
@@ -686,7 +915,11 @@ export class Session {
     out.width = Math.max(1, Math.round(box.width * dpr))
     out.height = Math.max(1, Math.round(box.height * dpr))
     const context = out.getContext("2d", { alpha: false })
-    if (context === null) return
+
+    if (context === null) {
+      return
+    }
+
     context.imageSmoothingEnabled = false
     context.drawImage(
       canvas,
@@ -700,16 +933,23 @@ export class Session {
       out.height,
     )
     out.toBlob((png) => {
-      if (png === null) return
+      if (png === null) {
+        return
+      }
+
       const path = areaImagePath(this.asset.key, highlight.page, highlight.id, stamp)
+
       const old =
         previous?.content.image === undefined
           ? null
           : areaImagePath(this.asset.key, previous.page, previous.id, previous.content.image)
+
       this.host
         .writeAsset(path, png)
         .then(() => (old !== null && old !== path ? this.host.removeAsset(old) : undefined))
-        .catch((cause: unknown) => this.host.notify(`Couldn't save ${path}: ${messageOf(cause)}`))
+        .catch((error: unknown) => {
+          this.host.notify(`Couldn't save ${path}: ${messageOf(error)}`)
+        })
     }, "image/png")
   }
 }

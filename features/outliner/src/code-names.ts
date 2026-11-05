@@ -1,5 +1,6 @@
 import { bracketMatching } from "@codemirror/language"
-import { EditorSelection, RangeSet, type EditorState, type Extension } from "@codemirror/state"
+import { EditorSelection, RangeSet } from "@codemirror/state"
+import type { EditorState, Extension } from "@codemirror/state"
 import {
   Decoration,
   EditorView,
@@ -9,7 +10,8 @@ import {
   RectangleMarker,
   ViewPlugin,
 } from "@codemirror/view"
-import { attributesOf, logseq, type CodeLook } from "@seqno/dom"
+import { attributesOf, logseq } from "@seqno/dom"
+import type { CodeLook } from "@seqno/dom"
 
 const look: CodeLook = { style: "codemirror", mode: "light", accent: false }
 const lineNames = Decoration.line({ class: logseq("seqno-code-line", look).className })
@@ -28,6 +30,7 @@ const lineStarts = (state: EditorState) =>
 
 const lines = EditorView.decorations.compute(["doc", "selection"], (state) => {
   const active = state.doc.lineAt(state.selection.main.head).from
+
   return Decoration.set(
     lineStarts(state).flatMap((from) =>
       from === active ? [lineNames.range(from), activeNames.range(from)] : [lineNames.range(from)],
@@ -43,6 +46,7 @@ const frame = ViewPlugin.define((view) => {
   view.scrollDOM.classList.add(...tokens(logseq("seqno-code-scroller")))
   view.dom.querySelector(".cm-gutters")?.classList.add(...tokens(logseq("seqno-code-gutters")))
   view.dom.querySelector(".cm-lineNumbers")?.classList.add(...tokens(logseq("seqno-code-numbers")))
+
   return {}
 })
 
@@ -61,6 +65,7 @@ const cursors = layer({
     if (update.transactions.some((transaction) => transaction.selection !== undefined)) {
       dom.style.animationName = dom.style.animationName === "cm-blink" ? "cm-blink2" : "cm-blink"
     }
+
     return update.docChanged || update.selectionSet
   },
 })

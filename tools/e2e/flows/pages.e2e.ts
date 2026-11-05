@@ -173,10 +173,12 @@ test("properties keep the file's order, and new ones go last", async ({ page, se
     "Tomato bedvariety:: San Marzanolocation:: [[projects/Greenhouse]]sown:: [[Oct 4th, 2026]]plants:: 6",
   )
   await page.keyboard.press("ControlOrMeta+End")
+
   for (const line of ["zeta:: 1", "alpha:: 2", "mid:: 3", "beta:: 4"]) {
     await page.keyboard.press("Shift+Enter")
     await page.keyboard.type(line, { delay: 120 })
   }
+
   await page.keyboard.press("Escape")
   await expect(keys).toHaveText([
     "variety",
@@ -214,10 +216,11 @@ test("the journals list mounts only the days near the screen, from the newest to
   const folder = await mkdtemp(join(tmpdir(), "seqno-journals-"))
   await mkdir(join(folder, "journals"))
   await Promise.all(
-    Array.from({ length: 60 }, (_, day) => {
+    Array.from({ length: 60 }, async (_, day) => {
       const date = new Date(Date.UTC(2025, 0, day + 1))
       const name = date.toISOString().slice(0, 10).replaceAll("-", "_")
-      return writeFile(join(folder, "journals", `${name}.md`), `- day ${day + 1}\n`)
+
+      await writeFile(join(folder, "journals", `${name}.md`), `- day ${day + 1}\n`)
     }),
   )
   await seedOpfs(page, folder, ["graphs", "demo"])
@@ -258,6 +261,7 @@ const openLongDay = async (page: Page) => {
   await openDemo(page)
   const day = page.getByRole("article", { name: "Jan 1st, 2025", exact: true })
   await expect(day.getByRole("treeitem").first()).toHaveText(/^row 1 /)
+
   return day
 }
 
@@ -280,7 +284,11 @@ test("the keyboard walks a long journal day, and Mod+Shift+A selects all of it",
     .filter({ hasText: /^row 2 and more$/ })
     .click()
   await page.keyboard.press("Escape")
-  for (let step = 0; step < 80; step++) await page.keyboard.press("ArrowDown")
+
+  for (let step = 0; step < 80; step++) {
+    await page.keyboard.press("ArrowDown")
+  }
+
   const selected = day.locator("[role=treeitem][aria-selected=true]")
   await expect(selected).toHaveText(/^row 82 /)
   await expect(selected).toBeInViewport()
@@ -294,6 +302,7 @@ test("Back returns to the same row of a long journal day after a fling past slow
   page,
 }) => {
   await openLongDay(page)
+
   for (const stop of [0.3, 0.7]) {
     await flingTo(page, [0.9, 0.1, stop], "[role=treeitem]")
     await page.waitForTimeout(1000)
@@ -311,10 +320,11 @@ const openDays = async (page: Page) => {
   const folder = await mkdtemp(join(tmpdir(), "seqno-days-"))
   await mkdir(join(folder, "journals"))
   await Promise.all(
-    Array.from({ length: 20 }, (_, day) => {
+    Array.from({ length: 20 }, async (_, day) => {
       const name = `2025_01_${String(day + 1).padStart(2, "0")}.md`
       const body = day % 10 === 2 ? longOutline(1000, { pictures: false }) : notesOf(day)
-      return writeFile(join(folder, "journals", name), `${body}\n`)
+
+      await writeFile(join(folder, "journals", name), `${body}\n`)
     }),
   )
   await seedOpfs(page, folder, ["graphs", "demo"])
@@ -427,7 +437,9 @@ test("Add to Favorites lists the page in the sidebar and leaves its file alone",
   page,
 }) => {
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
-  await page.evaluate(() => localStorage.setItem("seqno.leftSidebar", "true"))
+  await page.evaluate(() => {
+    localStorage.setItem("seqno.leftSidebar", "true")
+  })
   await openDemo(page, "/page/reading%20list")
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Add to Favorites" }).click()

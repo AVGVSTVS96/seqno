@@ -22,5 +22,5 @@ export interface HighlightMenuItem {
 
 export interface PdfHost extends PdfFiles {
   readonly navigate: Navigate
-  readonly menuItems: ReadonlyArray<HighlightMenuItem>
+  readonly menuItems: readonly HighlightMenuItem[]
 }

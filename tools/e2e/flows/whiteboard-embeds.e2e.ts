@@ -63,7 +63,9 @@ test("tweet links embed the tweet, other links become a sandboxed website the Re
     "sandbox",
     "allow-scripts allow-same-origin allow-presentation",
   )
-  await site.locator("iframe").evaluate((node) => node.setAttribute("data-mark", "old"))
+  await site.locator("iframe").evaluate((node) => {
+    node.setAttribute("data-mark", "old")
+  })
   await bar(page).getByRole("button", { name: "Reload" }).click()
   await expect(site.locator("iframe")).not.toHaveAttribute("data-mark", "old")
   await expect(bar(page).getByRole("textbox", { name: "Website url" })).toHaveValue(

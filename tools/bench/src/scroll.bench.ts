@@ -1,7 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { expect, type Page } from "@playwright/test"
+import { expect } from "@playwright/test"
+import type { Page } from "@playwright/test"
 import {
   domNodes,
   firstJournal,
@@ -17,9 +18,10 @@ import { writeYears } from "./write-years.ts"
 import type { Layout } from "./years.ts"
 
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
-const budgets = { openMs: 3_000, frameP95Ms: 33.4, domNodes: 15_000, jumpMs: 1_500 }
+const budgets = { openMs: 3000, frameP95Ms: 33.4, domNodes: 15_000, jumpMs: 1500 }
 const frames = 600
 const pxPerFrame = 60
+
 const layout: Layout =
   process.env["SEQNO_BENCH_LAYOUT"] === "tree-per-page" ? "tree-per-page" : "one-tree"
 
@@ -36,21 +38,27 @@ const ways: Record<
     what: "in a picked folder",
     put: pickFolder,
     from: "/",
-    open: (page) => page.getByRole("button", { name: "Open a folder" }).first().click(),
+    open: async (page) => {
+      await page.getByRole("button", { name: "Open a folder" }).first().click()
+    },
   },
   "tree-per-page": {
     what: "kept in the browser",
     put: keepInBrowser,
     from: "/graphs",
-    open: (page) => page.getByRole("button", { name: "graph", exact: true }).click(),
+    open: async (page) => {
+      await page.getByRole("button", { name: "graph", exact: true }).click()
+    },
   },
 }
+
 const way = ways[layout]
 
 test(`${yearsOf(size)} of journals ${way.what} open, and the journals and a ${longPage}-block page scroll smoothly`, async ({
   page,
 }) => {
   const folder = await mkdtemp(join(tmpdir(), "seqno-bench-"))
+
   try {
     const shape = await writeYears(folder, size, longPage, layout)
     await way.put(page, folder, "graph")
@@ -72,6 +80,7 @@ test(`${yearsOf(size)} of journals ${way.what} open, and the journals and a ${lo
     const long = await scrollFrames(page, pxPerFrame, frames)
     const end = await memory(page)
     const longJump = await jump(page, 0.5)
+
     const rows = [
       { what: "open: first journal on screen", value: openMs, budget: budgets.openMs },
       { what: "journals: frame p95 (ms)", value: journals.p95, budget: budgets.frameP95Ms },
@@ -113,6 +122,7 @@ test(`${yearsOf(size)} of journals ${way.what} open, and the journals and a ${lo
         budget: null,
       },
     ]
+
     console.table(
       rows.map((row) => ({
         ...row,

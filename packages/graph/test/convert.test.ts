@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option, Schema } from "effect"
-import { BlockId, JournalDay, PageId, type GraphEvent } from "@seqno/domain"
+import { BlockId, JournalDay, PageId } from "@seqno/domain"
+import type { GraphEvent } from "@seqno/domain"
 import { compareConverted, convertOneTree, journalPageId, journalsByDay } from "@seqno/graph"
 import { WebCrypto, createdBlock, format, nth, openGraphAs, seedPage } from "./support.ts"
 
@@ -12,7 +13,7 @@ const flushed = (graph: Opened) =>
     (update) => Option.toArray(Option.map(update, ({ bytes }) => bytes)),
   )
 
-const day = Schema.decodeUnknownSync(JournalDay)(20261011)
+const day = Schema.decodeUnknownSync(JournalDay)(20_261_011)
 const journalId = Schema.decodeUnknownSync(PageId)("01920000-0000-7000-8000-000000000001")
 const journalBlock = Schema.decodeUnknownSync(BlockId)("01920000-0000-7000-8000-0000000000a1")
 
@@ -66,6 +67,7 @@ const oneTreeGraph = Effect.gen(function* () {
   yield* seedPage(right, "Shared", ["from right"])
   yield* seedPage(left, "shared", ["from left"])
   yield* left.merge(yield* flushed(right))
+
   const typed = createdBlock(
     yield* left.dispatch({
       _tag: "InsertBlock",
@@ -74,21 +76,21 @@ const oneTreeGraph = Effect.gen(function* () {
       text: "five",
     }),
   )
+
   yield* left.dispatch({ _tag: "EditText", blockId: typed, from: 4, to: 4, insert: "!" })
+
   return left
 })
 
 const everything = (graph: Opened) =>
   Effect.gen(function* () {
     const pages = (yield* graph.pages).toSorted((a, b) => (a.title < b.title ? -1 : 1))
+
     return yield* Effect.forEach(pages, (page) => graph.pageEvents(page.id))
   })
 
-const renamed = (
-  events: ReadonlyArray<ReadonlyArray<GraphEvent>>,
-  from: PageId,
-  to: PageId,
-): unknown => JSON.parse(JSON.stringify(events).replaceAll(from, to))
+const renamed = (events: ReadonlyArray<readonly GraphEvent[]>, from: PageId, to: PageId): unknown =>
+  JSON.parse(JSON.stringify(events).replaceAll(from, to))
 
 describe.runIf(format === "v2")("converting one tree to a tree per page", () => {
   it.effect("keeps every live page and block, with ids, props, nesting and times", () =>
@@ -144,7 +146,11 @@ describe.runIf(format === "v2")("converting one tree to a tree per page", () => 
           })
           const notes = (yield* v1.pages).find((page) => page.title === "Notes")
           const first = notes === undefined ? undefined : (yield* v1.page(notes.id)).blocks[0]
-          if (first === undefined) return assert.fail("Notes has no blocks")
+
+          if (first === undefined) {
+            return assert.fail("Notes has no blocks")
+          }
+
           yield* v1.dispatch({
             _tag: "EditText",
             blockId: first.id,
@@ -168,11 +174,13 @@ describe.runIf(format === "v2")("converting one tree to a tree per page", () => 
   it("gives each day's first journal its day's id, and leaves other pages alone", () => {
     const later = Schema.decodeUnknownSync(PageId)("01920000-0000-7000-8000-000000000009")
     const notes = Schema.decodeUnknownSync(PageId)("01920000-0000-7000-8000-000000000005")
+
     const pages = [
       oneBlockPage(later, "Oct 11th, 2026", day),
       oneBlockPage(journalId, "Monday notes", day),
       oneBlockPage(notes, "Notes", null),
     ]
+
     assert.deepStrictEqual(
       journalsByDay(pages).map((tree) => [tree.page.id, tree.blocks[0]?.pageId]),
       [

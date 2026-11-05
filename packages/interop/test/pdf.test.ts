@@ -14,6 +14,7 @@ describe("PDF highlight pages", () => {
         importGraph,
         Layer.mergeAll(layerFileSystem(fixture), LogseqSyntaxLive),
       )
+
       const hls = graph.pages.find(({ page }) => page.name === "hls__paper_1700000000000_0")
       assert.deepStrictEqual(hls?.page.props, {
         file: "[Paper_1700000000000_0.pdf](../assets/Paper_1700000000000_0.pdf)",
@@ -39,9 +40,11 @@ describe("PDF highlight pages", () => {
         ],
       )
       const files = yield* Effect.provide(renderMirror(graph.pages, graph.config), LogseqSyntaxLive)
+
       const original = yield* Effect.flatMap(FileSystem.FileSystem, (fs) =>
         fs.readFileString(`${fixture}${hlsFile}`),
       )
+
       assert.strictEqual(files.get(hlsFile), original)
     }).pipe(Effect.provide(Node)),
   )

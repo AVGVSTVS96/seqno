@@ -1,7 +1,7 @@
 export interface SelectorNames {
-  readonly classes: ReadonlyArray<string>
-  readonly ids: ReadonlyArray<string>
-  readonly attributes: ReadonlyArray<string>
+  readonly classes: readonly string[]
+  readonly ids: readonly string[]
+  readonly attributes: readonly string[]
 }
 
 const preludes = (css: string) =>
@@ -20,6 +20,7 @@ const sorted = (names: Iterable<string>) =>
 
 export const selectorNames = (css: string): SelectorNames => {
   const selectors = preludes(css)
+
   return {
     classes: sorted(
       selectors.flatMap((selector) => matches(selector, /\.(-?[_a-zA-Z][\w-]*)(?![\w\\-])/g)),

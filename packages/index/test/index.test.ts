@@ -4,12 +4,15 @@ import { join } from "node:path"
 import { DatabaseSync } from "node:sqlite"
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Layer, Option, Queue, Stream } from "effect"
-import { BlockId, PageId, normalizePageName, type GraphEvent, type Props } from "@seqno/domain"
-import { Index, type LiveQuery, type Sqlite } from "@seqno/index"
+import { BlockId, PageId, normalizePageName } from "@seqno/domain"
+import type { GraphEvent, Props } from "@seqno/domain"
+import { Index } from "@seqno/index"
+import type { LiveQuery, Sqlite } from "@seqno/index"
 import { layerNode } from "@seqno/index/node"
 import { layerWasmMemory } from "@seqno/index/wasm"
 
 const pageId = (n: number) => PageId.make(`01920000-0000-7000-8000-1${String(n).padStart(11, "0")}`)
+
 const blockId = (n: number) =>
   BlockId.make(`01920000-0000-7000-8000-2${String(n).padStart(11, "0")}`)
 
@@ -42,20 +45,20 @@ const upsertBlock = (
     collapsed: false,
     props: options.props ?? {},
   },
-  createdAt: 1_000,
-  updatedAt: options.updatedAt ?? 1_000,
+  createdAt: 1000,
+  updatedAt: options.updatedAt ?? 1000,
 })
 
-const pagesOf = (...events: ReadonlyArray<GraphEvent>) =>
+const pagesOf = (...events: readonly GraphEvent[]) =>
   Effect.succeed(events.flatMap((event) => (event._tag === "PageUpserted" ? [event.page] : [])))
 
 const project = pageId(1)
 const journal = pageId(2)
 const notes = pageId(3)
 
-const graph: ReadonlyArray<GraphEvent> = [
+const graph: readonly GraphEvent[] = [
   upsertPage(project, "Project", { alias: "proj" }),
-  upsertPage(journal, "Oct 6th, 2026", {}, 20261006),
+  upsertPage(journal, "Oct 6th, 2026", {}, 20_261_006),
   upsertPage(notes, "Notes"),
   upsertBlock(blockId(1), project, "self link [[Project]]"),
   upsertBlock(blockId(2), journal, "worked on [[Project]]"),
@@ -102,7 +105,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
           yield* index.query(
             "SELECT b.id, t.status, t.priority, t.scheduled, t.deadline FROM tasks t JOIN blocks b ON b.rid = t.block",
           ),
-          [[blockId(1), "todo", "a", 20261007, null]],
+          [[blockId(1), "todo", "a", 20_261_007, null]],
         )
         assert.deepStrictEqual(yield* index.query("SELECT target, tag FROM refs ORDER BY target"), [
           ["ana", 0],
@@ -181,15 +184,15 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
       Effect.gen(function* () {
         yield* index.apply([
           ...graph,
-          upsertBlock(blockId(9), notes, "edited later", { updatedAt: 5_000 }),
+          upsertBlock(blockId(9), notes, "edited later", { updatedAt: 5000 }),
         ])
         const stats = yield* index.pageStats
         assert.deepStrictEqual(
           stats.toSorted((left, right) => left.pageId.localeCompare(right.pageId)),
           [
-            { pageId: project, backlinks: 5, created: 1_000, updated: 1_000 },
-            { pageId: journal, backlinks: 0, created: 1_000, updated: 1_000 },
-            { pageId: notes, backlinks: 0, created: 1_000, updated: 5_000 },
+            { pageId: project, backlinks: 5, created: 1000, updated: 1000 },
+            { pageId: journal, backlinks: 0, created: 1000, updated: 1000 },
+            { pageId: notes, backlinks: 0, created: 1000, updated: 5000 },
           ],
         )
       }),
@@ -200,12 +203,14 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         const launch = pageId(4)
+
         const titles = new Map([
           [project, "project"],
           [journal, "journal"],
           [notes, "notes"],
           [launch, "launch"],
         ])
+
         const counts = Effect.map(index.pageStats, (stats) =>
           Object.fromEntries(
             stats
@@ -213,6 +218,7 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
               .map((stat) => [titles.get(stat.pageId), stat.backlinks]),
           ),
         )
+
         yield* index.apply(graph)
         assert.deepStrictEqual(yield* counts, { project: 5 })
         yield* index.apply([
@@ -245,67 +251,94 @@ describe.each(drivers)("%s", (_driver, sqlite) => {
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         let state = 7
+
         const random = (below: number) => {
           state = (Math.imul(state, 1_103_515_245) + 12_345) >>> 0
+
           return (state >>> 8) % below
         }
+
         const names = ["alpha", "beta", "gamma", "delta", "omega"]
         const pages = [1, 2, 3, 4].map(pageId)
         const live = new Map<BlockId, PageId>()
         const parents = new Map<BlockId, BlockId | null>()
-        const subtree = (id: BlockId): ReadonlyArray<BlockId> => [
+
+        const subtree = (id: BlockId): readonly BlockId[] => [
           id,
           ...[...parents].flatMap(([child, parent]) => (parent === id ? subtree(child) : [])),
         ]
-        const pick = <A>(from: ReadonlyArray<A>): A => from[random(from.length)] ?? assert.fail()
+
+        const pick = <A>(from: readonly A[]): A => from[random(from.length)] ?? assert.fail()
+
         const text = () =>
           Array.from({ length: random(4) }, () => `[[${pick(names)}]]`).join(" and ")
+
         const renamed = (page: PageId): GraphEvent =>
           upsertPage(page, pick(names), random(2) === 0 ? {} : { alias: pick(names) })
-        const step = (): ReadonlyArray<GraphEvent> => {
+
+        const step = (): readonly GraphEvent[] => {
           const blocks = [...live.keys()]
           const kind = blocks.length === 0 ? 0 : random(5)
+
           if (kind === 0) {
             const id = blockId(100 + random(40))
             const page = live.get(id) ?? pick(pages)
             live.set(id, page)
             parents.set(id, null)
+
             return [upsertBlock(id, page, text())]
           }
+
           if (kind === 1) {
             const id = pick(blocks)
             const page = pick(pages)
             const moving = subtree(id)
+
             const under = blocks.filter(
               (other) => !moving.includes(other) && live.get(other) === page,
             )
+
             const parent = under.length === 0 || random(2) === 0 ? null : pick(under)
-            for (const moved of moving) live.set(moved, page)
+
+            for (const moved of moving) {
+              live.set(moved, page)
+            }
+
             parents.set(id, parent)
+
             return [{ _tag: "BlockMoved", blockId: id, pageId: page, parentId: parent }]
           }
+
           if (kind === 2) {
             const id = pick(blocks)
+
             for (const gone of subtree(id)) {
               live.delete(gone)
               parents.delete(gone)
             }
+
             return [{ _tag: "BlockDeleted", blockId: id, pageId: pageId(0) }]
           }
+
           return [renamed(pick(pages))]
         }
+
         const counted = `
 SELECT p.id, (SELECT count(DISTINCT r.block) FROM page_names n
   JOIN refs r ON r.target = n.name
   JOIN blocks b ON b.rid = r.block
   WHERE n.page = p.rid AND b.page != p.rid)
 FROM pages p ORDER BY p.id`
+
         yield* index.apply(pages.map(renamed))
+
         for (let round = 0; round < 300; round++) {
           yield* index.apply(Array.from({ length: 1 + random(4) }, step).flat())
+
           const stored = (yield* index.pageStats)
             .map((stat) => [stat.pageId, stat.backlinks])
             .toSorted(([left], [right]) => String(left).localeCompare(String(right)))
+
           assert.deepStrictEqual(stored, yield* index.query(counted))
         }
       }),
@@ -317,7 +350,7 @@ FROM pages p ORDER BY p.id`
       Effect.gen(function* () {
         yield* index.apply([
           ...graph,
-          upsertBlock(blockId(9), journal, "sowed tomatoes #Greenhouse", { updatedAt: 3_000 }),
+          upsertBlock(blockId(9), journal, "sowed tomatoes #Greenhouse", { updatedAt: 3000 }),
           upsertBlock(blockId(10), notes, "see [[Seed Inventory]] and #greenhouse."),
           upsertBlock(blockId(11), notes, "```css\na {\n  color: #3a7d44;\n}\n```"),
           upsertBlock(blockId(12), notes, "#+BEGIN_QUERY\n{}\n#+END_QUERY"),
@@ -334,24 +367,24 @@ FROM pages p ORDER BY p.id`
             title: "Greenhouse",
             tag: true,
             backlinks: 2,
-            created: 1_000,
-            updated: 3_000,
+            created: 1000,
+            updated: 3000,
           },
           {
             name: "other",
             title: "other",
             tag: false,
             backlinks: 1,
-            created: 1_000,
-            updated: 1_000,
+            created: 1000,
+            updated: 1000,
           },
           {
             name: "seed inventory",
             title: "Seed Inventory",
             tag: false,
             backlinks: 1,
-            created: 1_000,
-            updated: 1_000,
+            created: 1000,
+            updated: 1000,
           },
         ])
         yield* index.apply([upsertPage(pageId(4), "Greenhouse")])
@@ -376,7 +409,7 @@ FROM pages p ORDER BY p.id`
           pages.map((page) => [page.name, page.exists, page.tag, page.day]),
           [
             ["notes", true, false, null],
-            ["oct 6th, 2026", true, false, 20261006],
+            ["oct 6th, 2026", true, false, 20_261_006],
             ["project", true, true, null],
             ["project/beds", true, false, null],
             ["greenhouse", false, true, null],
@@ -417,9 +450,11 @@ FROM pages p ORDER BY p.id`
       Effect.gen(function* () {
         const target = blockId(1).toUpperCase()
         yield* index.apply(graph)
+
         const updates = yield* Stream.toQueue(index.watchBlockReferences(target), {
           capacity: "unbounded",
         })
+
         assert.deepStrictEqual(yield* Queue.take(updates), [])
         yield* index.apply([upsertBlock(blockId(9), journal, `see ((${blockId(1)}))`)])
         assert.deepStrictEqual(ids(yield* Queue.take(updates)), [blockId(9)])
@@ -433,9 +468,11 @@ FROM pages p ORDER BY p.id`
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         yield* index.apply(graph)
+
         const updates = yield* Stream.toQueue(index.watchBacklinks(notes), {
           capacity: "unbounded",
         })
+
         assert.deepStrictEqual(yield* Queue.take(updates), [])
         yield* index.apply([upsertBlock(blockId(9), journal, "plain words about notes")])
         yield* index.apply([upsertBlock(blockId(10), journal, "see [[Project]] again")])
@@ -454,9 +491,11 @@ FROM pages p ORDER BY p.id`
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         yield* index.apply(graph)
+
         const updates = yield* Stream.toQueue(index.watchBacklinksToName("Visual Check"), {
           capacity: "unbounded",
         })
+
         assert.deepStrictEqual(yield* Queue.take(updates), [])
         yield* index.apply([upsertBlock(blockId(9), notes, "needs a #[[visual check]]")])
         assert.deepStrictEqual(yield* Queue.take(updates), [
@@ -470,18 +509,22 @@ FROM pages p ORDER BY p.id`
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         yield* index.apply(graph)
+
         const unlinked = yield* Stream.toQueue(index.watchUnlinkedReferences(notes), {
           capacity: "unbounded",
         })
+
         const stats = yield* Stream.toQueue(index.watchPageStats, { capacity: "unbounded" })
+
         const updatedNotes = (all: ReadonlyArray<{ readonly pageId: PageId; updated: unknown }>) =>
           all.find((stat) => stat.pageId === notes)?.updated
+
         assert.deepStrictEqual(yield* Queue.take(unlinked), [])
-        assert.strictEqual(updatedNotes(yield* Queue.take(stats)), 1_000)
+        assert.strictEqual(updatedNotes(yield* Queue.take(stats)), 1000)
         yield* index.apply([
-          upsertBlock(blockId(7), notes, "Deploy on Friday", { updatedAt: 7_000 }),
+          upsertBlock(blockId(7), notes, "Deploy on Friday", { updatedAt: 7000 }),
         ])
-        assert.strictEqual(updatedNotes(yield* Queue.take(stats)), 7_000)
+        assert.strictEqual(updatedNotes(yield* Queue.take(stats)), 7000)
         yield* Effect.sleep("20 millis")
         assert.strictEqual(yield* Queue.size(unlinked), 0)
         yield* index.apply([upsertBlock(blockId(9), journal, "check the notes later")])
@@ -564,12 +607,14 @@ FROM pages p ORDER BY p.id`
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         yield* index.apply([upsertPage(notes, "Notes")])
+
         const error = yield* index
           .apply([
             upsertBlock(blockId(1), notes, "fine"),
             upsertBlock(blockId(2), journal, "orphan"),
           ])
           .pipe(Effect.flip)
+
         assert.strictEqual(
           error.message,
           `page ${journal} is not indexed: send its PageUpserted before its blocks`,
@@ -608,6 +653,7 @@ FROM pages p ORDER BY p.id`
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
         yield* index.apply([upsertPage(notes, "Notes")])
+
         const release = yield* Stream.toQueue(
           index.watch({
             sql: "SELECT count(*) FROM refs WHERE target = 'release' AND tag = 1",
@@ -616,6 +662,7 @@ FROM pages p ORDER BY p.id`
           }),
           { capacity: "unbounded" },
         )
+
         assert.deepStrictEqual(yield* Queue.take(release), [[0]])
         yield* index.apply([upsertBlock(blockId(1), notes, "#other")])
         yield* Effect.sleep("20 millis")
@@ -634,7 +681,7 @@ FROM pages p ORDER BY p.id`
         assert.deepStrictEqual(yield* Queue.take(results), [[1]])
         yield* index.rebuild(
           Stream.fromIterable([
-            upsertPage(journal, "Oct 6th, 2026", {}, 20261006),
+            upsertPage(journal, "Oct 6th, 2026", {}, 20_261_006),
             upsertBlock(blockId(20), journal, "TODO x"),
             upsertBlock(blockId(21), journal, "TODO y", { parentId: blockId(20) }),
           ]),
@@ -650,10 +697,10 @@ FROM pages p ORDER BY p.id`
     () =>
       usingIndex(sqlite())((index) =>
         Effect.gen(function* () {
-          const journalDay = upsertPage(journal, "Oct 6th, 2026", {}, 20261006)
+          const journalDay = upsertPage(journal, "Oct 6th, 2026", {}, 20_261_006)
           yield* index.start(pagesOf(journalDay, upsertPage(notes, "notes")))
           const owed = yield* index.unwritten
-          const owing: Array<readonly [PageId, ReadonlyArray<PageId>]> = []
+          const owing: Array<readonly [PageId, readonly PageId[]]> = []
           const results = yield* Stream.toQueue(index.watch(todos), { capacity: "unbounded" })
           assert.deepStrictEqual(yield* Queue.take(results), [[0]])
           yield* index.refresh(
@@ -692,12 +739,15 @@ FROM pages p ORDER BY p.id`
             ] as const),
           )
           yield* index.owe([journal], Effect.succeed([]))
+
           return yield* index.image("v1")
         }),
       )
+
       const owed = yield* usingIndex(sqlite())((index) =>
         Effect.andThen(index.load(image), index.unwritten),
       )
+
       assert.deepStrictEqual(owed.toSorted(), [project, journal].toSorted())
     }),
   )
@@ -705,10 +755,12 @@ FROM pages p ORDER BY p.id`
   it.effect("start and owe name pages first, so no page shows as only referenced", () =>
     usingIndex(sqlite())((index) =>
       Effect.gen(function* () {
-        const seen: Array<ReadonlyArray<string>> = []
+        const seen: Array<readonly string[]> = []
+
         const look = Effect.map(index.referencedPages, (pages) =>
           seen.push(pages.map((page) => page.name)),
         )
+
         yield* index.start(pagesOf(upsertPage(notes, "Notes"), upsertPage(project, "Project")))
         yield* index.refresh(
           Stream.fromIterable([
@@ -743,6 +795,7 @@ FROM pages p ORDER BY p.id`
       const image = yield* usingIndex(sqlite())((index) =>
         Effect.andThen(index.apply(graph), index.image("v7")),
       )
+
       const loaded = yield* usingIndex(sqlite())((index) =>
         Effect.all([
           index.load(image),
@@ -751,6 +804,7 @@ FROM pages p ORDER BY p.id`
           index.stamp,
         ]),
       )
+
       assert.deepStrictEqual(loaded, [
         Option.some("v7"),
         {
@@ -768,10 +822,12 @@ FROM pages p ORDER BY p.id`
       Effect.gen(function* () {
         const other = new DatabaseSync(":memory:")
         other.exec("CREATE TABLE pages (x); PRAGMA user_version = 999")
+
         const loads = [
           yield* index.load(new TextEncoder().encode("not a database")),
           yield* index.load(other.serialize()),
         ]
+
         other.close()
         yield* index.apply([upsertPage(notes, "Notes")])
         assert.deepStrictEqual(

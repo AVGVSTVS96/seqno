@@ -6,8 +6,10 @@ describe("the save log", () => {
   it.effect("tells each tab how far its requests are written", () =>
     Effect.gen(function* () {
       const log = yield* makeSaveLog
+
       const shown = (client: number) =>
         Effect.map(Stream.runHead(log.watch(client)), Option.getOrNull)
+
       yield* log.edited
       yield* log.handled(1, 1)
       const at = yield* log.started

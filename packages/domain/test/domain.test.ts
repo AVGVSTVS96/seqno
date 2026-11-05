@@ -70,9 +70,9 @@ describe("pages", () => {
   })
 
   it("accepts real journal days only", () => {
-    assert.strictEqual(Schema.decodeUnknownSync(JournalDay)(20261006), 20261006)
-    assert.isFalse(accepts(JournalDay, 20260230))
-    assert.isFalse(accepts(JournalDay, 2026106))
+    assert.strictEqual(Schema.decodeUnknownSync(JournalDay)(20_261_006), 20_261_006)
+    assert.isFalse(accepts(JournalDay, 20_260_230))
+    assert.isFalse(accepts(JournalDay, 2_026_106))
   })
 })
 
@@ -109,6 +109,7 @@ describe("commands", () => {
       key: "tags",
       value: null,
     })
+
     const described = Command.match(command, {
       CreatePage: () => "other",
       RenamePage: () => "other",
@@ -127,6 +128,7 @@ describe("commands", () => {
       Undo: () => "other",
       Redo: () => "other",
     })
+
     assert.strictEqual(described, "PageTarget:tags")
   })
 })
@@ -143,9 +145,10 @@ describe("graph events", () => {
         collapsed: false,
         props: { status: "doing" },
       },
-      createdAt: 1759700000000,
-      updatedAt: 1759700005000,
+      createdAt: 1_759_700_000_000,
+      updatedAt: 1_759_700_005_000,
     }
+
     const decoded = Schema.decodeUnknownSync(GraphEvent)(event)
     assert.deepStrictEqual(Schema.encodeSync(GraphEvent)(decoded), event)
   })

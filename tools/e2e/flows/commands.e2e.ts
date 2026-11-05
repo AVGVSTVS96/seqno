@@ -19,6 +19,7 @@ const runCommand = async (page: Page, text: string) => {
 
 const shifted = (days: number) => {
   const date = new Date()
+
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
 }
 
@@ -125,7 +126,7 @@ test("Copy page url copies the open page's address", async ({ page, context }) =
   await openDemo(page, "/page/ideas")
   await runCommand(page, "Copy page url")
   await expect
-    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .poll(async () => await page.evaluate(async () => await navigator.clipboard.readText()))
     .toMatch(/\/page\/ideas$/)
 })
 
@@ -168,7 +169,7 @@ test("c c picks an accent color that recolors links and stays after a reload, an
 }) => {
   await openDemo(page, "/page/getting%20started")
   const link = page.getByRole("main").getByRole("link", { name: "garden", exact: true }).first()
-  const color = () => link.evaluate((element) => getComputedStyle(element).color)
+  const color = async () => await link.evaluate((element) => getComputedStyle(element).color)
   const classic = await color()
   await page.keyboard.press("c")
   await page.keyboard.press("c")
@@ -196,8 +197,10 @@ test("Mod+C Mod+B hides page link brackets in config.edn, and the palette shows 
   await openDemo(page, "/page/getting%20started")
   const ref = page.getByRole("main").locator(".seqno-pageref", { hasText: "garden" }).first()
   const brackets = ref.locator(".bracket")
-  const opening = () =>
-    brackets.first().evaluate((element) => getComputedStyle(element, "::before").content)
+
+  const opening = async () =>
+    await brackets.first().evaluate((element) => getComputedStyle(element, "::before").content)
+
   await expect.poll(opening).toBe('"[["')
   await expect(brackets).toHaveCount(2)
   await page.keyboard.press("ControlOrMeta+KeyC")

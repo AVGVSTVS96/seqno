@@ -3,17 +3,11 @@ import { Clock, Effect, Equal, Layer, Option, Schema, Stream } from "effect"
 import type { KeyValueStore } from "effect/persistence"
 import { AsyncResult, Atom, Reactivity } from "effect/reactivity"
 import type { WorkerError } from "effect/workers/WorkerError"
-import { BlockId, normalizePageName, type Command, type GraphEvent, type Page } from "@seqno/domain"
+import { BlockId, normalizePageName } from "@seqno/domain"
+import type { Command, GraphEvent, Page } from "@seqno/domain"
 import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
-import {
-  AssetClient,
-  CoreClient,
-  GitClient,
-  type AppFile,
-  type AppFilePath,
-  type Asset,
-  type SkippedFile,
-} from "@seqno/rpc"
+import { AssetClient, CoreClient, GitClient } from "@seqno/rpc"
+import type { AppFile, AppFilePath, Asset, SkippedFile } from "@seqno/rpc"
 import { assetKey, readConfigFlag, readPropertyConfig } from "@seqno/syntax"
 import { WorkerAssets, WorkerCore, WorkerGit, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
@@ -34,6 +28,7 @@ export const GraphSource = Schema.TaggedUnion({
   Recent: { name: Schema.NonEmptyString },
   Resume: { name: Schema.NonEmptyString },
 })
+
 export type GraphSource = typeof GraphSource.Type
 
 export const settingsLayer = Atom.make<Layer.Layer<KeyValueStore.KeyValueStore>>(
@@ -67,7 +62,11 @@ export const recentGraphs = appRuntime.atom(
 
 export const forgetGraph = appRuntime.fn((name: string, get) =>
   Effect.flatMap(Effect.service(CoreClient), (core) => core.ForgetGraph({ graph: name })).pipe(
-    Effect.tap(() => Effect.sync(() => get.refresh(recentGraphs))),
+    Effect.tap(() =>
+      Effect.sync(() => {
+        get.refresh(recentGraphs)
+      }),
+    ),
   ),
 )
 
@@ -122,7 +121,7 @@ export const mirrorReportClosed = Atom.make("").pipe(Atom.keepAlive)
 
 export const graphLocked = Atom.make(Option.none<string>()).pipe(Atom.keepAlive)
 
-export const importReport = Atom.make<ReadonlyArray<SkippedFile>>([]).pipe(Atom.keepAlive)
+export const importReport = Atom.make<readonly SkippedFile[]>([]).pipe(Atom.keepAlive)
 
 export const attemptedGraph = Atom.make<string | null>(null).pipe(Atom.keepAlive)
 
@@ -130,27 +129,43 @@ export const openGraph = appRuntime
   .fn((source: GraphSource, get) =>
     Effect.gen(function* () {
       const locations = yield* GraphLocations
+
       const location = yield* GraphSource.match(source, {
         PickFolder: () => locations.pickFolder,
         Demo: ({ name }) => locations.demo(name),
         Recent: ({ name }) => locations.reopen(name),
         Resume: ({ name }) => locations.resume(name),
       })
+
       const core = yield* CoreClient
       const graph = location.name
       get.set(attemptedGraph, graph)
+
       const opened = yield* core.OpenGraph({ graph }).pipe(
         Effect.catchTag("GraphLocked", () =>
           Effect.suspend(() => {
             get.set(graphLocked, Option.some(graph))
+
             return core.OpenGraph({ graph, wait: true })
-          }).pipe(Effect.ensuring(Effect.sync(() => get.set(graphLocked, Option.none())))),
+          }).pipe(
+            Effect.ensuring(
+              Effect.sync(() => {
+                get.set(graphLocked, Option.none())
+              }),
+            ),
+          ),
         ),
       )
+
       const now = yield* Clock.currentTimeMillis
       get.set(importReport, opened.skipped)
-      if (get.registry.get(remembersGraph)) get.set(lastGraph, graph)
+
+      if (get.registry.get(remembersGraph)) {
+        get.set(lastGraph, graph)
+      }
+
       get.set(graphsOpenedAt, { ...get.registry.get(graphsOpenedAt), [graph]: now })
+
       return opened
     }),
   )
@@ -168,7 +183,7 @@ export const gitLayer = Atom.make<Layer.Layer<GitClient, WorkerError>>(WorkerGit
 
 export const gitRuntime = Atom.runtime((get) => get(gitLayer))
 
-const noAssets: ReadonlyArray<Asset> = []
+const noAssets: readonly Asset[] = []
 
 export const graphAssets = assetRuntime
   .atom(Stream.unwrap(Effect.map(Effect.service(AssetClient), (client) => client.WatchAssets())))
@@ -178,7 +193,7 @@ export const appFilesWatch = appRuntime
   .atom(Stream.unwrap(Effect.map(Effect.service(CoreClient), (core) => core.WatchAppFiles())))
   .pipe(Atom.keepAlive)
 
-const noAppFiles: ReadonlyArray<AppFile> = []
+const noAppFiles: readonly AppFile[] = []
 
 export const appFiles = Atom.make((get) =>
   AsyncResult.getOrElse(get(appFilesWatch), () => noAppFiles),
@@ -212,10 +227,11 @@ export const assetFiles = Atom.make((get) =>
 
 export const assetResolver = Atom.make((get) => {
   const byPath = new Map(get(assetFiles).map((asset) => [asset.path.normalize("NFC"), asset.url]))
+
   return (path: string) => byPath.get(assetKey(path))
 })
 
-const invalidatePages = (events: ReadonlyArray<GraphEvent>) =>
+const invalidatePages = (events: readonly GraphEvent[]) =>
   events.some((event) => event._tag === "PageUpserted" || event._tag === "PageDeleted")
     ? Reactivity.invalidate(pagesKey)
     : Effect.void
@@ -230,7 +246,7 @@ export const dispatch = appRuntime.fn(
 )
 
 export const dispatchAll = appRuntime.fn(
-  (commands: ReadonlyArray<Command>, get) =>
+  (commands: readonly Command[], get) =>
     Effect.flatMap(CoreClient, (core) => core.DispatchAll({ commands })).pipe(
       Effect.tap(invalidatePages),
       (effect) => reportRejection(effect, get),
@@ -243,16 +259,23 @@ export const createPage = appRuntime.fn((title: string, get) =>
     const core = yield* CoreClient
     const created = yield* core.Dispatch({ command: { _tag: "CreatePage", title } })
     const page = created.flatMap((event) => (event._tag === "PageUpserted" ? [event.page] : []))[0]
+
     if (page !== undefined) {
       const inserted = yield* core.Dispatch({
         command: { _tag: "InsertBlock", pageId: page.id, parentId: null, text: "" },
       })
+
       const first = inserted.flatMap((event) =>
         event._tag === "BlockUpserted" ? [event.block.id] : [],
       )[0]
-      if (first !== undefined) get.set(editRequest, { blockId: first, caret: 0 })
+
+      if (first !== undefined) {
+        get.set(editRequest, { blockId: first, caret: 0 })
+      }
     }
+
     yield* Reactivity.invalidate(pagesKey)
+
     return normalizePageName(title)
   }),
 )
@@ -266,7 +289,7 @@ export const pages = appRuntime
   )
   .pipe(appRuntime.factory.withReactivity(pagesKey))
 
-const pageList = (select: (all: ReadonlyArray<Page>) => ReadonlyArray<Page>) =>
+const pageList = (select: (all: readonly Page[]) => readonly Page[]) =>
   Atom.make((get) =>
     Option.getOrElse(Option.map(AsyncResult.value(get(pages)), select), () => []),
   ).pipe(Atom.withEquality(Equal.equals))
@@ -287,20 +310,22 @@ export const favoriteNames = Atom.kvs({
   runtime: settingsRuntime,
   key: "seqno.favorites",
   schema: Schema.Record(Schema.String, Schema.Array(Schema.String)),
-  defaultValue: (): Readonly<Record<string, ReadonlyArray<string>>> => ({}),
+  defaultValue: (): Readonly<Record<string, readonly string[]>> => ({}),
 }).pipe(Atom.keepAlive)
 
 const openedGraph = (read: <A>(atom: Atom.Atom<A>) => A) =>
   Option.map(AsyncResult.value(read(openGraph)), (opened) => opened.graph)
 
-export const favorites = Atom.make((get): ReadonlyArray<Page> => {
+export const favorites = Atom.make((get): readonly Page[] => {
   const names = Option.match(openedGraph(get), {
     onNone: () => [],
     onSome: (graph) => get(favoriteNames)[graph] ?? [],
   })
+
   const byName = new Map(
     Option.getOrElse(AsyncResult.value(get(pages)), () => []).map((page) => [page.name, page]),
   )
+
   return names.flatMap((name) => byName.get(name) ?? [])
 }).pipe(Atom.withEquality(Equal.equals))
 
@@ -329,6 +354,7 @@ export const pageNamed = Atom.family((name: string) =>
 )
 
 export const ThemeChoice = Schema.Literals(["light", "dark", "system"])
+
 export type ThemeChoice = typeof ThemeChoice.Type
 
 export const theme = Atom.kvs({
@@ -342,7 +368,11 @@ export const prefersDark = Atom.make(false).pipe(Atom.keepAlive)
 
 export const resolvedTheme = Atom.make((get): "light" | "dark" => {
   const choice = get(theme)
-  if (choice !== "system") return choice
+
+  if (choice !== "system") {
+    return choice
+  }
+
   return get(prefersDark) ? "dark" : "light"
 })
 
@@ -362,6 +392,7 @@ export const SidebarItem = Schema.TaggedUnion({
   PageGraph: {},
   Slides: { name: Schema.String },
 })
+
 export type SidebarItem = typeof SidebarItem.Type
 
 export const SidebarAction = Schema.TaggedUnion({
@@ -370,11 +401,12 @@ export const SidebarAction = Schema.TaggedUnion({
   Toggle: {},
   Clear: {},
 })
+
 export type SidebarAction = typeof SidebarAction.Type
 
 export interface RightSidebar {
   readonly open: boolean
-  readonly items: ReadonlyArray<SidebarItem>
+  readonly items: readonly SidebarItem[]
 }
 
 export const sidebarItemKey = (item: SidebarItem) =>
@@ -386,7 +418,7 @@ export const sidebarItemKey = (item: SidebarItem) =>
     Slides: ({ name }) => `slides:${normalizePageName(name)}`,
   })
 
-const without = (items: ReadonlyArray<SidebarItem>, item: SidebarItem) =>
+const without = (items: readonly SidebarItem[], item: SidebarItem) =>
   items.filter((other) => sidebarItemKey(other) !== sidebarItemKey(item))
 
 const sidebarAfter = (state: RightSidebar, action: SidebarAction): RightSidebar =>
@@ -401,6 +433,7 @@ const sidebarState = Atom.make<RightSidebar>({ open: false, items: [] }).pipe(At
 
 export const rightSidebar = Atom.writable(
   (get) => get(sidebarState),
-  (ctx, action: SidebarAction) =>
-    ctx.set(sidebarState, sidebarAfter(ctx.get(sidebarState), action)),
+  (ctx, action: SidebarAction) => {
+    ctx.set(sidebarState, sidebarAfter(ctx.get(sidebarState), action))
+  },
 ).pipe(Atom.keepAlive)

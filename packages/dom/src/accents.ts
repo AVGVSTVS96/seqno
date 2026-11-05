@@ -69,6 +69,7 @@ const two = (step: number) => String(step).padStart(2, "0")
 const declarations = (color: AccentColor, dark: boolean) => {
   const scale = (which: Scale, alpha: boolean) =>
     steps(which === "accent" ? color : grayOf[color], dark, alpha)
+
   const ramps = (["accent", "gray"] as const).flatMap((which) =>
     [false, true].flatMap((alpha) =>
       scale(which, alpha).map(
@@ -76,10 +77,12 @@ const declarations = (color: AccentColor, dark: boolean) => {
       ),
     ),
   )
+
   const named = roles.map(
     ([variable, which, step, alpha]) =>
       `${variable}: ${scale(which, alpha === "alpha")[step - 1] ?? "initial"};`,
   )
+
   return [...ramps, ...named].join(" ")
 }
 

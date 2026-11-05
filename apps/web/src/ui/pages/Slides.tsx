@@ -14,14 +14,17 @@ import slidesCss from "./slides.css?inline"
 
 interface Slide {
   readonly block: Block
-  readonly below: ReadonlyArray<Block>
+  readonly below: readonly Block[]
 }
 
-const slidesOf = (tree: PageTree): ReadonlyArray<Slide> => {
+const slidesOf = (tree: PageTree): readonly Slide[] => {
   const children = Map.groupBy(tree.blocks, (block) => block.parentId)
-  const below = (block: Block): ReadonlyArray<Block> =>
+
+  const below = (block: Block): readonly Block[] =>
     (children.get(block.id) ?? []).flatMap((child) => [child, ...below(child)])
+
   const top = children.get(null) ?? []
+
   return (tree.page.journalDay === null ? top : top.slice(1)).map((block) => ({
     block,
     below: below(block),
@@ -40,6 +43,7 @@ const Deck = ({ tree }: { readonly tree: PageTree }) => {
   const onNavigate = useNavigateTo()
   const resolveAsset = useAtomValue(assetResolver)
   const slides = slidesOf(tree)
+
   const shown = (block: Block) => (
     <StaticBlock
       block={block}
@@ -48,12 +52,16 @@ const Deck = ({ tree }: { readonly tree: PageTree }) => {
       codeStyle="highlight.js"
     />
   )
+
   return (
     <div
       {...logseq("seqno-slides-deck")}
       key={slides.map(({ block, below }) => [block, ...below].map(({ text }) => text)).join("\n")}
       ref={(element) => {
-        if (element === null) return
+        if (element === null) {
+          return
+        }
+
         const deck = new Reveal(element, {
           embedded: true,
           controls: true,
@@ -63,8 +71,12 @@ const Deck = ({ tree }: { readonly tree: PageTree }) => {
           keyboardCondition: "focused",
           scrollActivationWidth: 0,
         })
+
         void deck.initialize()
-        return () => deck.destroy()
+
+        return () => {
+          deck.destroy()
+        }
       }}
     >
       <div {...logseq("seqno-slides-list")}>
@@ -100,6 +112,7 @@ export const Slides = ({ name }: { readonly name: string }) => {
   const page = Option.getOrUndefined(
     AsyncResult.getOrElse(useAtomValue(pageNamed(name)), () => Option.none()),
   )
+
   return (
     <div {...logseq("seqno-slides")}>
       <style href="seqno/slides" precedence="pages">

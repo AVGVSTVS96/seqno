@@ -9,8 +9,10 @@ import {
 } from "@tabler/icons-react"
 import { Effect } from "effect"
 import { Atom, AsyncResult } from "effect/reactivity"
-import { useState, type ReactNode } from "react"
-import { isWhiteboard, normalizePageName, type Block, type Page } from "@seqno/domain"
+import { useState } from "react"
+import type { ReactNode } from "react"
+import { isWhiteboard, normalizePageName } from "@seqno/domain"
+import type { Block, Page } from "@seqno/domain"
 import { coreRuntime } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
 
@@ -35,7 +37,11 @@ const noHits = { pages: [], blocks: [] }
 
 const Marked = ({ text, query }: { readonly text: string; readonly query: string }) => {
   const at = query === "" ? -1 : text.toLowerCase().indexOf(query.toLowerCase())
-  if (at === -1) return text
+
+  if (at === -1) {
+    return text
+  }
+
   return (
     <>
       {text.slice(0, at)}
@@ -49,8 +55,8 @@ interface HitsProps {
   readonly query: string
   readonly filter: Filter
   readonly children: (hits: {
-    readonly pages: ReadonlyArray<Page>
-    readonly blocks: ReadonlyArray<Block>
+    readonly pages: readonly Page[]
+    readonly blocks: readonly Block[]
   }) => ReactNode
 }
 
@@ -59,6 +65,7 @@ const Hits = (props: HitsProps) =>
 
 const Searched = ({ query, filter, children }: HitsProps) => {
   const hits = AsyncResult.getOrElse(useAtomValue(searchAtom(query)), () => noHits)
+
   return children({
     pages: filter === "blocks" ? [] : hits.pages.slice(0, 50),
     blocks: filter === "pages" ? [] : hits.blocks.slice(0, 50),
@@ -68,13 +75,17 @@ const Searched = ({ query, filter, children }: HitsProps) => {
 const optionsFor = (
   query: string,
   filter: Filter,
-  pages: ReadonlyArray<Page>,
-  blocks: ReadonlyArray<Block>,
+  pages: readonly Page[],
+  blocks: readonly Block[],
   addsBlocks: boolean,
-): ReadonlyArray<Option> => {
+): readonly Option[] => {
   const text = query.trim()
+
   if (text === "") {
-    if (filter !== null) return []
+    if (filter !== null) {
+      return []
+    }
+
     return [
       ...(addsBlocks
         ? [{ _tag: "Pick", pick: { _tag: "NewBlock", text: "" } } satisfies Option]
@@ -83,8 +94,10 @@ const optionsFor = (
       { _tag: "Filter", filter: "pages" },
     ]
   }
+
   const exact = pages.some((page) => page.name === normalizePageName(text))
-  const creates: ReadonlyArray<Option> =
+
+  const creates: readonly Option[] =
     filter === null
       ? [
           ...(addsBlocks
@@ -98,6 +111,7 @@ const optionsFor = (
               ]),
         ]
       : []
+
   return [
     ...creates,
     ...pages.map((page): Option => ({ _tag: "Pick", pick: { _tag: "Page", page } })),
@@ -109,17 +123,27 @@ const RowIcon = ({ option }: { readonly option: Option }) => {
   if (option._tag === "Filter") {
     return option.filter === "blocks" ? <IconLetterCase size={14} /> : <IconFile size={14} />
   }
+
   switch (option.pick._tag) {
-    case "NewBlock":
+    case "NewBlock": {
       return <IconCirclePlus size={14} />
-    case "NewPage":
+    }
+
+    case "NewPage": {
       return <IconFileText size={14} />
-    case "NewWhiteboard":
+    }
+
+    case "NewWhiteboard": {
       return <IconChalkboard size={14} />
-    case "Page":
+    }
+
+    case "Page": {
       return isWhiteboard(option.pick.page) ? <IconChalkboard size={14} /> : <IconFile size={14} />
-    case "Block":
+    }
+
+    case "Block": {
       return <IconLetterCase size={14} />
+    }
   }
 }
 
@@ -127,26 +151,37 @@ const RowLabel = ({ option, query }: { readonly option: Option; readonly query: 
   if (option._tag === "Filter") {
     return option.filter === "blocks" ? "Search only blocks" : "Search only pages"
   }
+
   const { pick } = option
+
   switch (pick._tag) {
-    case "NewBlock":
+    case "NewBlock": {
       return pick.text === "" ? "New block" : `New block: ${pick.text}`
-    case "NewPage":
+    }
+
+    case "NewPage": {
       return `New page: ${pick.title}`
-    case "NewWhiteboard":
+    }
+
+    case "NewWhiteboard": {
       return `New whiteboard: ${pick.title}`
-    case "Page":
+    }
+
+    case "Page": {
       return (
         <span>
           <Marked text={pick.page.title} query={query} />
         </span>
       )
-    case "Block":
+    }
+
+    case "Block": {
       return (
         <span>
           <Marked text={pick.block.text.split("\n")[0] ?? ""} query={query} />
         </span>
       )
+    }
   }
 }
 
@@ -174,25 +209,37 @@ export const QuickSearch = ({
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState<Filter>(null)
   const [focused, setFocused] = useState(0)
+
   const choose = (option: Option | undefined) => {
-    if (option === undefined) return
+    if (option === undefined) {
+      return
+    }
+
     if (option._tag === "Filter") {
       setFilter(option.filter)
       setFocused(0)
-    } else onPick(option.pick)
+    } else {
+      onPick(option.pick)
+    }
   }
+
   return (
     <Hits query={query.trim()} filter={filter}>
       {({ pages, blocks }) => {
         const options = optionsFor(query, filter, pages, blocks, !linking)
         const at = Math.min(focused, Math.max(0, options.length - 1))
+
         return (
           <div
             className="wb-search"
             data-mode={linking ? "link" : "portal"}
             style={place ?? undefined}
-            onPointerDown={(event) => event.stopPropagation()}
-            onWheel={(event) => event.stopPropagation()}
+            onPointerDown={(event) => {
+              event.stopPropagation()
+            }}
+            onWheel={(event) => {
+              event.stopPropagation()
+            }}
           >
             <div className="wb-search-row">
               <span className="wb-search-icon" aria-hidden>
@@ -227,8 +274,10 @@ export const QuickSearch = ({
                 onBlur={linking ? undefined : onCancel}
                 onKeyDown={(event) => {
                   event.stopPropagation()
-                  if (event.key === "Escape") onCancel()
-                  else if (event.key === "ArrowDown") {
+
+                  if (event.key === "Escape") {
+                    onCancel()
+                  } else if (event.key === "ArrowDown") {
                     event.preventDefault()
                     setFocused(Math.min(options.length - 1, at + 1))
                   } else if (event.key === "ArrowUp") {
@@ -251,7 +300,9 @@ export const QuickSearch = ({
                     className="wb-search-option"
                     role="option"
                     aria-selected={index === at}
-                    onPointerEnter={() => setFocused(index)}
+                    onPointerEnter={() => {
+                      setFocused(index)
+                    }}
                     onPointerDown={(event) => {
                       event.preventDefault()
                       choose(option)

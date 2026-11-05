@@ -10,18 +10,22 @@ export const PublishedPage = Schema.Struct({
   created: Schema.NullOr(Schema.Number),
   updated: Schema.NullOr(Schema.Number),
 })
+
 export type PublishedPage = typeof PublishedPage.Type
 
 export const PublishedRows = Schema.TaggedUnion({
   BlockRows: { blocks: Schema.Array(BlockId) },
   PageRows: { pages: Schema.Array(PageId) },
 })
+
 export type PublishedRows = typeof PublishedRows.Type
 
 export const PublishedReference = Schema.Struct({ blockId: BlockId, pageId: PageId })
+
 export type PublishedReference = typeof PublishedReference.Type
 
 export const PublishedName = Schema.Struct({ name: Schema.String, title: Schema.String })
+
 export type PublishedName = typeof PublishedName.Type
 
 export const Published = Schema.Struct({
@@ -33,6 +37,7 @@ export const Published = Schema.Struct({
   queries: Schema.Record(Schema.String, PublishedRows),
   listKeys: Schema.Array(Schema.String),
 })
+
 export type Published = typeof Published.Type
 
 export const publishedDataId = "seqno-published"
@@ -40,7 +45,7 @@ export const publishedDataId = "seqno-published"
 const allPublicSetting = /:(?:publishing\/)?all-pages-public\?\s+true(?![\w?-])/
 
 export const allPagesPublic = (configEdn: string): boolean =>
-  allPublicSetting.test(configEdn.replace(/;[^\n]*/g, ""))
+  allPublicSetting.test(configEdn.replaceAll(/;[^\n]*/g, ""))
 
 const publicValue = (page: Page) => page.props["public"]?.trim().toLowerCase()
 
@@ -51,13 +56,17 @@ const aliasesOf = (page: Page) =>
     .filter((name) => name !== "")
 
 export const publicPages = <P extends PageBlocks>(
-  pages: ReadonlyArray<P>,
+  pages: readonly P[],
   allPublic: boolean,
-): ReadonlyArray<P> => {
-  if (allPublic) return pages.filter(({ page }) => publicValue(page) !== "false")
+): readonly P[] => {
+  if (allPublic) {
+    return pages.filter(({ page }) => publicValue(page) !== "false")
+  }
+
   const marked = pages.filter(({ page }) => publicValue(page) === "true")
   const names = new Set(marked.map(({ page }) => page.name))
   const aliased = new Set(marked.flatMap(({ page }) => aliasesOf(page)))
+
   return pages.filter(
     ({ page }) =>
       names.has(page.name) ||
@@ -76,15 +85,16 @@ const decoded = (path: string) => {
   }
 }
 
-const textsOf = (blocks: ReadonlyArray<Block>) =>
+const textsOf = (blocks: readonly Block[]) =>
   blocks.flatMap((block) => [block.text, ...Object.values(block.props)])
 
-export const usedAssets = (pages: ReadonlyArray<PageBlocks>): ReadonlyArray<string> => [
+export const usedAssets = (pages: readonly PageBlocks[]): readonly string[] => [
   ...new Set(
     pages.flatMap(({ page, blocks }) =>
       [...Object.values(page.props), ...textsOf(blocks)].flatMap((text) =>
         [...text.matchAll(assetLink)].flatMap((match) => {
           const path = (match[1] ?? "").split(/\s/)[0] ?? ""
+
           return path === "" || path.endsWith(".js") ? [] : [`assets/${decoded(path)}`]
         }),
       ),
@@ -92,7 +102,7 @@ export const usedAssets = (pages: ReadonlyArray<PageBlocks>): ReadonlyArray<stri
   ),
 ]
 
-export const queriesIn = (pages: ReadonlyArray<PageBlocks>): ReadonlyArray<string> => [
+export const queriesIn = (pages: readonly PageBlocks[]): readonly string[] => [
   ...new Set(
     pages.flatMap(({ blocks }) =>
       blocks.flatMap((block) =>
@@ -105,10 +115,11 @@ export const queriesIn = (pages: ReadonlyArray<PageBlocks>): ReadonlyArray<strin
 ]
 
 export const publishedRows = (
-  pages: ReadonlyArray<PageBlocks>,
-  rows: { readonly blocks: ReadonlyArray<Block> } | { readonly pages: ReadonlyArray<Page> },
+  pages: readonly PageBlocks[],
+  rows: { readonly blocks: readonly Block[] } | { readonly pages: readonly Page[] },
 ): PublishedRows => {
   const pageIds = new Set(pages.map(({ page }) => page.id))
+
   return "blocks" in rows
     ? PublishedRows.cases.BlockRows.make({
         blocks: rows.blocks.filter((block) => pageIds.has(block.pageId)).map((block) => block.id),
@@ -124,28 +135,34 @@ const pageRefs = (text: string) =>
   )
 
 export const namesLinked = <P extends PageBlocks>(
-  pages: ReadonlyArray<P>,
-): ReadonlyArray<PublishedName> => {
+  pages: readonly P[],
+): readonly PublishedName[] => {
   const published = new Set(pages.flatMap(({ page }) => [page.name, ...aliasesOf(page)]))
   const found = new Map<string, string>()
-  for (const { page, blocks } of pages)
+
+  for (const { page, blocks } of pages) {
     for (const text of [
       ...Object.entries(page.props).map(([key, value]) => `${key}:: ${value}`),
       ...blocks.flatMap((block) => [
         block.text,
         ...Object.entries(block.props).map(([key, value]) => `${key}:: ${value}`),
       ]),
-    ])
-      for (const [name, title] of pageRefs(text))
+    ]) {
+      for (const [name, title] of pageRefs(text)) {
         if (name !== "" && !published.has(name) && !found.has(name)) found.set(name, title)
+      }
+    }
+  }
+
   return [...found].map(([name, title]) => ({ name, title }))
 }
 
 export const publishedReferences = (
-  pages: ReadonlyArray<PageBlocks>,
-  references: ReadonlyArray<PublishedReference>,
-): ReadonlyArray<PublishedReference> => {
+  pages: readonly PageBlocks[],
+  references: readonly PublishedReference[],
+): readonly PublishedReference[] => {
   const blockIds = new Set(pages.flatMap(({ blocks }) => blocks.map((block) => block.id)))
+
   return references.filter((reference) => blockIds.has(reference.blockId))
 }
 
@@ -209,10 +226,10 @@ export const notFoundHtml = [
 
 export const publicSite = (
   data: Published,
-  viewer: ReadonlyArray<SiteFile>,
+  viewer: readonly SiteFile[],
   style: GraphStyle,
-  assets: ReadonlyArray<SiteFile>,
-): ReadonlyArray<SiteFile> => [
+  assets: readonly SiteFile[],
+): readonly SiteFile[] => [
   ["index.html", strToU8(indexHtml(data))],
   ["404.html", strToU8(notFoundHtml)],
   ...viewer,
@@ -222,7 +239,7 @@ export const publicSite = (
   ...assets,
 ]
 
-export const zipSite = (folder: string, files: ReadonlyArray<SiteFile>, seconds: number) =>
+export const zipSite = (folder: string, files: readonly SiteFile[], seconds: number) =>
   zipSync(Object.fromEntries(files.map(([path, bytes]) => [`${folder}/${path}`, bytes])), {
     mtime: seconds * 1000,
   })

@@ -9,6 +9,7 @@ const writeFolder = async (root: string, files: Record<string, Uint8Array | stri
     await mkdir(dirname(join(root, path)), { recursive: true })
     await writeFile(join(root, path), content)
   }
+
   return root
 }
 
@@ -19,6 +20,7 @@ test("seedOpfs copies a vault folder into OPFS byte for byte", async ({ page }, 
     "snapshots/3f9a.loro": new Uint8Array([7, 7, 7]),
     "seen/dev-a.json": new Uint8Array([123, 125]),
   }
+
   await seedOpfs(page, await writeFolder(testInfo.outputPath("vault"), vault), ["graphs", "demo"])
   expect(await opfsFiles(page, ["graphs", "demo"])).toEqual(vault)
 })
@@ -28,17 +30,21 @@ test("loadGraphFolder hands the seeded folder to the folder picker", async ({ pa
     "pages/hello.md": "- hi",
     "journals/2026_10_06.md": "- today",
   })
+
   await loadGraphFolder(page, graph)
-  await page.route("/", (route) =>
-    route.fulfill({ contentType: "text/html", body: "<!doctype html>" }),
-  )
+  await page.route("/", async (route) => {
+    await route.fulfill({ contentType: "text/html", body: "<!doctype html>" })
+  })
   await page.goto("/")
+
   const picked = await page.evaluate(async () => {
     const folder = await window.showDirectoryPicker()
     const pages = await folder.getDirectoryHandle("pages")
     const hello = await (await pages.getFileHandle("hello.md")).getFile()
+
     return { name: folder.name, hello: await hello.text() }
   })
+
   expect(picked).toEqual({ name: "my-graph", hello: "- hi" })
 })
 
@@ -53,6 +59,7 @@ test("journal titles follow Logseq's default MMM do, yyyy format", () => {
     new Date(2026, 2, 22),
     new Date(2026, 7, 31),
   ]
+
   expect(days.map(journalTitle)).toEqual([
     "Oct 6th, 2026",
     "Jan 1st, 2026",

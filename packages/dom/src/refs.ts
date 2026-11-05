@@ -2,17 +2,19 @@ import { analyzeBlock, isHiddenProperty } from "@seqno/syntax"
 
 const withNamespaces = (name: string) => {
   const parts = name.toLowerCase().split("/")
+
   return parts.map((_, index) => parts.slice(0, parts.length - index).join("/"))
 }
 
-export const refsValue = (names: ReadonlyArray<string>) =>
+export const refsValue = (names: readonly string[]) =>
   `[${[...new Set(names)].map((name) => `"${name}"`).join(", ")}]`
 
-const known = new Map<string, ReadonlyArray<string>>()
+const known = new Map<string, readonly string[]>()
 const cacheLimit = 4000
 
 const read = (text: string) => {
   const syntax = analyzeBlock(text)
+
   return [
     ...(syntax.marker === null ? [] : [syntax.marker.toLowerCase()]),
     ...(syntax.priority === null ? [] : [syntax.priority.toLowerCase()]),
@@ -25,15 +27,25 @@ const read = (text: string) => {
   ]
 }
 
-export const refsOf = (text: string): ReadonlyArray<string> => {
+export const refsOf = (text: string): readonly string[] => {
   const hit = known.get(text)
-  if (hit !== undefined) return hit
+
+  if (hit !== undefined) {
+    return hit
+  }
+
   const found = read(text)
+
   if (known.size >= cacheLimit) {
     const oldest = known.keys().next().value
-    if (oldest !== undefined) known.delete(oldest)
+
+    if (oldest !== undefined) {
+      known.delete(oldest)
+    }
   }
+
   known.set(text, found)
+
   return found
 }
 

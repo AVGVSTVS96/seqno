@@ -17,7 +17,7 @@ interface Feature {
   readonly media: ReactNode
 }
 
-const features: ReadonlyArray<Feature> = [
+const features: readonly Feature[] = [
   {
     title: "Every page is an outline.",
     text: "Indent, drag, fold or zoom into any block, and start each day on a fresh journal page.",

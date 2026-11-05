@@ -29,10 +29,12 @@ test("draws a labeled rectangle connected to a circle, and the arrow follows the
   await page.keyboard.press("7")
   await drag(page, [400, 375], [880, 360])
   const arrow = shapes(page, "line").locator("path").first()
+
   const ends = async () =>
     ((await arrow.getAttribute("d")) ?? "")
       .match(/-?\d+(\.\d+)?/g)
       ?.map((n) => Math.round(Number(n)))
+
   await expect.poll(ends).toEqual([508, 325, 796, 318])
 
   await page.keyboard.press("1")
@@ -129,7 +131,9 @@ test("a board embedded in a block shows its drawing, and the board counts the re
   await page.keyboard.press("g")
   await page.keyboard.press("j")
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
-  await page.evaluate(() => navigator.clipboard.writeText("{{embed [[Raised beds]]}}"))
+  await page.evaluate(async () => {
+    await navigator.clipboard.writeText("{{embed [[Raised beds]]}}")
+  })
   await seqno.today
     .getByRole("treeitem")
     .filter({ hasText: "Welcome to the seqno demo graph" })
@@ -168,15 +172,21 @@ test("copied shapes paste with their connector still bound, undo takes the paste
   await expect(shapes(page, "line")).toHaveCount(2)
 
   const pastedArrow = shapes(page, "line").nth(1).locator("path").first()
+
   const ends = async () =>
     ((await pastedArrow.getAttribute("d")) ?? "")
       .match(/-?\d+(\.\d+)?/g)
       ?.map((n) => Math.round(Number(n)))
+
   const before = await ends()
   await page.mouse.click(700, 700)
   const circle = shapes(page, "ellipse").nth(1)
   const box = await circle.boundingBox()
-  if (box === null) throw new Error("the pasted circle has no box")
+
+  if (box === null) {
+    throw new Error("the pasted circle has no box")
+  }
+
   await drag(
     page,
     [box.x + box.width / 2, box.y + box.height / 2],

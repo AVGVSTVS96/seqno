@@ -1,6 +1,7 @@
 import { Result } from "effect"
 import { describe, expect, it } from "vitest"
-import { parseDataviewQuery, parseLogseqQuery, printLogseqQuery, type Query } from "../src/index.ts"
+import { parseDataviewQuery, parseLogseqQuery, printLogseqQuery } from "../src/index.ts"
+import type { Query } from "../src/index.ts"
 
 const OPEN = "todo, doing, now, later, waiting"
 
@@ -184,8 +185,8 @@ describe("the AST is the typed shape the compiler expects", () => {
         where: {
           _tag: "Between",
           field: "task.deadline",
-          from: { _tag: "AbsDate", ymd: 20261005 },
-          to: { _tag: "AbsDate", ymd: 20261012 },
+          from: { _tag: "AbsDate", ymd: 20_261_005 },
+          to: { _tag: "AbsDate", ymd: 20_261_012 },
         },
       }),
     )
@@ -222,5 +223,7 @@ describe("bad input is a QueryError with a plain message", () => {
       'unexpected "todo"',
     ],
     ["unreadable character", parseDataviewQuery("LIST WHERE ref = !x"), 'can\'t read "!x"'],
-  ])("%s", (_, result, message) => expect(failure(result)).toBe(message))
+  ])("%s", (_, result, message) => {
+    expect(failure(result)).toBe(message)
+  })
 })

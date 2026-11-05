@@ -20,17 +20,20 @@ interface TipEvent {
 
 declare global {
   interface Window {
-    seqnoTips?: Array<TipEvent>
+    seqnoTips?: TipEvent[]
   }
 }
 
-const recordTips = (page: Page) =>
-  page.addInitScript(() => {
-    const events: Array<TipEvent> = []
+const recordTips = async (page: Page) =>
+  await page.addInitScript(() => {
+    const events: TipEvent[] = []
     window.seqnoTips = events
     new MutationObserver((records) => {
       for (const { target } of records) {
-        if (!(target instanceof HTMLElement) || !target.classList.contains("hint")) continue
+        if (!(target instanceof HTMLElement) || !target.classList.contains("hint")) {
+          continue
+        }
+
         events.push({
           key: target.dataset["key"] ?? "",
           open: target.dataset["open"] === "true",
@@ -41,25 +44,36 @@ const recordTips = (page: Page) =>
     }).observe(document, { subtree: true, attributes: true, attributeFilter: ["data-open"] })
   })
 
-const tipEvents = (page: Page) => page.evaluate(() => window.seqnoTips ?? [])
+const tipEvents = async (page: Page) => await page.evaluate(() => window.seqnoTips ?? [])
 
 const openedTips = async (page: Page) =>
   (await tipEvents(page)).filter((event) => event.open).map((event) => event.key)
 
-const textUnderTip = (page: Page) =>
-  page.evaluate(() => {
+const textUnderTip = async (page: Page) =>
+  await page.evaluate(() => {
     const shown = document.querySelector('.hint[data-open="true"]')
-    if (shown === null) return ["no tip"]
+
+    if (shown === null) {
+      return ["no tip"]
+    }
+
     const box = shown.getBoundingClientRect()
     const range = document.createRange()
+
     const walker = document.createTreeWalker(
       document.querySelector(".app") ?? document.body,
       NodeFilter.SHOW_TEXT,
     )
-    const covered: Array<string> = []
+
+    const covered: string[] = []
+
     for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-      if (node.textContent?.trim() === "" || node.parentElement?.closest(".hint") != null) continue
+      if (node.textContent?.trim() === "" || node.parentElement?.closest(".hint") != null) {
+        continue
+      }
+
       range.selectNodeContents(node)
+
       for (const line of range.getClientRects()) {
         if (
           line.width > 0 &&
@@ -72,33 +86,46 @@ const textUnderTip = (page: Page) =>
         }
       }
     }
+
     return covered
   })
 
-const caretAim = (page: Page) =>
-  page.evaluate(() => {
+const caretAim = async (page: Page) =>
+  await page.evaluate(() => {
     const shown = document.querySelector('.hint[data-open="true"]')
-    if (!(shown instanceof HTMLElement)) return "no tip"
+
+    if (!(shown instanceof HTMLElement)) {
+      return "no tip"
+    }
+
     const caret = shown.querySelector(".hint-caret")?.getBoundingClientRect()
+
     const target = [...document.querySelectorAll("[style]")].find(
       (element) =>
         element instanceof HTMLElement &&
         element.style.getPropertyValue("anchor-name") === `--hint-${shown.dataset["hint"] ?? ""}`,
     )
-    if (caret === undefined || target === undefined) return "no caret or target"
+
+    if (caret === undefined || target === undefined) {
+      return "no caret or target"
+    }
+
     const aim = target.getBoundingClientRect()
     const tipBox = shown.getBoundingClientRect()
     const side = shown.dataset["side"] ?? "bottom"
+
     const across =
       side === "left" || side === "right"
         ? caret.top + caret.height / 2 - (aim.top + aim.height / 2)
         : caret.left + caret.width / 2 - (aim.left + aim.width / 2)
+
     const facing = {
       right: caret.left < tipBox.left && aim.right <= caret.left + 1,
       left: caret.right > tipBox.right && aim.left >= caret.right - 1,
       bottom: caret.top < tipBox.top && aim.bottom <= caret.top + 1,
       top: caret.bottom > tipBox.bottom && aim.top >= caret.bottom - 1,
     }[side]
+
     return `${facing === true ? "faces" : "turned away from"} its target, ${Math.round(Math.abs(across))}px off center`
   })
 
@@ -122,9 +149,9 @@ test("a first visit offers both demo graphs before any graph opens", async ({ pa
 test("the chooser and the help menu lead back to the seqno homepage, in the same tab", async ({
   page,
 }) => {
-  await page.route("https://seqno.vercel.app/**", (route) =>
-    route.fulfill({ contentType: "text/html", body: "<title>seqno home</title>" }),
-  )
+  await page.route("https://seqno.vercel.app/**", async (route) => {
+    await route.fulfill({ contentType: "text/html", body: "<title>seqno home</title>" })
+  })
   await page.goto("/")
   const about = page.getByRole("link", { name: "What is seqno?" })
   await expect(about).toHaveAttribute("href", "https://seqno.vercel.app")
@@ -270,20 +297,30 @@ test.describe("tips in a demo graph", () => {
     await page.getByRole("button", { name: "Toggle left sidebar" }).click()
     await expect(tip(page)).toHaveText(/Switch graphs here\.$/)
     const trigger = leftSidebar(page).getByRole("button", { name: "Getting started" })
+
     const toggle = await trigger.evaluate((button) => {
       const menu = button instanceof HTMLButtonElement ? button.popoverTargetElement : null
-      if (!(button instanceof HTMLButtonElement && menu instanceof HTMLElement)) return "no menu"
-      const toggled = new Promise<string>((resolve) =>
+
+      if (!(button instanceof HTMLButtonElement && menu instanceof HTMLElement)) {
+        return "no menu"
+      }
+
+      const toggled = new Promise<string>((resolve) => {
         menu.addEventListener(
           "toggle",
-          (event) => resolve(`${event.oldState} to ${event.newState}`),
+          (event) => {
+            resolve(`${event.oldState} to ${event.newState}`)
+          },
           { once: true },
-        ),
-      )
+        )
+      })
+
       button.click()
       menu.hidePopover()
+
       return toggled
     })
+
     expect(toggle).toBe("closed to closed")
     await expect(tip(page)).toHaveText("Click to open this page.")
     await page.reload()
@@ -296,12 +333,12 @@ test.describe("tips in a demo graph", () => {
     await openDemo(page)
     await page.getByRole("button", { name: "Toggle left sidebar" }).click()
     await expect(tip(page)).toHaveText(/Switch graphs here\.$/)
-    await expect.poll(() => caretAim(page)).toBe("faces its target, 0px off center")
-    await expect.poll(() => textUnderTip(page)).toEqual([])
+    await expect.poll(async () => await caretAim(page)).toBe("faces its target, 0px off center")
+    await expect.poll(async () => await textUnderTip(page)).toEqual([])
     await tip(page).getByRole("button", { name: "Dismiss tip" }).click()
     await expect(tip(page)).toHaveText("Click to open this page.")
-    await expect.poll(() => caretAim(page)).toBe("faces its target, 0px off center")
-    await expect.poll(() => textUnderTip(page)).toEqual([])
+    await expect.poll(async () => await caretAim(page)).toBe("faces its target, 0px off center")
+    await expect.poll(async () => await textUnderTip(page)).toEqual([])
   })
 
   test("no tip appears while a menu is open, and the next one waits for the menu to close", async ({

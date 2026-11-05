@@ -1,5 +1,6 @@
 import { Option, Schema } from "effect"
-import { PageId, type Page } from "@seqno/domain"
+import { PageId } from "@seqno/domain"
+import type { Page } from "@seqno/domain"
 import { setProp } from "../tree.ts"
 import {
   lastPlacement,
@@ -10,10 +11,8 @@ import {
   unseenSince,
   usable,
   wasOf,
-  type Placing,
-  type Spot as Place,
-  type Unseen,
 } from "../unseen.ts"
+import type { Placing, Spot as Place, Unseen } from "../unseen.ts"
 import {
   AT,
   REF,
@@ -23,70 +22,113 @@ import {
   parseKey,
   resolvePage,
   spotOf,
-  type Spot,
 } from "./layout.ts"
-import { homeOf, locate, placementOf, sameSpot, type Located, type Trees } from "./outline.ts"
+import type { Spot } from "./layout.ts"
+import { homeOf, locate, placementOf, sameSpot } from "./outline.ts"
+import type { Located, Trees } from "./outline.ts"
 
 export const repairNames = (trees: Trees, touched: Iterable<PageId>): boolean => {
   const pages = trees.listing().live
   const names = new Set<string>()
-  for (const id of touched)
+
+  for (const id of touched) {
     Option.map(Option.fromUndefinedOr(pages.get(id)), (page) => names.add(page.name))
-  if (names.size === 0) return false
-  const groups = new Map<string, Array<Page>>()
+  }
+
+  if (names.size === 0) {
+    return false
+  }
+
+  const groups = new Map<string, Page[]>()
+
   for (const page of pages.values()) {
-    if (!names.has(page.name)) continue
+    if (!names.has(page.name)) {
+      continue
+    }
+
     groups.set(page.name, [...(groups.get(page.name) ?? []), page])
   }
+
   let repaired = false
+
   for (const group of groups.values()) {
     const [winner, ...losers] = group.toSorted((a, b) => (a.id < b.id ? -1 : 1))
-    if (winner === undefined || losers.length === 0) continue
+
+    if (winner === undefined || losers.length === 0) {
+      continue
+    }
+
     const kept = new Set(Object.keys(winner.props))
+
     for (const loser of losers) {
       trees.dir.merged.set(loser.id, winner.id)
+
       for (const [key, value] of Object.entries(loser.props)) {
-        if (kept.has(key)) continue
+        if (kept.has(key)) {
+          continue
+        }
+
         kept.add(key)
         setProp(ensurePageData(trees.dir, winner.id), key, value)
       }
     }
+
     repaired = true
   }
-  if (repaired) trees.relist()
+
+  if (repaired) {
+    trees.relist()
+  }
+
   return repaired
 }
 
-const cut = (trees: Trees, homes: ReadonlyArray<Spot>) => {
+const cut = (trees: Trees, homes: readonly Spot[]) => {
   const [first] = homes.toSorted((a, b) => {
     const left = Option.getOrElse(trees.facts(a).id, () => "")
     const right = Option.getOrElse(trees.facts(b).id, () => "")
+
     return left < right ? -1 : left > right ? 1 : 0
   })
-  if (first === undefined) return
+
+  if (first === undefined) {
+    return
+  }
+
   const at = placementOf(trees, first)
+
   if (!sameSpot(at, first)) {
     trees.tree(at.page).move(at.node.id, trees.trash(at.page).id, 0)
     first.node.data.delete(AT)
   }
+
   trees.tree(first.page).move(first.node.id)
 }
 
 export const repairCycles = (trees: Trees, spots: Iterable<Spot>): boolean => {
-  if (trees.dir.moved.size === 0) return false
+  if (trees.dir.moved.size === 0) {
+    return false
+  }
+
   let memo: Located = new Map()
   let repaired = false
+
   for (const spot of spots) {
     const where = locate(trees, homeOf(trees, spot), memo)
-    if (where._tag !== "Cycle") continue
+
+    if (where._tag !== "Cycle") {
+      continue
+    }
+
     cut(trees, where.homes)
     memo = new Map()
     repaired = true
   }
+
   return repaired
 }
 
-export const spotsOf = (trees: Trees, keys: Iterable<string>): ReadonlyArray<Spot> =>
+export const spotsOf = (trees: Trees, keys: Iterable<string>): readonly Spot[] =>
   [...keys].flatMap((key) =>
     Option.toArray(
       Option.flatMap(parseKey(key), ([page, id]) =>
@@ -95,7 +137,7 @@ export const spotsOf = (trees: Trees, keys: Iterable<string>): ReadonlyArray<Spo
     ),
   )
 
-export const movedHomes = (trees: Trees): ReadonlyArray<Spot> =>
+export const movedHomes = (trees: Trees): readonly Spot[] =>
   spotsOf(trees, Object.keys(trees.dir.moved.toJSON()))
 
 interface Unit {
@@ -108,31 +150,43 @@ type End =
   | { readonly _tag: "Page"; readonly page: PageId }
 
 interface Chain {
-  readonly units: ReadonlyArray<Unit>
+  readonly units: readonly Unit[]
   readonly end: End
 }
 
 const decodePageId = Schema.decodeUnknownOption(PageId)
 
 const chainOf = (trees: Trees, spot: Spot): Option.Option<Chain> => {
-  const units: Array<Unit> = []
+  const units: Unit[] = []
   const seen = new Set<string>()
   let cursor = homeOf(trees, spot)
+
   for (;;) {
-    if (seen.has(cursor.key)) return Option.none()
+    if (seen.has(cursor.key)) {
+      return Option.none()
+    }
+
     seen.add(cursor.key)
     const at = placementOf(trees, cursor)
     units.push({ home: cursor, at })
     const parent = at.node.parent()
+
     if (parent === undefined) {
       const { trashed } = trees.listing()
+
       if (Option.isSome(resolvePage(trees.listing(), at.page)) || !trashed.has(at.page)) {
         return Option.none()
       }
+
       return Option.some({ units, end: { _tag: "Page", page: at.page } })
     }
+
     const above = spotOf(at.page, parent)
-    if (trees.facts(above).trash) return Option.some({ units, end: { _tag: "Node", k: at } })
+
+    if (trees.facts(above).trash) {
+      return Option.some({ units, end: { _tag: "Node", k: at } })
+    }
+
     cursor = homeOf(trees, above)
   }
 }
@@ -143,20 +197,33 @@ const nodesOf = (unit: Unit) =>
 const placeAt = (trees: Trees, unit: Unit, page: PageId, spot: Place, index: number): boolean => {
   const { home, at } = unit
   const tree = trees.tree(page)
+
   if (home.page === page) {
-    if (!moveUnder(tree, home.node, spot.parent, index)) return false
+    if (!moveUnder(tree, home.node, spot.parent, index)) {
+      return false
+    }
+
     if (!sameSpot(home, at)) {
       trees.tree(at.page).move(at.node.id, trees.trash(at.page).id, 0)
       home.node.data.delete(AT)
     }
+
     return true
   }
-  if (at.page === page) return moveUnder(tree, at.node, spot.parent, index)
+
+  if (at.page === page) {
+    return moveUnder(tree, at.node, spot.parent, index)
+  }
+
   const node = tree.createNode(spot.parent, index)
   node.data.set(REF, home.key)
   home.node.data.set(AT, spotOf(page, node).key)
   trees.markMoved(home)
-  if (!sameSpot(home, at)) trees.tree(at.page).move(at.node.id, trees.trash(at.page).id, 0)
+
+  if (!sameSpot(home, at)) {
+    trees.tree(at.page).move(at.node.id, trees.trash(at.page).id, 0)
+  }
+
   return true
 }
 
@@ -171,15 +238,21 @@ const rescue = (
   trees: Trees,
   unseen: Unseen,
   k: Spot,
-  chains: ReadonlyArray<Chain>,
-): ReadonlyArray<Placing> => {
+  chains: readonly Chain[],
+): readonly Placing[] => {
   const { doc } = trees
   const by = k.node.getLastMoveId()
-  if (by === undefined) return []
+
+  if (by === undefined) {
+    return []
+  }
+
   const tree = trees.tree(k.page)
   const missed = (unit: Unit) => unseenBy(doc, unseen, nodesOf(unit), by)
+
   if (missed({ home: homeOf(trees, k), at: k })) {
     const to = Option.orElse(lastPlacement(doc, tree, unseen, k.node, by), () => wasOf(k.node))
+
     return Option.match(
       Option.filter(to, (spot) => usable(tree, spot)),
       {
@@ -195,16 +268,26 @@ const rescue = (
       },
     )
   }
+
   const was = Option.map(
     Option.filter(wasOf(k.node), (spot) => usable(tree, spot)),
     (spot) => (leadsTo(trees, k, spot) ? { parent: undefined, index: spot.index } : spot),
   )
-  if (Option.isNone(was)) return []
+
+  if (Option.isNone(was)) {
+    return []
+  }
+
   const placings = new Map<string, Placing>()
+
   for (const { units } of chains) {
     for (let at = units.length - 2; at >= 0; at--) {
       const unit = units[at]
-      if (unit === undefined || !missed(unit)) continue
+
+      if (unit === undefined || !missed(unit)) {
+        continue
+      }
+
       const path = units.slice(at, -1).map((one) => one.at.node.fractionalIndex() ?? "")
       placings.set(unit.home.key, {
         node: unit.at.node,
@@ -215,15 +298,21 @@ const rescue = (
       break
     }
   }
+
   return [...placings.values()]
 }
 
 const rescueOnce = (trees: Trees, unseen: Unseen): boolean => {
-  const killed = new Map<string, { k: Spot; chains: Array<Chain> }>()
-  const pages = new Map<PageId, Array<Chain>>()
+  const killed = new Map<string, { k: Spot; chains: Chain[] }>()
+  const pages = new Map<PageId, Chain[]>()
+
   for (const [id, { root }] of unseen.nodes) {
     const page = pageOfTree(root)
-    if (Option.isNone(page)) continue
+
+    if (Option.isNone(page)) {
+      continue
+    }
+
     Option.map(
       Option.flatMap(
         Option.filter(
@@ -235,39 +324,73 @@ const rescueOnce = (trees: Trees, unseen: Unseen): boolean => {
       (chain) => {
         if (chain.end._tag === "Page") {
           const known = pages.get(chain.end.page)
-          if (known === undefined) pages.set(chain.end.page, [chain])
-          else known.push(chain)
+
+          if (known === undefined) {
+            pages.set(chain.end.page, [chain])
+          } else {
+            known.push(chain)
+          }
+
           return
         }
+
         const { k } = chain.end
         const known = killed.get(k.key)
-        if (known === undefined) killed.set(k.key, { k, chains: [chain] })
-        else known.chains.push(chain)
+
+        if (known === undefined) {
+          killed.set(k.key, { k, chains: [chain] })
+        } else {
+          known.chains.push(chain)
+        }
       },
     )
   }
-  const placings = new Map<PageId, Array<Placing>>()
+
+  const placings = new Map<PageId, Placing[]>()
+
   for (const { k, chains } of killed.values()) {
     const known = placings.get(k.page)
-    if (known === undefined) placings.set(k.page, [...rescue(trees, unseen, k, chains)])
-    else known.push(...rescue(trees, unseen, k, chains))
+
+    if (known === undefined) {
+      placings.set(k.page, [...rescue(trees, unseen, k, chains)])
+    } else {
+      known.push(...rescue(trees, unseen, k, chains))
+    }
   }
+
   let repaired = false
+
   for (const [page, onPage] of placings) {
-    if (placeAll(trees.tree(page), onPage)) repaired = true
+    if (placeAll(trees.tree(page), onPage)) {
+      repaired = true
+    }
   }
+
   const flags = unseen.keys.get(TRASHED)
+
   for (const [page, chains] of pages) {
     const flag = flags?.get(page)
-    if (flag === undefined || Option.isNone(decodePageId(page))) continue
+
+    if (flag === undefined || Option.isNone(decodePageId(page))) {
+      continue
+    }
+
     const missed = chains.some(({ units }) =>
       units.some((unit) => unseenBy(trees.doc, unseen, nodesOf(unit), flag.id)),
     )
-    if (!missed) continue
+
+    if (!missed) {
+      continue
+    }
+
     trees.dir.trashed.delete(page)
     repaired = true
   }
-  if (repaired) trees.relist()
+
+  if (repaired) {
+    trees.relist()
+  }
+
   return repaired
 }
 

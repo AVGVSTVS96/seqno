@@ -9,6 +9,7 @@ export const Hints = () => {
   useAtomMount(hintTracker(useRouter()))
   const { active, shown } = useAtomValue(hintState)
   const dismiss = useAtomSet(dismissHint)
+
   return (
     <>
       <style href="seqno/hints" precedence="app">
@@ -16,6 +17,7 @@ export const Hints = () => {
       </style>
       {shown.map(({ id, key, spot }) => {
         const open = key === active
+
         return (
           <div
             key={`${key} ${spot.selector}`}
@@ -42,7 +44,9 @@ export const Hints = () => {
               type="button"
               className="hint-close"
               aria-label="Dismiss tip"
-              onClick={() => dismiss(key)}
+              onClick={() => {
+                dismiss(key)
+              }}
             >
               <IconX size={14} stroke={2} aria-hidden />
             </button>

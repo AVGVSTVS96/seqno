@@ -3,7 +3,8 @@ import { AsyncResult, Atom } from "effect/reactivity"
 import { PageClient } from "@seqno/rpc"
 import { openGraph, settingsLayer } from "../../atoms.ts"
 import { viewRuntime } from "../pages/atoms.ts"
-import { allPagesScene, pageScene, sameScene, type Scene, type Visibility } from "./model.ts"
+import { allPagesScene, pageScene, sameScene } from "./model.ts"
+import type { Scene, Visibility } from "./model.ts"
 
 export const pagesGraph = viewRuntime.atom(
   Stream.unwrap(Effect.map(Effect.service(PageClient), (client) => client.WatchPagesGraph())),
@@ -29,6 +30,7 @@ export const GraphSettings = Schema.Struct({
   journals: Schema.Boolean,
   orphans: Schema.Boolean,
 })
+
 export type GraphSettings = typeof GraphSettings.Type
 
 export const defaultGraphSettings: GraphSettings = {
@@ -55,11 +57,12 @@ const openedName = (read: <A>(atom: Atom.Atom<A>) => A) =>
 
 export const graphSettings = Atom.writable(
   (get): GraphSettings => get(savedSettings)[openedName(get)] ?? defaultGraphSettings,
-  (ctx, next: GraphSettings) =>
+  (ctx, next: GraphSettings) => {
     ctx.set(savedSettings, {
       ...ctx.get(savedSettings),
       [openedName((atom) => ctx.get(atom))]: next,
-    }),
+    })
+  },
 )
 
 export const timeTravel = Atom.make<number | null>(null)

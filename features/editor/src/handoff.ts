@@ -1,12 +1,14 @@
 import type { EditorView } from "@codemirror/view"
 import { Schema } from "effect"
 import { CursorPlacement } from "./host.ts"
-import { keystrokeOf, press, type Keystroke } from "./typing.ts"
+import { keystrokeOf, press } from "./typing.ts"
+import type { Keystroke } from "./typing.ts"
 
 export const Arrival = Schema.TaggedUnion({
   Caret: { cursor: CursorPlacement, vim: Schema.optionalKey(Schema.Literals(["Normal"])) },
   Merged: { tail: Schema.String },
 })
+
 export type Arrival = typeof Arrival.Type
 
 export interface Handoff {
@@ -34,45 +36,59 @@ const pasteInto = (view: EditorView, text: string) => {
 }
 
 export const createHandoff = (): Handoff => {
-  let held: Array<Held> | null = null
+  let held: Held[] | null = null
   let holder: EditorView | null = null
   let carried: Arrival | null = null
   let delivering = false
 
   const capture = (event: KeyboardEvent) => {
     const stroke = keystrokeOf(event)
-    if (held === null || stroke === null || isPasteKey(stroke)) return
+
+    if (held === null || stroke === null || isPasteKey(stroke)) {
+      return
+    }
+
     held.push({ _tag: "Key", stroke })
     event.preventDefault()
     event.stopImmediatePropagation()
   }
 
   const capturePaste = (event: ClipboardEvent) => {
-    if (held === null) return
+    if (held === null) {
+      return
+    }
+
     held.push({ _tag: "Paste", text: event.clipboardData?.getData("text/plain") ?? "" })
     event.preventDefault()
     event.stopImmediatePropagation()
   }
 
-  const release = (): ReadonlyArray<Held> => {
+  const release = (): readonly Held[] => {
     window.removeEventListener("keydown", capture, true)
     window.removeEventListener("paste", capturePaste, true)
     window.removeEventListener("pointerdown", release, true)
     const keys = held ?? []
     held = null
     holder = null
+
     return keys
   }
 
   const deliver = (view: EditorView) => {
     const keys = release()
     delivering = true
+
     try {
       for (const [index, item] of keys.entries()) {
-        if (item._tag === "Key") press(view, item.stroke)
-        else pasteInto(view, item.text)
+        if (item._tag === "Key") {
+          press(view, item.stroke)
+        } else {
+          pasteInto(view, item.text)
+        }
+
         if (held !== null) {
           held.unshift(...keys.slice(index + 1))
+
           return
         }
       }
@@ -88,14 +104,20 @@ export const createHandoff = (): Handoff => {
   return {
     hold: (view) => {
       holder = view
-      if (held !== null) return
+
+      if (held !== null) {
+        return
+      }
+
       held = []
       window.addEventListener("keydown", capture, true)
       window.addEventListener("paste", capturePaste, true)
       window.addEventListener("pointerdown", release, true)
     },
     settle: (view) => {
-      if (held !== null && holder === view) deliver(view)
+      if (held !== null && holder === view) {
+        deliver(view)
+      }
     },
     carry: (arrival) => {
       carried = arrival
@@ -105,10 +127,13 @@ export const createHandoff = (): Handoff => {
     take: () => {
       const arrival = carried
       carried = null
+
       return arrival
     },
     arrive: (view) => {
-      if (held !== null) deliver(view)
+      if (held !== null) {
+        deliver(view)
+      }
     },
     replaying: () => delivering,
   }

@@ -16,6 +16,7 @@ export const BlockKey = Schema.TaggedUnion({
   Undo: {},
   Redo: {},
 })
+
 export type BlockKey = typeof BlockKey.Type
 
 export interface BlockKeyRead {
@@ -63,7 +64,10 @@ const motions: Record<string, BlockKey> = {
 }
 
 const actionOf = (keys: string, count: number, visual: boolean): BlockKey | null => {
-  if (keys === "j" || keys === "k") return { _tag: "Move", by: keys === "j" ? count : -count }
+  if (keys === "j" || keys === "k") {
+    return { _tag: "Move", by: keys === "j" ? count : -count }
+  }
+
   return (visual ? visualOperators : normalOperators)[keys] ?? motions[keys] ?? null
 }
 
@@ -71,11 +75,21 @@ const waitsFor = (keys: string, visual: boolean) =>
   keys === "" || keys === "g" || keys === "z" || (!visual && /^[dy><]$/.test(keys))
 
 export const readBlockKey = (pending: string, key: string, visual: boolean): BlockKeyRead => {
-  if (key === "<C-r>") return { pending: "", action: { _tag: "Redo" }, handled: true }
+  if (key === "<C-r>") {
+    return { pending: "", action: { _tag: "Redo" }, handled: true }
+  }
+
   const typed = pending + key
   const [, digits = "", keys = ""] = /^([1-9]\d*)?(.*)$/.exec(typed) ?? []
   const action = actionOf(keys, digits === "" ? 1 : Number(digits), visual)
-  if (action !== null) return { pending: "", action, handled: true }
-  if (waitsFor(keys, visual)) return { pending: typed, action: null, handled: keys !== "g" }
+
+  if (action !== null) {
+    return { pending: "", action, handled: true }
+  }
+
+  if (waitsFor(keys, visual)) {
+    return { pending: typed, action: null, handled: keys !== "g" }
+  }
+
   return { pending: "", action: null, handled: false }
 }

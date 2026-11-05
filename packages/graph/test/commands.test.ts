@@ -1,7 +1,8 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Fiber, Stream } from "effect"
 import { TestClock } from "effect/testing"
-import { BlockId, PageId, type Command } from "@seqno/domain"
+import { BlockId, PageId } from "@seqno/domain"
+import type { Command } from "@seqno/domain"
 import { journalPageId } from "@seqno/graph"
 import {
   createdBlock,
@@ -57,6 +58,7 @@ describe("pages", () => {
           title: "Board",
           props: { "ls-type": "whiteboard-page" },
         })
+
         const pageId = createdPage(created)
         assert.deepStrictEqual(yield* graph.pages, [
           {
@@ -105,22 +107,27 @@ describe("pages", () => {
         const created = yield* graph.dispatch({
           _tag: "CreatePage",
           title: "Oct 14th, 2026",
-          journalDay: 20261014,
+          journalDay: 20_261_014,
         })
+
         const pageId = createdPage(created)
-        if (format === "v2") assert.strictEqual(pageId, "00002026-1014-7000-8000-000000000000")
+
+        if (format === "v2") {
+          assert.strictEqual(pageId, "00002026-1014-7000-8000-000000000000")
+        }
+
         assert.deepStrictEqual(yield* graph.pages, [
           {
             id: pageId,
             name: "oct 14th, 2026",
             title: "Oct 14th, 2026",
-            journalDay: 20261014,
+            journalDay: 20_261_014,
             props: {},
           },
         ])
         assert.strictEqual(
           yield* rejection(
-            graph.dispatch({ _tag: "CreatePage", title: "2026-10-14", journalDay: 20261014 }),
+            graph.dispatch({ _tag: "CreatePage", title: "2026-10-14", journalDay: 20_261_014 }),
           ),
           "a journal for that day already exists",
         )
@@ -134,16 +141,21 @@ describe("pages", () => {
         const journal = {
           _tag: "CreatePage",
           title: "Oct 14th, 2026",
-          journalDay: 20261014,
+          journalDay: 20_261_014,
         } as const
+
         const first = createdPage(yield* graph.dispatch(journal))
         yield* graph.dispatch({ _tag: "InsertBlock", pageId: first, parentId: null, text: "old" })
         yield* graph.dispatch({ _tag: "DeletePage", pageId: first })
         const again = createdPage(yield* graph.dispatch(journal))
-        if (format === "v2") assert.strictEqual(again, journalPageId(20261014))
+
+        if (format === "v2") {
+          assert.strictEqual(again, journalPageId(20_261_014))
+        }
+
         assert.deepStrictEqual(
           (yield* graph.pages).map((page) => [page.title, page.journalDay]),
-          [["Oct 14th, 2026", 20261014]],
+          [["Oct 14th, 2026", 20_261_014]],
         )
         assert.deepStrictEqual((yield* graph.page(again)).blocks, [])
         yield* graph.dispatch({ _tag: "Undo" })
@@ -160,8 +172,9 @@ describe("pages", () => {
           const journal = {
             _tag: "CreatePage",
             title: "Oct 14th, 2026",
-            journalDay: 20261014,
+            journalDay: 20_261_014,
           } as const
+
           const first = createdPage(yield* graph.dispatch(journal))
           yield* graph.dispatch({ _tag: "InsertBlock", pageId: first, parentId: null, text: "old" })
           yield* graph.dispatch({ _tag: "DeletePage", pageId: first })
@@ -203,12 +216,14 @@ describe("pages", () => {
         const target = { _tag: "PageTarget", pageId } as const
         yield* graph.dispatch({ _tag: "SetProperty", target, key: "tags", value: "work" })
         yield* graph.dispatch({ _tag: "SetProperty", target, key: "alias", value: "job" })
+
         const cleared = yield* graph.dispatch({
           _tag: "SetProperty",
           target,
           key: "alias",
           value: null,
         })
+
         assert.deepStrictEqual(cleared, [
           {
             _tag: "PageUpserted",
@@ -231,12 +246,14 @@ describe("blocks", () => {
     withGraph((graph) =>
       Effect.gen(function* () {
         const { pageId, ids } = yield* seedPage(graph, "Outline", ["one", "  child", "three"])
+
         const first = yield* graph.dispatch({
           _tag: "InsertBlock",
           pageId,
           parentId: null,
           text: "zero",
         })
+
         assert.deepStrictEqual(first, [
           {
             _tag: "BlockUpserted",
@@ -310,6 +327,7 @@ describe("blocks", () => {
       Effect.gen(function* () {
         const { pageId, ids } = yield* seedPage(graph, "Chosen", ["before"])
         const chosen = BlockId.make("01920000-0000-7000-8000-00000000c0de")
+
         const insert = (id: BlockId): Command => ({
           _tag: "InsertBlocks",
           pageId,
@@ -317,6 +335,7 @@ describe("blocks", () => {
           after: nth(ids, 0),
           blocks: [{ id, text: "brought", props: {}, children: [] }],
         })
+
         yield* graph.dispatch(insert(chosen))
         const tree = yield* graph.page(pageId)
         assert.strictEqual(tree.blocks.find((block) => block.text === "brought")?.id, chosen)
@@ -348,6 +367,7 @@ describe("blocks", () => {
         const { pageId, ids } = yield* seedPage(graph, "Edit", ["a😀c"])
         const blockId = nth(ids, 0)
         yield* TestClock.adjust("5 seconds")
+
         const events = yield* graph.dispatch({
           _tag: "EditText",
           blockId,
@@ -355,6 +375,7 @@ describe("blocks", () => {
           to: 3,
           insert: "b",
         })
+
         assert.deepStrictEqual(events, [
           {
             _tag: "BlockUpserted",
@@ -400,6 +421,7 @@ describe("blocks", () => {
       Effect.gen(function* () {
         const { ids } = yield* seedPage(graph, "Merge props", ["a", "b"])
         const [a, b] = [nth(ids, 0), nth(ids, 1)]
+
         const set = (blockId: BlockId, key: string, value: string) =>
           graph.dispatch({
             _tag: "SetProperty",
@@ -407,6 +429,7 @@ describe("blocks", () => {
             key,
             value,
           })
+
         yield* set(a, "owner", "a")
         yield* set(b, "owner", "b")
         yield* set(b, "id", "6512a3f0-1111-4222-8333-444455556666")
@@ -431,6 +454,7 @@ describe("blocks", () => {
           "  b2",
           "    b2x",
         ])
+
         const [a, b, b2] = [nth(ids, 0), nth(ids, 2), nth(ids, 4)]
         const merged = yield* graph.dispatch({ _tag: "MergeWithPrevious", blockId: b })
         assert.deepStrictEqual(tags(merged), [
@@ -466,10 +490,12 @@ describe("blocks", () => {
       Effect.gen(function* () {
         const { pageId, ids } = yield* seedPage(graph, "Indent", ["a", "  a1", "b", "c", "d"])
         const [a, b, c] = [nth(ids, 0), nth(ids, 2), nth(ids, 3)]
+
         const events = yield* graph.dispatch({
           _tag: "Indent",
           blockIds: [c, b],
         })
+
         assert.deepStrictEqual(events, [
           { _tag: "BlockMoved", blockId: b, pageId, parentId: a },
           { _tag: "BlockMoved", blockId: c, pageId, parentId: a },
@@ -508,12 +534,14 @@ describe("blocks", () => {
         const to = yield* seedPage(graph, "To", ["first", "last"])
         const [keep, go, along] = [nth(from.ids, 0), nth(from.ids, 1), nth(from.ids, 2)]
         const first = nth(to.ids, 0)
+
         const events = yield* graph.dispatch({
           _tag: "MoveBlocks",
           blockIds: [go],
           parentId: null,
           after: first,
         })
+
         assert.deepStrictEqual(events, [
           { _tag: "BlockMoved", blockId: go, pageId: to.pageId, parentId: null },
           { _tag: "BlockMoved", blockId: along, pageId: to.pageId, parentId: go },
@@ -554,10 +582,12 @@ describe("blocks", () => {
       Effect.gen(function* () {
         const { pageId, ids } = yield* seedPage(graph, "Delete", ["a", "  a1", "b"])
         const [a, a1] = [nth(ids, 0), nth(ids, 1)]
+
         const events = yield* graph.dispatch({
           _tag: "DeleteBlocks",
           blockIds: [a1, a],
         })
+
         assert.deepStrictEqual(events, [
           { _tag: "BlockDeleted", blockId: a, pageId },
           { _tag: "BlockDeleted", blockId: a1, pageId },
@@ -595,11 +625,16 @@ describe("undo and redo", () => {
       Effect.gen(function* () {
         const { pageId, ids } = yield* seedPage(graph, "History", ["a", "b"])
         const [a, b] = [nth(ids, 0), nth(ids, 1)]
-        const steps: ReadonlyArray<Command> = [
+
+        const steps: readonly Command[] = [
           { _tag: "EditText", blockId: a, from: 1, to: 1, insert: "!" },
           { _tag: "Indent", blockIds: [b] },
         ]
-        for (const step of steps) yield* graph.dispatch(step)
+
+        for (const step of steps) {
+          yield* graph.dispatch(step)
+        }
+
         assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a!", "  b"])
         yield* graph.dispatch({ _tag: "Undo" })
         assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a!", "b"])
@@ -640,6 +675,7 @@ describe("undo and redo", () => {
           [a, a1],
         )
         assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a", "  a1"])
+
         const edited = yield* graph.dispatch({
           _tag: "EditText",
           blockId: a1,
@@ -647,6 +683,7 @@ describe("undo and redo", () => {
           to: 2,
           insert: "!",
         })
+
         assert.deepStrictEqual(tags(edited), ["BlockUpserted"])
       }),
     ),
@@ -669,9 +706,11 @@ describe("events", () => {
         const seen = yield* graph.events.pipe(Stream.take(2), Stream.runCollect, Effect.forkChild)
         yield* Effect.yieldNow
         const pageId = createdPage(yield* graph.dispatch({ _tag: "CreatePage", title: "Live" }))
+
         const blockId: BlockId = createdBlock(
           yield* graph.dispatch({ _tag: "InsertBlock", pageId, parentId: null, text: "hi" }),
         )
+
         assert.deepStrictEqual(
           (yield* Fiber.join(seen)).map((event) =>
             event._tag === "BlockUpserted" ? event.block.id : event._tag,
@@ -683,7 +722,7 @@ describe("events", () => {
   )
 })
 
-const typed = (blockId: BlockId, at: number, text: string): ReadonlyArray<Command> =>
+const typed = (blockId: BlockId, at: number, text: string): readonly Command[] =>
   [...text].map((char, offset) => ({
     _tag: "EditText",
     blockId,
@@ -697,25 +736,37 @@ describe("undo steps", () => {
     withGraph((graph) =>
       Effect.gen(function* () {
         const pageId = createdPage(yield* graph.dispatch({ _tag: "CreatePage", title: "Probe" }))
+
         const first = createdBlock(
           yield* graph.dispatch({ _tag: "InsertBlock", pageId, parentId: null, text: "" }),
         )
-        for (const step of typed(first, 0, "abc")) yield* graph.dispatch(step)
+
+        for (const step of typed(first, 0, "abc")) {
+          yield* graph.dispatch(step)
+        }
+
         const split = yield* graph.dispatch({ _tag: "SplitBlock", blockId: first, at: 3 })
+
         const second = nth(
           split.flatMap((event) =>
             event._tag === "BlockUpserted" && event.block.id !== first ? [event.block.id] : [],
           ),
           0,
         )
-        for (const step of typed(second, 0, "def")) yield* graph.dispatch(step)
+
+        for (const step of typed(second, 0, "def")) {
+          yield* graph.dispatch(step)
+        }
+
         assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["abc", "def"])
 
-        const afterEachUndo: Array<ReadonlyArray<string>> = []
+        const afterEachUndo: Array<readonly string[]> = []
+
         for (let step = 0; step < 4; step++) {
           yield* graph.dispatch({ _tag: "Undo" })
           afterEachUndo.push(outline(yield* graph.page(pageId)))
         }
+
         assert.deepStrictEqual(afterEachUndo, [["abc", ""], ["abc"], [""], []])
         yield* graph.dispatch({ _tag: "Undo" })
         assert.deepStrictEqual(yield* graph.pages, [])
@@ -733,8 +784,15 @@ describe("undo steps", () => {
       Effect.gen(function* () {
         const { pageId, ids } = yield* seedPage(graph, "Two", ["a", "b"])
         const [a, b] = [nth(ids, 0), nth(ids, 1)]
-        for (const step of typed(a, 1, "xy")) yield* graph.dispatch(step)
-        for (const step of typed(b, 1, "zw")) yield* graph.dispatch(step)
+
+        for (const step of typed(a, 1, "xy")) {
+          yield* graph.dispatch(step)
+        }
+
+        for (const step of typed(b, 1, "zw")) {
+          yield* graph.dispatch(step)
+        }
+
         yield* graph.dispatch({ _tag: "Undo" })
         assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["axy", "b"])
         yield* graph.dispatch({ _tag: "Undo" })
@@ -769,7 +827,11 @@ describe("batches", () => {
       Effect.gen(function* () {
         const { ids } = yield* seedPage(graph, "Beds", ["Tomato bed"])
         const bed = nth(ids, 0)
-        for (const step of typed(bed, 10, "\nzeta::")) yield* graph.dispatch(step)
+
+        for (const step of typed(bed, 10, "\nzeta::")) {
+          yield* graph.dispatch(step)
+        }
+
         yield* graph.dispatchAll([
           { _tag: "EditText", blockId: bed, from: 10, to: 17, insert: "" },
           {
@@ -795,6 +857,7 @@ describe("property order", () => {
       Effect.gen(function* () {
         const { pageId, ids } = yield* seedPage(graph, "Beds", ["Tomato bed"])
         const target = { _tag: "BlockTarget", blockId: nth(ids, 0) } as const
+
         for (const [key, value] of [
           ["zeta", "1"],
           ["alpha", "2"],
@@ -803,6 +866,7 @@ describe("property order", () => {
         ] as const) {
           yield* graph.dispatch({ _tag: "SetProperty", target, key, value })
         }
+
         yield* graph.dispatch({ _tag: "SetProperty", target, key: "alpha", value: null })
         yield* graph.dispatch({ _tag: "SetProperty", target, key: "zeta", value: "one" })
         yield* graph.dispatch({ _tag: "SetProperty", target, key: "alpha", value: "back" })

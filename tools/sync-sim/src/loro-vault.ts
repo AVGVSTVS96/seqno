@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto"
 import { Clock, Effect, Layer, Option, Schema } from "effect"
 import type { CloudFs } from "./cloud.ts"
-import { Graphs, Vaults, type Replica, type VaultSpec, type VaultSync } from "./ports.ts"
+import { Graphs, Vaults } from "./ports.ts"
+import type { Replica, VaultSpec, VaultSync } from "./ports.ts"
 import { stubTarget } from "./util.ts"
-import { covers, vvMax, type Span, type VV } from "./vv.ts"
+import { covers, vvMax } from "./vv.ts"
+import type { Span, VV } from "./vv.ts"
 
 export type Bug =
   | "placeholder-as-empty"
@@ -12,7 +14,7 @@ export type Bug =
   | "gc-unconfirmed-snapshot"
   | "gc-any-device"
 
-export const bugs: ReadonlyArray<Bug> = [
+export const bugs: readonly Bug[] = [
   "placeholder-as-empty",
   "gc-without-acks",
   "gc-without-witness",
@@ -27,6 +29,7 @@ const SeenFile = Schema.Struct({
   verified: Schema.Array(Schema.String),
   snapshots: Schema.Array(Schema.Tuple([Schema.String, VersionVectorJson])),
 })
+
 type SeenFile = typeof SeenFile.Type
 
 const decodeSeen = Schema.decodeUnknownOption(Schema.fromJsonString(SeenFile))
@@ -76,8 +79,9 @@ const attach =
 
       const list = (dir: string) =>
         Effect.map(fs.list(dir), (raws) =>
-          raws.flatMap((raw): ReadonlyArray<Listed> => {
+          raws.flatMap((raw): readonly Listed[] => {
             const name = visibleName(raw)
+
             return name.endsWith(".loro")
               ? [{ path: `${dir}/${name}`, name, stub: stubTarget(raw) !== undefined }]
               : []
@@ -93,8 +97,10 @@ const attach =
         Effect.flatMap(placeholder(file), (isPlaceholder) => {
           if (isPlaceholder) {
             stats.placeholdersSeen++
+
             return Effect.as(fs.download(file.path), Option.none())
           }
+
           return fs.read(file.path).pipe(
             Effect.map(Option.some),
             Effect.catch(() => Effect.succeed(Option.none<Uint8Array>())),
@@ -106,9 +112,11 @@ const attach =
       const flush = Effect.gen(function* () {
         const version = yield* replica.version
         const end = version[peer] ?? 0
+
         if (end === flushed) {
           return
         }
+
         const bytes = yield* replica.exportUpdates({ ...version, [peer]: flushed })
         const path = `updates/${me}/${flushed}.loro`
         yield* fs.write(path, bytes)
@@ -117,29 +125,36 @@ const attach =
         flushed = end
       })
 
-      const importUpdates = (updates: ReadonlyArray<Listed>) =>
+      const importUpdates = (updates: readonly Listed[]) =>
         Effect.gen(function* () {
           const have = yield* replica.version
+
           const batch: Array<{
             readonly path: string
             readonly bytes: Uint8Array
             readonly span: Span
           }> = []
+
           let waiting = 0
+
           for (const file of updates) {
             if (consumed.has(file.path)) {
               continue
             }
+
             if (bug === "placeholder-as-empty" && (yield* placeholder(file))) {
               markConsumed(file.path)
               continue
             }
+
             const bytes = yield* readable(file)
             const span = Option.flatMap(bytes, (b) => graphs.blobSpan(b, false))
+
             if (Option.isNone(bytes) || Option.isNone(span)) {
               waiting++
               continue
             }
+
             if (covers(have, span.value.end)) {
               spans.set(file.path, span.value)
               markConsumed(file.path)
@@ -147,41 +162,51 @@ const attach =
               batch.push({ path: file.path, bytes: bytes.value, span: span.value })
             }
           }
+
           if (batch.length === 0) {
             return waiting
           }
+
           const ok = yield* replica.importBlobs(batch.map((b) => b.bytes))
           batch.forEach((b, i) => {
             if (ok[i] !== true) {
               waiting++
+
               return
             }
+
             spans.set(b.path, b.span)
             markConsumed(b.path)
             stats.importedFiles++
             stats.importedBytes += b.bytes.length
           })
+
           return waiting
         })
 
       const waitedFor = (snapshot: string) =>
         Effect.gen(function* () {
           const have = yield* replica.version
+
           if (Object.keys(have).length === 0) {
             return true
           }
+
           const since = behindSince.get(snapshot) ?? (yield* Clock.currentTimeMillis)
           behindSince.set(snapshot, since)
+
           return (yield* elapsedSince(since)) >= spec.snapshotImportDelayMs
         })
 
-      const checkSnapshots = (snapshots: ReadonlyArray<Listed>, updatesSettled: boolean) =>
+      const checkSnapshots = (snapshots: readonly Listed[], updatesSettled: boolean) =>
         Effect.gen(function* () {
           let have = yield* replica.version
           let behind = false
+
           for (const file of snapshots) {
             const known = snapshotVV.get(file.name)
             const needed = known !== undefined && !covers(have, known)
+
             if (
               checked.has(file.name) &&
               !(needed && updatesSettled && (yield* waitedFor(file.name)))
@@ -189,28 +214,37 @@ const attach =
               behind ||= needed
               continue
             }
+
             if (bug === "placeholder-as-empty" && (yield* placeholder(file))) {
               checked.add(file.name)
               markConsumed(file.path)
               continue
             }
+
             const bytes = yield* readable(file)
             const span = Option.flatMap(bytes, (b) => graphs.blobSpan(b, true))
+
             if (Option.isNone(bytes) || Option.isNone(span)) {
               behind ||= needed
               continue
             }
+
             snapshotVV.set(file.name, span.value.end)
             checked.add(file.name)
+
             if (!mine.has(baseName(file.name))) {
               verified.add(file.name)
             }
+
             markConsumed(file.path)
+
             if (covers(have, span.value.end)) {
               continue
             }
+
             const ready = updatesSettled && (yield* waitedFor(file.name))
             const imported = ready && (yield* replica.importBlobs([bytes.value]))[0] === true
+
             if (imported) {
               stats.importedFiles++
               stats.importedBytes += bytes.value.length
@@ -219,12 +253,14 @@ const attach =
               behind = true
             }
           }
+
           return behind
         })
 
       const seenFiles = Effect.map(fs.list("seen"), (raws) =>
         raws.flatMap((raw) => {
           const name = visibleName(raw)
+
           return [{ raw, name, stub: stubTarget(raw) !== undefined }]
         }),
       )
@@ -233,24 +269,32 @@ const attach =
         for (const file of yield* seenFiles) {
           const match = /^([A-Za-z0-9_-]{1,64})\.json$/.exec(file.name)
           const device = match?.[1]
+
           if (device === undefined || device === me) {
             continue
           }
+
           const bytes = yield* readable({
             path: `seen/${file.name}`,
             name: file.name,
             stub: file.stub,
           })
+
           const seen = Option.flatMap(bytes, (b) => decodeSeen(new TextDecoder().decode(b)))
+
           if (Option.isNone(seen)) {
             continue
           }
+
           const ack = acks.get(device) ?? { vv: {}, verified: new Set<string>() }
           ack.vv = vvMax(ack.vv, seen.value.vv)
+
           for (const snapshot of seen.value.verified) {
             ack.verified.add(snapshot)
           }
+
           acks.set(device, ack)
+
           for (const [snapshot, vv] of seen.value.snapshots) {
             snapshotVV.set(snapshot, vvMax(snapshotVV.get(snapshot) ?? {}, vv))
           }
@@ -259,6 +303,7 @@ const attach =
 
       const writeSeen = Effect.gen(function* () {
         const present = new Set((yield* fs.list("snapshots")).map(visibleName))
+
         const seen: SeenFile = {
           vv: yield* replica.version,
           verified: [...verified].filter((s) => present.has(s)).toSorted(),
@@ -267,17 +312,23 @@ const attach =
             .toSorted()
             .map((s) => [s, snapshotVV.get(s) ?? {}] as const),
         }
+
         const json = JSON.stringify(seen)
+
         if (json === lastSeenJson) {
           return null
         }
+
         const wait = spec.seenMinIntervalMs - (yield* elapsedSince(lastSeenAt))
+
         if (wait > 0) {
           return wait
         }
+
         yield* fs.write(`seen/${me}.json`, encoder.encode(json))
         lastSeenJson = json
         lastSeenAt = yield* Clock.currentTimeMillis
+
         return null
       })
 
@@ -285,39 +336,49 @@ const attach =
         if (bug === "gc-unconfirmed-snapshot") {
           return true
         }
+
         if (!mine.has(baseName(snapshot)) && verified.has(snapshot)) {
           return true
         }
+
         return [...acks].some(([device, ack]) => device !== me && ack.verified.has(snapshot))
       }
 
       const maybeSnapshot = (
-        updates: ReadonlyArray<Listed>,
+        updates: readonly Listed[],
         live: ReadonlyArray<readonly [string, VV]>,
       ) =>
         Effect.gen(function* () {
           if ((yield* elapsedSince(lastSnapshotAt)) < spec.compactMinIntervalMs) {
             return
           }
+
           const newest = live.reduce<VV>((acc, [, vv]) => vvMax(acc, vv), {})
+
           const uncovered = updates.filter((f) => {
             const span = spans.get(f.path)
+
             return span === undefined || !covers(newest, span.end)
           }).length
+
           if (uncovered < spec.compactAfterFiles) {
             return
           }
+
           yield* flush
           const bytes = yield* replica.exportSnapshot
           const digest = createHash("sha256").update(`${peer}:`).update(bytes).digest("hex")
           const name = `${digest.slice(0, 32)}.loro`
           const path = `snapshots/${name}`
+
           const taken =
             Option.isSome(yield* fs.stat(path)) ||
             Option.isSome(yield* fs.stat(`snapshots/.${name}.icloud`))
+
           if (taken) {
             return
           }
+
           const vv = yield* replica.version
           yield* fs.write(path, bytes)
           mine.add(name)
@@ -330,16 +391,18 @@ const attach =
         Effect.tap(fs.remove(path), () => Effect.sync(() => spans.delete(path)))
 
       const collectGarbage = (
-        snapshots: ReadonlyArray<Listed>,
-        updates: ReadonlyArray<Listed>,
+        snapshots: readonly Listed[],
+        updates: readonly Listed[],
         live: ReadonlyArray<readonly [string, VV]>,
       ) =>
         Effect.gen(function* () {
           const witnesses = live.filter(([name]) => confirmed(name))
           const own = yield* replica.version
           const memberAcks = spec.members.map((m) => (m === me ? own : (acks.get(m)?.vv ?? {})))
+
           const acked = (vv: VV) =>
             bug === "gc-without-acks" || memberAcks.every((ack) => covers(ack, vv))
+
           const witnessed = (vv: VV) =>
             bug === "gc-without-witness" || witnesses.some(([, w]) => covers(w, vv))
 
@@ -347,7 +410,9 @@ const attach =
             if (!file.path.startsWith(`updates/${me}/`) && bug !== "gc-any-device") {
               continue
             }
+
             const span = spans.get(file.path)
+
             if (span !== undefined && acked(span.end) && witnessed(span.end)) {
               yield* remove(file.path)
             }
@@ -355,19 +420,23 @@ const attach =
 
           for (const file of snapshots) {
             const vv = snapshotVV.get(file.name)
+
             if (!mine.has(baseName(file.name)) || vv === undefined) {
               continue
             }
+
             const above = witnesses.some(
               ([name, w]) =>
                 name !== file.name && covers(w, vv) && (!covers(vv, w) || name > file.name),
             )
+
             if (above) {
               yield* remove(file.path)
             }
           }
 
           const ownCopy = new RegExp(`^${me} \\d+\\.json$`)
+
           for (const file of yield* seenFiles) {
             if (ownCopy.test(file.name)) {
               yield* remove(`seen/${file.name}`)
@@ -383,17 +452,23 @@ const attach =
         const behind = yield* checkSnapshots(snapshots, waiting === 0)
         yield* readSeen
         const wakeInMs = yield* writeSeen
+
         if (!spec.compaction) {
           return { wakeInMs }
         }
+
         const live = snapshots.flatMap((f) => {
           const vv = snapshotVV.get(f.name)
+
           return vv === undefined ? [] : [[f.name, vv] as const]
         })
+
         if (waiting === 0 && !behind) {
           yield* maybeSnapshot(updates, live)
         }
+
         yield* collectGarbage(snapshots, updates, live)
+
         return { wakeInMs }
       })
 

@@ -22,10 +22,11 @@ test("an image dropped on a board is saved in assets/ and lands at half its size
   const box = await image.boundingBox()
   expect([Math.round((box?.x ?? 0) + 100), Math.round((box?.y ?? 0) + 60)]).toEqual([600, 400])
   await expect
-    .poll(() =>
-      image
-        .locator("img")
-        .evaluate((node) => (node instanceof HTMLImageElement ? node.naturalWidth : 0)),
+    .poll(
+      async () =>
+        await image
+          .locator("img")
+          .evaluate((node) => (node instanceof HTMLImageElement ? node.naturalWidth : 0)),
     )
     .toBe(400)
   const assets = Object.keys(await opfsFiles(page, ["graphs", "demo", "assets"]))
@@ -50,10 +51,12 @@ test("an image resizes with its aspect ratio kept, and pasting an image file pla
   const image = shapes(page, "image")
   await expect(image).toHaveCSS("width", "100px")
   await drag(page, [550, 400], [650, 400])
-  const ratio = () =>
-    image.evaluate((node) =>
+
+  const ratio = async () =>
+    await image.evaluate((node) =>
       node instanceof HTMLElement ? [node.offsetWidth, node.offsetWidth / node.offsetHeight] : [],
     )
+
   await expect.poll(async () => (await ratio())[1]).toBe(2)
   expect((await ratio())[0]).toBeGreaterThan(190)
 

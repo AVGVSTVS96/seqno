@@ -1,5 +1,6 @@
 import { assert, describe, it } from "vitest"
-import { BlockId, PageId, shapeProps, type Block, type Command } from "@seqno/domain"
+import { BlockId, PageId, shapeProps } from "@seqno/domain"
+import type { Block, Command } from "@seqno/domain"
 import { align, distribute, flip } from "../src/arrange.ts"
 import {
   changesOf,
@@ -37,7 +38,7 @@ const arrow = (n: number, from: number, to: number) =>
     handles: { start: { point: [0, 0], bindTo: id(from) }, end: { point: [1, 1], bindTo: id(to) } },
   })
 
-const sceneFrom = (blocks: ReadonlyArray<Block>) => sceneOf(itemsOf(blocks), new Map())
+const sceneFrom = (blocks: readonly Block[]) => sceneOf(itemsOf(blocks), new Map())
 
 describe("scene", () => {
   it("clips a bound connector to both shapes' edges with a 4px gap", () => {
@@ -72,6 +73,7 @@ describe("camera", () => {
       { minX: 0, minY: 0, maxX: 100, maxY: 100 },
       { width: 800, height: 600 },
     )
+
     assert.deepStrictEqual(camera, { x: 350, y: 250, zoom: 1 })
   })
 })
@@ -81,7 +83,11 @@ describe("commands", () => {
     const scene = sceneFrom([box(1, [0, 0]), box(2, [300, 0]), arrow(3, 1, 2)])
     const arrowItem = scene.byId.get(id(3))
     assert.isDefined(arrowItem)
-    if (arrowItem === undefined) return
+
+    if (arrowItem === undefined) {
+      return
+    }
+
     const [moved] = translate(scene, [arrowItem], [8, 16])
     assert.deepStrictEqual(moved, {
       _tag: "SetProperty",
@@ -94,12 +100,14 @@ describe("commands", () => {
 
   it("writes a bound connector's drawn ends back when its shape moves", () => {
     const scene = sceneFrom([box(1, [0, 0]), box(2, [300, 0]), arrow(3, 1, 2)])
+
     const commands = changesOf(
       pageId,
       scene,
       { _tag: "Translating", from: [0, 0], to: [0, 200], ids: [id(2)], copy: null },
       defaultStyles,
     )
+
     assert.deepStrictEqual(
       commands.map((command) => (command._tag === "SetProperty" ? command.value : null)),
       [
@@ -140,6 +148,7 @@ describe("commands", () => {
 
   it("copies the dragged shapes when Alt is held, keeping a connector bound to a copied shape", () => {
     const scene = sceneFrom([box(1, [0, 0]), box(2, [300, 0]), arrow(3, 1, 2)])
+
     const [made] = changesOf(
       pageId,
       scene,
@@ -152,6 +161,7 @@ describe("commands", () => {
       },
       defaultStyles,
     )
+
     assert.deepStrictEqual(made, {
       _tag: "InsertBlocks",
       pageId,
@@ -182,12 +192,14 @@ describe("commands", () => {
 
   it("creates a dragged rectangle as a block after the topmost shape", () => {
     const scene = sceneFrom([box(1, [0, 0])])
+
     const [made] = changesOf(
       pageId,
       scene,
       { _tag: "Creating", tool: "box", from: [200, 150], to: [40, 0] },
       defaultStyles,
     )
+
     assert.deepStrictEqual(made, {
       _tag: "InsertBlocks",
       pageId,
@@ -215,6 +227,7 @@ describe("groups", () => {
       box(2, [200, 0]),
       block(3, { type: "group", point: [0, 0], size: [0, 0], children: [id(1), id(2)] }),
     ])
+
     assert.deepStrictEqual(scene.bounds.get(id(3)), { minX: 0, minY: 0, maxX: 300, maxY: 100 })
     assert.strictEqual(scene.groupOf.get(id(2)), id(3))
     const loose = sceneFrom([box(1, [0, 0]), box(4, [500, 0]), box(2, [200, 0])])
@@ -243,7 +256,7 @@ describe("groups", () => {
   })
 })
 
-const points = (commands: ReadonlyArray<Command>) =>
+const points = (commands: readonly Command[]) =>
   commands.flatMap((command) =>
     command._tag === "SetProperty" && command.value !== null
       ? [
@@ -269,6 +282,7 @@ describe("arrange", () => {
       box(1, [0, 0]),
       block(2, { type: "box", point: [300, 50], size: [50, 50] }),
     ])
+
     assert.deepStrictEqual(points(align(scene, [id(1), id(2)], "right")), [[id(1), [250, 0]]])
     assert.deepStrictEqual(points(flip(scene, [id(1), id(2)], "horizontal")), [
       [id(1), [250, 0]],

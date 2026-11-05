@@ -14,18 +14,21 @@ import {
 } from "./errors.ts"
 
 export const SkippedFile = Schema.Struct({ path: Schema.String, reason: Schema.String })
+
 export type SkippedFile = typeof SkippedFile.Type
 
 export const GraphOpened = Schema.Struct({
   graph: Schema.String,
   skipped: Schema.Array(SkippedFile),
 })
+
 export type GraphOpened = typeof GraphOpened.Type
 
 export const PageTree = Schema.Struct({
   page: Page,
   blocks: Schema.Array(Block),
 })
+
 export type PageTree = typeof PageTree.Type
 
 export const ExportedTree = Schema.Struct({
@@ -33,18 +36,21 @@ export const ExportedTree = Schema.Struct({
   blocks: Schema.Array(Block),
   path: Schema.String,
 })
+
 export type ExportedTree = typeof ExportedTree.Type
 
 export const QueryResult = Schema.TaggedUnion({
   BlockRows: { blocks: Schema.Array(Block) },
   PageRows: { pages: Schema.Array(Page) },
 })
+
 export type QueryResult = typeof QueryResult.Type
 
 export const SearchHits = Schema.Struct({
   pages: Schema.Array(Page),
   blocks: Schema.Array(Block),
 })
+
 export type SearchHits = typeof SearchHits.Type
 
 export const SaveState = Schema.TaggedUnion({
@@ -52,9 +58,11 @@ export const SaveState = Schema.TaggedUnion({
   Unsaved: {},
   Failed: { reason: Schema.String },
 })
+
 export type SaveState = typeof SaveState.Type
 
 export const GraphMoved = Schema.Struct({ graph: Schema.String })
+
 export type GraphMoved = typeof GraphMoved.Type
 
 export const tabLock = (tab: string) => `seqno/tab/${tab}`
@@ -149,6 +157,7 @@ export const Search = Rpc.make("Search", {
 export const RebuildIndex = Rpc.make("RebuildIndex", { error: GraphNotOpen })
 
 export const PageFile = Schema.Struct({ path: Schema.String, name: Schema.String })
+
 export type PageFile = typeof PageFile.Type
 
 export const ListPageFiles = Rpc.make("ListPageFiles", {
@@ -162,9 +171,11 @@ export const AppFilePath = Schema.Literals([
   "logseq/custom.js",
   "logseq/export.css",
 ])
+
 export type AppFilePath = typeof AppFilePath.Type
 
 export const AppFile = Schema.Struct({ path: AppFilePath, text: Schema.String })
+
 export type AppFile = typeof AppFile.Type
 
 export const WatchAppFiles = Rpc.make("WatchAppFiles", {
@@ -205,9 +216,11 @@ export const WatchSaveState = Rpc.make("WatchSaveState", {
 })
 
 export const MirrorFile = Schema.Struct({ path: Schema.String, reason: Schema.String })
+
 export type MirrorFile = typeof MirrorFile.Type
 
 export const MirrorWriter = Schema.Struct({ device: Schema.String, here: Schema.Boolean })
+
 export type MirrorWriter = typeof MirrorWriter.Type
 
 export const MirrorStatus = Schema.Struct({
@@ -216,6 +229,7 @@ export const MirrorStatus = Schema.Struct({
   paused: Schema.NullOr(Schema.String),
   writer: Schema.NullOr(MirrorWriter),
 })
+
 export type MirrorStatus = typeof MirrorStatus.Type
 
 export const WatchMirror = Rpc.make("WatchMirror", {
@@ -232,6 +246,7 @@ export const Change = Schema.Struct({
   events: Schema.Array(GraphEvent),
   madeIn: Schema.Literals(["thisTab", "otherTab", "noTab"]),
 })
+
 export type Change = typeof Change.Type
 
 export const WatchChanges = Rpc.make("WatchChanges", {

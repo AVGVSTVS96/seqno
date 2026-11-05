@@ -1,30 +1,15 @@
 import { logseq } from "@seqno/dom"
-import {
-  Prec,
-  StateEffect,
-  type EditorState,
-  type Transaction,
-  type TransactionSpec,
-} from "@codemirror/state"
-import {
-  EditorView,
-  keymap,
-  showTooltip,
-  ViewPlugin,
-  type Rect,
-  type TooltipView,
-} from "@codemirror/view"
+import { Prec, StateEffect } from "@codemirror/state"
+import type { EditorState, Transaction, TransactionSpec } from "@codemirror/state"
+import { EditorView, keymap, showTooltip, ViewPlugin } from "@codemirror/view"
+import type { Rect, TooltipView } from "@codemirror/view"
 import { Effect, Fiber } from "effect"
-import { blockRefId, type BlockId } from "@seqno/domain"
+import { blockRefId } from "@seqno/domain"
+import type { BlockId } from "@seqno/domain"
 import { pickAssets } from "./assets.ts"
 import type { SlashCommand } from "./commands.ts"
-import {
-  datePicker,
-  datePickerField,
-  openDatePicker,
-  type DatePickerFrame,
-  type DatePickerHost,
-} from "./planning.ts"
+import { datePicker, datePickerField, openDatePicker } from "./planning.ts"
+import type { DatePickerFrame, DatePickerHost } from "./planning.ts"
 import { minimalChange } from "./edits.ts"
 import type { EditorHost, LinkTarget } from "./host.ts"
 import {
@@ -38,8 +23,8 @@ import {
   popupField,
   showResults,
   triggers,
-  type Popup,
 } from "./popup.ts"
+import type { Popup } from "./popup.ts"
 
 export interface PopupFrame {
   readonly popup: Popup
@@ -65,11 +50,13 @@ export const createPopupStore = (): PopupStore & PopupHost => {
   let dom: HTMLElement | null = null
   let pickerDom: HTMLElement | null = null
   const listeners = new Set<() => void>()
+
   return {
     frame: () => frame,
     picker: () => picker,
     subscribe: (listener) => {
       listeners.add(listener)
+
       return () => {
         listeners.delete(listener)
       }
@@ -85,22 +72,31 @@ export const createPopupStore = (): PopupStore & PopupHost => {
     sync: (view) => {
       const popup = view.state.field(popupField)
       const kind = view.state.field(datePickerField)
+
       const next =
         popup === null || dom === null
           ? null
           : frame?.popup === popup && frame.dom === dom
             ? frame
             : { popup, dom, view }
+
       const nextPicker =
         kind === null || pickerDom === null
           ? null
           : picker?.kind === kind && picker.dom === pickerDom
             ? picker
             : { kind, dom: pickerDom, view }
-      if (next === frame && nextPicker === picker) return
+
+      if (next === frame && nextPicker === picker) {
+        return
+      }
+
       frame = next
       picker = nextPicker
-      for (const listener of listeners) listener()
+
+      for (const listener of listeners) {
+        listener()
+      }
     },
   }
 }
@@ -113,6 +109,7 @@ const lineBox = (view: EditorView, pos: number): Rect => {
   const row = glyph === null ? 0 : Math.floor(((glyph.top + glyph.bottom) / 2 - blockTop) / height)
   const top = blockTop + row * height
   const left = glyph?.left ?? view.contentDOM.getBoundingClientRect().left
+
   return { left, right: left, top, bottom: top + height }
 }
 
@@ -125,24 +122,33 @@ const popupTooltip = (store: PopupHost) => {
     dom.className = logseq("sq-popup-host").className
     store.attach(dom)
     let anchor: Rect | null = null
+
     return {
       dom,
       offset: { x: -20, y: popupGap },
       getCoords: (pos) => {
         anchor = lineBox(view, pos)
+
         return anchor
       },
       positioned: (space) => {
-        if (anchor === null) return
+        if (anchor === null) {
+          return
+        }
+
         const below = space.bottom - anchor.bottom - popupGap - popupEdge
         const above = anchor.top - space.top - popupGap - popupEdge
         dom.style.setProperty("--popup-room", `${Math.max(below, above)}px`)
       },
-      destroy: () => store.attach(null),
+      destroy: () => {
+        store.attach(null)
+      },
     }
   }
+
   return showTooltip.compute([popupField], (state) => {
     const popup = state.field(popupField)
+
     return popup === null ? null : { pos: popup.from, create }
   })
 }
@@ -156,10 +162,15 @@ const searchPlugin = (blockId: BlockId, host: EditorHost) =>
   ViewPlugin.define((view) => {
     let running: Fiber.Fiber<void> | null = null
     let wanted: Popup | null = null
+
     const stop = () => {
-      if (running !== null) Effect.runFork(Fiber.interrupt(running))
+      if (running !== null) {
+        Effect.runFork(Fiber.interrupt(running))
+      }
+
       running = null
     }
+
     const start = (popup: Popup) => {
       stop()
       wanted = popup
@@ -171,6 +182,7 @@ const searchPlugin = (blockId: BlockId, host: EditorHost) =>
             Effect.sync(() => {
               view.dispatch({ effects: showResults.of({ kind, from, query, choices }) })
               const shown = view.state.field(popupField)
+
               if (shown?.accepting === true && shown.searched === shown.query) {
                 accept(view, shown.active)
               }
@@ -179,15 +191,18 @@ const searchPlugin = (blockId: BlockId, host: EditorHost) =>
         ),
       )
     }
+
     return {
       update: (update) => {
         const popup = update.state.field(popupField)
+
         const same =
           wanted !== null &&
           popup !== null &&
           wanted.kind === popup.kind &&
           wanted.from === popup.from &&
           wanted.query === popup.query
+
         if (popup !== null && needsSearch(popup) && popup.searched !== popup.query && !same) {
           start(popup)
         } else if (popup === null || !needsSearch(popup)) {
@@ -227,14 +242,17 @@ const insertRef = (view: EditorView, popup: Popup, value: string) => {
 
 const runCommand = (view: EditorView, popup: Popup, command: SlashCommand, now: Date) => {
   const slash = popup.from - triggers.Slash.length
+
   const removed = step(view.state, {
     changes: { from: slash, to: view.state.selection.main.head },
     selection: { anchor: slash },
     userEvent: "input.complete",
   })
+
   const text = removed.newDoc.toString()
   const applied = command.apply({ text, from: slash, to: slash }, now)
   const { draft } = applied
+
   const changed = step(removed.state, {
     changes: minimalChange(text, draft.text),
     selection: { anchor: draft.from, head: draft.to },
@@ -249,6 +267,7 @@ const runCommand = (view: EditorView, popup: Popup, command: SlashCommand, now: 
     userEvent: "input.complete",
     scrollIntoView: true,
   })
+
   view.dispatch([removed, changed])
   applied.after?.()
 }
@@ -261,8 +280,13 @@ const notices = (host: EditorHost) =>
   EditorView.updateListener.of((update) => {
     for (const transaction of update.transactions) {
       for (const effect of transaction.effects) {
-        if (effect.is(notice)) host.act({ _tag: "Notify", message: effect.value })
-        if (effect.is(upload)) pickAssets(update.view, host)
+        if (effect.is(notice)) {
+          host.act({ _tag: "Notify", message: effect.value })
+        }
+
+        if (effect.is(upload)) {
+          pickAssets(update.view, host)
+        }
       }
     }
   })
@@ -270,32 +294,61 @@ const notices = (host: EditorHost) =>
 export const accept = (view: EditorView, index: number, now = new Date()): boolean => {
   const popup = view.state.field(popupField)
   const choice = popup?.choices[index]
-  if (popup === null || choice === undefined) return false
+
+  if (popup === null || choice === undefined) {
+    return false
+  }
+
   Choice.$match(choice, {
-    Journal: ({ title }) => insertRef(view, popup, title),
-    Page: ({ title }) => insertRef(view, popup, title),
-    NewPage: ({ title }) => insertRef(view, popup, title),
-    Block: ({ hit }) => insertRef(view, popup, blockRefId(hit.block)),
-    Command: ({ command }) => runCommand(view, popup, command, now),
+    Journal: ({ title }) => {
+      insertRef(view, popup, title)
+    },
+    Page: ({ title }) => {
+      insertRef(view, popup, title)
+    },
+    NewPage: ({ title }) => {
+      insertRef(view, popup, title)
+    },
+    Block: ({ hit }) => {
+      insertRef(view, popup, blockRefId(hit.block))
+    },
+    Command: ({ command }) => {
+      runCommand(view, popup, command, now)
+    },
   })
+
   return true
 }
 
-export const pick = (view: EditorView, index: number) =>
+export const pick = (view: EditorView, index: number) => {
   view.dispatch({ effects: choose.of({ index, pointer: true }) })
+}
 
 const move = (delta: number) => (view: EditorView) => {
   const popup = view.state.field(popupField)
-  if (popup === null || popup.choices.length === 0) return false
+
+  if (popup === null || popup.choices.length === 0) {
+    return false
+  }
+
   view.dispatch({ effects: choose.of({ index: popup.active + delta, pointer: false }) })
+
   return true
 }
 
 const acceptActive = (view: EditorView) => {
   const popup = view.state.field(popupField)
-  if (popup === null) return false
-  if (popup.searched === popup.query) return accept(view, popup.active)
+
+  if (popup === null) {
+    return false
+  }
+
+  if (popup.searched === popup.query) {
+    return accept(view, popup.active)
+  }
+
   view.dispatch({ effects: acceptOnArrival.of(null) })
+
   return true
 }
 
@@ -310,10 +363,18 @@ const targetOf = (choice: Choice): LinkTarget | null =>
 
 const openActive = (host: EditorHost) => (view: EditorView) => {
   const popup = view.state.field(popupField)
-  if (popup === null) return false
+
+  if (popup === null) {
+    return false
+  }
+
   const choice = popup.choices[popup.active]
   const target = choice === undefined ? null : targetOf(choice)
-  if (target !== null) host.act({ _tag: "Open", target, sidebar: true })
+
+  if (target !== null) {
+    host.act({ _tag: "Open", target, sidebar: true })
+  }
+
   return true
 }
 
@@ -323,7 +384,9 @@ export const completion = (blockId: BlockId, host: EditorHost, store: PopupHost)
   datePicker(store.pickerHost),
   notices(host),
   searchPlugin(blockId, host),
-  EditorView.updateListener.of((update) => store.sync(update.view)),
+  EditorView.updateListener.of((update) => {
+    store.sync(update.view)
+  }),
   Prec.highest(
     keymap.of([
       { key: "ArrowDown", run: move(1) },

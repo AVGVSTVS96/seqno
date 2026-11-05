@@ -1,6 +1,9 @@
-import { element, printHtml, text, type Html } from "./html.ts"
-import { escapeHtml, htmlOf, markdownOf, type Inlines } from "./inline.ts"
-import { lineRun, upToLevel, type Item, type ListItem, type Run } from "./items.ts"
+import { element, printHtml, text } from "./html.ts"
+import type { Html } from "./html.ts"
+import { escapeHtml, htmlOf, markdownOf } from "./inline.ts"
+import type { Inlines } from "./inline.ts"
+import { lineRun, upToLevel } from "./items.ts"
+import type { Item, ListItem, Run } from "./items.ts"
 
 const markerOf = (item: Extract<Item, { _tag: "Heading" }>) =>
   item.marker === null ? "" : `${item.marker} `
@@ -10,17 +13,19 @@ const PLANNING = /^\s*(?:SCHEDULED|DEADLINE): <[^>]*>\s*$/
 const FOOTNOTE = /^\s*\[\^([^\]\s]+)\]:\s*/
 
 interface Outline {
-  readonly parts: Array<string>
-  readonly children: Array<Outline>
+  readonly parts: string[]
+  readonly children: Outline[]
 }
 
 const tidy = (value: string) => {
-  const spaced = value.replace(/\s+/g, " ")
+  const spaced = value.replaceAll(/\s+/g, " ")
+
   return spaced === " " ? spaced : spaced.trim()
 }
 
 const outlineOf = (node: Outline, pad: string): string => {
   const label = escapeHtml(tidy(node.parts.join(" ")))
+
   return node.children.length === 0
     ? `${pad}<outline text="${label}"/>`
     : [
@@ -31,56 +36,80 @@ const outlineOf = (node: Outline, pad: string): string => {
 }
 
 export const opmlOf = (
-  items: ReadonlyArray<Item>,
+  items: readonly Item[],
   inlines: Inlines,
   title: string,
   level: number | null,
 ): string => {
   const root: Outline = { parts: [], children: [] }
-  const path: Array<Outline> = [root]
+  const path: Outline[] = [root]
+
   const current = () => {
     const at = path.at(-1)
-    if (at !== undefined && at !== root) return at
+
+    if (at !== undefined && at !== root) {
+      return at
+    }
+
     const loose: Outline = { parts: [], children: [] }
     root.children.push(loose)
     path.push(loose)
+
     return loose
   }
-  const lines = (runs: ReadonlyArray<Run>) => runs.map((run) => markdownOf(run, inlines))
-  const listed = (entries: ReadonlyArray<ListItem>): Array<Outline> =>
+
+  const lines = (runs: readonly Run[]) => runs.map((run) => markdownOf(run, inlines))
+
+  const listed = (entries: readonly ListItem[]): Outline[] =>
     entries.map((entry) => ({ parts: lines(entry.lines), children: listed(entry.children) }))
+
   for (const item of upToLevel(items, level)) {
     switch (item._tag) {
       case "Heading": {
         path.length = Math.min(path.length, item.level)
+
         const node: Outline = {
           parts: [`${markerOf(item)}${markdownOf(item.title, inlines)}`],
           children: [],
         }
+
         ;(path.at(-1) ?? root).children.push(node)
         path.push(node)
         break
       }
+
       case "Paragraph":
-      case "Quote":
+      case "Quote": {
         current().parts.push(...lines(item.lines))
         break
-      case "Code":
+      }
+
+      case "Code": {
         current().parts.push(...item.lines.slice(1, -1))
         break
-      case "Raw":
-        if (MATH.test(item.lines[0] ?? "") || FOOTNOTE.test(item.lines[0] ?? ""))
+      }
+
+      case "Raw": {
+        if (MATH.test(item.lines[0] ?? "") || FOOTNOTE.test(item.lines[0] ?? "")) {
           current().parts.push(...item.lines.filter((line) => !MATH.test(line)))
+        }
+
         break
-      case "List":
+      }
+
+      case "List": {
         current().children.push(...listed(item.items))
         break
+      }
+
       case "Properties":
       case "Table":
-      case "Rule":
+      case "Rule": {
         break
+      }
     }
   }
+
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<opml version="2.0">`,
@@ -96,61 +125,81 @@ export const opmlOf = (
 
 interface Open {
   readonly node: Html
-  readonly children: Array<Html>
+  readonly children: Html[]
 }
 
 const open = (name: string, attrs: ReadonlyArray<readonly [string, string]> = []): Open => {
-  const children: Array<Html> = []
+  const children: Html[] = []
+
   return { node: element(name, children, attrs), children }
 }
 
 export const htmlOfItems = (
-  items: ReadonlyArray<Item>,
+  items: readonly Item[],
   inlines: Inlines,
   level: number | null,
 ): string => {
   const kept = upToLevel(items, level)
   const root = open("ul")
-  const lists: Array<Open> = [root]
+  const lists: Open[] = [root]
   let item: Open | null = null
   const list = () => lists.at(-1) ?? root
+
   const into = (): Open => {
-    if (item !== null) return item
+    if (item !== null) {
+      return item
+    }
+
     const loose = open("li")
     list().children.push(loose.node)
     item = loose
+
     return loose
   }
-  const lineBreaks = (runs: ReadonlyArray<Run>, trailing: boolean) =>
+
+  const lineBreaks = (runs: readonly Run[], trailing: boolean) =>
     runs.flatMap((run, index) => [
       ...(PLANNING.test(run.source.slice(run.from, run.to))
         ? [element("span", [text(run.source.slice(run.from, run.to).trim())])]
         : htmlOf(run, inlines)),
       ...(index < runs.length - 1 || trailing ? [element("br")] : []),
     ])
-  const listed = (entries: ReadonlyArray<ListItem>): Html => {
+
+  const listed = (entries: readonly ListItem[]): Html => {
     const nested = open("ul")
+
     for (const entry of entries) {
       nested.children.push(element("li", [element("p", lineBreaks(entry.lines, false))]))
-      if (entry.children.length > 0) nested.children.push(listed(entry.children))
+
+      if (entry.children.length > 0) {
+        nested.children.push(listed(entry.children))
+      }
     }
+
     return nested.node
   }
-  const row = (name: string, cells: ReadonlyArray<Run>) =>
+
+  const row = (name: string, cells: readonly Run[]) =>
     element(
       "tr",
       cells.map((cell) => element(name, htmlOf(cell, inlines))),
     )
+
   kept.forEach((entry, index) => {
     const trailing = index < kept.length - 1
+
     switch (entry._tag) {
       case "Heading": {
-        while (lists.length > entry.level) lists.pop()
+        while (lists.length > entry.level) {
+          lists.pop()
+        }
+
         while (lists.length < entry.level) {
           const nested = open("ul")
           list().children.push(nested.node)
           lists.push(nested)
         }
+
         const li = open("li")
         const marker = markerOf(entry)
         li.children.push(...(marker === "" ? [] : [text(marker)]), ...htmlOf(entry.title, inlines))
@@ -158,15 +207,20 @@ export const htmlOfItems = (
         item = li
         break
       }
-      case "Paragraph":
+
+      case "Paragraph": {
         into().children.push(element("p", lineBreaks(entry.lines, trailing)))
         break
-      case "Quote":
+      }
+
+      case "Quote": {
         into().children.push(
           element("blockquote", [element("p", lineBreaks(entry.lines, trailing))]),
         )
         break
-      case "Code":
+      }
+
+      case "Code": {
         into().children.push(
           element(
             "pre",
@@ -182,9 +236,12 @@ export const htmlOfItems = (
           ),
         )
         break
+      }
+
       case "Raw": {
         const [head = "", ...rest] = entry.lines
         const note = FOOTNOTE.exec(head)
+
         if (note !== null) {
           into().children.push(
             element("div", [
@@ -197,12 +254,16 @@ export const htmlOfItems = (
             element("span", [text(rest.filter((line) => !MATH.test(line)).join("\n"))]),
           )
         }
+
         break
       }
-      case "Rule":
+
+      case "Rule": {
         into().children.push(element("hr"))
         break
-      case "Table":
+      }
+
+      case "Table": {
         into().children.push(
           element(
             "table",
@@ -211,13 +272,19 @@ export const htmlOfItems = (
           ),
         )
         break
-      case "List":
+      }
+
+      case "List": {
         into()
         list().children.push(listed(entry.items))
         break
-      case "Properties":
+      }
+
+      case "Properties": {
         break
+      }
     }
   })
+
   return root.children.length === 0 ? "" : printHtml(root.node)
 }

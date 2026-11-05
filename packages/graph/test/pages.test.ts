@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option, Schema } from "effect"
-import { BlockId, JournalDay, normalizePageName, type PageId } from "@seqno/domain"
+import { BlockId, JournalDay, normalizePageName } from "@seqno/domain"
+import type { PageId } from "@seqno/domain"
 import { journalPageId } from "@seqno/graph"
 import { createdPage, format, nth, openGraph, outline, seedPage } from "./support.ts"
 
@@ -12,11 +13,15 @@ const flushed = (graph: Opened) =>
     (update) => Option.toArray(Option.map(update, ({ bytes }) => bytes)),
   )
 
-const sync = (...graphs: ReadonlyArray<Opened>) =>
+const sync = (...graphs: readonly Opened[]) =>
   Effect.gen(function* () {
     for (let round = 0; round < 4; round++) {
       const sent = yield* Effect.forEach(graphs, flushed)
-      if (sent.every((bytes) => bytes.length === 0)) return
+
+      if (sent.every((bytes) => bytes.length === 0)) {
+        return
+      }
+
       for (const [at, graph] of graphs.entries()) {
         yield* graph.merge(sent.flatMap((bytes, from) => (from === at ? [] : bytes)))
       }
@@ -26,6 +31,7 @@ const sync = (...graphs: ReadonlyArray<Opened>) =>
 const view = (graph: Opened) =>
   Effect.gen(function* () {
     const pages = (yield* graph.pages).toSorted((a, b) => (a.title < b.title ? -1 : 1))
+
     return yield* Effect.forEach(pages, (page) =>
       Effect.map(graph.page(page.id), (tree) => [page.title, ...outline(tree)]),
     )
@@ -41,6 +47,7 @@ const twoDevices = Effect.gen(function* () {
   const right = yield* openGraph("2", { snapshot: yield* left.snapshot })
   yield* flushed(left)
   const [a, b, b1] = [nth(x.ids, 0), nth(x.ids, 1), nth(x.ids, 2)]
+
   return { left, right, x, y, z, a, b, b1, yy: nth(y.ids, 0), zz: nth(z.ids, 0) }
 })
 
@@ -51,11 +58,12 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
   it.effect("today's journal from two devices lands in one tree", () =>
     Effect.scoped(
       Effect.gen(function* () {
-        const day = Schema.decodeUnknownSync(JournalDay)(20261012)
+        const day = Schema.decodeUnknownSync(JournalDay)(20_261_012)
         const id = journalPageId(day)
         assert.strictEqual(id, "00002026-1012-7000-8000-000000000000")
         const left = yield* openGraph("1")
         const right = yield* openGraph("2")
+
         const today = (blockId: string, text: string) => ({
           page: {
             id,
@@ -75,6 +83,7 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
             },
           ],
         })
+
         yield* left.load([today("01920000-0000-7000-8000-0000000000a1", "from left")])
         yield* right.load([today("01920000-0000-7000-8000-0000000000a2", "from right")])
         yield* sync(left, right)
@@ -105,6 +114,7 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
             text: "b2",
           })
           yield* sync(left, right)
+
           for (const graph of [left, right]) {
             assert.deepStrictEqual(yield* pageOf(graph, y.pageId), [
               "y",
@@ -140,8 +150,15 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
         for (const meanwhile of ["delete", "indent", "reorder"] as const) {
           const { left, right, x, y, a, b, yy } = yield* twoDevices
           yield* moveTo(left, b, yy)
-          if (meanwhile === "delete") yield* right.dispatch({ _tag: "DeleteBlocks", blockIds: [b] })
-          if (meanwhile === "indent") yield* right.dispatch({ _tag: "Indent", blockIds: [b] })
+
+          if (meanwhile === "delete") {
+            yield* right.dispatch({ _tag: "DeleteBlocks", blockIds: [b] })
+          }
+
+          if (meanwhile === "indent") {
+            yield* right.dispatch({ _tag: "Indent", blockIds: [b] })
+          }
+
           if (meanwhile === "reorder") {
             yield* right.dispatch({
               _tag: "MoveBlocks",
@@ -150,11 +167,14 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
               after: nth(x.ids, 3),
             })
           }
+
           yield* sync(left, right)
+
           for (const graph of [left, right]) {
             assert.deepStrictEqual(yield* pageOf(graph, y.pageId), ["y", "b", "  b1"])
             assert.deepStrictEqual(yield* pageOf(graph, x.pageId), ["a", "c"])
           }
+
           assert.strictEqual((yield* left.block(a)).text, "a")
         }
       }),
@@ -170,6 +190,7 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
           yield* moveTo(left, b, yy)
           yield* moveTo(right, b1, zz)
           yield* sync(left, right)
+
           for (const graph of [left, right]) {
             assert.deepStrictEqual(yield* pageOf(graph, x.pageId), ["a", "c"])
             assert.deepStrictEqual(yield* pageOf(graph, y.pageId), ["y", "b"])
@@ -211,12 +232,15 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
         yield* sync(left, right)
         yield* left.dispatch({ _tag: "Undo" })
         yield* sync(left, right)
+
         for (const graph of [left, right]) {
           assert.deepStrictEqual(yield* pageOf(graph, x.pageId), ["a", "b!", "  b1", "c"])
           assert.deepStrictEqual(yield* pageOf(graph, y.pageId), ["y"])
         }
+
         yield* left.dispatch({ _tag: "Redo" })
         yield* sync(left, right)
+
         for (const graph of [left, right]) {
           assert.deepStrictEqual(yield* pageOf(graph, y.pageId), ["y", "b!", "  b1"])
           assert.deepStrictEqual(yield* pageOf(graph, x.pageId), ["a", "c"])
@@ -236,6 +260,7 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
           [x.pageId, x.pageId],
         )
         yield* sync(left, right)
+
         for (const graph of [left, right]) {
           assert.deepStrictEqual(yield* pageOf(graph, x.pageId), ["a", "b", "  b1", "c"])
           assert.deepStrictEqual(yield* pageOf(graph, y.pageId), ["y"])
@@ -270,15 +295,18 @@ describe.runIf(format === "v2")("pages in their own trees", () => {
         yield* right.dispatch({ _tag: "RenamePage", pageId: z.pageId, title: "same" })
         yield* sync(left, right)
         const [first, second] = y.pageId < z.pageId ? ["y", "z"] : ["z", "y"]
+
         for (const graph of [left, right]) {
           const same = (yield* graph.pages).filter((page) => page.name === "same")
           assert.strictEqual(same.length, 1)
           assert.deepStrictEqual(yield* pageOf(graph, nth(same, 0).id), [first, second])
         }
+
         const merged = nth(
           (yield* left.pages).filter((page) => page.name === "same"),
           0,
         )
+
         yield* left.dispatch({
           _tag: "InsertBlock",
           pageId: merged.id,

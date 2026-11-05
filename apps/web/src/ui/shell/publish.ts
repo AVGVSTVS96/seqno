@@ -10,9 +10,8 @@ import {
   queriesIn,
   usedAssets,
   zipSite,
-  type Published,
-  type SiteFile,
 } from "@seqno/export"
+import type { Published, SiteFile } from "@seqno/export"
 import { CoreClient, PageClient } from "@seqno/rpc"
 import { readPropertyConfig } from "@seqno/syntax"
 import { openGraph, resolvedTheme } from "../../atoms.ts"
@@ -35,7 +34,11 @@ const fetched = (path: string) =>
   Effect.tryPromise({
     try: async () => {
       const response = await fetch(`${viewerBase}${path}`)
-      if (!response.ok) throw new Error(`The site viewer is missing ${path}`)
+
+      if (!response.ok) {
+        throw new Error(`The site viewer is missing ${path}`)
+      }
+
       return new Uint8Array(await response.arrayBuffer())
     },
     catch: failed,
@@ -50,6 +53,7 @@ const viewerFiles = Effect.gen(function* () {
     decodeManifest(strFromU8(yield* fetched("files.json"))),
     failed,
   )
+
   return yield* Effect.forEach(
     paths,
     (path) => Effect.map(fetched(path), (bytes): SiteFile => [path, bytes]),
@@ -68,14 +72,18 @@ export type Delivered =
   | { readonly _tag: "Zip" }
   | { readonly _tag: "Nothing"; readonly reason: string }
 
-const writeFolder = (folder: FileSystemDirectoryHandle, files: ReadonlyArray<SiteFile>) =>
+const writeFolder = (folder: FileSystemDirectoryHandle, files: readonly SiteFile[]) =>
   Effect.tryPromise({
     try: async () => {
       for (const [path, bytes] of files) {
         const parts = path.split("/")
         const name = parts.pop() ?? path
         let at = folder
-        for (const part of parts) at = await at.getDirectoryHandle(part, { create: true })
+
+        for (const part of parts) {
+          at = await at.getDirectoryHandle(part, { create: true })
+        }
+
         const writable = await (await at.getFileHandle(name, { create: true })).createWritable()
         await writable.write(new Uint8Array(bytes))
         await writable.close()
@@ -85,14 +93,14 @@ const writeFolder = (folder: FileSystemDirectoryHandle, files: ReadonlyArray<Sit
   })
 
 const pickFolder = Effect.tryPromise({
-  try: () => window.showDirectoryPicker({ id: "seqno-publish", mode: "readwrite" }),
+  try: async () => await window.showDirectoryPicker({ id: "seqno-publish", mode: "readwrite" }),
   catch: (cause) => cause,
 }).pipe(
   Effect.map(Option.some),
-  Effect.catch((cause) =>
-    cause instanceof DOMException && cause.name === "AbortError"
+  Effect.catch((error) =>
+    error instanceof DOMException && error.name === "AbortError"
       ? Effect.succeed(Option.none<FileSystemDirectoryHandle>())
-      : Effect.fail(failed(cause)),
+      : Effect.fail(failed(error)),
   ),
 )
 
@@ -106,6 +114,7 @@ const download = (bytes: Uint8Array, name: string) => {
 
 export const reasonOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
+
   return typeof error === "object" && error !== null && "reason" in error
     ? String(error.reason)
     : String(error)
@@ -117,26 +126,35 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
       onNone: () => "graph",
       onSome: (opened) => opened.graph,
     })
+
     const core = yield* CoreClient
     const pagesClient = yield* PageClient
     const locations = yield* GraphLocations
+
     const text = (path: string) =>
       Effect.map(locations.file(graph, path), (bytes) => (bytes === null ? "" : strFromU8(bytes)))
+
     const trees = yield* core.ExportPages({})
     const configEdn = yield* text("logseq/config.edn")
     const chosen = publicPages(trees, allPagesPublic(configEdn))
-    if (chosen.length === 0)
+
+    if (chosen.length === 0) {
       return {
         _tag: "Nothing",
         reason: "No page is public. Add public:: true to the pages to publish.",
       } satisfies Delivered
+    }
+
     const stats = new Map(
       (yield* first(pagesClient.WatchPageStats(), [])).map((stat) => [stat.pageId, stat]),
     )
+
     const linked = namesLinked(chosen)
+
     const referencedTitles = new Map(
       (yield* first(pagesClient.WatchReferencedPages(), [])).map((page) => [page.name, page.title]),
     )
+
     const pageReferences = yield* Effect.forEach(
       chosen,
       ({ page }) =>
@@ -146,6 +164,7 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
         ]),
       { concurrency: 8 },
     )
+
     const nameReferences = yield* Effect.forEach(
       linked,
       ({ name }) =>
@@ -155,6 +174,7 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
         ]),
       { concurrency: 8 },
     )
+
     const queries = yield* Effect.forEach(
       queriesIn(chosen),
       (query) =>
@@ -165,6 +185,7 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
         ),
       { concurrency: 4 },
     )
+
     const data: Published = {
       graph: graphTitle(graph),
       theme: get(resolvedTheme),
@@ -185,11 +206,13 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
       queries: Object.fromEntries(queries.flatMap(Option.toArray)),
       listKeys: [...readPropertyConfig(configEdn).listKeys],
     }
+
     const assets = yield* Effect.forEach(usedAssets(chosen), (path) =>
-      Effect.map(locations.file(graph, path), (bytes): ReadonlyArray<SiteFile> =>
+      Effect.map(locations.file(graph, path), (bytes): readonly SiteFile[] =>
         bytes === null ? [] : [[path, bytes]],
       ),
     )
+
     const files = publicSite(
       data,
       yield* viewerFiles,
@@ -200,30 +223,45 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
       },
       assets.flat(),
     )
+
     if (typeof window.showDirectoryPicker !== "function") {
       const seconds = Math.floor((yield* Clock.currentTimeMillis) / 1000)
       const folder = `${graph}_public_${seconds}`
-      yield* Effect.sync(() => download(zipSite(folder, files, seconds), `${folder}.zip`))
+      yield* Effect.sync(() => {
+        download(zipSite(folder, files, seconds), `${folder}.zip`)
+      })
+
       return { _tag: "Zip" } satisfies Delivered
     }
+
     const folder = yield* pickFolder
-    if (Option.isNone(folder)) return { _tag: "Nothing", reason: "" } satisfies Delivered
+
+    if (Option.isNone(folder)) {
+      return { _tag: "Nothing", reason: "" } satisfies Delivered
+    }
+
     yield* writeFolder(folder.value, files)
+
     return { _tag: "Folder", name: folder.value.name } satisfies Delivered
   }).pipe(
     Effect.tap((delivered) =>
       Effect.sync(() => {
-        if (delivered._tag === "Folder")
+        if (delivered._tag === "Folder") {
           notify(
             get.registry,
             `Export public pages and publish assets to ${delivered.name} successfully`,
           )
-        if (delivered._tag === "Nothing" && delivered.reason !== "")
+        }
+
+        if (delivered._tag === "Nothing" && delivered.reason !== "") {
           notify(get.registry, delivered.reason)
+        }
       }),
     ),
     Effect.tapCause((cause) =>
-      Effect.sync(() => notify(get.registry, `Export public pages failed: ${reasonOf(cause)}`)),
+      Effect.sync(() => {
+        notify(get.registry, `Export public pages failed: ${reasonOf(cause)}`)
+      }),
     ),
   ),
 )

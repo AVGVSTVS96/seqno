@@ -90,7 +90,7 @@ describe("annotation blocks", () => {
           id: "6ae9edd5-8708-4843-820f-da66eb9673cd",
           page: 2,
           position,
-          content: { text: "[:span]", image: 1793715669070 },
+          content: { text: "[:span]", image: 1_793_715_669_070 },
           properties: { color: "purple" },
         }),
       ),
@@ -161,7 +161,7 @@ describe("the highlights file", () => {
   it("reads Logseq's file and writes it back byte for byte", () => {
     const read = Result.getOrThrow(readHighlights(logseq))
     expect(read.page).toBe(2)
-    expect(read.highlights[0]?.content).toEqual({ text: "[:span]", image: 1700000000000 })
+    expect(read.highlights[0]?.content).toEqual({ text: "[:span]", image: 1_700_000_000_000 })
     expect(printHighlights(read)).toBe(logseq)
   })
 
@@ -171,8 +171,9 @@ describe("the highlights file", () => {
         "../../../fixtures/graphs/pdf-highlights/assets/Paper_1700000000000_0.edn",
         import.meta.url,
       ),
-      "utf8",
+      "utf-8",
     )
+
     const read = Result.getOrThrow(readHighlights(made))
     expect(read.highlights.map((highlight) => highlight.content.text)).toEqual([
       "The quick brown fox jumps",

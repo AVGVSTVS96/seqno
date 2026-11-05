@@ -27,10 +27,10 @@ export interface Placement {
 }
 
 export interface Surroundings {
-  readonly targets: ReadonlyArray<Box>
-  readonly sizes: ReadonlyArray<Size>
+  readonly targets: readonly Box[]
+  readonly sizes: readonly Size[]
   readonly viewport: Box
-  readonly content: ReadonlyArray<Box>
+  readonly content: readonly Box[]
   readonly pointer: Point | null
   readonly current: Placement | null
 }
@@ -41,11 +41,12 @@ const gap = caretDepth + 4
 const caretInset = 16
 const edge = 8
 const breathingRoom = 6
-const sides: ReadonlyArray<Side> = ["right", "bottom", "left", "top"]
+const sides: readonly Side[] = ["right", "bottom", "left", "top"]
 const lineReach = 320
 const lineJoin = 24
 const step = { along: 4, away: 8 }
 const pointerRoom = 12
+
 const cost = {
   side: 150,
   away: 4,
@@ -86,32 +87,41 @@ interface Spot {
   readonly away: number
 }
 
-const restOfLine = (target: Box, content: ReadonlyArray<Box>, side: "left" | "right") => {
+const restOfLine = (target: Box, content: readonly Box[], side: "left" | "right") => {
   const line = content.filter((box) => box.bottom > target.top + 2 && box.top < target.bottom - 2)
   const start = side === "right" ? target.right : -target.left
   let reached = start
+
   for (let grown = true; grown;) {
     grown = false
+
     for (const box of line) {
       const near = side === "right" ? box.left : -box.right
       const far = side === "right" ? box.right : -box.left
+
       if (near >= start - 1 && near <= reached + lineJoin && far > reached) {
         reached = far
         grown = true
       }
     }
   }
+
   return Math.min(lineReach, reached - start + lineJoin)
 }
 
-const spotsBeside = (target: Box, size: Size, side: Side, reach: number): ReadonlyArray<Spot> => {
+const spotsBeside = (target: Box, size: Size, side: Side, reach: number): readonly Spot[] => {
   const horizontal = side === "left" || side === "right"
   const point = horizontal ? (target.top + target.bottom) / 2 : (target.left + target.right) / 2
   const length = horizontal ? size.height : size.width
   const first = point - length + caretInset
   const last = point - caretInset
-  if (last < first) return []
+
+  if (last < first) {
+    return []
+  }
+
   const starts = [...range(first, last, step.along), point - length / 2]
+
   return [...range(0, reach, step.away), reach].flatMap((away) =>
     starts.map((start) => {
       const near = {
@@ -120,19 +130,22 @@ const spotsBeside = (target: Box, size: Size, side: Side, reach: number): Readon
         bottom: target.bottom + gap + away,
         top: target.top - gap - away - size.height,
       }[side]
+
       const box = horizontal
         ? { left: near, top: start, right: near + size.width, bottom: start + size.height }
         : { left: start, top: near, right: start + size.width, bottom: near + size.height }
+
       return { side, box, caret: point - start, away }
     }),
   )
 }
 
-const coveredBy = (box: Box, content: ReadonlyArray<Box>) =>
+const coveredBy = (box: Box, content: readonly Box[]) =>
   content.reduce((sum, line) => sum + overlap(box, line), 0)
 
 const caretBox = ({ side, box, caret }: Spot): Box => {
   const half = caretDepth
+
   return {
     right: {
       left: box.left - caretDepth,
@@ -181,20 +194,27 @@ export const placeTip = ({
   const tallest = Math.max(...sizes.map((size) => size.height))
   let best: Placement | null = null
   let bestScore = Infinity
+
   for (const [index, target] of targets.entries()) {
     const area = grow(target, Math.max(widest, tallest) + lineReach)
     const nearby = content.filter((line) => overlap(line, area) > 0)
+
     const reaches: Record<Side, number> = {
       right: restOfLine(target, nearby, "right"),
       left: restOfLine(target, nearby, "left"),
       bottom: 0,
       top: 0,
     }
+
     for (const [sizeIndex, size] of sizes.entries()) {
       for (const side of sides) {
         const length = side === "left" || side === "right" ? size.height : size.width
+
         for (const spot of spotsBeside(target, size, side, reaches[side])) {
-          if (!within(spot.box, bounds)) continue
+          if (!within(spot.box, bounds)) {
+            continue
+          }
+
           const score =
             coveredBy(grow(spot.box, breathingRoom), nearby) +
             coveredBy(grow(caretBox(spot), breathingRoom / 2), nearby) +
@@ -205,7 +225,11 @@ export const placeTip = ({
             (widest - size.width) * cost.narrower +
             index * cost.laterTarget -
             (current?.target === index && current.side === side ? cost.keepSide : 0)
-          if (score >= bestScore) continue
+
+          if (score >= bestScore) {
+            continue
+          }
+
           bestScore = score
           best = {
             target: index,
@@ -219,5 +243,6 @@ export const placeTip = ({
       }
     }
   }
+
   return best === null ? null : { ...best, covered: coveredBy(best.box, content) }
 }

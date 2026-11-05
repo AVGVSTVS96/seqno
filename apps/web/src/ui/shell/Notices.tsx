@@ -4,7 +4,8 @@ import { importReport, mirrorReportClosed, mirrorStatus, pagesMadeElsewhere } fr
 import { IconAlertCircle, IconLoader2, IconX } from "@tabler/icons-react"
 import { useContext } from "react"
 import { Option } from "effect"
-import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
+import { AsyncResult, Atom } from "effect/reactivity"
+import type { AtomRegistry } from "effect/reactivity"
 import { logseq, names } from "@seqno/dom"
 
 interface Notice {
@@ -14,7 +15,7 @@ interface Notice {
 
 const shownFor = 2000
 
-export const notices = Atom.make<ReadonlyArray<Notice>>([]).pipe(Atom.keepAlive)
+export const notices = Atom.make<readonly Notice[]>([]).pipe(Atom.keepAlive)
 
 let lastId = 0
 
@@ -25,17 +26,20 @@ export const notify = (registry: AtomRegistry.AtomRegistry, message: string) => 
     ...shown.filter((notice) => notice.message !== message),
     { id, message },
   ])
-  setTimeout(
-    () => registry.update(notices, (shown) => shown.filter((notice) => notice.id !== id)),
-    shownFor,
-  )
+  setTimeout(() => {
+    registry.update(notices, (shown) => shown.filter((notice) => notice.id !== id))
+  }, shownFor)
 }
 
 const files = (count: number) => (count === 1 ? "1 file" : `${count} files`)
 
 const ImportReport = () => {
   const [skipped, setSkipped] = useAtom(importReport)
-  if (skipped.length === 0) return null
+
+  if (skipped.length === 0) {
+    return null
+  }
+
   return (
     <div className={names(logseq("notice").className, "notice-report")} role="alert">
       <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />
@@ -55,7 +59,9 @@ const ImportReport = () => {
         type="button"
         className="notice-close"
         aria-label="Close"
-        onClick={() => setSkipped([])}
+        onClick={() => {
+          setSkipped([])
+        }}
       >
         <IconX size={18} stroke={2} aria-hidden />
       </button>
@@ -66,10 +72,18 @@ const ImportReport = () => {
 const MirrorReport = () => {
   const status = Option.getOrNull(AsyncResult.value(useAtomValue(mirrorStatus)))
   const [closed, setClosed] = useAtom(mirrorReportClosed)
-  if (status === null) return null
+
+  if (status === null) {
+    return null
+  }
+
   const { left, failed, paused } = status
   const key = JSON.stringify({ left, failed, paused })
-  if ((left.length === 0 && failed.length === 0 && paused === null) || closed === key) return null
+
+  if ((left.length === 0 && failed.length === 0 && paused === null) || closed === key) {
+    return null
+  }
+
   return (
     <div className="notice notice-report" role="alert" data-mirror-report>
       <IconAlertCircle className="notice-icon" size={20} stroke={2} aria-hidden />
@@ -101,7 +115,9 @@ const MirrorReport = () => {
         type="button"
         className="notice-close"
         aria-label="Close"
-        onClick={() => setClosed(key)}
+        onClick={() => {
+          setClosed(key)
+        }}
       >
         <IconX size={18} stroke={2} aria-hidden />
       </button>
@@ -112,7 +128,11 @@ const MirrorReport = () => {
 const CheckingUpdates = () => {
   const registry = useContext(RegistryContext)
   const checking = useAtomValue(updatesChecking)
-  if (checking === null || checking.auto) return null
+
+  if (checking === null || checking.auto) {
+    return null
+  }
+
   return (
     <div {...logseq("notice")} data-checking-updates>
       <IconLoader2 className="notice-icon notice-spin" size={20} stroke={2} aria-hidden />
@@ -124,7 +144,9 @@ const CheckingUpdates = () => {
         type="button"
         className="notice-close"
         aria-label="Close"
-        onClick={() => cancelChecking(registry)}
+        onClick={() => {
+          cancelChecking(registry)
+        }}
       >
         <IconX size={18} stroke={2} aria-hidden />
       </button>
@@ -135,6 +157,7 @@ const CheckingUpdates = () => {
 export const Notices = () => {
   useAtomMount(pagesMadeElsewhere)
   const [shown, setShown] = useAtom(notices)
+
   return (
     <div {...logseq("notices")} role="status" aria-live="polite">
       <ImportReport />
@@ -148,7 +171,9 @@ export const Notices = () => {
             type="button"
             className="notice-close"
             aria-label="Close"
-            onClick={() => setShown(shown.filter((other) => other.id !== notice.id))}
+            onClick={() => {
+              setShown(shown.filter((other) => other.id !== notice.id))
+            }}
           >
             <IconX size={18} stroke={2} aria-hidden />
           </button>

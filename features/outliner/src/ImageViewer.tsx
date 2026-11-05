@@ -5,8 +5,14 @@ export const copyImage = async (image: HTMLImageElement) => {
   canvas.width = image.naturalWidth || image.width
   canvas.height = image.naturalHeight || image.height
   canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height)
-  const png = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"))
-  if (png !== null) await navigator.clipboard.write([new ClipboardItem({ "image/png": png })])
+
+  const png = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/png")
+  })
+
+  if (png !== null) {
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": png })])
+  }
 }
 
 export const ImageViewer = ({
@@ -23,10 +29,14 @@ export const ImageViewer = ({
       className="seqno-image-viewer"
       aria-label={alt === "" ? "Image" : alt}
       ref={(dialog) => {
-        if (dialog !== null && !dialog.open) dialog.showModal()
+        if (dialog !== null && !dialog.open) {
+          dialog.showModal()
+        }
       }}
       onClose={onClose}
-      onClick={(event) => event.currentTarget.close()}
+      onClick={(event) => {
+        event.currentTarget.close()
+      }}
     >
       <img src={source} alt={alt} />
     </dialog>,

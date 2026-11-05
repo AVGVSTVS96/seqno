@@ -1,6 +1,8 @@
 import { Option, Schema } from "effect"
-import { LoroMap, type LoroDoc, type LoroTreeNode, type TreeID } from "loro-crdt"
-import { JournalDay, PageId, Props, normalizePageName, type Page } from "@seqno/domain"
+import { LoroMap } from "loro-crdt"
+import type { LoroDoc, LoroTreeNode, TreeID } from "loro-crdt"
+import { JournalDay, PageId, Props, normalizePageName } from "@seqno/domain"
+import type { Page } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
 import { fileShape, inOrder, isTreeId, readProps } from "../tree.ts"
 
@@ -30,23 +32,34 @@ export const pageOfTree = (name: unknown): Option.Option<PageId> =>
 
 export const journalPageId = (day: JournalDay): PageId => {
   const digits = String(day).padStart(12, "0")
+
   return PageId.make(`${digits.slice(0, 8)}-${digits.slice(8)}-7000-8000-000000000000`)
 }
 
 export const dayIds = (pages: Iterable<Page>): ReadonlyMap<PageId, PageId> => {
   const firstOfDay = new Map<JournalDay, PageId>()
+
   for (const page of pages) {
-    if (page.journalDay === null) continue
+    if (page.journalDay === null) {
+      continue
+    }
+
     const known = firstOfDay.get(page.journalDay)
-    if (known === undefined || page.id < known) firstOfDay.set(page.journalDay, page.id)
+
+    if (known === undefined || page.id < known) {
+      firstOfDay.set(page.journalDay, page.id)
+    }
   }
+
   return new Map([...firstOfDay].map(([day, id]) => [id, journalPageId(day)]))
 }
 
-export const journalsByDay = (pages: ReadonlyArray<PageTree>): ReadonlyArray<PageTree> => {
+export const journalsByDay = (pages: readonly PageTree[]): readonly PageTree[] => {
   const ids = dayIds(pages.map(({ page }) => page))
+
   return pages.map((tree) => {
     const id = ids.get(tree.page.id)
+
     return id === undefined
       ? tree
       : {
@@ -69,9 +82,13 @@ export const spotOf = (page: PageId, node: LoroTreeNode): Spot => ({
 })
 
 export const parseKey = (key: unknown): Option.Option<readonly [PageId, TreeID]> => {
-  if (typeof key !== "string") return Option.none()
+  if (typeof key !== "string") {
+    return Option.none()
+  }
+
   const bar = key.indexOf("|")
   const id = key.slice(bar + 1)
+
   return bar === -1 || !isTreeId(id)
     ? Option.none()
     : Option.map(decodePageId(key.slice(0, bar)), (page) => [page, id] as const)
@@ -100,6 +117,7 @@ export const isDirectory = (name: unknown): boolean =>
 
 export const pageData = (dir: Directory, page: PageId): Option.Option<LoroMap> => {
   const found = dir.pageData.get(page)
+
   return found instanceof LoroMap ? Option.some(found) : Option.none()
 }
 
@@ -122,25 +140,41 @@ const entries = (map: LoroMap): ReadonlyArray<readonly [string, unknown]> =>
 export const listPages = (dir: Directory): Listing => {
   const days = new Map(entries(dir.days))
   const trashed = new Set<PageId>()
+
   for (const [id, value] of entries(dir.trashed)) {
-    if (value === true) Option.map(decodePageId(id), (page) => trashed.add(page))
+    if (value === true) {
+      Option.map(decodePageId(id), (page) => trashed.add(page))
+    }
   }
+
   const merged = new Map<PageId, PageId>()
+
   for (const [id, value] of entries(dir.merged)) {
     Option.map(decodePageId(id), (page) =>
       Option.map(decodePageId(value), (into) => merged.set(page, into)),
     )
   }
+
   const data = dir.pageData.toJSON()
   const live = new Map<PageId, Page>()
   const titled = new Set<PageId>()
+
   for (const [id, title] of entries(dir.titles)) {
     const page = decodePageId(id)
-    if (Option.isNone(page) || typeof title !== "string") continue
+
+    if (Option.isNone(page) || typeof title !== "string") {
+      continue
+    }
+
     titled.add(page.value)
     const name = normalizePageName(title)
-    if (name === "" || trashed.has(page.value) || merged.has(page.value)) continue
+
+    if (name === "" || trashed.has(page.value) || merged.has(page.value)) {
+      continue
+    }
+
     const own: unknown = data[id]
+
     const props =
       typeof own === "object" && own !== null
         ? inOrder(
@@ -148,6 +182,7 @@ export const listPages = (dir: Directory): Listing => {
             Option.getOrElse(decodeKeys(Reflect.get(own, "propKeys")), () => []),
           )
         : {}
+
     live.set(page.value, {
       id: page.value,
       name,
@@ -157,34 +192,46 @@ export const listPages = (dir: Directory): Listing => {
       ...fileShape(own),
     })
   }
+
   return { live, merged, trashed, titled }
 }
 
 export const resolvePage = (listing: Listing, page: PageId): Option.Option<PageId> => {
   let at = page
+
   for (let steps = 0; steps <= listing.merged.size; steps++) {
     const into = listing.merged.get(at)
-    if (into === undefined) return listing.live.has(at) ? Option.some(at) : Option.none()
+
+    if (into === undefined) {
+      return listing.live.has(at) ? Option.some(at) : Option.none()
+    }
+
     at = into
   }
+
   return Option.none()
 }
 
-export const feeding = (listing: Listing, page: PageId): ReadonlyArray<PageId> =>
+export const feeding = (listing: Listing, page: PageId): readonly PageId[] =>
   [...listing.merged.keys()].filter((from) => {
     const seen = new Set<PageId>()
+
     for (
       let at = listing.merged.get(from);
       at !== undefined && !seen.has(at);
       at = listing.merged.get(at)
     ) {
-      if (at === page) return true
+      if (at === page) {
+        return true
+      }
+
       seen.add(at)
     }
+
     return false
   })
 
-export const mergedFrom = (listing: Listing, page: PageId): ReadonlyArray<PageId> =>
+export const mergedFrom = (listing: Listing, page: PageId): readonly PageId[] =>
   [...listing.merged.keys()]
     .filter((from) => Option.contains(resolvePage(listing, from), page))
     .toSorted()

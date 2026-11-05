@@ -8,14 +8,18 @@ test.skip(!appAvailable, "waits on apps/web")
 
 const runGit = async (page: Page, command: string) => {
   await page.keyboard.press("ControlOrMeta+Shift+Digit1")
+
   const input = page
     .getByRole("dialog", { name: "Run git command" })
     .getByRole("textbox", { name: "Input command" })
+
   await input.fill(command)
   await input.press("Enter")
   await expect(page.getByRole("status")).toContainText(`${command.slice(4)} was executed`)
   await input.press("Escape")
-  await expect.poll(() => page.evaluate(() => document.activeElement === document.body)).toBe(true)
+  await expect
+    .poll(async () => await page.evaluate(() => document.activeElement === document.body))
+    .toBe(true)
 }
 
 const setIdentity = async (page: Page) => {
@@ -23,22 +27,25 @@ const setIdentity = async (page: Page) => {
   await runGit(page, "git config --global user.email bassim@example.com")
 }
 
-const settingsSaved = (page: Page) =>
-  expect
-    .poll(() =>
-      page.evaluate(() =>
-        Object.keys(localStorage).some(
-          (key) =>
-            key.startsWith("seqno.plugins.settings.") &&
-            Object.keys(JSON.parse(localStorage.getItem(key) ?? "{}")).length > 1,
+const settingsSaved = async (page: Page) => {
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() =>
+          Object.keys(localStorage).some(
+            (key) =>
+              key.startsWith("seqno.plugins.settings.") &&
+              Object.keys(JSON.parse(localStorage.getItem(key) ?? "{}")).length > 1,
+          ),
         ),
-      ),
     )
     .toBe(true)
+}
 
 const openHistory = async (page: Page) => {
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "View page history" }).click()
+
   return page.getByRole("dialog", { name: "View page history" })
 }
 
@@ -93,7 +100,9 @@ test("Create git commit with message commits the graph's files, View page histor
   await page.keyboard.press("End")
   await page.keyboard.type(" and a fourth")
   await page.keyboard.press("Escape")
-  await expect.poll(() => tomatoesFile(page)).toContain("- Three kinds this year: and a fourth\n")
+  await expect
+    .poll(async () => await tomatoesFile(page))
+    .toContain("- Three kinds this year: and a fourth\n")
   await page.keyboard.press("ControlOrMeta+g")
   await page.keyboard.press("c")
   await expect(commit.locator("pre")).toHaveText(" M pages/Tomatoes.md")
@@ -109,7 +118,7 @@ test("Create git commit with message commits the graph's files, View page histor
   await expect(history.locator("pre")).not.toContainText("and a fourth")
   await history.getByRole("button", { name: "Revert" }).click()
   await page.keyboard.press("Escape")
-  await expect.poll(() => tomatoesFile(page)).not.toContain("and a fourth")
+  await expect.poll(async () => await tomatoesFile(page)).not.toContain("and a fourth")
   await expect(
     page.getByRole("treeitem", { name: "Zoom into block Three kinds this year:", exact: true }),
   ).toBeVisible({ timeout: 10_000 })
@@ -188,8 +197,10 @@ test("GitSeq syncs through Logseq.Git: it commits the graph and reports that no 
     stderr: "",
     exitCode: 0,
   })
+
   const seqnoFiles =
     "updates/\nsnapshots/\nseen/\nedit-log/\nstarter-version\n*.crswap\n*.seqno-tmp\n"
+
   expect(await plugin?.evaluate(`logseq.Git.loadIgnoreFile()`)).toBe(seqnoFiles)
   await plugin?.evaluate(`logseq.Git.saveIgnoreFile(${JSON.stringify(`${seqnoFiles}*.bak\n`)})`)
   expect(await plugin?.evaluate(`logseq.Git.loadIgnoreFile()`)).toBe(`${seqnoFiles}*.bak\n`)

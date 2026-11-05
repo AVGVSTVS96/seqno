@@ -2,8 +2,10 @@ import { getStroke } from "perfect-freehand"
 import type { BlockId, Vec } from "@seqno/domain"
 import { boundsOfPoints, centerOf, sub } from "./geometry.ts"
 import { HtmlView, IFrameView, PdfView, TweetView, YouTubeView } from "./Embeds.tsx"
-import { PortalPreview, PortalView, type PortalEnv } from "./Portal.tsx"
-import { absolutePoints, type Item, type Scene } from "./model.ts"
+import { PortalPreview, PortalView } from "./Portal.tsx"
+import type { PortalEnv } from "./Portal.tsx"
+import { absolutePoints } from "./model.ts"
+import type { Item, Scene } from "./model.ts"
 import { colorVar, fontSize, portalScale, strokeScale } from "./tools.ts"
 
 export interface Editing {
@@ -15,7 +17,7 @@ export interface Editing {
 
 export interface Portals {
   readonly env: PortalEnv
-  readonly selected: ReadonlyArray<BlockId>
+  readonly selected: readonly BlockId[]
   readonly dimmed: ReadonlySet<string>
   readonly binding: BlockId | null
 }
@@ -26,7 +28,7 @@ export interface ShapeSlots {
   readonly editing: Editing | null
   readonly portals: Portals | null
   readonly active: BlockId | null
-  readonly selected: ReadonlyArray<BlockId>
+  readonly selected: readonly BlockId[]
   readonly reloads: ReadonlyMap<BlockId, number>
 }
 
@@ -39,16 +41,26 @@ const ShapeEditor = ({ item, editing }: { readonly item: Item; readonly editing:
     autoFocus
     value={editing.draft}
     rows={1}
-    onFocus={(event) => event.currentTarget.select()}
-    onChange={(event) => editing.onDraft(event.currentTarget.value)}
-    onBlur={(event) => editing.onFinish(event.relatedTarget)}
-    onPointerDown={(event) => event.stopPropagation()}
+    onFocus={(event) => {
+      event.currentTarget.select()
+    }}
+    onChange={(event) => {
+      editing.onDraft(event.currentTarget.value)
+    }}
+    onBlur={(event) => {
+      editing.onFinish(event.relatedTarget)
+    }}
+    onPointerDown={(event) => {
+      event.stopPropagation()
+    }}
     onKeyDown={(event) => {
       event.stopPropagation()
+
       if (event.key === "Escape") {
         event.preventDefault()
         event.currentTarget.blur()
       }
+
       if (event.key === "Tab") {
         event.preventDefault()
         const { selectionStart, selectionEnd } = event.currentTarget
@@ -65,9 +77,14 @@ const editorOf = (item: Item, slots: ShapeSlots) =>
 
 const portalOf = (item: Item, slots: ShapeSlots, scale: number) => {
   const { portals } = slots
-  if (portals === null) return <PortalPreview item={item} scale={scale} />
+
+  if (portals === null) {
+    return <PortalPreview item={item} scale={scale} />
+  }
+
   const selected = portals.selected.includes(item.block.id)
   const target = item.block.text.trim().toLowerCase()
+
   return (
     <PortalView
       item={item}
@@ -85,6 +102,7 @@ const scaleOf = (item: Item) =>
 
 const lettering = (item: Item) => {
   const { shape } = item
+
   return {
     fontSize: fontSize[scaleOf(item)],
     fontWeight: "fontWeight" in shape && shape.fontWeight !== undefined ? shape.fontWeight : 400,
@@ -109,26 +127,34 @@ const strokeOf = (item: Item) => ("stroke" in item.shape ? item.shape.stroke : u
 
 const fillOf = (item: Item) => ("fill" in item.shape ? item.shape.fill : undefined)
 
-const svgPath = (outline: ReadonlyArray<ReadonlyArray<number>>) => {
+const svgPath = (outline: ReadonlyArray<readonly number[]>) => {
   const [first, ...rest] = outline
-  if (first === undefined) return ""
+
+  if (first === undefined) {
+    return ""
+  }
+
   return `M${first[0] ?? 0},${first[1] ?? 0}${rest.map(([x = 0, y = 0]) => `L${x},${y}`).join("")}Z`
 }
 
 const arrowHead = (from: Vec, to: Vec, length: number) => {
   const [dx, dy] = sub(to, from)
   const angle = Math.atan2(dy, dx)
+
   const arm = (turn: number): Vec => [
     to[0] - length * Math.cos(angle + turn),
     to[1] - length * Math.sin(angle + turn),
   ]
+
   const [ax, ay] = arm(Math.PI / 6)
   const [bx, by] = arm(-Math.PI / 6)
+
   return `M${ax},${ay}L${to[0]},${to[1]}L${bx},${by}`
 }
 
 const Label = ({ item, slots }: { readonly item: Item; readonly slots: ShapeSlots }) => {
   const editor = editorOf(item, slots)
+
   return (
     <div
       className="wb-label"
@@ -152,6 +178,7 @@ const Geometry = ({
   const [width, height] = size
   const font = fontSize[scaleOf(item)]
   const sw = font / 10
+
   const paint = {
     fill:
       "noFill" in shape && shape.noFill === true ? "none" : colorVar("background", fillOf(item)),
@@ -159,9 +186,10 @@ const Geometry = ({
     strokeWidth: sw,
     strokeDasharray: "strokeType" in shape && shape.strokeType === "dashed" ? "8 2" : undefined,
   }
+
   const inner = (() => {
     switch (shape.type) {
-      case "box":
+      case "box": {
         return (
           <rect
             x={sw / 2}
@@ -172,7 +200,9 @@ const Geometry = ({
             {...paint}
           />
         )
-      case "ellipse":
+      }
+
+      case "ellipse": {
         return (
           <ellipse
             cx={width / 2}
@@ -182,10 +212,13 @@ const Geometry = ({
             {...paint}
           />
         )
+      }
+
       default: {
         const flipped = shape.type === "polygon" && shape.isFlippedY === true
         const top = flipped ? height - sw / 2 : sw / 2
         const base = flipped ? sw / 2 : height - sw / 2
+
         return (
           <polygon
             points={`${width / 2},${top} ${width - sw / 2},${base} ${sw / 2},${base}`}
@@ -196,6 +229,7 @@ const Geometry = ({
       }
     }
   })()
+
   return (
     <>
       <svg className="wb-svg" width={width} height={height}>
@@ -219,7 +253,11 @@ const LineView = ({
 }) => {
   const { shape } = item
   const ends = scene.ends.get(item.block.id)
-  if (shape.type !== "line" || ends === undefined) return null
+
+  if (shape.type !== "line" || ends === undefined) {
+    return null
+  }
+
   const [start, end] = ends
   const font = fontSize[scaleOf(item)]
   const width = 1 + ((shape.strokeWidth ?? 1) * font) / 10
@@ -229,6 +267,7 @@ const LineView = ({
   const decorations = shape.decorations ?? { end: "arrow" }
   const mid: Vec = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2]
   const editor = editorOf(item, slots)
+
   return (
     <div
       className="wb-shape"
@@ -268,14 +307,20 @@ const LineView = ({
 
 const StrokeView = ({ item, erasing }: { readonly item: Item; readonly erasing: boolean }) => {
   const { shape } = item
-  if (shape.type !== "pencil" && shape.type !== "highlighter") return null
+
+  if (shape.type !== "pencil" && shape.type !== "highlighter") {
+    return null
+  }
+
   const width = strokeScale[scaleOf(item)]
   const points = absolutePoints(shape)
   const [cx, cy] = centerOf(boundsOfPoints(points))
+
   const turn =
     shape.rotation === undefined || shape.rotation === 0
       ? {}
       : { rotate: `${shape.rotation}rad`, transformOrigin: `${cx}px ${cy}px` }
+
   if (shape.type === "highlighter") {
     return (
       <div
@@ -297,6 +342,7 @@ const StrokeView = ({ item, erasing }: { readonly item: Item; readonly erasing: 
       </div>
     )
   }
+
   const outline = getStroke(
     points.map(([x, y], index) => [x, y, shape.points[index]?.[2] ?? 0.5]),
     {
@@ -308,6 +354,7 @@ const StrokeView = ({ item, erasing }: { readonly item: Item; readonly erasing: 
       last: true,
     },
   )
+
   return (
     <div
       className="wb-shape"
@@ -335,23 +382,32 @@ export const ShapeView = ({
 }) => {
   const { shape } = item
   const box = scene.bounds.get(item.block.id)
-  if (box === undefined) return null
-  if (shape.type === "line")
+
+  if (box === undefined) {
+    return null
+  }
+
+  if (shape.type === "line") {
     return <LineView item={item} scene={scene} slots={slots} erasing={erasing} />
+  }
+
   if (shape.type === "pencil" || shape.type === "highlighter") {
     return <StrokeView item={item} erasing={erasing} />
   }
+
   const size: Vec = [box.maxX - box.minX, box.maxY - box.minY]
+
   const place = {
     left: shape.point[0],
     top: shape.point[1],
     transform: rotated(item),
     opacity: opacityOf(item),
   }
+
   switch (shape.type) {
     case "box":
     case "ellipse":
-    case "polygon":
+    case "polygon": {
       return (
         <div
           className="wb-shape"
@@ -362,9 +418,12 @@ export const ShapeView = ({
           <Geometry item={item} size={size} slots={slots} />
         </div>
       )
+    }
+
     case "text": {
       const auto = shape.isSizeLocked !== false
       const editor = editorOf(item, slots)
+
       return (
         <div
           className="wb-shape"
@@ -387,7 +446,8 @@ export const ShapeView = ({
         </div>
       )
     }
-    case "logseq-portal":
+
+    case "logseq-portal": {
       return (
         <div
           ref={slots.measure(item.block.id)}
@@ -399,8 +459,11 @@ export const ShapeView = ({
           {portalOf(item, slots, portalScale[scaleOf(item)])}
         </div>
       )
+    }
+
     case "image": {
       const src = mediaUrl(slots, shape.src)
+
       return (
         <div
           className="wb-shape"
@@ -424,9 +487,11 @@ export const ShapeView = ({
         </div>
       )
     }
+
     case "video": {
       const src = mediaUrl(slots, shape.src)
       const active = slots.active === item.block.id
+
       return (
         <div
           className="wb-shape"
@@ -444,6 +509,7 @@ export const ShapeView = ({
         </div>
       )
     }
+
     case "youtube":
     case "tweet":
     case "iframe":
@@ -451,14 +517,18 @@ export const ShapeView = ({
     case "pdf": {
       const active = slots.active === item.block.id
       const still = slots.portals === null
+
       const view = (() => {
         if (still && shape.type !== "youtube" && shape.type !== "html") {
           return <div className="wb-iframe" />
         }
+
         switch (shape.type) {
-          case "youtube":
+          case "youtube": {
             return <YouTubeView url={shape.url ?? ""} still={still} />
-          case "tweet":
+          }
+
+          case "tweet": {
             return (
               <TweetView
                 url={shape.url ?? ""}
@@ -466,11 +536,15 @@ export const ShapeView = ({
                 measure={slots.measure(item.block.id)}
               />
             )
-          case "iframe":
+          }
+
+          case "iframe": {
             return (
               <IFrameView url={shape.url ?? ""} frameKey={slots.reloads.get(item.block.id) ?? 0} />
             )
-          case "html":
+          }
+
+          case "html": {
             return (
               <HtmlView
                 html={shape.html ?? ""}
@@ -478,10 +552,14 @@ export const ShapeView = ({
                 measure={slots.measure(item.block.id)}
               />
             )
-          case "pdf":
+          }
+
+          case "pdf": {
             return <PdfView src={mediaUrl(slots, shape.src)} />
+          }
         }
       })()
+
       return (
         <div
           className="wb-shape wb-embed"
@@ -495,9 +573,12 @@ export const ShapeView = ({
         </div>
       )
     }
-    case "group":
+
+    case "group": {
       return null
-    case "unsupported":
+    }
+
+    case "unsupported": {
       return shape.kind === "group" ? null : (
         <div
           className="wb-shape"
@@ -515,5 +596,6 @@ export const ShapeView = ({
           </div>
         </div>
       )
+    }
   }
 }

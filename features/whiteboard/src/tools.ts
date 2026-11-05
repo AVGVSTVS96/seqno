@@ -15,6 +15,7 @@ export type Tool =
   | ShapeTool
 
 export const COLORS = ["yellow", "red", "pink", "green", "blue", "purple", "gray", ""] as const
+
 export type Color = (typeof COLORS)[number]
 
 export interface Styles {
@@ -51,8 +52,9 @@ export const newShape = (
   extra: Raw = {},
 ): Raw => {
   const base = { type, point, ...styled(styles) }
+
   switch (type) {
-    case "box":
+    case "box": {
       return {
         ...base,
         size,
@@ -62,9 +64,13 @@ export const newShape = (
         ...lettered,
         ...extra,
       }
-    case "ellipse":
+    }
+
+    case "ellipse": {
       return { ...base, size, noFill: false, strokeWidth: 2, ...lettered, ...extra }
-    case "polygon":
+    }
+
+    case "polygon": {
       return {
         ...base,
         size,
@@ -76,7 +82,9 @@ export const newShape = (
         ...lettered,
         ...extra,
       }
-    case "text":
+    }
+
+    case "text": {
       return {
         ...base,
         size,
@@ -88,7 +96,9 @@ export const newShape = (
         ...lettered,
         ...extra,
       }
-    case "line":
+    }
+
+    case "line": {
       return {
         ...base,
         noFill: true,
@@ -97,12 +107,19 @@ export const newShape = (
         ...lettered,
         ...extra,
       }
-    case "pencil":
+    }
+
+    case "pencil": {
       return { ...base, noFill: true, strokeWidth: 2, ...extra }
-    case "highlighter":
+    }
+
+    case "highlighter": {
       return { ...base, noFill: true, strokeWidth: 2, opacity: 0.5, ...extra }
-    case "logseq-portal":
+    }
+
+    case "logseq-portal": {
       return { type, point, size, compact: false, ...extra }
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 export { Entry, FileUnavailable, Storage, StorageFailed } from "./storage.ts"
+
 export {
   MirrorClaim,
   SeenFile,
@@ -9,8 +10,11 @@ export {
   type SyncReport,
   type VaultConfig,
 } from "./vault.ts"
+
 export { loroReplica, type Replica } from "./replica.ts"
+
 export { Version, covers, type Span } from "./version.ts"
+
 export {
   editLogDir,
   seenPath,
@@ -19,6 +23,7 @@ export {
   treePerPageMarker,
   updatePath,
 } from "./layout.ts"
+
 export {
   PermissionNeeded,
   directoryChanges,
@@ -27,6 +32,7 @@ export {
   layerDirectoryHandle,
   layerOpfs,
 } from "./browser.ts"
+
 export {
   makeFakeCloud,
   type FakeCloud,

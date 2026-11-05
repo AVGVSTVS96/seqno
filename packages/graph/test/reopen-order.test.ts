@@ -4,7 +4,7 @@ import type { GraphEvent } from "@seqno/domain"
 import type { LocalUpdate } from "@seqno/graph"
 import { createdBlock, nth, openGraph, outline, seedPage } from "./support.ts"
 
-const upsertOrder = (events: ReadonlyArray<GraphEvent>) =>
+const upsertOrder = (events: readonly GraphEvent[]) =>
   events.flatMap((event) =>
     event._tag === "PageUpserted"
       ? [`page ${event.page.title}`]
@@ -19,6 +19,7 @@ describe("reopening a graph", () => {
       Effect.gen(function* () {
         const before = yield* openGraph("7")
         const { pageId, ids } = yield* seedPage(before, "Demo", ["Welcome", "Getting started"])
+
         const parent = createdBlock(
           yield* before.dispatch({
             _tag: "InsertBlock",
@@ -28,8 +29,9 @@ describe("reopening a graph", () => {
             text: "New parent",
           }),
         )
+
         yield* before.dispatch({ _tag: "Indent", blockIds: [nth(ids, 1)] })
-        const files: Array<LocalUpdate> = []
+        const files: LocalUpdate[] = []
         yield* before.flush((update) => Effect.sync(() => void files.push(update)))
 
         const reopened = yield* openGraph("7")

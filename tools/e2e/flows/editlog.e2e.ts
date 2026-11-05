@@ -5,20 +5,28 @@ import { expect, test } from "../src/test.ts"
 
 test.skip(!appAvailable, "waits on apps/web")
 
-const updates = (page: Page) =>
-  page.evaluate(async () => {
+const updates = async (page: Page) =>
+  await page.evaluate(async () => {
     const graph = await (
       await navigator.storage.getDirectory()
     )
       .getDirectoryHandle("graphs")
-      .then((graphs) => graphs.getDirectoryHandle("demo"))
-      .then((demo) => demo.getDirectoryHandle("edit-log"))
+      .then(async (graphs) => await graphs.getDirectoryHandle("demo"))
+      .then(async (demo) => await demo.getDirectoryHandle("edit-log"))
+
     const devices = await graph.getDirectoryHandle("updates")
     let count = 0
+
     for await (const device of devices.values()) {
-      if (device.kind !== "directory") continue
-      for await (const _ of device.keys()) count++
+      if (device.kind !== "directory") {
+        continue
+      }
+
+      for await (const _ of device.keys()) {
+        count++
+      }
     }
+
     return count
   })
 
@@ -27,28 +35,37 @@ test("a demo graph compacts its own edit log while you type", async ({ page, seq
   await seqno.openDemoGraph()
   await seqno.today.getByRole("treeitem").first().click()
   await page.keyboard.press("End")
+
   for (let key = 0; key < 120; key++) {
     await page.keyboard.type(String(key % 10))
     await expect(page.locator("[data-save-state]")).toHaveAttribute("data-save-state", "saved")
   }
+
   expect(await updates(page)).toBeGreaterThanOrEqual(100)
-  await expect.poll(() => updates(page), { timeout: 30_000 }).toBeLessThan(10)
+  await expect.poll(async () => await updates(page), { timeout: 30_000 }).toBeLessThan(10)
   const snapshots = Object.keys(await opfsFiles(page, ["graphs", "demo", "edit-log", "snapshots"]))
   expect(snapshots.length).toBe(1)
   await page.reload()
   await expect(seqno.today.getByRole("treeitem").first()).toContainText("0123456789")
 })
 
-const copyFolder = (page: Page, from: ReadonlyArray<string>, to: ReadonlyArray<string>) =>
-  page.evaluate(
+const copyFolder = async (page: Page, from: readonly string[], to: readonly string[]) => {
+  await page.evaluate(
     async ({ source, target }) => {
       const root = navigator.storage.getDirectory()
-      const at = (path: ReadonlyArray<string>, create: boolean) =>
-        path.reduce(async (dir, part) => (await dir).getDirectoryHandle(part, { create }), root)
+
+      const at = async (path: readonly string[], create: boolean) =>
+        await path.reduce(
+          async (dir, part) => await (await dir).getDirectoryHandle(part, { create }),
+          root,
+        )
+
       const into = await at(target, true)
       const pending = [[await at(source, false), into] as const]
+
       for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
         const [here, there] = next
+
         for await (const entry of here.values()) {
           if (entry.kind === "directory") {
             pending.push([entry, await there.getDirectoryHandle(entry.name, { create: true })])
@@ -56,19 +73,23 @@ const copyFolder = (page: Page, from: ReadonlyArray<string>, to: ReadonlyArray<s
             const writable = await (
               await there.getFileHandle(entry.name, { create: true })
             ).createWritable()
+
             await writable.write(await entry.getFile())
             await writable.close()
           }
         }
       }
+
       const stamp = await (
         await into.getFileHandle("starter-version", { create: true })
       ).createWritable()
+
       await stamp.write("1")
       await stamp.close()
     },
     { source: from, target: to },
   )
+}
 
 test("a demo graph an older seqno saved as one tree converts when it opens, edits and all", async ({
   page,

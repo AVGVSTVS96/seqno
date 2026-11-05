@@ -70,7 +70,11 @@ describe("namesLinked and publishedReferences", () => {
     expect(namesLinked(published)).toEqual([{ name: "north", title: "north" }])
     const garden = published[0]?.blocks[0]
     const diary = graph[3]?.blocks[0]
-    if (garden === undefined || diary === undefined) throw new Error("missing fixture blocks")
+
+    if (garden === undefined || diary === undefined) {
+      throw new Error("missing fixture blocks")
+    }
+
     expect(
       publishedReferences(published, [
         { blockId: garden.id, pageId: garden.pageId },
@@ -103,6 +107,7 @@ describe("publicSite", () => {
           : entry,
       ),
     }
+
     const html = indexHtml(withScript)
     expect(html).toContain("<title>My &lt;Graph&gt;</title>")
     const start = html.indexOf(`<script id="${publishedDataId}" type="application/json">`)
@@ -123,6 +128,7 @@ describe("publicSite", () => {
       { customCss: "a{}", exportCss: "", customJs: "" },
       [["assets/sketch.svg", new Uint8Array([1])]],
     )
+
     expect(files.map(([path]) => path)).toEqual([
       "index.html",
       "404.html",

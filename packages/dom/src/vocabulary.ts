@@ -984,7 +984,7 @@ export const logseqIds: ReadonlySet<string> = new Set([
   "zotero-search",
 ])
 
-export const logseqIdPrefixes: ReadonlyArray<string> = [
+export const logseqIdPrefixes: readonly string[] = [
   "block-content-",
   "block-left-menu-",
   "block-right-menu-",

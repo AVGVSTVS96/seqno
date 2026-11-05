@@ -2,7 +2,8 @@ import { logseq } from "@seqno/dom"
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { IconCaretRightFilled } from "@tabler/icons-react"
 import { AsyncResult } from "effect/reactivity"
-import { Fragment, useId, useState, type ReactNode } from "react"
+import { Fragment, useId, useState } from "react"
+import type { ReactNode } from "react"
 import type { Block, BlockId, Page, PageId } from "@seqno/domain"
 import { clickOnEnter, Outliner, pageTreeAtom } from "@seqno/outliner"
 import type { Reference } from "@seqno/rpc"
@@ -12,14 +13,8 @@ import { blockMenu } from "../shell/BlockMenu.tsx"
 import { vimMode } from "../shell/state.ts"
 import { linkedReferences, nameReferences, unlinkedReferences } from "./atoms.ts"
 import { markMentions, wordsOf } from "./mentions.ts"
-import {
-  crumbLabel,
-  groupByPage,
-  listValues,
-  outermost,
-  trailOf,
-  type ReferenceGroup,
-} from "./model.ts"
+import { crumbLabel, groupByPage, listValues, outermost, trailOf } from "./model.ts"
+import type { ReferenceGroup } from "./model.ts"
 import { useNavigateTo } from "./navigation.ts"
 import { PageLink } from "./PageLink.tsx"
 
@@ -43,9 +38,10 @@ const Crumbs = ({
   trail,
 }: {
   readonly pageId: PageId
-  readonly trail: ReadonlyArray<Block>
+  readonly trail: readonly Block[]
 }) => {
   const navigateTo = useNavigateTo()
+
   return trail.length === 0 ? null : (
     <nav {...logseq("seqno-reference-crumbs")} aria-label="Parent blocks">
       {trail.map((parent, at) => (
@@ -83,12 +79,13 @@ const ReferenceBlock = ({
 }: {
   readonly pageId: PageId
   readonly blockId: BlockId
-  readonly trail: ReadonlyArray<Block>
+  readonly trail: readonly Block[]
 }) => {
   const navigateTo = useNavigateTo()
   const resolveAsset = useAtomValue(assetResolver)
   const openMenu = useAtomSet(blockMenu)
   const vim = useAtomValue(vimMode)
+
   return (
     <div className="seqno-reference">
       <Crumbs pageId={pageId} trail={trail} />
@@ -107,15 +104,23 @@ const ReferenceBlock = ({
 
 const Group = ({ group, page }: { readonly group: ReferenceGroup; readonly page: Page }) => {
   const [open, setOpen] = useState(true)
+
   const blocks = AsyncResult.getOrElse(
     AsyncResult.map(useAtomValue(pageTreeAtom(group.pageId)), (tree) => tree.blocks),
-    (): ReadonlyArray<Block> => [],
+    (): readonly Block[] => [],
   )
+
   const trail = trailOf(blocks)
+
   return (
     <section {...logseq("seqno-references-group")} aria-label={page.title}>
       <div {...logseq("seqno-references-head")} data-open={open}>
-        <Fold open={open} onToggle={() => setOpen(!open)} />
+        <Fold
+          open={open}
+          onToggle={() => {
+            setOpen(!open)
+          }}
+        />
         <PageLink page={page} className="seqno-references-page" />
       </div>
       {open ? (
@@ -134,10 +139,12 @@ const Group = ({ group, page }: { readonly group: ReferenceGroup; readonly page:
   )
 }
 
-const Groups = ({ references }: { readonly references: ReadonlyArray<Reference> }) => {
+const Groups = ({ references }: { readonly references: readonly Reference[] }) => {
   const known = new Map(useAtomValue(allPages).map((page) => [page.id, page]))
+
   return groupByPage(references).flatMap((group) => {
     const page = known.get(group.pageId)
+
     return page === undefined ? [] : [<Group key={group.pageId} group={group} page={page} />]
   })
 }
@@ -154,12 +161,16 @@ const Section = ({
   readonly label: string
   readonly count: number | null
   readonly initiallyOpen: boolean
-  readonly mentions?: ReadonlyArray<string>
+  readonly mentions?: readonly string[]
   readonly children: ReactNode
 }) => {
   const [open, setOpen] = useState(initiallyOpen)
   const title = useId()
-  const toggle = () => setOpen(!open)
+
+  const toggle = () => {
+    setOpen(!open)
+  }
+
   return (
     <section
       {...logseq("seqno-references", kind)}
@@ -180,9 +191,9 @@ const Section = ({
   )
 }
 
-const none: ReadonlyArray<Reference> = []
+const none: readonly Reference[] = []
 
-const Linked = ({ references }: { readonly references: ReadonlyArray<Reference> }) =>
+const Linked = ({ references }: { readonly references: readonly Reference[] }) =>
   references.length === 0 ? null : (
     <Section kind="linked" label="Linked references" count={references.length} initiallyOpen>
       <Groups references={references} />
@@ -204,6 +215,7 @@ export const NameReferences = ({ name }: { readonly name: string }) => (
 
 const UnlinkedReferences = ({ page }: { readonly page: Page }) => {
   const references = AsyncResult.getOrElse(useAtomValue(unlinkedReferences(page.id)), () => none)
+
   return references.length === 0 ? null : (
     <Section
       kind="unlinked"

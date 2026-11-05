@@ -26,7 +26,7 @@ export const Keys = ({
   framed,
   combo,
 }: {
-  readonly keys: ReadonlyArray<string>
+  readonly keys: readonly string[]
   readonly framed?: boolean
   readonly combo?: boolean
 }) =>

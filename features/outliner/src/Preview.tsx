@@ -1,5 +1,6 @@
 import { logseq } from "@seqno/dom"
-import { use, useRef, useState, type ReactNode } from "react"
+import { use, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { useAtomValue } from "@effect/atom-react"
 import { AsyncResult } from "effect/reactivity"
@@ -26,10 +27,12 @@ const place = (popup: HTMLElement, box: DOMRect) => {
   const above = box.top - gap - edge
   const down = below >= Math.min(tallest, 320) || below >= above
   const width = popup.offsetWidth
+
   const left = Math.min(
     Math.max(edge, box.left + box.width / 2 - width / 2),
     window.innerWidth - edge - width,
   )
+
   popup.style.left = `${left}px`
   popup.style.maxHeight = `${Math.min(tallest, down ? below : above)}px`
   popup.style.top = down ? `${box.bottom + gap}px` : ""
@@ -40,6 +43,7 @@ const place = (popup: HTMLElement, box: DOMRect) => {
 const PagePreview = ({ name }: { readonly name: string }) => {
   const renderer = use(RenderContext)
   const Embed = renderer.Embed
+
   return AsyncResult.match(useAtomValue(pageNamedAtom(name)), {
     onInitial: () => null,
     onFailure: () => null,
@@ -59,6 +63,7 @@ const PagePreview = ({ name }: { readonly name: string }) => {
 const BlockPreview = ({ blockId }: { readonly blockId: BlockId }) => {
   const renderer = use(RenderContext)
   const Embed = renderer.Embed
+
   return AsyncResult.match(useAtomValue(blockAtom(blockId)), {
     onInitial: () => null,
     onFailure: () => null,
@@ -76,26 +81,37 @@ export const usePreview = (target: PreviewTarget) => {
   const renderer = use(RenderContext)
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const timers = useRef<{ open?: number; close?: number }>({})
+
   const clear = () => {
     window.clearTimeout(timers.current.open)
     window.clearTimeout(timers.current.close)
   }
-  const keep = () => window.clearTimeout(timers.current.close)
+
+  const keep = () => {
+    window.clearTimeout(timers.current.close)
+  }
+
   const leave = () => {
     window.clearTimeout(timers.current.open)
-    timers.current.close = window.setTimeout(() => setAnchor(null), closeAfter)
+    timers.current.close = window.setTimeout(() => {
+      setAnchor(null)
+    }, closeAfter)
   }
+
   const enabled = renderer.depth < maxDepth
+
   const trigger = {
     onPointerEnter: (event: { readonly currentTarget: HTMLElement; readonly buttons: number }) => {
-      if (!enabled || event.buttons !== 0) return
+      if (!enabled || event.buttons !== 0) {
+        return
+      }
+
       keep()
       const element = event.currentTarget
       window.clearTimeout(timers.current.open)
-      timers.current.open = window.setTimeout(
-        () => setAnchor({ box: element.getBoundingClientRect() }),
-        openAfter,
-      )
+      timers.current.open = window.setTimeout(() => {
+        setAnchor({ box: element.getBoundingClientRect() })
+      }, openAfter)
     },
     onPointerLeave: leave,
     onPointerDown: () => {
@@ -103,6 +119,7 @@ export const usePreview = (target: PreviewTarget) => {
       setAnchor(null)
     },
   }
+
   const popup: ReactNode =
     anchor === null
       ? null
@@ -115,7 +132,10 @@ export const usePreview = (target: PreviewTarget) => {
             onPointerEnter={keep}
             onPointerLeave={leave}
             ref={(element) => {
-              if (element === null) return
+              if (element === null) {
+                return
+              }
+
               element.showPopover()
               place(element, anchor.box)
             }}
@@ -132,5 +152,6 @@ export const usePreview = (target: PreviewTarget) => {
           </div>,
           document.body,
         )
+
   return { trigger, popup }
 }

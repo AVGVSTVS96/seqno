@@ -7,11 +7,15 @@ test.skip(!appAvailable, "waits on apps/web")
 const welcome = "Welcome to the seqno demo graph"
 const second = "Open Getting started to see how pages link"
 
-const turnOnVim = (page: Page) =>
-  page.addInitScript(() => localStorage.setItem("seqno.vimMode", "true"))
+const turnOnVim = async (page: Page) =>
+  await page.addInitScript(() => {
+    localStorage.setItem("seqno.vimMode", "true")
+  })
 
-const press = async (page: Page, ...keys: ReadonlyArray<string>) => {
-  for (const key of keys) await page.keyboard.press(key)
+const press = async (page: Page, ...keys: readonly string[]) => {
+  for (const key of keys) {
+    await page.keyboard.press(key)
+  }
 }
 
 const selectedTexts = (page: Page) => page.getByRole("treeitem", { selected: true })

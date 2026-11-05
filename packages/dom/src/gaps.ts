@@ -28,7 +28,7 @@ const why = {
     "the edit button beside an embedded block and YouTube timestamps, which seqno doesn't have yet",
 } as const
 
-const each = (reason: string, names: ReadonlyArray<string>) =>
+const each = (reason: string, names: readonly string[]) =>
   names.map((name) => [name, reason] as const)
 
 export const gaps: Readonly<Record<string, string>> = Object.fromEntries(

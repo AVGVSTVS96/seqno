@@ -1,8 +1,10 @@
-import { Context, Effect, Layer, Schema, type Option, type Stream } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
+import type { Option, Stream } from "effect"
 import { DeviceId } from "@seqno/domain"
 import type { IndexError, Sqlite } from "@seqno/index"
 import { FolderError, GraphFolder } from "@seqno/interop"
-import { Entry, editLogDir, type Storage, type StorageFailed } from "@seqno/vault"
+import { Entry, editLogDir } from "@seqno/vault"
+import type { Storage, StorageFailed } from "@seqno/vault"
 import type { GraphUnavailable } from "@seqno/rpc"
 import type { OpenFile } from "./assets.ts"
 import type { GitPlace } from "./git.ts"
@@ -16,7 +18,7 @@ export interface StarterFile {
 
 export interface Starter {
   readonly version: number
-  readonly files: ReadonlyArray<StarterFile>
+  readonly files: readonly StarterFile[]
 }
 
 export interface IndexFile {
@@ -27,7 +29,7 @@ export interface IndexFile {
 export interface GraphPlace {
   readonly storage: Storage["Service"]
   readonly file: OpenFile
-  readonly changed: Stream.Stream<ReadonlyArray<string>>
+  readonly changed: Stream.Stream<readonly string[]>
   readonly layout: Layout
   readonly synced: boolean
   readonly sqlite: Layer.Layer<Sqlite, IndexError>
@@ -52,7 +54,7 @@ export const Identity = Schema.Struct({
 
 export class Device extends Context.Service<
   Device,
-  { readonly device: DeviceId; readonly formerPeers: ReadonlyArray<string> }
+  { readonly device: DeviceId; readonly formerPeers: readonly string[] }
 >()("@seqno/web/worker/Device") {}
 
 const vaultFolders = new Set(["updates", "snapshots", "seen", editLogDir])
@@ -66,11 +68,12 @@ const folderError =
     new FolderError({ path, reason: "reason" in error ? String(error.reason) : error._tag })
 
 export const storageFolder = (storage: Storage["Service"]): GraphFolder["Service"] => {
-  const walk = (dir: string): Effect.Effect<ReadonlyArray<string>, FolderError> =>
+  const walk = (dir: string): Effect.Effect<readonly string[], FolderError> =>
     Effect.flatMap(Effect.mapError(storage.list(dir), folderError(dir)), (entries) =>
       Effect.map(
         Effect.forEach(entries, (entry) => {
           const path = dir === "" ? entry.name : `${dir}/${entry.name}`
+
           return Entry.$match(entry, {
             File: () => Effect.succeed([path]),
             Directory: () =>
@@ -80,6 +83,7 @@ export const storageFolder = (storage: Storage["Service"]): GraphFolder["Service
         (nested) => nested.flat(),
       ),
     )
+
   return GraphFolder.of({
     list: Effect.map(walk(""), (files) => files.toSorted()),
     read: (path) =>

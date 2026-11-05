@@ -40,7 +40,7 @@ What the seqno brand is built on. Bassim's saves come from his data folder on th
 
 ## Outside references that fit
 
-- **The numero sign** (№, nº). The abbreviation of *numero*, written as an n and a raised o over a line. It is literally "no." for number, which is what the "no" in seqno is.
+- **The numero sign** (№, nº). The abbreviation of _numero_, written as an n and a raised o over a line. It is literally "no." for number, which is what the "no" in seqno is.
 - **Dot-grid notebooks** (the 5mm dot grid of bullet journals). A page of empty rows waiting for bullets; the hero is one of those pages in apricot.
 - **seqno's own design spec** (`~/dev/seqno/docs/design-spec.md`). The bullet (6.4px, round), the 1px guide under a parent's bullet, and the row height come from the app, so the brand draws the same thing the app draws.
 

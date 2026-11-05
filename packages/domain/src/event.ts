@@ -11,4 +11,5 @@ export const GraphEvent = Schema.TaggedUnion({
   BlockMoved: { blockId: BlockId, pageId: PageId, parentId: Schema.NullOr(BlockId) },
   BlockDeleted: { blockId: BlockId, pageId: PageId },
 })
+
 export type GraphEvent = typeof GraphEvent.Type

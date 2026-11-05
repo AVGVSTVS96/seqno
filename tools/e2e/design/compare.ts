@@ -9,15 +9,17 @@ const Notes = Schema.Record(
   Schema.String,
   Schema.Struct({ logseq: Schema.Array(Schema.String), seqno: Schema.Array(Schema.String) }),
 )
+
 export type Notes = typeof Notes.Type
 
 const decodeNotes = Schema.decodeUnknownSync(Schema.fromJsonString(Notes))
 
 export const readNotes = async (out: string): Promise<Notes> =>
-  decodeNotes(await readFile(join(out, "notes.json"), "utf8").catch(() => "{}"))
+  decodeNotes(await readFile(join(out, "notes.json"), "utf-8").catch(() => "{}"))
 
-export const writeNotes = (out: string, notes: Notes) =>
-  writeFile(join(out, "notes.json"), `${JSON.stringify(notes, null, 2)}\n`)
+export const writeNotes = async (out: string, notes: Notes) => {
+  await writeFile(join(out, "notes.json"), `${JSON.stringify(notes, null, 2)}\n`)
+}
 
 const escape = (text: string) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
@@ -32,25 +34,31 @@ const difference = (files: ReadonlySet<string>, base: string) =>
     ? `<figure class="diff"><figcaption>difference (black = identical)</figcaption><div><img src="${base}.seqno.png" alt=""><img src="${base}.logseq.png" alt=""></div></figure>`
     : ""
 
-const noteList = (notes: ReadonlyArray<string>, app: string) =>
+const noteList = (notes: readonly string[], app: string) =>
   notes.map((note) => `<li><b>${app}</b> ${escape(note)}</li>`).join("")
 
 export const writeCompare = async (out: string) => {
   const files = new Set(await readdir(out))
   const notes = await readNotes(out)
+
   const sections = scenes.map((scene) => {
     const reference = references[scene.reference]
+
     const rows = themes.map((theme) => {
       const base = `${scene.id}-${theme}`
       const found = notes[base]
       const list = noteList(found?.logseq ?? [], "Logseq:") + noteList(found?.seqno ?? [], "seqno:")
+
       return `<div class="row"><h3>${theme}</h3>${list === "" ? "" : `<ul>${list}</ul>`}<div class="pair">${figure(files, `${base}.logseq.png`, reference.name)}${figure(files, `${base}.seqno.png`, "seqno")}${difference(files, base)}</div></div>`
     })
+
     return `<section id="${scene.id}"><h2>${escape(scene.title)} <small>${scene.id} · reference <a href="${reference.url}">${reference.name}</a></small></h2>${rows.join("")}</section>`
   })
+
   const index = scenes
     .map((scene) => `<a href="#${scene.id}">${escape(scene.title)}</a>`)
     .join(" · ")
+
   const html = `<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
@@ -79,5 +87,6 @@ ul { margin: 4px 0 8px; padding-left: 18px; color: #a33 }
 ${sections.join("\n")}
 </html>
 `
+
   await writeFile(join(out, "compare.html"), html)
 }

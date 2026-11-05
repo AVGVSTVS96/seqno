@@ -1,41 +1,38 @@
 import { Effect, Option, Schema } from "effect"
 import { AtomRegistry, Reactivity } from "effect/reactivity"
-import {
-  BlockId,
-  normalizePageName,
-  type Block,
-  type BlockDraft,
-  type Command,
-  type GraphEvent,
-  type Page,
-} from "@seqno/domain"
+import { BlockId, normalizePageName } from "@seqno/domain"
+import type { Block, BlockDraft, Command, GraphEvent, Page } from "@seqno/domain"
 import { coreRuntime, pageListKey } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
-import { isArea, type Highlight } from "./highlights.ts"
-import { annotationProps, hlsPageProps, hlsPageTitle, type PdfAsset } from "./model.ts"
+import { isArea } from "./highlights.ts"
+import type { Highlight } from "./highlights.ts"
+import { annotationProps, hlsPageProps, hlsPageTitle } from "./model.ts"
+import type { PdfAsset } from "./model.ts"
 
 const isBlockId = Schema.is(BlockId)
 
 let queue: Promise<unknown> = Promise.resolve()
 
-export const runCore = <A, E>(
+export const runCore = async <A, E>(
   registry: AtomRegistry.AtomRegistry,
   effect: Effect.Effect<A, E, CoreClient>,
 ): Promise<A> => {
-  const run = () =>
-    Effect.runPromise(
+  const run = async () =>
+    await Effect.runPromise(
       Effect.flatMap(AtomRegistry.getResult(registry, coreRuntime), (context) =>
         Effect.provide(effect, context),
       ),
     )
+
   const next = queue.then(run, run)
   queue = next.catch(() => undefined)
-  return next
+
+  return await next
 }
 
-const dispatch = (commands: ReadonlyArray<Command>) =>
+const dispatch = (commands: readonly Command[]) =>
   Effect.flatMap(CoreClient, (client) => client.DispatchAll({ commands })).pipe(
-    Effect.tap((events: ReadonlyArray<GraphEvent>) =>
+    Effect.tap((events: readonly GraphEvent[]) =>
       events.some((event) => event._tag === "PageUpserted")
         ? Effect.flatMap(Effect.serviceOption(Reactivity.Reactivity), (reactivity) =>
             Option.isSome(reactivity) ? reactivity.value.invalidate(pageListKey) : Effect.void,
@@ -62,9 +59,14 @@ export const blockOf = (id: string) =>
 export const ensureRefPage = (asset: PdfAsset) =>
   Effect.gen(function* () {
     const found = yield* pageNamed(hlsPageTitle(asset.key))
+
     if (Option.isSome(found)) {
       const page = found.value
-      if (page.props["file-path"] === asset.originalPath) return page
+
+      if (page.props["file-path"] === asset.originalPath) {
+        return page
+      }
+
       yield* dispatch([
         {
           _tag: "SetProperty",
@@ -73,14 +75,18 @@ export const ensureRefPage = (asset: PdfAsset) =>
           value: asset.originalPath,
         },
       ])
+
       return page
     }
+
     const events = yield* dispatch([
       { _tag: "CreatePage", title: hlsPageTitle(asset.key), props: hlsPageProps(asset, false) },
     ])
-    const made = events.flatMap((event): ReadonlyArray<Page> =>
+
+    const made = events.flatMap((event): readonly Page[] =>
       event._tag === "PageUpserted" ? [event.page] : [],
     )[0]
+
     return (
       made ?? (yield* Effect.die(new Error(`couldn't make the page ${hlsPageTitle(asset.key)}`)))
     )
@@ -90,16 +96,22 @@ export const ensureRefBlock = (asset: PdfAsset, highlight: Highlight) =>
   Effect.gen(function* () {
     const page = yield* ensureRefPage(asset)
     const existing = yield* blockOf(highlight.id)
-    if (Option.isSome(existing)) return existing.value
+
+    if (Option.isSome(existing)) {
+      return existing.value
+    }
+
     const client = yield* CoreClient
     const tree = yield* client.GetPage({ pageId: page.id })
     const last = tree.blocks.filter((block) => block.parentId === null).at(-1)
+
     const draft: BlockDraft = {
       ...(isBlockId(highlight.id) ? { id: highlight.id } : {}),
       text: highlight.content.text ?? "",
       props: annotationProps(highlight),
       children: [],
     }
+
     const events = yield* dispatch([
       {
         _tag: "InsertBlocks",
@@ -109,16 +121,22 @@ export const ensureRefBlock = (asset: PdfAsset, highlight: Highlight) =>
         blocks: [draft],
       },
     ])
-    const made = events.flatMap((event): ReadonlyArray<Block> =>
+
+    const made = events.flatMap((event): readonly Block[] =>
       event._tag === "BlockUpserted" ? [event.block] : [],
     )[0]
+
     return made ?? (yield* Effect.die(new Error("couldn't make the annotation block")))
   })
 
 export const updateRefBlock = (highlight: Highlight, now: number) =>
   Effect.gen(function* () {
     const found = yield* blockOf(highlight.id)
-    if (Option.isNone(found)) return
+
+    if (Option.isNone(found)) {
+      return
+    }
+
     const target = { _tag: "BlockTarget", blockId: found.value.id } as const
     yield* dispatch([
       {
@@ -134,6 +152,8 @@ export const updateRefBlock = (highlight: Highlight, now: number) =>
 export const deleteRefBlock = (highlight: Highlight) =>
   Effect.gen(function* () {
     const found = yield* blockOf(highlight.id)
-    if (Option.isSome(found))
+
+    if (Option.isSome(found)) {
       yield* dispatch([{ _tag: "DeleteBlocks", blockIds: [found.value.id] }])
+    }
   })

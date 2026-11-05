@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { exportBlocks, type BlockOptions } from "../src/index.ts"
+import { exportBlocks } from "../src/index.ts"
+import type { BlockOptions } from "../src/index.ts"
 import { libraryOf, pageId } from "./graph.ts"
 
 const defaults: BlockOptions = {
@@ -108,6 +109,7 @@ describe("HTML export", () => {
         "-",
       ].join("\n"),
     })
+
     expect(exportBlocks(shaped, { _tag: "Page", pageId: pageId(1) }, "html", defaults)).toBe(
       [
         `<ul>`,

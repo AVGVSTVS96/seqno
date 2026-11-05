@@ -2,7 +2,8 @@ import type { RegisteredRouter } from "@tanstack/react-router"
 import { Schema } from "effect"
 import type { AtomRegistry } from "effect/reactivity"
 import { historyAtom } from "@seqno/outliner"
-import { hostAtom, runCommand, type PluginCommand } from "@seqno/plugins"
+import { hostAtom, runCommand } from "@seqno/plugins"
+import type { PluginCommand } from "@seqno/plugins"
 import { rightSidebar } from "../../atoms.ts"
 import { graphSelect } from "./GraphSelect.tsx"
 import { publishPages } from "./publish.ts"
@@ -11,7 +12,8 @@ import { openPalette } from "../search/atoms.ts"
 import type { PaletteCommand } from "../search/model.ts"
 import { currentPageName, perform } from "./listeners.ts"
 import { notices } from "./Notices.tsx"
-import { keysOf, onMac, type ShortcutAction } from "./shortcuts.ts"
+import { keysOf, onMac } from "./shortcuts.ts"
+import type { ShortcutAction } from "./shortcuts.ts"
 import { setting } from "./state.ts"
 
 export interface RunnableCommand extends PaletteCommand {
@@ -38,9 +40,13 @@ const keyNames: Readonly<Record<string, string>> = {
 
 const modifiers = new Set(["mod", "shift", "alt"])
 
-const stepsOf = (combo: string): ReadonlyArray<string> => {
-  if (combo.includes(" then ")) return combo.split(" then ")
+const stepsOf = (combo: string): readonly string[] => {
+  if (combo.includes(" then ")) {
+    return combo.split(" then ")
+  }
+
   const parts = combo.split(" ")
+
   return parts.length > 1 && parts.every((part) => !modifiers.has(part)) ? parts : [combo]
 }
 
@@ -48,6 +54,7 @@ const replayed = (combo: string) => {
   const parts = combo.split(" ")
   const key = parts.at(-1) ?? ""
   const mod = parts.includes("mod")
+
   return new KeyboardEvent("keydown", {
     key: keyNames[key] ?? key,
     bubbles: true,
@@ -59,15 +66,22 @@ const replayed = (combo: string) => {
   })
 }
 
-const replay = (id: string, label: string, ...combos: ReadonlyArray<string>): RunnableCommand => ({
+const replay = (id: string, label: string, ...combos: readonly string[]): RunnableCommand => ({
   id,
   label,
   keys: combos.map((combo) => combo.split(" ")),
   run: (returnTo) => {
     const first = combos[0]
-    if (returnTo === null || first === undefined) return
+
+    if (returnTo === null || first === undefined) {
+      return
+    }
+
     returnTo.focus()
-    for (const step of stepsOf(first)) returnTo.dispatchEvent(replayed(step))
+
+    for (const step of stepsOf(first)) {
+      returnTo.dispatchEvent(replayed(step))
+    }
   },
 })
 
@@ -75,7 +89,7 @@ const plain = (
   id: string,
   label: string,
   run: () => void,
-  ...keys: ReadonlyArray<string>
+  ...keys: readonly string[]
 ): RunnableCommand => ({
   id,
   label,
@@ -85,12 +99,18 @@ const plain = (
 
 const moveChord = onMac ? "mod shift" : "alt shift"
 
-const pluginKeys = (command: PluginCommand): ReadonlyArray<ReadonlyArray<string>> => {
+const pluginKeys = (command: PluginCommand): ReadonlyArray<readonly string[]> => {
   const binding = command.keybinding
-  if (binding === null) return []
+
+  if (binding === null) {
+    return []
+  }
+
   const combos = onMac && binding.mac.length > 0 ? binding.mac : binding.binding
+
   return combos.map((combo) => {
     const steps = combo.trim().split(/\s+/)
+
     return steps.every((step) => !step.includes("+"))
       ? steps
       : steps.flatMap((step, at) => [...(at === 0 ? [] : ["then"]), ...step.split("+")])
@@ -99,8 +119,8 @@ const pluginKeys = (command: PluginCommand): ReadonlyArray<ReadonlyArray<string>
 
 export const pluginPaletteCommands = (
   registry: AtomRegistry.AtomRegistry,
-  commands: ReadonlyArray<PluginCommand>,
-): ReadonlyArray<RunnableCommand> =>
+  commands: readonly PluginCommand[],
+): readonly RunnableCommand[] =>
   commands
     .filter((command) => command.palette)
     .map((command) => ({
@@ -109,21 +129,26 @@ export const pluginPaletteCommands = (
       keys: pluginKeys(command),
       run: () => {
         const host = registry.get(hostAtom)
-        if (host !== null) runCommand(host, command, null)
+
+        if (host !== null) {
+          runCommand(host, command, null)
+        }
       },
     }))
 
 export const builtInCommands = (
   registry: AtomRegistry.AtomRegistry,
   router: RegisteredRouter,
-): ReadonlyArray<RunnableCommand> => {
+): readonly RunnableCommand[] => {
   const actions = perform(registry, router)
+
   const app = (id: string, label: string, action: ShortcutAction): RunnableCommand => ({
     id,
     label,
     keys: [keysOf(action)],
     run: actions[action],
   })
+
   return [
     app("ui/toggle-wide-mode", "Toggle wide mode", "ToggleWideMode"),
     app("ui/toggle-document-mode", "Toggle document mode", "ToggleDocumentMode"),
@@ -138,25 +163,38 @@ export const builtInCommands = (
     app("ui/toggle-contents", "Toggle Contents in sidebar", "ToggleContents"),
     app("ui/select-theme-color", "Select available theme colors", "SelectThemeColor"),
     app("ui/goto-plugins", "Go to plugins dashboard", "GoPlugins"),
-    plain("ui/clear-all-notifications", "Clear all notifications", () => registry.set(notices, [])),
+    plain("ui/clear-all-notifications", "Clear all notifications", () => {
+      registry.set(notices, [])
+    }),
     app("sidebar/open-today-page", "Open today's page in the right sidebar", "OpenTodayInSidebar"),
     app("sidebar/close-top", "Closes the top item in the right sidebar", "CloseTopSidebarItem"),
-    plain("sidebar/clear", "Clear all in the right sidebar", () =>
-      registry.set(rightSidebar, { _tag: "Clear" }),
-    ),
+    plain("sidebar/clear", "Clear all in the right sidebar", () => {
+      registry.set(rightSidebar, { _tag: "Clear" })
+    }),
     app("command/toggle-favorite", "Add to/remove from favorites", "ToggleFavorite"),
     app("go/search-themes", "Search themes", "SearchThemes"),
     plain(
       "go/search-in-page",
       "Search blocks in page",
-      () => openPalette(registry, "current-page"),
+      () => {
+        openPalette(registry, "current-page")
+      },
       "mod shift k",
     ),
-    plain("go/search", "Search pages and blocks", () => openPalette(registry, null), "mod k"),
+    plain(
+      "go/search",
+      "Search pages and blocks",
+      () => {
+        openPalette(registry, null)
+      },
+      "mod k",
+    ),
     plain(
       "command-palette/toggle",
       "Search commands",
-      () => openPalette(registry, "commands"),
+      () => {
+        openPalette(registry, "commands")
+      },
       "mod shift p",
     ),
     app("go/keyboard-shortcuts", "Go to keyboard shortcuts", "GoShortcuts"),
@@ -169,8 +207,23 @@ export const builtInCommands = (
     plain("go/all-graphs", "Go to all graphs", () => void router.navigate({ to: "/graphs" })),
     app("go/whiteboards", "Go to whiteboards", "GoWhiteboards"),
     app("editor/new-whiteboard", "New whiteboard", "NewWhiteboard"),
-    plain("editor/undo", "Undo", () => registry.set(historyAtom, "Undo"), "mod z"),
-    plain("editor/redo", "Redo", () => registry.set(historyAtom, "Redo"), "mod shift z", "mod y"),
+    plain(
+      "editor/undo",
+      "Undo",
+      () => {
+        registry.set(historyAtom, "Undo")
+      },
+      "mod z",
+    ),
+    plain(
+      "editor/redo",
+      "Redo",
+      () => {
+        registry.set(historyAtom, "Redo")
+      },
+      "mod shift z",
+      "mod y",
+    ),
     replay("editor/up", "Move cursor up / Select up", "arrowup"),
     replay("editor/down", "Move cursor down / Select down", "arrowdown"),
     replay("editor/select-up", "Select content above", "shift arrowup"),
@@ -209,7 +262,11 @@ export const builtInCommands = (
     ),
     plain("editor/copy-page-url", "Copy page url", () => {
       const name = currentPageName(registry, router)
-      if (name === null) return
+
+      if (name === null) {
+        return
+      }
+
       const { href } = router.buildLocation({ to: "/page/$name", params: { name } })
       void navigator.clipboard
         .writeText(new URL(href, window.location.origin).href)
@@ -219,12 +276,16 @@ export const builtInCommands = (
     app("go/prev-journal", "Go to previous journal", "GoPrevJournal"),
     app("go/tomorrow", "Go to tomorrow", "GoTomorrow"),
     app("graph/open", "Select graph to open", "SelectGraph"),
-    plain("graph/remove", "Remove a graph", () => registry.set(graphSelect, "remove")),
+    plain("graph/remove", "Remove a graph", () => {
+      registry.set(graphSelect, "remove")
+    }),
     plain("graph/add", "Add a graph", () => void router.navigate({ to: "/graphs" })),
-    plain("graph/export-as-html", "Export public graph pages as html", () =>
-      registry.set(publishPages, undefined),
-    ),
-    plain("graph/re-index", "Re-index current graph", () => registry.set(rebuildIndex, undefined)),
+    plain("graph/export-as-html", "Export public graph pages as html", () => {
+      registry.set(publishPages, undefined)
+    }),
+    plain("graph/re-index", "Re-index current graph", () => {
+      registry.set(rebuildIndex, undefined)
+    }),
     app("search/re-index", "Rebuild search index", "RebuildIndex"),
     app("git/commit", "Create git commit with message", "GitCommit"),
     app("command/run", "Run git command", "RunCommand"),
@@ -232,7 +293,7 @@ export const builtInCommands = (
 }
 
 export const byUse = (
-  commands: ReadonlyArray<RunnableCommand>,
+  commands: readonly RunnableCommand[],
   history: Readonly<Record<string, number>>,
 ) =>
   commands.toSorted(

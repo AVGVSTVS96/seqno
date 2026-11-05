@@ -2,8 +2,8 @@ import { Schema } from "effect"
 
 export interface Node {
   readonly indent: string
-  readonly lines: ReadonlyArray<string>
-  readonly children: ReadonlyArray<Node>
+  readonly lines: readonly string[]
+  readonly children: readonly Node[]
   readonly bare?: true
 }
 
@@ -18,6 +18,7 @@ export const Document = Schema.Struct({
   preamble: Schema.String,
   blocks: Schema.Array(Node),
 })
+
 export type Document = typeof Document.Type
 
 const BOM = "﻿"
@@ -33,8 +34,8 @@ interface Fence {
 
 interface Open {
   readonly width: number
-  readonly lines: Array<string>
-  readonly children: Array<Open>
+  readonly lines: string[]
+  readonly children: Open[]
   readonly indent: string
   readonly bare: boolean
 }
@@ -46,16 +47,28 @@ export const width = (indent: string): number =>
 
 const fenceOpenedBy = (line: string, ownerWidth: number): Fence | null => {
   const fence = FENCE_OPEN.exec(line)
+
   if (fence !== null) {
     const run = fence[1] ?? ""
     const info = fence[2] ?? ""
-    if (run.startsWith("`") && info.includes("`")) return null
+
+    if (run.startsWith("`") && info.includes("`")) {
+      return null
+    }
+
     const closing = new RegExp(`^[ \\t]*${run[0] === "`" ? "`" : "~"}{${run.length},}[ \\t\\r]*$`)
+
     return { close: (next) => closing.test(next), ownerWidth }
   }
+
   const directive = DIRECTIVE_OPEN.exec(line)
-  if (directive === null) return null
+
+  if (directive === null) {
+    return null
+  }
+
   const end = `#+END_${(directive[1] ?? "").toUpperCase()}`
+
   return { close: (next) => next.trimStart().toUpperCase().startsWith(end), ownerWidth }
 }
 
@@ -66,9 +79,13 @@ const freeze = (open: Open): Node => ({
   ...(open.bare ? { bare: true } : {}),
 })
 
-const frontMatterEnd = (lines: ReadonlyArray<string>): number => {
-  if (lines[0] !== "---" && lines[0] !== "---\r") return 0
+const frontMatterEnd = (lines: readonly string[]): number => {
+  if (lines[0] !== "---" && lines[0] !== "---\r") {
+    return 0
+  }
+
   const close = lines.findIndex((line, index) => index > 0 && line.startsWith("---"))
+
   return close === -1 ? 0 : close + 1
 }
 
@@ -76,9 +93,9 @@ export const parse = (source: string): Document => {
   const bom = source.startsWith(BOM) ? BOM : ""
   const lines = source.slice(bom.length).split("\n")
   const skip = frontMatterEnd(lines)
-  const roots: Array<Open> = []
-  const stack: Array<Open> = []
-  const preamble: Array<string> = []
+  const roots: Open[] = []
+  const stack: Open[] = []
+  const preamble: string[] = []
   let fence: Fence | null = null
 
   for (const [index, line] of lines.entries()) {
@@ -87,19 +104,31 @@ export const parse = (source: string): Document => {
     const bullet = body ? BULLET.exec(line)?.[1] : undefined
     const heading = body && fence === null && bullet === undefined ? HEADING.exec(line) : null
     const fenced = fence !== null && (bullet === undefined || width(bullet) > fence.ownerWidth)
+
     if (fenced || (bullet === undefined && heading === null)) {
-      if (current === undefined) preamble.push(line)
-      else current.lines.push(line)
+      if (current === undefined) {
+        preamble.push(line)
+      } else {
+        current.lines.push(line)
+      }
+
       if (body) {
         const owner = current?.width ?? -1
         fence = fence === null ? fenceOpenedBy(line, owner) : fence.close(line) ? null : fence
       }
+
       continue
     }
+
     const indent = bullet ?? heading?.[1] ?? ""
     const depth = bullet === undefined ? 0 : width(indent)
-    while ((stack.at(-1)?.width ?? -1) >= depth) stack.pop()
+
+    while ((stack.at(-1)?.width ?? -1) >= depth) {
+      stack.pop()
+    }
+
     const rest = line.slice(indent.length + (bullet === undefined ? 0 : 1))
+
     const node: Open = {
       indent,
       width: depth,
@@ -107,21 +136,28 @@ export const parse = (source: string): Document => {
       children: [],
       bare: bullet === undefined,
     }
+
     const parent = stack.at(-1)
-    if (parent === undefined) roots.push(node)
-    else parent.children.push(node)
+
+    if (parent === undefined) {
+      roots.push(node)
+    } else {
+      parent.children.push(node)
+    }
+
     stack.push(node)
     fence = fenceOpenedBy(rest, depth)
   }
 
   const head = preamble.length === 0 ? "" : `${preamble.join("\n")}\n`
+
   return {
     preamble: bom + (roots.length === 0 ? head.slice(0, -1) : head),
     blocks: roots.map(freeze),
   }
 }
 
-const nodeLines = (node: Node): ReadonlyArray<string> => [
+const nodeLines = (node: Node): readonly string[] => [
   `${node.indent}${node.bare === true ? "" : "-"}${node.lines[0] ?? ""}`,
   ...node.lines.slice(1),
   ...node.children.flatMap(nodeLines),

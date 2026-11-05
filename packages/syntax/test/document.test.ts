@@ -1,14 +1,7 @@
 import * as fc from "fast-check"
 import { describe, expect, it } from "vitest"
-import {
-  type Block,
-  type Outline,
-  parse,
-  print,
-  render,
-  startsBlock,
-  toOutline,
-} from "../src/index.ts"
+import { parse, print, render, startsBlock, toOutline } from "../src/index.ts"
+import type { Block, Outline } from "../src/index.ts"
 
 const read = (source: string) => toOutline(parse(source))
 
@@ -116,6 +109,7 @@ describe("parse and print", () => {
       "####### seven",
       "",
     ].join("\n")
+
     expect(read(source)).toStrictEqual({
       preamble: "intro line\n",
       blocks: [
@@ -247,12 +241,14 @@ describe("properties", () => {
       fc.string({ unit: fc.constantFrom("a", " ", "#", "[", "]", "(", ")", ":") }),
     )
     .filter((line) => !startsBlock(line))
+
   const fenced = fc
     .tuple(
       fc.constantFrom("```", "~~~", "```js"),
       fc.array(fc.constantFrom("- inside", "  - deeper", "", "x"), { maxLength: 3 }),
     )
     .map(([open, body]) => [open, ...body, open.slice(0, 3)])
+
   const text = fc
     .tuple(
       fc.string({ unit: fc.constantFrom("a", " ", "-", "\t", "#") }),
@@ -266,24 +262,22 @@ describe("properties", () => {
     )
     .map(([first, groups]) => [first, ...groups.flat()].join("\n"))
 
-  const tree: fc.Arbitrary<ReadonlyArray<Block>> = fc.letrec<{ blocks: ReadonlyArray<Block> }>(
-    (self) => ({
-      blocks: fc.array(
-        fc.record(
-          {
-            text,
-            children: fc.oneof(
-              { depthSize: "small", withCrossShrink: true },
-              fc.constant([]),
-              self("blocks"),
-            ),
-          },
-          { noNullPrototype: true },
-        ),
-        { maxLength: 4 },
+  const tree: fc.Arbitrary<readonly Block[]> = fc.letrec<{ blocks: readonly Block[] }>((self) => ({
+    blocks: fc.array(
+      fc.record(
+        {
+          text,
+          children: fc.oneof(
+            { depthSize: "small", withCrossShrink: true },
+            fc.constant([]),
+            self("blocks"),
+          ),
+        },
+        { noNullPrototype: true },
       ),
-    }),
-  ).blocks
+      { maxLength: 4 },
+    ),
+  })).blocks
 
   const outline: fc.Arbitrary<Outline> = fc.record({
     preamble: fc.constantFrom(
@@ -307,11 +301,13 @@ describe("properties", () => {
       fc.property(outline, (original) => {
         const nested = original.blocks.some((block) => block.children.length > 0)
         const source = render(original)
+
         const format = {
           ...original.format,
           indent: nested ? original.format.indent : "\t",
           eol: source.includes("\n") ? original.format.eol : "\n",
         }
+
         const expected = { ...original, format }
         expect(read(source)).toStrictEqual(expected)
         expect(render(read(source))).toBe(source)

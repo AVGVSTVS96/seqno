@@ -1,19 +1,21 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { expect, type Page } from "@playwright/test"
+import { expect } from "@playwright/test"
+import type { Page } from "@playwright/test"
 import { firstJournal, jump, keepInBrowser, memory, shown, test } from "./browser.ts"
 import { size, yearsOf } from "./size.ts"
 import { writeYears } from "./write-years.ts"
 import { lastReference, lastWords } from "./years.ts"
 
 const longPage = Number(process.env["SEQNO_BENCH_LONG_PAGE"] ?? 20_000)
+
 const budgets = {
-  openMs: 2_000,
-  fillJumpMs: 1_500,
-  reopenMs: 2_000,
-  reopenIndexedMs: 3_000,
-  reopenSearchMs: 2_000,
+  openMs: 2000,
+  fillJumpMs: 1500,
+  reopenMs: 2000,
+  reopenIndexedMs: 3000,
+  reopenSearchMs: 2000,
 }
 
 const indexedLastBlock = async (page: Page) => {
@@ -25,32 +27,48 @@ const indexedLastBlock = async (page: Page) => {
   await shown(page, "main .seqno-table-page", { is: lastReference })
 }
 
-const indexFile = (page: Page, graph: string) =>
-  page.evaluate(async (name) => {
+const indexFile = async (page: Page, graph: string) =>
+  await page.evaluate(async (name) => {
     const root = await navigator.storage.getDirectory()
     const indexes = await root.getDirectoryHandle("indexes").catch(() => undefined)
-    const names: Array<string> = []
-    if (indexes !== undefined) for await (const entry of indexes.keys()) names.push(entry)
+    const names: string[] = []
+
+    if (indexes !== undefined) {
+      for await (const entry of indexes.keys()) {
+        names.push(entry)
+      }
+    }
+
     const file = await indexes?.getFileHandle(`${name}.sqlite`).catch(() => undefined)
+
     return {
       writing: names.includes(`${name}.sqlite.crswap`),
       bytes: file === undefined ? 0 : (await file.getFile()).size,
     }
   }, graph)
 
-const aFrame = () => new Promise((resolve) => setTimeout(resolve, 16))
+const aFrame = async () => await new Promise((resolve) => setTimeout(resolve, 16))
 
 const saveStarted = async (page: Page, graph: string) => {
   for (;;) {
     const { writing, bytes } = await indexFile(page, graph)
-    if (writing) return "writing"
-    if (bytes > 0) return "written"
+
+    if (writing) {
+      return "writing"
+    }
+
+    if (bytes > 0) {
+      return "written"
+    }
+
     await aFrame()
   }
 }
 
 const savedAtLeast = async (page: Page, graph: string, bytes: number) => {
-  while ((await indexFile(page, graph)).bytes < bytes) await aFrame()
+  while ((await indexFile(page, graph)).bytes < bytes) {
+    await aFrame()
+  }
 }
 
 const since = (started: number) => performance.now() - started
@@ -65,32 +83,38 @@ const searchShowsLastBlock = async (page: Page) => {
   await shown(page, "[role=option][data-kind=Block]", { has: lastWords })
   const ms = since(searching)
   await page.keyboard.press("Escape")
+
   return ms
 }
 
-const openFromList = (page: Page, graph: string) =>
-  page.getByRole("button", { name: graph, exact: true }).click()
+const openFromList = async (page: Page, graph: string) => {
+  await page.getByRole("button", { name: graph, exact: true }).click()
+}
 
 test(`${yearsOf(size)} of journals kept in the browser open from their snapshot, reopen from the index a reload cut off mid-save, and go on with a fill a reload cut off`, async ({
   page,
 }) => {
   const given = process.env["SEQNO_BENCH_FOLDER"]
   const folder = given ?? (await mkdtemp(join(tmpdir(), "seqno-bench-")))
+
   try {
     if (given === undefined) {
       await writeYears(folder, size, longPage, "tree-per-page")
     }
+
     await keepInBrowser(page, folder, "graph")
     await page.goto("/graphs")
     const opening = performance.now()
     await openFromList(page, "graph")
     await firstJournal(page)
     const openMs = since(opening)
+
     const fillJumpMs = Math.max(
       await jump(page, 0.5),
       await jump(page, 0.25),
       await jump(page, 0.75),
     )
+
     await indexedLastBlock(page)
     const fillMs = since(opening)
     const filled = await memory(page)
@@ -158,12 +182,15 @@ test(`${yearsOf(size)} of journals kept in the browser open from their snapshot,
       },
       { what: "second fill: Chrome MB at the end", value: end.chromeMb, budget: null },
     ]
+
     console.table(rows.map((row) => ({ ...row, value: Math.round(row.value * 10) / 10 })))
     expect(
       rows.filter((row) => row.budget !== null && row.value > row.budget).map((row) => row.what),
     ).toEqual([])
     expect([indexBytes > 0, cutAtMs < fillMs]).toEqual([true, true])
   } finally {
-    if (given === undefined) await rm(folder, { recursive: true })
+    if (given === undefined) {
+      await rm(folder, { recursive: true })
+    }
   }
 })

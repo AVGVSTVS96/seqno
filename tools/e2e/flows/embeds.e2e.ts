@@ -13,15 +13,18 @@ const pixel = Buffer.from(
 )
 
 const stubRemote = async (page: Page) => {
-  await page.route("https://i.ytimg.com/**", (route) =>
-    route.fulfill({ contentType: "image/png", body: pixel }),
-  )
-  await page.route("https://example.com/**", (route) =>
-    route.fulfill({ contentType: "image/png", body: pixel }),
-  )
-  await page.route("https://www.youtube-nocookie.com/**", (route) =>
-    route.fulfill({ contentType: "text/html", body: "<!doctype html><title>player</title>" }),
-  )
+  await page.route("https://i.ytimg.com/**", async (route) => {
+    await route.fulfill({ contentType: "image/png", body: pixel })
+  })
+  await page.route("https://example.com/**", async (route) => {
+    await route.fulfill({ contentType: "image/png", body: pixel })
+  })
+  await page.route("https://www.youtube-nocookie.com/**", async (route) => {
+    await route.fulfill({
+      contentType: "text/html",
+      body: "<!doctype html><title>player</title>",
+    })
+  })
 }
 
 const openVideosPage = async (page: Page, folder: string) => {
@@ -83,10 +86,11 @@ test("a direct video file plays in a video element, and a remote image shows", a
     "https://example.com/picture.png",
   )
   await expect
-    .poll(() =>
-      main
-        .getByRole("img", { name: "a remote picture" })
-        .evaluate((image) => image instanceof HTMLImageElement && image.naturalWidth),
+    .poll(
+      async () =>
+        await main
+          .getByRole("img", { name: "a remote picture" })
+          .evaluate((image) => image instanceof HTMLImageElement && image.naturalWidth),
     )
     .toBe(1)
 })

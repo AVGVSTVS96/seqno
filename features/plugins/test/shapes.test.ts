@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { Schema } from "effect"
-import { BlockId, PageId, type Block, type Page } from "@seqno/domain"
+import { BlockId, PageId } from "@seqno/domain"
+import type { Block, Page } from "@seqno/domain"
 import { blockJson, changedBlock, numberOf, pageJson } from "../src/shapes.ts"
 
 const pageId = Schema.decodeUnknownSync(PageId)("019a0000-0000-7000-8000-000000000001")
@@ -9,7 +10,7 @@ const child = Schema.decodeUnknownSync(BlockId)("019a0000-0000-7000-8000-0000000
 
 const page: Page = { id: pageId, name: "tasks", title: "Tasks", journalDay: null, props: {} }
 
-const blocks: ReadonlyArray<Block> = [
+const blocks: readonly Block[] = [
   {
     id: first,
     pageId,
@@ -24,7 +25,11 @@ const blocks: ReadonlyArray<Block> = [
 describe("blockJson", () => {
   it("gives Logseq's file-graph block: content with property lines, marker, children as uuids", () => {
     const [top] = blocks
-    if (top === undefined) throw new Error("no block")
+
+    if (top === undefined) {
+      throw new Error("no block")
+    }
+
     expect(blockJson({ page, blocks }, top, false)).toEqual({
       id: numberOf(first),
       uuid: first,
@@ -46,7 +51,11 @@ describe("blockJson", () => {
 describe("changedBlock", () => {
   it("gives DB.onChanged's block: its marker and camelCased properties, parent by number", () => {
     const [, bed] = blocks
-    if (bed === undefined) throw new Error("no block")
+
+    if (bed === undefined) {
+      throw new Error("no block")
+    }
+
     expect(
       changedBlock({ ...bed, text: "DONE Bed 2", props: { "done-ms": "1762171200000" } }),
     ).toEqual({

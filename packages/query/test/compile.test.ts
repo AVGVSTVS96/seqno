@@ -1,20 +1,14 @@
 import { DatabaseSync } from "node:sqlite"
 import { Result } from "effect"
 import { describe, expect, it } from "vitest"
-import {
-  compileQuery,
-  parseDataviewQuery,
-  parseLogseqQuery,
-  SCHEMA,
-  type Query,
-  type QueryContext,
-} from "../src/index.ts"
+import { compileQuery, parseDataviewQuery, parseLogseqQuery, SCHEMA } from "../src/index.ts"
+import type { Query, QueryContext } from "../src/index.ts"
 
 interface PageRow {
   readonly name: string
   readonly day: number | null
-  readonly aliases?: ReadonlyArray<string>
-  readonly tags?: ReadonlyArray<string>
+  readonly aliases?: readonly string[]
+  readonly tags?: readonly string[]
   readonly props?: ReadonlyArray<readonly [string, string]>
 }
 
@@ -28,23 +22,23 @@ interface BlockRow {
     readonly priority?: string
     readonly deadline?: number
   }
-  readonly refs?: ReadonlyArray<string>
-  readonly tags?: ReadonlyArray<string>
+  readonly refs?: readonly string[]
+  readonly tags?: readonly string[]
   readonly props?: ReadonlyArray<readonly [string, string]>
   readonly updated?: number
 }
 
 const OLD = Date.UTC(2026, 8, 1)
-const TODAY = 20261006
+const TODAY = 20_261_006
 
-const PAGES: ReadonlyArray<PageRow> = [
+const PAGES: readonly PageRow[] = [
   { name: "Projects/Alpha", day: null, tags: ["work"], props: [["type", "project"]] },
   { name: "Database", day: null, aliases: ["db"] },
-  { name: "Oct 5th, 2026", day: 20261005 },
-  { name: "Oct 1st, 2026", day: 20261001 },
+  { name: "Oct 5th, 2026", day: 20_261_005 },
+  { name: "Oct 1st, 2026", day: 20_261_001 },
 ]
 
-const BLOCKS: ReadonlyArray<BlockRow> = [
+const BLOCKS: readonly BlockRow[] = [
   {
     id: "spec",
     page: 1,
@@ -79,7 +73,7 @@ const BLOCKS: ReadonlyArray<BlockRow> = [
     id: "fix",
     page: 4,
     content: "DONE deploy fix\nDEADLINE: <2026-10-08 Thu>",
-    task: { status: "done", deadline: 20261008 },
+    task: { status: "done", deadline: 20_261_008 },
   },
   { id: "rating", page: 2, content: "rating:: 5", props: [["rating", "5"]] },
   { id: "call", page: 4, content: "TODO call [[DB]]", task: { status: "todo" }, refs: ["db"] },
@@ -101,14 +95,24 @@ const open = () => {
       p.day,
     )
     db.prepare("INSERT INTO page_names VALUES (?, ?, 0)").run(name, rid)
-    for (const a of p.aliases ?? [])
+
+    for (const a of p.aliases ?? []) {
       db.prepare("INSERT INTO page_names VALUES (?, ?, 1)").run(a, rid)
-    for (const t of p.tags ?? []) db.prepare("INSERT INTO page_tags VALUES (?, ?)").run(rid, t)
+    }
+
+    for (const t of p.tags ?? []) {
+      db.prepare("INSERT INTO page_tags VALUES (?, ?)").run(rid, t)
+    }
+
     const parts = name.split("/")
-    for (let n = 1; n < parts.length; n++)
+
+    for (let n = 1; n < parts.length; n++) {
       db.prepare("INSERT INTO page_ns VALUES (?, ?)").run(rid, parts.slice(0, n).join("/"))
-    for (const [k, v] of p.props ?? [])
+    }
+
+    for (const [k, v] of p.props ?? []) {
       db.prepare("INSERT INTO page_props VALUES (?, ?, ?, ?)").run(rid, k, v, numeric(v))
+    }
   })
   BLOCKS.forEach((b, i) => {
     const rid = i + 1
@@ -123,6 +127,7 @@ const open = () => {
       b.updated ?? OLD,
     )
     db.prepare("INSERT INTO fts(rowid, content) VALUES (?, ?)").run(rid, b.content)
+
     if (b.task) {
       db.prepare("INSERT INTO tasks VALUES (?, ?, ?, ?, ?)").run(
         rid,
@@ -132,11 +137,16 @@ const open = () => {
         b.task.deadline ?? null,
       )
     }
-    for (const r of b.refs ?? [])
+
+    for (const r of b.refs ?? []) {
       db.prepare("INSERT INTO refs VALUES (?, ?, ?)").run(rid, r, b.tags?.includes(r) ? 1 : 0)
-    for (const [k, v] of b.props ?? [])
+    }
+
+    for (const [k, v] of b.props ?? []) {
       db.prepare("INSERT INTO props VALUES (?, ?, ?, ?)").run(rid, k, v, numeric(v))
+    }
   })
+
   return db
 }
 
@@ -148,11 +158,13 @@ const label = (q: Query, rid: unknown) =>
 const rows = (parsed: Result.Result<Query, unknown>, ctx: QueryContext = { today: TODAY }) => {
   const query = Result.getOrThrow(parsed)
   const compiled = Result.getOrThrow(compileQuery(query, ctx))
+
   return db
     .prepare(compiled.sql)
     .all(...compiled.params)
     .map((row) => {
       const [rid, ...shown] = Object.values(row)
+
       return [label(query, rid), ...shown]
     })
 }
@@ -187,7 +199,9 @@ describe("compiled SQL returns the right blocks from a real SQLite index", () =>
       ["ship", "call"],
     ],
     ["tag", "(tag database)", ["ship"]],
-  ])("%s", (_, text, expected) => expect(ids(text)).toEqual(expected))
+  ])("%s", (_, text, expected) => {
+    expect(ids(text)).toEqual(expected)
+  })
 
   it("pages queries return pages", () => {
     expect(ids("(page-tags work)")).toEqual(["Projects/Alpha"])
@@ -218,6 +232,7 @@ describe("compiled SQL returns the right blocks from a real SQLite index", () =>
 
 const compileError = (text: string, ctx: QueryContext) => {
   const compiled = Result.flatMap(parseDataviewQuery(text), (q) => compileQuery(q, ctx))
+
   return Result.isFailure(compiled) ? compiled.failure.message : "compiled"
 }
 

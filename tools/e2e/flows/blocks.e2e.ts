@@ -29,8 +29,9 @@ test("right-clicking a bullet selects the block and opens its menu", async ({ pa
   await page.mouse.click(pointer.x, pointer.y, { button: "right" })
   const menu = page.getByRole("menu", { name: "Block actions" })
   await expect(menu).toBeVisible()
-  await menu.evaluate((element) =>
-    Promise.all(element.getAnimations().map((animation) => animation.finished)),
+  await menu.evaluate(
+    async (element) =>
+      await Promise.all(element.getAnimations().map(async (animation) => await animation.finished)),
   )
   const box = await menu.boundingBox()
   expect([(box?.x ?? 0) - pointer.x, (box?.y ?? 0) - pointer.y]).toEqual([-139, 5])
@@ -56,9 +57,9 @@ test("pasting a markdown outline into an empty block makes the blocks", async ({
   await today.getByRole("treeitem").first().click()
   await page.keyboard.press("End")
   await page.keyboard.press("Enter")
-  await page.evaluate(() =>
-    navigator.clipboard.writeText("- pasted one\n  - pasted child\n- pasted two"),
-  )
+  await page.evaluate(async () => {
+    await navigator.clipboard.writeText("- pasted one\n  - pasted child\n- pasted two")
+  })
   await page.keyboard.press("ControlOrMeta+v")
   await page.keyboard.press("Escape")
   await expect(today.getByRole("treeitem")).toHaveText([
@@ -103,9 +104,11 @@ test("clicking into a code block edits the code in place", async ({ page }) => {
 
 test("clicking under the last block adds a block and edits it", async ({ page, seqno }) => {
   await openShowcase(page, "/page/garden%20plan")
+
   const strip = page
     .getByRole("article", { name: "Garden Plan" })
     .getByRole("button", { name: "Add a block" })
+
   await expect(strip).toHaveCSS("opacity", "0")
   await strip.hover()
   await expect(strip).toHaveCSS("opacity", "0.5")
@@ -156,20 +159,24 @@ test("hovering an image shows its actions, and the corner resizes it for good", 
   await page.keyboard.press("Escape")
   await expect(viewer).toHaveCount(0)
   const box = await frame.boundingBox()
+
   const corner = {
     x: (box?.x ?? 0) + (box?.width ?? 0) - 3,
     y: (box?.y ?? 0) + (box?.height ?? 0) - 3,
   }
+
   await page.mouse.move(corner.x, corner.y)
   await page.mouse.down()
   await page.mouse.move(corner.x - 100, corner.y, { steps: 5 })
   await page.mouse.up()
   await expect(frame).toHaveCSS("width", "380px")
+
   const row = page
     .getByRole("main")
     .getByRole("treeitem")
     .filter({ has: page.locator(".seqno-image-frame") })
     .first()
+
   await row.locator(".seqno-image-frame").hover()
   await row.getByRole("button", { name: "Delete image" }).click()
   await expect(page.getByRole("main").locator(".seqno-image-frame")).toHaveCount(0)
@@ -197,6 +204,7 @@ test("Back returns to the same row of a long page after a fling past slow pictur
   page,
 }) => {
   await openLongPage(page)
+
   for (const stop of [0.3, 0.7]) {
     await flingTo(page, [0.9, 0.1, stop], "[role=treeitem]")
     await page.waitForTimeout(1000)
@@ -214,7 +222,9 @@ test("Back returns to the same row of a long page after the window gets narrower
   await flingTo(page, [0.9, 0.1, 0.5], "[role=treeitem]")
   await page.waitForTimeout(1000)
   const before = await topRow(page)
-  await awayAndBack(page, () => page.setViewportSize({ width: 900, height: 720 }))
+  await awayAndBack(page, async () => {
+    await page.setViewportSize({ width: 900, height: 720 })
+  })
   await landsOn(page, before)
 })
 
@@ -226,6 +236,7 @@ test("Back returns to the same row of a long page after 21 other pages", async (
   const before = await topRow(page)
   const palette = page.getByRole("dialog", { name: "Search" })
   const firstRow = page.getByRole("main").getByRole("treeitem").first()
+
   for (const stop of stops) {
     await page.keyboard.press("ControlOrMeta+k")
     await palette.getByRole("searchbox", { name: "Search" }).fill(stop)
@@ -233,10 +244,12 @@ test("Back returns to the same row of a long page after 21 other pages", async (
     await page.keyboard.press("Enter")
     await expect(firstRow).toHaveText(stop)
   }
+
   for (const stop of stops.toReversed().slice(1)) {
     await page.goBack()
     await expect(firstRow).toHaveText(stop)
   }
+
   await page.goBack()
   await landsOn(page, before)
 })
@@ -246,34 +259,44 @@ test("a long page fills the view when a scroll lands just as the rows catch up",
 }) => {
   await openShowcase(page, "/page/showcase")
   const outline = page.getByRole("main").getByRole("tree").first()
-  const gapsInView = () =>
-    outline.evaluate(
+
+  const gapsInView = async () =>
+    await outline.evaluate(
       (tree) =>
         [...tree.querySelectorAll(":scope > .seqno-gap")].filter((gap) => {
           const box = gap.getBoundingClientRect()
+
           return box.bottom > 0 && box.top < window.innerHeight
         }).length,
     )
+
   await expect.poll(gapsInView).toBe(0)
-  await outline.evaluate(
-    (tree) =>
-      new Promise<void>((resolve) => {
-        const main = tree.closest("main")
-        const lastGap = () =>
-          [...tree.querySelectorAll(":scope > .seqno-gap")].at(-1)?.getBoundingClientRect()
-        const below = () => (lastGap()?.top ?? 0) + (main?.scrollTop ?? 0)
-        const reached = below()
-        const caughtUp = new MutationObserver(() => {
-          const gap = lastGap()
-          if (gap === undefined || below() <= reached) return
-          caughtUp.disconnect()
-          main?.scrollBy(0, gap.top - window.innerHeight - 200)
-          resolve()
-        })
-        caughtUp.observe(tree, { childList: true, subtree: true })
-        main?.scrollBy(0, 700)
-      }),
-  )
+  await outline.evaluate(async (tree) => {
+    await new Promise<void>((resolve) => {
+      const main = tree.closest("main")
+
+      const lastGap = () =>
+        [...tree.querySelectorAll(":scope > .seqno-gap")].at(-1)?.getBoundingClientRect()
+
+      const below = () => (lastGap()?.top ?? 0) + (main?.scrollTop ?? 0)
+      const reached = below()
+
+      const caughtUp = new MutationObserver(() => {
+        const gap = lastGap()
+
+        if (gap === undefined || below() <= reached) {
+          return
+        }
+
+        caughtUp.disconnect()
+        main?.scrollBy(0, gap.top - window.innerHeight - 200)
+        resolve()
+      })
+
+      caughtUp.observe(tree, { childList: true, subtree: true })
+      main?.scrollBy(0, 700)
+    })
+  })
   await outline.evaluate((tree) => tree.closest("main")?.scrollBy(0, 400))
   await expect.poll(gapsInView).toBe(0)
 })

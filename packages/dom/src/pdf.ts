@@ -1,6 +1,8 @@
-import { names, type Table } from "./names.ts"
+import { names } from "./names.ts"
+import type { Table } from "./names.ts"
 
 type Flag = readonly [boolean]
+
 type Color = readonly [string | undefined]
 
 export interface PdfParts {

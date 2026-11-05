@@ -1,15 +1,8 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, FileSystem, Layer, Option, Path, Result } from "effect"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
-import {
-  BlockId,
-  PageId,
-  shapeOf,
-  shapeProps,
-  shapeRaw,
-  whiteboardProps,
-  type Block,
-} from "@seqno/domain"
+import { BlockId, PageId, shapeOf, shapeProps, shapeRaw, whiteboardProps } from "@seqno/domain"
+import type { Block } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
 import {
   LogseqSyntaxLive,
@@ -23,8 +16,8 @@ import {
   renderMirror,
   GraphFolder,
   whiteboardBlocks,
-  type Edn,
 } from "@seqno/interop"
+import type { Edn } from "@seqno/interop"
 
 const Node = Layer.merge(NodeFileSystem.layer, NodePath.layer)
 const fixture = new URL("../../../fixtures/graphs/whiteboards/", import.meta.url).pathname
@@ -38,11 +31,14 @@ const imported = Effect.provide(
 )
 
 const must = <A>(value: A | undefined): A => {
-  if (value === undefined) throw new Error("expected a value")
+  if (value === undefined) {
+    throw new Error("expected a value")
+  }
+
   return value
 }
 
-const boardNamed = (pages: ReadonlyArray<PageTree>, name: string) =>
+const boardNamed = (pages: readonly PageTree[], name: string) =>
   must(pages.find(({ page }) => page.name === name))
 
 const entries = (value: Edn): ReadonlyArray<readonly [Edn, Edn]> =>
@@ -53,18 +49,19 @@ const field = (value: Edn, name: string): Edn =>
     ([key]) => key !== null && typeof key === "object" && "name" in key && key.name === name,
   )?.[1] ?? null
 
-const items = (value: Edn): ReadonlyArray<Edn> =>
+const items = (value: Edn): readonly Edn[] =>
   value !== null && typeof value === "object" && value._tag === "List" ? value.items : []
 
 const fileParts = (text: string) => {
   const edn = Result.getOrElse(readEdn(text), () => null)
+
   return {
     blocks: items(field(edn, "blocks")).map(printEdn).toSorted(),
     pages: items(field(edn, "pages")).map(printEdn),
   }
 }
 
-const blockOf = (blocks: ReadonlyArray<Block>, logseqId: string) =>
+const blockOf = (blocks: readonly Block[], logseqId: string) =>
   blocks.find((block) => (block.props["id"] ?? block.id) === logseqId)
 
 describe("whiteboard import", () => {
@@ -192,10 +189,12 @@ describe("whiteboard import", () => {
       yield* fs.makeDirectory(path.join(root, "whiteboards"))
       yield* fs.writeFileString(path.join(root, "whiteboards", "Broken.edn"), "{:blocks (")
       yield* fs.writeFileString(path.join(root, "whiteboards", "Notes.md"), "- a")
+
       const graph = yield* Effect.provide(
         importGraph,
         Layer.mergeAll(layerFileSystem(root), LogseqSyntaxLive),
       )
+
       assert.deepStrictEqual(graph.issues, [
         { _tag: "Unsupported", path: "whiteboards/Notes.md" },
         { _tag: "Unreadable", path: "whiteboards/Broken.edn", reason: "missing ) at 10" },
@@ -206,6 +205,7 @@ describe("whiteboard import", () => {
 
 const pageId = PageId.make("01920000-0000-7000-8000-00000000b0a1")
 const id = (n: number) => BlockId.make(`01920000-0000-7000-8000-0000000000b${n}`)
+
 const drawnBlock = (n: number, text: string, props: Block["props"]): Block => ({
   id: id(n),
   pageId,
@@ -214,6 +214,7 @@ const drawnBlock = (n: number, text: string, props: Block["props"]): Block => ({
   collapsed: false,
   props,
 })
+
 const drawn: PageTree = {
   page: { id: pageId, name: "plans", title: "Plans", journalDay: null, props: whiteboardProps },
   blocks: [
@@ -246,10 +247,12 @@ describe("whiteboard mirror", () => {
     () =>
       Effect.gen(function* () {
         const graph = yield* imported
+
         const files = yield* Effect.provide(
           renderMirror(graph.pages, graph.config),
           LogseqSyntaxLive,
         )
+
         const original = yield* read("whiteboards/Test Whiteboard.edn")
         const written = files.get("whiteboards/Test Whiteboard.edn") ?? ""
         assert.deepStrictEqual(fileParts(written), fileParts(original))
@@ -404,6 +407,7 @@ describe("whiteboard mirror", () => {
           ),
         ],
       }
+
       const files = yield* renderMirror([media], defaultConfig)
       const file = files.get("whiteboards/Plans.edn") ?? ""
       const assets = file.slice(file.indexOf(":assets "), file.indexOf(":shapes-index"))
@@ -474,6 +478,7 @@ describe("whiteboard mirror", () => {
   it.effect("gives a rebound handle a new binding and drops the binding to a deleted shape", () =>
     Effect.gen(function* () {
       const line = must(drawn.blocks[2])
+
       const moved: PageTree = {
         ...drawn,
         blocks: [
@@ -487,6 +492,7 @@ describe("whiteboard mirror", () => {
           },
         ],
       }
+
       const text = (yield* renderMirror([moved], defaultConfig)).get("whiteboards/Plans.edn") ?? ""
       assert.deepStrictEqual(
         [...text.matchAll(/:bindingId "([^"]+)"/g)].map((match) => match[1]),
@@ -517,10 +523,12 @@ describe("edn", () => {
       ':parentId "67b0c670-d163-45b2-867b-e630a151f914"',
       ":nonce 1740143722403}",
     ]
+
     const reversed = `{${written
-      .map((line) => line.replace(/^\{|\}$/g, ""))
+      .map((line) => line.replaceAll(/^\{|\}$/g, ""))
       .toReversed()
       .join(" ")}}`
+
     assert.strictEqual(
       printEdn(Result.getOrElse(readEdn(reversed), () => null)),
       `\n${written.join("\n")}`,
@@ -540,6 +548,7 @@ describe("edn", () => {
   {:block/properties {:ls-type :whiteboard-shape :logseq.tldraw.shape {:id "l1" :type "line" :index 1 :point [200 50] :handles {:start {:id "start" :point [0 0]} :end {:id "end" :point [-90 0] :bindingId "b1"}}}}}
   {:block/properties {:ls-type :whiteboard-shape :logseq.tldraw.shape {:id "l2" :type "line" :index 2 :point [200 80] :handles {:start {:id "start" :point [0 0] :bindingId "gone"} :end {:id "end" :point [-90 0] :bindingId "b1"}}}}})
  :pages ({:block/uuid #uuid "637239f2-9680-4c82-802c-8858d9835c80" :block/name "637239f2-9680-4c82-802c-8858d9835c80" :block/type "whiteboard" :block/properties {:ls-type :whiteboard-page :logseq.tldraw.page {:id "637239f2-9680-4c82-802c-8858d9835c80" :bindings {:b1 {:id "b1" :type "line" :fromId "l1" :toId "a1" :handleId "end" :point [0.5 0.5] :distance 4}} :assets []}}})}`
+
     const board = Result.getOrThrow(readWhiteboard(edn))
     const minted = [1, 2, 3, 4, 5, 6].map(id)
     const fresh = minted.values()

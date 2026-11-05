@@ -1,13 +1,20 @@
-import { isField, type Field, type Value } from "../ast.ts"
+import { isField } from "../ast.ts"
+import type { Field, Value } from "../ast.ts"
 import { parseDateWord } from "../dates.ts"
 import { fail } from "../error.ts"
 import { fieldDef } from "../fields.ts"
 
 export const word = (s: string, f?: Field): Value => {
-  if (s === "@page" || s === "@block")
+  if (s === "@page" || s === "@block") {
     return { _tag: "Context", of: s === "@page" ? "page" : "block" }
-  if (s === "true" || s === "false") return s === "true"
+  }
+
+  if (s === "true" || s === "false") {
+    return s === "true"
+  }
+
   const type = f === undefined ? undefined : fieldDef(f).type
+
   return (type === "date" || type === "time" ? parseDateWord(s) : null) ?? s
 }
 

@@ -1,6 +1,7 @@
 import { Match } from "effect"
 import type { Priority, Span } from "./block.ts"
-import { inlineMathAt, mathClose, type MathOpen } from "./math.ts"
+import { inlineMathAt, mathClose } from "./math.ts"
+import type { MathOpen } from "./math.ts"
 import { BLOCK_REF, MACRO, PRIORITY, TAG, TAG_TRAILER } from "./patterns.ts"
 
 export type LinkTarget =
@@ -27,14 +28,14 @@ export type Inline =
   | { readonly _tag: "BlockRef"; readonly uuid: string; readonly span: Span }
   | { readonly _tag: "Macro"; readonly name: string; readonly args: string; readonly span: Span }
   | { readonly _tag: "Priority"; readonly priority: Priority; readonly span: Span }
-  | { readonly _tag: "Bold"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
-  | { readonly _tag: "Italic"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
-  | { readonly _tag: "Strike"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
-  | { readonly _tag: "Underline"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
-  | { readonly _tag: "Highlight"; readonly children: ReadonlyArray<Inline>; readonly span: Span }
+  | { readonly _tag: "Bold"; readonly children: readonly Inline[]; readonly span: Span }
+  | { readonly _tag: "Italic"; readonly children: readonly Inline[]; readonly span: Span }
+  | { readonly _tag: "Strike"; readonly children: readonly Inline[]; readonly span: Span }
+  | { readonly _tag: "Underline"; readonly children: readonly Inline[]; readonly span: Span }
+  | { readonly _tag: "Highlight"; readonly children: readonly Inline[]; readonly span: Span }
   | {
       readonly _tag: "Link"
-      readonly label: ReadonlyArray<Inline>
+      readonly label: readonly Inline[]
       readonly target: LinkTarget
       readonly span: Span
     }
@@ -79,18 +80,25 @@ const LOCAL_ASSET = /^[./]*assets\//
 
 const orgLinkAt = (source: string, at: number, base: number): Token | null => {
   const link = matchAt(ORG_LINK_AT, source, at)
-  if (link === null) return null
+
+  if (link === null) {
+    return null
+  }
+
   const raw = (link[1] ?? "").trim()
   const labelText = link[2]
   const end = at + link[0].length
   const span = { from: base + at, to: base + end }
   const labelFrom = at + 2 + (link[1] ?? "").length + 2
+
   const label =
     labelText === undefined
       ? [{ _tag: "Text" as const, text: raw, span }]
       : nestedInline(labelText, base + labelFrom, "org")
+
   const protocol = ORG_PROTOCOL.exec(raw)
   const scheme = protocol?.[1]?.toLowerCase()
+
   if (scheme === "id" && UUID_REF.test(`((${protocol?.[2] ?? ""}))`)) {
     return {
       node: {
@@ -102,21 +110,29 @@ const orgLinkAt = (source: string, at: number, base: number): Token | null => {
       end,
     }
   }
+
   if (scheme === "file" && labelText !== undefined) {
     return {
       node: { _tag: "Link", label, target: { _tag: "Page", name: labelText.trim() }, span },
       end,
     }
   }
+
   if (LOCAL_ASSET.test(raw)) {
     return {
       node: { _tag: "Image", alt: labelText ?? "", url: raw, width: null, size: null, span },
       end,
     }
   }
-  if (protocol !== null)
+
+  if (protocol !== null) {
     return { node: { _tag: "Link", label, target: { _tag: "Url", url: raw }, span }, end }
-  if (raw === "") return null
+  }
+
+  if (raw === "") {
+    return null
+  }
+
   return labelText === undefined
     ? { node: { _tag: "PageRef", name: raw, brackets: true, span }, end }
     : { node: { _tag: "Link", label, target: { _tag: "Page", name: raw }, span }, end }
@@ -124,11 +140,21 @@ const orgLinkAt = (source: string, at: number, base: number): Token | null => {
 
 const verbatimAt = (source: string, at: number, base: number): Token | null => {
   const char = source[at]
-  if (char !== "=" && char !== "~") return null
-  if (isSpace(source[at + 1]) || source[at + 1] === char) return null
-  const close = source.indexOf(char, at + 2)
-  if (close === -1 || isSpace(source[close - 1]) || source.slice(at, close).includes("\n"))
+
+  if (char !== "=" && char !== "~") {
     return null
+  }
+
+  if (isSpace(source[at + 1]) || source[at + 1] === char) {
+    return null
+  }
+
+  const close = source.indexOf(char, at + 2)
+
+  if (close === -1 || isSpace(source[close - 1]) || source.slice(at, close).includes("\n")) {
+    return null
+  }
+
   return {
     node: {
       _tag: "Code",
@@ -151,6 +177,7 @@ const delimiters: ReadonlyArray<readonly [string, Emphasis]> = [
 
 const matchAt = (pattern: RegExp, source: string, at: number) => {
   pattern.lastIndex = at
+
   return pattern.exec(source)
 }
 
@@ -159,40 +186,58 @@ const isWord = (char: string | undefined) => char !== undefined && WORD.test(cha
 
 const pairedEnd = (source: string, from: number, open: string, close: string): number => {
   let depth = 0
+
   for (let at = from; at < source.length - 1; at++) {
     if (source.startsWith(open, at)) {
       depth++
       at++
     } else if (source.startsWith(close, at)) {
       depth--
-      if (depth === 0) return at + close.length
+
+      if (depth === 0) {
+        return at + close.length
+      }
+
       at++
     }
   }
+
   return -1
 }
 
 const bracketEnd = (source: string, from: number): number => {
   let depth = 0
+
   for (let at = from; at < source.length; at++) {
-    if (source[at] === "[") depth++
-    else if (source[at] === "]") {
+    if (source[at] === "[") {
+      depth++
+    } else if (source[at] === "]") {
       depth--
-      if (depth === 0) return at
+
+      if (depth === 0) {
+        return at
+      }
     }
   }
+
   return -1
 }
 
 const parenEnd = (source: string, from: number): number => {
   let depth = 0
+
   for (let at = from; at < source.length; at++) {
-    if (source[at] === "(") depth++
-    else if (source[at] === ")") {
+    if (source[at] === "(") {
+      depth++
+    } else if (source[at] === ")") {
       depth--
-      if (depth === 0) return at
+
+      if (depth === 0) {
+        return at
+      }
     }
   }
+
   return -1
 }
 
@@ -204,9 +249,17 @@ interface Token {
 const targetOf = (raw: string): LinkTarget => {
   const target = raw.trim()
   const page = PAGE_TARGET.exec(target)
-  if (page !== null) return { _tag: "Page", name: (page[1] ?? "").trim() }
+
+  if (page !== null) {
+    return { _tag: "Page", name: (page[1] ?? "").trim() }
+  }
+
   const block = UUID_REF.exec(target)
-  if (block !== null) return { _tag: "Block", uuid: (block[1] ?? "").toLowerCase() }
+
+  if (block !== null) {
+    return { _tag: "Block", uuid: (block[1] ?? "").toLowerCase() }
+  }
+
   return { _tag: "Url", url: target.split(/\s+/)[0] ?? "" }
 }
 
@@ -218,14 +271,26 @@ const atomAt = (
 ): Token | null => {
   const char = source[at]
   const span = (end: number) => ({ from: base + at, to: base + end })
+
   if (dialect === "org") {
-    if (source.startsWith("[[", at)) return orgLinkAt(source, at, base)
+    if (source.startsWith("[[", at)) {
+      return orgLinkAt(source, at, base)
+    }
+
     const verbatim = verbatimAt(source, at, base)
-    if (verbatim !== null) return verbatim
-    if (char === "`" || (char === "[" && source[at + 1] !== "#") || char === "!") return null
+
+    if (verbatim !== null) {
+      return verbatim
+    }
+
+    if (char === "`" || (char === "[" && source[at + 1] !== "#") || char === "!") {
+      return null
+    }
   }
+
   if (char === "`") {
     const close = source.indexOf("`", at + 1)
+
     return close === -1
       ? null
       : {
@@ -233,12 +298,17 @@ const atomAt = (
           end: close + 1,
         }
   }
+
   if (source.startsWith("[[", at) || source.startsWith("#[[", at)) {
     const tagged = char === "#"
     const open = tagged ? at + 1 : at
     const end = pairedEnd(source, open, "[[", "]]")
     const name = end === -1 ? "" : source.slice(open + 2, end - 2).trim()
-    if (name === "") return null
+
+    if (name === "") {
+      return null
+    }
+
     return {
       node: tagged
         ? { _tag: "Tag", name, span: span(end) }
@@ -246,23 +316,41 @@ const atomAt = (
       end,
     }
   }
+
   if (char === "#") {
     const tag = matchAt(TAG_AT, source, at)
     const name = (tag?.[1] ?? "").replace(TAG_TRAILER, "")
-    if (name === "") return null
+
+    if (name === "") {
+      return null
+    }
+
     const end = at + 1 + name.length
+
     return { node: { _tag: "Tag", name, span: span(end) }, end }
   }
+
   if (char === "(") {
     const ref = matchAt(BLOCK_REF_AT, source, at)
-    if (ref === null) return null
+
+    if (ref === null) {
+      return null
+    }
+
     const end = at + ref[0].length
+
     return { node: { _tag: "BlockRef", uuid: (ref[1] ?? "").toLowerCase(), span: span(end) }, end }
   }
+
   if (char === "{") {
     const macro = matchAt(MACRO_AT, source, at)
-    if (macro === null) return null
+
+    if (macro === null) {
+      return null
+    }
+
     const end = at + macro[0].length
+
     return {
       node: {
         _tag: "Macro",
@@ -273,31 +361,49 @@ const atomAt = (
       end,
     }
   }
+
   if (char === "[") {
     const priority = matchAt(PRIORITY_AT, source, at)
+
     if (priority !== null) {
       const value = priority[1]
+
       if (value === "A" || value === "B" || value === "C") {
         const end = at + priority[0].length
+
         return { node: { _tag: "Priority", priority: value, span: span(end) }, end }
       }
     }
   }
+
   if (char === "[" || (char === "!" && source[at + 1] === "[")) {
     const image = char === "!"
     const labelFrom = image ? at + 1 : at
     const labelEnd = bracketEnd(source, labelFrom)
-    if (labelEnd === -1 || source[labelEnd + 1] !== "(") return null
+
+    if (labelEnd === -1 || source[labelEnd + 1] !== "(") {
+      return null
+    }
+
     const targetEnd = parenEnd(source, labelEnd + 1)
-    if (targetEnd === -1) return null
+
+    if (targetEnd === -1) {
+      return null
+    }
+
     const label = source.slice(labelFrom + 1, labelEnd)
     const target = targetOf(source.slice(labelEnd + 2, targetEnd))
     const end = targetEnd + 1
+
     if (image) {
-      if (target._tag !== "Url") return null
+      if (target._tag !== "Url") {
+        return null
+      }
+
       const attrs = matchAt(IMAGE_SIZE_AT, source, end)
       const sized = attrs === null ? end : end + attrs[0].length
       const width = Number(/:width\s+(\d+(?:\.\d+)?)/.exec(attrs?.[0] ?? "")?.[1] ?? Number.NaN)
+
       return {
         node: {
           _tag: "Image",
@@ -310,6 +416,7 @@ const atomAt = (
         end: sized,
       }
     }
+
     return {
       node: {
         _tag: "Link",
@@ -320,10 +427,16 @@ const atomAt = (
       end,
     }
   }
+
   if (char === "h" && !isWord(source[at - 1])) {
     const url = matchAt(URL_AT, source, at)?.[0].replace(URL_TRAILER, "")
-    if (url === undefined || url.length <= "https://".length) return null
+
+    if (url === undefined || url.length <= "https://".length) {
+      return null
+    }
+
     const end = at + url.length
+
     return {
       node: {
         _tag: "Link",
@@ -334,34 +447,55 @@ const atomAt = (
       end,
     }
   }
+
   return null
 }
 
 const closingAt = (source: string, from: number, delimiter: string, dialect: Dialect): number => {
   for (let at = from; at < source.length; at++) {
     const atom = atomAt(source, at, 0, dialect)
+
     if (atom !== null) {
       at = atom.end - 1
       continue
     }
-    if (!source.startsWith(delimiter, at) || isSpace(source[at - 1])) continue
+
+    if (!source.startsWith(delimiter, at) || isSpace(source[at - 1])) {
+      continue
+    }
+
     const after = source[at + delimiter.length]
+
     if (dialect === "markdown" && delimiter.length === 1 && after === delimiter) {
       at++
       continue
     }
-    if (delimiter.startsWith("_") && isWord(after)) continue
+
+    if (delimiter.startsWith("_") && isWord(after)) {
+      continue
+    }
+
     return at
   }
+
   return -1
 }
 
 const boldItalicAt = (source: string, at: number, base: number): Token | null => {
   const inner = at + 3
-  if (!source.startsWith("***", at) || isSpace(source[inner]) || source[inner] === "*") return null
+
+  if (!source.startsWith("***", at) || isSpace(source[inner]) || source[inner] === "*") {
+    return null
+  }
+
   const close = closingAt(source, inner, "***", "markdown")
-  if (close === -1) return null
+
+  if (close === -1) {
+    return null
+  }
+
   const end = close + 3
+
   return {
     node: {
       _tag: "Italic",
@@ -380,15 +514,34 @@ const boldItalicAt = (source: string, at: number, base: number): Token | null =>
 
 const emphasisAt = (source: string, at: number, base: number, dialect: Dialect): Token | null => {
   const both = dialect === "markdown" ? boldItalicAt(source, at, base) : null
-  if (both !== null) return both
+
+  if (both !== null) {
+    return both
+  }
+
   for (const [delimiter, tag] of dialect === "org" ? orgDelimiters : delimiters) {
-    if (!source.startsWith(delimiter, at)) continue
+    if (!source.startsWith(delimiter, at)) {
+      continue
+    }
+
     const inner = at + delimiter.length
-    if (isSpace(source[inner]) || source.startsWith(delimiter[0] ?? "", inner)) continue
-    if (delimiter.startsWith("_") && isWord(source[at - 1])) continue
+
+    if (isSpace(source[inner]) || source.startsWith(delimiter[0] ?? "", inner)) {
+      continue
+    }
+
+    if (delimiter.startsWith("_") && isWord(source[at - 1])) {
+      continue
+    }
+
     const close = closingAt(source, inner, delimiter, dialect)
-    if (close === -1) continue
+
+    if (close === -1) {
+      continue
+    }
+
     const end = close + delimiter.length
+
     return {
       node: {
         _tag: tag,
@@ -398,11 +551,13 @@ const emphasisAt = (source: string, at: number, base: number, dialect: Dialect):
       end,
     }
   }
+
   return null
 }
 
 const mathTokenAt = (source: string, at: number, base: number): Token | null => {
   const math = inlineMathAt(source, at)
+
   return math === null
     ? null
     : {
@@ -417,9 +572,16 @@ const mathTokenAt = (source: string, at: number, base: number): Token | null => 
 }
 
 const escapeAt = (source: string, at: number, base: number): Token | "skip" | null => {
-  if (source[at] !== "\\") return null
+  if (source[at] !== "\\") {
+    return null
+  }
+
   const next = source[at + 1]
-  if (next === "\\") return "skip"
+
+  if (next === "\\") {
+    return "skip"
+  }
+
   return next === "$"
     ? {
         node: { _tag: "Text", text: "$", span: { from: base + at, to: base + at + 2 } },
@@ -433,25 +595,30 @@ const inlineNodes = (
   base: number,
   dialect: Dialect,
   math: boolean,
-): ReadonlyArray<Inline> => {
-  const nodes: Array<Inline> = []
+): readonly Inline[] => {
+  const nodes: Inline[] = []
   let text = 0
   let at = 0
+
   while (at < source.length) {
     const escaped = dialect === "markdown" ? escapeAt(source, at, base) : null
+
     if (escaped === "skip") {
       at += 2
       continue
     }
+
     const token =
       escaped ??
       (math ? mathTokenAt(source, at, base) : null) ??
       atomAt(source, at, base, dialect) ??
       emphasisAt(source, at, base, dialect)
+
     if (token === null) {
       at++
       continue
     }
+
     if (at > text) {
       nodes.push({
         _tag: "Text",
@@ -459,10 +626,12 @@ const inlineNodes = (
         span: { from: base + text, to: base + at },
       })
     }
+
     nodes.push(token.node)
     at = token.end
     text = at
   }
+
   if (text < source.length) {
     nodes.push({
       _tag: "Text",
@@ -470,6 +639,7 @@ const inlineNodes = (
       span: { from: base + text, to: base + source.length },
     })
   }
+
   return nodes
 }
 
@@ -480,9 +650,9 @@ export const parseInline = (
   source: string,
   base = 0,
   dialect: Dialect = "markdown",
-): ReadonlyArray<Inline> => inlineNodes(source, base, dialect, true)
+): readonly Inline[] => inlineNodes(source, base, dialect, true)
 
-export const plainText = (nodes: ReadonlyArray<Inline>): string =>
+export const plainText = (nodes: readonly Inline[]): string =>
   nodes
     .map((node) =>
       Match.valueTags(node, {

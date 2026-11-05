@@ -7,14 +7,13 @@ import {
   propertyLineOf,
   splitProperties,
   textOffset,
-  type PropertyLine,
-  type PropertyStyle,
 } from "@seqno/syntax"
+import type { PropertyLine, PropertyStyle } from "@seqno/syntax"
 import { editTextCommands, minimalChange } from "./edits.ts"
 
 interface Fields {
   readonly text: string
-  readonly props: ReadonlyArray<PropertyLine>
+  readonly props: readonly PropertyLine[]
 }
 
 export interface BlockFields {
@@ -23,19 +22,24 @@ export interface BlockFields {
   readonly textCaret: (draft: string, offset: number) => number
   readonly textOf: (draft: string) => string
   readonly reset: (block: Pick<Block, "text" | "props">) => void
-  readonly commit: (transaction: Transaction) => ReadonlyArray<Command>
+  readonly commit: (transaction: Transaction) => readonly Command[]
 }
 
 const pageFields = (draft: string, style: PropertyStyle): Fields => {
-  const props: Array<PropertyLine> = []
+  const props: PropertyLine[] = []
+
   for (const line of draft.split("\n")) {
     const found = propertyLineOf(line, style)
-    if (found !== null && !props.some(([seen]) => seen === found[0])) props.push(found)
+
+    if (found !== null && !props.some(([seen]) => seen === found[0])) {
+      props.push(found)
+    }
   }
+
   return { text: "", props }
 }
 
-const sameLines = (left: ReadonlyArray<PropertyLine>, right: ReadonlyArray<PropertyLine>) =>
+const sameLines = (left: readonly PropertyLine[], right: readonly PropertyLine[]) =>
   left.length === right.length &&
   left.every(([key, value], at) => right[at]?.[0] === key && right[at]?.[1] === value)
 
@@ -46,14 +50,15 @@ export const blockFields = (
   hidden: (key: string) => boolean = isHiddenProperty,
   style: PropertyStyle = "markdown",
 ): BlockFields => {
-  let order: ReadonlyArray<string> = []
+  let order: readonly string[] = []
 
   const rank = (key: string) => {
     const at = order.indexOf(key)
+
     return at === -1 ? order.length : at
   }
 
-  const linesOf = (props: Props): ReadonlyArray<PropertyLine> =>
+  const linesOf = (props: Props): readonly PropertyLine[] =>
     Object.entries(props)
       .filter(([key]) => order.includes(key) || !hidden(key))
       .toSorted(([left], [right]) => rank(left) - rank(right))
@@ -76,6 +81,7 @@ export const blockFields = (
   return {
     draftOf: (source) => {
       const fields = fieldsOf(source)
+
       return joinProperties(fields.text, fields.props, style)
     },
     draftCaret: (source, offset) => draftOffset(source.text, linesOf(source.props), offset, style),
@@ -86,20 +92,30 @@ export const blockFields = (
     },
     commit: (transaction) => {
       const draft = transaction.newDoc.toString()
+
       const next =
         target._tag === "PageTarget" ? pageFields(draft, style) : splitProperties(draft, style)
+
       order = next.props.map(([key]) => key)
       const before = committed
       committed = { text: next.text, props: next.props }
+
       if (before.props.length === 0 && next.props.length === 0) {
         return editTextCommands(blockId, transaction)
       }
+
       const change = minimalChange(before.text, next.text)
-      const edits: ReadonlyArray<Command> =
+
+      const edits: readonly Command[] =
         before.text === next.text ? [] : [{ _tag: "EditText", blockId, ...change }]
-      if (sameLines(before.props, next.props)) return edits
+
+      if (sameLines(before.props, next.props)) {
+        return edits
+      }
+
       const after = new Map(next.props)
       const was = new Map(before.props)
+
       return [
         ...edits,
         ...before.props.flatMap(([key]) => (after.has(key) ? [] : [property(key, null)])),

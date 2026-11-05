@@ -13,8 +13,8 @@ import {
   preorder,
   printPage,
   readFileTree,
-  type FileTree,
 } from "@seqno/interop"
+import type { FileTree } from "@seqno/interop"
 
 const WebCrypto = Layer.succeed(
   Crypto.Crypto,
@@ -41,8 +41,10 @@ const fileTree = (text: string): FileTree =>
   )
 
 const hex = (n: number) => n.toString(16).padStart(12, "0")
+
 const minter = (start: number) => {
   let next = start
+
   return () => BlockId.make(`01920000-0000-7000-8000-${hex(next++)}`)
 }
 
@@ -65,12 +67,14 @@ const merged = ({ base, disk, seqno }: Case) =>
         ),
         Graph,
       )
+
       const file = fileTree(base)
       yield* graph.load([file.tree])
       const id = file.tree.page.id
       const before = yield* Effect.orDie(graph.page(id))
       yield* seqno(graph, before)
       const page = yield* Effect.orDie(graph.page(id))
+
       const { batches: commands, ids } = mergePage({
         base: { file, ids: preorder(before.blocks).map((block) => block.id) },
         disk: fileTree(disk),
@@ -78,9 +82,11 @@ const merged = ({ base, disk, seqno }: Case) =>
         mint: minter(1000),
         taken: new Set(),
       })
+
       const applied = yield* Effect.result(
         Effect.forEach(commands, (batch) => graph.dispatchAll(batch)),
       )
+
       if (Result.isFailure(applied)) {
         return yield* Effect.die(
           new Error(
@@ -88,7 +94,9 @@ const merged = ({ base, disk, seqno }: Case) =>
           ),
         )
       }
+
       const after = yield* Effect.orDie(graph.page(id))
+
       const again = mergePage({
         base: { file: fileTree(disk), ids },
         disk: fileTree(disk),
@@ -96,6 +104,7 @@ const merged = ({ base, disk, seqno }: Case) =>
         mint: minter(5000),
         taken: new Set(),
       })
+
       return { text: render(after), commands, before, after, ids, again: again.batches }
     }),
   )
@@ -104,7 +113,11 @@ const nothing = () => Effect.void
 
 const edit = (at: number, insert: string) => (graph: Graph["Service"], tree: PageTree) => {
   const block = preorder(tree.blocks)[at]
-  if (block === undefined) return Effect.die("no such block")
+
+  if (block === undefined) {
+    return Effect.die("no such block")
+  }
+
   return Effect.asVoid(
     Effect.orDie(
       graph.dispatch({
@@ -126,11 +139,13 @@ describe("merging a file changed outside seqno", () => {
   it.effect("gives no commands when the file is the base, or says what the page says", () =>
     Effect.gen(function* () {
       const same = yield* merged({ base: plan, disk: plan, seqno: edit(0, " seqno") })
+
       const both = yield* merged({
         base: plan,
         disk: "- a seqno\n- b\n\t- b1\n- c",
         seqno: edit(0, " seqno"),
       })
+
       assert.deepStrictEqual(
         { same: same.commands, both: both.commands, text: both.text },
         { same: [], both: [], text: "- a seqno\n- b\n\t- b1\n- c" },
@@ -145,6 +160,7 @@ describe("merging a file changed outside seqno", () => {
         disk: "- a!\n- b\n\t- b1\n- c changed",
         seqno: edit(0, "!"),
       })
+
       assert.strictEqual(result.text, "- a!\n- b\n\t- b1\n- c changed")
     }),
   )
@@ -156,8 +172,10 @@ describe("merging a file changed outside seqno", () => {
         disk: "- a\n- b edited in Logseq\n\t- b1\n\t- b2 added in Logseq",
         seqno: edit(0, " typed in seqno"),
       })
+
       const kept = (text: string) =>
         result.before.blocks.find((block) => block.text === text)?.id ?? "missing"
+
       assert.deepStrictEqual(
         {
           text: result.text,
@@ -178,6 +196,7 @@ describe("merging a file changed outside seqno", () => {
         disk: "- the quick brown fox",
         seqno: edit(0, " jumps"),
       })
+
       assert.strictEqual(result.text, "- the quick brown fox jumps")
     }),
   )
@@ -196,6 +215,7 @@ describe("merging a file changed outside seqno", () => {
         disk: "- c\n- a\n\t- b\n\t\t- b1",
         seqno: nothing,
       })
+
       const id = (text: string) => result.before.blocks.find((block) => block.text === text)?.id
       assert.deepStrictEqual(
         {
@@ -216,6 +236,7 @@ describe("merging a file changed outside seqno", () => {
         disk: "- b rewritten in Logseq\n\t- b1\n- c",
         seqno: nothing,
       })
+
       const id = (text: string) => result.before.blocks.find((block) => block.text === text)?.id
       assert.deepStrictEqual(
         result.after.blocks.map((block) => [block.id, block.text]),
@@ -248,29 +269,41 @@ describe("merging a file changed outside seqno", () => {
           .array(fc.integer({ min: 0, max: 2 }), { minLength: 2, maxLength: 9 })
           .map((depths) => {
             let depth = -1
+
             return depths.map((wanted, at) => {
               depth = Math.min(wanted, depth + 1)
+
               return { depth, text: `block ${at}` }
             })
           })
+
         const choices = fc.array(fc.constantFrom("disk", "seqno", "both", "none", "add", "drop"), {
           minLength: 9,
           maxLength: 9,
         })
+
         const samples = fc.sample(fc.tuple(outline, choices), { numRuns: 300, seed: 7 })
-        const failures: Array<string> = []
+        const failures: string[] = []
+
         for (const [blocks, sides] of samples) {
           const base = blocks.map((block) => line(block.depth, block.text)).join("\n")
           const leafy = (at: number) => (blocks[at + 1]?.depth ?? -1) <= (blocks[at]?.depth ?? 0)
+
           const disk = blocks
             .flatMap((block, at) => {
               const side = sides[at]
-              if (side === "drop" && leafy(at)) return []
+
+              if (side === "drop" && leafy(at)) {
+                return []
+              }
+
               const text = side === "disk" || side === "both" ? `${block.text} disk` : block.text
               const own = line(block.depth, text)
+
               return side === "add" ? [own, line(block.depth + 1, `new ${at}`)] : [own]
             })
             .join("\n")
+
           const result = yield* merged({
             base,
             disk,
@@ -294,24 +327,34 @@ describe("merging a file changed outside seqno", () => {
                 { discard: true },
               ),
           })
+
           const expected = blocks
             .flatMap((block, at) => {
               const side = sides[at]
-              if (side === "drop" && leafy(at)) return []
+
+              if (side === "drop" && leafy(at)) {
+                return []
+              }
+
               const text =
                 side === "disk" || side === "both"
                   ? `${block.text} disk`
                   : side === "seqno"
                     ? `${block.text} seqno`
                     : block.text
+
               const own = line(block.depth, text)
+
               return side === "add" ? [own, line(block.depth + 1, `new ${at}`)] : [own]
             })
             .join("\n")
+
           const untouched = result.before.blocks.filter((_, at) => sides[at] === "none")
+
           const idsKept = untouched.every((block) =>
             result.after.blocks.some((after) => after.id === block.id && after.text === block.text),
           )
+
           if (result.text !== expected || !idsKept || result.again.length > 0) {
             failures.push(
               JSON.stringify({
@@ -326,6 +369,7 @@ describe("merging a file changed outside seqno", () => {
             )
           }
         }
+
         assert.deepStrictEqual(failures, [])
       }),
   )

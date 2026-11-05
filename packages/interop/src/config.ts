@@ -10,6 +10,7 @@ export const LogseqConfig = Schema.Struct({
   hidden: Schema.Array(Schema.String),
   preferredFormat: Schema.Literals(["markdown", "org"]),
 })
+
 export type LogseqConfig = typeof LogseqConfig.Type
 
 export const defaultConfig: LogseqConfig = {
@@ -26,22 +27,30 @@ export const defaultConfig: LogseqConfig = {
 const ednToken = /"(?:[^"\\]|\\.)*"|;[^\n]*|#\{|[{}[\]()]|[^\s,{}[\]()";]+/g
 
 const unquote = (token: string): string =>
-  token.slice(1, -1).replace(/\\(.)/g, (_, char: string) => (char === "n" ? "\n" : char))
+  token.slice(1, -1).replaceAll(/\\(.)/g, (_, char: string) => (char === "n" ? "\n" : char))
 
 const topLevelEntries = (source: string): ReadonlyMap<string, unknown> => {
   const tokens = [...source.matchAll(ednToken)]
     .map((match) => match[0])
     .filter((token) => !token.startsWith(";") && !/^#[^{]/.test(token))
+
   const entries = new Map<string, unknown>()
-  const values: Array<unknown> = []
+  const values: unknown[] = []
   let depth = 0
-  let collection: Array<string> = []
+  let collection: string[] = []
+
   for (const token of tokens) {
     if (token === "{" || token === "[" || token === "(" || token === "#{") {
       depth += 1
-      if (depth === 2) collection = []
+
+      if (depth === 2) {
+        collection = []
+      }
     } else if (token === "}" || token === "]" || token === ")") {
-      if (depth === 2) values.push(collection)
+      if (depth === 2) {
+        values.push(collection)
+      }
+
       depth -= 1
     } else if (depth === 1) {
       values.push(token.startsWith('"') ? unquote(token) : token)
@@ -49,22 +58,29 @@ const topLevelEntries = (source: string): ReadonlyMap<string, unknown> => {
       collection.push(unquote(token))
     }
   }
+
   for (let index = 0; index + 1 < values.length; index += 2) {
     const key = values[index]
-    if (typeof key === "string") entries.set(key, values[index + 1])
+
+    if (typeof key === "string") {
+      entries.set(key, values[index + 1])
+    }
   }
+
   return entries
 }
 
 const decodeString = Schema.decodeUnknownOption(Schema.String)
 const decodeStrings = Schema.decodeUnknownOption(Schema.Array(Schema.String))
 
-const directory = (value: string): string => value.replace(/^\.?\/+|\/+$/g, "")
+const directory = (value: string): string => value.replaceAll(/^\.?\/+|\/+$/g, "")
 
 export const parseConfig = (source: string): LogseqConfig => {
   const entries = topLevelEntries(source)
+
   const text = (key: string, fallback: string) =>
     Option.getOrElse(decodeString(entries.get(key)), () => fallback)
+
   return {
     journalTitleFormat: text(":journal/page-title-format", defaultConfig.journalTitleFormat),
     journalFileFormat: text(":journal/file-name-format", defaultConfig.journalFileFormat),

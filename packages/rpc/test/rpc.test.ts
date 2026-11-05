@@ -1,29 +1,26 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Fiber, Option, Ref, Stream, SubscriptionRef } from "effect"
 import { RpcTest } from "effect/rpc"
-import {
-  BlockId,
-  Command,
-  PageId,
-  normalizePageName,
-  type GraphEvent,
-  type Page,
-} from "@seqno/domain"
-import { CommandRejected, CoreRpcs, GraphNotOpen, PageNotFound, type PageTree } from "@seqno/rpc"
+import { BlockId, Command, PageId, normalizePageName } from "@seqno/domain"
+import type { GraphEvent, Page } from "@seqno/domain"
+import { CommandRejected, CoreRpcs, GraphNotOpen, PageNotFound } from "@seqno/rpc"
+import type { PageTree } from "@seqno/rpc"
 
 const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
 const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
 
-type Applied = Effect.Effect<ReadonlyArray<GraphEvent>, CommandRejected>
+type Applied = Effect.Effect<readonly GraphEvent[], CommandRejected>
 
 const InMemoryCore = CoreRpcs.toLayer(
   Effect.gen(function* () {
     const opened = yield* Ref.make(false)
     const tree = yield* SubscriptionRef.make(Option.none<PageTree>())
+
     const whenOpen = <A, E>(effect: Effect.Effect<A, E>) =>
       Effect.flatMap(Ref.get(opened), (isOpen): Effect.Effect<A, E | GraphNotOpen> =>
         isOpen ? effect : Effect.fail(new GraphNotOpen()),
       )
+
     const findPage = (id: PageId) =>
       Effect.flatMap(SubscriptionRef.get(tree), (current) =>
         Option.match(
@@ -34,9 +31,11 @@ const InMemoryCore = CoreRpcs.toLayer(
           },
         ),
       )
+
     const rejected: Applied = Effect.fail(
       new CommandRejected({ reason: "not in the in-memory core" }),
     )
+
     const apply = (command: Command) =>
       Command.match(command, {
         CreatePage: ({ title }): Applied => {
@@ -47,6 +46,7 @@ const InMemoryCore = CoreRpcs.toLayer(
             journalDay: null,
             props: {},
           }
+
           return Effect.as(SubscriptionRef.set(tree, Option.some({ page, blocks: [] })), [
             { _tag: "PageUpserted" as const, page },
           ])
@@ -61,6 +61,7 @@ const InMemoryCore = CoreRpcs.toLayer(
               collapsed: false,
               props: {},
             }
+
             return Effect.as(
               SubscriptionRef.set(
                 tree,
@@ -84,6 +85,7 @@ const InMemoryCore = CoreRpcs.toLayer(
         Undo: () => rejected,
         Redo: () => rejected,
       })
+
     return CoreRpcs.of({
       Attach: () => Stream.empty,
       OpenGraph: ({ graph }) => Effect.as(Ref.set(opened, true), { graph, skipped: [] }),
@@ -176,6 +178,7 @@ describe("CoreRpcs over the in-memory transport", () => {
       const core = yield* client
       yield* core.OpenGraph({ graph: "notes" })
       yield* core.Dispatch({ command: { _tag: "CreatePage", title: "Inbox" } })
+
       const updates = yield* Effect.forkChild(
         core.WatchPage({ pageId }).pipe(
           Stream.map((tree) => tree.blocks.length),
@@ -183,6 +186,7 @@ describe("CoreRpcs over the in-memory transport", () => {
           Stream.runCollect,
         ),
       )
+
       yield* Effect.yieldNow
       yield* core.Dispatch({ command: { _tag: "InsertBlock", pageId, parentId: null, text: "a" } })
       assert.deepStrictEqual(yield* Fiber.join(updates), [0, 1])

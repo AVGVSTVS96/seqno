@@ -1,4 +1,5 @@
-import { names, type Table } from "./names.ts"
+import { names } from "./names.ts"
+import type { Table } from "./names.ts"
 
 export type CodeStyle = "codemirror" | "highlight.js"
 
@@ -51,7 +52,7 @@ export type TokenKind = keyof typeof tokenNames
 const prefixed = (prefix: string, styles: string) =>
   names(...styles.split(" ").map((style) => style !== "" && `${prefix}${style}`))
 
-const codemirror = (look: CodeLook, ...parts: ReadonlyArray<string>) =>
+const codemirror = (look: CodeLook, ...parts: readonly string[]) =>
   look.style === "codemirror" ? parts.join(" ") : ""
 
 export interface CodeParts {
@@ -128,6 +129,7 @@ export const codeParts: Table<CodeParts> = {
   // https://highlightjs.readthedocs.io/en/latest/css-classes-reference.html
   "seqno-tok": (kind, style) => {
     const [cm, hljs] = tokenNames[kind]
+
     return { className: style === "codemirror" ? prefixed("cm-", cm) : prefixed("hljs-", hljs) }
   },
   // https://codemirror.net/5/doc/manual.html#styling

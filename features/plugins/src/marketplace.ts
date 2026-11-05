@@ -1,4 +1,5 @@
-import { list, pluginInfoOf, record, text, type Listing } from "./package.ts"
+import { list, pluginInfoOf, record, text } from "./package.ts"
+import type { Listing } from "./package.ts"
 import type { PluginInfo } from "./state.ts"
 
 const central = "https://raw.githubusercontent.com/logseq/marketplace/master/"
@@ -23,32 +24,45 @@ export interface MarketItem extends Listing {
 
 const fetchJson = async (url: string): Promise<unknown> => {
   const response = await fetch(url)
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-  return response.json()
+
+  if (!response.ok) {
+    throw new Error(`${url} answered ${response.status}`)
+  }
+
+  return await response.json()
 }
 
 const statsOf = (stats: unknown, id: string) => {
   const entry = record(record(stats)[id])
   const stars = entry["stargazers_count"]
+
   const downloads = list(entry["releases"]).reduce<number>((sum, release) => {
     const count = list(release)[2]
+
     return sum + (typeof count === "number" ? count : 0)
   }, 0)
+
   return { stars: typeof stars === "number" ? stars : 0, downloads }
 }
 
-export const loadMarket = async (): Promise<ReadonlyArray<MarketItem>> => {
+export const loadMarket = async (): Promise<readonly MarketItem[]> => {
   const [index, stats] = await Promise.all([
     fetchJson(urls.index),
     fetchJson(urls.stats).catch(() => ({})),
   ])
+
   return list(record(index)["packages"]).flatMap((entry) => {
     const item = record(entry)
     const id = text(item["id"])
     const repo = text(item["repo"])
-    if (id === null || repo === null) return []
+
+    if (id === null || repo === null) {
+      return []
+    }
+
     const icon = text(item["icon"])
     const addedAt = item["addedAt"]
+
     return [
       {
         id,
@@ -70,6 +84,10 @@ export const fetchPlugin = async (
 ): Promise<PluginInfo> => {
   const pkg = record(await fetchJson(urls.package(item.repo)))
   const version = text(pkg["version"])
-  if (version === null) throw new Error(`${item.repo} has no published version`)
+
+  if (version === null) {
+    throw new Error(`${item.repo} has no published version`)
+  }
+
   return pluginInfoOf(item, urls.files(item.repo, version), pkg)
 }

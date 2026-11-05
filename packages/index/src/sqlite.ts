@@ -1,9 +1,11 @@
 import { Context, Effect, Schema } from "effect"
 
 export const SqlValue = Schema.Union([Schema.String, Schema.Number, Schema.Null])
+
 export type SqlValue = typeof SqlValue.Type
 
 export const Row = Schema.Array(SqlValue)
+
 export type Row = typeof Row.Type
 
 export class IndexError extends Schema.TaggedError<IndexError>()("IndexError", {
@@ -12,16 +14,16 @@ export class IndexError extends Schema.TaggedError<IndexError>()("IndexError", {
 
 export interface Driver {
   readonly exec: (sql: string) => void
-  readonly run: (sql: string, params: ReadonlyArray<SqlValue>) => void
-  readonly all: (sql: string, params: ReadonlyArray<SqlValue>) => ReadonlyArray<unknown>
+  readonly run: (sql: string, params: readonly SqlValue[]) => void
+  readonly all: (sql: string, params: readonly SqlValue[]) => readonly unknown[]
   readonly serialize: () => Uint8Array<ArrayBuffer>
   readonly deserialize: (image: Uint8Array) => void
 }
 
 export interface Statements {
   readonly exec: (sql: string) => void
-  readonly run: (sql: string, params?: ReadonlyArray<SqlValue>) => void
-  readonly all: (sql: string, params?: ReadonlyArray<SqlValue>) => ReadonlyArray<Row>
+  readonly run: (sql: string, params?: readonly SqlValue[]) => void
+  readonly all: (sql: string, params?: readonly SqlValue[]) => readonly Row[]
 }
 
 export class Sqlite extends Context.Service<
@@ -37,7 +39,10 @@ export class Sqlite extends Context.Service<
 const isRow = Schema.is(Row)
 
 const toRow = (row: unknown): Row => {
-  if (isRow(row)) return row
+  if (isRow(row)) {
+    return row
+  }
+
   throw new IndexError({ message: "SQLite returned a value that is not text, a number or null" })
 }
 
@@ -51,24 +56,32 @@ const attempt = <A>(body: () => A) => Effect.try({ try: body, catch: toIndexErro
 export const makeSqlite = (driver: Driver) => {
   const db: Statements = {
     exec: driver.exec,
-    run: (sql, params = []) => driver.run(sql, params),
+    run: (sql, params = []) => {
+      driver.run(sql, params)
+    },
     all: (sql, params = []) => driver.all(sql, params).map(toRow),
   }
+
   return Sqlite.of({
     use: (body) => attempt(() => body(db)),
     transaction: (body) =>
       attempt(() => {
         driver.exec("BEGIN")
+
         try {
           const result = body(db)
           driver.exec("COMMIT")
+
           return result
-        } catch (cause) {
+        } catch (error) {
           driver.exec("ROLLBACK")
-          throw cause
+          throw error
         }
       }),
     serialize: attempt(driver.serialize),
-    deserialize: (image) => attempt(() => driver.deserialize(image)),
+    deserialize: (image) =>
+      attempt(() => {
+        driver.deserialize(image)
+      }),
   })
 }

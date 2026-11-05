@@ -1,18 +1,12 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Context, Crypto, Effect, Layer, Option, Schema, Stream } from "effect"
-import {
-  BlockId,
-  DeviceId,
-  JournalDay,
-  normalizePageName,
-  type Command,
-  type GraphEvent,
-  type PageId,
-} from "@seqno/domain"
+import { BlockId, DeviceId, JournalDay, normalizePageName } from "@seqno/domain"
+import type { Command, GraphEvent, PageId } from "@seqno/domain"
 import { Graph, PeerId, graphV2Layer, journalPageId, vaultReplica } from "@seqno/graph"
 import { Index } from "@seqno/index"
 import { layerNode } from "@seqno/index/node"
-import { Vault, layer, makeFakeCloud, type FakeCloud } from "@seqno/vault"
+import { Vault, layer, makeFakeCloud } from "@seqno/vault"
+import type { FakeCloud } from "@seqno/vault"
 
 const deviceId = Schema.decodeUnknownSync(DeviceId)
 
@@ -36,10 +30,12 @@ const device = (cloud: FakeCloud, id: string, peer: `${number}`) =>
       ),
       Graph,
     )
+
     const index = Context.get(
       yield* Layer.build(Index.layer.pipe(Layer.provide(layerNode()))),
       Index,
     )
+
     const vault = yield* Effect.provide(
       Effect.gen(function* () {
         return yield* Vault
@@ -51,12 +47,15 @@ const device = (cloud: FakeCloud, id: string, peer: `${number}`) =>
         compactEvery: 0,
       }).pipe(Layer.provide(cloud.layer(id))),
     )
-    const indexed = (events: ReadonlyArray<GraphEvent>) =>
+
+    const indexed = (events: readonly GraphEvent[]) =>
       Effect.as(Effect.orDie(index.apply(events)), events)
+
     const replica = vaultReplica({
       ...graph,
       merge: (blobs) => Effect.flatMap(graph.merge(blobs), indexed),
     })
+
     return {
       graph,
       index,
@@ -84,26 +83,30 @@ const device = (cloud: FakeCloud, id: string, peer: `${number}`) =>
 
 type Device = Effect.Success<ReturnType<typeof device>>
 
-const createdPage = (events: ReadonlyArray<GraphEvent>): PageId => {
+const createdPage = (events: readonly GraphEvent[]): PageId => {
   const found = events.find((event) => event._tag === "PageUpserted")
+
   return found?._tag === "PageUpserted" ? found.page.id : assert.fail("no page was created")
 }
 
-const createdBlock = (events: ReadonlyArray<GraphEvent>): BlockId => {
+const createdBlock = (events: readonly GraphEvent[]): BlockId => {
   const found = events.find((event) => event._tag === "BlockUpserted")
+
   return found?._tag === "BlockUpserted" ? found.block.id : assert.fail("no block was created")
 }
 
-const seedPage = (on: Device, title: string, lines: ReadonlyArray<string>) =>
+const seedPage = (on: Device, title: string, lines: readonly string[]) =>
   Effect.gen(function* () {
     const pageId = createdPage(yield* on.run({ _tag: "CreatePage", title }))
-    const ids: Array<BlockId> = []
-    const parents: Array<BlockId> = []
+    const ids: BlockId[] = []
+    const parents: BlockId[] = []
     const lastChild = new Map<BlockId | null, BlockId>()
+
     for (const line of lines) {
       const depth = (line.length - line.trimStart().length) / 2
       const parentId = depth === 0 ? null : (parents[depth - 1] ?? null)
       const after = lastChild.get(parentId)
+
       const id = createdBlock(
         yield* on.run({
           _tag: "InsertBlock",
@@ -113,25 +116,33 @@ const seedPage = (on: Device, title: string, lines: ReadonlyArray<string>) =>
           ...(after === undefined ? {} : { after }),
         }),
       )
+
       ids.push(id)
       parents[depth] = id
       lastChild.set(parentId, id)
     }
+
     return { pageId, ids }
   })
 
-const nth = <A>(items: ReadonlyArray<A>, index: number): A => {
+const nth = <A>(items: readonly A[], index: number): A => {
   const item = items[index]
-  if (item === undefined) throw new Error(`no item at ${index}`)
+
+  if (item === undefined) {
+    throw new Error(`no item at ${index}`)
+  }
+
   return item
 }
 
 const outline = (on: Device, pageId: PageId) =>
   Effect.map(Effect.orDie(on.graph.page(pageId)), ({ blocks }) => {
     const depth = new Map<string, number>()
+
     return blocks.map((block) => {
       const level = block.parentId === null ? 0 : (depth.get(block.parentId) ?? 0) + 1
       depth.set(block.id, level)
+
       return `${"  ".repeat(level)}${block.text}`
     })
   })
@@ -142,11 +153,13 @@ JOIN pages p ON p.rid = b.page LEFT JOIN blocks parent ON parent.rid = b.parent`
 const indexMatchesGraph = (on: Device) =>
   Effect.gen(function* () {
     const pages = yield* on.graph.pages
+
     const fromGraph = yield* Effect.forEach(pages, (one) =>
       Effect.map(Effect.orDie(on.graph.page(one.id)), ({ blocks }) =>
         blocks.map((block) => [one.id, block.id, block.parentId ?? "", block.text].join(" ")),
       ),
     )
+
     const rows = yield* Effect.orDie(on.index.query(ROWS))
     assert.deepStrictEqual(rows.map((row) => row.join(" ")).toSorted(), fromGraph.flat().toSorted())
     const indexedPages = yield* Effect.orDie(on.index.query("SELECT id FROM pages"))
@@ -163,6 +176,7 @@ const twoDevices = Effect.gen(function* () {
     autoDownload: true,
     deliverChance: 1,
   })
+
   const mac = yield* device(cloud, "mac", "1")
   const ipad = yield* device(cloud, "ipad", "2")
   const x = yield* seedPage(mac, "X", ["a", "b", "  b1", "c"])
@@ -172,6 +186,7 @@ const twoDevices = Effect.gen(function* () {
   cloud.settle()
   yield* ipad.sync
   yield* ipad.refill
+
   const exchange = Effect.gen(function* () {
     for (let round = 0; round < 3; round++) {
       yield* mac.flush
@@ -181,6 +196,7 @@ const twoDevices = Effect.gen(function* () {
       yield* ipad.sync
     }
   })
+
   return {
     mac,
     ipad,
@@ -216,6 +232,7 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
         yield* ipad.run({ _tag: "EditText", blockId: b, from: 1, to: 1, insert: " edited" })
         yield* ipad.run({ _tag: "InsertBlock", pageId: x, parentId: b, after: b1, text: "b2" })
         yield* exchange
+
         for (const on of [mac, ipad]) {
           assert.deepStrictEqual(yield* outline(on, y), ["y", "b edited", "  b1", "  b2"])
           assert.deepStrictEqual(yield* outline(on, x), ["a", "c"])
@@ -239,19 +256,36 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
             const { mac, ipad, exchange, x, y, b, zz } = yield* twoDevices
             const yy = nth((yield* Effect.orDie(mac.graph.page(y))).blocks, 0).id
             yield* moveTo(mac, b, yy)
-            if (meanwhile === "move") yield* moveTo(ipad, b, zz)
-            if (meanwhile === "delete") yield* ipad.run({ _tag: "DeleteBlocks", blockIds: [b] })
-            if (meanwhile === "indent") yield* ipad.run({ _tag: "Indent", blockIds: [b] })
+
+            if (meanwhile === "move") {
+              yield* moveTo(ipad, b, zz)
+            }
+
+            if (meanwhile === "delete") {
+              yield* ipad.run({ _tag: "DeleteBlocks", blockIds: [b] })
+            }
+
+            if (meanwhile === "indent") {
+              yield* ipad.run({ _tag: "Indent", blockIds: [b] })
+            }
+
             yield* exchange
+
             const seen = yield* Effect.forEach([mac, ipad], (on) =>
               Effect.forEach([x, y], (pageId) => outline(on, pageId)),
             )
+
             assert.deepStrictEqual(seen[0], seen[1], meanwhile)
-            for (const on of [mac, ipad]) yield* indexMatchesGraph(on)
+
+            for (const on of [mac, ipad]) {
+              yield* indexMatchesGraph(on)
+            }
+
             const everywhere = yield* Effect.map(
               Effect.forEach(yield* mac.graph.pages, (one) => outline(mac, one.id)),
               (all) => all.flat().map((line) => line.trim()),
             )
+
             assert.strictEqual(everywhere.filter((line) => line === "b").length, 1, meanwhile)
           }
         }),
@@ -265,7 +299,7 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
           string,
           {
             readonly change: (on: Device, ids: Ids) => Effect.Effect<unknown>
-            readonly after: ReadonlyArray<ReadonlyArray<string>>
+            readonly after: ReadonlyArray<readonly string[]>
           }
         > = {
           moved: {
@@ -294,12 +328,14 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
             after: [["a", "b1 typed", "c"], ["y"]],
           },
         }
+
         for (const [name, { change, after }] of Object.entries(cases)) {
           const { mac, ipad, exchange, x, y, b, b1, yy } = yield* twoDevices
           const c = nth((yield* Effect.orDie(mac.graph.page(x))).blocks, 3).id
           yield* change(mac, { x, b, b1, c, yy })
           yield* ipad.run({ _tag: "DeleteBlocks", blockIds: [b] })
           yield* exchange
+
           for (const on of [mac, ipad]) {
             assert.deepStrictEqual([yield* outline(on, x), yield* outline(on, y)], after, name)
             yield* indexMatchesGraph(on)
@@ -313,8 +349,9 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
     Effect.scoped(
       Effect.gen(function* () {
         const { mac, ipad, exchange } = yield* twoDevices
-        const day = Schema.decodeUnknownSync(JournalDay)(20261012)
+        const day = Schema.decodeUnknownSync(JournalDay)(20_261_012)
         const id = journalPageId(day)
+
         const today = (text: string, block: string) => ({
           page: {
             id,
@@ -334,9 +371,11 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
             },
           ],
         })
+
         yield* mac.load([today("from the mac", "01920000-0000-7000-8000-0000000000a1")])
         yield* ipad.load([today("from the ipad", "01920000-0000-7000-8000-0000000000a2")])
         yield* exchange
+
         for (const on of [mac, ipad]) {
           const journals = (yield* on.graph.pages).filter((one) => one.journalDay === day)
           assert.deepStrictEqual(
@@ -358,10 +397,12 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
         const fromIpad = yield* seedPage(ipad, "groceries", ["eggs", "butter"])
         yield* exchange
         const winner = fromMac.pageId < fromIpad.pageId ? fromMac : fromIpad
+
         const expected =
           winner === fromMac
             ? ["milk", "bread", "eggs", "butter"]
             : ["eggs", "butter", "milk", "bread"]
+
         for (const on of [mac, ipad]) {
           const groceries = (yield* on.graph.pages).filter((one) => one.name === "groceries")
           assert.deepStrictEqual(
@@ -385,13 +426,16 @@ describe("pages in their own trees, through the fake iCloud and the real vault",
         yield* exchange
         yield* mac.run({ _tag: "Undo" })
         yield* exchange
+
         for (const on of [mac, ipad]) {
           assert.deepStrictEqual(yield* outline(on, x), ["a", "b!", "  b1", "c"])
           assert.deepStrictEqual(yield* outline(on, y), ["y"])
           yield* indexMatchesGraph(on)
         }
+
         yield* mac.run({ _tag: "Redo" })
         yield* exchange
+
         for (const on of [mac, ipad]) {
           assert.deepStrictEqual(yield* outline(on, y), ["y", "b!", "  b1"])
           yield* indexMatchesGraph(on)

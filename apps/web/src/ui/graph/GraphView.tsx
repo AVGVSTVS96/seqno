@@ -10,19 +10,16 @@ import {
 } from "@tabler/icons-react"
 import { useNavigate } from "@tanstack/react-router"
 import { Atom } from "effect/reactivity"
-import { useContext, useId, useRef, useState, type ReactNode } from "react"
+import { useContext, useId, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { logseq } from "@seqno/dom"
 import { resolvedTheme, rightSidebar } from "../../atoms.ts"
-import {
-  allPagesGraph,
-  graphSettings,
-  graphVisibility,
-  pageGraph,
-  timeTravel,
-  type GraphSettings,
-} from "./atoms.ts"
-import { countVisible, createdRange, visibleOf, type Scene, type Visibility } from "./model.ts"
-import { createGraphView, type GraphView as View } from "./view.ts"
+import { allPagesGraph, graphSettings, graphVisibility, pageGraph, timeTravel } from "./atoms.ts"
+import type { GraphSettings } from "./atoms.ts"
+import { countVisible, createdRange, visibleOf } from "./model.ts"
+import type { Scene, Visibility } from "./model.ts"
+import { createGraphView } from "./view.ts"
+import type { GraphView as View } from "./view.ts"
 
 interface Picked {
   readonly name: string
@@ -44,7 +41,7 @@ const SelectionStatus = ({
   picked,
   onOpen,
 }: {
-  readonly picked: ReadonlyArray<Picked>
+  readonly picked: readonly Picked[]
   readonly onOpen: (name: string) => void
 }) => (
   <div className="graph-status" role="region" aria-label="Selected nodes">
@@ -60,7 +57,12 @@ const SelectionStatus = ({
       <ul>
         {picked.map((node) => (
           <li key={node.name}>
-            <button type="button" onClick={() => onOpen(node.name)}>
+            <button
+              type="button"
+              onClick={() => {
+                onOpen(node.name)
+              }}
+            >
               Open {node.title}
             </button>
           </li>
@@ -79,25 +81,33 @@ const Surface = ({
   readonly scene: Atom.Atom<Scene | null>
   readonly visibility: Atom.Atom<Visibility>
   readonly label: string
-  readonly children?: (view: View, picked: ReadonlyArray<Picked>) => ReactNode
+  readonly children?: (view: View, picked: readonly Picked[]) => ReactNode
 }) => {
   const registry = useContext(RegistryContext)
   const navigate = useNavigate()
   const updateSidebar = useAtomSet(rightSidebar)
-  const [picked, setPicked] = useState<ReadonlyArray<Picked>>([])
+  const [picked, setPicked] = useState<readonly Picked[]>([])
   const [ready, setReady] = useState(false)
   const open = (name: string) => void navigate({ to: "/page/$name", params: { name } })
+
   const [view] = useState(() =>
     createGraphView({
       open,
-      sidebar: (name) => updateSidebar({ _tag: "Open", item: { _tag: "Page", name } }),
+      sidebar: (name) => {
+        updateSidebar({ _tag: "Open", item: { _tag: "Page", name } })
+      },
       select: setPicked,
       ready: setReady,
     }),
   )
+
   const [attach] = useState(() => (canvas: HTMLCanvasElement | null) => {
-    if (canvas === null) return
+    if (canvas === null) {
+      return
+    }
+
     const detach = view.attach(canvas)
+
     const stops = [
       registry.subscribe(resolvedTheme, view.setTheme, { immediate: true }),
       registry.subscribe(
@@ -112,16 +122,23 @@ const Surface = ({
       registry.subscribe(
         scene,
         (current) => {
-          if (current !== null) view.setScene(current)
+          if (current !== null) {
+            view.setScene(current)
+          }
         },
         { immediate: true },
       ),
     ]
+
     return () => {
-      for (const stop of stops) stop()
+      for (const stop of stops) {
+        stop()
+      }
+
       detach()
     }
   })
+
   return (
     <div {...logseq("graph-root")}>
       <canvas ref={attach} className="graph-canvas" role="application" aria-label={label} />
@@ -163,7 +180,9 @@ const Slider = ({
       step={step}
       value={value}
       disabled={disabled}
-      onChange={(event) => onChange(Number(event.currentTarget.value))}
+      onChange={(event) => {
+        onChange(Number(event.currentTarget.value))
+      }}
     />
   </label>
 )
@@ -174,16 +193,21 @@ const SettingsPanel = ({
   onClose,
 }: {
   readonly scene: Scene | null
-  readonly picked: ReadonlyArray<Picked>
+  readonly picked: readonly Picked[]
   readonly onClose: () => void
 }) => {
   const [settings, setSettings] = useAtom(graphSettings)
   const visibility = useAtomValue(graphVisibility)
   const journalsLabel = useId()
   const orphansLabel = useId()
+
   const counts =
     scene === null ? { nodes: 0, links: 0 } : countVisible(scene, visibleOf(scene, visibility))
-  const change = (next: Partial<GraphSettings>) => setSettings({ ...settings, ...next })
+
+  const change = (next: Partial<GraphSettings>) => {
+    setSettings({ ...settings, ...next })
+  }
+
   return (
     <section className="graph-settings-panel" aria-label="Graph settings">
       <div className="graph-settings-head">
@@ -212,7 +236,9 @@ const SettingsPanel = ({
             max={5}
             step={1}
             disabled={picked.length === 0}
-            onChange={(depth) => change({ depth })}
+            onChange={(depth) => {
+              change({ depth })
+            }}
           />
           <Slider
             label="Link distance"
@@ -220,7 +246,9 @@ const SettingsPanel = ({
             min={36}
             max={180}
             step={6}
-            onChange={(linkDistance) => change({ linkDistance })}
+            onChange={(linkDistance) => {
+              change({ linkDistance })
+            }}
           />
           <div className="graph-toggle">
             <span id={journalsLabel}>Show journals</span>
@@ -230,7 +258,9 @@ const SettingsPanel = ({
               aria-checked={settings.journals}
               aria-labelledby={journalsLabel}
               className="switch"
-              onClick={() => change({ journals: !settings.journals })}
+              onClick={() => {
+                change({ journals: !settings.journals })
+              }}
             >
               <span className="switch-thumb" />
             </button>
@@ -243,7 +273,9 @@ const SettingsPanel = ({
               aria-checked={settings.orphans}
               aria-labelledby={orphansLabel}
               className="switch"
-              onClick={() => change({ orphans: !settings.orphans })}
+              onClick={() => {
+                change({ orphans: !settings.orphans })
+              }}
             >
               <span className="switch-thumb" />
             </button>
@@ -263,32 +295,54 @@ const TimeTravel = ({ scene }: { readonly scene: Scene | null }) => {
   const [open, setOpen] = useState(false)
   const [until, setUntil] = useAtom(timeTravel)
   const playing = useRef<number | null>(null)
+
   const [settle] = useState(() => (element: HTMLDivElement | null) => {
-    if (element === null) return
+    if (element === null) {
+      return
+    }
+
     return () => {
-      if (playing.current !== null) cancelAnimationFrame(playing.current)
+      if (playing.current !== null) {
+        cancelAnimationFrame(playing.current)
+      }
     }
   })
+
   const range = scene === null ? null : createdRange(scene)
-  if (range === null) return null
+
+  if (range === null) {
+    return null
+  }
+
   const span = range.last - range.first
   const value = until === null ? span : Math.min(span, Math.max(0, until - range.first))
-  const travel = (offset: number) => setUntil(offset >= span ? null : range.first + offset)
+
+  const travel = (offset: number) => {
+    setUntil(offset >= span ? null : range.first + offset)
+  }
+
   const stop = () => {
-    if (playing.current !== null) cancelAnimationFrame(playing.current)
+    if (playing.current !== null) {
+      cancelAnimationFrame(playing.current)
+    }
+
     playing.current = null
   }
+
   const play = () => {
     stop()
     const from = value >= span ? 0 : value
     const started = performance.now()
+
     const step = (now: number) => {
       const progress = Math.min(1, (now - started) / travelMs)
       travel(from + (span - from) * progress)
       playing.current = progress < 1 ? requestAnimationFrame(step) : null
     }
+
     playing.current = requestAnimationFrame(step)
   }
+
   return (
     <div className="graph-time-travel" data-open={open} ref={settle}>
       <button
@@ -297,7 +351,9 @@ const TimeTravel = ({ scene }: { readonly scene: Scene | null }) => {
         aria-label="Time travel"
         aria-expanded={open}
         title="Time travel"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setOpen(!open)
+        }}
       >
         {open ? <IconChevronDown size={18} aria-hidden /> : <IconHistory size={18} aria-hidden />}
       </button>
@@ -339,20 +395,21 @@ const TimeTravel = ({ scene }: { readonly scene: Scene | null }) => {
   )
 }
 
-const Toolbar = ({
-  view,
-  picked,
-}: {
-  readonly view: View
-  readonly picked: ReadonlyArray<Picked>
-}) => {
+const Toolbar = ({ view, picked }: { readonly view: View; readonly picked: readonly Picked[] }) => {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const scene = useAtomValue(allPagesGraph)
+
   return (
     <div {...logseq("graph-toolbar")}>
       <div className="graph-settings">
         {settingsOpen ? (
-          <SettingsPanel scene={scene} picked={picked} onClose={() => setSettingsOpen(false)} />
+          <SettingsPanel
+            scene={scene}
+            picked={picked}
+            onClose={() => {
+              setSettingsOpen(false)
+            }}
+          />
         ) : null}
         <button
           type="button"
@@ -360,7 +417,9 @@ const Toolbar = ({
           aria-label="Graph settings"
           aria-expanded={settingsOpen}
           title="Graph settings"
-          onClick={() => setSettingsOpen(!settingsOpen)}
+          onClick={() => {
+            setSettingsOpen(!settingsOpen)
+          }}
         >
           {settingsOpen ? (
             <IconChevronDown size={18} aria-hidden />

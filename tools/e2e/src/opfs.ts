@@ -10,8 +10,9 @@ const pickedFolders = "seqno-e2e-picked"
 export const fixtureGraph = (name: string) =>
   fileURLToPath(new URL(`../../../fixtures/${name}/`, import.meta.url))
 
-export const seedOpfs = async (page: Page, from: string, to: ReadonlyArray<string>) => {
+export const seedOpfs = async (page: Page, from: string, to: readonly string[]) => {
   const entries = await readdir(from, { recursive: true, withFileTypes: true })
+
   const files = entries
     .filter((entry) => entry.isFile())
     .map((entry, i) => ({
@@ -20,23 +21,29 @@ export const seedOpfs = async (page: Page, from: string, to: ReadonlyArray<strin
       name: entry.name,
       url: `${harnessPath}file/${i}`,
     }))
+
   const served = new Map(files.map((file) => [file.url, file.path]))
-  const serve = (route: Route) => {
+
+  const serve = async (route: Route) => {
     const path = served.get(new URL(route.request().url()).pathname)
-    return path === undefined
-      ? route.fulfill({ contentType: "text/html", body: "<!doctype html>" })
-      : route.fulfill({ path })
+
+    path === undefined
+      ? await route.fulfill({ contentType: "text/html", body: "<!doctype html>" })
+      : await route.fulfill({ path })
   }
+
   await page.route(routes, serve)
   await page.goto(`${harnessPath}seed`)
   await page.evaluate(
     async ({ folder, writes }) => {
       const root = navigator.storage.getDirectory()
-      const directory = (path: ReadonlyArray<string>) =>
-        path.reduce(
-          async (handle, part) => (await handle).getDirectoryHandle(part, { create: true }),
+
+      const directory = async (path: readonly string[]) =>
+        await path.reduce(
+          async (handle, part) => await (await handle).getDirectoryHandle(part, { create: true }),
           root,
         )
+
       await directory(folder)
       await Promise.all(
         writes.map(async ({ dir, name, url }) => {
@@ -53,41 +60,47 @@ export const seedOpfs = async (page: Page, from: string, to: ReadonlyArray<strin
   await page.unroute(routes, serve)
 }
 
-export const opfsFiles = async (page: Page, root: ReadonlyArray<string>) => {
+export const opfsFiles = async (page: Page, root: readonly string[]) => {
   const files = await page.evaluate(async (path) => {
     const found: Array<[string, string]> = []
+
     const walk = async (dir: FileSystemDirectoryHandle, prefix: string): Promise<void> => {
       for await (const entry of dir.values()) {
         if (entry.kind === "file") {
           let data: string | null = null
+
           while (data === null) {
             const file = await entry.getFile()
             data = await new Promise<string | null>((resolve, reject) => {
               const reader = new FileReader()
-              reader.addEventListener("load", () =>
-                resolve(String(reader.result).split(",")[1] ?? ""),
-              )
-              reader.addEventListener("error", () =>
-                reader.error?.name === "NotReadableError" ? resolve(null) : reject(reader.error),
-              )
+              reader.addEventListener("load", () => {
+                resolve(String(reader.result).split(",")[1] ?? "")
+              })
+              reader.addEventListener("error", () => {
+                reader.error?.name === "NotReadableError" ? resolve(null) : reject(reader.error)
+              })
               reader.readAsDataURL(file)
             })
           }
+
           found.push([`${prefix}${entry.name}`, data])
         } else {
           await walk(entry, `${prefix}${entry.name}/`)
         }
       }
     }
+
     await walk(
       await path.reduce(
-        async (dir, part) => (await dir).getDirectoryHandle(part),
+        async (dir, part) => await (await dir).getDirectoryHandle(part),
         navigator.storage.getDirectory(),
       ),
       "",
     )
+
     return found
   }, root)
+
   return Object.fromEntries(
     files.map(([path, bytes]) => [path, new Uint8Array(Buffer.from(bytes, "base64"))]),
   )
@@ -97,9 +110,9 @@ export const loadGraphFolder = async (page: Page, from: string) => {
   const folder = [pickedFolders, basename(from)]
   await seedOpfs(page, from, folder)
   await page.addInitScript((path) => {
-    window.showDirectoryPicker = () =>
-      path.reduce(
-        async (dir, part) => (await dir).getDirectoryHandle(part),
+    window.showDirectoryPicker = async () =>
+      await path.reduce(
+        async (dir, part) => await (await dir).getDirectoryHandle(part),
         navigator.storage.getDirectory(),
       )
   }, folder)
@@ -107,7 +120,7 @@ export const loadGraphFolder = async (page: Page, from: string) => {
 
 export const pickedFolder = (from: string) => [pickedFolders, basename(from)]
 
-export const opfsText = async (page: Page, root: ReadonlyArray<string>) =>
+export const opfsText = async (page: Page, root: readonly string[]) =>
   Object.fromEntries(
     Object.entries(await opfsFiles(page, root)).map(([path, bytes]) => [
       path,
@@ -115,17 +128,20 @@ export const opfsText = async (page: Page, root: ReadonlyArray<string>) =>
     ]),
   )
 
-export const opfsFile = (page: Page, root: ReadonlyArray<string>, path: string) =>
-  page.evaluate(
+export const opfsFile = async (page: Page, root: readonly string[], path: string) =>
+  await page.evaluate(
     async ({ dirs, file: at }) => {
       const parts = [...dirs, ...at.split("/")]
       const name = parts.pop() ?? ""
+
       try {
         const dir = await parts.reduce(
-          async (handle, part) => (await handle).getDirectoryHandle(part),
+          async (handle, part) => await (await handle).getDirectoryHandle(part),
           navigator.storage.getDirectory(),
         )
+
         const found = await (await dir.getFileHandle(name)).getFile()
+
         return { text: await found.text(), modified: found.lastModified }
       } catch {
         return null
@@ -134,37 +150,43 @@ export const opfsFile = (page: Page, root: ReadonlyArray<string>, path: string) 
     { dirs: root, file: path },
   )
 
-export const writeOpfsFile = (
+export const writeOpfsFile = async (
   page: Page,
-  root: ReadonlyArray<string>,
+  root: readonly string[],
   path: string,
   text: string,
-) =>
-  page.evaluate(
+) => {
+  await page.evaluate(
     async ({ dirs, file: at, text: body }) => {
       const parts = [...dirs, ...at.split("/")]
       const name = parts.pop() ?? ""
+
       const dir = await parts.reduce(
-        async (handle, part) => (await handle).getDirectoryHandle(part, { create: true }),
+        async (handle, part) => await (await handle).getDirectoryHandle(part, { create: true }),
         navigator.storage.getDirectory(),
       )
+
       const writable = await (await dir.getFileHandle(name, { create: true })).createWritable()
       await writable.write(body)
       await writable.close()
     },
     { dirs: root, file: path, text },
   )
+}
 
-export const removeOpfsEntry = (page: Page, root: ReadonlyArray<string>, path: string) =>
-  page.evaluate(
+export const removeOpfsEntry = async (page: Page, root: readonly string[], path: string) => {
+  await page.evaluate(
     async ({ dirs, file: at }) => {
       const parts = [...dirs, ...at.split("/")]
       const name = parts.pop() ?? ""
+
       const dir = await parts.reduce(
-        async (handle, part) => (await handle).getDirectoryHandle(part),
+        async (handle, part) => await (await handle).getDirectoryHandle(part),
         navigator.storage.getDirectory(),
       )
+
       await dir.removeEntry(name, { recursive: true })
     },
     { dirs: root, file: path },
   )
+}

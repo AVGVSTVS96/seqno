@@ -2,8 +2,10 @@ import { useAtomValue } from "@effect/atom-react"
 import { Option, Schema } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { ReactNode } from "react"
-import { BlockId, portalTarget, type Block, type Page, type PageId } from "@seqno/domain"
-import { blockAtom, Outliner, pageNamedAtom, type OutlinerProps } from "@seqno/outliner"
+import { BlockId, portalTarget } from "@seqno/domain"
+import type { Block, Page, PageId } from "@seqno/domain"
+import { blockAtom, Outliner, pageNamedAtom } from "@seqno/outliner"
+import type { OutlinerProps } from "@seqno/outliner"
 import type { Item } from "./model.ts"
 
 export type OutlinerEnv = Pick<
@@ -69,6 +71,7 @@ const Card = ({
   const width = "size" in shape ? shape.size[0] : 400
   const auto = portal?.isAutoResizing !== false
   const fixed = !auto && "size" in shape && portal?.collapsed !== true
+
   return (
     <div
       className="wb-portal"
@@ -108,18 +111,24 @@ const PagePortal = ({
     AsyncResult.map(useAtomValue(pageNamedAtom(name)), Option.fromNullishOr),
     Option.none<Page>,
   )
+
   const header = (
     <div className="wb-portal-header">
       <a
         role="link"
         tabIndex={-1}
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={(event) => env.openPage(name, event.shiftKey)}
+        onPointerDown={(event) => {
+          event.stopPropagation()
+        }}
+        onClick={(event) => {
+          env.openPage(name, event.shiftKey)
+        }}
       >
         {Option.match(page, { onNone: () => name, onSome: (found) => found.title })}
       </a>
     </div>
   )
+
   return (
     <Card {...card} header={header}>
       {Option.isSome(page) ? (
@@ -147,6 +156,7 @@ const BlockBody = ({
   readonly binding: boolean
 }) => {
   const compact = card.item.shape.type === "logseq-portal" && card.item.shape.compact === true
+
   return (
     <Card
       {...card}
@@ -203,7 +213,10 @@ export const PortalView = (props: {
       </Card>
     ),
     onSome: (target) => {
-      if (target._tag === "PagePortal") return <PagePortal name={target.name} {...props} />
+      if (target._tag === "PagePortal") {
+        return <PagePortal name={target.name} {...props} />
+      }
+
       return Option.match(decodeBlockId(target.uuid), {
         onNone: () => (
           <Card {...props} header={null}>

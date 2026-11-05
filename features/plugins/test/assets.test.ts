@@ -1,38 +1,48 @@
 import { describe, expect, it } from "vitest"
 import type { Asset } from "@seqno/rpc"
-import { assetsApi, type AssetBridge } from "../src/assets.ts"
+import { assetsApi } from "../src/assets.ts"
+import type { AssetBridge } from "../src/assets.ts"
 
-const graphOf = (paths: ReadonlyArray<string>) => {
+const graphOf = (paths: readonly string[]) => {
   const files = new Map<string, string>(paths.map((path) => [path, path]))
-  const opened: Array<string> = []
+  const opened: string[] = []
+
   const asset = (path: string): Asset => ({
     path,
     url: `data:text/plain,${encodeURIComponent(files.get(path) ?? "")}`,
     size: (files.get(path) ?? "").length,
-    modified: 1700000000000,
+    modified: 1_700_000_000_000,
   })
+
   const bridge: AssetBridge = {
     listed: () => [...files.keys()].toSorted().map(asset),
-    write: (path, data) => {
+    write: async (path, data) => {
       files.set(path, new TextDecoder().decode(data))
-      return Promise.resolve(asset(path))
+
+      return await Promise.resolve(asset(path))
     },
-    remove: (path) => {
+    remove: async (path) => {
       files.delete(path)
-      return Promise.resolve()
+
+      await Promise.resolve()
     },
     openPdf: (path) => void opened.push(path),
   }
+
   return { api: assetsApi(bridge, () => "notes"), files, opened }
 }
 
 const call = (
   api: ReturnType<typeof assetsApi>,
   method: string,
-  args: ReadonlyArray<unknown>,
+  args: readonly unknown[],
 ): unknown => {
   const run = api[method]
-  if (run === undefined) throw new Error(`no ${method}`)
+
+  if (run === undefined) {
+    throw new Error(`no ${method}`)
+  }
+
   return run("my-plugin", args)
 }
 
@@ -43,18 +53,18 @@ describe("logseq.Assets", () => {
       {
         path: "notes/assets/a.PNG",
         size: 12,
-        accessTime: 1700000000000,
-        modifiedTime: 1700000000000,
-        changeTime: 1700000000000,
-        birthTime: 1700000000000,
+        accessTime: 1_700_000_000_000,
+        modifiedTime: 1_700_000_000_000,
+        changeTime: 1_700_000_000_000,
+        birthTime: 1_700_000_000_000,
       },
       {
         path: "notes/assets/b.pdf",
         size: 12,
-        accessTime: 1700000000000,
-        modifiedTime: 1700000000000,
-        changeTime: 1700000000000,
-        birthTime: 1700000000000,
+        accessTime: 1_700_000_000_000,
+        modifiedTime: 1_700_000_000_000,
+        changeTime: 1_700_000_000_000,
+        birthTime: 1_700_000_000_000,
       },
     ])
     expect(call(api, "list_files_of_current_graph", [""])).toEqual([

@@ -26,7 +26,9 @@ test("keys typed right after Enter land in the new block", async ({ page, seqno 
 
 test("Ctrl+V right after Enter pastes into the new block", async ({ page, seqno }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
-  await page.evaluate(() => navigator.clipboard.writeText("pasted at once"))
+  await page.evaluate(async () => {
+    await navigator.clipboard.writeText("pasted at once")
+  })
   await page.keyboard.press("Enter")
   await page.keyboard.press("ControlOrMeta+v")
   await expect(seqno.today.getByRole("treeitem")).toHaveText([
@@ -41,6 +43,7 @@ test("a burst of Enter, text and Tab builds the outline in order", async ({ page
   for (const key of ["Enter", "a", "b", "Enter", "c", "d", "Tab", "e", "Escape"]) {
     await page.keyboard.press(key)
   }
+
   await expect(seqno.today.getByRole("treeitem")).toHaveText([
     welcome,
     "ab",
@@ -52,7 +55,10 @@ test("a burst of Enter, text and Tab builds the outline in order", async ({ page
 })
 
 test("Enter, Backspace and typing at machine speed lose no keys", async ({ page, seqno }) => {
-  for (const key of ["Enter", "Backspace", "X", "Y", "Z"]) await page.keyboard.press(key)
+  for (const key of ["Enter", "Backspace", "X", "Y", "Z"]) {
+    await page.keyboard.press(key)
+  }
+
   await expect(seqno.editor).toHaveText(`${welcome}XYZ`)
   await page.keyboard.press("Escape")
   await expect(seqno.today.getByRole("treeitem")).toHaveText([
@@ -67,7 +73,11 @@ test("ArrowDown and ArrowUp keep the caret's character offset, like Logseq", asy
   seqno,
 }) => {
   await page.keyboard.press("Home")
-  for (let step = 0; step < "Welcome to".length; step++) await page.keyboard.press("ArrowRight")
+
+  for (let step = 0; step < "Welcome to".length; step++) {
+    await page.keyboard.press("ArrowRight")
+  }
+
   await page.keyboard.press("ArrowDown")
   await page.keyboard.type("|")
   await expect(seqno.editor).toHaveText("Open [[Get|ting started]] to see how pages link")
@@ -116,7 +126,9 @@ test("/Scheduled picks a date in a calendar, and an empty block gets a warning",
 
 const linked = `${welcome} [[Getting started]]`
 
-const typeLink = (page: Page) => page.keyboard.type(" [[Get")
+const typeLink = async (page: Page) => {
+  await page.keyboard.type(" [[Get")
+}
 
 const closings: ReadonlyArray<readonly [string, (page: Page) => Promise<void>]> = [
   [
@@ -134,7 +146,12 @@ const closings: ReadonlyArray<readonly [string, (page: Page) => Promise<void>]> 
       await page.getByRole("option", { name: "Getting started" }).click()
     },
   ],
-  ["typing ]]", (page) => page.keyboard.type(" [[Getting started]]")],
+  [
+    "typing ]]",
+    async (page) => {
+      await page.keyboard.type(" [[Getting started]]")
+    },
+  ],
   [
     "Enter before the suggestions catch up",
     async (page) => {
@@ -173,10 +190,12 @@ test("clicking past the end of a block that ends in a link puts the caret after 
 }) => {
   await page.keyboard.type(" [[Getting started]]")
   await page.keyboard.press("Escape")
+
   const content = seqno.today
     .getByRole("treeitem")
     .filter({ hasText: welcome })
     .locator(".seqno-content")
+
   await expect(content.getByRole("link", { name: "Getting started" })).toBeVisible()
   await clickPastEnd(content)
   await page.keyboard.type("!")
@@ -215,7 +234,11 @@ test("Mod+O follows the ref under the caret, Mod+Shift+O opens it in the sidebar
 }) => {
   await page.keyboard.press("ArrowDown")
   await page.keyboard.press("Home")
-  for (let step = 0; step < "Open [[G".length; step++) await page.keyboard.press("ArrowRight")
+
+  for (let step = 0; step < "Open [[G".length; step++) {
+    await page.keyboard.press("ArrowRight")
+  }
+
   await page.keyboard.press("ControlOrMeta+Shift+O")
   const sidebar = page.getByRole("complementary", { name: "Right sidebar" })
   await expect(sidebar.getByRole("treeitem").first()).toBeVisible()

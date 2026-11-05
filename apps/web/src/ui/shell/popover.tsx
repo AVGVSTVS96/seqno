@@ -1,14 +1,6 @@
 import { logseq, names } from "@seqno/dom"
-import {
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-  type Ref,
-  type RefObject,
-  type ToggleEvent,
-} from "react"
+import { useId, useRef, useState } from "react"
+import type { KeyboardEvent, ReactNode, Ref, RefObject, ToggleEvent } from "react"
 import { createPortal } from "react-dom"
 import { Keys } from "./Keys.tsx"
 
@@ -39,8 +31,9 @@ const place = (popover: HTMLElement, box: DOMRect, placement: Placement) => {
   style.setProperty("--slide", above ? "8px" : "-8px")
 }
 
-const placeNear = (popover: HTMLElement, anchor: Element, placement: Placement) =>
+const placeNear = (popover: HTMLElement, anchor: Element, placement: Placement) => {
   place(popover, anchor.getBoundingClientRect(), placement)
+}
 
 const items = (menu: HTMLElement) =>
   [
@@ -66,17 +59,26 @@ export const onMenuKeyDown = (event: KeyboardEvent<HTMLElement>) => {
   if (event.key === "Tab") {
     event.preventDefault()
     event.currentTarget.hidePopover()
+
     return
   }
+
   const step = menuKeys[event.key]
-  if (step === undefined) return
+
+  if (step === undefined) {
+    return
+  }
+
   event.preventDefault()
   moveFocus(event.currentTarget, step)
 }
 
 const closePopoverOf = (element: Element) => {
   const popover = element.closest("[popover]")
-  if (popover instanceof HTMLElement) popover.hidePopover()
+
+  if (popover instanceof HTMLElement) {
+    popover.hidePopover()
+  }
 }
 
 export const showPopover = (id: string) => document.getElementById(id)?.showPopover()
@@ -120,6 +122,7 @@ export const usePopover = ({
   const anchor = useRef<HTMLButtonElement>(null)
   const openedBy = useRef<"pointer" | "keyboard">("pointer")
   const [open, setOpen] = useState(false)
+
   return {
     id,
     open,
@@ -135,13 +138,18 @@ export const usePopover = ({
       },
       onKeyDown: (event) => {
         openedBy.current = "keyboard"
-        if (event.key !== "ArrowDown" || open) return
+
+        if (event.key !== "ArrowDown" || open) {
+          return
+        }
+
         event.preventDefault()
         showPopover(id)
       },
     },
     onBeforeToggle: (event) => {
       const target = anchorOverride?.current ?? anchor.current
+
       if (event.newState === "open" && target !== null) {
         placeNear(event.currentTarget, target, placement)
       }
@@ -149,11 +157,19 @@ export const usePopover = ({
     onToggle: (event) => {
       const opened = event.newState === "open"
       setOpen(opened)
-      if (!opened) return
+
+      if (!opened) {
+        return
+      }
+
       onOpen?.()
       const first = items(event.currentTarget)[0]
-      if (kind === "menu" && openedBy.current === "keyboard" && first !== undefined) first.focus()
-      else event.currentTarget.focus()
+
+      if (kind === "menu" && openedBy.current === "keyboard" && first !== undefined) {
+        first.focus()
+      } else {
+        event.currentTarget.focus()
+      }
     },
   }
 }
@@ -205,11 +221,16 @@ export const MenuItem = ({
     tabIndex={-1}
     {...logseq("menu-item")}
     onPointerMove={(event) => {
-      if (document.activeElement !== event.currentTarget) event.currentTarget.focus()
+      if (document.activeElement !== event.currentTarget) {
+        event.currentTarget.focus()
+      }
     }}
     onPointerLeave={(event) => {
       const menu = event.currentTarget.closest("[role=menu]")
-      if (menu instanceof HTMLElement) menu.focus()
+
+      if (menu instanceof HTMLElement) {
+        menu.focus()
+      }
     }}
     onClick={(event) => {
       closePopoverOf(event.currentTarget)
@@ -226,7 +247,7 @@ export const MenuSeparator = () => <div role="separator" {...logseq("menu-separa
 
 export interface TooltipContent {
   readonly label: string
-  readonly keys?: ReadonlyArray<string>
+  readonly keys?: readonly string[]
   readonly body?: ReactNode
 }
 
@@ -235,17 +256,31 @@ const below: Placement = { align: "center", gap: 4, inset: 4 }
 export const useTooltip = (content: TooltipContent | undefined, placement: Placement = below) => {
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
   const id = useId()
-  const show = (element: HTMLElement) => setAnchor(element.getBoundingClientRect())
-  const hide = () => setAnchor(null)
-  if (content === undefined) return { props: {}, tooltip: null }
+
+  const show = (element: HTMLElement) => {
+    setAnchor(element.getBoundingClientRect())
+  }
+
+  const hide = () => {
+    setAnchor(null)
+  }
+
+  if (content === undefined) {
+    return { props: {}, tooltip: null }
+  }
+
   return {
     props: {
       "aria-describedby": anchor === null ? undefined : id,
-      onPointerEnter: (event: { readonly currentTarget: HTMLElement }) => show(event.currentTarget),
+      onPointerEnter: (event: { readonly currentTarget: HTMLElement }) => {
+        show(event.currentTarget)
+      },
       onPointerLeave: hide,
       onPointerDownCapture: hide,
       onFocus: (event: { readonly currentTarget: HTMLElement }) => {
-        if (event.currentTarget.matches(":focus-visible")) show(event.currentTarget)
+        if (event.currentTarget.matches(":focus-visible")) {
+          show(event.currentTarget)
+        }
       },
       onBlur: hide,
     },
@@ -260,7 +295,10 @@ export const useTooltip = (content: TooltipContent | undefined, placement: Place
               {...logseq("tooltip")}
               data-plain={content.keys === undefined || undefined}
               ref={(element) => {
-                if (element === null) return
+                if (element === null) {
+                  return
+                }
+
                 place(element, anchor, placement)
                 element.showPopover()
               }}
@@ -276,9 +314,16 @@ export const useTooltip = (content: TooltipContent | undefined, placement: Place
 
 export const openDialog = (id: string) => {
   const dialog = document.getElementById(id)
-  if (!(dialog instanceof HTMLDialogElement) || dialog.open) return
+
+  if (!(dialog instanceof HTMLDialogElement) || dialog.open) {
+    return
+  }
+
   dialog.showModal()
-  if (dialog.dataset["focusSelf"] !== undefined) dialog.focus()
+
+  if (dialog.dataset["focusSelf"] !== undefined) {
+    dialog.focus()
+  }
 }
 
 export const closeDialogOf = (element: Element) => element.closest("dialog")?.close()
@@ -308,7 +353,9 @@ export const Dialog = ({
     {...(focusSelf ? { tabIndex: -1, "data-focus-self": "" } : {})}
     className={names(logseq("dialog").className, className)}
     onClick={(event) => {
-      if (event.target === event.currentTarget) event.currentTarget.close()
+      if (event.target === event.currentTarget) {
+        event.currentTarget.close()
+      }
     }}
   >
     {children}

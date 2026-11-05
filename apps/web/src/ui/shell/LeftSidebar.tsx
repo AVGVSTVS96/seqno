@@ -12,12 +12,15 @@ import {
   IconStarOff,
 } from "@tabler/icons-react"
 import { Link } from "@tanstack/react-router"
-import { useState, type ReactNode } from "react"
-import { isWhiteboard, type Page } from "@seqno/domain"
+import { useState } from "react"
+import type { ReactNode } from "react"
+import { isWhiteboard } from "@seqno/domain"
+import type { Page } from "@seqno/domain"
 import { assetPageName } from "@seqno/syntax"
 import { boardTitle } from "@seqno/whiteboard"
 import { allPages, favorites, leftSidebarOpen, rightSidebar, toggleFavorite } from "../../atoms.ts"
-import { pageNames, type PageName } from "../pages/atoms.ts"
+import { pageNames } from "../pages/atoms.ts"
+import type { PageName } from "../pages/atoms.ts"
 import { GraphSwitcher } from "./GraphSwitcher.tsx"
 import { Keys } from "./Keys.tsx"
 import { keysOf } from "./shortcuts.ts"
@@ -30,8 +33,8 @@ import {
   leftSidebarWidth,
   leftWidthAt,
   recentPages,
-  type SidebarGroup,
 } from "./state.ts"
+import type { SidebarGroup } from "./state.ts"
 
 const Group = ({
   title,
@@ -44,13 +47,16 @@ const Group = ({
 }) => {
   const [collapsed, setCollapsed] = useAtom(collapsedGroups)
   const expanded = group === null || !collapsed.includes(group)
+
   const toggle =
     group === null
       ? undefined
-      : () =>
+      : () => {
           setCollapsed(
             expanded ? [...collapsed, group] : collapsed.filter((other) => other !== group),
           )
+        }
+
   return (
     <section
       {...logseq("sidebar-group", { group, expanded })}
@@ -96,7 +102,7 @@ const NavItem = ({
   readonly to: "/" | "/whiteboards" | "/all-pages" | "/graph"
   readonly icon: ReactNode
   readonly label: string
-  readonly keys?: ReadonlyArray<string>
+  readonly keys?: readonly string[]
   readonly tour?: string
   readonly onClick?: () => void
 }) => (
@@ -128,12 +134,17 @@ const PageLink = ({
   readonly onUnfavorite?: () => void
 }) => {
   const updateSidebar = useAtomSet(rightSidebar)
+
   const board = useAtomValue(allPages).find(
     (candidate) => candidate.name === page.name && isWhiteboard(candidate),
   )
+
   const menu = usePopover({ placement: { align: "center", gap: 4, inset: 8 }, kind: "menu" })
-  const openInSidebar = () =>
+
+  const openInSidebar = () => {
     updateSidebar({ _tag: "Open", item: { _tag: "Page", name: page.name } })
+  }
+
   return (
     <li {...logseq("page-link", { kind, name: page.name })}>
       <Link
@@ -141,7 +152,10 @@ const PageLink = ({
         params={{ name: page.name }}
         className="page-link-anchor"
         onClick={(event) => {
-          if (!event.shiftKey) return
+          if (!event.shiftKey) {
+            return
+          }
+
           event.preventDefault()
           openInSidebar()
         }}
@@ -187,7 +201,11 @@ const PageLink = ({
 const Favorites = () => {
   const starred = useAtomValue(favorites)
   const toggle = useAtomSet(toggleFavorite)
-  const unfavorite = (page: Page) => () => toggle(page.name)
+
+  const unfavorite = (page: Page) => () => {
+    toggle(page.name)
+  }
+
   return (
     <Group title="Favorites" group="favorites">
       {starred.length === 0 ? null : (
@@ -205,10 +223,13 @@ const Recent = ({ graph }: { readonly graph: string }) => {
   const names = useAtomValue(recentPages)[graph] ?? []
   const everyPage = useAtomValue(pageNames)
   const byName = new Map(everyPage.map((page) => [page.name, page]))
+
   const visited = names.flatMap((name) => {
     const page = byName.get(name)
+
     return page === undefined ? [] : [page]
   })
+
   return (
     <Group title="Recent" group="recent">
       {visited.length === 0 ? null : (
@@ -227,6 +248,7 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
   const [width, setWidth] = useAtom(leftSidebarWidth)
   const welcome = useWhiteboardWelcome(graph)
   const [scrolled, setScrolled] = useState(false)
+
   return (
     <aside
       {...logseq("left-sidebar", open)}
@@ -271,7 +293,9 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
           </div>
           <div
             {...logseq("left-sidebar-contents", scrolled)}
-            onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 2)}
+            onScroll={(event) => {
+              setScrolled(event.currentTarget.scrollTop > 2)
+            }}
           >
             <Favorites />
             <Recent graph={graph} />
@@ -287,6 +311,7 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
             const app = document.querySelector<HTMLElement>(".app")
             app?.setAttribute("data-resizing", "")
             const latest = { width }
+
             return {
               onMove: (pointerX) => {
                 latest.width = leftWidthAt(pointerX)

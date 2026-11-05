@@ -19,8 +19,12 @@ const tourStep = Atom.make<0 | 1 | null>(null).pipe(Atom.keepAlive)
 export const useWhiteboardWelcome = (graph: string) => {
   const [seen, setSeen] = useAtom(whiteboardTourSeen)
   const open = useAtomSet(welcomeOpen)
+
   return () => {
-    if (seen || isDemoGraph(graph) || /Mobi/.test(navigator.userAgent)) return
+    if (seen || isDemoGraph(graph) || /Mobi/.test(navigator.userAgent)) {
+      return
+    }
+
     open(true)
     setSeen(true)
   }
@@ -31,15 +35,23 @@ export const WhiteboardWelcome = () => {
   const startTour = useAtomSet(tourStep)
   const showSidebar = useAtomSet(leftSidebarOpen)
   const title = useId()
-  if (!open) return null
+
+  if (!open) {
+    return null
+  }
+
   return (
     <dialog
       className={names(logseq("dialog").className, "seqno-whiteboard-welcome-dialog")}
       aria-labelledby={title}
       ref={(dialog) => {
-        if (dialog !== null && !dialog.open) dialog.showModal()
+        if (dialog !== null && !dialog.open) {
+          dialog.showModal()
+        }
       }}
-      onClose={() => setOpen(false)}
+      onClose={() => {
+        setOpen(false)
+      }}
     >
       <div {...logseq("seqno-whiteboard-welcome")}>
         <span {...logseq("seqno-whiteboard-welcome-hero")} aria-hidden />
@@ -91,14 +103,28 @@ export const WhiteboardTour = () => {
   const [step, setStep] = useAtom(tourStep)
   const navigate = useNavigate()
   const title = useId()
-  if (step === null) return null
+
+  if (step === null) {
+    return null
+  }
+
   const shown = steps[step]
-  const end = () => setStep(null)
+
+  const end = () => {
+    setStep(null)
+  }
+
   const next = () => {
-    if (step === 1) return end()
+    if (step === 1) {
+      end()
+
+      return
+    }
+
     void navigate({ to: "/whiteboards" })
     setStep(1)
   }
+
   return (
     <div className="seqno-tour" data-step={shown.id}>
       <div {...logseq("seqno-tour-shade")} data-side="top" />
@@ -113,9 +139,13 @@ export const WhiteboardTour = () => {
         {...logseq("seqno-tour-step", shown.id)}
         ref={(node) => node?.focus({ preventScroll: true })}
         onKeyDown={(event) => {
-          if (event.key === "Escape") end()
-          else if (event.key === "ArrowRight") next()
-          else if (event.key === "ArrowLeft" && step === 1) setStep(0)
+          if (event.key === "Escape") {
+            end()
+          } else if (event.key === "ArrowRight") {
+            next()
+          } else if (event.key === "ArrowLeft" && step === 1) {
+            setStep(0)
+          }
         }}
       >
         <div {...logseq("seqno-tour-arrow")} />
@@ -148,7 +178,9 @@ export const WhiteboardTour = () => {
                 type="button"
                 {...logseq("seqno-tour-button", true)}
                 data-back
-                onClick={() => setStep(0)}
+                onClick={() => {
+                  setStep(0)
+                }}
               >
                 Back
               </button>

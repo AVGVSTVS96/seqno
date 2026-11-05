@@ -10,6 +10,7 @@ export const TWITTER_REGEX = /https?:\/\/twitter.com\/[0-9a-zA-Z_]{1,20}\/status
 export const isWebUrl = (text: string) => {
   try {
     const url = new URL(text)
+
     return url.host !== "" && (url.protocol === "http:" || url.protocol === "https:")
   } catch {
     return false
@@ -41,6 +42,7 @@ const tweetId = (url: string) => TWITTER_REGEX.exec(url)?.[1] ?? url
 
 export const YouTubeView = ({ url, still }: { readonly url: string; readonly still: boolean }) => {
   const id = youtubeId(url)
+
   return (
     <div
       className="wb-youtube"
@@ -82,6 +84,7 @@ const decodeResizeText = Schema.decodeUnknownOption(Schema.fromJsonString(Resize
 
 const heightIn = (data: unknown): number | null => {
   const resize = typeof data === "string" ? decodeResizeText(data) : decodeResize(data)
+
   return Option.match(resize, {
     onNone: () => null,
     onSome: (message) => message["twttr.embed"].params[0]?.height ?? null,
@@ -99,16 +102,31 @@ export const TweetView = ({
 }) => {
   const id = tweetId(url)
   const [height, setHeight] = useState<number | null>(null)
+
   const [frame] = useState(() => (node: HTMLIFrameElement | null) => {
-    if (node === null) return
-    const listen = (event: MessageEvent) => {
-      if (event.origin !== TWITTER_ORIGIN || event.source !== node.contentWindow) return
-      const next = heightIn(event.data)
-      if (next !== null) setHeight(next)
+    if (node === null) {
+      return
     }
+
+    const listen = (event: MessageEvent) => {
+      if (event.origin !== TWITTER_ORIGIN || event.source !== node.contentWindow) {
+        return
+      }
+
+      const next = heightIn(event.data)
+
+      if (next !== null) {
+        setHeight(next)
+      }
+    }
+
     window.addEventListener("message", listen)
-    return () => window.removeEventListener("message", listen)
+
+    return () => {
+      window.removeEventListener("message", listen)
+    }
   })
+
   return (
     <div className="wb-tweet">
       {id === "" ? null : (
@@ -154,16 +172,22 @@ const DROPPED = new Set(["script", "style", "link", "meta", "base", "object", "e
 
 export const cleanHtml = (html: string): string => {
   const doc = new DOMParser().parseFromString(html.trim(), "text/html")
+
   for (const element of doc.body.querySelectorAll("*")) {
     if (DROPPED.has(element.localName)) {
       element.remove()
       continue
     }
+
     for (const name of element.getAttributeNames()) {
       const value = (element.getAttribute(name) ?? "").trim().toLowerCase()
-      if (name.startsWith("on") || value.startsWith("javascript:")) element.removeAttribute(name)
+
+      if (name.startsWith("on") || value.startsWith("javascript:")) {
+        element.removeAttribute(name)
+      }
     }
   }
+
   return doc.body.innerHTML
 }
 

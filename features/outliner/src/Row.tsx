@@ -1,11 +1,5 @@
-import {
-  useState,
-  type DragEvent,
-  type MouseEvent,
-  type PointerEvent,
-  type ReactNode,
-  type Ref,
-} from "react"
+import { useState } from "react"
+import type { DragEvent, MouseEvent, PointerEvent, ReactNode, Ref } from "react"
 import { IconCaretRightFilled } from "@tabler/icons-react"
 import { logseq } from "@seqno/dom"
 import type { BlockId } from "@seqno/domain"
@@ -35,7 +29,7 @@ export interface RowProps {
   readonly content: BlockContent
   readonly ordinal: number | null
   readonly firstChild: boolean
-  readonly nextPath: ReadonlyArray<BlockId>
+  readonly nextPath: readonly BlockId[]
   readonly selected: boolean
   readonly dragged: boolean
   readonly highlight: Highlight | undefined
@@ -93,10 +87,12 @@ export const RowView = ({
   const numbered = ordinal !== null
   const [hovered, setHovered] = useState(false)
   const hidden = documentMode && !folded && !hovered
+
   const offset =
     content.title === null || content.heading === null
       ? undefined
       : firstLineOffset[content.heading]
+
   return (
     <div
       ref={measure}
@@ -117,11 +113,16 @@ export const RowView = ({
       aria-expanded={row.hasChildren ? row.expanded : undefined}
       style={{ paddingLeft: indent(depth) }}
       onPointerEnter={(event) => {
-        if (documentMode) setHovered(true)
+        if (documentMode) {
+          setHovered(true)
+        }
+
         actions.sweep(event)
       }}
       onPointerLeave={() => {
-        if (documentMode) setHovered(false)
+        if (documentMode) {
+          setHovered(false)
+        }
       }}
       onDragOver={actions.dragOver}
       onDrop={actions.drop}
@@ -156,8 +157,12 @@ export const RowView = ({
           style={{
             left: indent(level, "var(--block-control-size) + var(--bullet-box) / 2 - 2px"),
           }}
-          onPointerEnter={() => actions.guide(ancestor)}
-          onPointerLeave={() => actions.guide(null)}
+          onPointerEnter={() => {
+            actions.guide(ancestor)
+          }}
+          onPointerLeave={() => {
+            actions.guide(null)
+          }}
           onClick={(event) => {
             event.stopPropagation()
             actions.fold(ancestor)
@@ -211,7 +216,9 @@ export const RowView = ({
           onClick={actions.content}
           onPointerDown={actions.press}
           onContextMenu={(event) => {
-            if (selected) actions.menu(event)
+            if (selected) {
+              actions.menu(event)
+            }
           }}
         >
           {children}

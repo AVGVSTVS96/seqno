@@ -1,7 +1,8 @@
 import { logseq } from "@seqno/dom"
 import { RegistryContext, useAtom, useAtomValue } from "@effect/atom-react"
 import { IconDownload, IconX } from "@tabler/icons-react"
-import { Atom, type AtomRegistry } from "effect/reactivity"
+import { Atom } from "effect/reactivity"
+import type { AtomRegistry } from "effect/reactivity"
 import {
   checkAllUpdates,
   lastAutoCheck,
@@ -10,8 +11,8 @@ import {
   updatesComing,
   updatesDownloading,
   updatesUnchecked,
-  type Updated,
 } from "@seqno/plugins"
+import type { Updated } from "@seqno/plugins"
 import { useContext } from "react"
 import { notify } from "../shell/Notices.tsx"
 
@@ -23,7 +24,10 @@ export const openPluginUpdates = (registry: AtomRegistry.AtomRegistry) => {
 }
 
 export const notifyUpdated = (registry: AtomRegistry.AtomRegistry, result: Updated | null) => {
-  if (result === null) return
+  if (result === null) {
+    return
+  }
+
   notify(
     registry,
     result._tag === "Updated"
@@ -34,17 +38,25 @@ export const notifyUpdated = (registry: AtomRegistry.AtomRegistry, result: Updat
 
 export const checkAll = async (registry: AtomRegistry.AtomRegistry, themes: boolean) => {
   const { failures, cancelled } = await checkAllUpdates(registry, themes)
-  for (const failure of failures) notify(registry, `[Checked]<${failure.title}> ${failure.reason}`)
-  if (!cancelled && registry.get(updatesComing).length > 0) openPluginUpdates(registry)
+
+  for (const failure of failures) {
+    notify(registry, `[Checked]<${failure.title}> ${failure.reason}`)
+  }
+
+  if (!cancelled && registry.get(updatesComing).length > 0) {
+    openPluginUpdates(registry)
+  }
 }
 
 export const AutoCheckUpdates = () => {
   const registry = useContext(RegistryContext)
   const on = useAtomValue(lastAutoCheck) !== false
+
   const toggle = () => {
     setAutoCheck(registry, !on)
     notify(registry, `Auto check for updates ${on ? "OFF" : "ON"}!`)
   }
+
   return (
     <button
       type="button"
@@ -68,10 +80,14 @@ const Updates = () => {
   const updates = useAtomValue(updatesComing)
   const downloading = useAtomValue(updatesDownloading)
   const [unchecked, setUnchecked] = useAtom(updatesUnchecked)
+
   const updateAll = () =>
     void updateSelected(registry).then((done) => {
-      for (const result of done) notifyUpdated(registry, result)
+      for (const result of done) {
+        notifyUpdated(registry, result)
+      }
     })
+
   return (
     <>
       <h2 className="plugin-updates-title">Found {updates.length} updates</h2>
@@ -82,6 +98,7 @@ const Updates = () => {
           <ul {...logseq("plugin-updates-list", downloading)}>
             {updates.map((update) => {
               const checked = !unchecked.includes(update.pid)
+
               return (
                 <li key={update.pid} {...logseq("plugin-update-item", checked)}>
                   <label>
@@ -89,13 +106,13 @@ const Updates = () => {
                       type="checkbox"
                       checked={checked}
                       disabled={downloading}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setUnchecked(
                           event.target.checked
                             ? unchecked.filter((pid) => pid !== update.pid)
                             : [...unchecked, update.pid],
                         )
-                      }
+                      }}
                     />
                     <strong>
                       {update.title}
@@ -130,16 +147,23 @@ const Updates = () => {
 
 export const PluginUpdates = () => {
   const [open, setOpen] = useAtom(updatesOpen)
+
   return (
     <dialog
       aria-label="Plugin updates"
       className={`dialog ${logseq("plugin-updates").className}`}
       ref={(dialog) => {
-        if (dialog !== null && open && !dialog.open) dialog.showModal()
+        if (dialog !== null && open && !dialog.open) {
+          dialog.showModal()
+        }
       }}
-      onClose={() => setOpen(false)}
+      onClose={() => {
+        setOpen(false)
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) event.currentTarget.close()
+        if (event.target === event.currentTarget) {
+          event.currentTarget.close()
+        }
       }}
     >
       <button

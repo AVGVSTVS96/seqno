@@ -1,4 +1,5 @@
-import { Context, type Crypto, type Effect, type Option, type Scope } from "effect"
+import { Context } from "effect"
+import type { Crypto, Effect, Option, Scope } from "effect"
 import type { Block, BlockId, Command, DeviceId, GraphEvent, PageId } from "@seqno/domain"
 import type { CommandRejected } from "@seqno/rpc"
 import type { CloudFs } from "./cloud.ts"
@@ -11,13 +12,10 @@ export type Fate =
 
 export interface Replica {
   readonly peer: string
-  readonly dispatch: (command: Command) => Effect.Effect<ReadonlyArray<GraphEvent>, CommandRejected>
+  readonly dispatch: (command: Command) => Effect.Effect<readonly GraphEvent[], CommandRejected>
   readonly block: (id: BlockId) => Effect.Effect<Option.Option<Block>>
   readonly pageAlive: (id: PageId) => Effect.Effect<boolean>
-  readonly children: (
-    pageId: PageId,
-    parentId: BlockId | null,
-  ) => Effect.Effect<ReadonlyArray<BlockId>>
+  readonly children: (pageId: PageId, parentId: BlockId | null) => Effect.Effect<readonly BlockId[]>
   readonly fate: (id: string) => Effect.Effect<Fate>
   readonly version: Effect.Effect<VV>
   readonly exportUpdates: (from: VV) => Effect.Effect<Uint8Array>
@@ -25,7 +23,7 @@ export interface Replica {
     write: (bytes: Uint8Array) => Effect.Effect<unknown, E>,
   ) => Effect.Effect<void, E>
   readonly exportSnapshot: Effect.Effect<Uint8Array>
-  readonly importBlobs: (blobs: ReadonlyArray<Uint8Array>) => Effect.Effect<ReadonlyArray<boolean>>
+  readonly importBlobs: (blobs: readonly Uint8Array[]) => Effect.Effect<readonly boolean[]>
   readonly restoreSnapshot: (bytes: Uint8Array) => Effect.Effect<Option.Option<VV>>
   readonly canonical: Effect.Effect<string>
   readonly liveNodes: Effect.Effect<number>
@@ -33,8 +31,8 @@ export interface Replica {
 }
 
 export interface Shape {
-  readonly names: ReadonlyArray<string>
-  readonly blocks: ReadonlyArray<string>
+  readonly names: readonly string[]
+  readonly blocks: readonly string[]
 }
 
 export interface ReplicaSpec {
@@ -53,7 +51,7 @@ export class Graphs extends Context.Service<
 
 export interface VaultSpec {
   readonly deviceId: DeviceId
-  readonly members: ReadonlyArray<DeviceId>
+  readonly members: readonly DeviceId[]
   readonly compaction: boolean
   readonly compactAfterFiles: number
   readonly compactMinIntervalMs: number

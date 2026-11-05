@@ -3,7 +3,7 @@ import { Effect, Exit, Option, Stream } from "effect"
 import type { GraphEvent, PageId } from "@seqno/domain"
 import { nth, openGraph, outline, seedPage } from "./support.ts"
 
-const upserted = (events: ReadonlyArray<GraphEvent>) =>
+const upserted = (events: readonly GraphEvent[]) =>
   events
     .flatMap((event) =>
       event._tag === "BlockUpserted"
@@ -19,14 +19,17 @@ describe("restoring an edit log into an empty graph", () => {
     Effect.scoped(
       Effect.gen(function* () {
         const origin = yield* openGraph("1")
+
         const others = yield* Effect.forEach(
           Array.from({ length: 50 }, (_, at) => `Page ${at}`),
           (title) => Effect.map(seedPage(origin, title, ["note"]), ({ pageId }) => pageId),
         )
+
         const { pageId, ids } = yield* seedPage(origin, "Deep", ["outer", "  inner"])
         const elsewhere = nth(others, 0)
         const snapshot = yield* origin.snapshot
         const reopened = Effect.tap(openGraph("2"), (graph) => graph.restore([snapshot]))
+
         const now = (graph: Effect.Success<typeof reopened>, page: PageId) =>
           Exit.map(Effect.runSyncExit(graph.block(nth(ids, 1), page)), (block) => block.text)
 
@@ -68,6 +71,7 @@ describe("restoring an edit log into an empty graph", () => {
         const laptop = yield* openGraph("2")
         yield* seedPage(phone, "Oct 10th, 2026", ["from the phone"])
         yield* seedPage(laptop, "Oct 10th, 2026", ["from the laptop"])
+
         const updates = [
           ...Option.toArray(yield* phone.flush(() => Effect.void)),
           ...Option.toArray(yield* laptop.flush(() => Effect.void)),

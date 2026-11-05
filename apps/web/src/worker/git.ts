@@ -1,6 +1,8 @@
 import { Context, Effect, Layer, Option, PubSub, Schema, Stream, SubscriptionRef } from "effect"
-import { makeGit, type FsClient, type Git, type Globals } from "@seqno/git"
-import { GitFailed, GitSettings, defaultGitSettings, type GitNotice } from "@seqno/rpc"
+import { makeGit } from "@seqno/git"
+import type { FsClient, Git, Globals } from "@seqno/git"
+import { GitFailed, GitSettings, defaultGitSettings } from "@seqno/rpc"
+import type { GitNotice } from "@seqno/rpc"
 import type { Storage } from "@seqno/vault"
 import { ignoreSeqnoFiles } from "./mirror.ts"
 
@@ -36,16 +38,20 @@ export const layerGitDevice = (files: {
     GitDevice,
     Effect.gen(function* () {
       const stored = yield* files.settings.read
+
       const settings = yield* SubscriptionRef.make(
         Option.getOrElse(
           Schema.decodeUnknownOption(SettingsJson)(stored ?? ""),
           () => defaultGitSettings,
         ),
       )
+
       const notices = yield* PubSub.unbounded<GitNotice>()
+
       const readConfig = Effect.map(files.config.read, (text) =>
         Option.getOrElse(Schema.decodeUnknownOption(ConfigJson)(text ?? ""), () => ({})),
       )
+
       return GitDevice.of({
         settings,
         notices,
@@ -55,11 +61,12 @@ export const layerGitDevice = (files: {
             SubscriptionRef.set(settings, next),
           ),
         globals: {
-          read: () => Effect.runPromise(readConfig),
-          write: (config) =>
-            Effect.runPromise(
+          read: async () => await Effect.runPromise(readConfig),
+          write: async (config) => {
+            await Effect.runPromise(
               Effect.orDie(files.config.write(Schema.encodeSync(ConfigJson)(config))),
-            ),
+            )
+          },
         },
       })
     }),
@@ -72,7 +79,7 @@ export const layerGitDeviceMemory = layerGitDevice({
 
 export interface GraphGit {
   readonly git: Git
-  readonly touched: (paths: ReadonlyArray<string>) => Effect.Effect<void>
+  readonly touched: (paths: readonly string[]) => Effect.Effect<void>
   readonly loadIgnore: Effect.Effect<string, GitFailed>
   readonly saveIgnore: (text: string) => Effect.Effect<void, GitFailed>
   readonly version: (path: string, oid: string) => Effect.Effect<string, GitFailed>
@@ -94,21 +101,29 @@ export const openGit = (
 ) =>
   Effect.gen(function* () {
     const device = yield* GitDevice
-    if (yield* mayWrite) yield* ignoreSeqnoFiles(storage)
+
+    if (yield* mayWrite) {
+      yield* ignoreSeqnoFiles(storage)
+    }
+
     const git = yield* makeGit({
       fs: place.fs,
       globals: device.globals,
       lock: place.lock,
       graphPath: place.graphPath,
     })
+
     const pending = new Set<string>()
     const unstaged = { everything: false }
 
-    const touched = (paths: ReadonlyArray<string>) =>
+    const touched = (paths: readonly string[]) =>
       Effect.sync(() => {
         for (const path of paths) {
-          if (path === "") unstaged.everything = true
-          else if (path !== ".git" && !path.startsWith(".git/")) pending.add(path)
+          if (path === "") {
+            unstaged.everything = true
+          } else if (path !== ".git" && !path.startsWith(".git/")) {
+            pending.add(path)
+          }
         }
       })
 
@@ -116,17 +131,21 @@ export const openGit = (
       const paths = unstaged.everything ? undefined : [...pending]
       pending.clear()
       unstaged.everything = false
+
       return paths
     }
 
-    const putBack = (paths: ReadonlyArray<string> | undefined) =>
+    const putBack = (paths: readonly string[] | undefined) =>
       Effect.andThen(
         paths === undefined ? Effect.sync(() => (unstaged.everything = true)) : touched(paths),
         Effect.void,
       )
 
     const autoCommit = Effect.gen(function* () {
-      if (!(yield* mayWrite)) return
+      if (!(yield* mayWrite)) {
+        return
+      }
+
       const paths = taken()
       yield* git.commitAll("", paths).pipe(
         Effect.flatMap((done) =>
@@ -171,9 +190,11 @@ export const openGit = (
     const closing = Effect.flatMap(SubscriptionRef.get(device.settings), (settings) =>
       settings.autoCommit && settings.commitOnClose ? autoCommit : Effect.void,
     )
+
     yield* Effect.addFinalizer(() => closing)
 
     const encoder = new TextEncoder()
+
     const graphGit: GraphGit = {
       git,
       touched,
@@ -194,5 +215,6 @@ export const openGit = (
             : Effect.fail(new GitFailed({ reason: shown.stderr.trim() })),
         ),
     }
+
     return graphGit
   })

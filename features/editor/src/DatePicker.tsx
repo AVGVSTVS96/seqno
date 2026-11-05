@@ -1,17 +1,11 @@
 import { logseq } from "@seqno/dom"
 import { IconChevronDown, IconX } from "@tabler/icons-react"
-import { useState, type KeyboardEvent } from "react"
+import { useState } from "react"
+import type { KeyboardEvent } from "react"
 import { createPortal } from "react-dom"
 import { clockTime, shiftDays } from "./dates.ts"
-import {
-  closeDatePicker,
-  plannedDate,
-  repeatUnits,
-  submitDate,
-  type DatePickerFrame,
-  type Repeater,
-  type RepeatUnit,
-} from "./planning.ts"
+import { closeDatePicker, plannedDate, repeatUnits, submitDate } from "./planning.ts"
+import type { DatePickerFrame, Repeater, RepeatUnit } from "./planning.ts"
 
 const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const
 
@@ -20,9 +14,10 @@ const sameDay = (left: Date, right: Date) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate()
 
-export const monthGrid = (month: Date): ReadonlyArray<ReadonlyArray<Date>> => {
+export const monthGrid = (month: Date): ReadonlyArray<readonly Date[]> => {
   const first = new Date(month.getFullYear(), month.getMonth(), 1)
   const start = shiftDays(first, -first.getDay())
+
   return Array.from({ length: 6 }, (_row, week) =>
     Array.from({ length: 7 }, (_cell, day) => shiftDays(start, week * 7 + day)),
   )
@@ -48,18 +43,28 @@ const Remove = ({ label, onClick }: { readonly label: string; readonly onClick: 
 export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
   const { kind, view, dom } = frame
   const [now] = useState(() => new Date())
+
   const [chosen, setChosen] = useState(
     () => plannedDate(view.state.doc.toString(), kind) ?? new Date(now),
   )
+
   const [month, setMonth] = useState(() => new Date(chosen.getFullYear(), chosen.getMonth(), 1))
   const [time, setTime] = useState<string | null>(null)
   const [repeater, setRepeater] = useState<Repeater | null>(null)
+
   const close = () => {
     view.dispatch({ effects: closeDatePicker.of(null) })
     view.focus()
   }
-  const submit = () => submitDate(view, kind, { date: chosen, time, repeater })
-  const turn = (by: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + by, 1))
+
+  const submit = () => {
+    submitDate(view, kind, { date: chosen, time, repeater })
+  }
+
+  const turn = (by: number) => {
+    setMonth(new Date(month.getFullYear(), month.getMonth() + by, 1))
+  }
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
       event.preventDefault()
@@ -69,6 +74,7 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
       submit()
     }
   }
+
   return createPortal(
     <div
       {...logseq("sq-date")}
@@ -86,7 +92,9 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
                   type="button"
                   className="sq-date-turn"
                   aria-label="Previous month"
-                  onClick={() => turn(-1)}
+                  onClick={() => {
+                    turn(-1)
+                  }}
                 >
                   {"<"}
                 </button>
@@ -99,7 +107,9 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
                   type="button"
                   className="sq-date-turn"
                   aria-label="Next month"
-                  onClick={() => turn(1)}
+                  onClick={() => {
+                    turn(1)
+                  }}
                 >
                   {">"}
                 </button>
@@ -128,6 +138,7 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
                     })}
                     onClick={() => {
                       setChosen(day)
+
                       if (day.getMonth() !== month.getMonth()) {
                         setMonth(new Date(day.getFullYear(), day.getMonth(), 1))
                       }
@@ -144,7 +155,13 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
       <div className="sq-date-options">
         <p className="sq-date-label">Time:</p>
         {time === null ? (
-          <button type="button" className="sq-date-add" onClick={() => setTime(clockTime(now))}>
+          <button
+            type="button"
+            className="sq-date-add"
+            onClick={() => {
+              setTime(clockTime(now))
+            }}
+          >
             Add time
           </button>
         ) : (
@@ -153,9 +170,16 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
               className="sq-date-input sq-date-time"
               aria-label="Time"
               value={time}
-              onChange={(event) => setTime(event.currentTarget.value)}
+              onChange={(event) => {
+                setTime(event.currentTarget.value)
+              }}
             />
-            <Remove label="Remove time" onClick={() => setTime(null)} />
+            <Remove
+              label="Remove time"
+              onClick={() => {
+                setTime(null)
+              }}
+            />
           </div>
         )}
         <p className="sq-date-label">Repeater:</p>
@@ -163,7 +187,9 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
           <button
             type="button"
             className="sq-date-add"
-            onClick={() => setRepeater({ count: 1, unit: "d" })}
+            onClick={() => {
+              setRepeater({ count: 1, unit: "d" })
+            }}
           >
             Add repeater
           </button>
@@ -186,7 +212,10 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
                 value={repeater.unit}
                 onChange={(event) => {
                   const unit = event.currentTarget.value
-                  if (isUnit(unit)) setRepeater({ ...repeater, unit })
+
+                  if (isUnit(unit)) {
+                    setRepeater({ ...repeater, unit })
+                  }
                 }}
               >
                 {repeatUnits.map((unit) => (
@@ -197,7 +226,12 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
               </select>
               <IconChevronDown size={18} stroke={2} aria-hidden />
             </span>
-            <Remove label="Remove repeater" onClick={() => setRepeater(null)} />
+            <Remove
+              label="Remove repeater"
+              onClick={() => {
+                setRepeater(null)
+              }}
+            />
           </div>
         )}
         <p className="sq-date-submit">

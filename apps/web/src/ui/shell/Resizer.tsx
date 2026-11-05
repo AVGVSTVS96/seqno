@@ -1,4 +1,5 @@
-import { useState, type KeyboardEvent, type PointerEvent } from "react"
+import { useState } from "react"
+import type { KeyboardEvent, PointerEvent } from "react"
 
 export interface Drag {
   readonly onMove: (pointerX: number) => void
@@ -23,12 +24,17 @@ export const Resizer = ({
   readonly onKey?: (event: KeyboardEvent<HTMLDivElement>) => void
 }) => {
   const [drag, setDrag] = useState<Drag | null>(null)
+
   const end = (event: PointerEvent<HTMLDivElement>) => {
-    if (drag === null) return
+    if (drag === null) {
+      return
+    }
+
     event.currentTarget.releasePointerCapture(event.pointerId)
     drag.onEnd()
     setDrag(null)
   }
+
   return (
     <div
       role="separator"
@@ -41,7 +47,10 @@ export const Resizer = ({
       className={className}
       data-dragging={drag !== null}
       onPointerDown={(event) => {
-        if (event.button !== 0) return
+        if (event.button !== 0) {
+          return
+        }
+
         event.preventDefault()
         event.currentTarget.setPointerCapture(event.pointerId)
         setDrag(onStart())

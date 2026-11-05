@@ -19,21 +19,35 @@ const ChromeLive = Layer.effect(
           logLevel: "silent",
           server: { host: "127.0.0.1", port: 0 },
         })
-        return vite.listen()
+
+        return await vite.listen()
       }),
-      (vite) => Effect.promise(() => vite.close()),
+      (vite) =>
+        Effect.promise(async () => {
+          await vite.close()
+        }),
     )
+
     const browser = yield* Effect.acquireRelease(
-      Effect.promise(() => chromium.launch({ channel: "chrome", headless: true })),
-      (chrome) => Effect.promise(() => chrome.close()),
+      Effect.promise(async () => await chromium.launch({ channel: "chrome", headless: true })),
+      (chrome) =>
+        Effect.promise(async () => {
+          await chrome.close()
+        }),
     )
-    const page = yield* Effect.promise(() => browser.newPage())
+
+    const page = yield* Effect.promise(async () => await browser.newPage())
     const origin = server.resolvedUrls?.local[0] ?? ""
-    yield* Effect.promise(() => page.goto(new URL("test/browser/index.html", origin).href))
-    yield* Effect.promise(() => page.waitForFunction("'gitScenario' in globalThis"))
+    yield* Effect.promise(
+      async () => await page.goto(new URL("test/browser/index.html", origin).href),
+    )
+    yield* Effect.promise(async () => await page.waitForFunction("'gitScenario' in globalThis"))
+
     return Chrome.of({
       run: (scenario) =>
-        Effect.promise(() => page.evaluate(`globalThis.gitScenario(${JSON.stringify(scenario)})`)),
+        Effect.promise(
+          async () => await page.evaluate(`globalThis.gitScenario(${JSON.stringify(scenario)})`),
+        ),
     })
   }),
 )

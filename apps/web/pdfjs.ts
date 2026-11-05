@@ -11,7 +11,7 @@ const distRoot = dirname(
   ),
 )
 
-const filesOf = async (): Promise<ReadonlyArray<string>> =>
+const filesOf = async (): Promise<readonly string[]> =>
   (
     await Promise.all(
       folders.map(async (folder) =>
@@ -25,17 +25,26 @@ export const pdfjsAssets = (): Plugin => ({
   configureServer(server) {
     server.middlewares.use("/pdfjs/", (request, response, next) => {
       const path = (request.url ?? "").replace(/^\//, "").split("?")[0] ?? ""
+
       if (!folders.some((folder) => path.startsWith(`${folder}/`)) || path.includes("..")) {
-        return next()
+        next()
+
+        return
       }
+
       readFile(join(distRoot, path)).then(
         (source) => response.end(source),
-        () => next(),
+        () => {
+          next()
+        },
       )
     })
   },
   async generateBundle() {
-    if (this.environment.name !== "client") return
+    if (this.environment.name !== "client") {
+      return
+    }
+
     for (const path of await filesOf()) {
       this.emitFile({
         type: "asset",

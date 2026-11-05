@@ -9,16 +9,19 @@ import { DeviceId } from "@seqno/domain"
 import { Graph, PeerId, vaultReplica } from "@seqno/graph"
 import { layerNode } from "@seqno/index/node"
 import { AssetRpcs, CoreRpcs, PageRpcs } from "@seqno/rpc"
-import { Vault, layer as vaultLayer, type Storage } from "@seqno/vault"
+import { Vault, layer as vaultLayer } from "@seqno/vault"
+import type { Storage } from "@seqno/vault"
 import { layerNode as nodeVault, nodeStorage } from "@seqno/vault/node"
 import { RealCore } from "../core.ts"
 import { layerGitDeviceMemory } from "../git.ts"
 import { layerWebLocks } from "../lock.ts"
 import type { Layout } from "../layout.ts"
-import { memoryMirrorStore, type MirrorStore } from "../mirror-store.ts"
+import { memoryMirrorStore } from "../mirror-store.ts"
+import type { MirrorStore } from "../mirror-store.ts"
 import { demoGraph } from "../demo.ts"
 import { journalDayOf } from "../journal.ts"
-import { Device, GraphPlaces, type Starter } from "../place.ts"
+import { Device, GraphPlaces } from "../place.ts"
+import type { Starter } from "../place.ts"
 
 const graphs = fileURLToPath(new URL("../../../../../fixtures/graphs/", import.meta.url))
 
@@ -35,7 +38,7 @@ const WebCrypto = Layer.succeed(
 const fileOf = (storage: Storage["Service"], root: string) => (path: string) =>
   Effect.flatMap(storage.read(path), (bytes) =>
     Effect.map(
-      Effect.option(Effect.promise(() => stat(join(root, ...path.split("/"))))),
+      Effect.option(Effect.promise(async () => await stat(join(root, ...path.split("/"))))),
       (info) =>
         new File([new Uint8Array(bytes)], path.split("/").at(-1) ?? path, {
           lastModified: Option.match(info, { onNone: () => 0, onSome: (found) => found.mtimeMs }),
@@ -44,9 +47,11 @@ const fileOf = (storage: Storage["Service"], root: string) => (path: string) =>
   )
 
 const stores = new Map<string, MirrorStore>()
+
 const storeOf = (key: string) => {
   const found = stores.get(key) ?? memoryMirrorStore()
   stores.set(key, found)
+
   return found
 }
 
@@ -85,38 +90,48 @@ const coreOn = (
         Layer.provide(WebCrypto),
       ),
     )
+
     return yield* Effect.provide(RpcTest.makeClient(AllRpcs), handlers)
   })
 
 const tempFolder = Effect.acquireRelease(
-  Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-mirror-"))),
-  (root) => Effect.promise(() => rm(root, { recursive: true, force: true })),
+  Effect.promise(async () => await mkdtemp(join(tmpdir(), "seqno-mirror-"))),
+  (root) =>
+    Effect.promise(async () => {
+      await rm(root, { recursive: true, force: true })
+    }),
 )
 
 const copyOf = (name: string) =>
   Effect.tap(tempFolder, (root) =>
-    Effect.promise(() => cp(join(graphs, name), root, { recursive: true })),
+    Effect.promise(async () => {
+      await cp(join(graphs, name), root, { recursive: true })
+    }),
   )
 
 const pageFiles = (root: string) =>
   Effect.promise(async () => {
     const entries = await readdir(root, { recursive: true, withFileTypes: true })
+
     const files = entries
       .filter((entry) => entry.isFile() && !entry.name.startsWith("."))
       .map((entry) => relative(root, join(entry.parentPath, entry.name)).split("\\").join("/"))
       .filter((path) => /^(journals|pages|whiteboards|logseq)\//.test(path))
       .toSorted()
+
     const read = await Promise.all(
-      files.map((path) =>
-        readFile(join(root, path), "utf8").then(
-          (text) => [[path, text]],
-          (cause: unknown) =>
-            cause instanceof Error && "code" in cause && cause.code === "ENOENT"
-              ? []
-              : Promise.reject(cause),
-        ),
+      files.map(
+        async (path) =>
+          await readFile(join(root, path), "utf-8").then(
+            (text) => [[path, text]],
+            (error: unknown) =>
+              error instanceof Error && "code" in error && error.code === "ENOENT"
+                ? []
+                : Promise.reject(error),
+          ),
       ),
     )
+
     return Object.fromEntries(read.flat())
   })
 
@@ -137,27 +152,38 @@ const logseqWrites = (
   meanwhile: () => Effect.Effect<void, unknown>,
 ) =>
   Effect.gen(function* () {
-    const handle = yield* Effect.promise(() => open(join(root, path), "r+"))
+    const handle = yield* Effect.promise(async () => await open(join(root, path), "r+"))
     const bytes = Buffer.from(text)
     const half = Math.floor(bytes.length / 2)
-    yield* Effect.promise(() => handle.truncate(0))
-    yield* Effect.promise(() => handle.write(bytes.subarray(0, half), 0, half, 0))
+    yield* Effect.promise(async () => {
+      await handle.truncate(0)
+    })
+    yield* Effect.promise(async () => await handle.write(bytes.subarray(0, half), 0, half, 0))
     yield* Effect.orDie(meanwhile())
     yield* Effect.sleep("300 millis")
-    yield* Effect.promise(() => handle.write(bytes.subarray(half), 0, bytes.length - half, half))
-    yield* Effect.promise(() => handle.close())
+    yield* Effect.promise(
+      async () => await handle.write(bytes.subarray(half), 0, bytes.length - half, half),
+    )
+    yield* Effect.promise(async () => {
+      await handle.close()
+    })
   })
 
 const read = (root: string, path: string) =>
-  Effect.promise(() => readFile(join(root, path), "utf8").catch(() => null))
+  Effect.promise(async () => await readFile(join(root, path), "utf-8").catch(() => null))
 
 const until = <A>(check: Effect.Effect<A>, done: (value: A) => boolean, seconds = 15) =>
   Effect.gen(function* () {
     for (let tries = 0; tries < seconds * 10; tries++) {
       const value = yield* check
-      if (done(value)) return value
+
+      if (done(value)) {
+        return value
+      }
+
       yield* Effect.sleep("100 millis")
     }
+
     return yield* check
   })
 
@@ -168,6 +194,7 @@ const onPhone = (root: string, edit: (graph: Graph["Service"]) => Effect.Effect<
   Effect.scoped(
     Effect.gen(function* () {
       const phone = DeviceId.make("phone")
+
       const graph = Context.get(
         yield* Layer.build(
           Graph.layer({ peer: PeerId.make("4242"), snapshot: Option.none(), updates: [] }).pipe(
@@ -176,6 +203,7 @@ const onPhone = (root: string, edit: (graph: Graph["Service"]) => Effect.Effect<
         ),
         Graph,
       )
+
       const vault = Context.get(
         yield* Layer.build(
           vaultLayer({
@@ -187,6 +215,7 @@ const onPhone = (root: string, edit: (graph: Graph["Service"]) => Effect.Effect<
         ),
         Vault,
       )
+
       yield* Effect.orDie(vault.sync(vaultReplica(graph)))
       yield* edit(graph)
       yield* graph.flush((update) => Effect.orDie(vault.writeUpdate(update.bytes)))
@@ -202,10 +231,10 @@ const share = (from: string, to: string) =>
     }
   })
 
-const named = <A extends { readonly title: string }>(items: ReadonlyArray<A>, title: string) =>
+const named = <A extends { readonly title: string }>(items: readonly A[], title: string) =>
   items.find((item) => item.title === title) ?? assert.fail(`no page titled ${title}`)
 
-const nothing: ReadonlyArray<string> = []
+const nothing: readonly string[] = []
 
 const fixtures = [
   "og-syntax-mix",
@@ -225,7 +254,8 @@ describe("the markdown mirror", () => {
     "turning it on rewrites none of a Logseq folder's files",
     () =>
       Effect.gen(function* () {
-        const changed: Array<string> = []
+        const changed: string[] = []
+
         for (const name of fixtures) {
           yield* Effect.scoped(
             Effect.gen(function* () {
@@ -236,16 +266,22 @@ describe("the markdown mirror", () => {
               yield* settled(root)
               yield* Effect.sleep("2500 millis")
               const after = yield* pageFiles(root)
+
               for (const [path, text] of Object.entries(before)) {
-                if (after[path] !== text) changed.push(`${name}/${path}`)
+                if (after[path] !== text) {
+                  changed.push(`${name}/${path}`)
+                }
               }
+
               for (const path of Object.keys(after)) {
-                if (!(path in before) && path !== "logseq/config.edn")
+                if (!(path in before) && path !== "logseq/config.edn") {
                   changed.push(`${name}/+${path}`)
+                }
               }
             }),
           )
         }
+
         assert.deepStrictEqual(changed, [])
       }),
     120_000,
@@ -258,6 +294,7 @@ describe("the markdown mirror", () => {
         Effect.gen(function* () {
           const root = yield* tempFolder
           const files = demoGraph(journalDayOf(yield* Clock.currentTimeMillis))
+
           const core = yield* coreOn(
             root,
             "laptop",
@@ -265,6 +302,7 @@ describe("the markdown mirror", () => {
             { version: 1, files },
             false,
           )
+
           yield* core.OpenGraph({ graph: "demo" })
           yield* core.CheckFiles()
           yield* settled(root)
@@ -318,6 +356,7 @@ describe("the markdown mirror", () => {
       },
     ],
   ]
+
   for (const [format, config, existing, written] of formats) {
     it.live(
       `namespaced pages round trip under the ${format} file names`,
@@ -331,10 +370,15 @@ describe("the markdown mirror", () => {
             yield* settled(root)
             const frame = named(yield* core.GetPages(), "projects/Cold frame")
             const glass = (yield* core.GetPage({ pageId: frame.id })).blocks[0]
-            if (glass === undefined) return assert.fail("Cold frame has no block")
+
+            if (glass === undefined) {
+              return assert.fail("Cold frame has no block")
+            }
+
             yield* core.Dispatch({
               command: { _tag: "EditText", blockId: glass.id, from: 5, to: 5, insert: " lid" },
             })
+
             for (const [title, text] of [
               ["projects/Seed tray", "sow"],
               ["v1.2 notes", "ship"],
@@ -344,14 +388,18 @@ describe("the markdown mirror", () => {
                 (yield* core.Dispatch({ command: { _tag: "CreatePage", title } })).flatMap(
                   (event) => (event._tag === "PageUpserted" ? [event.page.id] : []),
                 )[0] ?? assert.fail(`no page ${title}`)
+
               yield* core.Dispatch({
                 command: { _tag: "InsertBlock", pageId, parentId: null, text },
               })
             }
+
             const files = yield* until(pageFiles(root), (found) =>
               Object.keys(written).every((path) => path in found),
             )
+
             const status = yield* Effect.orDie(Stream.runHead(core.WatchMirror()))
+
             const reread = yield* folderWith(
               Object.fromEntries(
                 Object.entries(files).flatMap(([path, text]) =>
@@ -359,18 +407,21 @@ describe("the markdown mirror", () => {
                 ),
               ),
             )
-            yield* Effect.promise(() =>
-              writeFile(join(reread, "logseq", "config.edn"), config).catch(async () => {
+
+            yield* Effect.promise(async () => {
+              await writeFile(join(reread, "logseq", "config.edn"), config).catch(async () => {
                 await mkdir(join(reread, "logseq"))
                 await writeFile(join(reread, "logseq", "config.edn"), config)
-              }),
-            )
+              })
+            })
             const again = yield* coreOn(reread, "reader")
             yield* again.OpenGraph({ graph: `${format} again` })
+
             const titles = (yield* again.GetPages())
               .filter((page) => page.journalDay === null)
               .map((page) => page.title)
               .toSorted()
+
             assert.deepStrictEqual(
               {
                 left: Option.map(status, (found) => found.left.map((file) => file.path)),
@@ -408,19 +459,23 @@ describe("the markdown mirror", () => {
           yield* core.Dispatch({
             command: { _tag: "EditText", blockId: voice.id, from: 0, to: 1, insert: "We" },
           })
+
           const expected = (before["pages/tasks.md"] ?? "")
             .replace(
               "- I recorded a [[voice note]].\n  - TODO",
               "- We recorded a [[voice note]].\n\t- TODO",
             )
             .trimEnd()
+
           const started = Date.now()
           yield* until(read(root, "pages/tasks.md"), (text) => text === expected)
           const took = Date.now() - started
           const after = yield* pageFiles(root)
+
           const others = Object.keys(before).filter(
             (path) => path !== "pages/tasks.md" && after[path] !== before[path],
           )
+
           assert.deepStrictEqual(
             { tasks: after["pages/tasks.md"], others, inTime: took < 2000 },
             { tasks: expected, others: [], inTime: true },
@@ -453,9 +508,11 @@ describe("the markdown mirror", () => {
               insert: ` ((${target.id}))`,
             },
           })
+
           const tasksFile = yield* until(read(root, "pages/tasks.md"), (text) =>
             (text ?? "").includes(`id:: ${target.id}`),
           )
+
           assert.include(tasksFile ?? "", `- DONE\n  id:: ${target.id}\n`)
         }),
       ),
@@ -477,10 +534,12 @@ describe("the markdown mirror", () => {
             command: { _tag: "RenamePage", pageId: queries.id, title: "Saved queries" },
           })
           const moved = yield* until(read(root, "pages/Saved queries.md"), (text) => text !== null)
+
           const recycled = yield* until(
             read(root, "logseq/.recycle/pages_queries.md"),
             (text) => text !== null,
           )
+
           assert.deepStrictEqual(
             {
               moved,
@@ -511,10 +570,12 @@ describe("the markdown mirror", () => {
           yield* core.Dispatch({
             command: { _tag: "RenamePage", pageId: queries.id, title: "Saved queries" },
           })
+
           const recycled = yield* until(
             read(root, "logseq/.recycle/pages_queries.md"),
             (text) => text !== null,
           )
+
           yield* settled(root)
           const titles = (yield* core.GetPages()).map((page) => page.title)
           assert.deepStrictEqual(
@@ -547,8 +608,10 @@ describe("the markdown mirror", () => {
           yield* settled(root)
           const before = yield* pageFiles(root)
           const pages = yield* core.GetPages()
+
           const page =
             pages.find((one) => one.props["title"] !== undefined) ?? assert.fail("no titled page")
+
           const tree = yield* core.GetPage({ pageId: page.id })
           const last = tree.blocks.at(-1) ?? assert.fail("the titled page has no block")
           yield* core.Dispatch({
@@ -560,9 +623,11 @@ describe("the markdown mirror", () => {
               insert: " (edited)",
             },
           })
+
           const text = yield* until(read(root, "pages/file name differs.md"), (found) =>
             (found ?? "").includes("(edited)"),
           )
+
           const after = yield* pageFiles(root)
           assert.deepStrictEqual(
             {
@@ -586,8 +651,10 @@ describe("the markdown mirror", () => {
           yield* core.OpenGraph({ graph: "plans" })
           yield* settled(root)
           const before = yield* core.GetPage({ pageId: named(yield* core.GetPages(), "plans").id })
+
           const id = (text: string) =>
             before.blocks.find((block) => block.text === text)?.id ?? assert.fail(`no ${text}`)
+
           const saved = "- b edited in Logseq\n\t- b1\n\t- b2 added in Logseq\n- c"
           yield* logseqWrites(root, "pages/plans.md", saved, () =>
             Effect.asVoid(
@@ -640,17 +707,21 @@ describe("the markdown mirror", () => {
           const core = yield* coreOn(root)
           yield* core.OpenGraph({ graph: "plans" })
           yield* settled(root)
-          yield* Effect.promise(() =>
-            writeFile(join(root, "pages", "fresh.md"), "- hello\n\t- child"),
-          )
-          yield* Effect.promise(() => rm(join(root, "pages", "old.md")))
+          yield* Effect.promise(async () => {
+            await writeFile(join(root, "pages", "fresh.md"), "- hello\n\t- child")
+          })
+          yield* Effect.promise(async () => {
+            await rm(join(root, "pages", "old.md"))
+          })
           yield* core.CheckFiles()
+
           const titles = yield* until(
             Effect.map(Effect.orDie(core.GetPages()), (pages) =>
               pages.map((page) => page.title).toSorted(),
             ),
             (found) => found.includes("fresh") && !found.includes("old"),
           )
+
           const fresh = yield* core.GetPage({ pageId: named(yield* core.GetPages(), "fresh").id })
           yield* Effect.sleep("2500 millis")
           assert.deepStrictEqual(
@@ -683,7 +754,9 @@ describe("the markdown mirror", () => {
           const core = yield* coreOn(root)
           yield* core.OpenGraph({ graph: "plans" })
           yield* settled(root)
-          yield* Effect.promise(() => writeFile(join(root, "pages", "late.md"), ""))
+          yield* Effect.promise(async () => {
+            await writeFile(join(root, "pages", "late.md"), "")
+          })
           yield* core.CheckFiles()
           yield* until(
             Effect.map(Effect.orDie(core.GetPages()), (pages) =>
@@ -691,17 +764,19 @@ describe("the markdown mirror", () => {
             ),
             (found) => found,
           )
-          yield* Effect.promise(() =>
-            writeFile(join(root, "pages", "late.md"), "- hello\n\t- child"),
-          )
+          yield* Effect.promise(async () => {
+            await writeFile(join(root, "pages", "late.md"), "- hello\n\t- child")
+          })
           yield* core.CheckFiles()
           const late = named(yield* core.GetPages(), "late")
+
           const blocks = yield* until(
             Effect.map(Effect.orDie(core.GetPage({ pageId: late.id })), (tree) =>
               tree.blocks.map((block) => block.text),
             ),
             (texts) => texts.length === 2,
           )
+
           assert.deepStrictEqual(blocks, ["hello", "child"])
         }),
       ),
@@ -719,29 +794,37 @@ describe("the markdown mirror", () => {
           yield* settled(laptopRoot, "laptop")
           const plans = named(yield* laptop.GetPages(), "plans")
           const first = (yield* laptop.GetPage({ pageId: plans.id })).blocks[0]
-          if (first === undefined) return assert.fail("plans has no block")
+
+          if (first === undefined) {
+            return assert.fail("plans has no block")
+          }
+
           yield* laptop.Dispatch({
             command: { _tag: "EditText", blockId: first.id, from: 1, to: 1, insert: " edited" },
           })
           yield* until(read(laptopRoot, "pages/plans.md"), (text) => text === "- a edited\n- b")
           const phoneRoot = yield* tempFolder
-          yield* Effect.promise(() =>
-            cp(join(laptopRoot, "pages"), join(phoneRoot, "pages"), { recursive: true }),
-          )
+          yield* Effect.promise(async () => {
+            await cp(join(laptopRoot, "pages"), join(phoneRoot, "pages"), { recursive: true })
+          })
           const phone = yield* coreOn(phoneRoot, "phone")
           yield* phone.OpenGraph({ graph: "plans on the phone" })
           yield* settled(phoneRoot, "phone")
           yield* share(laptopRoot, phoneRoot)
           yield* share(phoneRoot, laptopRoot)
           yield* Effect.sleep("12 seconds")
+
           const outline = (core: typeof laptop) =>
             Effect.gen(function* () {
               const pages = (yield* core.GetPages()).filter((page) => page.title === "plans")
+
               const trees = yield* Effect.forEach(pages, (page) =>
                 core.GetPage({ pageId: page.id }),
               )
+
               return trees.map((tree) => tree.blocks.map((block) => block.text))
             })
+
           assert.deepStrictEqual(
             { laptop: yield* outline(laptop), phone: yield* outline(phone) },
             { laptop: [["a edited", "b"]], phone: [["a edited", "b"]] },
@@ -760,12 +843,15 @@ describe("the markdown mirror", () => {
           const laptop = yield* coreOn(root, "laptop")
           yield* laptop.OpenGraph({ graph: "plans" })
           yield* settled(root, "laptop")
+
           const blockOf = (core: typeof laptop, index: number) =>
             Effect.gen(function* () {
               const plans = named(yield* core.GetPages(), "plans")
               const block = (yield* core.GetPage({ pageId: plans.id })).blocks[index]
+
               return block ?? (yield* Effect.die(`plans has no block ${index}`))
             })
+
           const a = yield* blockOf(laptop, 0)
           const draft = " a long draft the laptop typed and took back"
           yield* laptop.Dispatch({
@@ -781,9 +867,9 @@ describe("the markdown mirror", () => {
           yield* Effect.scoped(
             Effect.gen(function* () {
               const alone = yield* tempFolder
-              yield* Effect.promise(() =>
-                cp(join(root, "pages"), join(alone, "pages"), { recursive: true }),
-              )
+              yield* Effect.promise(async () => {
+                await cp(join(root, "pages"), join(alone, "pages"), { recursive: true })
+              })
               const early = yield* coreOn(alone, "phone")
               yield* early.OpenGraph({ graph: "plans alone" })
               yield* settled(alone, "phone")
@@ -796,21 +882,28 @@ describe("the markdown mirror", () => {
           yield* phone.Dispatch({
             command: { _tag: "EditText", blockId: b.id, from: 1, to: 1, insert: " phone" },
           })
+
           const gone = yield* until(
             Effect.map(Effect.exit(phone.GetPages()), Exit.isFailure),
             (failed) => failed,
             30,
           )
+
           yield* phone.OpenGraph({ graph: "plans on the phone" })
+
           const outline = (core: typeof laptop) =>
             Effect.gen(function* () {
               const pages = (yield* core.GetPages()).filter((page) => page.title === "plans")
+
               const trees = yield* Effect.forEach(pages, (page) =>
                 core.GetPage({ pageId: page.id }),
               )
+
               return trees.map((tree) => tree.blocks.map((block) => block.text))
             })
+
           const both = Effect.orDie(Effect.all({ laptop: outline(laptop), phone: outline(phone) }))
+
           const joined = yield* until(
             Effect.andThen(Effect.orDie(laptop.CheckFiles()), both),
             (found) =>
@@ -821,6 +914,7 @@ describe("the markdown mirror", () => {
               }),
             20,
           )
+
           assert.deepStrictEqual(
             { gone, joined, file: yield* read(root, "pages/plans.md") },
             {
@@ -849,43 +943,58 @@ describe("the markdown mirror", () => {
             ],
             { concurrency: 2 },
           )
+
           const writerOn = (core: typeof laptop) =>
             Effect.map(Effect.orDie(Stream.runHead(core.WatchMirror())), (status) =>
               Option.getOrNull(Option.map(status, (found) => found.writer)),
             )
+
           const both = Effect.all({ laptop: writerOn(laptop), phone: writerOn(phone) })
+
           const settledOn = yield* until(
             both,
             (found) => found.laptop?.device === "laptop" && found.phone?.device === "laptop",
             20,
           )
+
           const edit = (core: typeof laptop, insert: string) =>
             Effect.gen(function* () {
               const plans = named(yield* core.GetPages(), "plans")
               const first = (yield* core.GetPage({ pageId: plans.id })).blocks[0]
-              if (first === undefined) return yield* Effect.die("plans has no block")
+
+              if (first === undefined) {
+                return yield* Effect.die("plans has no block")
+              }
+
               yield* core.Dispatch({
                 command: { _tag: "EditText", blockId: first.id, from: 1, to: 1, insert },
               })
             })
+
           yield* edit(phone, " from the phone")
+
           const viaLaptop = yield* until(
             read(root, "pages/plans.md"),
             (text) => text === "- a from the phone\n- b",
             20,
           )
+
           yield* phone.WriteFilesHere()
+
           const movedTo = yield* until(
             both,
             (found) => found.laptop?.device === "phone" && found.phone?.device === "phone",
             20,
           )
+
           yield* edit(laptop, " and the laptop")
+
           const viaPhone = yield* until(
             read(root, "pages/plans.md"),
             (text) => text === "- a and the laptop from the phone\n- b",
             25,
           )
+
           assert.deepStrictEqual(
             { settledOn, viaLaptop, movedTo, viaPhone },
             {
@@ -915,12 +1024,16 @@ describe("the markdown mirror", () => {
           const core = yield* coreOn(root)
           yield* core.OpenGraph({ graph: "ab" })
           yield* settled(root)
-          yield* Effect.promise(() => rm(join(root, "pages"), { recursive: true }))
+          yield* Effect.promise(async () => {
+            await rm(join(root, "pages"), { recursive: true })
+          })
           yield* core.CheckFiles()
+
           const status = yield* until(
             Effect.map(Effect.orDie(Stream.runHead(core.WatchMirror())), Option.getOrNull),
             (found) => found?.paused !== null && found?.paused !== undefined,
           )
+
           const titles = (yield* core.GetPages()).map((page) => page.title)
           assert.deepStrictEqual(
             { paused: status?.paused, kept: ["a", "b"].map((title) => titles.includes(title)) },
@@ -961,11 +1074,13 @@ describe("the markdown mirror", () => {
               )
             }),
           )
+
           const text = yield* until(
             read(root, "pages/tasks.md"),
             (found) => (found ?? "").startsWith("- TODO from the phone\n"),
             20,
           )
+
           assert.isTrue((text ?? "").startsWith("- TODO from the phone\n- DONE\n"))
         }),
       ),

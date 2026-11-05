@@ -70,11 +70,13 @@ describe("structural keys", () => {
   it.effect("waits for the graph to have the block's text before splitting", () =>
     Effect.gen(function* () {
       const updates = yield* PubSub.unbounded<Block>()
+
       const { view, commands } = mount(
         "hello big world",
         { _tag: "Start" },
         { updates: Stream.fromPubSub(updates) },
       )
+
       view.dispatch({ selection: EditorSelection.single(5, 9) })
       press(view, "Enter")
       const before = [...commands]
@@ -153,6 +155,7 @@ describe("structural keys", () => {
       _tag: "Offset",
       offset: 8,
     })
+
     assert.isTrue(press(view, "o", { ctrlKey: true }))
     view.dispatch({ selection: { anchor: 26 } })
     assert.isTrue(press(view, "O", { ctrlKey: true, shiftKey: true, keyCode: 79 }))
@@ -169,6 +172,7 @@ describe("structural keys", () => {
       "**[docs](https://docs.logseq.com)** and ((01920000-0000-7000-8000-000000000001))",
       { _tag: "Offset", offset: 4 },
     )
+
     press(view, "o", { ctrlKey: true })
     view.dispatch({ selection: { anchor: 50 } })
     press(view, "o", { ctrlKey: true })
@@ -220,6 +224,7 @@ const formatted = (
   const { view } = mount(initial, { _tag: "Start" })
   view.dispatch({ selection: EditorSelection.single(from, to) })
   press(view, key, mods)
+
   return [text(view), caret(view)]
 }
 
@@ -252,10 +257,13 @@ describe("formatting shortcuts", () => {
 
   it("rotates the task marker on Mod-Enter", () => {
     const { view } = mount("water the beds", { _tag: "End" })
+
     const seen = [0, 1, 2, 3].map(() => {
       press(view, "Enter", { ctrlKey: true })
+
       return text(view)
     })
+
     assert.deepStrictEqual(seen, [
       "TODO water the beds",
       "DOING water the beds",
@@ -384,12 +392,17 @@ describe("keys typed while the next block is on its way", () => {
       const updates = yield* PubSub.unbounded<Block>()
       const first = mount("one", { _tag: "End" }, { within })
       press(first.view, "Enter")
-      for (const key of ["a", "Enter", "b"]) keyOnWindow(key)
+
+      for (const key of ["a", "Enter", "b"]) {
+        keyOnWindow(key)
+      }
+
       const second = mount(
         "",
         { _tag: "Start" },
         { within, updates: Stream.fromPubSub(updates), block: blockOf("", otherBlockId) },
       )
+
       const waited = within.commands.at(-1)
       yield* PubSub.publish(updates, blockOf("a", otherBlockId))
       yield* Effect.yieldNow
@@ -414,11 +427,13 @@ describe("keys typed while the next block is on its way", () => {
     Effect.gen(function* () {
       const within = session()
       const updates = yield* PubSub.unbounded<Block>()
+
       const { view } = mount(
         "",
         { _tag: "Start" },
         { within, updates: Stream.fromPubSub(updates), block: blockOf("", blockId, parentBlockId) },
       )
+
       press(view, "Enter")
       keyOnWindow("x")
       assert.strictEqual(text(view), "")
@@ -432,7 +447,11 @@ describe("keys typed while the next block is on its way", () => {
     const within = session()
     const first = mount("first", { _tag: "End" }, { within })
     press(first.view, "Enter")
-    for (const key of ["Backspace", "X", "Y", "Z"]) keyOnWindow(key)
+
+    for (const key of ["Backspace", "X", "Y", "Z"]) {
+      keyOnWindow(key)
+    }
+
     const fresh = mount("", { _tag: "Start" }, { within, block: blockOf("", otherBlockId) })
     assert.deepStrictEqual(within.commands.at(-1), {
       _tag: "MergeWithPrevious",
@@ -456,18 +475,22 @@ describe("merging into the previous block", () => {
     Effect.gen(function* () {
       const within = session()
       const updates = yield* PubSub.unbounded<Block>()
+
       const second = mount(
         "tail",
         { _tag: "Start" },
         { within, block: blockOf("tail", otherBlockId) },
       )
+
       press(second.view, "Backspace")
       second.destroy()
+
       const first = mount(
         "head ",
         { _tag: "End" },
         { within, updates: Stream.fromPubSub(updates), block: blockOf("head ") },
       )
+
       assert.deepStrictEqual([text(first.view), caret(first.view)], ["head tail", 5])
       typeKeys(first.view, "+")
       yield* PubSub.publish(updates, blockOf("head "))
@@ -490,11 +513,13 @@ describe("text from the graph", () => {
   it.effect("applies remote text without echoing it back and ignores echoes of its own edits", () =>
     Effect.gen(function* () {
       const updates = yield* PubSub.unbounded<Block>()
+
       const { view, commands } = mount(
         "draft",
         { _tag: "End" },
         { updates: Stream.fromPubSub(updates) },
       )
+
       typeKeys(view, "s!")
       yield* PubSub.publish(updates, blockOf("drafts"))
       yield* Effect.yieldNow
@@ -634,14 +659,18 @@ describe("properties", () => {
         ...blockOf("Tomato bed"),
         props: { variety: "San Marzano", plants: "6" },
       }
+
       const updates = yield* PubSub.unbounded<Block>()
+
       const { view, dispatches } = mount(
         bed.text,
         { _tag: "End" },
         { block: bed, updates: Stream.fromPubSub(updates) },
       )
+
       let graph = bed
       let echoed = 0
+
       const echoUpTo = (count: number) =>
         Effect.gen(function* () {
           for (const commands of dispatches.slice(echoed, count)) {
@@ -651,14 +680,18 @@ describe("properties", () => {
             yield* Effect.yieldNow
           }
         })
+
       view.dispatch({ selection: EditorSelection.cursor(text(view).length) })
+
       for (const line of ["zeta:: 1", "alpha:: 2"]) {
         press(view, "Enter")
+
         for (const key of line) {
           typeKeys(view, key)
           yield* echoUpTo(dispatches.length - 2)
         }
       }
+
       yield* echoUpTo(dispatches.length)
       assert.strictEqual(
         text(view),

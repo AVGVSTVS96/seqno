@@ -1,11 +1,7 @@
-import {
-  defaultRangeExtractor,
-  useVirtualizer,
-  type Range,
-  type VirtualItem,
-  type Virtualizer,
-} from "@tanstack/react-virtual"
-import { createContext, use, useRef, useState, type ReactNode, type RefObject } from "react"
+import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual"
+import type { Range, VirtualItem, Virtualizer } from "@tanstack/react-virtual"
+import { createContext, use, useRef, useState } from "react"
+import type { ReactNode, RefObject } from "react"
 import { fromTop, locateOn, settle } from "./place.ts"
 
 interface Scroll {
@@ -29,10 +25,15 @@ export const ScrollContent = ({
   readonly children: ReactNode
 }) => {
   const [scroll, setScroll] = useState<Scroll | null>(null)
+
   const attach = (content: HTMLDivElement | null) => {
     const element = content?.parentElement ?? null
-    if (content !== null && element !== null) setScroll({ element, content })
+
+    if (content !== null && element !== null) {
+      setScroll({ element, content })
+    }
   }
+
   return (
     <div ref={attach} className={className}>
       {scroll === null ? null : <ScrollContext value={scroll}>{children}</ScrollContext>}
@@ -46,7 +47,7 @@ export interface Placed {
 }
 
 export interface VirtualList {
-  readonly placed: ReadonlyArray<Placed>
+  readonly placed: readonly Placed[]
   readonly trailing: number
   readonly element: RefObject<HTMLElement | null>
   readonly attach: (element: HTMLElement | null) => (() => void) | undefined
@@ -61,7 +62,7 @@ export interface VirtualListOptions {
   readonly estimate: (index: number) => number
   readonly key: (index: number) => string | number
   readonly overscan: number
-  readonly keep?: ReadonlyArray<number>
+  readonly keep?: readonly number[]
 }
 
 interface Attached {
@@ -69,8 +70,8 @@ interface Attached {
   readonly margin: number | null
   readonly nested: boolean
   readonly element: RefObject<HTMLElement | null>
-  readonly initial: Array<VirtualItem>
-  readonly range: (range: Range) => Array<number>
+  readonly initial: VirtualItem[]
+  readonly range: (range: Range) => number[]
 }
 
 type List = Virtualizer<HTMLElement, HTMLElement>
@@ -81,11 +82,16 @@ const scrollTo = (
   list: List,
 ) => {
   const element = list.scrollElement
-  if (element === null) return
+
+  if (element === null) {
+    return
+  }
+
   const top =
     adjustments === undefined
       ? offset
       : element.scrollTop + adjustments + (roundedAway.get(element) ?? 0)
+
   element.scrollTo(behavior === undefined ? { top } : { top, behavior })
   const away = top - element.scrollTop
   roundedAway.set(element, adjustments !== undefined && Math.abs(away) < 1 ? away : 0)
@@ -109,12 +115,14 @@ const holderOf = (list: HTMLElement) =>
 const placeOf = (holder: HTMLElement) => {
   const owner = holder.parentElement === null ? undefined : owners.get(holder.parentElement)
   const item = owner?.list.measurementsCache[owner.list.indexFromElement(holder)]
+
   return owner === undefined || item === undefined ? undefined : { ...owner, item }
 }
 
 const listTop = (element: HTMLElement, scroller: HTMLElement): number => {
   const holder = holderOf(element)
   const place = holder === undefined ? undefined : placeOf(holder)
+
   return holder === undefined || place === undefined
     ? fromTop(element, scroller)
     : laidOutTop(place.item, place.list, place.element, scroller) +
@@ -127,8 +135,13 @@ const laidOutTop = (item: VirtualItem, list: List, element: HTMLElement, scrolle
 
 const wasAboveTheTop = (item: VirtualItem, list: List, element: HTMLElement | null) => {
   const scroller = list.scrollElement
-  if (element === null || scroller === null) return false
+
+  if (element === null || scroller === null) {
+    return false
+  }
+
   const top = laidOutTop(item, list, element, scroller)
+
   return list.itemSizeCache.has(item.key) ? top + item.size <= 0 : top < 0
 }
 
@@ -137,6 +150,7 @@ const holdersAbove = new WeakMap<Element, boolean>()
 const decide = (holder: HTMLElement, above: boolean) => {
   holdersAbove.set(holder, above)
   requestAnimationFrame(() => holdersAbove.delete(holder))
+
   return above
 }
 
@@ -145,22 +159,28 @@ const holderWasAbove = (holder: HTMLElement, judge: () => boolean) =>
 
 const arrived = (element: HTMLElement, scroller: HTMLElement, held: number) => {
   const holder = holderOf(element)
-  if (holder !== undefined) decide(holder, listTop(element, scroller) + held <= 0)
+
+  if (holder !== undefined) {
+    decide(holder, listTop(element, scroller) + held <= 0)
+  }
 }
 
 const judgeRow = (item: VirtualItem, list: List, element: HTMLElement | null) => {
   const holder = element === null ? undefined : holderOf(element)
   const place = holder === undefined ? undefined : placeOf(holder)
+
   const holderAbove =
     holder !== undefined &&
     place !== undefined &&
     holderWasAbove(holder, () => wasAboveTheTop(place.item, place.list, place.element))
+
   return !holderAbove && wasAboveTheTop(item, list, element)
 }
 
 const judgeItem = (item: VirtualItem, list: List, element: HTMLElement | null) => {
   const holder = list.elementsCache.get(item.key)
   const judge = () => wasAboveTheTop(item, list, element)
+
   return holder === undefined ? judge() : holderWasAbove(holder, judge)
 }
 
@@ -169,6 +189,7 @@ const measureMounted = (list: List) => {
     .filter((element) => element.isConnected)
     .map((element) => ({ element, index: list.indexFromElement(element) }))
     .toSorted((a, b) => a.index - b.index)
+
   for (const { element, index } of mounted) {
     list.resizeItem(index, heightOf(element))
   }
@@ -176,6 +197,7 @@ const measureMounted = (list: List) => {
 
 const useTanStack = (options: VirtualListOptions & Attached) => {
   const { scroll, margin } = options
+
   const virtualizer = useVirtualizer<HTMLElement, HTMLElement>({
     count: scroll === null || margin === null ? 0 : options.count,
     getScrollElement: () => scroll?.element ?? null,
@@ -189,27 +211,40 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
     initialMeasurementsCache: options.initial,
     measureElement: (element, entry) => heightOf(element, entry),
     onChange: () => {
-      if (scroll !== null) settle(scroll.element)
+      if (scroll !== null) {
+        settle(scroll.element)
+      }
     },
   })
+
   const [reveal] = useState(() => (index: number) => {
     const last = options.nested && index === virtualizer.options.count - 1
     virtualizer.scrollToIndex(index, last ? { align: "center" } : {})
   })
+
   const [locate] = useState(() => (key: string) => {
     const { count, getItemKey } = virtualizer.options
+
     for (let index = 0; index < count; index++) {
-      if (String(getItemKey(index)) === key)
+      if (String(getItemKey(index)) === key) {
         return virtualizer.getOffsetForIndex(index, "start")?.[0]
+      }
     }
+
     return undefined
   })
+
   virtualizer.shouldAdjustScrollPositionOnItemSizeChange = options.nested
     ? (item, _delta, list) => judgeRow(item, list, options.element.current)
     : (item, _delta, list) => judgeItem(item, list, options.element.current)
+
   const [watch] = useState(() => (element: HTMLElement) => {
     owners.set(element, { list: virtualizer, element })
-    const measure = () => measureMounted(virtualizer)
+
+    const measure = () => {
+      measureMounted(virtualizer)
+    }
+
     const changes = new MutationObserver(measure)
     changes.observe(element, {
       childList: true,
@@ -218,11 +253,13 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
       attributes: true,
     })
     element.addEventListener("load", measure, true)
+
     return () => {
       changes.disconnect()
       element.removeEventListener("load", measure, true)
     }
   })
+
   return {
     items: virtualizer.getVirtualItems(),
     total: virtualizer.getTotalSize(),
@@ -236,19 +273,24 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
 }
 
 interface Remembered {
-  readonly items: Array<VirtualItem>
+  readonly items: VirtualItem[]
   readonly height: number
 }
 
 const memory = (capacity: number) => {
   const lists = new Map<string, Remembered>()
+
   return {
     recall: (id: string) => lists.get(id),
     remember: (id: string, list: Remembered) => {
       lists.delete(id)
       lists.set(id, list)
+
       for (const old of lists.keys()) {
-        if (lists.size <= capacity) return
+        if (lists.size <= capacity) {
+          return
+        }
+
         lists.delete(old)
       }
     },
@@ -259,9 +301,10 @@ const topLevel = memory(20)
 
 const nestedLevel = memory(100)
 
-const withKept = (range: Range, keep: ReadonlyArray<number>) => {
+const withKept = (range: Range, keep: readonly number[]) => {
   const shown = defaultRangeExtractor(range)
   const extra = keep.filter((index) => index >= 0 && index < range.count && !shown.includes(index))
+
   return extra.length === 0 ? shown : [...shown, ...extra].toSorted((a, b) => a - b)
 }
 
@@ -277,13 +320,18 @@ const nothing = () => undefined
 
 const estimatedTotal = ({ count, estimate }: VirtualListOptions) => {
   let total = 0
-  for (let index = 0; index < count; index++) total += estimate(index)
+
+  for (let index = 0; index < count; index++) {
+    total += estimate(index)
+  }
+
   return total
 }
 
 export const useHeldHeight = (id: string, windowed: boolean) => {
   const scroll = use(ScrollContext)
   const remembered = use(NestedContext) ? nestedLevel : topLevel
+
   return windowed && scroll !== null ? remembered.recall(id)?.height : undefined
 }
 
@@ -296,6 +344,7 @@ export const useVirtualList = (options: VirtualListOptions): VirtualList => {
   const list = useRef<HTMLElement | null>(null)
   const keep = options.keep ?? []
   const held = remembered.recall(options.id)
+
   const { items, total, measure, reveal, watch, snapshot, size, locate } = useTanStack({
     ...options,
     scroll,
@@ -305,16 +354,28 @@ export const useVirtualList = (options: VirtualListOptions): VirtualList => {
     initial: held?.items ?? [],
     range: (range) => withKept(range, keep),
   })
+
   const attach = (element: HTMLElement | null) => {
     list.current = element
-    if (element === null || scroll === null) return
-    const place = () => setMargin(marginOf(element, scroll.element))
+
+    if (element === null || scroll === null) {
+      return
+    }
+
+    const place = () => {
+      setMargin(marginOf(element, scroll.element))
+    }
+
     place()
     const observer = new ResizeObserver(place)
     observer.observe(scroll.content)
     const unlocate = locateOn(scroll.element, locate)
     const unwatch = watch(element)
-    if (nested) arrived(element, scroll.element, remembered.recall(options.id)?.height ?? 0)
+
+    if (nested) {
+      arrived(element, scroll.element, remembered.recall(options.id)?.height ?? 0)
+    }
+
     return () => {
       observer.disconnect()
       unwatch()
@@ -322,6 +383,7 @@ export const useVirtualList = (options: VirtualListOptions): VirtualList => {
       remembered.remember(options.id, { items: snapshot(), height: size() })
     }
   }
+
   if (scroll === null) {
     return {
       placed: Array.from({ length: options.count }, (_, index) => ({ index, gap: 0 })),
@@ -332,7 +394,9 @@ export const useVirtualList = (options: VirtualListOptions): VirtualList => {
       reveal: nothing,
     }
   }
+
   const start = margin ?? 0
+
   return {
     placed: items.map((item, at) => ({
       index: item.index,

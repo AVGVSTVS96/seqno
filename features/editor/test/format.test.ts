@@ -82,10 +82,11 @@ describe("block text transforms", () => {
   })
 })
 
-const rank = (labels: ReadonlyArray<string>, query: string) =>
+const rank = (labels: readonly string[], query: string) =>
   labels
     .flatMap((label) => {
       const match = fuzzyMatch(label, query)
+
       return match === null ? [] : [{ label, match }]
     })
     .toSorted(byMatch)
@@ -109,6 +110,7 @@ describe("fuzzy ranking", () => {
       "Embed HTML",
       "Query function",
     ]
+
     assert.deepStrictEqual(rank(logseq, "to"), [
       "Todo",
       "Today",

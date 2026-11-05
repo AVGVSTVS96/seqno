@@ -3,11 +3,14 @@ import type { AtomRegistry } from "effect/reactivity"
 import type { Block } from "@seqno/domain"
 import { CoreClient } from "@seqno/rpc"
 import { runCore, ensureRefPage } from "./annotations.ts"
-import { emptyHighlightsFile, readHighlights, type Highlights } from "./highlights.ts"
+import { emptyHighlightsFile, readHighlights } from "./highlights.ts"
+import type { Highlights } from "./highlights.ts"
 import type { PdfFiles } from "./host.ts"
-import { inflateAsset, isHlsPage, keyOfHlsPage, type PdfAsset } from "./model.ts"
+import { inflateAsset, isHlsPage, keyOfHlsPage } from "./model.ts"
+import type { PdfAsset } from "./model.ts"
 import { loadPdfjs, pdfjsAssets } from "./pdfjs.ts"
-import { currentPdf, liveHighlights, refHighlight, type CurrentPdf, type Loaded } from "./state.ts"
+import { currentPdf, liveHighlights, refHighlight } from "./state.ts"
+import type { CurrentPdf, Loaded } from "./state.ts"
 
 const messageOf = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause))
 
@@ -18,25 +21,34 @@ export const readHighlightsFile = async (
   asset: PdfAsset,
 ): Promise<Highlights | null> => {
   const url = files.resolveAsset(asset.hlsFile)
+
   try {
     const text =
       url === undefined
         ? await files
             .writeAsset(asset.hlsFile, new Blob([emptyHighlightsFile]))
             .then(() => emptyHighlightsFile)
-        : await fetch(url).then((response) => response.text())
+        : await fetch(url).then(async (response) => await response.text())
+
     const read = readHighlights(text)
-    if (Result.isSuccess(read)) return read.success
+
+    if (Result.isSuccess(read)) {
+      return read.success
+    }
+
     throw new Error(read.failure)
-  } catch (cause) {
+  } catch (error) {
     files.notify(
-      `Error: failed to load the highlights file: "${asset.hlsFile}". \n${messageOf(cause)}`,
+      `Error: failed to load the highlights file: "${asset.hlsFile}". \n${messageOf(error)}`,
     )
+
     return null
   }
 }
 
-export const closePdf = (registry: AtomRegistry.AtomRegistry) => registry.set(currentPdf, null)
+export const closePdf = (registry: AtomRegistry.AtomRegistry) => {
+  registry.set(currentPdf, null)
+}
 
 const failed = (
   registry: AtomRegistry.AtomRegistry,
@@ -45,7 +57,11 @@ const failed = (
   cause: unknown,
 ): Loaded => {
   const name = nameOf(cause)
-  if (name === "PasswordException") return { _tag: "Password" }
+
+  if (name === "PasswordException") {
+    return { _tag: "Password" }
+  }
+
   const message = messageOf(cause)
   files.notify(
     name === "InvalidPDFException"
@@ -54,7 +70,11 @@ const failed = (
         ? `Error: ${message}\n Is this the correct path?`
         : `Error: ${name}\n${message}\nPlease confirm with pdf file resource.`,
   )
-  if (registry.get(currentPdf)?.asset.identity === asset.identity) closePdf(registry)
+
+  if (registry.get(currentPdf)?.asset.identity === asset.identity) {
+    closePdf(registry)
+  }
+
   return { _tag: "Failed" }
 }
 
@@ -67,6 +87,7 @@ const load = async (
 ): Promise<Loaded> => {
   try {
     const { lib } = await loadPdfjs()
+
     const [document, highlights] = await Promise.all([
       lib.getDocument({
         url,
@@ -79,9 +100,10 @@ const load = async (
       }).promise,
       readHighlightsFile(files, asset),
     ])
+
     return { _tag: "Ready", document, highlights, pdfjs: await loadPdfjs() }
-  } catch (cause) {
-    return failed(registry, files, asset, cause)
+  } catch (error) {
+    return failed(registry, files, asset, error)
   }
 }
 
@@ -99,6 +121,7 @@ const show = (
     attempt,
     loading: load(registry, files, asset, url, password),
   }
+
   registry.set(currentPdf, next)
 }
 
@@ -107,28 +130,40 @@ export const retryWithPassword = (
   files: PdfFiles,
   current: CurrentPdf,
   password: string,
-) => show(registry, files, current.asset, current.url, current.attempt + 1, password)
+) => {
+  show(registry, files, current.asset, current.url, current.attempt + 1, password)
+}
 
 const urlOf = (files: PdfFiles, path: string) =>
   files.resolveAsset(path) ?? (/^https?:\/\//i.test(path) ? path : undefined)
 
 export const openPdf = (registry: AtomRegistry.AtomRegistry, files: PdfFiles, path: string) => {
   const asset = inflateAsset(path)
-  if (asset === null) return
-  if (registry.get(currentPdf)?.asset.identity === asset.identity) return
-  const url = urlOf(files, path)
-  if (url === undefined) {
-    files.notify(`Error: Missing PDF "${path}".\n Is this the correct path?`)
+
+  if (asset === null) {
     return
   }
+
+  if (registry.get(currentPdf)?.asset.identity === asset.identity) {
+    return
+  }
+
+  const url = urlOf(files, path)
+
+  if (url === undefined) {
+    files.notify(`Error: Missing PDF "${path}".\n Is this the correct path?`)
+
+    return
+  }
+
   show(registry, files, asset, url, 0, "")
-  runCore(registry, ensureRefPage(asset)).catch((cause: unknown) =>
-    files.notify(`Couldn't make the page hls__${asset.key}: ${messageOf(cause)}`),
-  )
+  runCore(registry, ensureRefPage(asset)).catch((error: unknown) => {
+    files.notify(`Couldn't make the page hls__${asset.key}: ${messageOf(error)}`)
+  })
 }
 
-const pageOf = (registry: AtomRegistry.AtomRegistry, block: Block) =>
-  runCore(
+const pageOf = async (registry: AtomRegistry.AtomRegistry, block: Block) =>
+  await runCore(
     registry,
     Effect.flatMap(CoreClient, (client) => client.GetPage({ pageId: block.pageId })),
   ).then((tree) => tree.page)
@@ -139,22 +174,32 @@ export const openAnnotation = async (
   block: Block,
 ) => {
   const page = await pageOf(registry, block).catch(() => null)
-  if (page === null || !isHlsPage(page.title)) return
+
+  if (page === null || !isHlsPage(page.title)) {
+    return
+  }
+
   const key = keyOfHlsPage(page.title)
   const id = (block.props["id"] ?? block.id).toLowerCase()
   const hlsUrl = files.resolveAsset(`assets/${key}.edn`)
+
   const read =
     hlsUrl === undefined
       ? null
       : await fetch(hlsUrl)
-          .then((response) => response.text())
+          .then(async (response) => await response.text())
           .then((text) => Result.getOrNull(readHighlights(text)))
           .catch(() => null)
+
   const live = registry.get(liveHighlights)
   const pool = live?.key === key ? live.highlights : (read?.highlights ?? [])
   const highlight = pool.find((candidate) => candidate.id.toLowerCase() === id) ?? null
   const hlPage = Number(block.props["hl-page"])
-  if (highlight === null && !Number.isInteger(hlPage)) return
+
+  if (highlight === null && !Number.isInteger(hlPage)) {
+    return
+  }
+
   registry.set(refHighlight, { page: highlight?.page ?? hlPage, highlight })
   openPdf(registry, files, page.props["file-path"] ?? `../assets/${key}.pdf`)
 }

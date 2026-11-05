@@ -111,18 +111,21 @@ const picture = (indent: string, { alt, file, path, by, license, width }: Pictur
   `${indent}  credit:: ${by}, ${license}, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:${file})`,
 ]
 
-const page = (title: string, ...lines: ReadonlyArray<string>): StarterFile => ({
+const page = (title: string, ...lines: readonly string[]): StarterFile => ({
   path: `pages/${fileBodyFromTitle(title, defaultConfig.fileNameFormat)}.md`,
   text: lines.join("\n"),
 })
 
-export const demoGraph = (today: JournalDay): ReadonlyArray<StarterFile> => {
+export const demoGraph = (today: JournalDay): readonly StarterFile[] => {
   const day = (offset: number) => shiftDay(today, offset)
+
   const date = (offset: number) =>
     `[[${formatJournalDay(day(offset), defaultConfig.journalTitleFormat)}]]`
+
   const stamp = (offset: number, repeat = "") =>
     `<${formatJournalDay(day(offset), "yyyy-MM-dd EEE")}${repeat}>`
-  const journal = (offset: number, ...lines: ReadonlyArray<string>): StarterFile => ({
+
+  const journal = (offset: number, ...lines: readonly string[]): StarterFile => ({
     path: journalFile(day(offset)),
     text: lines.join("\n"),
   })

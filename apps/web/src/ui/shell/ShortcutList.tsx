@@ -8,11 +8,17 @@ export const ShortcutList = () => {
   const [query, setQuery] = useState("")
   const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set())
   const groups = matchingGroups(query)
+
   const toggle = (title: string) => {
     const next = new Set(folded)
-    if (!next.delete(title)) next.add(title)
+
+    if (!next.delete(title)) {
+      next.add(title)
+    }
+
     setFolded(next)
   }
+
   return (
     <div {...logseq("shortcut-list")}>
       <label className="shortcut-search">
@@ -22,19 +28,24 @@ export const ShortcutList = () => {
           aria-label="Search shortcuts"
           placeholder="Search shortcuts..."
           value={query}
-          onChange={(event) => setQuery(event.currentTarget.value)}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value)
+          }}
         />
       </label>
       {groups.length === 0 ? <p className="shortcut-empty">No shortcuts match</p> : null}
       {groups.map((group) => {
         const open = query.trim() !== "" || !folded.has(group.title)
+
         return (
           <section key={group.title} className="shortcut-group" aria-label={group.title}>
             <button
               type="button"
               className="shortcut-group-head"
               aria-expanded={open}
-              onClick={() => toggle(group.title)}
+              onClick={() => {
+                toggle(group.title)
+              }}
             >
               <strong>{group.title}</strong>
               <IconChevronDown size={18} stroke={2} aria-hidden />

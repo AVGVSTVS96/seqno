@@ -2,7 +2,8 @@ import { logseq } from "@seqno/dom"
 import { Option } from "effect"
 import { dropKatexEnhancers } from "@seqno/outliner"
 import type { AtomRegistry } from "effect/reactivity"
-import { applyStyle, injectStyle, injectUI, removeInjected, type UIOptions } from "./inject.ts"
+import { applyStyle, injectStyle, injectUI, removeInjected } from "./inject.ts"
+import type { UIOptions } from "./inject.ts"
 import {
   call,
   channelOf,
@@ -15,7 +16,8 @@ import {
 } from "./protocol.ts"
 import { entryOf, local } from "./files.ts"
 import { record, settingItems, strings, text, themesOf } from "./package.ts"
-import { makeDraggable, makeResizable, restoreLayout, type LayoutData } from "./layout.ts"
+import { makeDraggable, makeResizable, restoreLayout } from "./layout.ts"
+import type { LayoutData } from "./layout.ts"
 import {
   fencedRenderers,
   mainUILayout,
@@ -26,13 +28,10 @@ import {
   settingsFor,
   slashCommands,
   uiItems,
-  type PluginInfo,
-  type PluginTheme,
-  type Running,
-  type Settings,
 } from "./state.ts"
+import type { PluginInfo, PluginTheme, Running, Settings } from "./state.ts"
 
-export type Api = (pid: string, method: string, args: ReadonlyArray<unknown>) => unknown
+export type Api = (pid: string, method: string, args: readonly unknown[]) => unknown
 
 interface Loaded {
   readonly info: PluginInfo
@@ -60,11 +59,7 @@ export interface Host {
   readonly wants: (hook: string) => boolean
   readonly setSdk: (pid: string, version: string) => void
   readonly callModel: (pid: string, name: string, data: unknown) => void
-  readonly requestModel: (
-    pid: string,
-    name: string,
-    args: ReadonlyArray<unknown>,
-  ) => Promise<unknown>
+  readonly requestModel: (pid: string, name: string, args: readonly unknown[]) => Promise<unknown>
   readonly saveSettings: (pid: string, settings: Settings) => void
   readonly showMainUI: (pid: string, visible: boolean, autoFocus: boolean) => void
   readonly dispose: () => void
@@ -72,6 +67,7 @@ export interface Host {
 
 const uiOptions = (payload: unknown): UIOptions => {
   const ui = record(payload)
+
   return {
     key: text(ui["key"]),
     slot: text(ui["slot"]),
@@ -89,14 +85,16 @@ const isRecord = (value: unknown) =>
 
 const merge = (base: Settings, patch: Readonly<Record<string, unknown>>): Settings => {
   const merged: Record<string, unknown> = { ...base }
+
   for (const [key, value] of Object.entries(patch)) {
     const before = merged[key]
     merged[key] = isRecord(value) && isRecord(before) ? merge(record(before), record(value)) : value
   }
+
   return merged
 }
 
-const without = <A extends { readonly pid: string }>(items: ReadonlyArray<A>, pid: string) =>
+const without = <A extends { readonly pid: string }>(items: readonly A[], pid: string) =>
   items.filter((item) => item.pid !== pid)
 
 const placeKeys = new Set(["left", "top", "bottom", "right", "width", "height"])
@@ -128,29 +126,49 @@ export const createHost = (
   const saveSettings = (pid: string, settings: Settings) => {
     registry.set(pluginSettings(pid), settings)
     const plugin = plugins.get(pid)
-    if (plugin?.connected === true) post(plugin, call(channels.settings, { payload: settings }))
+
+    if (plugin?.connected === true) {
+      post(plugin, call(channels.settings, { payload: settings }))
+    }
   }
 
   const showMainUI = (pid: string, visible: boolean, autoFocus: boolean) => {
     const plugin = plugins.get(pid)
-    if (plugin === undefined) return
+
+    if (plugin === undefined) {
+      return
+    }
+
     plugin.container.className = logseq("seqno-plugin-frames", visible).className
     plugin.container.toggleAttribute("data-visible", visible)
     setRunning(pid, (current) => ({ ...current, mainUI: visible }))
-    if (visible && autoFocus) plugin.frame.focus()
-    if (!visible && document.activeElement === plugin.frame) plugin.frame.blur()
+
+    if (visible && autoFocus) {
+      plugin.frame.focus()
+    }
+
+    if (!visible && document.activeElement === plugin.frame) {
+      plugin.frame.blur()
+    }
   }
 
-  const requestModel = (pid: string, name: string, args: ReadonlyArray<unknown>) => {
+  const requestModel = async (pid: string, name: string, args: readonly unknown[]) => {
     const plugin = plugins.get(pid)
-    if (plugin === undefined) return Promise.resolve(undefined)
+
+    if (plugin === undefined) {
+      await Promise.resolve(undefined)
+      return
+    }
+
     plugin.nextUid += 1
     const uid = plugin.nextUid
-    return new Promise<unknown>((resolve) => {
+
+    return await new Promise<unknown>((resolve) => {
       const timer = setTimeout(() => {
         plugin.requests.delete(uid)
         resolve(undefined)
       }, requestTimeout)
+
       plugin.requests.set(uid, (value) => {
         clearTimeout(timer)
         resolve(value)
@@ -162,41 +180,62 @@ export const createHost = (
   const hook = (ns: HookNamespace, type: string, payload: unknown, pid?: string) => {
     const name = `hook:${ns}:${snakeCase(type)}`
     const message = call(channels.hook, { ns: `hook:${ns}`, type: snakeCase(type), payload })
+
     for (const plugin of plugins.values()) {
-      if (!plugin.connected) continue
+      if (!plugin.connected) {
+        continue
+      }
+
       const wanted =
-        pid !== undefined
-          ? plugin.info.id === pid
-          : plugin.sdk === null
+        pid === undefined
+          ? plugin.sdk === null
             ? ns !== "db"
             : plugin.hooks.has(name)
-      if (wanted) post(plugin, message)
+          : plugin.info.id === pid
+
+      if (wanted) {
+        post(plugin, message)
+      }
     }
   }
 
-  const addThemes = (themes: ReadonlyArray<PluginTheme>) => {
-    if (themes.length === 0) return
+  const addThemes = (themes: readonly PluginTheme[]) => {
+    if (themes.length === 0) {
+      return
+    }
+
     const known = registry.get(runtimeThemes)
+
     const fresh = themes.filter(
       (theme) => !known.some((other) => other.pid === theme.pid && other.url === theme.url),
     )
+
     registry.set(runtimeThemes, [...known, ...fresh])
   }
 
   const host: Host = {
-    load: (info) => load(info),
-    unload: (pid) => unload(pid),
+    load: (info) => {
+      load(info)
+    },
+    unload: async (pid) => {
+      await unload(pid)
+    },
     loaded: (pid) => plugins.get(pid)?.connected === true,
     hook,
     slotted: (slot, payload) => {
       slots.set(slot, payload)
       hook("app", "macro_renderer_slotted", payload)
+
       return () => void slots.delete(slot)
     },
     installHook: (pid, name) => {
       plugins.get(pid)?.hooks.add(name)
-      if (name === slottedHook)
-        for (const payload of slots.values()) hook("app", "macro_renderer_slotted", payload, pid)
+
+      if (name === slottedHook) {
+        for (const payload of slots.values()) {
+          hook("app", "macro_renderer_slotted", payload, pid)
+        }
+      }
     },
     uninstallHook: (pid, name) => void plugins.get(pid)?.hooks.delete(name),
     wants: (name) =>
@@ -205,16 +244,24 @@ export const createHost = (
       ),
     setSdk: (pid, version) => {
       const plugin = plugins.get(pid)
-      if (plugin !== undefined) plugin.sdk = version
+
+      if (plugin !== undefined) {
+        plugin.sdk = version
+      }
     },
     callModel: (pid, name, data) => {
       const plugin = plugins.get(pid)
-      if (plugin !== undefined) post(plugin, call(name, data))
+
+      if (plugin !== undefined) {
+        post(plugin, call(name, data))
+      }
     },
     requestModel,
     saveSettings,
     showMainUI,
-    dispose: () => window.removeEventListener("message", onMessage),
+    dispose: () => {
+      window.removeEventListener("message", onMessage)
+    },
   }
 
   const api = makeApi(host)
@@ -228,6 +275,7 @@ export const createHost = (
           .catch((error: unknown) => ({
             [channels.error]: error instanceof Error ? error.message : String(error),
           }))
+
         if (_sync !== undefined) {
           post(plugin, call(channels.reply, { _sync, result: result ?? null }))
         }
@@ -238,7 +286,11 @@ export const createHost = (
     const { schema, isSync } = record(payload)
     const items = settingItems(schema)
     setRunning(pid, (current) => ({ ...current, schema: items }))
-    if (isSync !== true) return
+
+    if (isSync !== true) {
+      return
+    }
+
     const stored = settingsOf(pid)
     const missing = items.filter((item) => item.type !== "heading" && !(item.key in stored))
     saveSettings(pid, {
@@ -246,48 +298,90 @@ export const createHost = (
       ...stored,
     })
     const plugin = plugins.get(pid)
+
     if (missing.length > 0 && plugin !== undefined && !plugin.restarted) {
-      void unload(pid).then(() => load(plugin.info, true))
+      void unload(pid).then(() => {
+        load(plugin.info, true)
+      })
     }
   }
 
   const onEmit = (plugin: Loaded, type: string, payload: unknown) => {
     const pid = plugin.info.id
+
     switch (type) {
-      case "api:call":
+      case "api:call": {
         return void answer(plugin, payload)
-      case "provider:ui":
-        return injectUI(pid, uiOptions(payload), (name, event) => post(plugin, call(name, event)))
+      }
+
+      case "provider:ui": {
+        injectUI(pid, uiOptions(payload), (name, event) => post(plugin, call(name, event)))
+
+        return
+      }
+
       case "provider:style": {
         const style = typeof payload === "string" ? { key: null, style: payload } : record(payload)
-        return injectStyle(pid, text(style["key"]), text(style["style"]) ?? "")
+
+        injectStyle(pid, text(style["key"]), text(style["style"]) ?? "")
+
+        return
       }
-      case "provider:theme":
-        return addThemes(themesOf(pid, plugin.info.root, [payload]))
-      case "settings:schema":
-        return onSchema(pid, payload)
-      case "settings:update":
-        return saveSettings(pid, merge(settingsOf(pid), record(payload)))
-      case "settings:visible:changed":
-        return record(payload)["visible"] === true ? registry.set(settingsFor, pid) : undefined
+
+      case "provider:theme": {
+        addThemes(themesOf(pid, plugin.info.root, [payload]))
+
+        return
+      }
+
+      case "settings:schema": {
+        onSchema(pid, payload)
+
+        return
+      }
+
+      case "settings:update": {
+        saveSettings(pid, merge(settingsOf(pid), record(payload)))
+
+        return
+      }
+
+      case "settings:visible:changed": {
+        record(payload)["visible"] === true ? registry.set(settingsFor, pid) : undefined
+
+        return
+      }
+
       case "main-ui:visible": {
         const options = record(payload)
-        return showMainUI(pid, options["visible"] === true, options["autoFocus"] !== false)
+
+        showMainUI(pid, options["visible"] === true, options["autoFocus"] !== false)
+
+        return
       }
+
       case "main-ui:style": {
         const style = record(payload)
         const placed = plugin.container.dataset["inited_layout"] !== undefined
-        return applyStyle(
+
+        applyStyle(
           plugin.container,
           placed
             ? Object.fromEntries(Object.entries(style).filter(([key]) => !placeKeys.has(key)))
             : style,
         )
+
+        return
       }
+
       case "main-ui:attrs": {
-        const save = (layout: LayoutData) => registry.set(mainUILayout(pid), layout)
+        const save = (layout: LayoutData) => {
+          registry.set(mainUILayout(pid), layout)
+        }
+
         for (const [key, value] of Object.entries(record(payload))) {
           plugin.container.setAttribute(key, String(value))
+
           if (key === "draggable" && value === true) {
             makeDraggable(plugin.container, {
               title: plugin.info.title,
@@ -295,12 +389,18 @@ export const createHost = (
               saved: save,
             })
           }
-          if (key === "resizable" && value === true) makeResizable(plugin.container, save)
+
+          if (key === "resizable" && value === true) {
+            makeResizable(plugin.container, save)
+          }
         }
+
         return
       }
-      default:
+
+      default: {
         return
+      }
     }
   }
 
@@ -312,22 +412,35 @@ export const createHost = (
 
   const onMessage = (event: MessageEvent) => {
     const plugin = [...plugins.values()].find((one) => one.frame.contentWindow === event.source)
-    if (plugin === undefined || event.origin !== plugin.origin) return
+
+    if (plugin === undefined || event.origin !== plugin.origin) {
+      return
+    }
+
     Option.match(decodeMessage(event.data), {
       onNone: () => undefined,
       onSome: (message) => {
         switch (message.postmate) {
-          case "handshake-reply":
-            return plugin.connected ? undefined : connect(plugin)
+          case "handshake-reply": {
+            plugin.connected ? undefined : connect(plugin)
+
+            return
+          }
+
           case "reply": {
             const resolve = plugin.requests.get(message.uid)
             plugin.requests.delete(message.uid)
+
             return resolve?.(message.value)
           }
-          case "emit":
-            return message.value.name === channelOf(plugin.info.id)
+
+          case "emit": {
+            message.value.name === channelOf(plugin.info.id)
               ? onEmit(plugin, message.value.data.type, message.value.data.payload)
               : undefined
+
+            return
+          }
         }
       },
     })
@@ -348,30 +461,46 @@ export const createHost = (
     err: null,
   })
 
-  const fail = (pid: string, reason: string) =>
+  const fail = (pid: string, reason: string) => {
     setRunning(pid, (current) => ({ ...current, status: { _tag: "Failed", reason } }))
+  }
 
   const shake = (plugin: Loaded) => {
     let tries = 0
     const send = () => post(plugin, handshake(baseInfo(plugin.info)))
+
     const timer = setInterval(() => {
       tries += 1
       const live = plugins.get(plugin.info.id) === plugin
+
       if (plugin.connected || !live || tries > handshakeTries) {
         clearInterval(timer)
-        if (!plugin.connected && live) fail(plugin.info.id, "It didn't answer when it loaded.")
+
+        if (!plugin.connected && live) {
+          fail(plugin.info.id, "It didn't answer when it loaded.")
+        }
+
         return
       }
+
       send()
     }, handshakeEvery)
+
     send()
   }
 
   const load = (info: PluginInfo, restarted = false) => {
-    if (plugins.has(info.id)) return
+    if (plugins.has(info.id)) {
+      return
+    }
+
     addThemes(info.themes)
     const main = entryOf(info)
-    if (main === null || settingsOf(info.id)["disabled"] === true) return
+
+    if (main === null || settingsOf(info.id)["disabled"] === true) {
+      return
+    }
+
     const entry = new URL(main)
     entry.searchParams.set("__v__", info.version)
     const container = document.createElement("div")
@@ -379,11 +508,16 @@ export const createHost = (
     container.className = logseq("seqno-plugin-frames", false).className
     container.dataset["pid"] = info.id
     const layout = registry.get(mainUILayout(info.id))
-    if (layout !== null) restoreLayout(container, layout)
+
+    if (layout !== null) {
+      restoreLayout(container, layout)
+    }
+
     const frame = document.createElement("iframe")
     frame.id = `${info.id}_iframe`
     frame.className = logseq("seqno-plugin-frame").className
     frame.title = info.title
+
     const plugin: Loaded = {
       info,
       frame,
@@ -396,10 +530,23 @@ export const createHost = (
       sdk: null,
       nextUid: 0,
     }
+
     plugins.set(info.id, plugin)
     setRunning(info.id, () => idle)
-    frame.addEventListener("load", () => shake(plugin), { once: true })
-    frame.addEventListener("error", () => fail(info.id, "Its files didn't load."), { once: true })
+    frame.addEventListener(
+      "load",
+      () => {
+        shake(plugin)
+      },
+      { once: true },
+    )
+    frame.addEventListener(
+      "error",
+      () => {
+        fail(info.id, "Its files didn't load.")
+      },
+      { once: true },
+    )
     frame.src = entry.href
     container.append(frame)
     document.body.append(container)
@@ -407,12 +554,14 @@ export const createHost = (
 
   const unload = async (pid: string) => {
     const plugin = plugins.get(pid)
+
     if (plugin?.connected === true) {
       await Promise.race([
         requestModel(pid, channels.beforeUnload, [{ unregister: true }]),
         new Promise((resolve) => setTimeout(resolve, 1000)),
       ])
     }
+
     plugin?.container.remove()
     plugins.delete(pid)
     removeInjected(pid)

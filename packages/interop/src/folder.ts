@@ -8,7 +8,7 @@ export class FolderError extends Schema.TaggedError<FolderError>()("FolderError"
 export class GraphFolder extends Context.Service<
   GraphFolder,
   {
-    readonly list: Effect.Effect<ReadonlyArray<string>, FolderError>
+    readonly list: Effect.Effect<readonly string[], FolderError>
     readonly read: (path: string) => Effect.Effect<string, FolderError>
     readonly write: (path: string, text: string) => Effect.Effect<void, FolderError>
     readonly remove: (path: string) => Effect.Effect<void, FolderError>
@@ -27,8 +27,10 @@ export const layerFileSystem = (root: string) =>
       const fs = yield* FileSystem.FileSystem
       const path = yield* Path.Path
       const at = (relative: string) => path.join(root, ...relative.split("/"))
+
       const isFile = (relative: string) =>
         Effect.map(fs.stat(at(relative)), (info) => info.type === "File")
+
       return GraphFolder.of({
         list: fs.readDirectory(root, { recursive: true }).pipe(
           Effect.map((entries) => entries.map((entry) => entry.split(path.sep).join("/"))),
@@ -40,6 +42,7 @@ export const layerFileSystem = (root: string) =>
         write: (relative, text) => {
           const target = at(relative)
           const staging = `${target}.seqno-tmp`
+
           return fs
             .makeDirectory(path.dirname(target), { recursive: true })
             .pipe(

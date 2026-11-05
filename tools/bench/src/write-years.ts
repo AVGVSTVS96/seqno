@@ -4,7 +4,8 @@ import { dirname, join } from "node:path"
 import { DeviceId } from "@seqno/domain"
 import { editLogDir, seenPath, snapshotName, snapshotPath, treePerPageMarker } from "@seqno/vault"
 import type { Size } from "./size.ts"
-import { shapeOf, writeSlicesInFreshProcesses, type Layout } from "./years.ts"
+import { shapeOf, writeSlicesInFreshProcesses } from "./years.ts"
+import type { Layout } from "./years.ts"
 
 const writer = DeviceId.make("bench")
 
@@ -22,6 +23,7 @@ export const writeYears = async (
   const started = performance.now()
   const asked = { ...size, until: new Date(), longPage }
   const slices = await mkdtemp(join(tmpdir(), "seqno-years-"))
+
   try {
     const { snapshot, version } = await writeSlicesInFreshProcesses(slices, asked, layout)
     const log = layout === "tree-per-page" ? editLogDir : ""
@@ -33,13 +35,16 @@ export const writeYears = async (
         JSON.stringify({ vv: version, verified: [], snapshots: [[name, version]] }),
       ),
     )
+
     if (layout === "tree-per-page") {
       await write(
         join(out, treePerPageMarker.path),
         new TextEncoder().encode(treePerPageMarker.text),
       )
     }
+
     const { days, pages, blocks } = shapeOf(asked)
+
     return {
       days,
       pages,
@@ -60,7 +65,9 @@ if (import.meta.main) {
     Number(longPage),
     layout === "tree-per-page" ? layout : "one-tree",
   ).then(
-    (shape) => console.log(JSON.stringify(shape)),
+    (shape) => {
+      console.log(JSON.stringify(shape))
+    },
     (error: unknown) => {
       console.error(error)
       process.exit(1)

@@ -37,6 +37,7 @@ const RESIZE: Record<ResizeHandle, readonly [string, number]> = {
 
 export const resizeCursor = (handle: ResizeHandle, rotation: number) => {
   const [paths, base] = RESIZE[handle]
+
   return rotation === 0 ? undefined : svgCursor(paths, degreesOf(rotation) + base)
 }
 
@@ -54,12 +55,14 @@ export const RotateTargets = ({
   readonly rotation: number
 }) => {
   const outside = OVERLAP - TARGET
+
   const places: ReadonlyArray<readonly [Corner, number, number]> = [
     ["top-left", outside, outside],
     ["top-right", width - OVERLAP, outside],
     ["bottom-right", width - OVERLAP, height - OVERLAP],
     ["bottom-left", outside, height - OVERLAP],
   ]
+
   return places.map(([corner, left, top]) => (
     <div
       key={`rotate-${corner}`}

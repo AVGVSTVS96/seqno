@@ -10,11 +10,12 @@ export const longOutline = (blocks: number, { pictures = true } = {}) =>
     const indent = n % 5 === 0 ? "" : "\t"
     const words = n % 9 === 0 ? 70 : n % 4
     const picture = pictures && n % 25 === 12 ? ` ![](https://pictures.seqno.test/${n}.svg)` : ""
+
     return `${indent}- row ${n + 1}${" and more".repeat(words)}${picture}`
   }).join("\n")
 
-export const latePictures = (page: Page) =>
-  page.route("https://pictures.seqno.test/**", async (route) => {
+export const latePictures = async (page: Page) =>
+  await page.route("https://pictures.seqno.test/**", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 250))
     await route.fulfill({
       contentType: "image/svg+xml",
@@ -22,12 +23,14 @@ export const latePictures = (page: Page) =>
     })
   })
 
-export const openLongPage = async (page: Page, others: ReadonlyArray<string> = []) => {
+export const openLongPage = async (page: Page, others: readonly string[] = []) => {
   const folder = await mkdtemp(join(tmpdir(), "seqno-long-"))
   await mkdir(join(folder, "pages"))
   await writeFile(join(folder, "pages", "long.md"), longOutline(3000))
   await Promise.all(
-    others.map((name) => writeFile(join(folder, "pages", `${name}.md`), `- ${name}\n`)),
+    others.map(async (name) => {
+      await writeFile(join(folder, "pages", `${name}.md`), `- ${name}\n`)
+    }),
   )
   await seedOpfs(page, folder, ["graphs", "demo"])
   await rm(folder, { recursive: true })

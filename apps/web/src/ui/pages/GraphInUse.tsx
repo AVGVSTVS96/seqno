@@ -10,6 +10,7 @@ export const GraphInUse = ({ graph }: { readonly graph: string }) => {
   const open = useAtomSet(openGraph)
   const setLocked = useAtomSet(graphLocked)
   const title = useId()
+
   return (
     <main className="seqno-graph-in-use" aria-labelledby={title}>
       <PagesStyle />

@@ -17,24 +17,35 @@ const nodeCount = async (page: Page) => {
     .getByRole("region", { name: "Graph settings" })
     .getByText(/ nodes?$/)
     .textContent()
-  return Number((text ?? "").replace(/\D/g, ""))
+
+  return Number((text ?? "").replaceAll(/\D/g, ""))
 }
 
-const pixelOf = (canvas: Locator, rgb: readonly [number, number, number]) =>
-  canvas.evaluate((element, [r, g, b]) => {
-    if (!(element instanceof HTMLCanvasElement)) return null
+const pixelOf = async (canvas: Locator, rgb: readonly [number, number, number]) =>
+  await canvas.evaluate((element, [r, g, b]) => {
+    if (!(element instanceof HTMLCanvasElement)) {
+      return null
+    }
+
     const context = element.getContext("2d")
-    if (context === null) return null
+
+    if (context === null) {
+      return null
+    }
+
     const { data, width, height } = context.getImageData(0, 0, element.width, element.height)
     const ratio = width / element.getBoundingClientRect().width
+
     for (let at = 0; at < data.length; at += 4) {
       if (data[at] === r && data[at + 1] === g && data[at + 2] === b && data[at + 3] === 255) {
         const pixel = at / 4
         const x = pixel % width
         const y = Math.floor(pixel / width)
+
         return y < height ? { x: x / ratio, y: y / ratio } : null
       }
     }
+
     return null
   }, rgb)
 
@@ -59,10 +70,10 @@ test("g g opens the graph view, whose settings filter journals and orphans and s
   const pagesOnly = await nodeCount(page)
   expect(pagesOnly).toBeGreaterThan(0)
   await journals.click()
-  await expect.poll(() => nodeCount(page)).toBeGreaterThan(pagesOnly)
+  await expect.poll(async () => await nodeCount(page)).toBeGreaterThan(pagesOnly)
   const withJournals = await nodeCount(page)
   await orphans.click()
-  await expect.poll(() => nodeCount(page)).toBeLessThan(withJournals)
+  await expect.poll(async () => await nodeCount(page)).toBeLessThan(withJournals)
   const linkedOnly = await nodeCount(page)
   await page.reload()
   await page.getByRole("button", { name: "Graph settings" }).click()
@@ -75,9 +86,13 @@ test("double-clicking a node in the graph view opens its page", async ({ page })
   await openShowcaseAt(page, "/graph")
   const canvas = graphCanvas(page)
   await expect(page.getByText("Preparing graph…")).toHaveCount(0)
-  await expect.poll(() => pixelOf(canvas, tagColor)).not.toBeNull()
+  await expect.poll(async () => await pixelOf(canvas, tagColor)).not.toBeNull()
   const point = await pixelOf(canvas, tagColor)
-  if (point === null) throw new Error("no tag node drawn")
+
+  if (point === null) {
+    throw new Error("no tag node drawn")
+  }
+
   const box = await canvas.boundingBox()
   await page.mouse.dblclick((box?.x ?? 0) + point.x + 1, (box?.y ?? 0) + point.y + 2)
   await expect(page).toHaveURL(/\/page\/[^/]+$/)
@@ -91,7 +106,7 @@ test("the right sidebar's Page graph follows the page you are on", async ({ page
   await page.getByRole("button", { name: "Page graph", exact: true }).click()
   const pageGraph = page.getByRole("application", { name: "Page graph" })
   await expect(pageGraph).toBeVisible()
-  await expect.poll(() => pixelOf(pageGraph, [37, 99, 235])).not.toBeNull()
+  await expect.poll(async () => await pixelOf(pageGraph, [37, 99, 235])).not.toBeNull()
   await page.keyboard.press("Escape")
   await page.keyboard.press("Control+k")
   const palette = page.getByRole("dialog", { name: "Search" })
@@ -100,5 +115,5 @@ test("the right sidebar's Page graph follows the page you are on", async ({ page
   await page.keyboard.press("Enter")
   await expect(page).toHaveURL(/\/page\/sourdough$/)
   await expect(pageGraph).toBeVisible()
-  await expect.poll(() => pixelOf(pageGraph, [37, 99, 235])).not.toBeNull()
+  await expect.poll(async () => await pixelOf(pageGraph, [37, 99, 235])).not.toBeNull()
 })

@@ -1,10 +1,11 @@
 import { useAtom, useAtomValue } from "@effect/atom-react"
-import { accentColors, accentScale, type AccentChoice } from "@seqno/dom"
+import { accentColors, accentScale } from "@seqno/dom"
+import type { AccentChoice } from "@seqno/dom"
 import { resolvedTheme } from "../../atoms.ts"
 import { Dialog, useTooltip } from "./popover.tsx"
 import { accentColor, accentPickerOpen } from "./state.ts"
 
-const choices: ReadonlyArray<AccentChoice> = ["none", "logseq", ...accentColors]
+const choices: readonly AccentChoice[] = ["none", "logseq", ...accentColors]
 
 const labelOf = (choice: AccentChoice) =>
   choice === "none"
@@ -17,6 +18,7 @@ const Swatch = ({ choice, dark }: { readonly choice: AccentChoice; readonly dark
   const [current, choose] = useAtom(accentColor)
   const hint = useTooltip({ label: labelOf(choice) })
   const scale = choice === "none" || choice === "logseq" ? null : accentScale(choice, dark)
+
   return (
     <>
       <button
@@ -27,7 +29,9 @@ const Swatch = ({ choice, dark }: { readonly choice: AccentChoice; readonly dark
         data-color={choice}
         style={scale === null ? undefined : { "--swatch": scale[8], "--swatch-ring": scale[6] }}
         {...hint.props}
-        onClick={() => choose(choice)}
+        onClick={() => {
+          choose(choice)
+        }}
       >
         <span className="seqno-accent-mark" />
       </button>
@@ -38,6 +42,7 @@ const Swatch = ({ choice, dark }: { readonly choice: AccentChoice; readonly dark
 
 export const AccentColorList = () => {
   const dark = useAtomValue(resolvedTheme) === "dark"
+
   return (
     <div className="seqno-accent-list" role="group" aria-label="Accent color">
       {choices.map((choice) => (
@@ -54,7 +59,9 @@ const Picker = ({ onClose }: { readonly onClose: () => void }) => (
     className="seqno-accent-colors"
     onClose={onClose}
     ref={(dialog) => {
-      if (dialog !== null && !dialog.open) dialog.showModal()
+      if (dialog !== null && !dialog.open) {
+        dialog.showModal()
+      }
     }}
   >
     <div className="seqno-accent-head">
@@ -67,5 +74,12 @@ const Picker = ({ onClose }: { readonly onClose: () => void }) => (
 
 export const AccentColors = () => {
   const [open, setOpen] = useAtom(accentPickerOpen)
-  return open ? <Picker onClose={() => setOpen(false)} /> : null
+
+  return open ? (
+    <Picker
+      onClose={() => {
+        setOpen(false)
+      }}
+    />
+  ) : null
 }

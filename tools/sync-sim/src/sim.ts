@@ -1,13 +1,17 @@
 import { createHash } from "node:crypto"
 import { Clock, Crypto, Effect, Exit, Option, Scope } from "effect"
 import { DeviceId } from "@seqno/domain"
-import { FakeICloud, type CloudDeviceConfig, type CloudStats } from "./cloud.ts"
-import { Graphs, Vaults, type Replica, type VaultStats, type VaultSync } from "./ports.ts"
+import { FakeICloud } from "./cloud.ts"
+import type { CloudDeviceConfig, CloudStats } from "./cloud.ts"
+import { Graphs, Vaults } from "./ports.ts"
+import type { Replica, VaultStats, VaultSync } from "./ports.ts"
 import { createRng } from "./rng.ts"
 import { Scheduler } from "./scheduler.ts"
 import { at, HOUR, MINUTE, sameBytes } from "./util.ts"
-import { Coverage, covers, vvEqual, vvMax, type Span, type VV } from "./vv.ts"
-import { createIntent, Workload, type Counts, type Intent } from "./workload.ts"
+import { Coverage, covers, vvEqual, vvMax } from "./vv.ts"
+import type { Span, VV } from "./vv.ts"
+import { createIntent, Workload } from "./workload.ts"
+import type { Counts, Intent } from "./workload.ts"
 
 export interface SimConfig {
   readonly seed: number
@@ -43,10 +47,10 @@ export interface Violations {
 export interface SeedResult {
   readonly seed: number
   readonly ok: boolean
-  readonly problems: ReadonlyArray<string>
+  readonly problems: readonly string[]
   readonly violations: Violations
   readonly quiescenceToConvergeMs: number
-  readonly catchUps: ReadonlyArray<CatchUp>
+  readonly catchUps: readonly CatchUp[]
   readonly files: {
     readonly peakCount: number
     readonly peakBytes: number
@@ -72,6 +76,7 @@ const kinds: readonly [CloudDeviceConfig, ...CloudDeviceConfig[]] = [
 
 const simClock = (millis: () => number): Clock.Clock => {
   const nanos = () => BigInt(millis()) * 1_000_000n
+
   return {
     currentTimeMillisUnsafe: millis,
     currentTimeMillis: Effect.sync(millis),
@@ -92,7 +97,7 @@ const deterministicCrypto = (bytes: (size: number) => Uint8Array): Crypto.Crypto
 const withoutPeer = (vv: VV, peer: string): VV =>
   Object.fromEntries(Object.entries(vv).filter(([other]) => other !== peer))
 
-const twice = (items: ReadonlyArray<string>) =>
+const twice = (items: readonly string[]) =>
   items.filter((item, index) => items.indexOf(item) !== index)
 
 const ownerOf = (path: string) => /^updates\/d(\d+)\//.exec(path)?.[1]
@@ -101,8 +106,10 @@ const checkIntent = (oracle: Replica, intent: Intent) =>
   Effect.gen(function* () {
     const problems: string[] = []
     const pages = new Set<string>(intent.pages)
+
     for (const id of [...intent.pages, ...intent.blocks]) {
       const fate = yield* oracle.fate(id)
+
       if (fate._tag === "Missing") {
         problems.push(`created node ${id} missing`)
       } else if (fate._tag === "Deleted" && !intent.explicitlyDeleted.has(fate.top)) {
@@ -111,19 +118,24 @@ const checkIntent = (oracle: Replica, intent: Intent) =>
         problems.push(`node ${id} not under a page (root ${fate.root})`)
       }
     }
+
     for (const [token, blockId] of intent.tokens) {
       const block = yield* oracle.block(blockId)
+
       if (Option.isNone(block)) {
         continue
       }
+
       const text = block.value.text
       const first = text.indexOf(token)
       const count = first < 0 ? 0 : text.indexOf(token, first + 1) < 0 ? 1 : 2
       const dead = intent.deadTokens.has(token)
+
       if (dead ? count !== 0 : count !== 1) {
         problems.push(`token ${token} in ${blockId}: found ${count}, deleted=${dead}`)
       }
     }
+
     return problems
   })
 
@@ -150,6 +162,7 @@ export const runSeed = (cfg: SimConfig) =>
     const rng = createRng(cfg.seed)
     const sched = new Scheduler()
     const problems: string[] = []
+
     const violations: Violations = {
       lostCoverage: 0,
       ackUnsound: 0,
@@ -161,12 +174,15 @@ export const runSeed = (cfg: SimConfig) =>
       noConvergence: 0,
       duplicates: 0,
     }
+
     const fail = (kind: keyof Violations, message: string) => {
       violations[kind]++
+
       if (problems.length < 12) {
         problems.push(`${kind}: ${message}`)
       }
     }
+
     const deviceIds = Array.from({ length: cfg.devices }, (_, i) => DeviceId.make(`d${i}`))
 
     const serverTruth = new Map<string, Uint8Array>()
@@ -184,24 +200,29 @@ export const runSeed = (cfg: SimConfig) =>
 
     const trackCloud = (path: string, size: number | undefined) => {
       const before = cloudSizes.get(path)
+
       if (size === undefined) {
         cloudSizes.delete(path)
       } else {
         cloudSizes.set(path, size)
       }
+
       files.count += Number(size !== undefined) - Number(before !== undefined)
       files.bytes += (size ?? 0) - (before ?? 0)
       files.peakCount = Math.max(files.peakCount, files.count)
       files.peakBytes = Math.max(files.peakBytes, files.bytes)
     }
+
     const recordWriter = (path: string, device: number) => {
       const writer = writers.get(path)
+
       if (writer === undefined) {
         writers.set(path, device)
       } else if (writer !== device) {
         fail("multiWriter", `${path} written by ${writer} and ${device}`)
       }
     }
+
     const spanOf = (bytes: Uint8Array): Span =>
       Option.getOrElse(graphs.blobSpan(bytes, false), () => ({ start: {}, end: {} }))
 
@@ -220,33 +241,44 @@ export const runSeed = (cfg: SimConfig) =>
       {
         onServerWrite: (path, bytes, owner, conflictCopy) => {
           trackCloud(path, bytes.length)
+
           if (conflictCopy) {
             recordWriter(path, owner)
           }
+
           const prior = serverTruth.get(path)
+
           if (path.endsWith(".loro")) {
             if (prior !== undefined && !sameBytes(prior, bytes)) {
               fail("multiWriter", `${path} rewritten with different bytes`)
             }
+
             const span = spanOf(bytes)
             spans.set(path, span)
             everOnServer.add(span)
           }
+
           serverTruth.set(path, bytes)
         },
         onServerDelete: (path) => {
           trackCloud(path, undefined)
+
           if (!path.endsWith(".loro")) {
             return
           }
+
           const now = new Coverage()
+
           for (const p of cloud.server.keys()) {
             const span = spans.get(p)
+
             if (span !== undefined) {
               now.add(span)
             }
           }
+
           const missing = everOnServer.missingFrom(now)
+
           if (missing.length > 0) {
             fail(
               "lostCoverage",
@@ -256,14 +288,17 @@ export const runSeed = (cfg: SimConfig) =>
         },
         onDeviceWrite: (device, path, bytes) => {
           recordWriter(path, device)
+
           if (path.startsWith("updates/") && ownerOf(path) === String(device)) {
             exported.push(bytes)
             flushedVV = vvMax(flushedVV, spanOf(bytes).end)
           }
+
           if (path.startsWith("snapshots/")) {
             snapshotsWritten++
             const content = createHash("sha256").update(bytes).digest("hex")
             const writer = snapshotContent.get(content)
+
             if (writer === undefined) {
               snapshotContent.set(content, device)
             } else if (writer !== device) {
@@ -273,11 +308,14 @@ export const runSeed = (cfg: SimConfig) =>
         },
         onDeviceRemove: (device, path) => {
           recordWriter(path, device)
+
           if (path.startsWith("updates/") && path.endsWith(".loro")) {
             removals.push({ device, path })
           }
         },
-        onViewChange: (device) => schedulePass(device, 2_000),
+        onViewChange: (device) => {
+          schedulePass(device, 2000)
+        },
       },
     )
 
@@ -286,13 +324,17 @@ export const runSeed = (cfg: SimConfig) =>
       jumpAt: rng.range(0, cfg.hours * HOUR),
       jump: rng.range(-3 * HOUR, HOUR),
     }))
+
     const clocks = skews.map((s) =>
       simClock(() => Math.floor(sched.now + s.skew + (sched.now >= s.jumpAt ? s.jump : 0))),
     )
+
     const cryptos = deviceIds.map(() => {
       const bytes = rng.fork()
+
       return deterministicCrypto(bytes.bytes)
     })
+
     const onDevice =
       (d: number) =>
       <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -306,14 +348,17 @@ export const runSeed = (cfg: SimConfig) =>
     const scopes: Scope.Closeable[] = []
     const opens: number[] = deviceIds.map(() => 0)
     const closedPeers: Array<readonly [string, number]> = []
+
     const openDevice = (d: number) =>
       Effect.gen(function* () {
         const scope = yield* Scope.make()
-        const peer = 1_000 * at(opens, d) + d + 1
+        const peer = 1000 * at(opens, d) + d + 1
         opens[d] = at(opens, d) + 1
+
         const opened = yield* onDevice(d)(
           Scope.provide(graphs.open({ deviceId: at(deviceIds, d), peer }), scope),
         )
+
         const sync = yield* onDevice(d)(
           Effect.provideService(
             vaults.attach(
@@ -333,22 +378,27 @@ export const runSeed = (cfg: SimConfig) =>
             graphs,
           ),
         )
+
         replicas[d] = opened
         syncs[d] = sync
         scopes[d] = scope
       })
+
     for (let d = 0; d < cfg.devices; d++) {
       yield* openDevice(d)
     }
+
     yield* Effect.addFinalizer(() =>
       Effect.forEach(scopes, (scope) => Scope.close(scope, Exit.void), { discard: true }),
     )
     const replica = (d: number) => at(replicas, d)
     const versions = Effect.forEach(replicas, (r) => r.version)
     const reached: VV[] = deviceIds.map(() => ({}))
+
     const highWater = Effect.map(versions, (all) =>
       all.map((vv, d) => {
         reached[d] = vvMax(at(reached, d), vv)
+
         return at(reached, d)
       }),
     )
@@ -357,7 +407,9 @@ export const runSeed = (cfg: SimConfig) =>
       if (removals.length === 0) {
         return
       }
+
       const now = yield* highWater
+
       for (const { device, path } of removals.splice(0)) {
         const span = spans.get(path) ?? spanOf(serverTruth.get(path) ?? new Uint8Array(0))
         now.forEach((vv, other) => {
@@ -375,12 +427,15 @@ export const runSeed = (cfg: SimConfig) =>
 
     const serverVV = () => {
       let vv: VV = {}
+
       for (const path of cloud.server.keys()) {
         const span = spans.get(path)
+
         if (span !== undefined) {
           vv = vvMax(vv, span.end)
         }
       }
+
       return vv
     }
 
@@ -390,12 +445,14 @@ export const runSeed = (cfg: SimConfig) =>
         yield* highWater
         const mine = at(all, d)
         const stats = yield* at(syncs, d).stats
+
         for (const t of trackings) {
           if (t.device === d && t.caughtUp === undefined && covers(mine, t.target)) {
             t.caughtUp = sched.now
             t.files = stats.importedFiles - t.files0
             t.bytes = stats.importedBytes - t.bytes0
           }
+
           if (
             t.publishedAt === undefined &&
             all.every((vv, other) => inLongOffline[other] === true || covers(vv, t.published))
@@ -409,6 +466,7 @@ export const runSeed = (cfg: SimConfig) =>
       if (passPending[d] === true) {
         return
       }
+
       passPending[d] = true
       sched.after(
         delay,
@@ -417,6 +475,7 @@ export const runSeed = (cfg: SimConfig) =>
           const outcome = yield* onDevice(d)(at(syncs, d).pass)
           yield* checkRemovals
           yield* afterPass(d)
+
           if (outcome.wakeInMs !== null) {
             schedulePass(d, outcome.wakeInMs)
           }
@@ -424,34 +483,44 @@ export const runSeed = (cfg: SimConfig) =>
       )
     }
 
-    const periodic = (d: number) =>
+    const periodic = (d: number) => {
       sched.soon(2 * MINUTE, () => {
         schedulePass(d, 0)
         periodic(d)
       })
-    deviceIds.forEach((_, d) => periodic(d))
+    }
 
-    const IDLE_FLUSH = 5_000
+    deviceIds.forEach((_, d) => {
+      periodic(d)
+    })
+
+    const IDLE_FLUSH = 5000
     const MAX_FLUSH_DELAY = 60_000
     const pendingOps = deviceIds.map(() => 0)
     const firstOpAt = deviceIds.map(() => 0)
     const lastOpAt = deviceIds.map(() => 0)
     const batchMax = deviceIds.map(() => rng.int(20, 60))
+
     const flush = (d: number) =>
       Effect.suspend(() => {
         pendingOps[d] = 0
+
         return onDevice(d)(at(syncs, d).flush)
       })
+
     const noteOp = (d: number) =>
       Effect.suspend(() => {
         if (at(pendingOps, d) === 0) {
           firstOpAt[d] = sched.now
         }
+
         lastOpAt[d] = sched.now
         pendingOps[d] = at(pendingOps, d) + 1
+
         if (at(pendingOps, d) >= at(batchMax, d)) {
           return flush(d)
         }
+
         sched.at(
           Math.min(sched.now + IDLE_FLUSH, at(firstOpAt, d) + MAX_FLUSH_DELAY),
           Effect.suspend(() =>
@@ -462,6 +531,7 @@ export const runSeed = (cfg: SimConfig) =>
               : Effect.void,
           ),
         )
+
         return Effect.void
       })
 
@@ -483,27 +553,36 @@ export const runSeed = (cfg: SimConfig) =>
         })
       })
 
-    const cycle = (d: number) =>
+    const cycle = (d: number) => {
       sched.soon(rng.exp(3 * HOUR), () => {
         if (quiescent) {
           return
         }
+
         if (inLongOffline[d] !== true) {
           cloud.setOnline(d, false)
         }
+
         sched.soon(rng.exp(20 * MINUTE), () => {
           if (quiescent) {
             return
           }
+
           if (inLongOffline[d] !== true) {
             cloud.setOnline(d, true)
           }
+
           cycle(d)
         })
       })
-    deviceIds.forEach((_, d) => cycle(d))
+    }
+
+    deviceIds.forEach((_, d) => {
+      cycle(d)
+    })
 
     const longOfflineDevices = rng.chance(0.5) ? 2 : 1
+
     for (let i = 0; i < longOfflineDevices; i++) {
       const d = rng.int(0, cfg.devices - 1)
       const start = rng.chance(0.25) ? 0 : rng.range(0.05, 0.6) * cfg.hours * HOUR
@@ -512,13 +591,16 @@ export const runSeed = (cfg: SimConfig) =>
         if (quiescent || inLongOffline[d] === true) {
           return
         }
+
         inLongOffline[d] = true
         longOfflineStart[d] = sched.now
+
         for (const t of trackings) {
           if (t.device === d && (t.caughtUp === undefined || t.publishedAt === undefined)) {
             t.interrupted = true
           }
         }
+
         cloud.setOnline(d, false)
         sched.at(
           start + length,
@@ -538,41 +620,52 @@ export const runSeed = (cfg: SimConfig) =>
         yield* onDevice(d)(at(syncs, d).pass)
         yield* checkRemovals
       })
-    const restartCycle = (d: number): void =>
+
+    const restartCycle = (d: number): void => {
       sched.after(
         rng.exp(6 * HOUR),
         Effect.suspend(() => {
           if (quiescent) {
             return Effect.void
           }
+
           restartCycle(d)
+
           return restartDevice(d)
         }),
       )
+    }
+
     if (cfg.restarts) {
-      deviceIds.forEach((_, d) => restartCycle(d))
+      deviceIds.forEach((_, d) => {
+        restartCycle(d)
+      })
     }
 
     const intent = createIntent()
     const workload = new Workload(rng.fork(), intent, graphs.full)
     const seedPages = rng.int(4, 10)
+
     for (let i = 0; i < seedPages; i++) {
       yield* onDevice(0)(workload.apply(replica(0), 0, "createPage"))
+
       for (let j = 0; j < 4; j++) {
         yield* onDevice(0)(workload.apply(replica(0), 0, "createBlock"))
       }
     }
+
     yield* flush(0)
 
     let quiescenceAt = 0
     let convergedAt: number | undefined
     let finishAt = Number.POSITIVE_INFINITY
 
-    const watch = (): void =>
+    const watch = (): void => {
       sched.after(
         MINUTE,
         Effect.gen(function* () {
           const all = yield* versions
+
           if (cloud.idle && all.every((vv) => vvEqual(vv, flushedVV))) {
             convergedAt = sched.now
             finishAt = sched.now + 12 * HOUR
@@ -584,35 +677,43 @@ export const runSeed = (cfg: SimConfig) =>
           }
         }),
       )
+    }
 
     const beginQuiescence = Effect.gen(function* () {
       quiescent = true
       quiescenceAt = sched.now
+
       for (let d = 0; d < cfg.devices; d++) {
         if (inLongOffline[d] === true) {
           yield* comeBack(d)
         } else {
           cloud.setOnline(d, true)
         }
+
         yield* flush(d)
       }
+
       watch()
     })
 
-    const shortGap = 2_000
+    const shortGap = 2000
     const longGap = Math.max(10_000, ((cfg.hours * HOUR) / cfg.ops - 0.9 * shortGap) / 0.1)
     let device = 0
     let done = 0
-    const nextOp = (): void =>
+
+    const nextOp = (): void => {
       sched.after(
         rng.chance(0.9) ? rng.exp(shortGap) : rng.exp(longGap),
         Effect.gen(function* () {
           if (rng.chance(0.03)) {
             device = rng.int(0, cfg.devices - 1)
           }
+
           const kind = workload.pickKind()
+
           if (kind === "cyclePair") {
             const other = (device + rng.int(1, cfg.devices - 1)) % cfg.devices
+
             if (yield* onDevice(device)(workload.cyclePair(replica(device), replica(other)))) {
               yield* noteOp(device)
               yield* noteOp(other)
@@ -622,6 +723,7 @@ export const runSeed = (cfg: SimConfig) =>
             yield* noteOp(device)
             done++
           }
+
           if (done < cfg.ops) {
             nextOp()
           } else {
@@ -629,6 +731,8 @@ export const runSeed = (cfg: SimConfig) =>
           }
         }),
       )
+    }
+
     nextOp()
 
     yield* sched.runWhile(() => sched.now < finishAt)
@@ -636,11 +740,14 @@ export const runSeed = (cfg: SimConfig) =>
     const oracle = yield* onDevice(0)(
       graphs.open({ deviceId: DeviceId.make("oracle"), peer: 999_001 }),
     )
+
     yield* oracle.importBlobs(exported)
     const target = withoutPeer(yield* oracle.version, oracle.peer)
+
     if (!vvEqual(target, flushedVV)) {
       fail("lostOps", "oracle could not apply every exported update")
     }
+
     for (const [peer, made] of closedPeers) {
       if ((target[peer] ?? 0) < made) {
         fail(
@@ -649,31 +756,43 @@ export const runSeed = (cfg: SimConfig) =>
         )
       }
     }
+
     const reference = yield* oracle.canonical
+
     for (let d = 0; d < cfg.devices; d++) {
       const r = replica(d)
       const vv = yield* r.version
       const own = vv[r.peer] ?? 0
+
       if ((target[r.peer] ?? 0) !== own) {
         fail("lostOps", `device ${d} made ${own} ops, only ${target[r.peer] ?? 0} were exported`)
       }
+
       if (!vvEqual(vv, target)) {
         fail("diverged", `device ${d} version differs from oracle`)
       } else if ((yield* r.canonical) !== reference) {
         fail("diverged", `device ${d} state differs from oracle`)
       }
     }
+
     if (graphs.full) {
       const shape = yield* oracle.shape
+
       for (const name of twice(shape.names)) {
         fail("duplicates", `two live pages are named ${name}`)
       }
+
       for (const id of twice(shape.blocks)) {
         fail("duplicates", `block ${id} appears twice`)
       }
+
       const alive = new Set<string>(shape.blocks)
+
       for (const [id, { peer, end }] of intent.lastWrites) {
-        if (alive.has(id) || intent.removals.some((seen) => (seen[peer] ?? 0) >= end)) continue
+        if (alive.has(id) || intent.removals.some((seen) => (seen[peer] ?? 0) >= end)) {
+          continue
+        }
+
         fail("lostOps", `block ${id} is gone though no delete saw its last change`)
       }
     } else {
@@ -685,15 +804,18 @@ export const runSeed = (cfg: SimConfig) =>
     const fresh = yield* onDevice(0)(
       graphs.open({ deviceId: DeviceId.make("fresh"), peer: 999_002 }),
     )
+
     yield* fresh.importBlobs(
       [...cloud.server].filter(([p]) => p.endsWith(".loro")).map(([, f]) => f.bytes),
     )
+
     if (
       !vvEqual(withoutPeer(yield* fresh.version, fresh.peer), target) ||
       (yield* fresh.canonical) !== reference
     ) {
       fail("bootstrap", "a new device reading only the cloud files does not reach the oracle state")
     }
+
     if (cloud.stats.datalessReads + cloud.stats.stubReads > 0) {
       fail(
         "placeholderRead",
@@ -702,6 +824,7 @@ export const runSeed = (cfg: SimConfig) =>
     }
 
     const vaultStats = yield* Effect.forEach(syncs, (s) => s.stats)
+
     const result: SeedResult = {
       seed: cfg.seed,
       ok: Object.values(violations).every((v) => v === 0),
@@ -739,5 +862,6 @@ export const runSeed = (cfg: SimConfig) =>
       restarts: opens.reduce((sum, n) => sum + n - 1, 0),
       cpuMs: Math.round(performance.now() - cpuStart),
     }
+
     return result
   }).pipe(Effect.scoped)

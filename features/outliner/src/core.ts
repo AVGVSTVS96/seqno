@@ -1,14 +1,10 @@
 import { Effect, Layer, Stream } from "effect"
 import { Atom, Reactivity } from "effect/reactivity"
-import {
-  normalizePageName,
-  type BlockId,
-  type Command,
-  type GraphEvent,
-  type PageId,
-} from "@seqno/domain"
+import { normalizePageName } from "@seqno/domain"
+import type { BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
 import { CommandRejected, CoreClient } from "@seqno/rpc"
-import { historyFocus, type Editing, type HistoryStep } from "./history.ts"
+import { historyFocus } from "./history.ts"
+import type { Editing, HistoryStep } from "./history.ts"
 
 export const coreLayer = Atom.make<Layer.Layer<CoreClient>>(
   Layer.effect(CoreClient)(
@@ -54,9 +50,9 @@ export const pageNamedAtom = Atom.family((name: string) =>
   ),
 )
 
-export const pageListKey: ReadonlyArray<string> = ["pages"]
+export const pageListKey: readonly string[] = ["pages"]
 
-const invalidatePageList = (events: ReadonlyArray<GraphEvent>) =>
+const invalidatePageList = (events: readonly GraphEvent[]) =>
   events.some((event) => event._tag === "PageUpserted" || event._tag === "PageDeleted")
     ? Reactivity.invalidate(pageListKey)
     : Effect.void
@@ -71,9 +67,9 @@ export const rejectionAtom = Atom.make<Rejection>({ count: 0, reason: "" }).pipe
 export const reportRejection = <A, E, R>(effect: Effect.Effect<A, E, R>, get: Atom.FnContext) =>
   Effect.tapError(effect, (error) =>
     error instanceof CommandRejected
-      ? Effect.sync(() =>
-          get.set(rejectionAtom, { count: get(rejectionAtom).count + 1, reason: error.reason }),
-        )
+      ? Effect.sync(() => {
+          get.set(rejectionAtom, { count: get(rejectionAtom).count + 1, reason: error.reason })
+        })
       : Effect.void,
   )
 
@@ -86,7 +82,7 @@ const dispatched = (command: Command, get: Atom.FnContext) =>
 export const dispatchAtom = coreRuntime.fn(dispatched, { concurrent: true })
 
 export const dispatchAllAtom = coreRuntime.fn(
-  (commands: ReadonlyArray<Command>, get) =>
+  (commands: readonly Command[], get) =>
     Effect.flatMap(CoreClient, (client) => client.DispatchAll({ commands })).pipe(
       Effect.tap(invalidatePageList),
       (effect) => reportRejection(effect, get),
@@ -102,7 +98,10 @@ export const historyAtom = coreRuntime
       Effect.tap(dispatched({ _tag: step }, get), (events) =>
         Effect.sync(() => {
           const focus = historyFocus(events, [])
-          if (focus !== null) get.set(editRequest, focus)
+
+          if (focus !== null) {
+            get.set(editRequest, focus)
+          }
         }),
       ),
     { concurrent: true },

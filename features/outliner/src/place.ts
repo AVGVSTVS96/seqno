@@ -13,6 +13,7 @@ export const locateOn = (scroller: Element, locate: Locate) => {
   const lists = locators.get(scroller) ?? new Set()
   locators.set(scroller, lists)
   lists.add(locate)
+
   return () => {
     lists.delete(locate)
   }
@@ -33,10 +34,13 @@ const rows = (scroller: Element, key?: string) =>
 export const placeOf = (scroller: Element): Place => {
   const row = [...rows(scroller)].find((shown) => {
     const top = fromTop(shown, scroller)
+
     return top >= 0 && top < scroller.clientHeight
   })
+
   const key = row?.dataset["blockId"]
   const offset = scroller.scrollTop
+
   return {
     offset,
     anchor:
@@ -50,38 +54,82 @@ const userActs = ["wheel", "pointerdown", "keydown", "touchstart", "focusin"] as
 
 export const restorePlace = (scroller: Element, { offset, anchor }: Place) => {
   let found = false
+
   const anchored = () => {
-    if (anchor === null) return undefined
+    if (anchor === null) {
+      return undefined
+    }
+
     const shown = [...rows(scroller, anchor.key)]
       .map((row) => fromTop(row, scroller) - anchor.top)
       .toSorted((a, b) => Math.abs(a) - Math.abs(b))[0]
-    if (shown !== undefined) return scroller.scrollTop + shown
+
+    if (shown !== undefined) {
+      return scroller.scrollTop + shown
+    }
+
     const start = [...(locators.get(scroller) ?? [])]
       .map((locate) => locate(anchor.key))
       .find((located) => located !== undefined)
+
     return start === undefined ? undefined : start - anchor.top
   }
-  const observer = new ResizeObserver(() => pin())
+
+  const observer = new ResizeObserver(() => {
+    pin()
+  })
+
   const stop = () => {
     observer.disconnect()
-    for (const type of userActs) window.removeEventListener(type, act, true)
-    if (pins.get(scroller) === pin) pins.delete(scroller)
+
+    for (const type of userActs) {
+      window.removeEventListener(type, act, true)
+    }
+
+    if (pins.get(scroller) === pin) {
+      pins.delete(scroller)
+    }
   }
+
   const act = (event: Event) => {
-    if (!(event instanceof WheelEvent) || event.deltaY !== 0) stop()
+    if (!(event instanceof WheelEvent) || event.deltaY !== 0) {
+      stop()
+    }
   }
+
   const pin = () => {
     const target = anchored()
-    if (target === undefined && found) return stop()
+
+    if (target === undefined && found) {
+      stop()
+
+      return
+    }
+
     found ||= target !== undefined
     const top = target ?? offset
-    if (Math.abs(scroller.scrollTop - top) >= 1) scroller.scrollTop = top
-    if (anchor === null && Math.abs(scroller.scrollTop - top) < 1) stop()
+
+    if (Math.abs(scroller.scrollTop - top) >= 1) {
+      scroller.scrollTop = top
+    }
+
+    if (anchor === null && Math.abs(scroller.scrollTop - top) < 1) {
+      stop()
+    }
   }
+
   pins.set(scroller, pin)
   const content = scroller.firstElementChild
-  if (content !== null) observer.observe(content)
-  for (const type of userActs) window.addEventListener(type, act, { capture: true, passive: true })
+
+  if (content !== null) {
+    observer.observe(content)
+  }
+
+  for (const type of userActs) {
+    window.addEventListener(type, act, { capture: true, passive: true })
+  }
+
   pin()
+
   return stop
 }

@@ -8,7 +8,7 @@ import {
   parseInline,
 } from "../src/index.ts"
 
-const now = 1730611200000
+const now = 1_730_611_200_000
 
 describe("asset file names, as Logseq writes them", () => {
   it.each([

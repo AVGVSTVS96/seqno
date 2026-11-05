@@ -13,18 +13,21 @@ const failed = (path: string) => (cause: unknown) =>
 const writeAtomically = async (target: string, bytes: Uint8Array) => {
   await mkdir(dirname(target), { recursive: true })
   const temp = join(dirname(target), `.${basename(target)}.${randomUUID()}.tmp`)
+
   try {
     const file = await open(temp, "wx")
+
     try {
       await file.writeFile(bytes)
       await file.datasync()
     } finally {
       await file.close()
     }
+
     await rename(temp, target)
-  } catch (cause) {
+  } catch (error) {
     await rm(temp, { force: true })
-    throw cause
+    throw error
   }
 }
 
@@ -33,11 +36,18 @@ export const nodeStorage = (root: string): Storage["Service"] => ({
     Effect.tryPromise({
       try: async () => {
         const entries = await readdir(join(root, dir), { withFileTypes: true }).catch(
-          (cause: unknown) => (codeOf(cause) === "ENOENT" ? [] : Promise.reject(cause)),
+          (error: unknown) => (codeOf(error) === "ENOENT" ? [] : Promise.reject(error)),
         )
-        return entries.flatMap((entry): Array<Entry> => {
-          if (entry.isDirectory()) return [Entry.Directory({ name: entry.name })]
-          if (entry.isFile()) return [Entry.File({ name: entry.name, placeholder: false })]
+
+        return entries.flatMap((entry): Entry[] => {
+          if (entry.isDirectory()) {
+            return [Entry.Directory({ name: entry.name })]
+          }
+
+          if (entry.isFile()) {
+            return [Entry.File({ name: entry.name, placeholder: false })]
+          }
+
           return []
         })
       },
@@ -54,13 +64,20 @@ export const nodeStorage = (root: string): Storage["Service"] => ({
   write: (path, bytes) =>
     Effect.uninterruptible(
       Effect.tryPromise({
-        try: () => writeAtomically(join(root, path), bytes),
+        try: async () => {
+          await writeAtomically(join(root, path), bytes)
+        },
         catch: failed(path),
       }),
     ),
   remove: (path) =>
     Effect.uninterruptible(
-      Effect.tryPromise({ try: () => rm(join(root, path), { force: true }), catch: failed(path) }),
+      Effect.tryPromise({
+        try: async () => {
+          await rm(join(root, path), { force: true })
+        },
+        catch: failed(path),
+      }),
     ),
   download: () => Effect.void,
 })

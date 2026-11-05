@@ -12,7 +12,11 @@ export function Odometer() {
   const from = String(baked).padStart(width, "0")
   const to = String(count).padStart(width, "0")
   const last = date ? `, the last one ${ago(date, new Date(now))}` : ""
-  const refresh = () => setNow(Date.now())
+
+  const refresh = () => {
+    setNow(Date.now())
+  }
+
   return (
     <span className="odo" onPointerEnter={refresh} onFocus={refresh}>
       <a href={history} aria-describedby="odo-tip">
@@ -24,6 +28,7 @@ export function Odometer() {
             const a = Number(from[i] ?? 0)
             const b = Number(digit)
             const position = b >= a ? b : b + 10
+
             return (
               <span className="cell" key={i}>
                 <span className="strip" style={{ transform: `translateY(${-position * 22}px)` }}>

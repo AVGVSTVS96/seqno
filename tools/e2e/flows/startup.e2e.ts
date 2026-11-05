@@ -41,12 +41,16 @@ test("all graphs is a page in the shell, reached from the graph switcher", async
   await expect(page.getByRole("banner")).toBeVisible()
 })
 
-const indexFiles = (page: Page) =>
-  page.evaluate(async () => {
+const indexFiles = async (page: Page) =>
+  await page.evaluate(async () => {
     const root = await navigator.storage.getDirectory()
     const folder = await root.getDirectoryHandle("indexes", { create: true })
-    const names: Array<string> = []
-    for await (const name of folder.keys()) names.push(name)
+    const names: string[] = []
+
+    for await (const name of folder.keys()) {
+      names.push(name)
+    }
+
     return names.toSorted()
   })
 
@@ -55,7 +59,7 @@ test("removing a graph from the list deletes its search index and any index no l
 }) => {
   await openDemo(page)
   await page.reload()
-  await expect.poll(() => indexFiles(page)).toEqual(["demo.sqlite"])
+  await expect.poll(async () => await indexFiles(page)).toEqual(["demo.sqlite"])
   await page.evaluate(async () => {
     const root = await navigator.storage.getDirectory()
     const folder = await root.getDirectoryHandle("indexes")
@@ -67,12 +71,18 @@ test("removing a graph from the list deletes its search index and any index no l
       }),
     )
     const opening = indexedDB.open("seqno", 1)
-    await new Promise((resolve) => opening.addEventListener("success", resolve))
+    await new Promise((resolve) => {
+      opening.addEventListener("success", resolve)
+    })
+
     const adding = opening.result
       .transaction("graphs", "readwrite")
       .objectStore("graphs")
       .put({ _tag: "OpfsGraph", name: "kept" })
-    await new Promise((resolve) => adding.addEventListener("success", resolve))
+
+    await new Promise((resolve) => {
+      adding.addEventListener("success", resolve)
+    })
   })
   await page.goto("/graphs")
   await page.getByRole("button", { name: "Actions for Getting started" }).click()
@@ -80,7 +90,7 @@ test("removing a graph from the list deletes its search index and any index no l
   await expect(
     page.getByRole("main").getByRole("button", { name: "Getting started", exact: true }),
   ).toHaveCount(0)
-  await expect.poll(() => indexFiles(page)).toEqual(["kept.sqlite"])
+  await expect.poll(async () => await indexFiles(page)).toEqual(["kept.sqlite"])
 })
 
 test("Ctrl+Z after a reload undoes only the last edit", async ({ page, seqno }) => {
@@ -109,13 +119,15 @@ test("Back returns to the same scroll position in the journals", async ({ page }
   await openDemo(page)
   const main = page.getByRole("main")
   await expect(main.getByRole("article").nth(2)).toBeVisible()
-  await main.evaluate((element) => element.scrollTo({ top: 450, behavior: "instant" }))
+  await main.evaluate((element) => {
+    element.scrollTo({ top: 450, behavior: "instant" })
+  })
   await page.waitForTimeout(200)
   await main.getByRole("link", { name: "Reading List" }).click()
   await expect(page).toHaveURL(/\/page\//)
   await page.goBack()
   await expect(main.getByRole("article").nth(2)).toBeVisible()
-  await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(450)
+  await expect.poll(async () => await main.evaluate((element) => element.scrollTop)).toBe(450)
 })
 
 test("embedded, the app hands the page around it only the Escapes it doesn't use", async ({
@@ -123,15 +135,15 @@ test("embedded, the app hands the page around it only the Escapes it doesn't use
   baseURL,
 }) => {
   const parent = new URL("/embedding-page", baseURL).href
-  await page.route(parent, (route) =>
-    route.fulfill({
+  await page.route(parent, async (route) => {
+    await route.fulfill({
       contentType: "text/html",
       body: `<script>heard = []; addEventListener("message", (event) => heard.push(event.data.type))</script>
         <iframe src="/?embed" style="width: 1200px; height: 800px"></iframe>`,
-    }),
-  )
+    })
+  })
   await page.goto(parent)
-  const heard = () => page.evaluate(() => Reflect.get(window, "heard"))
+  const heard = async () => await page.evaluate(() => Reflect.get(window, "heard"))
   await expect.poll(heard).toEqual(["seqno:ready"])
   const app = page.frameLocator("iframe")
   await app.getByRole("treeitem").getByText("Open Getting started").click()

@@ -11,6 +11,7 @@ const daysIn = (year: number, month: number) => new Date(year, month + 1, 0).get
 export const shiftMonths = (date: Date, months: number) => {
   const first = new Date(date.getFullYear(), date.getMonth() + months, 1)
   const day = Math.min(date.getDate(), daysIn(first.getFullYear(), first.getMonth()))
+
   return new Date(first.getFullYear(), first.getMonth(), day)
 }
 
@@ -24,6 +25,7 @@ const months = Array.from({ length: 12 }, (_, month) =>
 export const journalDate = (title: string) => {
   const [, month = "", day = "", year = ""] = /^(\w{3}) (\d{1,2})\w{2}, (\d{4})$/.exec(title) ?? []
   const date = new Date(Number(year), months.indexOf(month.toLowerCase()), Number(day))
+
   return journalTitle(date).toLowerCase() === title.toLowerCase() ? date : null
 }
 

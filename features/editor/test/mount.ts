@@ -1,15 +1,9 @@
 import { EditorView, runScopeHandlers } from "@codemirror/view"
 import { Effect, Stream } from "effect"
-import { BlockId, PageId, type Block, type Command, type Page } from "@seqno/domain"
-import {
-  createHandoff,
-  mountBlockEditor,
-  type BlockHit,
-  type CursorPlacement,
-  type EditorAction,
-  type Handoff,
-  type PageName,
-} from "@seqno/editor"
+import { BlockId, PageId } from "@seqno/domain"
+import type { Block, Command, Page } from "@seqno/domain"
+import { createHandoff, mountBlockEditor } from "@seqno/editor"
+import type { BlockHit, CursorPlacement, EditorAction, Handoff, PageName } from "@seqno/editor"
 
 export const blockId = BlockId.make("01920000-0000-7000-8000-000000000001")
 export const otherBlockId = BlockId.make("01920000-0000-7000-8000-000000000002")
@@ -40,12 +34,12 @@ export const blockOf = (
 const hit: BlockHit = { block: blockOf("ship the editor", otherBlockId), path: ["Roadmap"] }
 
 export interface Session {
-  readonly commands: Array<Command>
-  readonly dispatches: Array<ReadonlyArray<Command>>
-  readonly actions: Array<EditorAction>
-  readonly searches: Array<string>
+  readonly commands: Command[]
+  readonly dispatches: Array<readonly Command[]>
+  readonly actions: EditorAction[]
+  readonly searches: string[]
   readonly handoff: Handoff
-  readonly pages: Array<PageName>
+  readonly pages: PageName[]
   rejecting: boolean
 }
 
@@ -62,7 +56,10 @@ export const session = (): Session => ({
 const mounted: Array<() => void> = []
 
 export const unmountAll = () => {
-  for (const destroy of mounted.splice(0)) destroy()
+  for (const destroy of mounted.splice(0)) {
+    destroy()
+  }
+
   window.dispatchEvent(new Event("pointerdown"))
   document.body.replaceChildren()
 }
@@ -93,27 +90,32 @@ export const mount = (
         within.commands.push(command)
         within.dispatches.push([command])
       },
-      dispatchAll: (commands) => {
+      dispatchAll: async (commands) => {
         within.commands.push(...commands)
         within.dispatches.push(commands)
-        return Promise.resolve(!within.rejecting)
+
+        return await Promise.resolve(!within.rejecting)
       },
       act: (action) => within.actions.push(action),
       searchPages: (query) =>
         Effect.sync(() => {
           within.searches.push(`page:${query}`)
+
           return within.pages
         }),
       searchBlocks: (query) =>
         Effect.sync(() => {
           within.searches.push(`block:${query}`)
+
           return [hit]
         }),
-      saveAssets: (files) =>
-        Promise.resolve(files.map((file) => `![${file.name}](../assets/${file.name})`)),
+      saveAssets: async (files) =>
+        await Promise.resolve(files.map((file) => `![${file.name}](../assets/${file.name})`)),
     },
   })
+
   mounted.push(editor.destroy)
+
   return { ...within, view: editor.view, popups: editor.popups, destroy: editor.destroy }
 }
 
@@ -123,16 +125,21 @@ export const press = (view: EditorView, key: string, modifiers: KeyboardEventIni
 export const typeKeys = (view: EditorView, text: string) => {
   for (const key of text) {
     const { from, to } = view.state.selection.main
+
     const insert = () =>
       view.state.update({
         changes: { from, to, insert: key },
         selection: { anchor: from + key.length },
         userEvent: "input.type",
       })
+
     const handled = view.state
       .facet(EditorView.inputHandler)
       .some((handler) => handler(view, from, to, key, insert))
-    if (!handled) view.dispatch(insert())
+
+    if (!handled) {
+      view.dispatch(insert())
+    }
   }
 }
 

@@ -1,7 +1,8 @@
 import babel from "@rolldown/plugin-babel"
 import react, { reactCompilerPreset } from "@vitejs/plugin-react"
 import { readFile } from "node:fs/promises"
-import { build, type Plugin, type Rollup } from "vite"
+import { build } from "vite"
+import type { Plugin, Rollup } from "vite"
 
 const root = new URL(".", import.meta.url).pathname
 
@@ -10,7 +11,7 @@ export const viewerFolder = "publish"
 type ViewerFile = readonly [path: string, source: string | Uint8Array]
 
 const outputsOf = (
-  result: Rollup.RollupOutput | ReadonlyArray<Rollup.RollupOutput> | Rollup.RollupWatcher,
+  result: Rollup.RollupOutput | readonly Rollup.RollupOutput[] | Rollup.RollupWatcher,
 ): ReadonlyArray<Rollup.OutputChunk | Rollup.OutputAsset> =>
   Array.isArray(result)
     ? result.flatMap((each) => each.output)
@@ -23,10 +24,11 @@ const OLDER_FONTS = /,url\([^)]*\.(?:woff|ttf)\) format\("(?:woff|truetype)"\)/g
 const woff2Fonts = (): Plugin => ({
   name: "seqno-viewer-woff2",
   enforce: "pre",
-  transform: (code, id) => (id.includes("/katex.min.css") ? code.replace(OLDER_FONTS, "") : null),
+  transform: (code, id) =>
+    id.includes("/katex.min.css") ? code.replaceAll(OLDER_FONTS, "") : null,
 })
 
-const buildViewer = async (): Promise<ReadonlyArray<ViewerFile>> => {
+const buildViewer = async (): Promise<readonly ViewerFile[]> => {
   const result = await build({
     configFile: false,
     root,
@@ -45,7 +47,9 @@ const buildViewer = async (): Promise<ReadonlyArray<ViewerFile>> => {
       },
     },
   })
+
   const icon = await readFile(new URL("public/favicon.svg", import.meta.url))
+
   return [
     ...outputsOf(result).map((output): ViewerFile => [
       output.fileName,
@@ -55,33 +59,52 @@ const buildViewer = async (): Promise<ReadonlyArray<ViewerFile>> => {
   ]
 }
 
-const manifest = (files: ReadonlyArray<ViewerFile>) => JSON.stringify(files.map(([path]) => path))
+const manifest = (files: readonly ViewerFile[]) => JSON.stringify(files.map(([path]) => path))
 
 export const viewer = (): Plugin => {
-  let served: Promise<ReadonlyArray<ViewerFile>> | null = null
+  let served: Promise<readonly ViewerFile[]> | null = null
+
   return {
     name: "seqno-viewer",
     configureServer(server) {
       server.middlewares.use(`/${viewerFolder}/`, (request, response, next) => {
         const path = (request.url ?? "").replace(/^\//, "").split("?")[0] ?? ""
-        if (path === "files.json") served = buildViewer()
+
+        if (path === "files.json") {
+          served = buildViewer()
+        }
+
         served ??= buildViewer()
         void served.then(
           (files) => {
             const found =
               path === "files.json" ? manifest(files) : files.find(([name]) => name === path)?.[1]
-            if (found === undefined) return next()
+
+            if (found === undefined) {
+              next()
+
+              return
+            }
+
             response.end(found)
           },
-          (error: unknown) => next(error),
+          (error: unknown) => {
+            next(error)
+          },
         )
       })
     },
     async generateBundle() {
-      if (this.environment.name !== "client") return
+      if (this.environment.name !== "client") {
+        return
+      }
+
       const files = await buildViewer()
-      for (const [path, source] of files)
+
+      for (const [path, source] of files) {
         this.emitFile({ type: "asset", fileName: `${viewerFolder}/${path}`, source })
+      }
+
       this.emitFile({
         type: "asset",
         fileName: `${viewerFolder}/files.json`,

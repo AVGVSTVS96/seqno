@@ -15,6 +15,7 @@ const openPage = async (page: Page, name: string) => {
   await page.getByRole("searchbox", { name: "Search" }).fill(name)
   await expect(page.getByRole("option").first()).toHaveText(name)
   await page.keyboard.press("Enter")
+
   return page.getByRole("article", { name, exact: true })
 }
 
@@ -56,9 +57,11 @@ test("Export page writes the text of blocks on another page that its refs name b
   await openPage(page, "a source")
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Export page" }).click()
+
   const text = page
     .getByRole("dialog", { name: "Export" })
     .getByRole("textbox", { name: "Exported text" })
+
   await expect(text).toHaveValue(
     [
       "- forward ref to a later file forward target top level",

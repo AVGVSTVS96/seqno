@@ -1,16 +1,17 @@
 import { Effect, Layer, Schema } from "effect"
 import { LoroDoc, VersionVector } from "loro-crdt"
 import { DeviceId } from "@seqno/domain"
-import { Vault, layer, loroReplica, type Storage } from "@seqno/vault"
+import { Vault, layer, loroReplica } from "@seqno/vault"
+import type { Storage } from "@seqno/vault"
 
 export const deviceId = Schema.decodeUnknownSync(DeviceId)
 
 export interface DeviceOptions {
   readonly id: string
   readonly peer: `${number}`
-  readonly formerPeers?: ReadonlyArray<string>
+  readonly formerPeers?: readonly string[]
   readonly synced?: boolean
-  readonly members: ReadonlyArray<string>
+  readonly members: readonly string[]
   readonly storage: Layer.Layer<Storage>
   readonly compactAfterFiles?: number
 }
@@ -19,6 +20,7 @@ export const makeDevice = (options: DeviceOptions) =>
   Effect.gen(function* () {
     const doc = new LoroDoc()
     doc.setPeerId(options.peer)
+
     const vault = yield* Effect.provide(
       Vault,
       layer({
@@ -30,19 +32,25 @@ export const makeDevice = (options: DeviceOptions) =>
         compactEvery: 0,
       }).pipe(Layer.provide(options.storage)),
     )
+
     const flushed = { counter: 0 }
+
     const pendingUpdate = () => {
       const from = doc.oplogVersion().toJSON()
       from.set(options.peer, flushed.counter)
       flushed.counter = doc.oplogVersion().get(options.peer) ?? 0
+
       return doc.export({ mode: "update", from: VersionVector.parseJSON(from) })
     }
+
     const type = (text: string) => {
       const body = doc.getText("body")
       body.insert(body.length, text)
       doc.commit()
+
       return vault.writeUpdate(pendingUpdate())
     }
+
     return {
       doc,
       vault,

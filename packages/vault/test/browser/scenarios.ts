@@ -1,13 +1,14 @@
-import { Effect, Layer, type Scope } from "effect"
+import { Effect, Layer } from "effect"
+import type { Scope } from "effect"
 import { Storage, layerDirectoryHandle, layerOpfs } from "@seqno/vault"
 import { makeDevice } from "../device.ts"
 
 const freshGraph = Effect.acquireRelease(
   Effect.sync(() => `graph-${crypto.randomUUID()}`),
   (graph) =>
-    Effect.promise(async () =>
-      (await navigator.storage.getDirectory()).removeEntry(graph, { recursive: true }),
-    ),
+    Effect.promise(async () => {
+      await (await navigator.storage.getDirectory()).removeEntry(graph, { recursive: true })
+    }),
 )
 
 const encode = (text: string) => new TextEncoder().encode(text)
@@ -19,13 +20,16 @@ const storageRoundTrip = Effect.gen(function* () {
   yield* storage.write("seen/mac.json", encode('{"v":1}'))
   yield* storage.write("seen/mac.json", encode('{"v":2}'))
   const listed = { updates: yield* storage.list("updates"), seen: yield* storage.list("seen") }
+
   const read = {
     seen: decode(yield* storage.read("seen/mac.json")),
     update: [...(yield* storage.read("updates/mac/0.loro"))],
   }
+
   yield* storage.remove("updates/mac/0.loro")
   yield* storage.remove("updates/mac/0.loro")
   const missing = yield* Effect.flip(storage.read("updates/mac/0.loro"))
+
   return {
     listed,
     read,
@@ -37,11 +41,15 @@ const storageRoundTrip = Effect.gen(function* () {
 
 const grantedHandle = Effect.gen(function* () {
   const graph = yield* freshGraph
-  const folder = yield* Effect.promise(async () =>
-    (await navigator.storage.getDirectory()).getDirectoryHandle(graph, { create: true }),
+
+  const folder = yield* Effect.promise(
+    async () =>
+      await (await navigator.storage.getDirectory()).getDirectoryHandle(graph, { create: true }),
   )
+
   const storage = yield* Effect.provide(Storage, layerDirectoryHandle(folder))
   yield* storage.write("seen/mac.json", encode("{}"))
+
   return decode(yield* storage.read("seen/mac.json"))
 })
 
@@ -60,6 +68,7 @@ const threeDevices = Effect.gen(function* () {
   const collected = yield* mac.sync
   const phone = yield* makeDevice({ id: "phone", peer: "3", members, storage })
   yield* phone.sync
+
   return {
     ipadText,
     snapshotsWritten: compacted.written.length,
@@ -70,8 +79,8 @@ const threeDevices = Effect.gen(function* () {
 
 const scenario =
   <A, E>(effect: Effect.Effect<A, E, Scope.Scope>) =>
-  (): Promise<unknown> =>
-    Effect.runPromise(Effect.scoped(effect))
+  async (): Promise<unknown> =>
+    await Effect.runPromise(Effect.scoped(effect))
 
 const scenarios: Record<string, () => Promise<unknown>> = {
   storageRoundTrip: scenario(storageRoundTrip),

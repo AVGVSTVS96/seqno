@@ -1,39 +1,23 @@
-import { logseq, names, type CodeStyle } from "@seqno/dom"
-import {
-  use,
-  useContext,
-  useRef,
-  useState,
-  type ComponentType,
-  type ClipboardEvent,
-  type DragEvent,
-  type FocusEvent,
-  type KeyboardEvent,
-  type MouseEvent,
-  type ReactNode,
+import { logseq, names } from "@seqno/dom"
+import type { CodeStyle } from "@seqno/dom"
+import { use, useContext, useRef, useState } from "react"
+import type {
+  ComponentType,
+  ClipboardEvent,
+  DragEvent,
+  FocusEvent,
+  KeyboardEvent,
+  MouseEvent,
+  ReactNode,
 } from "react"
 import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import {
-  isBlockRefTo,
-  isWhiteboard,
-  type Block,
-  type BlockId,
-  type Command,
-  type GraphEvent,
-  type Page,
-  type PageId,
-} from "@seqno/domain"
+import { isBlockRefTo, isWhiteboard } from "@seqno/domain"
+import type { Block, BlockId, Command, GraphEvent, Page, PageId } from "@seqno/domain"
 import type { PageTree } from "@seqno/rpc"
-import {
-  pastedBlocks,
-  plainText,
-  propertyValue,
-  setMarker,
-  type Inline,
-  type Marker,
-} from "@seqno/syntax"
+import { pastedBlocks, plainText, propertyValue, setMarker } from "@seqno/syntax"
+import type { Inline, Marker } from "@seqno/syntax"
 import { BlockView } from "./BlockView.tsx"
 import { caretFromPoint, hasTextSelection } from "./caret.ts"
 import {
@@ -46,8 +30,10 @@ import {
   pageNamedAtom,
   pageTreeAtom,
 } from "./core.ts"
-import { moveCommand, type DropTarget } from "./drop.ts"
-import { historyFocus, historyStep, type Editing, type HistoryStep } from "./history.ts"
+import { moveCommand } from "./drop.ts"
+import type { DropTarget } from "./drop.ts"
+import { historyFocus, historyStep } from "./history.ts"
+import type { Editing, HistoryStep } from "./history.ts"
 import { Inlines } from "./Inline.tsx"
 import { layOut, orderListKey } from "./layout.ts"
 import type { Navigate, OpenBlockMenu } from "./navigation.ts"
@@ -63,16 +49,19 @@ import {
   DocumentMode,
   HostBlock,
   RenderContext,
-  type EmbedTarget,
   PropertySettings,
-  type Renderer,
   PageDialects,
 } from "./render.ts"
-import { RowView, type RowActions } from "./Row.tsx"
-import { highlights, selectedRange, type Selection } from "./selection.ts"
-import { EditorIntent, type EditorSlotProps } from "./slot.ts"
+import type { EmbedTarget, Renderer } from "./render.ts"
+import { RowView } from "./Row.tsx"
+import type { RowActions } from "./Row.tsx"
+import { highlights, selectedRange } from "./selection.ts"
+import type { Selection } from "./selection.ts"
+import { EditorIntent } from "./slot.ts"
+import type { EditorSlotProps } from "./slot.ts"
 import { nextMarker } from "./tasks.ts"
-import { topLevel, type Outline, type Row } from "./tree.ts"
+import { topLevel } from "./tree.ts"
+import type { Outline, Row } from "./tree.ts"
 import { useHeldHeight, useVirtualList } from "./virtual.tsx"
 import { BlockKey, readBlockKey } from "./vim.ts"
 import styles from "./outliner.css?inline"
@@ -100,6 +89,7 @@ const carriesFiles = (transfer: DataTransfer) =>
 
 export const Outliner = (props: OutlinerProps) => {
   const held = useHeldHeight(listId(props.pageId, props.zoom), props.windowed ?? false)
+
   return AsyncResult.match(useAtomValue(pageTreeAtom(props.pageId)), {
     onInitial: () => (
       <div className="seqno-outliner-status" role="status" style={{ minHeight: held }}>
@@ -112,9 +102,13 @@ export const Outliner = (props: OutlinerProps) => {
         <a
           role="link"
           tabIndex={0}
-          onClick={() => props.onNavigate({ _tag: "Journals" })}
+          onClick={() => {
+            props.onNavigate({ _tag: "Journals" })
+          }}
           onKeyDown={(event) => {
-            if (event.key === "Enter") props.onNavigate({ _tag: "Journals" })
+            if (event.key === "Enter") {
+              props.onNavigate({ _tag: "Journals" })
+            }
           }}
         >
           Go to journals
@@ -127,17 +121,18 @@ export const Outliner = (props: OutlinerProps) => {
 
 const noCounts: Readonly<Record<string, number>> = {}
 
-const createdBlock = (events: ReadonlyArray<GraphEvent>, except: BlockId) =>
+const createdBlock = (events: readonly GraphEvent[], except: BlockId) =>
   events.flatMap((event) =>
     event._tag === "BlockUpserted" && event.block.id !== except ? [event.block.id] : [],
   )[0]
 
-const nonEmpty = <A,>(items: ReadonlyArray<A>): readonly [A, ...Array<A>] | null => {
+const nonEmpty = <A,>(items: readonly A[]): readonly [A, ...A[]] | null => {
   const [first, ...rest] = items
+
   return first === undefined ? null : [first, ...rest]
 }
 
-const labelOf = (nodes: ReadonlyArray<Inline>): string =>
+const labelOf = (nodes: readonly Inline[]): string =>
   nodes
     .map((node) =>
       node._tag === "PageRef"
@@ -153,9 +148,14 @@ const labelOf = (nodes: ReadonlyArray<Inline>): string =>
 
 const markdownOf = (view: Outline, blockId: BlockId, level: number): string => {
   const block = view.rows.find((row) => row.block.id === blockId)?.block
-  if (block === undefined) return ""
+
+  if (block === undefined) {
+    return ""
+  }
+
   const pad = "\t".repeat(level)
   const own = `${pad}- ${block.text.replaceAll("\n", `\n${pad}  `)}`
+
   return [own, ...view.children(blockId).map((child) => markdownOf(view, child.id, level + 1))]
     .filter((line) => line !== "")
     .join("\n")
@@ -168,11 +168,12 @@ const Breadcrumbs = ({
   pageId,
 }: {
   readonly title: string
-  readonly trail: ReadonlyArray<Block>
+  readonly trail: readonly Block[]
   readonly onNavigate: Navigate
   readonly pageId: PageId
 }) => {
   const dialectOf = use(PageDialects)
+
   const go = (blockId: BlockId | null) => (event: MouseEvent) => {
     event.preventDefault()
     onNavigate(
@@ -181,6 +182,7 @@ const Breadcrumbs = ({
         : { _tag: "Zoom", pageId, blockId },
     )
   }
+
   return (
     <nav {...logseq("seqno-crumbs")} aria-label="Breadcrumbs">
       <a role="link" tabIndex={0} onKeyDown={clickOnEnter} onClick={go(null)}>
@@ -230,7 +232,9 @@ const Gap = ({ height }: { readonly height: number }) => (
   <div className="seqno-gap" aria-hidden style={{ height }} />
 )
 
-const stopEvent = (event: { stopPropagation: () => void }) => event.stopPropagation()
+const stopEvent = (event: { stopPropagation: () => void }) => {
+  event.stopPropagation()
+}
 
 const Embed = ({
   kind,
@@ -252,6 +256,7 @@ const Embed = ({
 
 const useEmbedProps = () => {
   const renderer = use(RenderContext)
+
   return {
     onNavigate: renderer.navigate,
     editor: renderer.editor,
@@ -262,11 +267,13 @@ const useEmbedProps = () => {
 
 const BlockEmbed = ({ blockId, bare }: { readonly blockId: BlockId; readonly bare: boolean }) => {
   const props = useEmbedProps()
+
   return AsyncResult.match(useAtomValue(blockAtom(blockId)), {
     onInitial: () => (bare ? null : <Embed kind="block">{null}</Embed>),
     onFailure: () => <span className="seqno-blockref is-missing">(({blockId}))</span>,
     onSuccess: ({ value }) => {
       const embedded = <Outliner {...props} pageId={value.pageId} zoom={value.id} embedded />
+
       return bare ? embedded : <Embed kind="block">{embedded}</Embed>
     },
   })
@@ -275,12 +282,14 @@ const BlockEmbed = ({ blockId, bare }: { readonly blockId: BlockId; readonly bar
 const PageEmbed = ({ name, bare }: { readonly name: string; readonly bare: boolean }) => {
   const props = useEmbedProps()
   const boards = use(BoardSlot)
+
   const body = (page: Page) =>
     boards !== null && isWhiteboard(page) ? (
       <boards.Board pageId={page.id} />
     ) : (
       <Outliner {...props} pageId={page.id} zoom={null} embedded />
     )
+
   return AsyncResult.match(useAtomValue(pageNamedAtom(name)), {
     onInitial: () => (bare ? null : <Embed kind="page">{null}</Embed>),
     onFailure: () => <span className="seqno-macro">{`{{embed [[${name}]]}}`}</span>,
@@ -332,6 +341,7 @@ export const PropertyValue = ({
 }) => {
   const parent = use(RenderContext)
   const properties = use(PropertySettings)
+
   return (
     <RenderContext
       value={{
@@ -361,6 +371,7 @@ export const StaticBlock = ({
 }) => {
   const parent = use(RenderContext)
   const dialectOf = use(PageDialects)
+
   return (
     <RenderContext
       value={{
@@ -391,11 +402,14 @@ export const StaticBlock = ({
 const dropZone = (event: DragEvent<HTMLDivElement>, row: Row): DropTarget => {
   const box = event.currentTarget.getBoundingClientRect()
   const lower = event.clientY - box.top >= box.height / 2
+
   const step = Number.parseFloat(
     getComputedStyle(event.currentTarget).getPropertyValue("--block-indent"),
   )
+
   const nested = event.clientX - box.left >= (row.depth + 2) * (Number.isNaN(step) ? 30 : step)
-  return { blockId: row.block.id, zone: !lower ? "before" : nested ? "child" : "after" }
+
+  return { blockId: row.block.id, zone: lower ? (nested ? "child" : "after") : "before" }
 }
 
 const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
@@ -413,7 +427,10 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const registry = useContext(RegistryContext)
   const run = useAtomSet(dispatchAtom, { mode: "promiseExit" })
   const runAll = useAtomSet(dispatchAllAtom, { mode: "promiseExit" })
-  const dispatchAll = (commands: ReadonlyArray<Command>) => runAll(commands).then(Exit.isSuccess)
+
+  const dispatchAll = async (commands: readonly Command[]) =>
+    await runAll(commands).then(Exit.isSuccess)
+
   const pressed = useRef<BlockId | null>(null)
   const swept = useRef(false)
   const vimKeys = useRef("")
@@ -423,26 +440,36 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const [localEditing, setLocalEditing] = useState<Editing | null>(null)
   const [request, setRequest] = useAtom(editRequest)
   const [selection, setSelection] = useState<Selection | null>(null)
-  const [dragged, setDragged] = useState<ReadonlyArray<BlockId>>([])
+  const [dragged, setDragged] = useState<readonly BlockId[]>([])
   const [drop, setDrop] = useState<DropTarget | null>(null)
   const [hoveredGuide, setHoveredGuide] = useState<BlockId | null>(null)
   const [toggledRefs, setToggledRefs] = useState<ReadonlySet<BlockId>>(() => new Set())
+
   const refsOpen = (blockId: BlockId) =>
     toggledRefs.has(blockId) !== (blockId === zoom && !embedded)
+
   const toggleRefs = (blockId: BlockId) => {
     const next = new Set(toggledRefs)
-    if (!next.delete(blockId)) next.add(blockId)
+
+    if (!next.delete(blockId)) {
+      next.add(blockId)
+    }
+
     setToggledRefs(next)
   }
+
   const laid = layOut(tree, zoom, embedded)
   const { view } = laid
   const rows = view.rows
+
   const requested =
     request !== null && (props.takesEdits ?? !embedded) && laid.positions.has(request.blockId)
       ? request
       : null
+
   const editing = requested ?? localEditing
   const indexOf = (blockId: BlockId) => laid.positions.get(blockId) ?? -1
+
   const {
     placed,
     trailing,
@@ -459,41 +486,64 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     overscan: 20,
     keep: [editing === null ? -1 : indexOf(editing.blockId), ...dragged.map(indexOf)],
   })
+
   const setEditing = (next: Editing | null) => {
     setLocalEditing(next)
-    if (request !== null) setRequest(null)
+
+    if (request !== null) {
+      setRequest(null)
+    }
   }
 
-  const after = (command: Command, then: (events: ReadonlyArray<GraphEvent>) => void) => {
+  const after = (command: Command, then: (events: readonly GraphEvent[]) => void) => {
     void run(command).then(Exit.match({ onFailure: () => undefined, onSuccess: then }))
   }
+
   const history = (step: HistoryStep, land: "Edit" | "Select" = "Edit") => {
     const current = editing?.blockId
     historyQueue.current = historyQueue.current.then(async () => {
       const before = latest().rows.map((row) => row.block)
       const exit = await run({ _tag: step })
-      if (Exit.isFailure(exit)) return
-      const events = exit.value
-      const focus = historyFocus(events, before)
-      if (land === "Select") {
-        const near = focus?.blockId ?? latest().rows[0]?.block.id
-        if (near !== undefined) select(near)
+
+      if (Exit.isFailure(exit)) {
         return
       }
+
+      const events = exit.value
+      const focus = historyFocus(events, before)
+
+      if (land === "Select") {
+        const near = focus?.blockId ?? latest().rows[0]?.block.id
+
+        if (near !== undefined) {
+          select(near)
+        }
+
+        return
+      }
+
       const kept =
         focus === null
           ? current !== undefined &&
             !events.some((event) => event._tag === "BlockDeleted" && event.blockId === current)
           : focus.blockId === current
-      if (kept) return
+
+      if (kept) {
+        return
+      }
+
       setSelection(null)
       setLocalEditing(null)
       setRequest(focus)
     })
   }
+
   const dispatch = (command: Command) => {
-    if (command._tag === "Undo" || command._tag === "Redo") history(command._tag)
-    else void run(command)
+    if (command._tag === "Undo" || command._tag === "Redo") {
+      history(command._tag)
+    } else {
+      void run(command)
+    }
   }
 
   const range = selectedRange(rows, selection)
@@ -503,8 +553,12 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
 
   const reveal = (blockId: BlockId) => {
     const shown = container.current?.querySelector(`[data-block-id="${blockId}"]`) ?? null
-    if (shown === null) revealIndex(indexOf(blockId))
-    else shown.scrollIntoView({ block: "nearest" })
+
+    if (shown === null) {
+      revealIndex(indexOf(blockId))
+    } else {
+      shown.scrollIntoView({ block: "nearest" })
+    }
   }
 
   const edit = (block: Block, caret: number) => {
@@ -529,19 +583,31 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
 
   const setTask = (block: Block, marker: Marker | null) => {
     const change = setMarker(block.text, marker)
-    if (change !== null) dispatch({ _tag: "EditText", blockId: block.id, ...change })
+
+    if (change !== null) {
+      dispatch({ _tag: "EditText", blockId: block.id, ...change })
+    }
   }
 
-  const moveBy = (now: Outline, blockIds: ReadonlyArray<BlockId>, direction: -1 | 1) => {
+  const moveBy = (now: Outline, blockIds: readonly BlockId[], direction: -1 | 1) => {
     const [first] = blockIds
     const last = blockIds.at(-1)
     const chosen = nonEmpty(blockIds)
-    if (first === undefined || last === undefined || chosen === null) return
+
+    if (first === undefined || last === undefined || chosen === null) {
+      return
+    }
+
     const parentId = now.parentOf(first)
-    if (blockIds.some((id) => now.parentOf(id) !== parentId)) return
+
+    if (blockIds.some((id) => now.parentOf(id) !== parentId)) {
+      return
+    }
+
     const siblings = now.children(parentId)
     const start = siblings.findIndex((block) => block.id === first)
     const end = siblings.findIndex((block) => block.id === last)
+
     if (direction === -1 && start > 0) {
       const before = siblings[start - 2]
       dispatch({
@@ -552,16 +618,22 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       })
     } else if (direction === 1 && end !== -1 && end < siblings.length - 1) {
       const next = siblings[end + 1]
-      if (next !== undefined)
+
+      if (next !== undefined) {
         dispatch({ _tag: "MoveBlocks", blockIds: chosen, parentId, after: next.id })
+      }
     }
   }
 
-  const insertAndEdit = (command: Command) =>
+  const insertAndEdit = (command: Command) => {
     after(command, (events) => {
       const created = events.find((event) => event._tag === "BlockUpserted")
-      if (created?._tag === "BlockUpserted") setEditing({ blockId: created.block.id, caret: 0 })
+
+      if (created?._tag === "BlockUpserted") {
+        setEditing({ blockId: created.block.id, caret: 0 })
+      }
     })
+  }
 
   const newBlock = (now: Outline, row: Row, below: boolean) => {
     const { block } = row
@@ -582,7 +654,11 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     const now = latest()
     const index = now.rows.findIndex((row) => row.block.id === blockId)
     const row = now.rows[index]
-    if (row === undefined) return
+
+    if (row === undefined) {
+      return
+    }
+
     const block = row.block
     const previous = now.rows[index - 1]?.block
     const next = now.rows[index + 1]?.block
@@ -592,43 +668,75 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       Split: ({ at }) => {
         if (block.text === "" && block.parentId !== null && block.id !== zoom && isLastChild) {
           dispatch({ _tag: "Outdent", blockIds: [block.id] })
+
           return
         }
+
         after({ _tag: "SplitBlock", blockId: block.id, at }, (events) => {
           const created = createdBlock(events, block.id)
-          if (created !== undefined) setEditing({ blockId: created, caret: 0 })
+
+          if (created !== undefined) {
+            setEditing({ blockId: created, caret: 0 })
+          }
         })
       },
       MergeWithPrevious: () => {
-        if (previous === undefined) return
+        if (previous === undefined) {
+          return
+        }
+
         dispatch({ _tag: "MergeWithPrevious", blockId: block.id })
         edit(previous, previous.text.length)
       },
-      Indent: () => dispatch({ _tag: "Indent", blockIds: [block.id] }),
-      Outdent: () => dispatch({ _tag: "Outdent", blockIds: [block.id] }),
+      Indent: () => {
+        dispatch({ _tag: "Indent", blockIds: [block.id] })
+      },
+      Outdent: () => {
+        dispatch({ _tag: "Outdent", blockIds: [block.id] })
+      },
       FocusPrevious: () => {
-        if (previous !== undefined) edit(previous, previous.text.length)
+        if (previous !== undefined) {
+          edit(previous, previous.text.length)
+        }
       },
       FocusNext: () => {
-        if (next !== undefined) edit(next, 0)
+        if (next !== undefined) {
+          edit(next, 0)
+        }
       },
-      Exit: () => select(block.id),
-      SelectUp: () => select(previous?.id ?? block.id, block.id),
-      SelectDown: () => select(next?.id ?? block.id, block.id),
-      MoveUp: () => moveBy(now, [block.id], -1),
-      MoveDown: () => moveBy(now, [block.id], 1),
+      Exit: () => {
+        select(block.id)
+      },
+      SelectUp: () => {
+        select(previous?.id ?? block.id, block.id)
+      },
+      SelectDown: () => {
+        select(next?.id ?? block.id, block.id)
+      },
+      MoveUp: () => {
+        moveBy(now, [block.id], -1)
+      },
+      MoveDown: () => {
+        moveBy(now, [block.id], 1)
+      },
       Collapse: () => {
-        if (row.hasChildren) dispatch({ _tag: "SetCollapsed", blockId: block.id, collapsed: true })
+        if (row.hasChildren) {
+          dispatch({ _tag: "SetCollapsed", blockId: block.id, collapsed: true })
+        }
       },
       Expand: () => {
-        if (row.hasChildren) dispatch({ _tag: "SetCollapsed", blockId: block.id, collapsed: false })
+        if (row.hasChildren) {
+          dispatch({ _tag: "SetCollapsed", blockId: block.id, collapsed: false })
+        }
       },
-      NewBlock: ({ below }) => newBlock(now, row, below),
+      NewBlock: ({ below }) => {
+        newBlock(now, row, below)
+      },
     })
   }
 
-  const copy = (blockIds: ReadonlyArray<BlockId>) =>
-    navigator.clipboard
+  const copy = async (blockIds: readonly BlockId[]) =>
+    await navigator.clipboard
       .writeText(blockIds.map((id) => markdownOf(view, id, 0)).join("\n"))
       .catch(() => undefined)
 
@@ -636,20 +744,31 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     const head = selection === null ? -1 : indexOf(selection.head)
     const anchor = visual ? (selection?.anchor ?? null) : null
     const chosen = nonEmpty(topLevel(view, selected))
+
     const go = (index: number) => {
       const row = rows[Math.max(0, Math.min(rows.length - 1, index))]
-      if (row !== undefined) select(row.block.id, anchor ?? row.block.id)
+
+      if (row !== undefined) {
+        select(row.block.id, anchor ?? row.block.id)
+      }
     }
+
     const row = rows[head]
-    const yank = (blockIds: ReadonlyArray<BlockId>) => {
+
+    const yank = (blockIds: readonly BlockId[]) => {
       registry.set(blockRegister, blockIds.map((id) => markdownOf(view, id, 0)).join("\n"))
       void copy(blockIds)
     }
+
     const put = (below: boolean) => {
       const text = registry.get(blockRegister)
       const target = below ? chosen?.at(-1) : chosen?.[0]
       const blocks = text === null ? null : nonEmpty(pastedBlocks(text) ?? [])
-      if (target === undefined || blocks === null) return
+
+      if (target === undefined || blocks === null) {
+        return
+      }
+
       const parentId = view.parentOf(target)
       const siblings = view.children(parentId)
       const before = siblings[siblings.findIndex((sibling) => sibling.id === target) - 1]
@@ -664,46 +783,77 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         },
         (events) => {
           const first = events.find((event) => event._tag === "BlockUpserted")
-          if (first?._tag === "BlockUpserted") select(first.block.id)
+
+          if (first?._tag === "BlockUpserted") {
+            select(first.block.id)
+          }
         },
       )
     }
+
     linewise.current =
       visual && (action._tag === "Move" || action._tag === "Top" || action._tag === "Bottom")
     BlockKey.match(action, {
-      Move: ({ by }) => go(head === -1 ? (by > 0 ? 0 : rows.length - 1) : head + by),
-      Top: () => go(0),
-      Bottom: () => go(rows.length - 1),
+      Move: ({ by }) => {
+        go(head === -1 ? (by > 0 ? 0 : rows.length - 1) : head + by)
+      },
+      Top: () => {
+        go(0)
+      },
+      Bottom: () => {
+        go(rows.length - 1)
+      },
       Edit: ({ at }) => {
-        if (row !== undefined) edit(row.block, at === "Start" ? 0 : row.block.text.length)
+        if (row !== undefined) {
+          edit(row.block, at === "Start" ? 0 : row.block.text.length)
+        }
       },
       NewBlock: ({ below }) => {
-        if (row !== undefined) newBlock(view, row, below)
+        if (row !== undefined) {
+          newBlock(view, row, below)
+        }
       },
       Delete: () => {
-        if (chosen === null) return
+        if (chosen === null) {
+          return
+        }
+
         const end = Math.max(...chosen.map((id) => rows[indexOf(id)]?.end ?? 0))
         const next = rows[end] ?? rows[indexOf(chosen[0]) - 1]
         yank(chosen)
         dispatch({ _tag: "DeleteBlocks", blockIds: chosen })
-        if (next === undefined) setSelection(null)
-        else select(next.block.id)
+
+        if (next === undefined) {
+          setSelection(null)
+        } else {
+          select(next.block.id)
+        }
       },
       Yank: () => {
-        if (chosen === null) return
+        if (chosen === null) {
+          return
+        }
+
         yank(chosen)
         select(chosen[0])
       },
-      Put: ({ below }) => put(below),
+      Put: ({ below }) => {
+        put(below)
+      },
       Indent: () => {
-        if (chosen !== null) dispatch({ _tag: "Indent", blockIds: chosen })
+        if (chosen !== null) {
+          dispatch({ _tag: "Indent", blockIds: chosen })
+        }
       },
       Outdent: () => {
-        if (chosen !== null) dispatch({ _tag: "Outdent", blockIds: chosen })
+        if (chosen !== null) {
+          dispatch({ _tag: "Outdent", blockIds: chosen })
+        }
       },
       Fold: ({ collapsed }) => {
         for (const id of chosen ?? []) {
           const folded = rows[indexOf(id)]
+
           if (folded?.hasChildren === true) {
             dispatch({ _tag: "SetCollapsed", blockId: id, collapsed: collapsed ?? folded.expanded })
           }
@@ -711,15 +861,25 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       },
       Visual: () => {
         linewise.current = !visual
-        if (visual && selection !== null) select(selection.head)
+
+        if (visual && selection !== null) {
+          select(selection.head)
+        }
       },
-      Undo: () => history("Undo", "Select"),
-      Redo: () => history("Redo", "Select"),
+      Undo: () => {
+        history("Undo", "Select")
+      },
+      Redo: () => {
+        history("Redo", "Select")
+      },
     })
   }
 
   const onVimKey = (event: KeyboardEvent<HTMLDivElement>): boolean => {
-    if (event.metaKey || event.altKey) return false
+    if (event.metaKey || event.altKey) {
+      return false
+    }
+
     const key = event.ctrlKey
       ? event.key.toLowerCase() === "r"
         ? "<C-r>"
@@ -727,20 +887,33 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       : event.key.length === 1
         ? event.key
         : null
-    if (key === null) return false
+
+    if (key === null) {
+      return false
+    }
+
     const visual = selection !== null && (linewise.current || selection.anchor !== selection.head)
     const read = readBlockKey(vimKeys.current, key, visual)
     vimKeys.current = read.pending
-    if (read.action !== null) runBlockKey(read.action, visual)
+
+    if (read.action !== null) {
+      runBlockKey(read.action, visual)
+    }
+
     return read.handled
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget) return
-    if (vim && onVimKey(event)) {
-      event.preventDefault()
+    if (event.target !== event.currentTarget) {
       return
     }
+
+    if (vim && onVimKey(event)) {
+      event.preventDefault()
+
+      return
+    }
+
     const mod = event.metaKey || event.ctrlKey
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
     const head = selection === null ? -1 : indexOf(selection.head)
@@ -751,8 +924,10 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     const step = historyStep(event)
     const chorded = chord.current
     chord.current = !mod && !event.altKey && key === "t" ? "t" : ""
-    if (step !== null) history(step)
-    else if (vertical && isMoveChord(event) && chosen !== null) {
+
+    if (step !== null) {
+      history(step)
+    } else if (vertical && isMoveChord(event) && chosen !== null) {
       moveBy(view, chosen, down ? 1 : -1)
     } else if (chorded === "t" && key === "n" && chosen !== null) {
       const listed = chosen.every((id) => rows[indexOf(id)]?.block.props[orderListKey] === "number")
@@ -768,7 +943,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       const first = rows[indexOf(chosen[0])]
       const collapsed = first?.expanded ?? false
       void dispatchAll(
-        chosen.flatMap((id): ReadonlyArray<Command> =>
+        chosen.flatMap((id): readonly Command[] =>
           rows[indexOf(id)]?.hasChildren === true
             ? [{ _tag: "SetCollapsed", blockId: id, collapsed }]
             : [],
@@ -783,7 +958,10 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     ) {
       const block =
         rows[indexOf(key === "ArrowLeft" ? chosen[0] : (chosen.at(-1) ?? chosen[0]))]?.block
-      if (block !== undefined) edit(block, key === "ArrowLeft" ? 0 : block.text.length)
+
+      if (block !== undefined) {
+        edit(block, key === "ArrowLeft" ? 0 : block.text.length)
+      }
     } else if (vertical && mod) {
       for (const id of selected) {
         if (rows[indexOf(id)]?.hasChildren === true) {
@@ -793,27 +971,43 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     } else if (vertical && (event.shiftKey || event.altKey) && selection !== null) {
       const target = down ? (head >= anchor ? (rows[head]?.end ?? head + 1) : head + 1) : head - 1
       const row = rows[Math.max(0, Math.min(rows.length - 1, target))]
-      if (row !== undefined) select(row.block.id, selection.anchor)
+
+      if (row !== undefined) {
+        select(row.block.id, selection.anchor)
+      }
     } else if (vertical) {
       const target = head === -1 ? (down ? 0 : rows.length - 1) : head + (down ? 1 : -1)
       const row = rows[Math.max(0, Math.min(rows.length - 1, target))]
-      if (row !== undefined) select(row.block.id)
+
+      if (row !== undefined) {
+        select(row.block.id)
+      }
     } else if (key === "Escape" && selection !== null) {
       vimKeys.current = ""
-      if (vim && (linewise.current || selection.anchor !== selection.head)) select(selection.head)
-      else setSelection(null)
+
+      if (vim && (linewise.current || selection.anchor !== selection.head)) {
+        select(selection.head)
+      } else {
+        setSelection(null)
+      }
+
       linewise.current = false
     } else if (key === "Enter" && mod && chosen !== null) {
       for (const id of chosen) {
         const block = rows[indexOf(id)]?.block
-        if (block !== undefined)
+
+        if (block !== undefined) {
           setTask(block, nextMarker(contentOf(block.text, dialectOf(block.pageId)).marker))
+        }
       }
     } else if (key === "Enter" && event.shiftKey && selection !== null) {
       onNavigate({ _tag: "SidebarBlock", blockId: selection.head })
     } else if (key === "Enter" && head !== -1) {
       const block = rows[head]?.block
-      if (block !== undefined) edit(block, block.text.length)
+
+      if (block !== undefined) {
+        edit(block, block.text.length)
+      }
     } else if (key === "Tab" && chosen !== null) {
       dispatch({ _tag: event.shiftKey ? "Outdent" : "Indent", blockIds: chosen })
     } else if ((key === "Backspace" || key === "Delete") && chosen !== null) {
@@ -822,64 +1016,106 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     } else if (mod && key === "a" && event.shiftKey) {
       const first = rows[0]
       const last = rows.at(-1)
-      if (first !== undefined && last !== undefined) select(last.block.id, first.block.id)
+
+      if (first !== undefined && last !== undefined) {
+        select(last.block.id, first.block.id)
+      }
     } else if (mod && key === "a" && selection !== null) {
       const up = view.parentOf(selection.head)
-      if (up !== null && indexOf(up) !== -1) select(up)
-    } else if (mod && key === "c" && chosen !== null) void copy(chosen)
-    else if (mod && key === "x" && chosen !== null) {
+
+      if (up !== null && indexOf(up) !== -1) {
+        select(up)
+      }
+    } else if (mod && key === "c" && chosen !== null) {
+      void copy(chosen)
+    } else if (mod && key === "x" && chosen !== null) {
       void copy(chosen)
       dispatch({ _tag: "DeleteBlocks", blockIds: chosen })
       setSelection(null)
-    } else return
+    } else {
+      return
+    }
+
     event.preventDefault()
   }
 
   const onPaste = (event: ClipboardEvent<HTMLDivElement>) => {
     const last = topLevel(view, selected).at(-1)
-    if (event.target !== event.currentTarget || last === undefined) return
+
+    if (event.target !== event.currentTarget || last === undefined) {
+      return
+    }
+
     const text = event.clipboardData.getData("text/plain")
+
     const blocks = nonEmpty(
       pastedBlocks(text) ?? (text.trim() === "" ? [] : [{ text, props: {}, children: [] }]),
     )
-    if (blocks === null) return
+
+    if (blocks === null) {
+      return
+    }
+
     event.preventDefault()
     dispatch({ _tag: "InsertBlocks", pageId, parentId: view.parentOf(last), after: last, blocks })
   }
 
   const onBlur = (event: FocusEvent<HTMLDivElement>) => {
     const next = event.relatedTarget
-    if (next instanceof Node && event.currentTarget.contains(next)) return
-    if (next instanceof Element && next.closest("[data-keeps-selection]") !== null) return
-    if (event.target === event.currentTarget) setSelection(null)
+
+    if (next instanceof Node && event.currentTarget.contains(next)) {
+      return
+    }
+
+    if (next instanceof Element && next.closest("[data-keeps-selection]") !== null) {
+      return
+    }
+
+    if (event.target === event.currentTarget) {
+      setSelection(null)
+    }
   }
 
   const actionsFor = (row: Row): RowActions => {
     const block = row.block
+
     return {
-      toggle: () => dispatch({ _tag: "SetCollapsed", blockId: block.id, collapsed: row.expanded }),
-      bullet: (event) =>
+      toggle: () => {
+        dispatch({ _tag: "SetCollapsed", blockId: block.id, collapsed: row.expanded })
+      },
+      bullet: (event) => {
         onNavigate(
           event.shiftKey
             ? { _tag: "SidebarBlock", blockId: block.id }
             : { _tag: "Zoom", pageId, blockId: block.id },
-        ),
+        )
+      },
       content: (event) => {
-        if (readOnly) return
+        if (readOnly) {
+          return
+        }
+
         if (event.shiftKey) {
           event.preventDefault()
           window.getSelection()?.removeAllRanges()
           select(block.id, selection?.anchor ?? editing?.blockId ?? block.id)
+
           return
         }
-        if (editing?.blockId === block.id || hasTextSelection() || swept.current) return
+
+        if (editing?.blockId === block.id || hasTextSelection() || swept.current) {
+          return
+        }
+
         edit(block, caretFromPoint(event.clientX, event.clientY) ?? block.text.length)
       },
       dragStart: (event) => {
         if (readOnly) {
           event.preventDefault()
+
           return
         }
+
         const ids = selectedSet.has(block.id) ? selected : [block.id]
         event.dataTransfer.effectAllowed = "move"
         event.dataTransfer.setData("text/plain", ids.join("\n"))
@@ -894,20 +1130,33 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         if (dragged.length === 0 && carriesFiles(event.dataTransfer) && !readOnly) {
           event.preventDefault()
           event.dataTransfer.dropEffect = "copy"
+
           return
         }
+
         const target = dropZone(event, row)
-        if (moveCommand(view, dragged, target) === null) return
+
+        if (moveCommand(view, dragged, target) === null) {
+          return
+        }
+
         event.preventDefault()
         event.dataTransfer.dropEffect = "move"
-        if (drop?.blockId !== target.blockId || drop.zone !== target.zone) setDrop(target)
+
+        if (drop?.blockId !== target.blockId || drop.zone !== target.zone) {
+          setDrop(target)
+        }
       },
       drop: (event) => {
         event.preventDefault()
         const files = [...event.dataTransfer.files]
+
         if (dragged.length === 0 && files.length > 0 && !readOnly) {
           void assets.saveFiles(files, dialectOf(pageId)).then((links) => {
-            if (links.length === 0) return
+            if (links.length === 0) {
+              return
+            }
+
             const text = links.join(" ")
             dispatch(
               block.text.trim() === ""
@@ -927,15 +1176,24 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
                   },
             )
           })
+
           return
         }
+
         const command = moveCommand(view, dragged, dropZone(event, row))
-        if (command !== null) dispatch(command)
+
+        if (command !== null) {
+          dispatch(command)
+        }
+
         setDragged([])
         setDrop(null)
       },
       press: (event) => {
-        if (readOnly || event.button !== 0 || event.shiftKey) return
+        if (readOnly || event.button !== 0 || event.shiftKey) {
+          return
+        }
+
         pressed.current = block.id
         swept.current = false
         window.addEventListener(
@@ -948,20 +1206,37 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       },
       sweep: (event) => {
         const origin = pressed.current
-        if (origin === null || (event.buttons & 1) === 0) return
-        if (origin === block.id && selection?.anchor !== origin) return
+
+        if (origin === null || (event.buttons & 1) === 0) {
+          return
+        }
+
+        if (origin === block.id && selection?.anchor !== origin) {
+          return
+        }
+
         swept.current = true
         window.getSelection()?.removeAllRanges()
         select(block.id, origin)
       },
       guide: setHoveredGuide,
-      references: () => toggleRefs(block.id),
+      references: () => {
+        toggleRefs(block.id)
+      },
       menu: (event) => {
         const open = onBlockMenu ?? parent.openMenu
-        if (open === undefined) return
+
+        if (open === undefined) {
+          return
+        }
+
         event.preventDefault()
         const chosen = selectedSet.has(block.id) ? nonEmpty(topLevel(view, selected)) : null
-        if (chosen === null) select(block.id)
+
+        if (chosen === null) {
+          select(block.id)
+        }
+
         open({ pageId, blockIds: chosen ?? [block.id], x: event.clientX, y: event.clientY })
       },
       fold: (ancestor) => {
@@ -989,14 +1264,17 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     const block = row.block
     const isEditing = editing?.blockId === block.id
     const parsed = contentOf(block.text, dialectOf(block.pageId))
+
     const content =
       parsed.heading === null && parsed.title !== null && block.props["heading"] === "true"
         ? { ...parsed, heading: Math.min(row.depth + 1, 6) }
         : parsed
+
     const ownRef = (block.props["id"] ?? "").toLowerCase()
     const refId = counts[block.id] === undefined && ownRef !== "" ? ownRef : block.id
     const references = counts[refId] ?? 0
     const refsShown = references > 0 && refsOpen(block.id)
+
     return (
       <RowView
         key={block.id}
@@ -1034,18 +1312,21 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
               content={content}
               props={block.props}
               block={block}
-              onMarker={(marker) => setTask(block, marker)}
+              onMarker={(marker) => {
+                setTask(block, marker)
+              }}
               {...(readOnly
                 ? {}
                 : {
-                    onCode: (start: number, end: number, insert: string) =>
+                    onCode: (start: number, end: number, insert: string) => {
                       dispatch({
                         _tag: "EditText",
                         blockId: block.id,
                         from: start,
                         to: end,
                         insert,
-                      }),
+                      })
+                    },
                   })}
             />
           </HostBlock>
@@ -1055,7 +1336,8 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   }
 
   const tail = view.children(zoom)
-  const addBlock = (parentId: BlockId | null, last: BlockId | undefined) =>
+
+  const addBlock = (parentId: BlockId | null, last: BlockId | undefined) => {
     insertAndEdit({
       _tag: "InsertBlock",
       pageId,
@@ -1063,11 +1345,17 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       ...(last === undefined ? {} : { after: last }),
       text: "",
     })
+  }
 
   const body = placed.flatMap(({ index, gap }) => {
     const row = rows[index]
-    if (row === undefined) return []
+
+    if (row === undefined) {
+      return []
+    }
+
     const shown = renderRow(row, index)
+
     return gap === 0 ? [shown] : [<Gap key={`gap-${row.block.id}`} height={gap} />, shown]
   })
 
@@ -1106,13 +1394,17 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
             <AddBlock
               className="seqno-add-first"
               label="Click here to start writing"
-              onAdd={() => addBlock(null, undefined)}
+              onAdd={() => {
+                addBlock(null, undefined)
+              }}
             />
           ) : !addable || tail.at(-1)?.text.trim() === "" ? null : (
             <AddBlock
               className="seqno-add-last"
               label="Add a block"
-              onAdd={() => addBlock(zoom, tail.at(-1)?.id)}
+              onAdd={() => {
+                addBlock(zoom, tail.at(-1)?.id)
+              }}
             />
           )}
         </div>

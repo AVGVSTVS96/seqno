@@ -15,6 +15,7 @@ export interface CodeEdit {
 
 const languageOf = (name: string) => {
   const parser = parserFor(name)
+
   return parser === undefined
     ? []
     : [
@@ -43,6 +44,7 @@ const viewOf = (
             key: "Escape",
             run: (target) => {
               save(target)
+
               return true
             },
           },
@@ -52,7 +54,9 @@ const viewOf = (
         ]),
         languageOf(language),
         EditorView.updateListener.of((update) => {
-          if (update.focusChanged && !update.view.hasFocus) save(update.view)
+          if (update.focusChanged && !update.view.hasFocus) {
+            save(update.view)
+          }
         }),
       ],
     }),
@@ -61,27 +65,43 @@ const viewOf = (
 const mountCode =
   ({ code, language, at, onDone }: CodeEdit) =>
   (parent: HTMLDivElement | null) => {
-    if (parent === null) return
+    if (parent === null) {
+      return
+    }
+
     let done = false
+
     const view = viewOf(parent, code, language, (target) => {
-      if (done) return
+      if (done) {
+        return
+      }
+
       done = true
       onDone(target.state.doc.toString())
     })
+
     const pos = view.posAtCoords(at)
     view.dispatch({ selection: EditorSelection.cursor(pos ?? view.state.doc.length) })
     view.focus()
-    return () => view.destroy()
+
+    return () => {
+      view.destroy()
+    }
   }
 
 export const CodeEditor = (edit: CodeEdit) => {
   const [mount] = useState(() => mountCode(edit))
+
   return (
     <div
       className="seqno-code-editor"
       ref={mount}
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation()
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation()
+      }}
     />
   )
 }
@@ -94,9 +114,18 @@ export interface FileEdit {
 
 export const FileEditor = ({ code, language, onSave }: FileEdit) => {
   const [mount] = useState(() => (parent: HTMLDivElement | null) => {
-    if (parent === null) return
-    const view = viewOf(parent, code, language, (target) => onSave(target.state.doc.toString()))
-    return () => view.destroy()
+    if (parent === null) {
+      return
+    }
+
+    const view = viewOf(parent, code, language, (target) => {
+      onSave(target.state.doc.toString())
+    })
+
+    return () => {
+      view.destroy()
+    }
   })
+
   return <div className="seqno-code-editor" ref={mount} />
 }

@@ -4,7 +4,8 @@ import { useNavigate } from "@tanstack/react-router"
 import { Effect } from "effect"
 import { AsyncResult, Reactivity } from "effect/reactivity"
 import { useState } from "react"
-import { isWhiteboard, whiteboardProps, type Page, type PageId } from "@seqno/domain"
+import { isWhiteboard, whiteboardProps } from "@seqno/domain"
+import type { Page, PageId } from "@seqno/domain"
 import { pageListKey } from "@seqno/outliner"
 import { CoreClient } from "@seqno/rpc"
 import { BoardPreview, BoardStyle, boardTitle, isUntitled } from "@seqno/whiteboard"
@@ -17,15 +18,20 @@ export const createWhiteboard = appRuntime.fn((title: string, get) =>
   Effect.gen(function* () {
     const onboard = !get(onboardedWhiteboard) && !get(allPages).some(isWhiteboard)
     const core = yield* CoreClient
+
     const created = yield* core.Dispatch({
       command: { _tag: "CreatePage", title, props: whiteboardProps },
     })
+
     const page = created.flatMap((event) => (event._tag === "PageUpserted" ? [event.page] : []))[0]
+
     if (onboard && page !== undefined) {
       get.set(onboardingBoard, page.id)
       get.set(populateOnboarding, page.id)
     }
+
     yield* Reactivity.invalidate(pageListKey)
+
     return title
   }),
 )
@@ -33,10 +39,11 @@ export const createWhiteboard = appRuntime.fn((title: string, get) =>
 export const useCreateWhiteboard = () => {
   const create = useAtomSet(createWhiteboard, { mode: "promise" })
   const navigate = useNavigate()
+
   return () =>
-    void create(crypto.randomUUID()).then((name) =>
-      navigate({ to: "/page/$name", params: { name } }),
-    )
+    void create(crypto.randomUUID()).then(async (name) => {
+      await navigate({ to: "/page/$name", params: { name } })
+    })
 }
 
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
@@ -53,15 +60,17 @@ const UNITS: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, number]> = [
 export const ago = (millis: number, now: number) => {
   const seconds = Math.round((millis - now) / 1000)
   const unit = UNITS.find(([, size]) => Math.abs(seconds) >= size)
+
   return unit === undefined ? "just now" : relative.format(Math.round(seconds / unit[1]), unit[0])
 }
 
 const newestFirst = (
-  boards: ReadonlyArray<Page>,
+  boards: readonly Page[],
   times: ReadonlyMap<PageId, number | null>,
-): ReadonlyArray<Page> =>
+): readonly Page[] =>
   boards.toSorted((left, right) => {
     const by = (times.get(right.id) ?? 0) - (times.get(left.id) ?? 0)
+
     return by === 0 ? right.id.localeCompare(left.id) : by
   })
 
@@ -82,6 +91,7 @@ const Card = ({
   const resolveAsset = useAtomValue(assetResolver)
   const title = boardTitle(page)
   const open = () => void navigate({ to: "/page/$name", params: { name: page.name } })
+
   return (
     <div
       className="wb-card"
@@ -89,9 +99,13 @@ const Card = ({
       tabIndex={0}
       aria-label={title}
       data-dim={selecting && !checked}
-      onClick={() => (selecting ? onToggle() : open())}
+      onClick={() => {
+        selecting ? onToggle() : open()
+      }}
       onKeyDown={(event) => {
-        if (event.key === "Enter") open()
+        if (event.key === "Enter") {
+          open()
+        }
       }}
     >
       <div className="wb-card-header">
@@ -102,7 +116,9 @@ const Card = ({
             className="wb-card-check"
             aria-label={`Select ${title}`}
             checked={checked}
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+            }}
             onChange={onToggle}
           />
         </div>
@@ -126,17 +142,24 @@ export const Whiteboards = () => {
   const now = useAtomValue(openedAt)
   const sorted = newestFirst(boards, times)
   const chosen = sorted.filter((page) => checked.has(page.id))
+
   const toggle = (id: PageId) => {
     const next = new Set(checked)
-    if (!next.delete(id)) next.add(id)
+
+    if (!next.delete(id)) {
+      next.add(id)
+    }
+
     setChecked(next)
     setConfirming(false)
   }
+
   const deleteChosen = () =>
     void remove(chosen.map((page) => ({ _tag: "DeletePage", pageId: page.id }))).then(() => {
       setChecked(new Set())
       setConfirming(false)
     })
+
   return (
     <div className="seqno-page wb-dashboard">
       <PagesStyle />
@@ -150,7 +173,13 @@ export const Whiteboards = () => {
             <button type="button" className="wb-delete" onClick={deleteChosen}>
               Delete {chosen.length} {chosen.length === 1 ? "whiteboard" : "whiteboards"}
             </button>
-            <button type="button" className="wb-delete" onClick={() => setConfirming(false)}>
+            <button
+              type="button"
+              className="wb-delete"
+              onClick={() => {
+                setConfirming(false)
+              }}
+            >
               Cancel
             </button>
           </span>
@@ -159,7 +188,9 @@ export const Whiteboards = () => {
             type="button"
             className="wb-delete"
             aria-label={`Delete ${chosen.length} selected`}
-            onClick={() => setConfirming(true)}
+            onClick={() => {
+              setConfirming(true)
+            }}
           >
             <IconTrash size={16} aria-hidden />
             {chosen.length}
@@ -173,6 +204,7 @@ export const Whiteboards = () => {
         </button>
         {sorted.map((page) => {
           const at = times.get(page.id)
+
           return (
             <Card
               key={page.id}
@@ -180,7 +212,9 @@ export const Whiteboards = () => {
               edited={typeof at === "number" ? `Edited ${ago(at, now)}` : ""}
               checked={checked.has(page.id)}
               selecting={chosen.length > 0}
-              onToggle={() => toggle(page.id)}
+              onToggle={() => {
+                toggle(page.id)
+              }}
             />
           )
         })}
@@ -194,6 +228,7 @@ export const Whiteboards = () => {
 
 export const BoardEmbed = ({ pageId }: { readonly pageId: PageId }) => {
   const resolveAsset = useAtomValue(assetResolver)
+
   return (
     <div className="wb-embed">
       <BoardStyle />

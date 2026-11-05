@@ -140,6 +140,7 @@ describe("simulated seeds", () => {
           vault: "real",
           graph: "real",
         })
+
         assert.deepStrictEqual(result.problems, [])
         assert.isAbove(result.restarts, 0)
         assert.isAbove(result.ops.splitBlock + result.ops.mergeBlock, 0)
@@ -161,6 +162,7 @@ describe("simulated seeds", () => {
           vault: "real",
           graph: "pages",
         })
+
         assert.deepStrictEqual(result.problems, [])
         assert.isAbove(result.restarts, 0)
         assert.isAbove(result.ops.crossPage, 0)

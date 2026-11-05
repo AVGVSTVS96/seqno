@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react"
-import { useTooltip, type TooltipContent } from "./popover.tsx"
+import { useTooltip } from "./popover.tsx"
+import type { TooltipContent } from "./popover.tsx"
 
 export const IconButton = ({
   label,
@@ -13,6 +14,7 @@ export const IconButton = ({
   readonly icon: ReactNode
 }) => {
   const hint = useTooltip(tooltip)
+
   return (
     <>
       <button

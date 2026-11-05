@@ -12,14 +12,15 @@ import {
   restorePlace,
   ScrollContent,
   useVirtualList,
-  type NavigationTarget,
 } from "../src/index.ts"
+import type { NavigationTarget } from "../src/index.ts"
 import { block, fakeCore, id, pageId } from "./fake-core.ts"
 import { themeTokens } from "./theme.ts"
 
-const mount = async (blocks: ReadonlyArray<Block>, zoom: BlockId | null = null) => {
+const mount = async (blocks: readonly Block[], zoom: BlockId | null = null) => {
   const core = fakeCore(blocks)
-  const navigations: Array<NavigationTarget> = []
+  const navigations: NavigationTarget[] = []
+
   const screen = await render(
     <div style={{ width: "600px" }}>
       <style>{themeTokens}</style>
@@ -28,7 +29,9 @@ const mount = async (blocks: ReadonlyArray<Block>, zoom: BlockId | null = null) 
       </RegistryProvider>
     </div>,
   )
+
   await expect.element(page.getByRole("tree")).toBeInTheDocument()
+
   return { core, navigations, screen }
 }
 
@@ -42,7 +45,9 @@ const editor = () => page.getByRole("textbox", { name: "Block text" })
 
 const row = (text: string) => page.getByRole("treeitem").filter({ hasText: text }).first()
 
-const editAtEnd = (text: string) => row(text).click({ position: { x: 560, y: 14 } })
+const editAtEnd = async (text: string) => {
+  await row(text).click({ position: { x: 560, y: 14 } })
+}
 
 const sample = [
   block(1, "Plan **launch** with `code` and [[Project]] #idea"),
@@ -93,7 +98,11 @@ test("clicking a children guide collapses its parent", async () => {
   const { core } = await mount(sample)
   const guide = row("child one").element().querySelector(".seqno-guide")
   expect(guide).not.toBe(null)
-  if (guide instanceof HTMLElement) await userEvent.click(guide)
+
+  if (guide instanceof HTMLElement) {
+    await userEvent.click(guide)
+  }
+
   expect(core.commands).toEqual([{ _tag: "SetCollapsed", blockId: id(1), collapsed: true }])
 })
 
@@ -252,6 +261,7 @@ test("shift-clicking a ref or a bullet asks to open it in the right sidebar", as
     block(1, `[[Project]] and ((${id(2)}))`),
     block(2, "target"),
   ])
+
   await page.getByRole("link", { name: "Project" }).click({ modifiers: ["Shift"] })
   await page
     .getByRole("treeitem")
@@ -276,6 +286,7 @@ test("task markers get a checkbox, and checking it marks the task DONE", async (
     block(3, "CANCELED Rain barrel"),
     block(4, "WAITING Brackets"),
   ])
+
   expect(levels().map(([, text]) => text)).toEqual([
     "TODOOrder panels",
     "Pour footings",
@@ -382,7 +393,7 @@ test("rows carry Logseq's block names, so Logseq themes and plugins find them", 
   )
 })
 
-const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+const frame = async () => await new Promise((resolve) => requestAnimationFrame(resolve))
 
 const Days = ({ children }: { readonly children: ReactNode }) => {
   const { placed, trailing, attach, measure } = useVirtualList({
@@ -393,6 +404,7 @@ const Days = ({ children }: { readonly children: ReactNode }) => {
     key: (index) => index,
     overscan: 1,
   })
+
   return (
     <div ref={attach}>
       <NestedLists>
@@ -423,13 +435,17 @@ const mountWindowed = async (count: number, nested = false) => {
   )
   await expect.element(page.getByRole("tree")).toBeInTheDocument()
   const scroller = page.getByTestId("scroller").element()
+
   const inView = (selector: string) => {
     const box = scroller.getBoundingClientRect()
+
     return [...scroller.querySelectorAll(selector)].filter((element) => {
       const at = element.getBoundingClientRect()
+
       return at.height > 0 && at.bottom > box.top && at.top < box.bottom
     }).length
   }
+
   return { scroller, inView }
 }
 
@@ -446,14 +462,17 @@ test("only rows near the viewport are mounted while the list scrolls", async () 
 
 test("a fast fling shows rows wherever it stops", async () => {
   const { scroller, inView } = await mountWindowed(3000)
+
   for (const stop of [0.9, 0.2, 0.6]) {
     const target = (scroller.scrollHeight - scroller.clientHeight) * stop
+
     while (Math.abs(scroller.scrollTop - target) > 1) {
       scroller.scrollTop +=
         Math.sign(target - scroller.scrollTop) *
         Math.min(5000, Math.abs(target - scroller.scrollTop))
       await frame()
     }
+
     await frame()
     await frame()
     expect([inView(".seqno-gap"), inView("[role=treeitem]") > 10]).toEqual([0, true])
@@ -463,18 +482,22 @@ test("a fast fling shows rows wherever it stops", async () => {
 test("a long outline inside a windowed list of days mounts only its rows near the viewport", async () => {
   const { scroller, inView } = await mountWindowed(3000, true)
   expect(page.getByRole("treeitem").elements().length).toBeLessThan(80)
+
   for (const stop of [0.9, 0.2, 0.6]) {
     const target = (scroller.scrollHeight - scroller.clientHeight) * stop
+
     while (Math.abs(scroller.scrollTop - target) > 1) {
       scroller.scrollTop +=
         Math.sign(target - scroller.scrollTop) *
         Math.min(5000, Math.abs(target - scroller.scrollTop))
       await frame()
     }
+
     await frame()
     await frame()
     expect([inView(".seqno-gap"), inView("[role=treeitem]") > 10]).toEqual([0, true])
   }
+
   expect(page.getByRole("treeitem").elements().length).toBeLessThan(80)
 })
 
@@ -492,18 +515,23 @@ test("Mod+Shift+A on a long page selects every block and scrolls to the last one
 
 test("a row above the screen that grows moves nothing on screen, scrolling up or down", async () => {
   const { scroller } = await mountWindowed(3000)
+
   for (const step of [-300, 300]) {
     scroller.scrollTop = 40_000
     await frame()
     await frame()
     const before = placeOf(scroller).anchor
     const top = scroller.getBoundingClientRect().top
+
     const above = page
       .getByRole("treeitem")
       .elements()
       .findLast((shown) => shown.getBoundingClientRect().bottom < top - 400)
+
     scroller.scrollTop += step
-    await new Promise((resolve) => scroller.addEventListener("scroll", resolve, { once: true }))
+    await new Promise((resolve) => {
+      scroller.addEventListener("scroll", resolve, { once: true })
+    })
     above?.style.setProperty("padding-bottom", "200px")
     await frame()
     await frame()

@@ -51,20 +51,30 @@ const useCurrentPage = (): Page | undefined => {
   const onPage = matchRoute({ to: "/page/$name" })
   const named = useAtomValue(pageNamed(onPage === false ? "" : onPage.name))
   const days = useAtomValue(journals)
-  if (matchRoute({ to: "/" }) !== false) return days[0]
-  if (onPage === false) return undefined
+
+  if (matchRoute({ to: "/" }) !== false) {
+    return days[0]
+  }
+
+  if (onPage === false) {
+    return undefined
+  }
+
   return Option.getOrUndefined(AsyncResult.getOrElse(named, () => Option.none()))
 }
 
 const MoreMenu = () => {
   const page = useCurrentPage()
   const more = usePopover({ placement: { align: "start", gap: -2, inset: 11 }, kind: "menu" })
+
   const appearance = usePopover({
     placement: { align: "end", gap: 4, inset: 0 },
     kind: "dialog",
     anchorOverride: more.anchor,
   })
+
   const setSettingsTab = useAtomSet(settingsTab)
+
   return (
     <>
       <IconButton
@@ -109,6 +119,7 @@ const MoreMenu = () => {
 
 const DocumentModeButton = () => {
   const [on, setOn] = useAtom(documentMode)
+
   const hint = useTooltip({
     label: "Document mode",
     body: (
@@ -123,7 +134,11 @@ const DocumentModeButton = () => {
       </ul>
     ),
   })
-  if (!on) return null
+
+  if (!on) {
+    return null
+  }
+
   return (
     <>
       <button
@@ -131,7 +146,9 @@ const DocumentModeButton = () => {
         className="seqno-doc-mode"
         aria-label="Turn off document mode"
         {...hint.props}
-        onClick={() => setOn(false)}
+        onClick={() => {
+          setOn(false)
+        }}
       >
         D
       </button>
@@ -142,6 +159,7 @@ const DocumentModeButton = () => {
 
 const NotSaved = ({ reason }: { readonly reason: string }) => {
   const hint = useTooltip({ label: `Not saved: ${reason}` })
+
   return (
     <>
       <span
@@ -183,6 +201,7 @@ const SaveStatus = () =>
 
 const SearchButton = () => {
   const setSearchOpen = useAtomSet(searchOpen)
+
   return (
     <IconButton
       label="Search"
@@ -190,7 +209,9 @@ const SearchButton = () => {
       data-hint-anchor="search"
       tooltip={{ label: "Search", keys: ["mod", "k"] }}
       icon={<IconSearch size={20} aria-hidden />}
-      onClick={() => setSearchOpen(true)}
+      onClick={() => {
+        setSearchOpen(true)
+      }}
     />
   )
 }
@@ -201,6 +222,7 @@ export const Header = () => {
   const matchRoute = useMatchRoute()
   const navigate = useNavigate()
   const home = matchRoute({ to: "/" }) !== false
+
   return (
     <header {...logseq("head")}>
       <div {...logseq("head-left")}>
@@ -211,7 +233,9 @@ export const Header = () => {
           tooltip={{ label: "Toggle left sidebar", keys: keysOf("ToggleLeftSidebar") }}
           icon={<IconMenu2 size={20} aria-hidden />}
           aria-expanded={leftOpen}
-          onClick={() => setLeftOpen(!leftOpen)}
+          onClick={() => {
+            setLeftOpen(!leftOpen)
+          }}
         />
         <SearchButton />
       </div>
@@ -234,7 +258,9 @@ export const Header = () => {
           {...logseq("seqno-right-toggle")}
           tooltip={{ label: "Toggle right sidebar", keys: keysOf("ToggleRightSidebar") }}
           icon={<IconLayoutSidebarRight size={20} aria-hidden />}
-          onClick={() => updateSidebar({ _tag: "Toggle" })}
+          onClick={() => {
+            updateSidebar({ _tag: "Toggle" })
+          }}
         />
       </div>
     </header>

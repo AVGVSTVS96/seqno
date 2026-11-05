@@ -7,7 +7,7 @@ export const record = (value: unknown): Readonly<Record<string, unknown>> =>
 
 export const text = (value: unknown): string | null => (typeof value === "string" ? value : null)
 
-export const list = (value: unknown): ReadonlyArray<unknown> => (Array.isArray(value) ? value : [])
+export const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : [])
 
 export const strings = (value: unknown): Readonly<Record<string, string>> =>
   Object.fromEntries(
@@ -21,13 +21,18 @@ const resolve = (root: string, path: string) => new URL(path, root).href
 export const themesOf = (
   pid: string,
   root: string,
-  entries: ReadonlyArray<unknown>,
-): ReadonlyArray<PluginTheme> =>
+  entries: readonly unknown[],
+): readonly PluginTheme[] =>
   entries.flatMap((entry) => {
     const theme = record(entry)
     const url = text(theme["url"])
-    if (url === null) return []
+
+    if (url === null) {
+      return []
+    }
+
     const mode = theme["mode"]
+
     return [
       {
         pid,
@@ -41,6 +46,7 @@ export const themesOf = (
 
 const themeEntries = (logseq: Readonly<Record<string, unknown>>) => {
   const themes = logseq["themes"] ?? logseq["theme"]
+
   return Array.isArray(themes) ? themes : themes === undefined ? [] : [themes]
 }
 
@@ -61,6 +67,7 @@ export const pluginInfoOf = (
   const logseq = record(pkg["logseq"])
   const main = text(logseq["entry"]) ?? text(logseq["main"]) ?? text(pkg["main"])
   const icon = text(logseq["icon"])
+
   return {
     id: listing.id,
     title: listing.title === "" ? (text(logseq["title"]) ?? listing.id) : listing.title,
@@ -76,12 +83,16 @@ export const pluginInfoOf = (
   }
 }
 
-export const settingItems = (schema: unknown): ReadonlyArray<SettingItem> =>
+export const settingItems = (schema: unknown): readonly SettingItem[] =>
   list(schema).flatMap((entry) => {
     const item = record(entry)
     const key = text(item["key"])
     const type = text(item["type"])
-    if (key === null || type === null) return []
+
+    if (key === null || type === null) {
+      return []
+    }
+
     return [
       {
         key,

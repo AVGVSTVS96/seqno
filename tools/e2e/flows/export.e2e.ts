@@ -18,7 +18,7 @@ const openPageExport = async (page: Page) => {
   await page.getByRole("menuitem", { name: "Export page" }).click()
 }
 
-const saved = async (download: Download) => readFile((await download.path()) ?? "")
+const saved = async (download: Download) => await readFile((await download.path()) ?? "")
 
 test("Export page writes text, OPML and HTML with Logseq's options", async ({ page }) => {
   await openGardenPlan(page)
@@ -100,11 +100,13 @@ test("Export page as PNG saves a picture of the rendered blocks", async ({ page 
 test("Copy / Export as exports the chosen block with its children", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
   await openGardenPlan(page)
+
   const winter = page
     .getByRole("main")
     .getByRole("treeitem")
     .filter({ hasText: /^Winter/ })
     .first()
+
   await winter.getByRole("button", { name: "Zoom into block" }).first().click({ button: "right" })
   await page
     .getByRole("menu", { name: "Block actions" })
@@ -118,13 +120,14 @@ test("Copy / Export as exports the chosen block with its children", async ({ pag
   )
   await dialog.getByRole("button", { name: "Copy to clipboard" }).click()
   await expect(dialog.getByRole("button", { name: "Copied to clipboard!" })).toBeVisible()
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+  expect(await page.evaluate(async () => await navigator.clipboard.readText())).toBe(
     "- Winter\n\t- Garlic along the fence, planted before the first frost\n\t- Broad beans under fleece\n",
   )
 })
 
 test("Export graph downloads EDN, JSON and a markdown zip", async ({ page }) => {
   await openGardenPlan(page)
+
   const choose = async (label: string) => {
     await page.getByRole("button", { name: "More" }).click()
     await page.getByRole("menuitem", { name: "Export graph" }).click()
@@ -133,8 +136,10 @@ test("Export graph downloads EDN, JSON and a markdown zip", async ({ page }) => 
       .getByRole("dialog", { name: "Export graph" })
       .getByRole("button", { name: label })
       .click()
-    return download
+
+    return await download
   }
+
   const edn = await choose("Export as EDN")
   expect(edn.suggestedFilename()).toMatch(/^demo_\d+\.edn$/)
   const ednText = (await saved(edn)).toString()

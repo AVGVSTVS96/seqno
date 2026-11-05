@@ -1,14 +1,9 @@
 import { Clock, Crypto, Effect, Latch, Layer, Option, PubSub, Semaphore, Stream } from "effect"
 import { LoroDoc, VersionVector } from "loro-crdt"
-import {
-  importMessage,
-  type Block,
-  type BlockId,
-  type Command,
-  type GraphEvent,
-  type PageId,
-} from "@seqno/domain"
-import { BlockNotFound, CommandRejected, PageNotFound, type PageTree } from "@seqno/rpc"
+import { importMessage } from "@seqno/domain"
+import type { Block, BlockId, Command, GraphEvent, PageId } from "@seqno/domain"
+import { BlockNotFound, CommandRejected, PageNotFound } from "@seqno/rpc"
+import type { PageTree } from "@seqno/rpc"
 import { inBackground } from "../background.ts"
 import type { Unresolved } from "../commands.ts"
 import {
@@ -26,13 +21,14 @@ import {
   seedTime,
   typedBlock,
   typedInOneBlock,
-  type GraphSource,
-  type LocalUpdate,
 } from "../graph.ts"
-import { histories, type Place, type Recorder } from "../history.ts"
+import type { GraphSource, LocalUpdate } from "../graph.ts"
+import { histories } from "../history.ts"
+import type { Place, Recorder } from "../history.ts"
 import { readBlock } from "../tree.ts"
 import { changedSince } from "./changes.ts"
-import { applyCommand, mergeTargetOf, outliner, type Lookup, type Workspace } from "./commands.ts"
+import { applyCommand, mergeTargetOf, outliner } from "./commands.ts"
+import type { Lookup, Workspace } from "./commands.ts"
 import { collectChanges, emptyKnown, emptyPending, remember, translate } from "./events.ts"
 import { parseKey, spotOf } from "./layout.ts"
 import { locate, makeTrees, pageTrees, readView } from "./outline.ts"
@@ -48,52 +44,79 @@ const make = (source: GraphSource) =>
     yield* importAll([...Option.toArray(source.snapshot), ...source.updates])
     const trees = makeTrees(doc)
     const known = emptyKnown()
+
     const lookup: Lookup = {
       trees,
       homes: {
         home: (id) => Option.fromUndefinedOr(known.homes.get(id)),
         onPage: (page) => {
           const seen = new Map<string, BlockId>()
+
           for (const id of known.byPage.get(page) ?? []) {
             const key = known.homes.get(id)
-            if (key !== undefined) seen.set(key, id)
+
+            if (key !== undefined) {
+              seen.set(key, id)
+            }
           }
+
           return seen
         },
       },
     }
+
     const places = new Map<PageId, Place>()
+
     const placeOf = (page: PageId): Place => {
       const found = places.get(page)
-      if (found !== undefined) return found
+
+      if (found !== undefined) {
+        return found
+      }
+
       const made: Place = {
         doc,
         roots: () => trees.tree(page).roots(),
         root: (index) => trees.tree(page).createNode(undefined, index),
         trash: () => trees.trash(page, () => lookup.homes.onPage(page)),
       }
+
       places.set(page, made)
+
       return made
     }
+
     const history = histories()
     let pending = emptyPending()
     let unsubscribe: (() => void) | undefined
+
     const listen = () => {
       unsubscribe ??= doc.subscribe((batch) => {
-        if (collectChanges(batch, pending)) trees.relist()
+        if (collectChanges(batch, pending)) {
+          trees.relist()
+        }
+
         history.observe(doc, batch)
       })
     }
-    if (doc.oplogVersion().length() > 0) listen()
+
+    if (doc.oplogVersion().length() > 0) {
+      listen()
+    }
+
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         unsubscribe?.()
         doc.free()
       }),
     )
+
     const rememberPages = () => {
-      for (const [id, page] of trees.listing().live) known.pages.set(id, page)
+      for (const [id, page] of trees.listing().live) {
+        known.pages.set(id, page)
+      }
     }
+
     rememberPages()
 
     const pubsub = yield* PubSub.unbounded<GraphEvent>()
@@ -106,16 +129,22 @@ const make = (source: GraphSource) =>
     const loaded = new Set<PageId>()
 
     const repair = Effect.sync(() => {
-      repairUnseen(trees, () => doc.commit({ origin: REPAIRED }))
+      repairUnseen(trees, () => {
+        doc.commit({ origin: REPAIRED })
+      })
       const names = repairNames(trees, pending.pages)
       const cycles = repairCycles(trees, spotsOf(trees, [...pending.nodes, ...pending.data]))
-      if (names || cycles) doc.commit({ origin: REPAIRED })
+
+      if (names || cycles) {
+        doc.commit({ origin: REPAIRED })
+      }
     })
 
     const drain = Effect.suspend(() => {
       const taken = pending
       pending = emptyPending()
       const events = translate(trees, taken, known)
+
       return Effect.as(PubSub.publishAll(pubsub, events), events)
     })
 
@@ -123,32 +152,47 @@ const make = (source: GraphSource) =>
       const reads = readView(trees, id)
       remember(known, id, reads)
       loaded.add(id)
+
       return reads
     }
 
     const register = (id: PageId) => {
-      if (!loaded.has(id) && trees.listing().live.has(id)) readPage(id)
+      if (!loaded.has(id) && trees.listing().live.has(id)) {
+        readPage(id)
+      }
     }
 
     const seek = (id: BlockId, page: PageId) => {
-      if (loaded.has(page) || !trees.listing().live.has(page)) return
+      if (loaded.has(page) || !trees.listing().live.has(page)) {
+        return
+      }
+
       for (const own of pageTrees(trees, page)) {
         for (const node of trees.tree(own).getNodes()) {
           const spot = spotOf(own, node)
-          if (Option.contains(trees.facts(spot).id, id)) return void known.homes.set(id, spot.key)
+
+          if (Option.contains(trees.facts(spot).id, id)) {
+            return void known.homes.set(id, spot.key)
+          }
         }
       }
+
       readPage(page)
     }
 
     const scope = yield* Effect.scope
+
     const fill = Effect.suspend(() =>
       Effect.forEach(
         [...trees.listing().live.keys()],
-        (id) => Effect.sync(() => register(id)).pipe(Effect.andThen(Effect.yieldNow)),
+        (id) =>
+          Effect.sync(() => {
+            register(id)
+          }).pipe(Effect.andThen(Effect.yieldNow)),
         { discard: true },
       ),
     ).pipe(Effect.andThen(filled.open), inBackground, Effect.forkIn(scope))
+
     yield* fill
 
     const livePages = () =>
@@ -176,12 +220,15 @@ const make = (source: GraphSource) =>
             Option.map(trees.node(at, node), (found) => ({ page: at, node: found, key })),
           ),
         )
+
         const found = Option.flatMap(home, (spot) => {
           const where = locate(trees, spot)
+
           return where._tag === "Live"
             ? readBlock(spot.node, { pageId: where.page, parentId: where.parentId })
             : Option.none()
         })
+
         return Option.match(found, {
           onNone: () => Effect.fail(new BlockNotFound({ blockId: id })),
           onSome: ({ block }): Effect.Effect<Block> => Effect.succeed(block),
@@ -191,7 +238,10 @@ const make = (source: GraphSource) =>
     const block = (id: BlockId, on?: PageId) =>
       serial(
         Effect.suspend(() => {
-          if (on !== undefined && !known.homes.has(id)) seek(id, on)
+          if (on !== undefined && !known.homes.has(id)) {
+            seek(id, on)
+          }
+
           return findBlock(id)
         }),
       ).pipe(
@@ -204,25 +254,36 @@ const make = (source: GraphSource) =>
 
     const transact = (
       client: string,
-      commands: ReadonlyArray<Command>,
+      commands: readonly Command[],
       typing: BlockId | null,
     ): Effect.Effect<void, CommandRejected | Unresolved, Crypto.Crypto> =>
       Effect.suspend(() => {
         listen()
-        const tx = history.begin(client, typing, () => doc.commit({ origin: clientOrigin(client) }))
+
+        const tx = history.begin(client, typing, () => {
+          doc.commit({ origin: clientOrigin(client) })
+        })
+
         const recorders = new Map<PageId, Recorder>()
+
         const ws: Workspace = {
           ...lookup,
           record: (at) => {
             const found = recorders.get(at)
-            if (found !== undefined) return found
+
+            if (found !== undefined) {
+              return found
+            }
+
             const made = tx.record(placeOf(at))
             recorders.set(at, made)
+
             return made
           },
           undo: tx.undo,
           redo: tx.redo,
         }
+
         return Effect.forEach(commands, (command) => applyCommand(ws, outliner(ws), command), {
           discard: true,
         }).pipe(
@@ -251,10 +312,17 @@ const make = (source: GraphSource) =>
         ),
       )
 
-    const dispatchAll = (commands: ReadonlyArray<Command>, client = "") => {
+    const dispatchAll = (commands: readonly Command[], client = "") => {
       const [first, ...rest] = commands
-      if (first === undefined) return Effect.succeed([])
-      if (rest.length === 0) return dispatch(first, client)
+
+      if (first === undefined) {
+        return Effect.succeed([])
+      }
+
+      if (rest.length === 0) {
+        return dispatch(first, client)
+      }
+
       return serial(
         Effect.andThen(filled.await, transact(client, commands, typedInOneBlock(commands))).pipe(
           committed,
@@ -262,50 +330,69 @@ const make = (source: GraphSource) =>
       )
     }
 
-    const release = (client: string) => serial(Effect.sync(() => history.release(client)))
+    const release = (client: string) =>
+      serial(
+        Effect.sync(() => {
+          history.release(client)
+        }),
+      )
 
     const ownCounter = () => doc.oplogVersion().get(peer) ?? 0
 
-    const importing = (updates: ReadonlyArray<Uint8Array>) =>
+    const importing = (updates: readonly Uint8Array[]) =>
       Effect.suspend(() => {
         listen()
         const caughtUp = ownCounter() === flushed
+
         return importAll(updates).pipe(
           Effect.tap(() =>
             Effect.sync(() => {
               trees.relist()
-              if (caughtUp) flushed = ownCounter()
+
+              if (caughtUp) {
+                flushed = ownCounter()
+              }
             }),
           ),
           Effect.tap(() => repair),
         )
       })
 
-    const merge = (updates: ReadonlyArray<Uint8Array>) =>
+    const merge = (updates: readonly Uint8Array[]) =>
       serial(Effect.andThen(importing(updates), drain))
 
-    const restore = (updates: ReadonlyArray<Uint8Array>) =>
+    const restore = (updates: readonly Uint8Array[]) =>
       serial(
         Effect.suspend(() => {
           if (unsubscribe !== undefined || doc.oplogVersion().length() > 0) {
             return Effect.tap(importing(updates), () => drain)
           }
+
           return importAll(updates).pipe(
             Effect.ensuring(
               Effect.sync(() => {
-                if (doc.oplogVersion().length() > 0) listen()
+                if (doc.oplogVersion().length() > 0) {
+                  listen()
+                }
               }),
             ),
             Effect.andThen((reached) =>
               Effect.sync(() => {
                 flushed = ownCounter()
                 trees.relist()
-                repairUnseen(trees, () => doc.commit({ origin: REPAIRED }))
+                repairUnseen(trees, () => {
+                  doc.commit({ origin: REPAIRED })
+                })
                 const names = repairNames(trees, trees.listing().live.keys())
                 const cycles = repairCycles(trees, movedHomes(trees))
-                if (names || cycles) doc.commit({ origin: REPAIRED })
+
+                if (names || cycles) {
+                  doc.commit({ origin: REPAIRED })
+                }
+
                 pending = emptyPending()
                 rememberPages()
+
                 return reached
               }),
             ),
@@ -315,10 +402,10 @@ const make = (source: GraphSource) =>
         }),
       )
 
-    const pageEvents = (id: PageId): ReadonlyArray<GraphEvent> =>
+    const pageEvents = (id: PageId): readonly GraphEvent[] =>
       Option.match(Option.fromUndefinedOr(trees.listing().live.get(id)), {
         onNone: () => [],
-        onSome: (found): ReadonlyArray<GraphEvent> => [
+        onSome: (found): readonly GraphEvent[] => [
           { _tag: "PageUpserted", page: found },
           ...readPage(id).map((read): GraphEvent => ({
             _tag: "BlockUpserted",
@@ -335,7 +422,7 @@ const make = (source: GraphSource) =>
       serial(Effect.sync(() => livePages().map(({ id }) => id))),
     ).pipe(Stream.mapEffect(eventsOf))
 
-    const place = (pagesIn: ReadonlyArray<PageTree>, at: number, message?: string) => {
+    const place = (pagesIn: readonly PageTree[], at: number, message?: string) => {
       listen()
       pagesIn.forEach((tree, index) => {
         writePage(trees, tree.page.id, {
@@ -350,42 +437,52 @@ const make = (source: GraphSource) =>
 
     const settled = Effect.andThen(repair, drain)
 
-    const load = (pagesIn: ReadonlyArray<PageTree>) =>
+    const load = (pagesIn: readonly PageTree[]) =>
       serial(
         Effect.flatMap(Clock.currentTimeMillis, (now) =>
           Effect.andThen(
-            Effect.sync(() => place(pagesIn, now)),
+            Effect.sync(() => {
+              place(pagesIn, now)
+            }),
             settled,
           ),
         ),
       )
 
-    const seed = (seeded: ReadonlyArray<PageTree>) =>
+    const seed = (seeded: readonly PageTree[]) =>
       Effect.gen(function* () {
-        const digest = yield* Effect.promise(() =>
-          globalThis.crypto.subtle.digest(
-            "SHA-256",
-            new TextEncoder().encode(JSON.stringify([SEED_FORMAT, seeded])),
-          ),
+        const digest = yield* Effect.promise(
+          async () =>
+            await globalThis.crypto.subtle.digest(
+              "SHA-256",
+              new TextEncoder().encode(JSON.stringify([SEED_FORMAT, seeded])),
+            ),
         )
+
         const writer = peerOf(new Uint8Array(digest))
         const now = yield* Clock.currentTimeMillis
+
         return yield* serial(
           Effect.gen(function* () {
             if (doc.oplogVersion().length() > 0) {
               place(seeded, now)
+
               return { events: yield* settled, update: Option.none() }
             }
+
             const update = yield* Effect.sync((): LocalUpdate => {
               doc.setPeerId(BigInt(writer))
+
               try {
                 place(seeded, seedTime(seeded), importMessage)
                 const end = doc.oplogVersion().get(doc.peerIdStr) ?? 0
+
                 return { peer: writer, start: 0, end, bytes: doc.export({ mode: "update" }) }
               } finally {
                 doc.setPeerId(BigInt(source.peer))
               }
             })
+
             return {
               events: yield* settled,
               update: Option.liftPredicate(update, (written) => written.end > 0),
@@ -401,17 +498,24 @@ const make = (source: GraphSource) =>
             Effect.sync(() => {
               const version = doc.oplogVersion()
               const end = version.get(peer) ?? 0
-              if (end === flushed) return Option.none<LocalUpdate>()
+
+              if (end === flushed) {
+                return Option.none<LocalUpdate>()
+              }
+
               const from = version.toJSON()
               from.set(peer, flushed)
               const bytes = doc.export({ mode: "update", from: VersionVector.parseJSON(from) })
+
               return Option.some({ peer: source.peer, start: flushed, end, bytes })
             }),
           )
+
           if (Option.isSome(update)) {
             yield* write(update.value)
             flushed = update.value.end
           }
+
           return update
         }),
       )
@@ -446,6 +550,7 @@ const make = (source: GraphSource) =>
           Effect.sync(() =>
             atVersion(doc, version, (fork) => {
               const then = makeTrees(fork)
+
               return [...then.listing().live.entries()].flatMap(([id, found]) =>
                 wanted(found)
                   ? [{ page: found, blocks: readView(then, id).map((read) => read.block) }]

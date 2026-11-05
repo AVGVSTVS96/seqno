@@ -9,10 +9,8 @@ import {
   running,
   sanitizeHtml,
   settingsFor,
-  type Host,
-  type SettingItem,
-  type Settings,
 } from "@seqno/plugins"
+import type { Host, SettingItem, Settings } from "@seqno/plugins"
 
 const textOf = (value: unknown) =>
   value === null || value === undefined ? "" : typeof value === "string" ? value : String(value)
@@ -31,7 +29,7 @@ const Field = ({
   readonly onButton: () => void
 }) => {
   switch (item.type) {
-    case "boolean":
+    case "boolean": {
       return (
         <button
           type="button"
@@ -39,15 +37,21 @@ const Field = ({
           aria-checked={value === true}
           aria-labelledby={labelledBy}
           className="switch"
-          onClick={() => onChange(value !== true)}
+          onClick={() => {
+            onChange(value !== true)
+          }}
         >
           <span className="switch-thumb" />
         </button>
       )
+    }
+
     case "enum": {
       const picked = Array.isArray(value) ? value.map(String) : [textOf(value)]
+
       if (item.enumPicker === "checkbox" || item.enumPicker === "radio") {
         const many = item.enumPicker === "checkbox"
+
         return (
           <div
             role="group"
@@ -61,7 +65,7 @@ const Field = ({
                   type={many ? "checkbox" : "radio"}
                   name={item.key}
                   checked={picked.includes(choice)}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     onChange(
                       many
                         ? event.target.checked
@@ -69,7 +73,7 @@ const Field = ({
                           : picked.filter((one) => one !== choice)
                         : choice,
                     )
-                  }
+                  }}
                 />
                 {choice}
               </label>
@@ -77,12 +81,15 @@ const Field = ({
           </div>
         )
       }
+
       return (
         <select
           aria-labelledby={labelledBy}
           {...logseq("plugin-setting-select")}
           value={picked[0] ?? ""}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
         >
           {item.enumChoices.map((choice) => (
             <option key={choice} value={choice}>
@@ -92,24 +99,31 @@ const Field = ({
         </select>
       )
     }
-    case "button":
+
+    case "button": {
       return (
         <button type="button" className="plugin-setting-button" onClick={onButton}>
           {item.title === "" ? item.key : item.title}
         </button>
       )
-    case "object":
+    }
+
+    case "object": {
       return (
         <span className="plugin-setting-note">Edit this one in the plugin's settings file.</span>
       )
+    }
+
     case "string":
-    case "number":
+    case "number": {
       return item.inputAs === "textarea" ? (
         <textarea
           aria-labelledby={labelledBy}
           {...logseq("plugin-setting-input", "textarea")}
           value={textOf(value)}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
         />
       ) : (
         <input
@@ -117,11 +131,16 @@ const Field = ({
           {...logseq("plugin-setting-input", item.inputAs ?? item.type)}
           type={item.inputAs ?? (item.type === "number" ? "number" : "text")}
           value={textOf(value)}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
         />
       )
-    default:
+    }
+
+    default: {
       return <span className="plugin-setting-note">This kind of setting isn't supported.</span>
+    }
   }
 }
 
@@ -137,6 +156,7 @@ const Row = ({
   readonly host: Host | null
 }) => {
   const labelId = useId()
+
   if (item.type === "heading") {
     return (
       <div {...logseq("plugin-setting-heading-item")}>
@@ -144,6 +164,7 @@ const Row = ({
       </div>
     )
   }
+
   return (
     <div {...logseq("plugin-setting", item.type)}>
       <div className="plugin-setting-label" id={labelId}>
@@ -176,6 +197,7 @@ const Form = ({ pid }: { readonly pid: string }) => {
   const settings = useAtomValue(pluginSettings(pid))
   const schema = useAtomValue(running)[pid]?.schema ?? []
   const plugin = useAtomValue(installedPlugins).find((one) => one.id === pid)
+
   return (
     <>
       <h2 className="plugin-settings-title">{plugin?.title ?? pid}</h2>
@@ -194,16 +216,23 @@ const Form = ({ pid }: { readonly pid: string }) => {
 
 export const PluginSettings = () => {
   const [pid, setPid] = useAtom(settingsFor)
+
   return (
     <dialog
       aria-label="Plugin settings"
       className="dialog plugin-settings"
       ref={(dialog) => {
-        if (dialog !== null && pid !== null && !dialog.open) dialog.showModal()
+        if (dialog !== null && pid !== null && !dialog.open) {
+          dialog.showModal()
+        }
       }}
-      onClose={() => setPid(null)}
+      onClose={() => {
+        setPid(null)
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) event.currentTarget.close()
+        if (event.target === event.currentTarget) {
+          event.currentTarget.close()
+        }
       }}
     >
       <button

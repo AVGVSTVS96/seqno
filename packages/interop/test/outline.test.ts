@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect } from "effect"
-import { LogseqSyntax, LogseqSyntaxLive, type OutlineBlock } from "@seqno/interop"
+import { LogseqSyntax, LogseqSyntaxLive } from "@seqno/interop"
+import type { OutlineBlock } from "@seqno/interop"
 
 const syntax = Effect.runSync(
   Effect.provide(
@@ -17,7 +18,7 @@ const roundTrip = (source: string) => syntax.print(syntax.parse(source))
 
 const orgBlock = (
   text: string,
-  children: ReadonlyArray<OutlineBlock> = [],
+  children: readonly OutlineBlock[] = [],
   props = {},
 ): OutlineBlock => ({
   text,
@@ -42,6 +43,7 @@ describe("outline syntax", () => {
       "- icon:: rocket",
       "-",
     ].join("\n")
+
     assert.deepStrictEqual(parse(source), {
       props: { title: "Project X", tags: "work, q4" },
       blocks: [
@@ -68,6 +70,7 @@ describe("outline syntax", () => {
   it("reads each heading outside a bullet as its own block, and writes a first heading bare as Logseq does", () => {
     const source =
       "# Title\nid:: 6512a0c4-1111-4222-8333-444455556666\n\t- child\n## Next\nbody\n- a"
+
     assert.deepStrictEqual(parse(source), {
       props: {},
       blocks: [
@@ -109,6 +112,7 @@ describe("outline syntax", () => {
       "  #+END_TIP",
       "- next",
     ].join("\n")
+
     assert.deepStrictEqual(
       parse(source).blocks.map((block) => block.text),
       ["\n#+BEGIN_TIP\nbacklinks open the page\n#+END_TIP", "next"],
@@ -133,6 +137,7 @@ describe("outline syntax", () => {
       "    x:: not a property here",
       "    #+END_QUOTE",
     ].join("\n")
+
     const [embed] = parse(source).blocks
     assert.deepStrictEqual(
       embed?.children.map((child) => [child.text, child.props]),
@@ -156,6 +161,7 @@ describe("outline syntax", () => {
   it("reads YAML front matter as page properties and writes it back as Logseq does", () => {
     const source =
       '---\ntitle: FM Title\ntags: [alpha, beta]\nAuthor_Name: Jane Doe\nquoted: "a: b"\nb:c\n---\n- one\n\t- two'
+
     assert.deepStrictEqual(parse(source), {
       props: {
         title: "FM Title",
@@ -235,6 +241,7 @@ describe("outline syntax", () => {
       "** hidden kid",
       "*",
     ].join("\n")
+
     assert.deepStrictEqual(syntax.parse(source, "org"), {
       props: { TITLE: "Org Page", TAGS: "orgtag" },
       blocks: [

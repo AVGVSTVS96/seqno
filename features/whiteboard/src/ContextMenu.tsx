@@ -1,4 +1,5 @@
-import { Fragment, type ComponentType } from "react"
+import { Fragment } from "react"
+import type { ComponentType } from "react"
 
 export interface MenuEntry {
   readonly label: string
@@ -7,7 +8,7 @@ export interface MenuEntry {
   readonly run: () => void
 }
 
-export type MenuGroup = ReadonlyArray<MenuEntry>
+export type MenuGroup = readonly MenuEntry[]
 
 export type MenuRow = ReadonlyArray<MenuEntry | "divider">
 
@@ -15,7 +16,7 @@ const MenuRows = ({
   rows,
   onClose,
 }: {
-  readonly rows: ReadonlyArray<MenuRow>
+  readonly rows: readonly MenuRow[]
   readonly onClose: () => void
 }) => (
   <div className="wb-menu-rows" role="group" aria-label="Arrange">
@@ -56,8 +57,8 @@ export const ContextMenu = ({
 }: {
   readonly left: number
   readonly top: number
-  readonly rows: ReadonlyArray<MenuRow>
-  readonly groups: ReadonlyArray<MenuGroup>
+  readonly rows: readonly MenuRow[]
+  readonly groups: readonly MenuGroup[]
   readonly onClose: () => void
 }) => (
   <div
@@ -65,11 +66,18 @@ export const ContextMenu = ({
     role="menu"
     aria-label="Whiteboard menu"
     style={{ left, top }}
-    onPointerDown={(event) => event.stopPropagation()}
-    onContextMenu={(event) => event.preventDefault()}
+    onPointerDown={(event) => {
+      event.stopPropagation()
+    }}
+    onContextMenu={(event) => {
+      event.preventDefault()
+    }}
     onKeyDown={(event) => {
       event.stopPropagation()
-      if (event.key === "Escape") onClose()
+
+      if (event.key === "Escape") {
+        onClose()
+      }
     }}
   >
     {rows.length === 0 ? null : <MenuRows rows={rows} onClose={onClose} />}

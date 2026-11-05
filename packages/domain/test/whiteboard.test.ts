@@ -10,8 +10,8 @@ import {
   portalText,
   shapeOf,
   shapeProps,
-  type Block,
 } from "@seqno/domain"
+import type { Block } from "@seqno/domain"
 
 const shapeBlock = (raw: Readonly<Record<string, unknown>>, text = ""): Block => ({
   id: BlockId.make("01920000-0000-7000-8000-000000000001"),
@@ -72,6 +72,7 @@ describe("whiteboard shapes", () => {
       title: "Board",
       journalDay: null,
     }
+
     assert.isTrue(isWhiteboard({ ...page, props: { "ls-type": "whiteboard-page" } }))
     assert.isFalse(isWhiteboard({ ...page, props: {} }))
   })

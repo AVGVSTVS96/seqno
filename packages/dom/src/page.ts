@@ -1,4 +1,5 @@
-import { names, type Table } from "./names.ts"
+import { names } from "./names.ts"
+import type { Table } from "./names.ts"
 
 export interface PageParts {
   readonly "seqno-page": readonly [boolean]

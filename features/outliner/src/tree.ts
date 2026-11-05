@@ -8,33 +8,37 @@ export interface Row {
   readonly hasChildren: boolean
   readonly expanded: boolean
   readonly end: number
-  readonly path: ReadonlyArray<BlockId>
+  readonly path: readonly BlockId[]
 }
 
 export interface Outline {
-  readonly rows: ReadonlyArray<Row>
-  readonly trail: ReadonlyArray<Block>
-  readonly children: (parentId: BlockId | null) => ReadonlyArray<Block>
+  readonly rows: readonly Row[]
+  readonly trail: readonly Block[]
+  readonly children: (parentId: BlockId | null) => readonly Block[]
   readonly parentOf: (blockId: BlockId) => BlockId | null
   readonly childRefs: (blockId: BlockId) => string
 }
 
-const none: ReadonlyArray<Block> = []
+const none: readonly Block[] = []
 
 export const outline = (tree: PageTree, zoom: BlockId | null, embedded = false): Outline => {
   const byId = new Map(tree.blocks.map((block) => [block.id, block]))
-  const childrenOf = new Map<BlockId | null, Array<Block>>()
+  const childrenOf = new Map<BlockId | null, Block[]>()
+
   for (const block of tree.blocks) {
     const siblings = childrenOf.get(block.parentId)
+
     if (siblings === undefined) {
       childrenOf.set(block.parentId, [block])
     } else {
       siblings.push(block)
     }
   }
+
   const children = (parentId: BlockId | null) => childrenOf.get(parentId) ?? none
   const root = zoom === null ? undefined : byId.get(zoom)
-  const trail: Array<Block> = []
+  const trail: Block[] = []
+
   for (
     let at = root;
     at !== undefined;
@@ -42,35 +46,50 @@ export const outline = (tree: PageTree, zoom: BlockId | null, embedded = false):
   ) {
     trail.unshift(at)
   }
-  const rows: Array<Row> = []
-  const visit = (block: Block, path: ReadonlyArray<BlockId>) => {
+
+  const rows: Row[] = []
+
+  const visit = (block: Block, path: readonly BlockId[]) => {
     const hasChildren = children(block.id).length > 0
     const expanded = hasChildren && ((block === root && !embedded) || !block.collapsed)
     const index = rows.length
     const row = { block, depth: path.length, hasChildren, expanded, end: index + 1, path }
     rows.push(row)
+
     if (expanded) {
       const inner = [...path, block.id]
+
       for (const child of children(block.id)) {
         visit(child, inner)
       }
+
       rows[index] = { ...row, end: rows.length }
     }
   }
+
   for (const top of root === undefined ? children(null) : [root]) {
     visit(top, [])
   }
-  const below = new Map<BlockId, ReadonlyArray<string>>()
-  const refsBelow = (blockId: BlockId): ReadonlyArray<string> => {
+
+  const below = new Map<BlockId, readonly string[]>()
+
+  const refsBelow = (blockId: BlockId): readonly string[] => {
     const known = below.get(blockId)
-    if (known !== undefined) return known
+
+    if (known !== undefined) {
+      return known
+    }
+
     const found = children(blockId).flatMap((child) => [
       ...refsOf(child.text),
       ...refsBelow(child.id),
     ])
+
     below.set(blockId, found)
+
     return found
   }
+
   return {
     rows,
     trail,
@@ -86,15 +105,18 @@ export const isWithin = (view: Outline, blockId: BlockId, ancestors: ReadonlySet
       return true
     }
   }
+
   return false
 }
 
-export const topLevel = (view: Outline, blockIds: ReadonlyArray<BlockId>): Array<BlockId> => {
+export const topLevel = (view: Outline, blockIds: readonly BlockId[]): BlockId[] => {
   const chosen = new Set(blockIds)
+
   return view.rows
     .map((row) => row.block.id)
     .filter((id) => {
       const parent = view.parentOf(id)
+
       return chosen.has(id) && (parent === null || !isWithin(view, parent, chosen))
     })
 }

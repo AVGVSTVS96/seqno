@@ -1,5 +1,6 @@
 import { logseq } from "@seqno/dom"
-import { use, useState, type ReactNode } from "react"
+import { use, useState } from "react"
+import type { ReactNode } from "react"
 import { useAtomValue } from "@effect/atom-react"
 import {
   IconCaretRightFilled,
@@ -24,23 +25,28 @@ import {
   toPage,
 } from "./render.ts"
 
-type Sexp = string | ReadonlyArray<Sexp>
+type Sexp = string | readonly Sexp[]
 
 export type Clause =
   | { readonly _tag: "Chip"; readonly label: string }
-  | { readonly _tag: "Group"; readonly op: string; readonly clauses: ReadonlyArray<Clause> }
+  | { readonly _tag: "Group"; readonly op: string; readonly clauses: readonly Clause[] }
 
 const token = /"[^"]*"|\[\[.*?\]\]|[()]|[^\s()"]+/g
 
-const sexpsOf = (tokens: ReadonlyArray<string>): ReadonlyArray<Sexp> => {
-  const stack: Array<Array<Sexp>> = [[]]
+const sexpsOf = (tokens: readonly string[]): readonly Sexp[] => {
+  const stack: Sexp[][] = [[]]
+
   for (const part of tokens) {
-    if (part === "(") stack.push([])
-    else if (part === ")" && stack.length > 1) {
+    if (part === "(") {
+      stack.push([])
+    } else if (part === ")" && stack.length > 1) {
       const done = stack.pop() ?? []
       stack.at(-1)?.push(done)
-    } else if (part !== ")") stack.at(-1)?.push(part)
+    } else if (part !== ")") {
+      stack.at(-1)?.push(part)
+    }
   }
+
   return stack[0] ?? []
 }
 
@@ -57,22 +63,37 @@ const clauseOf = (sexp: Sexp): Clause => {
   if (typeof sexp === "string") {
     return chip(sexp.startsWith('"') ? `search: ${unquoted(sexp)}` : sexp)
   }
+
   const [head, ...args] = sexp
-  if (typeof head !== "string" || args.length === 0) return chip(written(sexp))
+
+  if (typeof head !== "string" || args.length === 0) {
+    return chip(written(sexp))
+  }
+
   if (connectives.has(head)) {
     return { _tag: "Group", op: head.toUpperCase(), clauses: args.map(clauseOf) }
   }
+
   const values = args.map(written)
+
   if (head === "property" || head === "page-property") {
     const [key, ...rest] = values
+
     return chip(rest.length === 0 ? `${key}` : `${key}: ${rest.join(" | ")}`)
   }
-  if (head === "page-tags") return chip(values.map((tag) => `#${tag}`).join(" "))
-  if (head === "between") return chip(`between: ${values.join(" ~ ")}`)
+
+  if (head === "page-tags") {
+    return chip(values.map((tag) => `#${tag}`).join(" "))
+  }
+
+  if (head === "between") {
+    return chip(`between: ${values.join(" ~ ")}`)
+  }
+
   return chip(`${head}: ${values.join(" | ")}`)
 }
 
-export const queryClauses = (query: string): ReadonlyArray<Clause> =>
+export const queryClauses = (query: string): readonly Clause[] =>
   sexpsOf(query.match(token) ?? []).map(clauseOf)
 
 const ClauseView = ({ clause }: { readonly clause: Clause }): ReactNode =>
@@ -93,12 +114,15 @@ const ClauseView = ({ clause }: { readonly clause: Clause }): ReactNode =>
     </span>
   )
 
-const stop = (event: { stopPropagation: () => void }) => event.stopPropagation()
+const stop = (event: { stopPropagation: () => void }) => {
+  event.stopPropagation()
+}
 
 const results = (count: number) => `${count} ${count === 1 ? "result" : "results"}`
 
 const PageName = ({ page }: { readonly page: Pick<Page, "name" | "title"> }) => {
   const renderer = use(RenderContext)
+
   return (
     <a
       role="link"
@@ -112,19 +136,22 @@ const PageName = ({ page }: { readonly page: Pick<Page, "name" | "title"> }) => 
   )
 }
 
-const trailOf = (byId: ReadonlyMap<string, Block>, block: Block): ReadonlyArray<Block> => {
-  const trail: Array<Block> = []
+const trailOf = (byId: ReadonlyMap<string, Block>, block: Block): readonly Block[] => {
+  const trail: Block[] = []
   let parent = block.parentId === null ? undefined : byId.get(block.parentId)
+
   while (parent !== undefined) {
     trail.unshift(parent)
     parent = parent.parentId === null ? undefined : byId.get(parent.parentId)
   }
+
   return trail
 }
 
-const Crumbs = ({ trail }: { readonly trail: ReadonlyArray<Block> }) => {
+const Crumbs = ({ trail }: { readonly trail: readonly Block[] }) => {
   const renderer = use(RenderContext)
   const dialectOf = use(PageDialects)
+
   return trail.length === 0 ? null : (
     <nav className="seqno-query-crumbs" aria-label="Parent blocks">
       {trail.map((parent) => (
@@ -156,24 +183,34 @@ const PageGroup = ({
   blocks,
 }: {
   readonly pageId: PageId
-  readonly blocks: ReadonlyArray<Block>
+  readonly blocks: readonly Block[]
 }) => {
   const renderer = use(RenderContext)
   const Embed = renderer.Embed
   const [folded, setFolded] = useState(false)
   const tree = AsyncResult.getOrElse(useAtomValue(pageTreeAtom(pageId)), () => null)
-  if (tree === null) return null
+
+  if (tree === null) {
+    return null
+  }
+
   const chosen = new Set(blocks.map((block) => block.id))
   const byId = new Map(tree.blocks.map((found) => [found.id, found]))
-  const siblings = new Map<string, { trail: ReadonlyArray<Block>; blocks: Array<Block> }>()
+  const siblings = new Map<string, { trail: readonly Block[]; blocks: Block[] }>()
+
   for (const block of blocks) {
     const trail = trailOf(byId, block)
-    if (trail.some((parent) => chosen.has(parent.id))) continue
+
+    if (trail.some((parent) => chosen.has(parent.id))) {
+      continue
+    }
+
     const key = block.parentId ?? ""
     const group = siblings.get(key) ?? { trail, blocks: [] }
     group.blocks.push(block)
     siblings.set(key, group)
   }
+
   return (
     <section className="seqno-query-group" aria-label={tree.page.title}>
       <div className="seqno-query-group-head">
@@ -183,7 +220,9 @@ const PageGroup = ({
           aria-label={folded ? "Expand" : "Collapse"}
           aria-expanded={!folded}
           data-expanded={!folded}
-          onClick={() => setFolded(!folded)}
+          onClick={() => {
+            setFolded(!folded)
+          }}
         >
           <IconCaretRightFilled size={16} aria-hidden />
         </button>
@@ -205,6 +244,7 @@ const PageGroup = ({
 
 const PageCell = ({ pageId }: { readonly pageId: PageId }) => {
   const tree = AsyncResult.getOrElse(useAtomValue(pageTreeAtom(pageId)), () => null)
+
   return tree === null ? null : <PageName page={tree.page} />
 }
 
@@ -212,7 +252,7 @@ const Table = ({
   head,
   children,
 }: {
-  readonly head: ReadonlyArray<string>
+  readonly head: readonly string[]
   readonly children: ReactNode
 }) => (
   <table {...logseq("seqno-query-table")}>
@@ -227,13 +267,17 @@ const Table = ({
   </table>
 )
 
-const byPage = (blocks: ReadonlyArray<Block>) => {
-  const groups = new Map<PageId, Array<Block>>()
-  for (const block of blocks) groups.set(block.pageId, [...(groups.get(block.pageId) ?? []), block])
+const byPage = (blocks: readonly Block[]) => {
+  const groups = new Map<PageId, Block[]>()
+
+  for (const block of blocks) {
+    groups.set(block.pageId, [...(groups.get(block.pageId) ?? []), block])
+  }
+
   return [...groups]
 }
 
-export const BlockGroups = ({ blocks }: { readonly blocks: ReadonlyArray<Block> }) => (
+export const BlockGroups = ({ blocks }: { readonly blocks: readonly Block[] }) => (
   <div className="seqno-query-groups">
     {byPage(blocks).map(([pageId, onPage]) => (
       <PageGroup key={pageId} pageId={pageId} blocks={onPage} />
@@ -251,7 +295,11 @@ const countOf = (result: QueryResult) =>
 
 const Results = ({ result, table }: { readonly result: QueryResult; readonly table: boolean }) => {
   const dialectOf = use(PageDialects)
-  if (countOf(result) === 0) return <div className="seqno-query-empty">No matched result</div>
+
+  if (countOf(result) === 0) {
+    return <div className="seqno-query-empty">No matched result</div>
+  }
+
   if (result._tag === "PageRows") {
     return (
       <Table head={["page"]}>
@@ -265,6 +313,7 @@ const Results = ({ result, table }: { readonly result: QueryResult; readonly tab
       </Table>
     )
   }
+
   return table ? (
     <Table head={["block", "page"]}>
       {result.blocks.map((block) => (
@@ -285,6 +334,7 @@ const Results = ({ result, table }: { readonly result: QueryResult; readonly tab
 
 const problemOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
+
   return typeof error === "object" && error !== null && "reason" in error
     ? String(error.reason)
     : "This query could not run"
@@ -310,12 +360,15 @@ const Outcome = ({
 export const QueryView = ({ query }: { readonly query: string }) => {
   const [table, setTable] = useState(false)
   const host = use(HostBlock)
+
   const watched = AsyncResult.map(useAtomValue(queryAtom(query)), (found) =>
     withoutHost(found, host),
   )
+
   const clauses = queryClauses(query)
   const result = AsyncResult.getOrElse(watched, () => null)
   const count = result === null ? 0 : countOf(result)
+
   return (
     <section {...logseq("seqno-query")} aria-label="Live query">
       <div {...logseq("seqno-query-head")}>

@@ -1,14 +1,17 @@
 import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
-import { BlockId, PageId, type Block, type Page } from "@seqno/domain"
+import { BlockId, PageId } from "@seqno/domain"
+import type { Block, Page } from "@seqno/domain"
 import { createLogseqDb, readEdn } from "../src/datalog.ts"
-import { keywordInput, resolveInput, type InputContext } from "../src/inputs.ts"
+import { keywordInput, resolveInput } from "../src/inputs.ts"
+import type { InputContext } from "../src/inputs.ts"
 import { numberOf } from "../src/shapes.ts"
 
 const pageId = (n: number) =>
   Schema.decodeUnknownSync(PageId)(
     `0190a000-0000-7000-8000-0000000000${String(n).padStart(2, "0")}`,
   )
+
 const blockId = (n: number) =>
   Schema.decodeUnknownSync(BlockId)(
     `0190b000-0000-7000-8000-0000000000${String(n).padStart(2, "0")}`,
@@ -39,6 +42,7 @@ const block = (
 
 const garden = page(1, "Garden", { tags: "plants" })
 const notes = page(2, "Notes")
+
 const files = [
   {
     page: garden,
@@ -150,7 +154,11 @@ describe("createLogseqDb", () => {
 
   it("updates one page in place, keeping refs from other pages to its blocks", () => {
     const [first] = files
-    if (first === undefined) return
+
+    if (first === undefined) {
+      return
+    }
+
     db.update([
       {
         page: first.page,
@@ -183,10 +191,10 @@ describe("resolveInput", () => {
   }
 
   it("resolves Logseq's keyword inputs", () => {
-    expect(resolveInput(":today", context, read)).toBe(20261103)
-    expect(resolveInput(":-7d", context, read)).toBe(20261027)
-    expect(resolveInput(":+1m", context, read)).toBe(20261203)
-    expect(resolveInput(":7d-before", context, read)).toBe(20261027)
+    expect(resolveInput(":today", context, read)).toBe(20_261_103)
+    expect(resolveInput(":-7d", context, read)).toBe(20_261_027)
+    expect(resolveInput(":+1m", context, read)).toBe(20_261_203)
+    expect(resolveInput(":7d-before", context, read)).toBe(20_261_027)
     expect(resolveInput(":current-page", context, read)).toBe("garden")
     expect(resolveInput(":current-block", context, read)).toBe(7)
     expect(keywordInput("today-1200", context)).toBe(new Date(2026, 10, 3, 12).getTime())

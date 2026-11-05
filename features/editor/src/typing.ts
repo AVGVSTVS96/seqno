@@ -29,6 +29,7 @@ const printable = (stroke: Keystroke) =>
 
 export const typeText = (view: EditorView, text: string) => {
   const { from, to } = view.state.selection.main
+
   const insert = () =>
     view.state.update({
       changes: { from, to, insert: text },
@@ -36,19 +37,33 @@ export const typeText = (view: EditorView, text: string) => {
       userEvent: "input.type",
       scrollIntoView: true,
     })
+
   const handled = view.state
     .facet(EditorView.inputHandler)
     .some((handler) => handler(view, from, to, text, insert))
-  if (!handled) view.dispatch(insert())
+
+  if (!handled) {
+    view.dispatch(insert())
+  }
 }
 
 export const press = (view: EditorView, stroke: Keystroke) => {
   if (hasVim(view)) {
     const event = new KeyboardEvent("keydown", { ...stroke, bubbles: true, cancelable: true })
     view.contentDOM.dispatchEvent(event)
-    if (!event.defaultPrevented && printable(stroke)) typeText(view, stroke.key)
+
+    if (!event.defaultPrevented && printable(stroke)) {
+      typeText(view, stroke.key)
+    }
+
     return
   }
-  if (runScopeHandlers(view, new KeyboardEvent("keydown", stroke), "editor")) return
-  if (printable(stroke)) typeText(view, stroke.key)
+
+  if (runScopeHandlers(view, new KeyboardEvent("keydown", stroke), "editor")) {
+    return
+  }
+
+  if (printable(stroke)) {
+    typeText(view, stroke.key)
+  }
 }

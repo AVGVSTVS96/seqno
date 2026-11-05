@@ -9,7 +9,7 @@ export interface CommitInfo {
   readonly oid: string
   readonly message: string
   readonly tree: string
-  readonly parent: ReadonlyArray<string>
+  readonly parent: readonly string[]
   readonly author: Person
   readonly committer: Person
 }
@@ -22,6 +22,7 @@ const two = (n: number) => String(n).padStart(2, "0")
 const zone = (offset: number, colon: boolean) => {
   const east = -offset
   const abs = Math.abs(east)
+
   return `${east < 0 ? "-" : "+"}${two(Math.floor(abs / 60))}${colon ? ":" : ""}${two(abs % 60)}`
 }
 
@@ -37,10 +38,15 @@ const ago = (seconds: number) => {
     [60 * 60, "hour"],
     [60, "minute"],
   ]
+
   for (const [size, unit] of units) {
     const count = Math.floor(seconds / size)
-    if (count >= 1) return `${count} ${unit}${count === 1 ? "" : "s"} ago`
+
+    if (count >= 1) {
+      return `${count} ${unit}${count === 1 ? "" : "s"} ago`
+    }
   }
+
   return `${seconds} second${seconds === 1 ? "" : "s"} ago`
 }
 
@@ -62,21 +68,35 @@ export const formatDate = (person: Person, style: DateStyle, now: Date): string 
   const at = local(person)
   const ymd = `${at.getUTCFullYear()}-${two(at.getUTCMonth() + 1)}-${two(at.getUTCDate())}`
   const hms = `${two(at.getUTCHours())}:${two(at.getUTCMinutes())}:${two(at.getUTCSeconds())}`
+
   switch (style) {
-    case "iso":
+    case "iso": {
       return `${ymd} ${hms} ${zone(person.timezoneOffset, false)}`
-    case "iso-strict":
+    }
+
+    case "iso-strict": {
       return `${ymd}T${hms}${zone(person.timezoneOffset, true)}`
-    case "short":
+    }
+
+    case "short": {
       return ymd
-    case "unix":
+    }
+
+    case "unix": {
       return String(person.timestamp)
-    case "raw":
+    }
+
+    case "raw": {
       return `${person.timestamp} ${zone(person.timezoneOffset, false)}`
-    case "relative":
+    }
+
+    case "relative": {
       return ago(Math.max(0, Math.floor(now.getTime() / 1000) - person.timestamp))
-    case "default":
+    }
+
+    case "default": {
       return `${days[at.getUTCDay()]} ${months[at.getUTCMonth()]} ${at.getUTCDate()} ${hms} ${at.getUTCFullYear()} ${zone(person.timezoneOffset, false)}`
+    }
   }
 }
 
@@ -98,6 +118,7 @@ export const subjectOf = (message: string) => message.split("\n\n")[0]?.replaceA
 
 export const bodyOf = (message: string) => {
   const at = message.indexOf("\n\n")
+
   return at === -1 ? "" : message.slice(at + 2)
 }
 
@@ -107,59 +128,111 @@ const placeholder =
   /%(?:C\([^)]*\)|Cred|Cgreen|Cblue|Creset|an|ae|ad|at|ai|aI|ar|cn|ce|cd|ct|ci|cI|cr|H|h|T|t|P|p|s|b|B|n|%)/g
 
 export const pretty = (template: string, commit: CommitInfo, style: DateStyle, now: Date) =>
-  template.replace(placeholder, (token) => {
-    if (token.startsWith("%C")) return ""
+  template.replaceAll(placeholder, (token) => {
+    if (token.startsWith("%C")) {
+      return ""
+    }
+
     switch (token) {
-      case "%H":
+      case "%H": {
         return commit.oid
-      case "%h":
+      }
+
+      case "%h": {
         return short(commit.oid)
-      case "%T":
+      }
+
+      case "%T": {
         return commit.tree
-      case "%t":
+      }
+
+      case "%t": {
         return short(commit.tree)
-      case "%P":
+      }
+
+      case "%P": {
         return commit.parent.join(" ")
-      case "%p":
+      }
+
+      case "%p": {
         return commit.parent.map(short).join(" ")
-      case "%an":
+      }
+
+      case "%an": {
         return commit.author.name
-      case "%ae":
+      }
+
+      case "%ae": {
         return commit.author.email
-      case "%ad":
+      }
+
+      case "%ad": {
         return formatDate(commit.author, style, now)
-      case "%at":
+      }
+
+      case "%at": {
         return String(commit.author.timestamp)
-      case "%ai":
+      }
+
+      case "%ai": {
         return formatDate(commit.author, "iso", now)
-      case "%aI":
+      }
+
+      case "%aI": {
         return formatDate(commit.author, "iso-strict", now)
-      case "%ar":
+      }
+
+      case "%ar": {
         return formatDate(commit.author, "relative", now)
-      case "%cn":
+      }
+
+      case "%cn": {
         return commit.committer.name
-      case "%ce":
+      }
+
+      case "%ce": {
         return commit.committer.email
-      case "%cd":
+      }
+
+      case "%cd": {
         return formatDate(commit.committer, style, now)
-      case "%ct":
+      }
+
+      case "%ct": {
         return String(commit.committer.timestamp)
-      case "%ci":
+      }
+
+      case "%ci": {
         return formatDate(commit.committer, "iso", now)
-      case "%cI":
+      }
+
+      case "%cI": {
         return formatDate(commit.committer, "iso-strict", now)
-      case "%cr":
+      }
+
+      case "%cr": {
         return formatDate(commit.committer, "relative", now)
-      case "%s":
+      }
+
+      case "%s": {
         return subjectOf(commit.message.trimEnd())
-      case "%b":
+      }
+
+      case "%b": {
         return bodyOf(commit.message)
-      case "%B":
+      }
+
+      case "%B": {
         return commit.message
-      case "%n":
+      }
+
+      case "%n": {
         return "\n"
-      default:
+      }
+
+      default: {
         return "%"
+      }
     }
   })
 
@@ -194,9 +267,11 @@ export const quotePath = (
 ) => {
   let quoted = false
   let out = ""
+
   for (const char of path) {
     const code = char.codePointAt(0) ?? 0
     const escape = escapes[char]
+
     if (escape !== undefined) {
       quoted = true
       out += escape
@@ -205,11 +280,18 @@ export const quotePath = (
       out += `\\${code.toString(8).padStart(3, "0")}`
     } else if (code >= 0x80 && options.quoteNonAscii) {
       quoted = true
-      for (const byte of new TextEncoder().encode(char)) out += `\\${byte.toString(8)}`
+
+      for (const byte of new TextEncoder().encode(char)) {
+        out += `\\${byte.toString(8)}`
+      }
     } else {
-      if (char === " " && options.quoteSpace) quoted = true
+      if (char === " " && options.quoteSpace) {
+        quoted = true
+      }
+
       out += char
     }
   }
+
   return quoted ? `"${out}"` : out
 }

@@ -1,18 +1,21 @@
 import { Clock, Effect } from "effect"
 import { AtomRegistry } from "effect/reactivity"
-import { AssetClient, type Asset } from "@seqno/rpc"
+import { AssetClient } from "@seqno/rpc"
+import type { Asset } from "@seqno/rpc"
 import type { Block } from "@seqno/domain"
-import { openAnnotation, openPdf as openPdfViewer, type PdfFiles } from "@seqno/pdf"
+import { openAnnotation, openPdf as openPdfViewer } from "@seqno/pdf"
+import type { PdfFiles } from "@seqno/pdf"
 import type { AssetBridge } from "@seqno/plugins"
-import { assetFileName, assetLink, type Dialect } from "@seqno/syntax"
+import { assetFileName, assetLink } from "@seqno/syntax"
+import type { Dialect } from "@seqno/syntax"
 import { assetFiles, assetResolver, assetRuntime } from "../atoms.ts"
 import { notify } from "./shell/Notices.tsx"
 
-export const runAssets = <A, E>(
+export const runAssets = async <A, E>(
   registry: AtomRegistry.AtomRegistry,
   effect: Effect.Effect<A, E, AssetClient>,
 ) =>
-  Effect.runPromise(
+  await Effect.runPromise(
     Effect.flatMap(AtomRegistry.getResult(registry, assetRuntime), (context) =>
       Effect.provide(effect, context),
     ),
@@ -32,7 +35,7 @@ export const writeFile = (path: string, file: Blob) =>
 
 const labelOf = (file: File) => (file.name === "" ? "image" : file.name)
 
-export const linksOf = (files: ReadonlyArray<File>, dialect: Dialect = "markdown") =>
+export const linksOf = (files: readonly File[], dialect: Dialect = "markdown") =>
   Effect.flatMap(Clock.currentTimeMillis, (now) =>
     Effect.forEach(files, (file, index) =>
       Effect.map(saveFile(labelOf(file), file, now, index), (saved: Asset) =>
@@ -46,20 +49,21 @@ const failed = (registry: AtomRegistry.AtomRegistry) => (cause: unknown) => {
     registry,
     `Couldn't save the file: ${cause instanceof Error ? cause.message : String(cause)}`,
   )
+
   return []
 }
 
-export const saveAssets = (
+export const saveAssets = async (
   registry: AtomRegistry.AtomRegistry,
-  files: ReadonlyArray<File>,
+  files: readonly File[],
   dialect: Dialect = "markdown",
-) => runAssets(registry, linksOf(files, dialect)).catch(failed(registry))
+) => await runAssets(registry, linksOf(files, dialect)).catch(failed(registry))
 
-export const saveAssetFiles = (
+export const saveAssetFiles = async (
   registry: AtomRegistry.AtomRegistry,
-  files: ReadonlyArray<File>,
-): Promise<ReadonlyArray<Asset>> =>
-  runAssets(
+  files: readonly File[],
+): Promise<readonly Asset[]> =>
+  await runAssets(
     registry,
     Effect.flatMap(Clock.currentTimeMillis, (now) =>
       Effect.forEach(files, (file, index) => saveFile(labelOf(file), file, now, index)),
@@ -71,24 +75,34 @@ const removeFile = (path: string) =>
 
 export const pdfFiles = (registry: AtomRegistry.AtomRegistry): PdfFiles => ({
   resolveAsset: (path) => registry.get(assetResolver)(path),
-  writeAsset: (path, data) => runAssets(registry, writeFile(path, data)).then(() => undefined),
-  removeAsset: (path) => runAssets(registry, removeFile(path)),
-  notify: (message) => notify(registry, message),
+  writeAsset: async (path, data) =>
+    await runAssets(registry, writeFile(path, data)).then(() => undefined),
+  removeAsset: async (path) => {
+    await runAssets(registry, removeFile(path))
+  },
+  notify: (message) => {
+    notify(registry, message)
+  },
 })
 
-export const openPdf = (registry: AtomRegistry.AtomRegistry, path: string) =>
+export const openPdf = (registry: AtomRegistry.AtomRegistry, path: string) => {
   openPdfViewer(registry, pdfFiles(registry), path)
+}
 
 export const openAnnotationBlock = (registry: AtomRegistry.AtomRegistry, block: Block) =>
   void openAnnotation(registry, pdfFiles(registry), block)
 
 export const assetBridge = (registry: AtomRegistry.AtomRegistry): AssetBridge => ({
   listed: () => registry.get(assetFiles),
-  write: (path, data) =>
-    runAssets(
+  write: async (path, data) =>
+    await runAssets(
       registry,
       Effect.flatMap(Effect.service(AssetClient), (client) => client.WriteAsset({ path, data })),
     ),
-  remove: (path) => runAssets(registry, removeFile(path)),
-  openPdf: (path) => openPdf(registry, path),
+  remove: async (path) => {
+    await runAssets(registry, removeFile(path))
+  },
+  openPdf: (path) => {
+    openPdf(registry, path)
+  },
 })

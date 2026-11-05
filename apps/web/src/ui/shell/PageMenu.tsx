@@ -32,56 +32,73 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
   const host = useAtomValue(hostAtom)
   const updateSidebar = useAtomSet(rightSidebar)
   const onPage = useMatchRoute()({ to: "/page/$name" })
+
   const plugins = useAtomValue(pluginCommands).filter(
     (command) => command.type === "page-menu-item",
   )
+
   const copyUrl = () => {
     const { href } = router.buildLocation({ to: "/page/$name", params: { name: page.name } })
     void navigator.clipboard
       .writeText(new URL(href, window.location.origin).href)
       .catch(() => undefined)
   }
+
   return (
     <>
-      <MenuItem onSelect={() => toggle(page.name)}>
+      <MenuItem
+        onSelect={() => {
+          toggle(page.name)
+        }}
+      >
         {starred ? "Unfavorite page" : "Add to Favorites"}
       </MenuItem>
-      <MenuItem onSelect={() => setGitDialog({ _tag: "History", page: page.name })}>
+      <MenuItem
+        onSelect={() => {
+          setGitDialog({ _tag: "History", page: page.name })
+        }}
+      >
         View page history
       </MenuItem>
       <MenuItem onSelect={copyUrl}>Copy page URL</MenuItem>
-      {page.name !== "contents" ? (
-        <MenuItem onSelect={() => setDeleting(page)}>Delete page</MenuItem>
-      ) : null}
+      {page.name === "contents" ? null : (
+        <MenuItem
+          onSelect={() => {
+            setDeleting(page)
+          }}
+        >
+          Delete page
+        </MenuItem>
+      )}
       {onPage === false ? null : (
         <MenuItem
-          onSelect={() =>
+          onSelect={() => {
             updateSidebar({ _tag: "Open", item: { _tag: "Slides", name: page.name } })
-          }
+          }}
         >
           View as slides
         </MenuItem>
       )}
       <MenuItem
-        onSelect={() =>
+        onSelect={() => {
           setExported({
             name: page.title,
             target: { _tag: "Page", pageId: page.id },
             pages: [page.id],
           })
-        }
+        }}
       >
         Export page
       </MenuItem>
       <MenuItem
-        onSelect={() =>
+        onSelect={() => {
           run({
             _tag: "SetProperty",
             target: { _tag: "PageTarget", pageId: page.id },
             key: "public",
             value: isPublic(page) ? "false" : "true",
           })
-        }
+        }}
       >
         {isPublic(page) ? "Make it private" : "Make it public for publishing"}
       </MenuItem>
@@ -90,7 +107,9 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
         : plugins.map((command) => (
             <MenuItem
               key={`${command.pid} ${command.key}`}
-              onSelect={() => runPageCommand(host, command, page.name)}
+              onSelect={() => {
+                runPageCommand(host, command, page.name)
+              }}
             >
               {command.label}
             </MenuItem>
@@ -120,24 +139,38 @@ const TitleMenu = ({
     {...titleMenuNames}
     className={titleMenuNames.className}
     ref={(menu) => {
-      if (menu === null) return
+      if (menu === null) {
+        return
+      }
+
       menu.showPopover()
       placeAt(menu, x, y)
       menu.focus()
+
       const outside = (event: PointerEvent) => {
-        if (!(event.target instanceof Node && menu.contains(event.target))) menu.hidePopover()
+        if (!(event.target instanceof Node && menu.contains(event.target))) {
+          menu.hidePopover()
+        }
       }
+
       document.addEventListener("pointerdown", outside, true)
-      return () => document.removeEventListener("pointerdown", outside, true)
+
+      return () => {
+        document.removeEventListener("pointerdown", outside, true)
+      }
     }}
     onToggle={(event) => {
-      if (event.newState === "closed") onClose()
+      if (event.newState === "closed") {
+        onClose()
+      }
     }}
     onKeyDown={(event) => {
       if (event.key === "Escape") {
         event.preventDefault()
         event.currentTarget.hidePopover()
-      } else onMenuKeyDown(event)
+      } else {
+        onMenuKeyDown(event)
+      }
     }}
   >
     <PageMenuItems page={page} />
@@ -151,6 +184,7 @@ export const PageMenu = () => {
   const [doomed, setDoomed] = useAtom(deleting)
   const matchRoute = useMatchRoute()
   const navigate = useNavigate()
+
   return (
     <>
       {request === null ? null : (
@@ -159,7 +193,9 @@ export const PageMenu = () => {
           page={request.page}
           x={request.x}
           y={request.y}
-          onClose={() => setRequest(null)}
+          onClose={() => {
+            setRequest(null)
+          }}
         />
       )}
       {doomed === null ? null : (
@@ -167,7 +203,9 @@ export const PageMenu = () => {
           key={doomed.id}
           id={deleteDialogId}
           page={doomed}
-          onClose={() => setDoomed(null)}
+          onClose={() => {
+            setDoomed(null)
+          }}
           onDeleted={() => {
             if (matchRoute({ to: "/page/$name", params: { name: doomed.name } }) !== false) {
               void navigate({ to: "/" })

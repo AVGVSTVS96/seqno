@@ -1,11 +1,7 @@
-import { normalizePageName, type Page, type Props } from "@seqno/domain"
-import {
-  analyzeBlock,
-  defaultPropertyConfig,
-  propertyKey,
-  type Dialect,
-  type PropertyConfig,
-} from "@seqno/syntax"
+import { normalizePageName } from "@seqno/domain"
+import type { Page, Props } from "@seqno/domain"
+import { analyzeBlock, defaultPropertyConfig, propertyKey } from "@seqno/syntax"
+import type { Dialect, PropertyConfig } from "@seqno/syntax"
 
 export interface Task {
   readonly status: string | null
@@ -17,17 +13,17 @@ export interface Task {
 export type Prop = readonly [key: string, value: string]
 
 export interface BlockFacets {
-  readonly refs: ReadonlyArray<string>
-  readonly tags: ReadonlyArray<string>
-  readonly props: ReadonlyArray<Prop>
+  readonly refs: readonly string[]
+  readonly tags: readonly string[]
+  readonly props: readonly Prop[]
   readonly task: Task | null
 }
 
 export interface PageFacets {
-  readonly namespaces: ReadonlyArray<string>
-  readonly tags: ReadonlyArray<string>
-  readonly aliases: ReadonlyArray<string>
-  readonly props: ReadonlyArray<Prop>
+  readonly namespaces: readonly string[]
+  readonly tags: readonly string[]
+  readonly aliases: readonly string[]
+  readonly props: readonly Prop[]
 }
 
 export const NO_FACETS: BlockFacets = { refs: [], tags: [], props: [], task: null }
@@ -55,15 +51,18 @@ const tagNames = (text: string) =>
 
 export const titleIn = (text: string, name: string): string => {
   const code = withoutCode(text)
+
   const raw = [
     ...[...code.matchAll(WIKI)].map((m) => m[1] ?? ""),
     ...[...code.matchAll(TAG)].map(tagOf),
   ].find((candidate) => normalizePageName(candidate) === name)
+
   return raw === undefined ? name : raw.trim()
 }
 
 export const toNum = (value: string): number | null => {
   const n = Number(value)
+
   return value.trim() !== "" && Number.isFinite(n) ? n : null
 }
 
@@ -75,28 +74,36 @@ const listItem = (part: string) =>
       .replace(/^#/, ""),
   )
 
-const propValues = (key: string, raw: string, config: PropertyConfig): ReadonlyArray<string> => {
-  if (config.listKeys.has(key))
+const propValues = (key: string, raw: string, config: PropertyConfig): readonly string[] => {
+  if (config.listKeys.has(key)) {
     return raw
       .split(",")
       .map(listItem)
       .filter((v) => v !== "")
+  }
+
   const linked = [...wikiNames(raw), ...tagNames(raw)]
+
   return linked.length > 0 ? linked : [normalizePageName(raw)]
 }
 
 const isInternal = (key: string) => key === "ls-type" || key.startsWith("logseq.")
 
-const propsOf = (props: Props, config: PropertyConfig): ReadonlyArray<Prop> =>
+const propsOf = (props: Props, config: PropertyConfig): readonly Prop[] =>
   Object.entries(props).flatMap(([rawKey, raw]) => {
     const key = propertyKey(rawKey)
+
     return isInternal(key) ? [] : propValues(key, raw, config).map((value): Prop => [key, value])
   })
 
-const linkedProps = (props: Props, config: PropertyConfig): ReadonlyArray<string> =>
+const linkedProps = (props: Props, config: PropertyConfig): readonly string[] =>
   Object.entries(props).flatMap(([rawKey, raw]) => {
     const key = propertyKey(rawKey)
-    if (isInternal(key)) return []
+
+    if (isInternal(key)) {
+      return []
+    }
+
     return config.listKeys.has(key) || /\[\[|#/.test(raw) ? propValues(key, raw, config) : []
   })
 
@@ -105,12 +112,21 @@ const taskOf = (text: string): Task | null => {
   const priority = PRIORITY.exec(text)?.[1]
   let scheduled: number | null = null
   let deadline: number | null = null
+
   for (const m of text.matchAll(DATE_LINE)) {
     const day = Number(m[2]) * 10_000 + Number(m[3]) * 100 + Number(m[4])
-    if (m[1] === "SCHEDULED") scheduled ??= day
-    else deadline ??= day
+
+    if (m[1] === "SCHEDULED") {
+      scheduled ??= day
+    } else {
+      deadline ??= day
+    }
   }
-  if (marker === undefined && scheduled === null && deadline === null) return null
+
+  if (marker === undefined && scheduled === null && deadline === null) {
+    return null
+  }
+
   return {
     status:
       marker === undefined ? null : marker === "CANCELLED" ? "canceled" : marker.toLowerCase(),
@@ -120,13 +136,16 @@ const taskOf = (text: string): Task | null => {
   }
 }
 
-const withoutCode = (text: string) => text.replace(FENCE, "").replace(CODE, "")
+const withoutCode = (text: string) => text.replaceAll(FENCE, "").replaceAll(CODE, "")
 
 const orgFacets = (text: string, props: Props, config: PropertyConfig): BlockFacets => {
   const refs = analyzeBlock(text, "org").refs
+
   const names = (tag: "Tag" | "PageRef") =>
     refs.flatMap((ref) => (ref._tag === tag ? [normalizePageName(ref.name)] : []))
+
   const tags = [...new Set(names("Tag"))]
+
   return {
     refs: [...new Set([...tags, ...linkedProps(props, config), ...names("PageRef")])],
     tags,
@@ -141,15 +160,20 @@ export const blockFacets = (
   config: PropertyConfig = defaultPropertyConfig,
   dialect: Dialect = "markdown",
 ): BlockFacets => {
-  if (dialect === "org") return orgFacets(text, props, config)
+  if (dialect === "org") {
+    return orgFacets(text, props, config)
+  }
+
   const code = withoutCode(text)
   const tags = [...new Set(tagNames(code))]
   const refs = [...new Set([...tags, ...linkedProps(props, config), ...wikiNames(code)])]
+
   return { refs, tags, props: propsOf(props, config), task: taskOf(code) }
 }
 
-export const namespacesOf = (name: string): ReadonlyArray<string> => {
+export const namespacesOf = (name: string): readonly string[] => {
   const parts = name.split("/")
+
   return parts.slice(1).map((_, i) => parts.slice(0, i + 1).join("/"))
 }
 
@@ -159,6 +183,7 @@ export const pageFacets = (
 ): PageFacets => {
   const props = propsOf(page.props, config)
   const values = (key: string) => [...new Set(props.flatMap(([k, v]) => (k === key ? [v] : [])))]
+
   return {
     namespaces: namespacesOf(page.name),
     tags: values("tags"),
@@ -168,21 +193,21 @@ export const pageFacets = (
 }
 
 export const symmetricDifference = (
-  a: ReadonlyArray<string>,
-  b: ReadonlyArray<string>,
-): ReadonlyArray<string> => {
+  a: readonly string[],
+  b: readonly string[],
+): readonly string[] => {
   const inA = new Set(a)
   const inB = new Set(b)
+
   return [...new Set([...a.filter((x) => !inB.has(x)), ...b.filter((x) => !inA.has(x))])]
 }
 
-export const changedPropKeys = (
-  a: ReadonlyArray<Prop>,
-  b: ReadonlyArray<Prop>,
-): ReadonlyArray<string> => {
-  const valuesOf = (props: ReadonlyArray<Prop>, key: string) =>
+export const changedPropKeys = (a: readonly Prop[], b: readonly Prop[]): readonly string[] => {
+  const valuesOf = (props: readonly Prop[], key: string) =>
     props.flatMap(([k, v]) => (k === key ? [v] : [])).join("\u0000")
+
   const keys = new Set([...a, ...b].map(([key]) => key))
+
   return [...keys].filter((key) => valuesOf(a, key) !== valuesOf(b, key))
 }
 

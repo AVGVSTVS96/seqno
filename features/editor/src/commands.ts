@@ -42,7 +42,8 @@ import {
 import type { Marker, Priority } from "@seqno/syntax"
 import { clockTime, journalTitle, shiftDays } from "./dates.ts"
 import type { Planning } from "./planning.ts"
-import { priorityBars, type CommandIcon } from "./icons.tsx"
+import { priorityBars } from "./icons.tsx"
+import type { CommandIcon } from "./icons.tsx"
 import {
   caretAt,
   insertLink,
@@ -52,8 +53,8 @@ import {
   setMarker,
   setOrderedList,
   setPriority,
-  type Draft,
 } from "./format.ts"
+import type { Draft } from "./format.ts"
 
 export type RefKind = "Page" | "Block"
 
@@ -90,6 +91,7 @@ const fenced = (language: string) => (draft: Draft) => {
   const lineStart = draft.text.lastIndexOf("\n", draft.from - 1) + 1
   const fresh = draft.text.slice(lineStart, draft.from).trim() === ""
   const body = language === "" ? "" : "\n"
+
   return text(`${fresh ? "" : "\n"}\`\`\`${language}\n${body}\`\`\``, 4)(draft)
 }
 
@@ -116,7 +118,7 @@ const planning = (label: string, kind: Planning, icon: CommandIcon) =>
       : { draft, pick: kind },
   )
 
-export const slashCommands: ReadonlyArray<SlashCommand> = [
+export const slashCommands: readonly SlashCommand[] = [
   command("BASIC", "Page reference", IconFileSymlink, reference("[[]]", 2, "Page")),
   command("BASIC", "Page embed", IconId, reference("{{embed [[]]}}", 4, "Page")),
   command("BASIC", "Block reference", IconParentheses, reference("(())", 2, "Block")),

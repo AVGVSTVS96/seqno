@@ -10,8 +10,10 @@ const DEVICES = 3
 
 const random = (seed: number) => {
   let state = seed >>> 0
+
   return () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0
+
     return state / 2 ** 32
   }
 }
@@ -38,18 +40,31 @@ interface Model {
 
 const replay = (model: Model, event: GraphEvent): void => {
   const need = (ok: boolean, what: string) => {
-    if (!ok) throw new Error(`${event._tag}: ${what}`)
+    if (!ok) {
+      throw new Error(`${event._tag}: ${what}`)
+    }
   }
+
   switch (event._tag) {
-    case "PageUpserted":
+    case "PageUpserted": {
       model.pages.set(event.page.id, event.page)
+
       return
-    case "PageDeleted":
+    }
+
+    case "PageDeleted": {
       model.pages.delete(event.pageId)
-      for (const [id, block] of model.blocks)
-        if (block.page === event.pageId) model.blocks.delete(id)
+
+      for (const [id, block] of model.blocks) {
+        if (block.page === event.pageId) {
+          model.blocks.delete(id)
+        }
+      }
+
       return
-    case "BlockUpserted":
+    }
+
+    case "BlockUpserted": {
       need(model.pages.has(event.block.pageId), "page not known")
       need(
         event.block.parentId === null || model.blocks.has(event.block.parentId),
@@ -60,22 +75,30 @@ const replay = (model: Model, event: GraphEvent): void => {
         parent: event.block.parentId,
         text: event.block.text,
       })
+
       return
+    }
+
     case "BlockMoved": {
       const known = model.blocks.get(event.blockId)
       need(known !== undefined, "block not known")
       need(model.pages.has(event.pageId), "page not known")
       need(event.parentId === null || model.blocks.has(event.parentId), "parent not known")
+
       if (known !== undefined) {
         model.blocks.set(event.blockId, { ...known, page: event.pageId, parent: event.parentId })
       }
+
       return
     }
+
     case "BlockDeleted": {
       const gone = new Set([event.blockId])
       let grew = true
+
       while (grew) {
         grew = false
+
         for (const [id, block] of model.blocks) {
           if (block.parent !== null && gone.has(block.parent) && !gone.has(id)) {
             gone.add(id)
@@ -83,6 +106,7 @@ const replay = (model: Model, event: GraphEvent): void => {
           }
         }
       }
+
       gone.forEach((id) => model.blocks.delete(id))
     }
   }
@@ -98,14 +122,16 @@ const open = (peer: string, next: () => number) =>
 const view = (graph: Graph["Service"]) =>
   Effect.gen(function* () {
     const pages = yield* graph.pages
+
     return yield* Effect.forEach(pages, (page) => Effect.orDie(graph.page(page.id)))
   })
 
 const run = (seed: number) =>
   Effect.gen(function* () {
     const next = random(seed)
-    const pick = <A>(items: ReadonlyArray<A>): A | undefined =>
-      items[Math.floor(next() * items.length)]
+
+    const pick = <A>(items: readonly A[]): A | undefined => items[Math.floor(next() * items.length)]
+
     const devices = yield* Effect.forEach(
       Array.from({ length: DEVICES }, (_, at) => at),
       (at) =>
@@ -115,46 +141,67 @@ const run = (seed: number) =>
           seen: 0,
         })),
     )
-    const log: Array<Uint8Array> = []
-    const record = (device: (typeof devices)[number], events: ReadonlyArray<GraphEvent>) =>
-      events.forEach((event) => replay(device.model, event))
+
+    const log: Uint8Array[] = []
+
+    const record = (device: (typeof devices)[number], events: readonly GraphEvent[]) => {
+      events.forEach((event) => {
+        replay(device.model, event)
+      })
+    }
+
     const save = (device: (typeof devices)[number]) =>
       Effect.map(
         device.graph.flush((update) => Effect.sync(() => void log.push(update.bytes))),
         () => undefined,
       )
+
     const catchUp = (device: (typeof devices)[number]) =>
       Effect.gen(function* () {
         yield* save(device)
         const fresh = log.slice(device.seen)
         device.seen = log.length
-        if (fresh.length > 0) record(device, yield* device.graph.merge(fresh))
+
+        if (fresh.length > 0) {
+          record(device, yield* device.graph.merge(fresh))
+        }
+
         yield* save(device)
       })
+
     const send = (device: (typeof devices)[number], command: Command) =>
       device.graph.dispatch(command).pipe(
-        Effect.map((events) => record(device, events)),
+        Effect.map((events) => {
+          record(device, events)
+        }),
         Effect.catchTag("CommandRejected", () => Effect.void),
       )
 
     for (let step = 0; step < STEPS; step++) {
       const device = pick(devices)
-      if (device === undefined) continue
+
+      if (device === undefined) {
+        continue
+      }
+
       if (next() < 0.15) {
         yield* catchUp(device)
         continue
       }
+
       const trees = yield* view(device.graph)
       const blocks = trees.flatMap((tree) => tree.blocks)
       const page = pick(trees)
       const block = pick(blocks)
       const other = pick(blocks)
       const roll = next()
+
       if (page === undefined || roll < 0.06) {
         const title = `page ${Math.floor(next() * 6)}`
         yield* send(device, { _tag: "CreatePage", title })
         continue
       }
+
       if (block === undefined || roll < 0.2) {
         yield* send(device, {
           _tag: "InsertBlock",
@@ -165,6 +212,7 @@ const run = (seed: number) =>
         })
         continue
       }
+
       const command: Command | undefined =
         roll < 0.3
           ? { _tag: "EditText", blockId: block.id, from: 0, to: 0, insert: `${step}.` }
@@ -202,15 +250,24 @@ const run = (seed: number) =>
                                   key: "k",
                                   value: String(step),
                                 }
-      if (command !== undefined) yield* send(device, command)
+
+      if (command !== undefined) {
+        yield* send(device, command)
+      }
     }
 
     for (let round = 0; round < 4; round++) {
-      for (const device of devices) yield* catchUp(device)
+      for (const device of devices) {
+        yield* catchUp(device)
+      }
     }
+
     const views = yield* Effect.forEach(devices, ({ graph }) => view(graph))
     const first = JSON.stringify(views[0])
-    views.forEach((trees, at) => assert.strictEqual(JSON.stringify(trees), first, `device ${at}`))
+    views.forEach((trees, at) => {
+      assert.strictEqual(JSON.stringify(trees), first, `device ${at}`)
+    })
+
     for (const [at, device] of devices.entries()) {
       const trees = nthOf(views, at)
       const ids = trees.flatMap((tree) => tree.blocks.map((one) => one.id))
@@ -225,6 +282,7 @@ const run = (seed: number) =>
         trees.map((tree) => tree.page.id).toSorted(),
         `pages from events on device ${at}`,
       )
+
       const fromState = new Map(
         trees.flatMap((tree) =>
           tree.blocks.map((one) => [
@@ -233,6 +291,7 @@ const run = (seed: number) =>
           ]),
         ),
       )
+
       assert.deepStrictEqual(
         [...device.model.blocks].toSorted(([a], [b]) => (a < b ? -1 : 1)),
         [...fromState].toSorted(([a], [b]) => (a < b ? -1 : 1)),
@@ -241,17 +300,23 @@ const run = (seed: number) =>
     }
   })
 
-const nthOf = <A>(items: ReadonlyArray<A>, index: number): A => {
+const nthOf = <A>(items: readonly A[], index: number): A => {
   const item = items[index]
-  if (item === undefined) throw new Error(`no item at ${index}`)
+
+  if (item === undefined) {
+    throw new Error(`no item at ${index}`)
+  }
+
   return item
 }
 
 describe.runIf(format === "v2")("random edits on three devices", () => {
   const only = process.env["SEQNO_FUZZ_SEED"]
   const from = Number(process.env["SEQNO_FUZZ_FROM"] ?? 1)
+
   const seeds =
     only === undefined ? Array.from({ length: SEEDS }, (_, at) => from + at) : [Number(only)]
+
   for (const seed of seeds) {
     it.effect(
       `seed ${seed}: converge, show each block once, and send events that match the state`,

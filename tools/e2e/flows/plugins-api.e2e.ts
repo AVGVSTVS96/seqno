@@ -12,6 +12,7 @@ test.beforeEach(async ({ context }) => {
 const openPlugins = async (page: Page) => {
   await page.getByRole("button", { name: "More" }).click()
   await page.getByRole("menuitem", { name: "Plugins" }).click()
+
   return page.getByRole("dialog", { name: "Plugins" })
 }
 
@@ -24,18 +25,20 @@ const install = async (page: Page, name: string) => {
   await page.keyboard.press("Escape")
 }
 
-const settingsSaved = (page: Page) =>
-  expect
-    .poll(() =>
-      page.evaluate(() =>
-        Object.keys(localStorage).some(
-          (key) =>
-            key.startsWith("seqno.plugins.settings.") &&
-            Object.keys(JSON.parse(localStorage.getItem(key) ?? "{}")).length > 1,
+const settingsSaved = async (page: Page) => {
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() =>
+          Object.keys(localStorage).some(
+            (key) =>
+              key.startsWith("seqno.plugins.settings.") &&
+              Object.keys(JSON.parse(localStorage.getItem(key) ?? "{}")).length > 1,
+          ),
         ),
-      ),
     )
     .toBe(true)
+}
 
 test("Word count shows how many words are selected in a block, next to the selection", async ({
   page,
@@ -51,17 +54,22 @@ test("Word count shows how many words are selected in a block, next to the selec
   await expect(count).toHaveAttribute("aria-checked", "true")
   await page.reload()
   await seqno.today.getByRole("treeitem").filter({ hasText: "Rain all morning" }).click()
+
   const [start, end] = await seqno.editor.evaluate((editor) => {
     const line = editor.querySelector(".cm-line")?.firstChild ?? editor
+
     const at = (offset: number) => {
       const range = document.createRange()
       range.setStart(line, offset)
       range.setEnd(line, offset + 1)
       const rect = range.getBoundingClientRect()
+
       return { x: rect.left + 1, y: rect.top + rect.height / 2 }
     }
+
     return [at(0), at("Rain all morning".length - 1)]
   })
+
   await page.mouse.move(start.x, start.y)
   await page.mouse.down()
   const point = { x: Math.round(end.x + 6), y: Math.round(end.y) }
@@ -70,20 +78,25 @@ test("Word count shows how many words are selected in a block, next to the selec
   const float = page.locator("#logseq-wordcount-plugin--logseq-wordcount-plugin-countselection")
   await expect(float).toHaveText("Words: 3")
   const container = float.locator("xpath=ancestor::*[contains(@class, 'lsp-ui-float-container')]")
+
   const corner = async () => {
     const box = await container.boundingBox()
+
     return box === null ? null : [Math.round(box.x), Math.round(box.y)]
   }
+
   expect(await corner()).toEqual([point.x, point.y])
   await expect(container).toHaveAttribute("draggable", "true")
   const handle = container.locator(".draggable-handle")
   const grip = await handle.boundingBox()
+
   if (grip !== null) {
     await page.mouse.move(grip.x + 20, grip.y + 10)
     await page.mouse.down()
     await page.mouse.move(grip.x + 60, grip.y + 40, { steps: 5 })
     await page.mouse.up()
   }
+
   expect(await corner()).toEqual([point.x + 40, point.y + 30])
   await container.getByRole("button", { name: "Close" }).click()
   await expect(float).toHaveCount(0)
@@ -141,6 +154,7 @@ const statsBlock = async (page: Page, today: Locator, blocks: number) => {
   await expect(all).toHaveCount(blocks)
   const text = (await all.first().textContent()) ?? ""
   const count = (label: string) => Number(new RegExp(`${label}: (\\d+)`).exec(text)?.[1])
+
   return {
     tasks: count("Tasks"),
     done: count("Finished tasks \\(DONE\\)"),
@@ -189,16 +203,18 @@ test("Hypothesis keeps fetched notes in its file storage, so they're there after
   seqno,
 }) => {
   let online = true
-  await page.context().route(/^https:\/\/api\.hypothes\.is\/api\/search/, (route, request) =>
-    online
-      ? route.fulfill({
-          headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" },
-          json: {
-            rows: new URL(request.url()).searchParams.has("search_after") ? [] : [annotation],
-          },
-        })
-      : route.abort(),
-  )
+  await page
+    .context()
+    .route(/^https:\/\/api\.hypothes\.is\/api\/search/, async (route, request) => {
+      online
+        ? await route.fulfill({
+            headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" },
+            json: {
+              rows: new URL(request.url()).searchParams.has("search_after") ? [] : [annotation],
+            },
+          })
+        : await route.abort()
+    })
   await seqno.openDemoGraph()
   await install(page, "Hypothesis")
   const dialog = await openPlugins(page)
@@ -232,6 +248,7 @@ test("a block a plugin inserts with a customUUID keeps that uuid, so ((refs)) an
   const uuid = "6650a1b2-1111-4000-8000-00000000abcd"
   await expect(page.locator('[data-on-click="handleShowQuickCapture"]')).toBeVisible()
   const plugin = page.frame({ url: /logseq-quick-capture/ })
+
   const inserted = await plugin?.evaluate(`(async () => {
     const page = await logseq.Editor.getCurrentPage() ?? (await logseq.Editor.getAllPages()).find((one) => one["journal?"])
     const anchor = (await logseq.Editor.getPageBlocksTree(page.name)).at(-1)
@@ -239,6 +256,7 @@ test("a block a plugin inserts with a customUUID keeps that uuid, so ((refs)) an
     const again = await logseq.Editor.insertBlock(anchor.uuid, "twice", { sibling: true, customUUID: "${uuid}" }).catch((error) => error.message ?? String(error))
     return [block.uuid, (await logseq.Editor.getBlock("${uuid}")).content, again]
   })()`)
+
   expect(inserted).toEqual([
     uuid,
     `Seed order placed\nid:: ${uuid}`,
@@ -276,9 +294,11 @@ test("Fenced code plus draws htmlmixed and mermaid code blocks with Logseq's Rea
     "Welcome to the seqno demo graph",
     '```htmlmixed\n<b class="grown">Tomatoes</b>\n```',
   )
+
   const html = page
     .locator(".ui-fenced-code-wrap")
     .filter({ has: page.locator(".fcp-html-container") })
+
   await expect(html.locator(".fcp-html-container b.grown")).toHaveText("Tomatoes")
   await expect(html.locator(".ui-fenced-code-editor")).toBeHidden()
   await html.locator(".ui-fenced-code-result").hover()

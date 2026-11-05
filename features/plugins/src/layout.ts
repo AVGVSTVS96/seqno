@@ -11,6 +11,7 @@ export interface LayoutData {
 
 const layoutOf = (element: HTMLElement): LayoutData => {
   const { left, top, width, height } = element.getBoundingClientRect()
+
   return { left, top, width, height, vw: window.innerWidth, vh: window.innerHeight }
 }
 
@@ -31,25 +32,31 @@ const track = (
   busy: string,
   move: (dx: number, dy: number, start: DOMRect) => void,
   done: () => void,
-) =>
+) => {
   handle.addEventListener("pointerdown", (down) => {
     if (down.button !== 0 || (down.target instanceof Element && down.target.closest("button"))) {
       return
     }
+
     down.preventDefault()
     handle.setPointerCapture(down.pointerId)
     const start = element.getBoundingClientRect()
     element.classList.add(busy)
-    const onMove = (event: PointerEvent) =>
+
+    const onMove = (event: PointerEvent) => {
       move(event.clientX - down.clientX, event.clientY - down.clientY, start)
+    }
+
     const onUp = () => {
       handle.removeEventListener("pointermove", onMove)
       element.classList.remove(busy)
       done()
     }
+
     handle.addEventListener("pointermove", onMove)
     handle.addEventListener("pointerup", onUp, { once: true })
   })
+}
 
 export const makeDraggable = (
   element: HTMLElement,
@@ -59,7 +66,10 @@ export const makeDraggable = (
     readonly saved?: (layout: LayoutData) => void
   },
 ) => {
-  if (element.dataset["inited_draggable"] !== undefined) return
+  if (element.dataset["inited_draggable"] !== undefined) {
+    return
+  }
+
   element.dataset["inited_draggable"] = "true"
   const handle = document.createElement("div")
   handle.className = logseq("seqno-plugin-handle").className
@@ -90,7 +100,9 @@ export const makeDraggable = (
     handle,
     element,
     "is-dragging",
-    (dx, dy) => moveBy(element, from.x + dx, from.y + dy),
+    (dx, dy) => {
+      moveBy(element, from.x + dx, from.y + dy)
+    },
     () => {
       from = offset(element)
       options.saved?.(layoutOf(element))
@@ -99,7 +111,10 @@ export const makeDraggable = (
 }
 
 export const makeResizable = (element: HTMLElement, saved?: (layout: LayoutData) => void) => {
-  if (element.dataset["inited_resizable"] !== undefined) return
+  if (element.dataset["inited_resizable"] !== undefined) {
+    return
+  }
+
   element.dataset["inited_resizable"] = "true"
   const handle = document.createElement("div")
   handle.className = logseq("seqno-plugin-resize").className

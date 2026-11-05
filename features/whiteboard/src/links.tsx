@@ -3,7 +3,8 @@ import { useAtomValue } from "@effect/atom-react"
 import { IconLink, IconX } from "@tabler/icons-react"
 import { Effect, Option } from "effect"
 import { Atom, AsyncResult } from "effect/reactivity"
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
+import type { ReactNode } from "react"
 import {
   isBlockLink,
   isShapeBlock,
@@ -13,11 +14,8 @@ import {
   shapeLinks,
   wordsIn,
   shapeRaw,
-  type Block,
-  type BlockId,
-  type Page,
-  type PageId,
 } from "@seqno/domain"
+import type { Block, BlockId, Page, PageId } from "@seqno/domain"
 import {
   blockRefAtom,
   blockRefCountsAtom,
@@ -38,7 +36,8 @@ import {
 } from "./icons.tsx"
 import type { Item } from "./model.ts"
 import type { OutlinerEnv } from "./Portal.tsx"
-import { QuickSearch, type Pick } from "./QuickSearch.tsx"
+import { QuickSearch } from "./QuickSearch.tsx"
+import type { Pick } from "./QuickSearch.tsx"
 import { usePopoverIds } from "./Toolbar.tsx"
 
 export interface LinkEnv {
@@ -60,26 +59,34 @@ const pageByIdAtom = Atom.family((pageId: PageId) =>
 const short = (text: string) => (text.length > 23 ? `${text.slice(0, 20)}...` : text)
 
 const contentOf = (block: Block) => {
-  if (!isShapeBlock(block)) return block.text.split("\n")[0] ?? ""
+  if (!isShapeBlock(block)) {
+    return block.text.split("\n")[0] ?? ""
+  }
+
   const raw = shapeRaw(block)
   const words = block.text === "" ? wordsIn(raw) : block.text
-  return words !== "" ? words : `whiteboard ${String(raw["type"] ?? "shape")}`
+
+  return words === "" ? `whiteboard ${String(raw["type"] ?? "shape")}` : words
 }
 
 export const ownTarget = (item: Item): string | null =>
-  item.shape.type !== "logseq-portal"
-    ? null
-    : Option.match(portalTarget(item.block.text), {
+  item.shape.type === "logseq-portal"
+    ? Option.match(portalTarget(item.block.text), {
         onNone: () => null,
         onSome: (target) => (target._tag === "PagePortal" ? target.name : target.uuid),
       })
+    : null
 
 export const linksOf = (item: Item) => shapeLinks(item.block)
 
 const go = (env: LinkEnv, block: Block, sidebar: boolean) => {
-  if (sidebar) env.outliner.onNavigate({ _tag: "SidebarBlock", blockId: block.id })
-  else if (block.pageId === env.board.id) env.focusShape(block.id)
-  else env.outliner.onNavigate({ _tag: "Zoom", pageId: block.pageId, blockId: block.id })
+  if (sidebar) {
+    env.outliner.onNavigate({ _tag: "SidebarBlock", blockId: block.id })
+  } else if (block.pageId === env.board.id) {
+    env.focusShape(block.id)
+  } else {
+    env.outliner.onNavigate({ _tag: "Zoom", pageId: block.pageId, blockId: block.id })
+  }
 }
 
 const Label = ({ icon, children }: { readonly icon: ReactNode; readonly children: ReactNode }) => (
@@ -101,12 +108,21 @@ const BlockTarget = ({
   readonly hideOnBoard: boolean
 }) => {
   const found = useAtomValue(blockRefAtom(uuid))
-  if (AsyncResult.isInitial(found)) return null
+
+  if (AsyncResult.isInitial(found)) {
+    return null
+  }
+
   if (!AsyncResult.isSuccess(found)) {
     return <span className="wb-block-link-missing">Invalid reference. Did you remove it?</span>
   }
+
   const block = found.value
-  if (hideOnBoard && block.pageId === env.board.id) return null
+
+  if (hideOnBoard && block.pageId === env.board.id) {
+    return null
+  }
+
   return <BlockButton block={block} showContent={showContent} env={env} />
 }
 
@@ -121,6 +137,7 @@ const BlockButton = ({
 }) => {
   const page = AsyncResult.getOrElse(useAtomValue(pageByIdAtom(block.pageId)), () => undefined)
   const shape = isShapeBlock(block)
+
   return (
     <button
       type="button"
@@ -150,15 +167,23 @@ const PageTarget = ({
   readonly hideOnBoard: boolean
 }) => {
   const page = AsyncResult.getOrElse(useAtomValue(pageNamedAtom(name)), () => undefined)
-  if (hideOnBoard && normalizePageName(name) === env.board.name) return null
+
+  if (hideOnBoard && normalizePageName(name) === env.board.name) {
+    return null
+  }
+
   const board = page !== undefined && isWhiteboard(page)
+
   return (
     <button
       type="button"
       className="wb-block-link"
       onPointerDown={(event) => {
         event.stopPropagation()
-        if (page !== undefined) env.openPage(page.title, event.shiftKey)
+
+        if (page !== undefined) {
+          env.openPage(page.title, event.shiftKey)
+        }
       }}
     >
       <Label icon={board ? <IconLinkToWhiteboard size={16} /> : <IconLinkToPage size={16} />}>
@@ -197,17 +222,24 @@ export const QuickLinks = ({
   readonly top: number
 }) => {
   const own = ownTarget(item)
+
   const links = [
     ...(own === null ? [] : [[own, false] as const]),
     ...linksOf(item).map((link) => [link, true] as const),
   ]
-  if (links.length === 0) return null
+
+  if (links.length === 0) {
+    return null
+  }
+
   return (
     <div
       className="wb-quick-links"
       title="Shape Quick Links"
       style={{ left, top }}
-      onPointerDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => {
+        event.stopPropagation()
+      }}
     >
       {links.map(([link, content]) => (
         <div key={link} className="wb-quick-links-row">
@@ -244,7 +276,9 @@ const LinkRow = ({
         className="wb-button"
         aria-label="Open page"
         data-tooltip="Open page"
-        onClick={() => open(false)}
+        onClick={() => {
+          open(false)
+        }}
       >
         <IconOpenAsPage size={16} />
       </button>
@@ -254,7 +288,9 @@ const LinkRow = ({
       className="wb-button"
       aria-label="Open page in sidebar"
       data-tooltip="Open page in sidebar"
-      onClick={() => open(true)}
+      onClick={() => {
+        open(true)
+      }}
     >
       <IconMoveToSidebarRight size={16} />
     </button>
@@ -281,12 +317,15 @@ interface LinkItemProps {
 
 const BlockLinkItem = (props: LinkItemProps) => {
   const block = AsyncResult.getOrElse(useAtomValue(blockRefAtom(props.link)), () => undefined)
+
   return (
     <LinkRow
       {...props}
       onBoard={block?.pageId === props.env.board.id}
       open={(sidebar) => {
-        if (block !== undefined) go(props.env, block, sidebar)
+        if (block !== undefined) {
+          go(props.env, block, sidebar)
+        }
       }}
     />
   )
@@ -299,7 +338,9 @@ const LinkItem = (props: LinkItemProps) =>
     <LinkRow
       {...props}
       onBoard={normalizePageName(props.link) === props.env.board.name}
-      open={(sidebar) => props.env.openPage(props.link, sidebar)}
+      open={(sidebar) => {
+        props.env.openPage(props.link, sidebar)
+      }}
     />
   )
 
@@ -310,32 +351,48 @@ export const LinksAction = ({
 }: {
   readonly item: Item
   readonly env: LinkEnv
-  readonly onLinks: (links: ReadonlyArray<string>) => void
+  readonly onLinks: (links: readonly string[]) => void
 }) => {
   const ids = usePopoverIds()
   const own = ownTarget(item)
   const links = linksOf(item)
   const count = links.length + (own === null ? 0 : 1)
   const [searching, setSearching] = useState(0)
+
   const pick = (choice: Pick) => {
     const value = (() => {
       switch (choice._tag) {
-        case "Page":
+        case "Page": {
           return choice.page.title
-        case "Block":
+        }
+
+        case "Block": {
           return choice.block.id
-        case "NewPage":
+        }
+
+        case "NewPage": {
           return choice.title
-        case "NewWhiteboard":
+        }
+
+        case "NewWhiteboard": {
           env.createWhiteboard(choice.title)
+
           return choice.title
-        case "NewBlock":
+        }
+
+        case "NewBlock": {
           return null
+        }
       }
     })()
-    if (value !== null && links.length === 0 && !links.includes(value)) onLinks([value])
+
+    if (value !== null && links.length === 0 && !links.includes(value)) {
+      onLinks([value])
+    }
+
     setSearching(searching + 1)
   }
+
   return (
     <>
       <button
@@ -361,8 +418,12 @@ export const LinksAction = ({
         className="wb-popover wb-links-popover"
         data-side="right"
         style={ids.popover}
-        onKeyDown={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          event.stopPropagation()
+        }}
+        onPointerDown={(event) => {
+          event.stopPropagation()
+        }}
       >
         {own === null ? null : (
           <div className="wb-links-panel" data-kind="references">
@@ -387,7 +448,9 @@ export const LinksAction = ({
               link={link}
               showContent
               env={env}
-              onRemove={() => onLinks(links.filter((_, at) => at !== index))}
+              onRemove={() => {
+                onLinks(links.filter((_, at) => at !== index))
+              }}
             />
           ))}
         </div>
@@ -404,6 +467,7 @@ export const useBackLinkCount = (blockId: BlockId) =>
 
 const ReferencingBlocks = ({ uuid, env }: { readonly uuid: string; readonly env: LinkEnv }) => {
   const blocks = AsyncResult.getOrElse(useAtomValue(blockReferencesAtom(uuid)), () => [])
+
   return (
     <div className="wb-backlinks-list">
       {blocks.map((block) => (
@@ -428,15 +492,25 @@ export const BacklinksBadge = ({
 }) => {
   const count = useBackLinkCount(blockId)
   const ids = usePopoverIds()
-  if (count === 0) return null
+
+  if (count === 0) {
+    return null
+  }
+
   return (
     <div
       className="wb-backlinks"
       title="Shape Backlinks"
       style={{ left, top }}
-      onPointerDown={(event) => event.stopPropagation()}
-      onWheel={(event) => event.stopPropagation()}
-      onKeyDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => {
+        event.stopPropagation()
+      }}
+      onWheel={(event) => {
+        event.stopPropagation()
+      }}
+      onKeyDown={(event) => {
+        event.stopPropagation()
+      }}
     >
       <button
         type="button"

@@ -25,6 +25,7 @@ describe("pluginInfoOf", () => {
         ],
       },
     })
+
     expect(info.main).toBe(null)
     expect(info.icon).toBe(`${root}logo.png`)
     expect(info.themes).toEqual([

@@ -1,12 +1,15 @@
 import { Odometer } from "../Odometer.tsx"
-import { run, type Box } from "./school.ts"
+import { run } from "./school.ts"
+import type { Box } from "./school.ts"
 
 const pad = 12
 
-function avoidRects(hero: HTMLElement): Array<Box> {
+function avoidRects(hero: HTMLElement): Box[] {
   const base = hero.getBoundingClientRect()
+
   return [...hero.querySelectorAll("[data-avoid]")].map((el) => {
     const r = el.getBoundingClientRect()
+
     return {
       x: r.left - base.left - pad,
       y: r.top - base.top - pad,
@@ -19,6 +22,7 @@ function avoidRects(hero: HTMLElement): Array<Box> {
 function colorsOf(hero: HTMLElement) {
   const style = getComputedStyle(hero)
   const read = (name: string) => style.getPropertyValue(name).trim()
+
   return {
     field: read("--field"),
     bullet: read("--bullet"),
@@ -33,12 +37,19 @@ function start(hero: HTMLElement | null) {
   const canvas = hero?.querySelector("canvas")
   const soft = hero?.querySelector<HTMLElement>(".word .soft")
   const crisp = hero?.querySelector<HTMLElement>(".word .crisp")
-  if (!hero || !canvas || !soft || !crisp) return
+
+  if (!hero || !canvas || !soft || !crisp) {
+    return
+  }
+
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches
   let stop: (() => void) | null = null
   let cancelled = false
   void document.fonts.ready.then(() => {
-    if (cancelled) return
+    if (cancelled) {
+      return
+    }
+
     stop = run(canvas, hero, {
       still,
       avoid: () => avoidRects(hero),
@@ -51,6 +62,7 @@ function start(hero: HTMLElement | null) {
     })
     hero.dataset.live = ""
   })
+
   return () => {
     cancelled = true
     stop?.()

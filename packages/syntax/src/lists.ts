@@ -10,8 +10,13 @@ const LIST = /^([ \t]*)(?:([*+])|(\d+)\.)[ \t]+(?:\[([ xX])\][ \t]+)?/
 
 export const listLine = (line: string): ListLine | null => {
   const match = LIST.exec(line)
-  if (match === null) return null
+
+  if (match === null) {
+    return null
+  }
+
   const [whole, indent = "", , number, checkbox] = match
+
   return {
     indent: indent.length,
     ordered: number !== undefined,
@@ -35,6 +40,7 @@ export const tableCells = (
   const open = line.indexOf("|")
   const close = line.lastIndexOf("|")
   let from = open + 1
+
   for (let at = from; at <= close; at++) {
     if (at === close || (line[at] === "|" && line[at - 1] !== "\\")) {
       const text = line.slice(from, at)
@@ -43,6 +49,7 @@ export const tableCells = (
       from = at + 1
     }
   }
+
   return cells
 }
 

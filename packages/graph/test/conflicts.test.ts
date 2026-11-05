@@ -11,11 +11,15 @@ const flushed = (graph: Opened) =>
     (update) => Option.toArray(Option.map(update, ({ bytes }) => bytes)),
   )
 
-const sync = (...graphs: ReadonlyArray<Opened>) =>
+const sync = (...graphs: readonly Opened[]) =>
   Effect.gen(function* () {
     for (let round = 0; round < 4; round++) {
       const sent = yield* Effect.forEach(graphs, flushed)
-      if (sent.every((bytes) => bytes.length === 0)) return
+
+      if (sent.every((bytes) => bytes.length === 0)) {
+        return
+      }
+
       for (const [at, graph] of graphs.entries()) {
         yield* graph.merge(sent.flatMap((bytes, from) => (from === at ? [] : bytes)))
       }
@@ -25,13 +29,15 @@ const sync = (...graphs: ReadonlyArray<Opened>) =>
 const view = (graph: Opened) =>
   Effect.gen(function* () {
     const pages = (yield* graph.pages).toSorted((a, b) => (a.title < b.title ? -1 : 1))
+
     const lines = yield* Effect.forEach(pages, (page) =>
       Effect.map(graph.page(page.id), (tree) => [page.title, ...outline(tree)].join(" ")),
     )
+
     return lines.join(" | ")
   })
 
-const devices = (peers: ReadonlyArray<string>) =>
+const devices = (peers: readonly string[]) =>
   Effect.gen(function* () {
     const first = yield* openGraph(nth(peers, 0))
     const x = yield* seedPage(first, "X", ["a", "b", "  b1", "c"])
@@ -40,6 +46,7 @@ const devices = (peers: ReadonlyArray<string>) =>
     const rest = yield* Effect.forEach(peers.slice(1), (peer) => openGraph(peer, { snapshot }))
     yield* flushed(first)
     const [a, b, b1, c] = [nth(x.ids, 0), nth(x.ids, 1), nth(x.ids, 2), nth(x.ids, 3)]
+
     return {
       graphs: [first, ...rest],
       snapshot,
@@ -184,10 +191,12 @@ describe("a delete removes only what the deleting device saw", () => {
           for (const changer of [0, 1]) {
             const on = yield* devices(["1", "2"])
             const [left, right] = [nth(on.graphs, 0), nth(on.graphs, 1)]
+
             if (one.before !== undefined) {
               yield* left.dispatch(one.before(on))
               yield* sync(left, right)
             }
+
             yield* nth(on.graphs, changer).dispatch(one.change(on))
             yield* nth(on.graphs, 1 - changer).dispatch(one.remove(on))
             yield* sync(left, right)
@@ -243,7 +252,10 @@ describe("a delete removes only what the deleting device saw", () => {
         yield* left.merge(deleted)
         yield* right.merge(moved)
         yield* sync(left, right, third)
-        for (const graph of on.graphs) assert.strictEqual(yield* view(graph), "X a c | Y y")
+
+        for (const graph of on.graphs) {
+          assert.strictEqual(yield* view(graph), "X a c | Y y")
+        }
       }),
     ),
   )

@@ -32,6 +32,7 @@ const ZoomTitle = ({
     AsyncResult.map(useAtomValue(blockAtom(blockId)), (block) => block.text.split("\n")[0] ?? ""),
     () => "",
   )
+
   return <title>{text.trim() === "" ? fallback : text}</title>
 }
 
@@ -39,17 +40,20 @@ const TabTitle = ({ name, zoom }: { readonly name: string; readonly zoom: BlockI
   const title = Option.match(AsyncResult.getOrElse(useAtomValue(pageNamed(name)), Option.none), {
     onNone: () => {
       const day = journalDate(name)
+
       return day === null ? name : journalTitle(day)
     },
     onSome: (page) =>
       page.title.startsWith(hlsPagePrefix) ? assetPageName(page.title) : page.title,
   })
+
   return zoom === null ? <title>{title}</title> : <ZoomTitle blockId={zoom} fallback={title} />
 }
 
 export const PageRoute = () => {
   const { name } = pageRoute.useParams()
   const { zoom } = pageRoute.useSearch()
+
   return (
     <>
       <TabTitle name={name} zoom={zoom ?? null} />
@@ -94,6 +98,7 @@ export const AllGraphsRoute = () => (
 
 export const FileRoute = () => {
   const { path } = fileRoute.useParams()
+
   return (
     <>
       <title>{path}</title>

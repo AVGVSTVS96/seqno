@@ -42,6 +42,7 @@ export const legacyReact = (): {
   readonly ReactDOM: LegacyReactDom
 } | null => {
   const { React, ReactDOM } = window
+
   return isReact(React) && isReactDom(ReactDOM) ? { React, ReactDOM } : null
 }
 
@@ -50,62 +51,110 @@ const scripts = new Map<
   { readonly script: HTMLScriptElement; readonly loaded: Promise<void> }
 >()
 
-const loadScript = (src: string, ref: string | null) => {
+const loadScript = async (src: string, ref: string | null) => {
   const known = scripts.get(src)
-  if (known?.script.isConnected === true) return known.loaded
+
+  if (known?.script.isConnected === true) {
+    await known.loaded
+    return
+  }
+
   const script = document.createElement("script")
   script.src = src
-  if (ref !== null) script.dataset["ref"] = ref
+
+  if (ref !== null) {
+    script.dataset["ref"] = ref
+  }
+
   const loaded = new Promise<void>((resolve, reject) => {
-    script.addEventListener("load", () => resolve(), { once: true })
-    script.addEventListener("error", () => reject(new Error(`${src} didn't load`)), { once: true })
+    script.addEventListener(
+      "load",
+      () => {
+        resolve()
+      },
+      { once: true },
+    )
+    script.addEventListener(
+      "error",
+      () => {
+        reject(new Error(`${src} didn't load`))
+      },
+      { once: true },
+    )
   })
+
   document.head.append(script)
   scripts.set(src, { script, loaded })
-  return loaded
+
+  await loaded
 }
 
 const experimentsFor = (registry: AtomRegistry.AtomRegistry, host: Host) => {
   const known = (pid: unknown) => {
     const id = text(pid)
+
     return id !== null && host.loaded(id) ? id : null
   }
+
   const enhancesKatex = (pid: string) => registry.get(katexEnhancers).some((one) => one.pid === pid)
+
   return {
-    load_scripts: async (pid: unknown, ...sources: ReadonlyArray<unknown>) => {
+    load_scripts: async (pid: unknown, ...sources: readonly unknown[]) => {
       const ref = known(pid)
-      if (ref === null) return
+
+      if (ref === null) {
+        return
+      }
+
       for (const source of sources) {
         const src = text(source)
-        if (src !== null) await loadScript(src, ref)
+
+        if (src !== null) {
+          await loadScript(src, ref)
+        }
       }
-      if (enhancesKatex(ref)) redrawMath(registry)
+
+      if (enhancesKatex(ref)) {
+        redrawMath(registry)
+      }
     },
     register_fenced_code_renderer: (pid: unknown, type: unknown, opts: unknown) => {
       const ref = known(pid)
       const lang = text(type)
       const options = record(opts)
-      if (ref === null || lang === null || typeof options["render"] !== "function") return
+
+      if (ref === null || lang === null || typeof options["render"] !== "function") {
+        return
+      }
+
       const renderer = {
         pid: ref,
         type: lang,
         edit: options["edit"] !== false,
         render: options["render"],
       }
+
       registry.set(fencedRenderers, [
         ...registry.get(fencedRenderers).filter((one) => one.pid !== ref || one.type !== lang),
         renderer,
       ])
-      return () =>
+
+      return () => {
         registry.set(
           fencedRenderers,
           registry.get(fencedRenderers).filter((one) => one !== renderer),
         )
+      }
     },
     register_extensions_enhancer: (pid: unknown, type: unknown, enhance: unknown) => {
       const ref = known(pid)
-      if (ref === null || text(type) !== "katex" || typeof enhance !== "function") return
+
+      if (ref === null || text(type) !== "katex" || typeof enhance !== "function") {
+        return
+      }
+
       addKatexEnhancer(registry, { pid: ref, enhance: (katex) => enhance(katex) })
+
       return () => void dropKatexEnhancers(registry, ref)
     },
   }
@@ -113,7 +162,7 @@ const experimentsFor = (registry: AtomRegistry.AtomRegistry, host: Host) => {
 
 let opened: Promise<void> | null = null
 
-export const openHostScope = (registry: AtomRegistry.AtomRegistry, host: Host) => {
+export const openHostScope = async (registry: AtomRegistry.AtomRegistry, host: Host) => {
   opened ??= (async () => {
     await loadScript(reactUrl, null)
     await loadScript(reactDomUrl, null)
@@ -125,5 +174,6 @@ export const openHostScope = (registry: AtomRegistry.AtomRegistry, host: Host) =
       sdk: { experiments, utils: {} },
     }
   })()
-  return opened
+
+  await opened
 }

@@ -7,7 +7,7 @@ import { coreLayer, Outliner } from "../src/index.ts"
 import { block, fakeCore, id, pageId } from "./fake-core.ts"
 import { themeTokens } from "./theme.ts"
 
-const mount = async (blocks: ReadonlyArray<Block>, vim = true) => {
+const mount = async (blocks: readonly Block[], vim = true) => {
   const core = fakeCore(blocks)
   await render(
     <div style={{ width: "600px" }}>
@@ -18,6 +18,7 @@ const mount = async (blocks: ReadonlyArray<Block>, vim = true) => {
     </div>,
   )
   await expect.element(page.getByRole("tree")).toBeInTheDocument()
+
   return core
 }
 
@@ -29,7 +30,10 @@ const selectedTexts = () =>
 
 const focusTree = () => {
   const tree = page.getByRole("tree").element()
-  if (tree instanceof HTMLElement) tree.focus()
+
+  if (tree instanceof HTMLElement) {
+    tree.focus()
+  }
 }
 
 const selectFirst = async () => {

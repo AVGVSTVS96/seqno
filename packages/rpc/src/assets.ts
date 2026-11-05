@@ -1,5 +1,6 @@
 import { Context, Schema } from "effect"
-import { Rpc, RpcGroup, type RpcClient, type RpcClientError } from "effect/rpc"
+import { Rpc, RpcGroup } from "effect/rpc"
+import type { RpcClient, RpcClientError } from "effect/rpc"
 import { GraphNotOpen } from "./errors.ts"
 
 export const Asset = Schema.Struct({
@@ -8,6 +9,7 @@ export const Asset = Schema.Struct({
   size: Schema.Number,
   modified: Schema.Number,
 })
+
 export type Asset = typeof Asset.Type
 
 export class AssetFailed extends Schema.TaggedError<AssetFailed>()("AssetFailed", {

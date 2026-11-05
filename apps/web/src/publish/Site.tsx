@@ -12,8 +12,10 @@ import {
   IconTable,
 } from "@tabler/icons-react"
 import { Atom } from "effect/reactivity"
-import { Fragment, useId, useState, type ReactNode } from "react"
-import { normalizePageName, type Block, type BlockId, type Page, type PageId } from "@seqno/domain"
+import { Fragment, useId, useState } from "react"
+import type { ReactNode } from "react"
+import { normalizePageName } from "@seqno/domain"
+import type { Block, BlockId, Page, PageId } from "@seqno/domain"
 import type { Published, PublishedName, PublishedReference } from "@seqno/export"
 import {
   NestedLists,
@@ -22,9 +24,8 @@ import {
   PropertySettings,
   PropertyValue,
   ScrollContent,
-  type Navigate,
-  type NavigationTarget,
 } from "@seqno/outliner"
+import type { Navigate, NavigationTarget } from "@seqno/outliner"
 import pagesCss from "../ui/pages/pages.css?inline"
 import shellCss from "../ui/shell/shell.css?inline"
 import appCss from "../styles.css?inline"
@@ -39,9 +40,8 @@ import {
   trailOf,
   visibleProps,
   visibleRows,
-  type SortColumn,
-  type TableSort,
 } from "../ui/pages/model.ts"
+import type { SortColumn, TableSort } from "../ui/pages/model.ts"
 import siteCss from "./site.css?inline"
 
 export type Route =
@@ -59,8 +59,15 @@ const decoded = (part: string) => {
 
 export const routeOf = (hash: string): Route => {
   const path = hash.replace(/^#\/?/, "")
-  if (path === "all-pages") return { _tag: "AllPages" }
-  if (path.startsWith("page/")) return { _tag: "Page", name: decoded(path.slice(5)) }
+
+  if (path === "all-pages") {
+    return { _tag: "AllPages" }
+  }
+
+  if (path.startsWith("page/")) {
+    return { _tag: "Page", name: decoded(path.slice(5)) }
+  }
+
   return { _tag: "Home" }
 }
 
@@ -72,9 +79,15 @@ export const hrefOf = (route: Route) =>
       : `#/page/${encodeURIComponent(route.name)}`
 
 const hash = Atom.make((get) => {
-  const changed = () => get.setSelf(location.hash)
+  const changed = () => {
+    get.setSelf(location.hash)
+  }
+
   addEventListener("hashchange", changed)
-  get.addFinalizer(() => removeEventListener("hashchange", changed))
+  get.addFinalizer(() => {
+    removeEventListener("hashchange", changed)
+  })
+
   return location.hash
 }).pipe(Atom.keepAlive)
 
@@ -84,15 +97,30 @@ const go = (route: Route) => {
 
 const navigate: Navigate = (target: NavigationTarget) => {
   switch (target._tag) {
-    case "Journals":
-      return go({ _tag: "Home" })
+    case "Journals": {
+      go({ _tag: "Home" })
+
+      return
+    }
+
     case "Page":
-    case "SidebarPage":
-      return go({ _tag: "Page", name: normalizePageName(target.name) })
-    case "Zoom":
-      return target.blockId === null ? undefined : go({ _tag: "Page", name: target.blockId })
-    case "SidebarBlock":
-      return go({ _tag: "Page", name: target.blockId })
+    case "SidebarPage": {
+      go({ _tag: "Page", name: normalizePageName(target.name) })
+
+      return
+    }
+
+    case "Zoom": {
+      target.blockId === null ? undefined : go({ _tag: "Page", name: target.blockId })
+
+      return
+    }
+
+    case "SidebarBlock": {
+      go({ _tag: "Page", name: target.blockId })
+
+      return
+    }
   }
 }
 
@@ -107,21 +135,37 @@ interface Site {
 
 const siteOf = (data: Published): Site => {
   const byName = new Map<string, Page>()
-  for (const { page } of data.pages) byName.set(page.name, page)
-  for (const { page } of data.pages)
-    for (const alias of listValues(page.props["alias"] ?? ""))
-      if (!byName.has(normalizePageName(alias))) byName.set(normalizePageName(alias), page)
+
+  for (const { page } of data.pages) {
+    byName.set(page.name, page)
+  }
+
+  for (const { page } of data.pages) {
+    for (const alias of listValues(page.props["alias"] ?? "")) {
+      if (!byName.has(normalizePageName(alias))) {
+        byName.set(normalizePageName(alias), page)
+      }
+    }
+  }
+
   const blocks = new Map<string, Block>()
-  for (const { blocks: each } of data.pages)
+
+  for (const { blocks: each } of data.pages) {
     for (const block of each) {
       blocks.set(block.id, block)
       const written = block.props["id"]?.toLowerCase()
-      if (written !== undefined) blocks.set(written, block)
+
+      if (written !== undefined) {
+        blocks.set(written, block)
+      }
     }
+  }
+
   return {
     data,
     resolveAsset: (path) => {
       const local = /^(?:\.{1,2}\/|\/)*assets\/(.+)$/.exec(path)?.[1]
+
       return local === undefined ? undefined : `assets/${local}`
     },
     byName,
@@ -175,21 +219,28 @@ const ReferenceGroup = ({
 }: {
   readonly site: Site
   readonly page: Page
-  readonly blockIds: ReadonlyArray<BlockId>
+  readonly blockIds: readonly BlockId[]
 }) => {
   const [open, setOpen] = useState(true)
   const blocks = site.data.pages.find((entry) => entry.page.id === page.id)?.blocks ?? []
   const trail = trailOf(blocks)
+
   return (
     <section className="seqno-references-group" aria-label={page.title}>
       <div className="seqno-references-head" data-open={open}>
-        <Fold open={open} onToggle={() => setOpen(!open)} />
+        <Fold
+          open={open}
+          onToggle={() => {
+            setOpen(!open)
+          }}
+        />
         <PageLink name={page.name} title={page.title} className="seqno-references-page" />
       </div>
       {open ? (
         <div className="seqno-references-blocks">
           {outermost(blockIds, trail).map((blockId) => {
             const parents = trail(blockId)
+
             return (
               <div key={blockId} className="seqno-reference">
                 {parents.length === 0 ? null : (
@@ -223,19 +274,35 @@ const LinkedReferences = ({
   references,
 }: {
   readonly site: Site
-  readonly references: ReadonlyArray<PublishedReference>
+  readonly references: readonly PublishedReference[]
 }) => {
   const [open, setOpen] = useState(true)
   const title = useId()
-  if (references.length === 0) return null
+
+  if (references.length === 0) {
+    return null
+  }
+
   return (
     <div className="seqno-page-references">
       <div>
         <section className="seqno-references" aria-labelledby={title}>
           <div className="seqno-references-head" data-open={open}>
-            <Fold open={open} onToggle={() => setOpen(!open)} />
+            <Fold
+              open={open}
+              onToggle={() => {
+                setOpen(!open)
+              }}
+            />
             <h2 className="seqno-references-title">
-              <button id={title} type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
+              <button
+                id={title}
+                type="button"
+                aria-expanded={open}
+                onClick={() => {
+                  setOpen(!open)
+                }}
+              >
                 Linked references
                 <span className="seqno-references-count">{references.length}</span>
               </button>
@@ -245,6 +312,7 @@ const LinkedReferences = ({
             <div className="seqno-references-body">
               {groupByPage(references).flatMap((group) => {
                 const page = site.byId.get(group.pageId)
+
                 return page === undefined
                   ? []
                   : [
@@ -267,6 +335,7 @@ const LinkedReferences = ({
 
 const Properties = ({ page }: { readonly page: Page }) => {
   const props = visibleProps(page.props)
+
   return props.length === 0 ? null : (
     <div className="seqno-page-properties">
       <div className="seqno-page-properties-control" aria-hidden>
@@ -298,6 +367,7 @@ const PageView = ({
   readonly inJournals?: boolean
 }) => {
   const heading = useId()
+
   return (
     <div className="seqno-page">
       <article aria-labelledby={heading}>
@@ -320,6 +390,7 @@ const PageView = ({
 
 const ZoomView = ({ site, block }: { readonly site: Site; readonly block: Block }) => {
   const page = site.byId.get(block.pageId)
+
   return (
     <div className="seqno-page" data-zoomed>
       {page === undefined ? null : <title>{`${crumbLabel(block.text) || page.title}`}</title>}
@@ -332,6 +403,7 @@ const ZoomView = ({ site, block }: { readonly site: Site; readonly block: Block 
 
 const Unpublished = ({ site, name }: { readonly site: Site; readonly name: string }) => {
   const title = site.referenced.get(name)?.title ?? name
+
   return (
     <div className="seqno-page">
       <title>{title}</title>
@@ -348,15 +420,22 @@ const Unpublished = ({ site, name }: { readonly site: Site; readonly name: strin
 
 const PageRoute = ({ site, name }: { readonly site: Site; readonly name: string }) => {
   const page = site.byName.get(normalizePageName(name))
-  if (page !== undefined)
+
+  if (page !== undefined) {
     return (
       <>
         <title>{page.title}</title>
         <PageView key={page.id} site={site} page={page} />
       </>
     )
+  }
+
   const block = site.blocks.get(name.toLowerCase())
-  if (block !== undefined) return <ZoomView key={block.id} site={site} block={block} />
+
+  if (block !== undefined) {
+    return <ZoomView key={block.id} site={site} block={block} />
+  }
+
   return <Unpublished site={site} name={normalizePageName(name)} />
 }
 
@@ -389,6 +468,7 @@ const columns: ReadonlyArray<readonly [SortColumn, string]> = [
 const AllPages = ({ site }: { readonly site: Site }) => {
   const [sort, setSort] = useState<TableSort>({ column: "updated", descending: true })
   const [filter, setFilter] = useState("")
+
   const rows = visibleRows(
     pageRows(
       site.data.pages.map(({ page }) => page),
@@ -401,6 +481,7 @@ const AllPages = ({ site }: { readonly site: Site }) => {
     ),
     { sort, filter, journals: true },
   )
+
   return (
     <div {...logseq("seqno-all-pages")}>
       <title>All pages</title>
@@ -418,7 +499,9 @@ const AllPages = ({ site }: { readonly site: Site }) => {
               aria-label="Search pages"
               placeholder="Type to search"
               value={filter}
-              onChange={(event) => setFilter(event.currentTarget.value)}
+              onChange={(event) => {
+                setFilter(event.currentTarget.value)
+              }}
             />
           </div>
         </div>
@@ -434,28 +517,30 @@ const AllPages = ({ site }: { readonly site: Site }) => {
                   scope="col"
                   data-column={column}
                   aria-sort={
-                    sort.column !== column
-                      ? undefined
-                      : sort.descending
+                    sort.column === column
+                      ? sort.descending
                         ? "descending"
                         : "ascending"
+                      : undefined
                   }
                 >
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
                       setSort({
                         column,
                         descending: sort.column === column ? !sort.descending : column !== "title",
                       })
-                    }
+                    }}
                   >
                     {label}
-                    {sort.column !== column ? null : sort.descending ? (
-                      <IconArrowDown size={18} aria-hidden />
-                    ) : (
-                      <IconArrowUp size={18} aria-hidden />
-                    )}
+                    {sort.column === column ? (
+                      sort.descending ? (
+                        <IconArrowDown size={18} aria-hidden />
+                      ) : (
+                        <IconArrowUp size={18} aria-hidden />
+                      )
+                    ) : null}
                   </button>
                 </th>
               ))}
@@ -485,6 +570,7 @@ const AllPages = ({ site }: { readonly site: Site }) => {
 const Search = ({ site, onClose }: { readonly site: Site; readonly onClose: () => void }) => {
   const [text, setText] = useState("")
   const needle = text.trim().toLowerCase()
+
   const pages =
     needle === ""
       ? []
@@ -492,6 +578,7 @@ const Search = ({ site, onClose }: { readonly site: Site; readonly onClose: () =
           .map(({ page }) => page)
           .filter((page) => page.title.toLowerCase().includes(needle))
           .slice(0, 8)
+
   const blocks =
     needle === ""
       ? []
@@ -499,20 +586,26 @@ const Search = ({ site, onClose }: { readonly site: Site; readonly onClose: () =
           .flatMap(({ blocks: each }) => each)
           .filter((block) => block.text.toLowerCase().includes(needle))
           .slice(0, 12)
+
   const choose = (name: string) => {
     onClose()
     go({ _tag: "Page", name })
   }
+
   return (
     <dialog
       className="dialog site-search"
       aria-label="Search"
       ref={(dialog) => {
-        if (dialog !== null && !dialog.open) dialog.showModal()
+        if (dialog !== null && !dialog.open) {
+          dialog.showModal()
+        }
       }}
       onClose={onClose}
       onClick={(event) => {
-        if (event.target === event.currentTarget) event.currentTarget.close()
+        if (event.target === event.currentTarget) {
+          event.currentTarget.close()
+        }
       }}
     >
       <input
@@ -522,17 +615,27 @@ const Search = ({ site, onClose }: { readonly site: Site; readonly onClose: () =
         placeholder="Search for a page or block"
         autoFocus
         value={text}
-        onChange={(event) => setText(event.currentTarget.value)}
+        onChange={(event) => {
+          setText(event.currentTarget.value)
+        }}
         onKeyDown={(event) => {
           const first = pages[0]?.name ?? blocks[0]?.id
-          if (event.key === "Enter" && first !== undefined) choose(first)
+
+          if (event.key === "Enter" && first !== undefined) {
+            choose(first)
+          }
         }}
       />
       {pages.length + blocks.length === 0 ? null : (
         <ul className="site-search-results">
           {pages.map((page) => (
             <li key={page.id}>
-              <button type="button" onClick={() => choose(page.name)}>
+              <button
+                type="button"
+                onClick={() => {
+                  choose(page.name)
+                }}
+              >
                 <IconFile size={16} aria-hidden />
                 {page.title}
               </button>
@@ -540,7 +643,12 @@ const Search = ({ site, onClose }: { readonly site: Site; readonly onClose: () =
           ))}
           {blocks.map((block) => (
             <li key={block.id}>
-              <button type="button" onClick={() => choose(block.id)}>
+              <button
+                type="button"
+                onClick={() => {
+                  choose(block.id)
+                }}
+              >
                 <span className="site-search-block">{crumbLabel(block.text)}</span>
                 <span className="site-search-page">{site.byId.get(block.pageId)?.title}</span>
               </button>
@@ -575,12 +683,17 @@ const NavItem = ({
 
 const Content = ({ site, route }: { readonly site: Site; readonly route: Route }) => {
   switch (route._tag) {
-    case "Home":
+    case "Home": {
       return journalsOf(site).length > 0 ? <Journals site={site} /> : <AllPages site={site} />
-    case "AllPages":
+    }
+
+    case "AllPages": {
       return <AllPages site={site} />
-    case "Page":
+    }
+
+    case "Page": {
       return <PageRoute site={site} name={route.name} />
+    }
   }
 }
 
@@ -588,17 +701,21 @@ const leftOpen = Atom.make(matchMedia("(min-width: 1024px)").matches).pipe(Atom.
 
 export const SiteView = ({ data }: { readonly data: Published }) => {
   const [site] = useState(() => siteOf(data))
+
   const [org] = useState(
     () => new Set(data.pages.flatMap(({ page }) => (page.format === "org" ? [page.id] : []))),
   )
+
   const [properties] = useState(() => ({
     listKeys: new Set(data.listKeys),
     unparsedKeys: new Set<string>(),
   }))
+
   const route = routeOf(useAtomValue(hash))
   const [open, setOpen] = useAtom(leftOpen)
   const [searching, setSearching] = useState(false)
   const journals = journalsOf(site).length > 0
+
   return (
     <PropertySettings value={properties}>
       <PageDialects value={(pageId) => (org.has(pageId) ? "org" : "markdown")}>
@@ -632,7 +749,9 @@ export const SiteView = ({ data }: { readonly data: Published }) => {
                   aria-label="Toggle left sidebar"
                   className="icon-button"
                   aria-expanded={open}
-                  onClick={() => setOpen(!open)}
+                  onClick={() => {
+                    setOpen(!open)
+                  }}
                 >
                   <IconMenu2 size={20} aria-hidden />
                 </button>
@@ -640,7 +759,9 @@ export const SiteView = ({ data }: { readonly data: Published }) => {
                   type="button"
                   aria-label="Search"
                   className="icon-button"
-                  onClick={() => setSearching(true)}
+                  onClick={() => {
+                    setSearching(true)
+                  }}
                 >
                   <IconSearch size={20} aria-hidden />
                 </button>
@@ -701,7 +822,14 @@ export const SiteView = ({ data }: { readonly data: Published }) => {
             </div>
           </div>
         </div>
-        {searching ? <Search site={site} onClose={() => setSearching(false)} /> : null}
+        {searching ? (
+          <Search
+            site={site}
+            onClose={() => {
+              setSearching(false)
+            }}
+          />
+        ) : null}
       </PageDialects>
     </PropertySettings>
   )

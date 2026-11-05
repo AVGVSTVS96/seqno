@@ -1,11 +1,14 @@
 import { logseq, names } from "@seqno/dom"
 import { IconCalendar, IconFile, IconHash, IconPlus, IconPointFilled } from "@tabler/icons-react"
-import { useRef, type ReactNode } from "react"
+import { useRef } from "react"
+import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
 import type { EditorView } from "@codemirror/view"
-import { accept, pick, type PopupFrame } from "./completion.ts"
+import { accept, pick } from "./completion.ts"
+import type { PopupFrame } from "./completion.ts"
 import type { Range } from "./fuzzy.ts"
-import { Choice, type Popup } from "./popup.ts"
+import { Choice } from "./popup.ts"
+import type { Popup } from "./popup.ts"
 
 const labels: Readonly<Record<Popup["kind"], string>> = {
   Page: "Search for a page",
@@ -14,32 +17,38 @@ const labels: Readonly<Record<Popup["kind"], string>> = {
   Slash: "Commands",
 }
 
-const merged = (ranges: ReadonlyArray<Range>): ReadonlyArray<Range> =>
+const merged = (ranges: readonly Range[]): readonly Range[] =>
   ranges
     .toSorted((left, right) => left[0] - right[0])
-    .reduce<Array<Range>>((out, range) => {
+    .reduce<Range[]>((out, range) => {
       const last = out.at(-1)
+
       if (last !== undefined && range[0] <= last[1]) {
         out[out.length - 1] = [last[0], Math.max(last[1], range[1])]
-      } else out.push(range)
+      } else {
+        out.push(range)
+      }
+
       return out
     }, [])
 
-const Marked = ({
-  text,
-  ranges,
-}: {
-  readonly text: string
-  readonly ranges: ReadonlyArray<Range>
-}) => {
-  const parts: Array<ReactNode> = []
+const Marked = ({ text, ranges }: { readonly text: string; readonly ranges: readonly Range[] }) => {
+  const parts: ReactNode[] = []
   let at = 0
+
   for (const [from, to] of merged(ranges)) {
-    if (from > at) parts.push(text.slice(at, from))
+    if (from > at) {
+      parts.push(text.slice(at, from))
+    }
+
     parts.push(<mark key={from}>{text.slice(from, to)}</mark>)
     at = to
   }
-  if (at < text.length) parts.push(text.slice(at))
+
+  if (at < text.length) {
+    parts.push(text.slice(at))
+  }
+
   return <span className="sq-popup-text">{parts}</span>
 }
 
@@ -113,6 +122,7 @@ const Row = ({
 }) => {
   const pointer = useRef<string | null>(null)
   const active = popup.active === index
+
   return (
     <div
       role="option"
@@ -121,9 +131,16 @@ const Row = ({
       ref={active && !popup.pointer ? reveal : undefined}
       onPointerMove={(event) => {
         const at = `${event.clientX},${event.clientY}`
-        if (pointer.current === at) return
+
+        if (pointer.current === at) {
+          return
+        }
+
         pointer.current = at
-        if (!active) pick(view, index)
+
+        if (!active) {
+          pick(view, index)
+        }
       }}
       onClick={() => accept(view, index)}
     >
@@ -133,12 +150,17 @@ const Row = ({
 }
 
 const groupsOf = (popup: Popup) =>
-  popup.choices.reduce<Array<{ readonly name: string; readonly rows: Array<number> }>>(
+  popup.choices.reduce<Array<{ readonly name: string; readonly rows: number[] }>>(
     (groups, choice, index) => {
       const name = choice._tag === "Command" ? choice.command.group : ""
       const last = groups.at(-1)
-      if (last?.name === name) last.rows.push(index)
-      else groups.push({ name, rows: [index] })
+
+      if (last?.name === name) {
+        last.rows.push(index)
+      } else {
+        groups.push({ name, rows: [index] })
+      }
+
       return groups
     },
     [],
@@ -146,14 +168,21 @@ const groupsOf = (popup: Popup) =>
 
 export const PopupView = ({ frame }: { readonly frame: PopupFrame }) => {
   const { popup, view, dom } = frame
-  if (popup.choices.length === 0) return null
+
+  if (popup.choices.length === 0) {
+    return null
+  }
+
   const row = (index: number) => {
     const choice = popup.choices[index]
+
     return choice === undefined ? null : (
       <Row key={index} view={view} popup={popup} choice={choice} index={index} />
     )
   }
+
   const grouped = popup.kind === "Slash" && popup.query === ""
+
   return createPortal(
     <div
       key={`${popup.kind}:${popup.from}`}
@@ -161,7 +190,9 @@ export const PopupView = ({ frame }: { readonly frame: PopupFrame }) => {
       className={names(logseq("sq-popup").className, `sq-popup-${popup.kind.toLowerCase()}`)}
       role="listbox"
       aria-label={labels[popup.kind]}
-      onMouseDown={(event) => event.preventDefault()}
+      onMouseDown={(event) => {
+        event.preventDefault()
+      }}
     >
       {grouped
         ? groupsOf(popup).map((group) => (

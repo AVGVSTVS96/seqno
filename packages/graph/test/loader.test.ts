@@ -18,6 +18,7 @@ const history = () => {
   garden.createNode().data.set("text", "paths")
   source.commit()
   const paths = source.export({ mode: "update", from: after })
+
   return { source, snapshot, beds, paths }
 }
 

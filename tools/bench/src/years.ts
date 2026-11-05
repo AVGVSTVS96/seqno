@@ -17,7 +17,7 @@ export interface Years extends Size {
 
 const blocksPerYear = 13_000
 const pagesPerYear = 300
-const filesPerLoad = 1_000
+const filesPerLoad = 1000
 const loadsPerSlice = 4
 
 const dayOf = (date: Date) =>
@@ -27,6 +27,7 @@ export const importFiles = (
   files: ReadonlyArray<{ readonly path: string; readonly content: string }>,
 ) => {
   const byPath = new Map(files.map((file) => [file.path, file.content]))
+
   const folder = Layer.succeed(
     GraphFolder,
     GraphFolder.of({
@@ -36,6 +37,7 @@ export const importFiles = (
       remove: () => Effect.void,
     }),
   )
+
   return importGraph.pipe(Effect.provide(Layer.merge(folder, LogseqSyntaxLive)))
 }
 
@@ -49,10 +51,12 @@ export const longPageFiles = (blocks: number) => {
   const generated = generateGraph({
     seed: 7,
     blocks,
-    pages: Math.ceil(blocks / 1_000),
+    pages: Math.ceil(blocks / 1000),
     journals: 1,
   })
+
   const page = { id: "long", name: "Long page", journalDay: null }
+
   return toLogseqFiles({
     options: generated.options,
     pages: [page],
@@ -70,16 +74,21 @@ const lastById: typeof journalsByDay = (pages) =>
     blocks: blocks.map((block) => ({ ...block, pageId: longPageId })),
   }))
 
-const chunked = function* <A>(items: Iterable<A>, size: number): Generator<ReadonlyArray<A>> {
-  let chunk: Array<A> = []
+const chunked = function* <A>(items: Iterable<A>, size: number): Generator<readonly A[]> {
+  let chunk: A[] = []
+
   for (const item of items) {
     chunk.push(item)
+
     if (chunk.length === size) {
       yield chunk
       chunk = []
     }
   }
-  if (chunk.length > 0) yield chunk
+
+  if (chunk.length > 0) {
+    yield chunk
+  }
 }
 
 export type Layout = "one-tree" | "tree-per-page"
@@ -95,8 +104,9 @@ const layouts: Record<
 const generatorOptions = ({ years, density, until }: Years) => {
   const days = Math.round(years * 365.25)
   const first = new Date(until.getFullYear(), until.getMonth(), until.getDate() - days + 1)
+
   return {
-    seed: 20261011,
+    seed: 20_261_011,
     journals: days,
     pages: Math.round(years * pagesPerYear),
     blocks: Math.round(years * blocksPerYear * density),
@@ -107,6 +117,7 @@ const generatorOptions = ({ years, density, until }: Years) => {
 export const shapeOf = (years: Years) => {
   const { journals, pages, blocks } = generatorOptions(years)
   const loads = Math.ceil((pages + journals) / filesPerLoad) + (years.longPage > 0 ? 1 : 0)
+
   return {
     days: journals,
     pages: pages + journals + (years.longPage > 0 ? 1 : 0),
@@ -119,6 +130,7 @@ const loadsOf = function* (years: Years, incoming: typeof journalsByDay) {
   for (const files of chunked(logseqPageFiles(generatorOptions(years)), filesPerLoad)) {
     yield Effect.map(importFiles([configFile, ...files]), ({ pages }) => incoming(pages))
   }
+
   if (years.longPage > 0) {
     yield Effect.map(importFiles([configFile, ...longPageFiles(years.longPage)]), ({ pages }) =>
       lastById(pages),
@@ -126,9 +138,15 @@ const loadsOf = function* (years: Years, incoming: typeof journalsByDay) {
   }
 }
 
-const sliceOf = <A>(items: Iterable<A>, slice: number): ReadonlyArray<A> => {
+const sliceOf = <A>(items: Iterable<A>, slice: number): readonly A[] => {
   let at = 0
-  for (const chunk of chunked(items, loadsPerSlice)) if (at++ === slice) return chunk
+
+  for (const chunk of chunked(items, loadsPerSlice)) {
+    if (at++ === slice) {
+      return chunk
+    }
+  }
+
   return []
 }
 
@@ -142,8 +160,15 @@ const writeSlice = (
     Effect.gen(function* () {
       const { empty, incoming } = layouts[layout]
       const graph = yield* empty(String(slice + 1))
-      if (Option.isSome(before)) yield* graph.restore([before.value])
-      for (const load of sliceOf(loadsOf(years, incoming), slice)) yield* graph.load(yield* load)
+
+      if (Option.isSome(before)) {
+        yield* graph.restore([before.value])
+      }
+
+      for (const load of sliceOf(loadsOf(years, incoming), slice)) {
+        yield* graph.load(yield* load)
+      }
+
       return { snapshot: yield* graph.snapshot, version: yield* graph.version }
     }),
   )
@@ -156,6 +181,7 @@ const heapAboveWasm = "--max-old-space-size=16384"
 
 export const writeSlicesInFreshProcesses = async (folder: string, years: Years, layout: Layout) => {
   let version: typeof Version.Type = {}
+
   for (let slice = 0; slice < shapeOf(years).slices; slice++) {
     const { stdout } = await promisify(execFile)(process.execPath, [
       heapAboveWasm,
@@ -168,8 +194,10 @@ export const writeSlicesInFreshProcesses = async (folder: string, years: Years, 
       String(years.longPage),
       String(slice),
     ])
+
     version = Schema.decodeUnknownSync(Version)(stdout.trim().split("\n").at(-1))
   }
+
   return { snapshot: await readFile(slicePath(folder, shapeOf(years).slices - 1)), version }
 }
 
@@ -183,13 +211,17 @@ if (import.meta.main) {
     longPage = "0",
     slice = "0",
   ] = process.argv.slice(2)
+
   const at = Number(slice)
   Effect.runPromise(
     Effect.gen(function* () {
       const before =
         at === 0
           ? Option.none()
-          : Option.some(yield* Effect.promise(() => readFile(slicePath(folder, at - 1))))
+          : Option.some(
+              yield* Effect.promise(async () => await readFile(slicePath(folder, at - 1))),
+            )
+
       const written = yield* writeSlice(
         {
           years: Number(years),
@@ -201,11 +233,17 @@ if (import.meta.main) {
         at,
         before,
       )
-      yield* Effect.promise(() => writeFile(slicePath(folder, at), written.snapshot))
+
+      yield* Effect.promise(async () => {
+        await writeFile(slicePath(folder, at), written.snapshot)
+      })
+
       return Object.fromEntries(written.version)
     }),
   ).then(
-    (version) => console.log(JSON.stringify(version)),
+    (version) => {
+      console.log(JSON.stringify(version))
+    },
     (error: unknown) => {
       console.error(error)
       process.exit(1)

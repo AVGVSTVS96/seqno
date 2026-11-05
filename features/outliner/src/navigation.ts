@@ -11,7 +11,7 @@ export type Navigate = (target: NavigationTarget) => void
 
 export interface BlockMenuRequest {
   readonly pageId: PageId
-  readonly blockIds: readonly [BlockId, ...Array<BlockId>]
+  readonly blockIds: readonly [BlockId, ...BlockId[]]
   readonly x: number
   readonly y: number
 }

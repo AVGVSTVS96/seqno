@@ -1,7 +1,10 @@
 import potpack from "potpack"
-import { shapeRaw, type BlockId, type Command, type Vec } from "@seqno/domain"
-import { patch, type Raw } from "./commands.ts"
-import { add, sub, union, type Bounds } from "./geometry.ts"
+import { shapeRaw } from "@seqno/domain"
+import type { BlockId, Command, Vec } from "@seqno/domain"
+import { patch } from "./commands.ts"
+import type { Raw } from "./commands.ts"
+import { add, sub, union } from "./geometry.ts"
+import type { Bounds } from "./geometry.ts"
 import { settle } from "./gestures.ts"
 import type { Item, Scene } from "./model.ts"
 
@@ -16,9 +19,10 @@ interface Unit {
   readonly bounds: Bounds
 }
 
-const unitsOf = (scene: Scene, ids: ReadonlyArray<BlockId>): ReadonlyArray<Unit> =>
+const unitsOf = (scene: Scene, ids: readonly BlockId[]): readonly Unit[] =>
   ids.flatMap((id) => {
     const bounds = scene.bounds.get(id)
+
     return bounds === undefined ? [] : [{ id, bounds }]
   })
 
@@ -26,13 +30,18 @@ const width = (box: Bounds) => box.maxX - box.minX
 const height = (box: Bounds) => box.maxY - box.minY
 const centerOf = (box: Bounds): Vec => [(box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2]
 
-const shifted = (scene: Scene, id: BlockId, delta: Vec, extra: Raw): ReadonlyArray<Command> => {
+const shifted = (scene: Scene, id: BlockId, delta: Vec, extra: Raw): readonly Command[] => {
   const own = scene.byId.get(id)
-  if (own === undefined) return []
+
+  if (own === undefined) {
+    return []
+  }
+
   const still = delta[0] === 0 && delta[1] === 0
   const point = (item: Item) => (still ? {} : { point: add(item.shape.point, delta) })
   const members = (scene.members.get(id) ?? []).flatMap((member) => scene.byId.get(member) ?? [])
   const mine = { ...point(own), ...extra }
+
   return [
     ...(Object.keys(mine).length === 0 ? [] : [patch(own, mine)]),
     ...(still ? [] : members.map((item) => patch(item, point(item)))),
@@ -43,7 +52,7 @@ const placed = (
   scene: Scene,
   targets: ReadonlyArray<readonly [Unit, Vec]>,
   extra: (unit: Unit) => Raw = () => ({}),
-): ReadonlyArray<Command> =>
+): readonly Command[] =>
   settle(
     scene,
     targets.flatMap(([unit, next]) =>
@@ -51,32 +60,45 @@ const placed = (
     ),
   )
 
-export const align = (
-  scene: Scene,
-  ids: ReadonlyArray<BlockId>,
-  type: Align,
-): ReadonlyArray<Command> => {
+export const align = (scene: Scene, ids: readonly BlockId[], type: Align): readonly Command[] => {
   const units = unitsOf(scene, ids)
   const common = union(units.map(({ bounds }) => bounds))
-  if (units.length < 2 || common === null) return []
+
+  if (units.length < 2 || common === null) {
+    return []
+  }
+
   const [midX, midY] = centerOf(common)
+
   return placed(
     scene,
     units.map((unit): readonly [Unit, Vec] => {
       const { minX, minY } = unit.bounds
+
       switch (type) {
-        case "top":
+        case "top": {
           return [unit, [minX, common.minY]]
-        case "centerVertical":
+        }
+
+        case "centerVertical": {
           return [unit, [minX, midY - height(unit.bounds) / 2]]
-        case "bottom":
+        }
+
+        case "bottom": {
           return [unit, [minX, common.maxY - height(unit.bounds)]]
-        case "left":
+        }
+
+        case "left": {
           return [unit, [common.minX, minY]]
-        case "centerHorizontal":
+        }
+
+        case "centerHorizontal": {
           return [unit, [midX - width(unit.bounds) / 2, minY]]
-        case "right":
+        }
+
+        case "right": {
           return [unit, [common.maxX - width(unit.bounds), minY]]
+        }
       }
     }),
   )
@@ -84,29 +106,41 @@ export const align = (
 
 export const distribute = (
   scene: Scene,
-  ids: ReadonlyArray<BlockId>,
+  ids: readonly BlockId[],
   type: Distribute,
-): ReadonlyArray<Command> => {
+): readonly Command[] => {
   const units = unitsOf(scene, ids)
   const common = union(units.map(({ bounds }) => bounds))
-  if (units.length < 2 || common === null) return []
+
+  if (units.length < 2 || common === null) {
+    return []
+  }
+
   const axis = type === "horizontal" ? 0 : 1
   const lo = (box: Bounds) => (axis === 0 ? box.minX : box.minY)
   const hi = (box: Bounds) => (axis === 0 ? box.maxX : box.maxY)
   const length = (box: Bounds) => hi(box) - lo(box)
   const center = (unit: Unit) => centerOf(unit.bounds)[axis]
+
   const at = (unit: Unit, value: number): readonly [Unit, Vec] => [
     unit,
     axis === 0 ? [value, unit.bounds.minY] : [unit.bounds.minX, value],
   ]
+
   const span = units.reduce((sum, unit) => sum + length(unit.bounds), 0)
   const gaps = units.length - 1
+
   if (span > length(common)) {
     const first = units.toSorted((a, b) => lo(a.bounds) - lo(b.bounds))[0]
     const last = units.toSorted((a, b) => hi(b.bounds) - hi(a.bounds))[0]
-    if (first === undefined || last === undefined) return []
+
+    if (first === undefined || last === undefined) {
+      return []
+    }
+
     const step = (center(last) - center(first)) / gaps
     const start = center(first) + step
+
     return placed(
       scene,
       units
@@ -115,8 +149,10 @@ export const distribute = (
         .map((unit, index) => at(unit, start + step * index - length(unit.bounds) / 2)),
     )
   }
+
   const step = (length(common) - span) / gaps
   let next = lo(common)
+
   return placed(
     scene,
     units
@@ -124,14 +160,19 @@ export const distribute = (
       .map((unit) => {
         const target = at(unit, next)
         next += length(unit.bounds) + step
+
         return target
       }),
   )
 }
 
-export const packed = (units: ReadonlyArray<Unit>): ReadonlyMap<BlockId, Vec> => {
+export const packed = (units: readonly Unit[]): ReadonlyMap<BlockId, Vec> => {
   const common = union(units.map(({ bounds }) => bounds))
-  if (common === null) return new Map()
+
+  if (common === null) {
+    return new Map()
+  }
+
   const boxes = units.map((unit) => ({
     id: unit.id,
     w: width(unit.bounds) + 16,
@@ -139,7 +180,9 @@ export const packed = (units: ReadonlyArray<Unit>): ReadonlyMap<BlockId, Vec> =>
     x: unit.bounds.minX,
     y: unit.bounds.minY,
   }))
+
   potpack(boxes)
+
   return new Map(boxes.map(({ id, x, y }) => [id, [x + common.minX, y + common.minY]]))
 }
 
@@ -147,14 +190,16 @@ const boundLine = (item: Item | undefined) =>
   item?.shape.type === "line" &&
   (item.shape.handles.start.bindTo !== undefined || item.shape.handles.end.bindTo !== undefined)
 
-export const pack = (scene: Scene, ids: ReadonlyArray<BlockId>): ReadonlyArray<Command> => {
+export const pack = (scene: Scene, ids: readonly BlockId[]): readonly Command[] => {
   const units = unitsOf(scene, ids)
   const moving = units.filter((unit) => !boundLine(scene.byId.get(unit.id)))
   const next = packed(moving)
+
   return placed(
     scene,
     moving.flatMap((unit) => {
       const point = next.get(unit.id)
+
       return point === undefined ? [] : [[unit, point] as const]
     }),
   )
@@ -164,6 +209,7 @@ const FLIPS_SCALE = new Set(["box", "ellipse", "polygon", "pdf", "iframe", "logs
 
 const scaleOf = (item: Item): Vec => {
   const scale = shapeRaw(item.block)["scale"]
+
   return Array.isArray(scale) && typeof scale[0] === "number" && typeof scale[1] === "number"
     ? [scale[0], scale[1]]
     : [1, 1]
@@ -171,12 +217,16 @@ const scaleOf = (item: Item): Vec => {
 
 export const flip = (
   scene: Scene,
-  ids: ReadonlyArray<BlockId>,
+  ids: readonly BlockId[],
   direction: Flip,
-): ReadonlyArray<Command> => {
+): readonly Command[] => {
   const units = unitsOf(scene, ids)
   const common = union(units.map(({ bounds }) => bounds))
-  if (units.length < 2 || common === null) return []
+
+  if (units.length < 2 || common === null) {
+    return []
+  }
+
   return placed(
     scene,
     units.map((unit): readonly [Unit, Vec] => [
@@ -187,10 +237,19 @@ export const flip = (
     ]),
     (unit) => {
       const item = scene.byId.get(unit.id)
-      if (item === undefined) return {}
+
+      if (item === undefined) {
+        return {}
+      }
+
       const type = item.shape.type === "unsupported" ? item.shape.kind : item.shape.type
-      if (!FLIPS_SCALE.has(type)) return {}
+
+      if (!FLIPS_SCALE.has(type)) {
+        return {}
+      }
+
       const [sx, sy] = scaleOf(item)
+
       return { scale: direction === "horizontal" ? [-sx, 1] : [1, -sy] }
     },
   )

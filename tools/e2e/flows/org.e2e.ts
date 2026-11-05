@@ -9,6 +9,7 @@ const open = async (page: import("@playwright/test").Page, name: string) => {
   await page.getByRole("searchbox", { name: "Search" }).fill(name)
   await expect(page.getByRole("option").first()).toHaveText(name)
   await page.keyboard.press("Enter")
+
   return page.getByRole("article", { name, exact: true })
 }
 

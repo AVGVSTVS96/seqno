@@ -1,11 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
-import {
-  idle,
-  keysOf,
-  nextKeyState,
-  type KeyPress,
-  type ShortcutAction,
-} from "../src/ui/shell/shortcuts.ts"
+import { idle, keysOf, nextKeyState } from "../src/ui/shell/shortcuts.ts"
+import type { KeyPress, ShortcutAction } from "../src/ui/shell/shortcuts.ts"
 import { leftWidthAt, remember, rightWidthAt, rightWidthStep } from "../src/ui/shell/state.ts"
 
 const press = (key: string, modifiers: Partial<KeyPress> = {}): KeyPress => ({
@@ -18,10 +13,11 @@ const press = (key: string, modifiers: Partial<KeyPress> = {}): KeyPress => ({
   ...modifiers,
 })
 
-const actionsOf = (presses: ReadonlyArray<KeyPress>) =>
-  presses.reduce<{ state: typeof idle; actions: ReadonlyArray<ShortcutAction> }>(
+const actionsOf = (presses: readonly KeyPress[]) =>
+  presses.reduce<{ state: typeof idle; actions: readonly ShortcutAction[] }>(
     ({ state, actions }, next) => {
       const after = nextKeyState(state, next)
+
       return {
         state: after,
         actions: after.action === null ? actions : [...actions, after.action],

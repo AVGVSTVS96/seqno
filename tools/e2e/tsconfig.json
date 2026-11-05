@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "rootDir": ".",
     "lib": ["es2024", "dom", "dom.iterable", "dom.asynciterable"],
     "types": ["node"]
   },

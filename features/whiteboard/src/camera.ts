@@ -33,6 +33,7 @@ export const cameraBetween = (
   const p = easeInOutSine(Math.min(1, Math.max(0, progress)))
   const span = (zoom: number) => viewport.width / zoom
   const width = span(from.zoom) + (span(to.zoom) - span(from.zoom)) * p
+
   return {
     x: from.x + (to.x - from.x) * p,
     y: from.y + (to.y - from.y) * p,
@@ -49,10 +50,15 @@ export const glide = (
 ) => {
   cancelAnimationFrame(flight.current)
   const start = performance.now()
+
   const step = () => {
     const progress = (performance.now() - start) / CAMERA_MS
     set(progress >= 1 ? to : cameraBetween(from, to, viewport, progress))
-    if (progress < 1) flight.current = requestAnimationFrame(step)
+
+    if (progress < 1) {
+      flight.current = requestAnimationFrame(step)
+    }
   }
+
   step()
 }

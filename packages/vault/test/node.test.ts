@@ -7,8 +7,11 @@ import { layerNode, nodeStorage } from "@seqno/vault/node"
 import { makeDevice } from "./device.ts"
 
 const tempRoot = Effect.acquireRelease(
-  Effect.promise(() => mkdtemp(join(tmpdir(), "seqno-vault-"))),
-  (root) => Effect.promise(() => rm(root, { recursive: true, force: true })),
+  Effect.promise(async () => await mkdtemp(join(tmpdir(), "seqno-vault-"))),
+  (root) =>
+    Effect.promise(async () => {
+      await rm(root, { recursive: true, force: true })
+    }),
 )
 
 const namesIn = (root: string, dir: string) =>
@@ -61,6 +64,7 @@ describe("two devices sharing a folder on disk", () => {
     Effect.gen(function* () {
       const root = yield* tempRoot
       const members = ["mac", "ipad"]
+
       const mac = yield* makeDevice({
         id: "mac",
         peer: "1",
@@ -68,6 +72,7 @@ describe("two devices sharing a folder on disk", () => {
         storage: layerNode(root),
         compactAfterFiles: 2,
       })
+
       const ipad = yield* makeDevice({ id: "ipad", peer: "2", members, storage: layerNode(root) })
 
       yield* mac.type("one ")
@@ -97,12 +102,14 @@ describe("two devices sharing a folder on disk", () => {
   it.effect("treats an .icloud stub as not downloaded and never reads it", () =>
     Effect.gen(function* () {
       const root = yield* tempRoot
+
       const ipad = yield* makeDevice({
         id: "ipad",
         peer: "2",
         members: ["ipad"],
         storage: layerNode(root),
       })
+
       yield* Effect.promise(async () => {
         await mkdir(join(root, "updates/mac"), { recursive: true })
         await writeFile(join(root, "updates/mac/.0.loro.icloud"), "<plist/>")

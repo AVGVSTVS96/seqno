@@ -2,6 +2,7 @@ import { Effect, Option, Schema } from "effect"
 import { BlockId, PageId } from "@seqno/domain"
 
 export const KnownText = Schema.Struct({ text: Schema.String, ids: Schema.Array(BlockId) })
+
 export type KnownText = typeof KnownText.Type
 
 export const FileRecord = Schema.Struct({
@@ -10,18 +11,20 @@ export const FileRecord = Schema.Struct({
   size: Schema.Number,
   modified: Schema.Number,
 })
+
 export type FileRecord = typeof FileRecord.Type
 
 export const MirrorVersion = Schema.Record(Schema.String, Schema.Int)
+
 export type MirrorVersion = typeof MirrorVersion.Type
 
 export interface MirrorStore {
   readonly records: Effect.Effect<ReadonlyMap<string, FileRecord>>
-  readonly texts: (path: string) => Effect.Effect<ReadonlyArray<KnownText>>
+  readonly texts: (path: string) => Effect.Effect<readonly KnownText[]>
   readonly put: (
     path: string,
     record: FileRecord,
-    texts: ReadonlyArray<KnownText>,
+    texts: readonly KnownText[],
   ) => Effect.Effect<void>
   readonly drop: (path: string) => Effect.Effect<void>
   readonly version: Effect.Effect<Option.Option<MirrorVersion>>
@@ -31,8 +34,9 @@ export interface MirrorStore {
 
 export const memoryMirrorStore = (): MirrorStore => {
   const records = new Map<string, FileRecord>()
-  const texts = new Map<string, ReadonlyArray<KnownText>>()
+  const texts = new Map<string, readonly KnownText[]>()
   const state = { version: Option.none<MirrorVersion>() }
+
   return {
     records: Effect.sync(() => new Map(records)),
     texts: (path) => Effect.sync(() => texts.get(path) ?? []),
@@ -64,6 +68,7 @@ const StoredRecord = Schema.Struct({
   path: Schema.String,
   record: FileRecord,
 })
+
 const StoredTexts = Schema.Struct({ texts: Schema.Array(KnownText) })
 const StoredVersion = Schema.Struct({ version: MirrorVersion })
 
@@ -71,8 +76,8 @@ const decodeRecords = Schema.decodeUnknownOption(Schema.Array(StoredRecord))
 const decodeTexts = Schema.decodeUnknownOption(StoredTexts)
 const decodeVersion = Schema.decodeUnknownOption(StoredVersion)
 
-const openDatabase = () =>
-  new Promise<IDBDatabase>((resolve, reject) => {
+const openDatabase = async () =>
+  await new Promise<IDBDatabase>((resolve, reject) => {
     const opening = indexedDB.open("seqno-mirror", 1)
     opening.addEventListener("upgradeneeded", () => {
       const records = opening.result.createObjectStore("records", { keyPath: ["graph", "path"] })
@@ -80,23 +85,26 @@ const openDatabase = () =>
       opening.result.createObjectStore("texts")
       opening.result.createObjectStore("versions")
     })
-    opening.addEventListener("success", () => resolve(opening.result))
-    opening.addEventListener("error", () =>
-      reject(opening.error ?? new Error("IndexedDB open failed")),
-    )
+    opening.addEventListener("success", () => {
+      resolve(opening.result)
+    })
+    opening.addEventListener("error", () => {
+      reject(opening.error ?? new Error("IndexedDB open failed"))
+    })
   })
 
 const opened: { database?: Promise<IDBDatabase> } = {}
 
-const database = Effect.promise(() => {
+const database = Effect.promise(async () => {
   opened.database ??= openDatabase()
-  return opened.database
+
+  return await opened.database
 })
 
 type StoreName = "records" | "texts" | "versions"
 
 const run = <A>(
-  names: ReadonlyArray<StoreName>,
+  names: readonly StoreName[],
   mode: IDBTransactionMode,
   body: (transaction: IDBTransaction, done: (value: A) => void) => void,
 ) =>
@@ -107,26 +115,28 @@ const run = <A>(
       body(transaction, (value) => {
         result.value = value
       })
-      transaction.addEventListener("complete", () =>
+      transaction.addEventListener("complete", () => {
         resume(
           "value" in result
             ? Effect.succeed(result.value)
             : Effect.die(new Error("IndexedDB gave no result")),
-        ),
-      )
-      transaction.addEventListener("error", () =>
-        resume(Effect.die(transaction.error ?? new Error("IndexedDB request failed"))),
-      )
-      transaction.addEventListener("abort", () =>
-        resume(Effect.die(transaction.error ?? new Error("IndexedDB request aborted"))),
-      )
+        )
+      })
+      transaction.addEventListener("error", () => {
+        resume(Effect.die(transaction.error ?? new Error("IndexedDB request failed")))
+      })
+      transaction.addEventListener("abort", () => {
+        resume(Effect.die(transaction.error ?? new Error("IndexedDB request aborted")))
+      })
     }),
   )
 
 const read = (name: StoreName, query: (store: IDBObjectStore) => IDBRequest) =>
   run<unknown>([name], "readonly", (transaction, done) => {
     const request = query(transaction.objectStore(name))
-    request.addEventListener("success", () => done(request.result))
+    request.addEventListener("success", () => {
+      done(request.result)
+    })
   })
 
 export const indexedDbMirrorStore = (graph: string): MirrorStore => ({
@@ -173,6 +183,7 @@ export const indexedDbMirrorStore = (graph: string): MirrorStore => ({
         records.delete(key)
         texts.delete(key)
       }
+
       transaction.objectStore("versions").delete(graph)
       done(undefined)
     })

@@ -2,16 +2,17 @@ import type { SeedResult, Violations } from "./sim.ts"
 
 export type Finished = SeedResult & { readonly rssMB: number }
 
-const sum = (xs: ReadonlyArray<number>) => xs.reduce((a, b) => a + b, 0)
+const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0)
 
-const pct = (xs: ReadonlyArray<number>, p: number) => {
+const pct = (xs: readonly number[], p: number) => {
   const sorted = xs.toSorted((a, b) => a - b)
+
   return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? 0
 }
 
 const minutes = (ms: number) => Number((ms / 60_000).toFixed(1))
 
-const mean = (xs: ReadonlyArray<number>) => (xs.length === 0 ? 0 : Math.round(sum(xs) / xs.length))
+const mean = (xs: readonly number[]) => (xs.length === 0 ? 0 : Math.round(sum(xs) / xs.length))
 
 const violationKeys: ReadonlyArray<keyof Violations> = [
   "lostCoverage",
@@ -27,13 +28,14 @@ const violationKeys: ReadonlyArray<keyof Violations> = [
 
 export const summarize = (
   config: object,
-  results: ReadonlyArray<Finished>,
+  results: readonly Finished[],
   crashes: ReadonlyArray<{ readonly seed: number; readonly crash: string }>,
   wallS: number,
 ) => {
   const failed = results.filter((r) => !r.ok)
   const catchUps = results.flatMap((r) => r.catchUps.filter((c) => !c.interrupted))
   const converge = results.map((r) => r.quiescenceToConvergeMs)
+
   return {
     config,
     seeds: results.length + crashes.length,
@@ -108,7 +110,10 @@ export const summarize = (
       rejected: sum(results.map((r) => r.ops.rejected)),
       cyclePairs: sum(results.map((r) => r.ops.cyclePairs)),
       byKind: results.reduce<Record<string, number>>((acc, r) => {
-        for (const [kind, n] of Object.entries(r.ops)) acc[kind] = (acc[kind] ?? 0) + n
+        for (const [kind, n] of Object.entries(r.ops)) {
+          acc[kind] = (acc[kind] ?? 0) + n
+        }
+
         return acc
       }, {}),
       restarts: sum(results.map((r) => r.restarts)),

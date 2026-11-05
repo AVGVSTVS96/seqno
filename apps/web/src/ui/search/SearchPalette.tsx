@@ -19,18 +19,13 @@ import {
 import { useMatchRoute, useRouter } from "@tanstack/react-router"
 import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import {
-  Fragment,
-  useContext,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react"
+import { Fragment, useContext, useId, useRef, useState } from "react"
+import type { KeyboardEvent, ReactNode } from "react"
 import { logseq } from "@seqno/dom"
-import { blockRefId, type BlockId, type Page } from "@seqno/domain"
-import { chosenThemes, pluginCommands, runtimeThemes, type PluginTheme } from "@seqno/plugins"
+import { blockRefId } from "@seqno/domain"
+import type { BlockId, Page } from "@seqno/domain"
+import { chosenThemes, pluginCommands, runtimeThemes } from "@seqno/plugins"
+import type { PluginTheme } from "@seqno/plugins"
 import type { PageStat } from "@seqno/rpc"
 import {
   allPages,
@@ -42,8 +37,8 @@ import {
   resolvedTheme,
   rightSidebar,
   searchOpen,
-  type SidebarItem,
 } from "../../atoms.ts"
+import type { SidebarItem } from "../../atoms.ts"
 import { openPdf } from "../assets.ts"
 import { pageStats, referencedOnly } from "../pages/atoms.ts"
 import { applyTheme, themeChosen } from "../plugins/PluginsDialog.tsx"
@@ -53,8 +48,8 @@ import {
   commandHistory,
   pluginPaletteCommands,
   used,
-  type RunnableCommand,
 } from "../shell/commands.ts"
+import type { RunnableCommand } from "../shell/commands.ts"
 import {
   codeHits,
   isSearchKey,
@@ -66,25 +61,15 @@ import {
   paletteQuery,
   searchShortcut,
 } from "./atoms.ts"
-import {
-  filterLabel,
-  groupsOf,
-  highlight,
-  itemKey,
-  noHits,
-  type Filter,
-  type GraphFile,
-  type Group,
-  type Item,
-  type ThemeOption,
-} from "./model.ts"
+import { filterLabel, groupsOf, highlight, itemKey, noHits } from "./model.ts"
+import type { Filter, GraphFile, Group, Item, ThemeOption } from "./model.ts"
 import { Keys } from "../shell/Keys.tsx"
 import { onMac } from "../shell/shortcuts.ts"
 import searchCss from "./search.css?inline"
 
 const mod = onMac ? "⌘" : "Ctrl"
 
-const noStats: ReadonlyArray<PageStat> = []
+const noStats: readonly PageStat[] = []
 
 const Marked = ({ text, query }: { readonly text: string; readonly query: string }) =>
   highlight(text, query).map((part, at) =>
@@ -108,73 +93,99 @@ const filterIcons: Readonly<Record<Filter, ReactNode>> = {
 
 const iconOf = (item: Item): ReactNode => {
   switch (item._tag) {
-    case "Create":
+    case "Create": {
       return <IconSquarePlus2 size={14} aria-hidden />
-    case "Page":
+    }
+
+    case "Page": {
       return item.page.tag === true ? (
         <IconHash size={14} aria-hidden />
       ) : (
         <IconFile size={14} aria-hidden />
       )
-    case "Block":
+    }
+
+    case "Block": {
       return <IconPointFilled size={14} aria-hidden />
-    case "Command":
+    }
+
+    case "Command": {
       return <IconCommand size={14} aria-hidden />
-    case "Filter":
+    }
+
+    case "Filter": {
       return filterIcons[item.filter]
-    case "File":
+    }
+
+    case "File": {
       return <IconFile size={14} aria-hidden />
-    case "Theme":
+    }
+
+    case "Theme": {
       return item.theme.selected ? (
         <IconSquareCheck size={14} aria-hidden />
       ) : (
         <IconPalette size={14} aria-hidden />
       )
+    }
   }
 }
 
 const textOf = (item: Item, query: string): ReactNode => {
   switch (item._tag) {
-    case "Create":
+    case "Create": {
       return (
         <>
           Create page
           <span className="seqno-palette-detail"> — Create page called '{item.title}'</span>
         </>
       )
-    case "Page":
+    }
+
+    case "Page": {
       return <Marked text={item.page.title} query={query} />
-    case "Block":
+    }
+
+    case "Block": {
       return <Marked text={item.block.text} query={query} />
-    case "Command":
+    }
+
+    case "Command": {
       return <Marked text={item.command.label} query={query} />
-    case "File":
+    }
+
+    case "File": {
       return <Marked text={item.file.path} query={query} />
-    case "Filter":
+    }
+
+    case "Filter": {
       return (
         <>
           {item.text}
           <span className="seqno-palette-detail"> — Add filter to search</span>
         </>
       )
-    case "Theme":
+    }
+
+    case "Theme": {
       return (
         <>
           <Marked text={item.theme.name} query={query} />
           <span className="seqno-palette-detail"> — {item.theme.detail}</span>
         </>
       )
+    }
   }
 }
 
-const stepsOf = (combo: ReadonlyArray<string>) =>
-  combo.reduce<ReadonlyArray<ReadonlyArray<string>>>(
+const stepsOf = (combo: readonly string[]) =>
+  combo.reduce<ReadonlyArray<readonly string[]>>(
     (steps, key) =>
       key === "then" ? [...steps, []] : [...steps.slice(0, -1), [...(steps.at(-1) ?? []), key]],
     [[]],
   )
 
-const Shortcut = ({ combos }: { readonly combos: ReadonlyArray<ReadonlyArray<string>> }) =>
+const Shortcut = ({ combos }: { readonly combos: ReadonlyArray<readonly string[]> }) =>
   combos.length === 0 ? null : (
     <span className="seqno-palette-shortcut">
       {combos.map((combo, at) => (
@@ -220,50 +231,68 @@ const refOf = (item: Item) =>
 
 const copyRef = (item: Item) => {
   const ref = refOf(item)
-  if (ref !== null) void navigator.clipboard.writeText(ref).catch(() => undefined)
+
+  if (ref !== null) {
+    void navigator.clipboard.writeText(ref).catch(() => undefined)
+  }
 }
 
 const useCurrentPage = (): Page | undefined => {
   const onPage = useMatchRoute()({ to: "/page/$name" })
   const named = useAtomValue(pageNamed(onPage === false ? "" : onPage.name))
+
   return Option.getOrUndefined(AsyncResult.getOrElse(named, () => Option.none()))
 }
 
 const actionOf = (item: Item) => {
   switch (item._tag) {
-    case "Create":
+    case "Create": {
       return "Create"
-    case "Command":
+    }
+
+    case "Command": {
       return "Trigger"
-    case "Filter":
+    }
+
+    case "Filter": {
       return "Filter"
-    case "Theme":
+    }
+
+    case "Theme": {
       return "Apply theme"
-    case "File":
+    }
+
+    case "File": {
       return "Open"
+    }
+
     case "Page":
-    case "Block":
+    case "Block": {
       return null
+    }
   }
 }
 
 const Tip = ({ filter }: { readonly filter: Filter | null }) => {
   const [slash] = useState(() => Math.random() < 0.5)
+
   return (
     <div className="seqno-palette-tip">
       <span className="seqno-palette-tip-title">Tip:</span>
       <span className="seqno-palette-tip-text">
-        {filter !== null ? (
-          <>
-            Press <Keys keys={["escape"]} /> to clear search filter
-          </>
-        ) : slash ? (
-          <>
-            Type <Keys keys={["/"]} /> to filter search results
-          </>
+        {filter === null ? (
+          slash ? (
+            <>
+              Type <Keys keys={["/"]} /> to filter search results
+            </>
+          ) : (
+            <>
+              Press <Keys keys={["shift", "enter"]} /> to open a result in the sidebar
+            </>
+          )
         ) : (
           <>
-            Press <Keys keys={["shift", "enter"]} /> to open a result in the sidebar
+            Press <Keys keys={["escape"]} /> to clear search filter
           </>
         )}
       </span>
@@ -272,7 +301,7 @@ const Tip = ({ filter }: { readonly filter: Filter | null }) => {
 }
 
 const themeOptions = (
-  themes: ReadonlyArray<PluginTheme>,
+  themes: readonly PluginTheme[],
   chosen: Parameters<typeof themeChosen>[0],
   mode: "light" | "dark",
 ): ReadonlyArray<ThemeOption & { readonly entry: PluginTheme | null }> => [
@@ -305,13 +334,16 @@ const Palette = ({
   const currentPage = useCurrentPage()
   const filter = chosenFilter === "current-page" && currentPage === undefined ? null : chosenFilter
   const hits = AsyncResult.getOrElse(useAtomValue(paletteHits), () => noHits)
+
   const onPage = AsyncResult.getOrElse(
     useAtomValue(pageHits(currentPage?.id ?? null)),
     () => noHits,
   )
+
   const pages = useAtomValue(allPages)
   const code = AsyncResult.getOrElse(useAtomValue(codeHits), () => noHits)
-  const files: ReadonlyArray<GraphFile> = [
+
+  const files: readonly GraphFile[] = [
     ...AsyncResult.getOrElse(useAtomValue(pageFiles), () => []).map((file): GraphFile => ({
       path: file.path,
       target: { _tag: "Page", name: file.name },
@@ -325,14 +357,17 @@ const Palette = ({
       target: { _tag: "Asset", url: asset.url },
     })),
   ]
+
   const stats = AsyncResult.getOrElse(useAtomValue(pageStats), () => noStats)
   const history = useAtomValue(commandHistory)
   const plugins = useAtomValue(pluginCommands)
+
   const themes = themeOptions(
     useAtomValue(runtimeThemes),
     useAtomValue(chosenThemes),
     useAtomValue(resolvedTheme),
   )
+
   const setOpen = useAtomSet(searchOpen)
   const updateSidebar = useAtomSet(rightSidebar)
   const create = useAtomSet(createPage, { mode: "promiseExit" })
@@ -344,10 +379,12 @@ const Palette = ({
   const input = useRef<HTMLInputElement | null>(null)
   const ids = useId()
   const referenced = useAtomValue(referencedOnly)
-  const commands: ReadonlyArray<RunnableCommand> = byUse(
+
+  const commands: readonly RunnableCommand[] = byUse(
     [...builtInCommands(registry, router), ...pluginPaletteCommands(registry, plugins)],
     history,
   )
+
   const groups = groupsOf({
     query,
     hits,
@@ -370,6 +407,7 @@ const Palette = ({
     codeHits: code,
     files,
   })
+
   const items = groups.flatMap((group) => group.items)
   const fresh = active.query === query && active.filter === filter
   const index = fresh ? Math.min(active.index, items.length - 1) : 0
@@ -405,7 +443,11 @@ const Palette = ({
 
   const trigger = (id: string) => {
     const command = commands.find((one) => one.id === id)
-    if (command === undefined) return
+
+    if (command === undefined) {
+      return
+    }
+
     dialog.current?.close()
     onClose()
     used(registry, id)
@@ -415,64 +457,116 @@ const Palette = ({
   const openFile = (file: GraphFile, sidebar: boolean) => {
     if (file.target._tag === "Page") {
       const name = file.target.name
-      return sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+
+      sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+
+      return
     }
+
     onClose()
-    if (file.target._tag === "Raw")
+
+    if (file.target._tag === "Raw") {
       return void router.navigate({ to: "/file/$path", params: { path: file.path } })
-    if (file.path.toLowerCase().endsWith(".pdf")) openPdf(registry, `../${file.path}`)
-    else window.open(file.target.url, "_blank", "noopener")
+    }
+
+    if (file.path.toLowerCase().endsWith(".pdf")) {
+      openPdf(registry, `../${file.path}`)
+    } else {
+      window.open(file.target.url, "_blank", "noopener")
+    }
   }
 
   const open = async (item: Item, sidebar: boolean) => {
     switch (item._tag) {
-      case "Command":
-        return trigger(item.command.id)
+      case "Command": {
+        trigger(item.command.id)
+
+        return
+      }
+
       case "Filter": {
         const slash = query.lastIndexOf("/")
-        return narrow(item.filter, slash === -1 ? query : query.slice(0, slash))
+
+        narrow(item.filter, slash === -1 ? query : query.slice(0, slash))
+
+        return
       }
+
       case "Theme": {
         const picked = themes.find((theme) => theme.url === item.theme.url)
-        if (picked !== undefined) applyTheme(registry, picked.entry)
-        return onClose()
+
+        if (picked !== undefined) {
+          applyTheme(registry, picked.entry)
+        }
+
+        onClose()
+
+        return
       }
+
       case "Create": {
         const created = await create(item.title)
-        if (Exit.isFailure(created)) return
+
+        if (Exit.isFailure(created)) {
+          return
+        }
+
         const name = created.value
-        return sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+
+        sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+
+        return
       }
-      case "File":
-        return openFile(item.file, sidebar)
-      case "Page":
-        return sidebar
-          ? toSidebar({ _tag: "Page", name: item.page.name })
-          : goTo(item.page.name, null)
-      case "Block":
-        return sidebar
+
+      case "File": {
+        openFile(item.file, sidebar)
+
+        return
+      }
+
+      case "Page": {
+        sidebar ? toSidebar({ _tag: "Page", name: item.page.name }) : goTo(item.page.name, null)
+
+        return
+      }
+
+      case "Block": {
+        sidebar
           ? toSidebar({ _tag: "Block", blockId: item.block.id })
           : goTo(item.page.name, item.block.id)
+
+        return
+      }
     }
   }
 
   const starts = groups.map((_, at) =>
     groups.slice(0, at).reduce((sum, group) => sum + group.items.length, 0),
   )
+
   const groupOf = (at: number) =>
     groups.find((group, position) => at < (starts[position] ?? 0) + group.items.length)
 
-  const toggleGroup = (id: Group["id"]) =>
+  const toggleGroup = (id: Group["id"]) => {
     setExpanded((now) => {
       const next = new Set(now)
-      if (!next.delete(id)) next.add(id)
+
+      if (!next.delete(id)) {
+        next.add(id)
+      }
+
       return next
     })
+  }
 
   const dismiss = () => {
-    if (filter !== null) narrow(null, query)
-    else if (query !== "") setQuery("")
-    else onClose()
+    if (filter !== null) {
+      narrow(null, query)
+    } else if (query === "") {
+      onClose()
+    } else {
+      setQuery("")
+    }
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -480,6 +574,7 @@ const Palette = ({
     const next = event.key === "ArrowDown" || (event.ctrlKey && event.key === "n")
     const previous = event.key === "ArrowUp" || (event.ctrlKey && event.key === "p")
     const narrowed = paletteKey(event)
+
     if (isSearchKey(event)) {
       event.preventDefault()
       onClose()
@@ -489,7 +584,10 @@ const Palette = ({
     } else if ((event.metaKey || event.ctrlKey) && event.key === "ArrowDown") {
       event.preventDefault()
       const group = groupOf(index)
-      if (group !== undefined && group.total > 1) toggleGroup(group.id)
+
+      if (group !== undefined && group.total > 1) {
+        toggleGroup(group.id)
+      }
     } else if ((next || previous) && count > 0) {
       event.preventDefault()
       choose((index + (next ? 1 : count - 1)) % count)
@@ -517,7 +615,11 @@ const Palette = ({
       data-keeps-selection
       ref={(element) => {
         dialog.current = element
-        if (element === null || element.open) return
+
+        if (element === null || element.open) {
+          return
+        }
+
         returnTo.current =
           document.activeElement instanceof HTMLElement ? document.activeElement : null
         element.showModal()
@@ -527,7 +629,9 @@ const Palette = ({
         dismiss()
       }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (event.target === event.currentTarget) {
+          onClose()
+        }
       }}
     >
       <style href="seqno/search" precedence="pages">
@@ -546,8 +650,12 @@ const Palette = ({
           aria-controls={`${ids}-results`}
           aria-activedescendant={current === undefined ? undefined : optionId(index)}
           autoFocus
-          onFocus={(event) => event.currentTarget.select()}
-          onChange={(event) => setQuery(event.currentTarget.value)}
+          onFocus={(event) => {
+            event.currentTarget.select()
+          }}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value)
+          }}
           onKeyDown={onKeyDown}
         />
       </div>
@@ -560,8 +668,12 @@ const Palette = ({
               type="button"
               aria-label="Clear filter"
               className="seqno-palette-filter-clear"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => narrow(null, query)}
+              onMouseDown={(event) => {
+                event.preventDefault()
+              }}
+              onClick={() => {
+                narrow(null, query)
+              }}
             >
               <IconX size={18} aria-hidden />
             </button>
@@ -569,6 +681,7 @@ const Palette = ({
         )}
         {groups.map((group, position) => {
           const start = starts[position] ?? 0
+
           return (
             <div key={group.id} className="seqno-palette-group" data-group={group.id}>
               {group.title === null ? null : (
@@ -580,8 +693,12 @@ const Palette = ({
                     <button
                       type="button"
                       {...logseq("seqno-palette-more")}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => toggleGroup(group.id)}
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                      }}
+                      onClick={() => {
+                        toggleGroup(group.id)
+                      }}
                     >
                       <span>{expanded.has(group.id) ? "Show less" : "Show more"}</span>
                       <span>{mod}</span>
@@ -604,9 +721,13 @@ const Palette = ({
                     className="seqno-palette-item"
                     data-kind={item._tag}
                     onMouseMove={() => {
-                      if (start + at !== index) setActive({ query, filter, index: start + at })
+                      if (start + at !== index) {
+                        setActive({ query, filter, index: start + at })
+                      }
                     }}
-                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                    }}
                     onClick={(event) => void open(item, event.shiftKey)}
                   >
                     <Row item={item} query={query} />
@@ -621,17 +742,7 @@ const Palette = ({
         <Tip filter={filter} />
         {current === undefined ? null : (
           <div className="seqno-palette-actions">
-            {action !== null ? (
-              <button
-                type="button"
-                {...logseq("seqno-palette-action")}
-                data-active
-                onClick={() => void open(current, false)}
-              >
-                <span>{action}</span>
-                <Keys keys={["enter"]} />
-              </button>
-            ) : (
+            {action === null ? (
               <>
                 <button
                   type="button"
@@ -652,12 +763,24 @@ const Palette = ({
                 <button
                   type="button"
                   {...logseq("seqno-palette-action")}
-                  onClick={() => copyRef(current)}
+                  onClick={() => {
+                    copyRef(current)
+                  }}
                 >
                   <span>Copy ref</span>
                   <Keys keys={["mod", "c"]} />
                 </button>
               </>
+            ) : (
+              <button
+                type="button"
+                {...logseq("seqno-palette-action")}
+                data-active
+                onClick={() => void open(current, false)}
+              >
+                <span>{action}</span>
+                <Keys keys={["enter"]} />
+              </button>
             )}
           </div>
         )}
@@ -673,12 +796,24 @@ export const SearchPalette = () => {
   const matchRoute = useMatchRoute()
   const router = useRouter()
   const onRoute = matchRoute({ to: "/search" }) !== false
-  if (!AsyncResult.isSuccess(graph) || !(open || onRoute)) return null
+
+  if (!AsyncResult.isSuccess(graph) || !(open || onRoute)) {
+    return null
+  }
+
   const close = () => {
     setOpen(false)
-    if (!onRoute) return
-    if (router.history.canGoBack()) router.history.back()
-    else void router.navigate({ to: "/" })
+
+    if (!onRoute) {
+      return
+    }
+
+    if (router.history.canGoBack()) {
+      router.history.back()
+    } else {
+      void router.navigate({ to: "/" })
+    }
   }
+
   return <Palette onRoute={onRoute} onClose={close} />
 }

@@ -1,9 +1,12 @@
-import { isFixedField, type Field, type FixedField } from "./ast.ts"
+import { isFixedField } from "./ast.ts"
+import type { Field, FixedField } from "./ast.ts"
 import { fail } from "./error.ts"
 import type { BlockFacets, TaskFacets } from "./facets.ts"
 
 export type FieldType = "name" | "string" | "date" | "time" | "bool" | "any" | "id"
+
 export type Owner = "block" | "page"
+
 export type Primitive = string | number | boolean
 
 export type Storage =
@@ -23,10 +26,10 @@ export interface FieldDef {
   readonly storage: Storage
   readonly key: string
   readonly keyed: boolean
-  readonly values: (f: BlockFacets) => ReadonlyArray<Primitive>
+  readonly values: (f: BlockFacets) => readonly Primitive[]
 }
 
-const opt = <A>(a: A | null | undefined): ReadonlyArray<A> => (a == null ? [] : [a])
+const opt = <A>(a: A | null | undefined): readonly A[] => (a == null ? [] : [a])
 const quote = (s: string) => `'${s.replaceAll("'", "''")}'`
 const column = (expr: (alias: string) => string): Storage => ({ _tag: "Column", expr })
 
@@ -166,8 +169,12 @@ const property = (owner: Owner, key: string): FieldDef => ({
 const PROPERTY = /^(page\.)?property\.(.+)$/
 
 export const fieldDef = (field: Field): FieldDef => {
-  if (isFixedField(field)) return FIXED[field]
+  if (isFixedField(field)) {
+    return FIXED[field]
+  }
+
   const [, page, key] = PROPERTY.exec(field) ?? []
+
   return key === undefined
     ? fail(`field ${field} has no storage`)
     : property(page === undefined ? "block" : "page", key)

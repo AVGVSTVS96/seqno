@@ -6,7 +6,9 @@ import { notify } from "./Notices.tsx"
 export const rebuildIndex = appRuntime.fn((_: void, get) =>
   Effect.flatMap(Effect.service(CoreClient), (core) => core.RebuildIndex()).pipe(
     Effect.tap(() =>
-      Effect.sync(() => notify(get.registry, "Search indices rebuilt successfully!")),
+      Effect.sync(() => {
+        notify(get.registry, "Search indices rebuilt successfully!")
+      }),
     ),
   ),
 )

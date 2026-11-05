@@ -1,4 +1,5 @@
-import { logseq, type SidebarItemType } from "@seqno/dom"
+import { logseq } from "@seqno/dom"
+import type { SidebarItemType } from "@seqno/dom"
 import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import {
   IconCaretRightFilled,
@@ -12,8 +13,10 @@ import {
 import { useMatchRoute, useNavigate } from "@tanstack/react-router"
 import { Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { useContext, useId, useState, type ReactNode } from "react"
-import { normalizePageName, type BlockId } from "@seqno/domain"
+import { useContext, useId, useState } from "react"
+import type { ReactNode } from "react"
+import { normalizePageName } from "@seqno/domain"
+import type { BlockId } from "@seqno/domain"
 import { blockAtom, ScrollContent } from "@seqno/outliner"
 import {
   allPages,
@@ -38,6 +41,7 @@ import { rightSidebarWidth, rightWidthAt, rightWidthStep } from "./state.ts"
 
 const PageTitle = ({ name }: { readonly name: string }) => {
   const page = useAtomValue(allPages).find((candidate) => candidate.name === name)
+
   return (
     <span className="sidebar-item-page">
       <IconFile size={14} aria-hidden />
@@ -50,6 +54,7 @@ const BlockTitle = ({ blockId }: { readonly blockId: BlockId }) => {
   const known = AsyncResult.getOrElse(useAtomValue(pages), () => [])
   const block = AsyncResult.getOrElse(useAtomValue(blockAtom(blockId)), () => null)
   const page = known.find((candidate) => candidate.id === block?.pageId)
+
   return <span className="sidebar-item-breadcrumb">{page?.title ?? ""}</span>
 }
 
@@ -80,6 +85,7 @@ const CurrentPageGraph = () => {
   const day = useAtomValue(today)
   const todays = useAtomValue(journals).find((page) => page.journalDay === day)
   const name = onPage === false ? todays?.name : normalizePageName(onPage.name)
+
   return name === undefined ? null : <PageGraph name={name} />
 }
 
@@ -104,11 +110,13 @@ const itemType = (item: SidebarItem): SidebarItemType =>
 
 const SidebarBlock = ({ blockId }: { readonly blockId: BlockId }) => {
   const known = AsyncResult.getOrElse(useAtomValue(pages), () => [])
+
   return AsyncResult.match(useAtomValue(blockAtom(blockId)), {
     onInitial: () => null,
     onFailure: () => <p className="sidebar-item-problem">This block could not be loaded.</p>,
     onSuccess: ({ value }) => {
       const page = known.find((candidate) => candidate.id === value.pageId)
+
       return page === undefined ? null : <PageView page={page} zoom={value.id} />
     },
   })
@@ -118,7 +126,9 @@ const ContentsBody = () => {
   const found = AsyncResult.getOrElse(useAtomValue(pageNamed(contentsItem.name)), () =>
     Option.none(),
   )
+
   const run = useAtomSet(dispatch, { mode: "promise" })
+
   return Option.match(found, {
     onSome: (page) => <PageView page={page} zoom={null} />,
     onNone: () => (
@@ -128,7 +138,11 @@ const ContentsBody = () => {
         onClick={() =>
           void run({ _tag: "CreatePage", title: "Contents" }).then((events) => {
             const created = events.find((event) => event._tag === "PageUpserted")
-            if (created?._tag !== "PageUpserted") return
+
+            if (created?._tag !== "PageUpserted") {
+              return
+            }
+
             return run({
               _tag: "InsertBlock",
               pageId: created.page.id,
@@ -185,6 +199,7 @@ const Card = ({
 }) => {
   const headerId = useId()
   const menu = usePopover({ placement: { align: "start", gap: -3, inset: 0 }, kind: "menu" })
+
   const entries: ReadonlyArray<ReadonlyArray<readonly [string, () => void]>> = [
     [
       ["Close", actions.close],
@@ -207,7 +222,9 @@ const Card = ({
     ],
     actions.openAsPage === null ? [] : [["Open as page", actions.openAsPage]],
   ]
+
   const groups = entries.filter((group) => group.length > 0)
+
   return (
     <section
       {...logseq("sidebar-item", itemType(item))}
@@ -222,7 +239,9 @@ const Card = ({
           aria-expanded={!collapsed}
           onClick={actions.toggle}
           onPointerUp={(event) => {
-            if (event.button === 1) actions.close()
+            if (event.button === 1) {
+              actions.close()
+            }
           }}
         >
           <span className="sidebar-item-arrow" aria-hidden>
@@ -280,7 +299,7 @@ const Group = ({
   </>
 )
 
-const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
+const Cards = ({ items }: { readonly items: readonly SidebarItem[] }) => {
   const registry = useContext(RegistryContext)
   const updateSidebar = useAtomSet(rightSidebar)
   const navigate = useNavigate()
@@ -288,31 +307,46 @@ const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
   const shown = items.length === 0 ? [contentsItem] : items
   const keys = shown.map(sidebarItemKey)
   const many = shown.length > 1
+
   return (
     <div {...logseq("sidebar-item-list")}>
       <ScrollContent className="sidebar-item-stack">
         {shown.map((item, index) => {
           const key = sidebarItemKey(item)
           const isCollapsed = collapsed.has(key)
+
           const actions: CardActions = {
-            close: () =>
+            close: () => {
               items.length === 0
                 ? updateSidebar({ _tag: "Toggle" })
-                : closeSidebarItem(registry, item),
-            closeOthers: () =>
+                : closeSidebarItem(registry, item)
+            },
+            closeOthers: () => {
               items.forEach((other) => {
-                if (sidebarItemKey(other) !== key) updateSidebar({ _tag: "Close", item: other })
-              }),
-            closeAll: () => updateSidebar({ _tag: "Clear" }),
-            toggle: () =>
+                if (sidebarItemKey(other) !== key) {
+                  updateSidebar({ _tag: "Close", item: other })
+                }
+              })
+            },
+            closeAll: () => {
+              updateSidebar({ _tag: "Clear" })
+            },
+            toggle: () => {
               setCollapsed((current) =>
                 current.has(key)
                   ? new Set([...current].filter((other) => other !== key))
                   : new Set([...current, key]),
-              ),
-            collapseOthers: () => setCollapsed(new Set(keys.filter((other) => other !== key))),
-            collapseAll: () => setCollapsed(new Set(keys)),
-            expandAll: () => setCollapsed(new Set()),
+              )
+            },
+            collapseOthers: () => {
+              setCollapsed(new Set(keys.filter((other) => other !== key)))
+            },
+            collapseAll: () => {
+              setCollapsed(new Set(keys))
+            },
+            expandAll: () => {
+              setCollapsed(new Set())
+            },
             openAsPage: SidebarItem.match(item, {
               Page:
                 ({ name }) =>
@@ -324,6 +358,7 @@ const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
               Slides: () => null,
             }),
           }
+
           return (
             <Card
               key={key}
@@ -343,6 +378,7 @@ const Cards = ({ items }: { readonly items: ReadonlyArray<SidebarItem> }) => {
 export const RightSidebar = () => {
   const [sidebar, updateSidebar] = useAtom(rightSidebar)
   const [width, setWidth] = useAtom(rightSidebarWidth)
+
   return (
     <aside
       {...logseq("right-sidebar")}
@@ -361,23 +397,35 @@ export const RightSidebar = () => {
           const app = document.querySelector<HTMLElement>(".app")
           app?.setAttribute("data-resizing", "")
           const latest = { percent: width, hidden: false }
+
           return {
             onMove: (pointerX) => {
               const next = rightWidthAt(pointerX, window.innerWidth)
               latest.hidden = next._tag === "Hidden"
-              if (next._tag === "Shown") latest.percent = next.percent
+
+              if (next._tag === "Shown") {
+                latest.percent = next.percent
+              }
+
               app?.style.setProperty("--right-sidebar-width", `${latest.percent}vw`)
             },
             onEnd: () => {
               app?.removeAttribute("data-resizing")
               setWidth(latest.percent)
-              if (latest.hidden) updateSidebar({ _tag: "Toggle" })
+
+              if (latest.hidden) {
+                updateSidebar({ _tag: "Toggle" })
+              }
             },
           }
         }}
         onKey={(event) => {
           const by = { ArrowLeft: 16, ArrowRight: -16 }[event.key]
-          if (by === undefined) return
+
+          if (by === undefined) {
+            return
+          }
+
           event.preventDefault()
           setWidth(rightWidthStep(width, by, window.innerWidth))
         }}
@@ -389,21 +437,27 @@ export const RightSidebar = () => {
               type="button"
               {...logseq("sidebar-tab")}
               data-hint-anchor="contents"
-              onClick={() => updateSidebar({ _tag: "Open", item: contentsItem })}
+              onClick={() => {
+                updateSidebar({ _tag: "Open", item: contentsItem })
+              }}
             >
               Contents
             </button>
             <button
               type="button"
               {...logseq("sidebar-tab")}
-              onClick={() => updateSidebar({ _tag: "Open", item: pageGraphItem })}
+              onClick={() => {
+                updateSidebar({ _tag: "Open", item: pageGraphItem })
+              }}
             >
               Page graph
             </button>
             <button
               type="button"
               {...logseq("sidebar-tab")}
-              onClick={() => updateSidebar({ _tag: "Open", item: helpItem })}
+              onClick={() => {
+                updateSidebar({ _tag: "Open", item: helpItem })
+              }}
             >
               Help
             </button>

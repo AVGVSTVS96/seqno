@@ -1,15 +1,9 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect"
 import { RpcTest } from "effect/rpc"
-import {
-  Block,
-  BlockId,
-  Command,
-  PageId,
-  isBlockRefTo,
-  type GraphEvent,
-  type Page,
-} from "@seqno/domain"
-import { BlockNotFound, BlockRefNotFound, CoreClient, CoreRpcs, type PageTree } from "@seqno/rpc"
+import { Block, BlockId, Command, PageId, isBlockRefTo } from "@seqno/domain"
+import type { GraphEvent, Page } from "@seqno/domain"
+import { BlockNotFound, BlockRefNotFound, CoreClient, CoreRpcs } from "@seqno/rpc"
+import type { PageTree } from "@seqno/rpc"
 
 export const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
 
@@ -27,7 +21,7 @@ export const block = (n: number, text: string, parent: number | null = null): Bl
   props: {},
 })
 
-type Applied = readonly [ReadonlyArray<GraphEvent>, PageTree]
+type Applied = readonly [readonly GraphEvent[], PageTree]
 
 const upserted = (changed: Block): GraphEvent => ({
   _tag: "BlockUpserted",
@@ -43,9 +37,11 @@ const replace = (tree: PageTree, next: Block): Applied => [
 
 const apply = (tree: PageTree, command: Command, nextId: number): Applied => {
   const find = (blockId: BlockId) => tree.blocks.find((b) => b.id === blockId)
+
   return Command.match(command, {
     EditText: ({ blockId, from, to, insert }): Applied => {
       const target = find(blockId)
+
       return target === undefined
         ? [[], tree]
         : replace(tree, {
@@ -55,20 +51,27 @@ const apply = (tree: PageTree, command: Command, nextId: number): Applied => {
     },
     SplitBlock: ({ blockId, at }): Applied => {
       const target = find(blockId)
-      if (target === undefined) return [[], tree]
+
+      if (target === undefined) {
+        return [[], tree]
+      }
+
       const kept = { ...target, text: target.text.slice(0, at) }
       const created = { ...target, id: id(nextId), text: target.text.slice(at) }
       const blocks = tree.blocks.flatMap((b) => (b.id === blockId ? [kept, created] : [b]))
+
       return [[upserted(kept), upserted(created)], { ...tree, blocks }]
     },
     SetCollapsed: ({ blockId, collapsed }): Applied => {
       const target = find(blockId)
+
       return target === undefined ? [[], tree] : replace(tree, { ...target, collapsed })
     },
     Indent: ({ blockIds }): Applied => {
       const target = find(blockIds[0])
       const siblings = tree.blocks.filter((b) => b.parentId === target?.parentId)
       const previous = siblings[siblings.findIndex((b) => b.id === target?.id) - 1]
+
       return target === undefined || previous === undefined
         ? [[], tree]
         : replace(tree, { ...target, parentId: previous.id })
@@ -88,22 +91,26 @@ const apply = (tree: PageTree, command: Command, nextId: number): Applied => {
   })
 }
 
-export const fakeCore = (blocks: ReadonlyArray<Block>) => {
-  const commands: Array<Command> = []
+export const fakeCore = (blocks: readonly Block[]) => {
+  const commands: Command[] = []
+
   const handlers = CoreRpcs.toLayer(
     Effect.gen(function* () {
       const state = yield* SubscriptionRef.make<PageTree>({ page, blocks })
-      const run = (batch: ReadonlyArray<Command>) =>
+
+      const run = (batch: readonly Command[]) =>
         SubscriptionRef.modify(state, (tree) =>
           batch.reduce<Applied>(
             ([events, current], command) => {
               commands.push(command)
               const [more, next] = apply(current, command, 1000 + commands.length)
+
               return [[...events, ...more], next]
             },
             [[], tree],
           ),
         )
+
       return CoreRpcs.of({
         Attach: () => Stream.empty,
         OpenGraph: ({ graph }) => Effect.succeed({ graph, skipped: [] }),
@@ -116,6 +123,7 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
         GetBlock: ({ blockId }) =>
           Effect.flatMap(SubscriptionRef.get(state), (tree) => {
             const found = tree.blocks.find((b) => b.id === blockId)
+
             return found === undefined
               ? Effect.fail(new BlockNotFound({ blockId }))
               : Effect.succeed(found)
@@ -123,6 +131,7 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
         GetBlockByRef: ({ uuid }) =>
           Effect.flatMap(SubscriptionRef.get(state), (tree) => {
             const found = tree.blocks.find((b) => isBlockRefTo(b, uuid))
+
             return found === undefined
               ? Effect.fail(new BlockRefNotFound({ uuid }))
               : Effect.succeed(found)
@@ -147,6 +156,7 @@ export const fakeCore = (blocks: ReadonlyArray<Block>) => {
       })
     }),
   )
+
   return {
     commands,
     layer: Layer.effect(CoreClient)(RpcTest.makeClient(CoreRpcs)).pipe(Layer.provide(handlers)),

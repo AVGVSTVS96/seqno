@@ -17,13 +17,16 @@ import {
   IconTriangle,
   IconTriangleSquareCircle,
 } from "@tabler/icons-react"
-import { Fragment, type ComponentType, type ReactNode } from "react"
+import { Fragment } from "react"
+import type { ComponentType, ReactNode } from "react"
 import type { BlockId, ScaleLevel } from "@seqno/domain"
 import type { Raw } from "./commands.ts"
 import { EMBED_SIZE, htmlBounds } from "./Embeds.tsx"
-import { LinksAction, type LinkEnv } from "./links.tsx"
+import { LinksAction } from "./links.tsx"
+import type { LinkEnv } from "./links.tsx"
 import type { Item, Measured } from "./model.ts"
-import { colorVar, portalScale, type ShapeTool } from "./tools.ts"
+import { colorVar, portalScale } from "./tools.ts"
+import type { ShapeTool } from "./tools.ts"
 import {
   SCALE_LABELS,
   SCALES,
@@ -49,7 +52,7 @@ type Action =
   | "ArrowMode"
   | "Links"
 
-const ORDER: ReadonlyArray<Action> = [
+const ORDER: readonly Action[] = [
   "EditPdf",
   "PortalViewMode",
   "Geometry",
@@ -66,39 +69,62 @@ const ORDER: ReadonlyArray<Action> = [
   "Links",
 ]
 
-const actionsOf = (item: Item): ReadonlyArray<Action> => {
+const actionsOf = (item: Item): readonly Action[] => {
   switch (item.shape.type) {
     case "box":
     case "ellipse":
-    case "polygon":
+    case "polygon": {
       return ["Geometry", "Swatch", "NoFill", "StrokeType", "ScaleLevel", "TextStyle", "Links"]
-    case "line":
+    }
+
+    case "line": {
       return ["Swatch", "ScaleLevel", "TextStyle", "ArrowMode", "Links"]
-    case "text":
+    }
+
+    case "text": {
       return ["AutoResizing", "Swatch", "ScaleLevel", "TextStyle", "Links"]
-    case "logseq-portal":
+    }
+
+    case "logseq-portal": {
       return ["PortalViewMode", "AutoResizing", "Swatch", "ScaleLevel", "Links"]
+    }
+
     case "pencil":
-    case "highlighter":
+    case "highlighter": {
       return ["Swatch", "ScaleLevel", "Links"]
-    case "youtube":
+    }
+
+    case "youtube": {
       return ["YoutubeLink", "Links"]
-    case "tweet":
+    }
+
+    case "tweet": {
       return ["TwitterLink", "Links"]
-    case "iframe":
+    }
+
+    case "iframe": {
       return ["IFrameSource", "Links"]
-    case "pdf":
+    }
+
+    case "pdf": {
       return ["EditPdf", "Links"]
-    case "html":
+    }
+
+    case "html": {
       return ["AutoResizing", "ScaleLevel", "Links"]
-    case "group":
+    }
+
+    case "group": {
       return []
-    default:
+    }
+
+    default: {
       return ["Links"]
+    }
   }
 }
 
-const SINGLE_ONLY: ReadonlyArray<Action> = [
+const SINGLE_ONLY: readonly Action[] = [
   "Links",
   "EditPdf",
   "YoutubeLink",
@@ -113,7 +139,9 @@ export interface EmbedActions {
 }
 
 const openExternal = (url: string) => {
-  if (/https?:\/\//.test(url)) window.open(url, "_blank", "noopener")
+  if (/https?:\/\//.test(url)) {
+    window.open(url, "_blank", "noopener")
+  }
 }
 
 const UrlField = ({
@@ -134,13 +162,17 @@ const UrlField = ({
       title={label}
       aria-label={label}
       value={value}
-      onChange={(event) => onChange(event.currentTarget.value)}
-      onKeyDown={(event) => event.stopPropagation()}
+      onChange={(event) => {
+        onChange(event.currentTarget.value)
+      }}
+      onKeyDown={(event) => {
+        event.stopPropagation()
+      }}
     />
   </span>
 )
 
-export const contextActions = (items: ReadonlyArray<Item>): ReadonlyArray<Action> =>
+export const contextActions = (items: readonly Item[]): readonly Action[] =>
   items.length === 0
     ? []
     : ORDER.filter(
@@ -152,7 +184,7 @@ export const contextActions = (items: ReadonlyArray<Item>): ReadonlyArray<Action
 const field = <K extends string>(item: Item, key: K): unknown =>
   key in item.shape ? Object.entries(item.shape).find(([name]) => name === key)?.[1] : undefined
 
-const all = (items: ReadonlyArray<Item>, test: (item: Item) => boolean) => items.every(test)
+const all = (items: readonly Item[], test: (item: Item) => boolean) => items.every(test)
 
 const GEOMETRY: ReadonlyArray<
   readonly [ShapeTool, string, ComponentType<{ readonly size: number }>]
@@ -172,6 +204,7 @@ const Popover = ({
   readonly children: ReactNode
 }) => {
   const ids = usePopoverIds()
+
   return (
     <>
       <button
@@ -199,7 +232,7 @@ export const ContextBar = ({
   links,
   embeds,
 }: {
-  readonly items: ReadonlyArray<Item>
+  readonly items: readonly Item[]
   readonly left: number
   readonly top: number
   readonly onPatch: (change: (item: Item) => Raw) => void
@@ -207,20 +240,30 @@ export const ContextBar = ({
   readonly embeds: EmbedActions
 }) => {
   const actions = contextActions(items)
-  if (actions.length === 0) return null
+
+  if (actions.length === 0) {
+    return null
+  }
+
   const first = items[0]
-  if (first === undefined) return null
+
+  if (first === undefined) {
+    return null
+  }
+
   const color = field(first, "stroke")
   const scale = field(first, "scaleLevel")
   const bold = all(items, (item) => field(item, "fontWeight") === 700)
   const italic = all(items, (item) => field(item, "italic") === true)
   const noFill = all(items, (item) => field(item, "noFill") === true)
   const dashed = all(items, (item) => field(item, "strokeType") === "dashed")
+
   const auto = all(items, (item) =>
     item.shape.type === "text"
       ? item.shape.isSizeLocked !== false
       : field(item, "isAutoResizing") !== false,
   )
+
   const collapsed = all(items, (item) =>
     item.shape.type === "logseq-portal"
       ? item.shape.blockType === "B"
@@ -228,33 +271,37 @@ export const ContextBar = ({
         : item.shape.collapsed === true
       : false,
   )
+
   const ends = (end: "start" | "end") =>
     all(items, (item) =>
       item.shape.type === "line"
         ? (item.shape.decorations ?? { end: "arrow" })[end] === "arrow"
         : false,
     )
+
   const toggleEnd = (end: "start" | "end") => {
     const on = !ends(end)
     onPatch((item) => {
       const now = item.shape.type === "line" ? (item.shape.decorations ?? { end: "arrow" }) : {}
+
       return { decorations: { ...now, [end]: on ? "arrow" : "" } }
     })
   }
+
   const control = (action: Action): ReactNode => {
     switch (action) {
-      case "PortalViewMode":
+      case "PortalViewMode": {
         return (
           <ToolButton
             label={collapsed ? "Expand" : "Collapse"}
             keys={collapsed ? "Mod+Down" : "Mod+Up"}
-            onClick={() =>
+            onClick={() => {
               onPatch((item) =>
                 item.shape.type === "logseq-portal" && item.shape.blockType === "B"
                   ? { compact: !collapsed }
                   : { collapsed: !collapsed },
               )
-            }
+            }}
           >
             {collapsed ? (
               <IconLayoutNavbarExpand size={16} />
@@ -263,7 +310,9 @@ export const ContextBar = ({
             )}
           </ToolButton>
         )
-      case "Geometry":
+      }
+
+      case "Geometry": {
         return (
           <Popover label="Shape" icon={<IconTriangleSquareCircle size={16} />}>
             <div className="wb-panel" style={{ boxShadow: "none", padding: 0 }}>
@@ -286,29 +335,35 @@ export const ContextBar = ({
             </div>
           </Popover>
         )
-      case "AutoResizing":
+      }
+
+      case "AutoResizing": {
         return (
           <ToolButton
             label="Auto resize"
             pressed={first.shape.type === "html" ? false : auto}
-            onClick={() =>
+            onClick={() => {
               onPatch((item) => {
                 if (item.shape.type === "html") {
                   const seen = embeds.measured.get(item.block.id)
+
                   return seen === undefined
                     ? {}
                     : { size: htmlBounds(seen, portalScale[item.shape.scaleLevel ?? "md"]) }
                 }
+
                 return item.shape.type === "text"
                   ? { isSizeLocked: true }
                   : { isAutoResizing: !auto }
               })
-            }
+            }}
           >
             <IconDimensions size={16} />
           </ToolButton>
         )
-      case "Swatch":
+      }
+
+      case "Swatch": {
         return (
           <Popover
             label="Color"
@@ -326,7 +381,9 @@ export const ContextBar = ({
           >
             <Swatches
               current={typeof color === "string" ? color : ""}
-              onPick={(picked) => onPatch(() => ({ fill: picked, stroke: picked }))}
+              onPick={(picked) => {
+                onPatch(() => ({ fill: picked, stroke: picked }))
+              }}
             />
             <div className="wb-color-extra">
               <label>
@@ -366,36 +423,48 @@ export const ContextBar = ({
             </div>
           </Popover>
         )
-      case "NoFill":
+      }
+
+      case "NoFill": {
         return (
           <ToolButton
             label={noFill ? "Fill" : "No fill"}
             pressed={!noFill}
-            onClick={() => onPatch(() => ({ noFill: !noFill }))}
+            onClick={() => {
+              onPatch(() => ({ noFill: !noFill }))
+            }}
           >
             {noFill ? <IconDropletOff size={16} /> : <IconDroplet size={16} />}
           </ToolButton>
         )
-      case "StrokeType":
+      }
+
+      case "StrokeType": {
         return (
           <>
             <ToolButton
               label="Solid"
               pressed={!dashed}
-              onClick={() => onPatch(() => ({ strokeType: "line" }))}
+              onClick={() => {
+                onPatch(() => ({ strokeType: "line" }))
+              }}
             >
               <IconCircle size={16} />
             </ToolButton>
             <ToolButton
               label="Dashed"
               pressed={dashed}
-              onClick={() => onPatch(() => ({ strokeType: "dashed" }))}
+              onClick={() => {
+                onPatch(() => ({ strokeType: "dashed" }))
+              }}
             >
               <IconCircleDashed size={16} />
             </ToolButton>
           </>
         )
-      case "ScaleLevel":
+      }
+
+      case "ScaleLevel": {
         return (
           <select
             aria-label="Scale"
@@ -404,13 +473,18 @@ export const ContextBar = ({
               const picked: ScaleLevel | undefined = SCALES.find(
                 (level) => level === event.currentTarget.value,
               )
-              if (picked !== undefined)
+
+              if (picked !== undefined) {
                 onPatch((item) => {
-                  if (item.shape.type !== "html") return { scaleLevel: picked }
+                  if (item.shape.type !== "html") {
+                    return { scaleLevel: picked }
+                  }
                   const ratio = portalScale[picked] / portalScale[item.shape.scaleLevel ?? "md"]
                   const [w, h] = item.shape.size
+
                   return { scaleLevel: picked, size: [w * ratio, h * ratio] }
                 })
+              }
             }}
           >
             {SCALES.map((level) => (
@@ -420,92 +494,123 @@ export const ContextBar = ({
             ))}
           </select>
         )
-      case "TextStyle":
+      }
+
+      case "TextStyle": {
         return (
           <>
             <ToolButton
               label="Bold"
               pressed={bold}
-              onClick={() => onPatch(() => ({ fontWeight: bold ? 400 : 700 }))}
+              onClick={() => {
+                onPatch(() => ({ fontWeight: bold ? 400 : 700 }))
+              }}
             >
               <IconBold size={16} />
             </ToolButton>
             <ToolButton
               label="Italic"
               pressed={italic}
-              onClick={() => onPatch(() => ({ italic: !italic }))}
+              onClick={() => {
+                onPatch(() => ({ italic: !italic }))
+              }}
             >
               <IconItalic size={16} />
             </ToolButton>
           </>
         )
-      case "ArrowMode":
+      }
+
+      case "ArrowMode": {
         return (
           <>
             <ToolButton
               label="Start arrow head"
               pressed={ends("start")}
-              onClick={() => toggleEnd("start")}
+              onClick={() => {
+                toggleEnd("start")
+              }}
             >
               <IconArrowNarrowLeft size={16} />
             </ToolButton>
             <ToolButton
               label="End arrow head"
               pressed={ends("end")}
-              onClick={() => toggleEnd("end")}
+              onClick={() => {
+                toggleEnd("end")
+              }}
             >
               <IconArrowNarrowRight size={16} />
             </ToolButton>
           </>
         )
-      case "EditPdf":
+      }
+
+      case "EditPdf": {
         return (
           <ToolButton
             label="Edit PDF"
             onClick={() => {
               const src = first.shape.type === "pdf" ? first.shape.src : undefined
-              if (src !== undefined) embeds.openPdf(src)
+
+              if (src !== undefined) {
+                embeds.openPdf(src)
+              }
             }}
           >
             <IconEdit size={16} />
           </ToolButton>
         )
+      }
+
       case "YoutubeLink":
       case "TwitterLink": {
         const url = String(field(first, "url") ?? "")
         const youtube = action === "YoutubeLink"
+
         return (
           <span className="wb-url-row">
             <UrlField
               label={youtube ? "YouTube url" : "Twitter url"}
               value={url}
-              onChange={(next) =>
+              onChange={(next) => {
                 onPatch(() => ({
                   url: next,
                   size: youtube ? EMBED_SIZE.youtube : EMBED_SIZE.tweet,
                 }))
-              }
+              }}
             />
             <ToolButton
               label={youtube ? "Open YouTube url" : "Open Twitter url"}
-              onClick={() => openExternal(url)}
+              onClick={() => {
+                openExternal(url)
+              }}
             >
               <IconExternalLink size={16} />
             </ToolButton>
           </span>
         )
       }
+
       case "IFrameSource": {
         const url = String(field(first, "url") ?? "")
+
         return (
           <span className="wb-url-row">
-            <ToolButton label="Reload" onClick={() => embeds.reload(first.block.id)}>
+            <ToolButton
+              label="Reload"
+              onClick={() => {
+                embeds.reload(first.block.id)
+              }}
+            >
               <IconRefresh size={16} />
             </ToolButton>
             <UrlField
               label="Website url"
               value={url}
-              onChange={(next) => onPatch(() => ({ url: next.trim().toLowerCase() }))}
+              onChange={(next) => {
+                onPatch(() => ({ url: next.trim().toLowerCase() }))
+              }}
             />
             <ToolButton
               label="Open website url"
@@ -516,20 +621,33 @@ export const ContextBar = ({
           </span>
         )
       }
-      case "Links":
+
+      case "Links": {
         return (
-          <LinksAction item={first} env={links} onLinks={(refs) => onPatch(() => ({ refs }))} />
+          <LinksAction
+            item={first}
+            env={links}
+            onLinks={(refs) => {
+              onPatch(() => ({ refs }))
+            }}
+          />
         )
+      }
     }
   }
+
   return (
     <div
       className="wb-panel wb-context"
       role="toolbar"
       aria-label="Shape style"
       style={{ left, top }}
-      onPointerDown={(event) => event.stopPropagation()}
-      onDoubleClick={(event) => event.stopPropagation()}
+      onPointerDown={(event) => {
+        event.stopPropagation()
+      }}
+      onDoubleClick={(event) => {
+        event.stopPropagation()
+      }}
     >
       {actions.map((action, index) => (
         <Fragment key={action}>

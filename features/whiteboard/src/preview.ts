@@ -1,4 +1,5 @@
-import { BlockId, type Block, type BlockDraft, type Command, type PageId } from "@seqno/domain"
+import { BlockId } from "@seqno/domain"
+import type { Block, BlockDraft, Command, PageId } from "@seqno/domain"
 import { freshId } from "./ids.ts"
 
 export const isGhost = (id: BlockId) => id.startsWith("00000000-0000-7000-8000-")
@@ -8,32 +9,39 @@ export const ghostId = (index: number) =>
 
 const withProp = (block: Block, key: string, value: string | null): Block => {
   const { [key]: _, ...rest } = block.props
+
   return { ...block, props: value === null ? rest : { ...rest, [key]: value } }
 }
 
 const insertAt = (
-  blocks: ReadonlyArray<Block>,
+  blocks: readonly Block[],
   after: BlockId | undefined,
-  added: ReadonlyArray<Block>,
-): ReadonlyArray<Block> => {
-  if (after === undefined) return [...added, ...blocks]
+  added: readonly Block[],
+): readonly Block[] => {
+  if (after === undefined) {
+    return [...added, ...blocks]
+  }
+
   const index = blocks.findIndex((block) => block.id === after)
+
   return index === -1
     ? [...blocks, ...added]
     : [...blocks.slice(0, index + 1), ...added, ...blocks.slice(index + 1)]
 }
 
-const applyOne = (blocks: ReadonlyArray<Block>, command: Command): ReadonlyArray<Block> => {
+const applyOne = (blocks: readonly Block[], command: Command): readonly Block[] => {
   switch (command._tag) {
     case "SetProperty": {
       const { target } = command
+
       return target._tag === "BlockTarget"
         ? blocks.map((block) =>
             block.id === target.blockId ? withProp(block, command.key, command.value) : block,
           )
         : blocks
     }
-    case "InsertBlocks":
+
+    case "InsertBlocks": {
       return insertAt(
         blocks,
         command.after,
@@ -46,11 +54,15 @@ const applyOne = (blocks: ReadonlyArray<Block>, command: Command): ReadonlyArray
           props: draft.props,
         })),
       )
+    }
+
     case "DeleteBlocks": {
       const gone = new Set<BlockId>(command.blockIds)
+
       return blocks.filter((block) => !gone.has(block.id))
     }
-    case "EditText":
+
+    case "EditText": {
       return blocks.map((block) =>
         block.id === command.blockId
           ? {
@@ -60,15 +72,18 @@ const applyOne = (blocks: ReadonlyArray<Block>, command: Command): ReadonlyArray
             }
           : block,
       )
-    default:
+    }
+
+    default: {
       return blocks
+    }
   }
 }
 
 export const applyLocally = (
-  blocks: ReadonlyArray<Block>,
-  commands: ReadonlyArray<Command>,
-): ReadonlyArray<Block> => commands.reduce(applyOne, blocks)
+  blocks: readonly Block[],
+  commands: readonly Command[],
+): readonly Block[] => commands.reduce(applyOne, blocks)
 
 const withId = (draft: BlockDraft): BlockDraft => ({
   ...draft,
@@ -76,15 +91,19 @@ const withId = (draft: BlockDraft): BlockDraft => ({
   children: draft.children.map(withId),
 })
 
-export const withIds = (commands: ReadonlyArray<Command>): ReadonlyArray<Command> =>
+export const withIds = (commands: readonly Command[]): readonly Command[] =>
   commands.map((command) => {
-    if (command._tag !== "InsertBlocks") return command
+    if (command._tag !== "InsertBlocks") {
+      return command
+    }
+
     const [first, ...rest] = command.blocks
+
     return { ...command, blocks: [withId(first), ...rest.map(withId)] }
   })
 
 export interface Pending {
   readonly base: unknown
   readonly pageId: PageId
-  readonly commands: ReadonlyArray<Command>
+  readonly commands: readonly Command[]
 }

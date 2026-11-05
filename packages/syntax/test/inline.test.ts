@@ -1,60 +1,93 @@
 import * as fc from "fast-check"
 import { describe, expect, it } from "vitest"
-import { analyzeBlock, parseInline, plainText, type Inline } from "../src/index.ts"
+import { analyzeBlock, parseInline, plainText } from "../src/index.ts"
+import type { Inline } from "../src/index.ts"
 
 const uuid = "650e8f2a-1b2c-4d5e-8f90-123456789abc"
 
-const show = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
+const show = (nodes: readonly Inline[]): readonly string[] =>
   nodes.map((node) => {
     const at = `@${node.span.from}-${node.span.to}`
+
     switch (node._tag) {
-      case "Text":
+      case "Text": {
         return `Text(${node.text})${at}`
-      case "Code":
+      }
+
+      case "Code": {
         return `Code(${node.code})${at}`
-      case "Math":
+      }
+
+      case "Math": {
         return `Math(${node.open}|${node.tex})${at}`
-      case "PageRef":
+      }
+
+      case "PageRef": {
         return `PageRef(${node.name}${node.brackets ? "" : ", bare"})${at}`
-      case "Tag":
+      }
+
+      case "Tag": {
         return `Tag(${node.name})${at}`
-      case "BlockRef":
+      }
+
+      case "BlockRef": {
         return `BlockRef(${node.uuid})${at}`
-      case "Macro":
+      }
+
+      case "Macro": {
         return `Macro(${node.name}|${node.args})${at}`
-      case "Priority":
+      }
+
+      case "Priority": {
         return `Priority(${node.priority})${at}`
+      }
+
       case "Bold":
       case "Italic":
       case "Strike":
       case "Underline":
-      case "Highlight":
+      case "Highlight": {
         return `${node._tag}[${show(node.children).join(" ")}]${at}`
-      case "Link":
+      }
+
+      case "Link": {
         return `Link(${node.target._tag}:${node.target._tag === "Url" ? node.target.url : node.target._tag === "Page" ? node.target.name : node.target.uuid})[${show(node.label).join(" ")}]${at}`
-      case "Image":
+      }
+
+      case "Image": {
         return `Image(${node.alt}|${node.url})${at}`
+      }
     }
   })
 
-const refsOf = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
-  nodes.flatMap((node): ReadonlyArray<string> => {
+const refsOf = (nodes: readonly Inline[]): readonly string[] =>
+  nodes.flatMap((node): readonly string[] => {
     switch (node._tag) {
-      case "PageRef":
+      case "PageRef": {
         return [`PageRef:${node.name}`]
-      case "Tag":
+      }
+
+      case "Tag": {
         return [`Tag:${node.name}`]
-      case "BlockRef":
+      }
+
+      case "BlockRef": {
         return [`BlockRef:${node.uuid}`]
-      case "Macro":
+      }
+
+      case "Macro": {
         return node.name === "query" ? [] : refsOf(parseInline(node.args))
+      }
+
       case "Bold":
       case "Italic":
       case "Strike":
       case "Underline":
-      case "Highlight":
+      case "Highlight": {
         return refsOf(node.children)
-      case "Link":
+      }
+
+      case "Link": {
         return [
           ...refsOf(node.label),
           ...(node.target._tag === "Page"
@@ -63,12 +96,15 @@ const refsOf = (nodes: ReadonlyArray<Inline>): ReadonlyArray<string> =>
               ? [`BlockRef:${node.target.uuid}`]
               : []),
         ]
+      }
+
       case "Text":
       case "Code":
       case "Math":
       case "Priority":
-      case "Image":
+      case "Image": {
         return []
+      }
     }
   })
 
@@ -192,12 +228,15 @@ describe("parseInline", () => {
       "#tag.",
       "(#paren)",
     )
+
     fc.assert(
       fc.property(fc.array(fragment, { maxLength: 8 }), (fragments) => {
         const line = fragments.join(" ")
+
         const expected = analyzeBlock(line).refs.map((ref) =>
           ref._tag === "BlockRef" ? `BlockRef:${ref.uuid}` : `${ref._tag}:${ref.name}`,
         )
+
         expect(refsOf(parseInline(line)).toSorted()).toStrictEqual(expected.toSorted())
       }),
       { numRuns: 1000 },

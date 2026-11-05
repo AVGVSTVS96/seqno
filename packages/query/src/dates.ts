@@ -12,6 +12,7 @@ export const ymdToMs = (ymd: number) =>
 
 export const msToYmd = (ms: number) => {
   const d = new Date(ms)
+
   return d.getUTCFullYear() * 10_000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()
 }
 
@@ -23,10 +24,17 @@ const shift: Record<RelDate["unit"], (d: Date, n: number) => void> = {
 }
 
 export const resolveDay = (value: Value, today: number): number | null => {
-  if (typeof value !== "object" || value._tag === "Context") return null
-  if (value._tag === "AbsDate") return value.ymd
+  if (typeof value !== "object" || value._tag === "Context") {
+    return null
+  }
+
+  if (value._tag === "AbsDate") {
+    return value.ymd
+  }
+
   const d = new Date(ymdToMs(today))
   shift[value.unit](d, value.amount)
+
   return msToYmd(d.getTime())
 }
 
@@ -40,18 +48,39 @@ const ymd = (year: string, month: number, day: string): Value => ({
 
 export const parseDateWord = (word: string): Value | null => {
   const w = word.toLowerCase()
-  if (w === "today" || w === "now") return { _tag: "RelDate", amount: 0, unit: "d" }
-  if (w === "yesterday") return { _tag: "RelDate", amount: -1, unit: "d" }
-  if (w === "tomorrow") return { _tag: "RelDate", amount: 1, unit: "d" }
+
+  if (w === "today" || w === "now") {
+    return { _tag: "RelDate", amount: 0, unit: "d" }
+  }
+
+  if (w === "yesterday") {
+    return { _tag: "RelDate", amount: -1, unit: "d" }
+  }
+
+  if (w === "tomorrow") {
+    return { _tag: "RelDate", amount: 1, unit: "d" }
+  }
+
   const [, amount, unit] = /^([+-]\d+)([dwmy])$/.exec(w) ?? []
-  if (amount !== undefined && unit !== undefined && isUnit(unit))
+
+  if (amount !== undefined && unit !== undefined && isUnit(unit)) {
     return { _tag: "RelDate", amount: Number(amount), unit }
+  }
+
   const [, year, month, day] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(w) ?? []
-  if (year !== undefined && month !== undefined && day !== undefined)
+
+  if (year !== undefined && month !== undefined && day !== undefined) {
     return ymd(year, Number(month), day)
+  }
+
   const [, name, jday, jyear] =
     /^([a-z]{3})[a-z]* (\d{1,2})(?:st|nd|rd|th)?, (\d{4})$/.exec(w) ?? []
+
   const index = name === undefined ? -1 : MONTHS.indexOf(name)
-  if (index >= 0 && jday !== undefined && jyear !== undefined) return ymd(jyear, index + 1, jday)
+
+  if (index >= 0 && jday !== undefined && jyear !== undefined) {
+    return ymd(jyear, index + 1, jday)
+  }
+
   return null
 }

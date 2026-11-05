@@ -14,6 +14,7 @@ export const seqnoPage = async (browser: Browser, options: SeqnoOptions) => {
     baseURL: options.baseURL,
     viewport: { width: 1440, height: 900 },
   })
+
   const page = await context.newPage()
   page.setDefaultTimeout(8000)
   await seedOpfs(page, options.showcase, ["graphs", "demo"])
@@ -36,6 +37,7 @@ export const seqnoPage = async (browser: Browser, options: SeqnoOptions) => {
     },
     { theme: options.theme, leftSidebar: options.leftSidebar },
   )
+
   return page
 }
 
@@ -44,11 +46,16 @@ export const openSeqno = async (page: Page, path: string, blocks = true) => {
   const chooser = page.getByRole("heading", { name: "Welcome to seqno" })
   const app = page.getByRole("main")
   await chooser.or(app).first().waitFor({ timeout: 30_000 })
+
   if (await chooser.isVisible()) {
     await page.getByRole("button", { name: "Getting started", exact: true }).click()
   }
+
   await app.waitFor({ timeout: 30_000 })
-  if (blocks) await page.getByRole("treeitem").first().waitFor({ timeout: 30_000 })
+
+  if (blocks) {
+    await page.getByRole("treeitem").first().waitFor({ timeout: 30_000 })
+  }
 }
 
 export const editBlock = async (page: Page, text: string) => {
@@ -68,9 +75,14 @@ export const scrollToText = async (
       const element = [...document.querySelectorAll("[role=treeitem]")].find((row) =>
         row.textContent?.includes(wanted),
       )
-      if (element === undefined) return false
+
+      if (element === undefined) {
+        return false
+      }
+
       element.scrollIntoView({ block: "start", behavior: "instant" })
       let scroller = element.parentElement
+
       while (
         scroller !== null &&
         !(
@@ -80,21 +92,30 @@ export const scrollToText = async (
       ) {
         scroller = scroller.parentElement
       }
+
       ;(scroller ?? document.scrollingElement)?.scrollBy({ top: -by, behavior: "instant" })
+
       return true
     },
     [text, offset] as const,
   )
+
   if (scrolled) {
     await page.waitForFunction(() =>
       [...document.querySelectorAll(".seqno-gap")].every((gap) => {
         const box = gap.getBoundingClientRect()
+
         return box.height === 0 || box.bottom <= 0 || box.top >= window.innerHeight
       }),
     )
+
     return
   }
-  if (tries === 0) throw new Error(`no block with "${text}" after scrolling`)
+
+  if (tries === 0) {
+    throw new Error(`no block with "${text}" after scrolling`)
+  }
+
   const tree = await page.getByRole("tree").first().boundingBox()
   const height = page.viewportSize()?.height ?? 900
   await page.mouse.move(
@@ -102,6 +123,9 @@ export const scrollToText = async (
     Math.min(Math.max(tree?.y ?? 0, 0) + 200, height - 100),
   )
   await page.mouse.wheel(0, 600)
-  await page.waitForFunction(() => new Promise((resolve) => requestAnimationFrame(resolve)))
-  return scrollToText(page, text, offset, tries - 1)
+  await page.waitForFunction(
+    async () => await new Promise((resolve) => requestAnimationFrame(resolve)),
+  )
+
+  await scrollToText(page, text, offset, tries - 1)
 }

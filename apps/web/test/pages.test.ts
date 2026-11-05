@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest"
-import { BlockId, PageId, type Block, type Page } from "@seqno/domain"
+import { BlockId, PageId } from "@seqno/domain"
+import type { Block, Page } from "@seqno/domain"
 import {
   crumbLabel,
   groupByPage,
@@ -11,9 +12,11 @@ import {
   visibleProps,
   visibleRows,
 } from "../src/ui/pages/model.ts"
-import { groupsOf, highlight, type Item } from "../src/ui/search/model.ts"
+import { groupsOf, highlight } from "../src/ui/search/model.ts"
+import type { Item } from "../src/ui/search/model.ts"
 
 const pageId = (n: number) => PageId.make(`01920000-0000-7000-8000-1${String(n).padStart(11, "0")}`)
+
 const blockId = (n: number) =>
   BlockId.make(`01920000-0000-7000-8000-2${String(n).padStart(11, "0")}`)
 
@@ -36,20 +39,33 @@ const blockOf = (n: number, page: number, text: string, parent: number | null = 
 
 const label = (item: Item) => {
   switch (item._tag) {
-    case "Create":
+    case "Create": {
       return `create ${item.title}`
-    case "Page":
+    }
+
+    case "Page": {
       return `page ${item.page.title}`
-    case "Block":
+    }
+
+    case "Block": {
       return `block ${item.crumbs.join(" / ")}: ${item.block.text}`
-    case "Command":
+    }
+
+    case "Command": {
       return `command ${item.command.label}`
-    case "Filter":
+    }
+
+    case "Filter": {
       return `filter ${item.text}`
-    case "Theme":
+    }
+
+    case "Theme": {
       return `theme ${item.theme.name}`
-    case "File":
+    }
+
+    case "File": {
       return `file ${item.file.path}`
+    }
   }
 }
 
@@ -57,7 +73,7 @@ const command = (id: string, title: string) => ({ id, label: title, keys: [] })
 
 const garden = pageOf(1, "Garden Plan")
 const reading = pageOf(2, "Reading List")
-const today = pageOf(3, "Oct 6th, 2026", 20261006)
+const today = pageOf(3, "Oct 6th, 2026", 20_261_006)
 
 describe("linked references", () => {
   it("groups references by page in the order the core sent them", () => {
@@ -80,6 +96,7 @@ describe("linked references", () => {
       blockOf(2, 2, "*Soil Science*, borrowed", 1),
       blockOf(3, 2, "due back on [[Oct 20th, 2026]]", 2),
     ]
+
     const trail = trailOf(blocks)
     assert.deepStrictEqual(
       trail(blockId(3)).map((block) => crumbLabel(block.text)),
@@ -104,8 +121,8 @@ describe("all pages", () => {
   const rows = pageRows(
     [reading, garden, today],
     [
-      { pageId: garden.id, backlinks: 3, created: 1_000, updated: 9_000 },
-      { pageId: today.id, backlinks: 0, created: 2_000, updated: 5_000 },
+      { pageId: garden.id, backlinks: 3, created: 1000, updated: 9000 },
+      { pageId: today.id, backlinks: 0, created: 2000, updated: 5000 },
     ],
   )
 
@@ -118,6 +135,7 @@ describe("all pages", () => {
       visibleRows(rows, { sort: { column: sort, descending }, filter: "", journals }).map(
         (row) => row.page.title,
       )
+
     assert.deepStrictEqual(titles("title", false), ["Garden Plan", "Oct 6th, 2026", "Reading List"])
     assert.deepStrictEqual(titles("updated", true), [
       "Garden Plan",
@@ -194,6 +212,7 @@ describe("search palette", () => {
       ],
       expanded: new Set(),
     })
+
     assert.deepStrictEqual(
       groups.map((group) => [group.title, group.items.map(label)]),
       [
@@ -215,6 +234,7 @@ describe("search palette", () => {
       { ...garden, props: { alias: "Allotment" } },
       ...[4, 5, 6, 7, 8, 9].map((n) => pageOf(n, `Page ${n}`)),
     ]
+
     const groups = groupsOf({
       query: "allotment",
       hits: { pages: [], blocks: [], ancestors: [] },
@@ -223,7 +243,9 @@ describe("search palette", () => {
       stats: pages.map((page, at) => ({ pageId: page.id, backlinks: 0, created: 0, updated: at })),
       expanded: new Set(),
     })
+
     assert.deepStrictEqual(groups, [])
+
     const recent = groupsOf({
       query: "",
       hits: { pages: [], blocks: [], ancestors: [] },
@@ -232,6 +254,7 @@ describe("search palette", () => {
       stats: pages.map((page, at) => ({ pageId: page.id, backlinks: 0, created: 0, updated: at })),
       expanded: new Set(),
     })
+
     assert.deepStrictEqual(
       recent.map((group) => [group.title, group.total, group.items.length]),
       [["Recently updated", 7, 5]],
@@ -247,7 +270,9 @@ describe("search palette", () => {
     command("ui/toggle-help", "Toggle help"),
     command("go/home", "Go to home"),
   ]
+
   const noHits = { pages: [], blocks: [], ancestors: [] }
+
   const palette = (query: string, filter: "current-page" | "nodes" | "commands" | null = null) =>
     groupsOf({
       query,
@@ -319,6 +344,7 @@ describe("search palette", () => {
       stats: [],
       expanded: new Set(),
     })
+
     assert.deepStrictEqual(
       groups.map((group) => [
         group.title,

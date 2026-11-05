@@ -34,24 +34,33 @@ const registry = AtomRegistry.make({
 })
 
 const darkScheme = matchMedia("(prefers-color-scheme: dark)")
+
 registry.set(prefersDark, darkScheme.matches)
-darkScheme.addEventListener("change", (event) => registry.set(prefersDark, event.matches))
+
+darkScheme.addEventListener("change", (event) => {
+  registry.set(prefersDark, event.matches)
+})
 
 markLogseqDocument(registry, router)
 
 registry.subscribe(
   graphMoves,
   (moves) => {
-    if (AsyncResult.isSuccess(moves)) location.reload()
+    if (AsyncResult.isSuccess(moves)) {
+      location.reload()
+    }
   },
   { immediate: true },
 )
 
 registry.subscribe(rejectionAtom, ({ count, reason }) => {
-  if (count > 0) notify(registry, `That change couldn't be applied: ${reason}`)
+  if (count > 0) {
+    notify(registry, `That change couldn't be applied: ${reason}`)
+  }
 })
 
 const saveFailed = { now: false }
+
 registry.subscribe(
   saveState,
   (state) => {
@@ -59,21 +68,31 @@ registry.subscribe(
   },
   { immediate: true },
 )
+
 addEventListener("beforeunload", (event) => {
-  if (saveFailed.now) event.preventDefault()
+  if (saveFailed.now) {
+    event.preventDefault()
+  }
 })
 
 const starting = embedded
   ? { _tag: "Demo" as const, name: demoGraph }
   : startingGraph(registry.get(lastGraph))
-if (starting !== null) registry.set(openGraph, starting)
 
-if (!embedded) startPluginHost(registry, router)
+if (starting !== null) {
+  registry.set(openGraph, starting)
+}
+
+if (!embedded) {
+  startPluginHost(registry, router)
+}
 
 if (embedded) {
   addEventListener("keydown", forwardEscape)
   registry.subscribe(openGraph, (result) => {
-    if (AsyncResult.isSuccess(result)) toParent("ready")
+    if (AsyncResult.isSuccess(result)) {
+      toParent("ready")
+    }
   })
 }
 

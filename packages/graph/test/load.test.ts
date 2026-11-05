@@ -12,7 +12,7 @@ const imported = {
     id: pageId,
     name: "oct 6th, 2026",
     title: "Oct 6th, 2026",
-    journalDay: 20261006,
+    journalDay: 20_261_006,
     props: { icon: "sun" },
   },
   blocks: [
@@ -46,9 +46,11 @@ describe("load", () => {
           const right = yield* openGraph("2")
           const fromLeft = yield* left.seed([imported])
           const fromRight = yield* right.seed([imported])
+
           if (Option.isNone(fromLeft.update) || Option.isNone(fromRight.update)) {
             return assert.fail("an empty graph seeds under its own writer")
           }
+
           assert.deepStrictEqual(fromLeft.update.value.bytes, fromRight.update.value.bytes)
           assert.notStrictEqual(fromLeft.update.value.peer, "1")
           assert.deepStrictEqual(yield* left.merge([fromRight.update.value.bytes]), [])

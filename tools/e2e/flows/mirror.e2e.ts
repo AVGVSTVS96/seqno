@@ -28,11 +28,13 @@ const ogFolder = pickedFolder(og)
 
 const diskFiles = async (root: string) => {
   const entries = await readdir(root, { recursive: true, withFileTypes: true })
+
   const paths = entries
     .filter((entry) => entry.isFile())
     .map((entry) => relative(root, join(entry.parentPath, entry.name)).split(sep).join("/"))
+
   return Object.fromEntries(
-    await Promise.all(paths.map(async (path) => [path, await readFile(join(root, path), "utf8")])),
+    await Promise.all(paths.map(async (path) => [path, await readFile(join(root, path), "utf-8")])),
   )
 }
 
@@ -49,6 +51,7 @@ const openPage = async (page: Page, name: string) => {
   await page.getByRole("searchbox", { name: "Search" }).fill(name)
   await expect(page.locator("[role=option][data-kind]").first()).toHaveText(name)
   await page.keyboard.press("Enter")
+
   return page.getByRole("article", { name, exact: true })
 }
 
@@ -86,12 +89,14 @@ for (const name of ["og-syntax-mix", "org-and-front-matter", "whiteboards", "sho
     await page.waitForTimeout(3500)
     const after = await opfsText(page, pickedFolder(from))
     const changed = Object.keys(before).filter((path) => after[path] !== before[path])
+
     const added = Object.keys(after).filter(
       (path) =>
         !(path in before) &&
         /^(journals|pages|whiteboards)\//.test(path) &&
         !/^journals\/\d{4}_\d{2}_\d{2}\.md$/.test(path),
     )
+
     expect({ changed, added }).toEqual({ changed: [], added: [] })
   })
 }
@@ -102,7 +107,7 @@ test("an edit reaches its journal file within 2 seconds, and no other file chang
   const before = await diskFiles(og)
   await openFolder(page, og)
   await typeInJournal(page, " (edited)")
-  await expect.poll(() => textOf(page, journal), { timeout: 2000 }).toBe(ogJournal)
+  await expect.poll(async () => await textOf(page, journal), { timeout: 2000 }).toBe(ogJournal)
   await page.keyboard.press("Escape")
   const after = await opfsText(page, ogFolder)
   expect(
@@ -119,10 +124,10 @@ test("a ref typed to a block on another page writes that block's id:: into its f
   await page.keyboard.press("Enter")
   await page.keyboard.press("Escape")
   await expect
-    .poll(() => textOf(page, "pages/tasks.md"))
+    .poll(async () => await textOf(page, "pages/tasks.md"))
     .toMatch(/\n- I recorded a \[\[voice note\]\]\.\n {2}id:: [0-9a-f-]{36}\n\t- TODO\n/)
   const id = /id:: ([0-9a-f-]{36})/.exec((await textOf(page, "pages/tasks.md")) ?? "")?.[1]
-  await expect.poll(() => textOf(page, journal)).toContain(`((${id}))`)
+  await expect.poll(async () => await textOf(page, journal)).toContain(`((${id}))`)
 })
 
 test("a rename moves the old file to logseq/.recycle and writes the new one", async ({ page }) => {
@@ -136,9 +141,9 @@ test("a rename moves the old file to logseq/.recycle and writes the new one", as
   await title.press("Enter")
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("queries saved")
   await expect
-    .poll(() => textOf(page, "pages/queries saved.md"))
+    .poll(async () => await textOf(page, "pages/queries saved.md"))
     .toBe((before["pages/queries.md"] ?? "").trimEnd())
-  await expect.poll(() => textOf(page, "pages/queries.md")).toBeNull()
+  await expect.poll(async () => await textOf(page, "pages/queries.md")).toBeNull()
   expect(await textOf(page, "logseq/.recycle/pages_queries.md")).toBe(before["pages/queries.md"])
 })
 
@@ -151,14 +156,18 @@ test("moving a whiteboard shape rewrites the board's file, which reads back with
   const from = fixtureGraph("graphs/whiteboards")
   const folder = pickedFolder(from)
   const path = "whiteboards/Colloquium 2.edn"
-  const before = (await readFile(join(from, path), "utf8")).toString()
+  const before = (await readFile(join(from, path), "utf-8")).toString()
   await openFolder(page, from)
   await openPage(page, "colloquium 2")
   await expect(board(page)).toBeVisible()
   const count = await board(page).locator(".wb-shape").count()
   const shape = board(page).locator(".wb-shape").first()
   const box = await shape.boundingBox()
-  if (box === null) throw new Error("the board has no shape on screen")
+
+  if (box === null) {
+    throw new Error("the board has no shape on screen")
+  }
+
   await page.keyboard.press("1")
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
   await page.mouse.down()
@@ -184,6 +193,7 @@ const phoneEdits = (root: string) =>
   Effect.scoped(
     Effect.gen(function* () {
       const phone = DeviceId.make("phone")
+
       const graph = Context.get(
         yield* Layer.build(
           Graph.layer({ peer: PeerId.make("4242"), snapshot: Option.none(), updates: [] }).pipe(
@@ -192,6 +202,7 @@ const phoneEdits = (root: string) =>
         ),
         Graph,
       )
+
       const vault = Context.get(
         yield* Layer.build(
           vaultLayer({
@@ -203,11 +214,20 @@ const phoneEdits = (root: string) =>
         ),
         Vault,
       )
+
       yield* Effect.orDie(vault.sync(vaultReplica(graph)))
       const tasks = (yield* graph.pages).find((one) => one.title === "tasks")
-      if (tasks === undefined) return yield* Effect.die("the phone has no tasks page")
+
+      if (tasks === undefined) {
+        return yield* Effect.die("the phone has no tasks page")
+      }
+
       const first = (yield* Effect.orDie(graph.page(tasks.id))).blocks[0]
-      if (first === undefined) return yield* Effect.die("tasks has no block")
+
+      if (first === undefined) {
+        return yield* Effect.die("tasks has no block")
+      }
+
       yield* Effect.orDie(
         graph.dispatch({ _tag: "EditText", blockId: first.id, from: 4, to: 4, insert: " (phone)" }),
       )
@@ -220,11 +240,16 @@ test("another device's edit reaches the file once this device merges it", async 
 }, testInfo) => {
   await openFolder(page, og)
   const copy = testInfo.outputPath("phone")
+
   for (const [path, bytes] of Object.entries(await opfsFiles(page, ogFolder))) {
-    if (!/^(updates|snapshots|seen)\//.test(path)) continue
+    if (!/^(updates|snapshots|seen)\//.test(path)) {
+      continue
+    }
+
     await mkdir(dirname(join(copy, path)), { recursive: true })
     await writeFile(join(copy, path), bytes)
   }
+
   await Effect.runPromise(phoneEdits(copy))
   await seedOpfs(await page.context().newPage(), join(copy, "updates", "phone"), [
     ...ogFolder,
@@ -232,12 +257,17 @@ test("another device's edit reaches the file once this device merges it", async 
     "phone",
   ])
   await expect
-    .poll(() => textOf(page, "pages/tasks.md"), { timeout: 20_000 })
+    .poll(async () => await textOf(page, "pages/tasks.md"), { timeout: 20_000 })
     .toMatch(/^- TODO \(phone\)\n- DONE\n/)
 })
 
-const logseqDesktopWrites = (page: Page, root: ReadonlyArray<string>, path: string, text: string) =>
-  page.evaluate(
+const logseqDesktopWrites = async (
+  page: Page,
+  root: readonly string[],
+  path: string,
+  text: string,
+) => {
+  await page.evaluate(
     async ({ dirs, file, content }) => {
       const source = `onmessage = async ({ data }) => {
         let dir = await navigator.storage.getDirectory()
@@ -255,30 +285,40 @@ const logseqDesktopWrites = (page: Page, root: ReadonlyArray<string>, path: stri
         handle.close()
         postMessage("done")
       }`
+
       const worker = new Worker(URL.createObjectURL(new Blob([source])))
       const parts = [...dirs, ...file.split("/")]
       const name = parts.pop()
-      const done = new Promise<void>((resolve) =>
+
+      const done = new Promise<void>((resolve) => {
         worker.addEventListener("message", ({ data }) => {
-          if (data === "done") resolve()
-        }),
-      )
-      const half = new Promise<void>((resolve) =>
+          if (data === "done") {
+            resolve()
+          }
+        })
+      })
+
+      const half = new Promise<void>((resolve) => {
         worker.addEventListener("message", ({ data }) => {
-          if (data === "half") resolve()
-        }),
-      )
+          if (data === "half") {
+            resolve()
+          }
+        })
+      })
+
       worker.postMessage({ dirs: parts, name, text: content }, [])
       await half
       Object.assign(window, { logseqSaved: done })
     },
     { dirs: root, file: path, content: text },
   )
+}
 
-const logseqSaved = (page: Page) =>
-  page.evaluate(async () => {
+const logseqSaved = async (page: Page) => {
+  await page.evaluate(async () => {
     await Reflect.get(window, "logseqSaved")
   })
+}
 
 test("Logseq desktop's half-written save of an edit, an add and a delete comes in after the file is still for 2 s, and survives a reload", async ({
   page,
@@ -286,20 +326,24 @@ test("Logseq desktop's half-written save of an edit, an add and a delete comes i
   await openFolder(page, og)
   await page.waitForTimeout(1500)
   const day = await openPage(page, "Mar 9th, 2025")
+
   const saved = [
     "- journal links to [[project/Alpha]] and [[Alpha Project]]",
     "- journal uses a namespaced tag #project/Alpha, edited in Logseq",
     "\t- added in Logseq",
   ].join("\n")
+
   await logseqDesktopWrites(page, ogFolder, journal, saved)
   await logseqSaved(page)
   await page.waitForTimeout(1000)
   expect(await day.textContent()).toContain("time-tracked task")
+
   const merged = [
     /^journal links to/,
     "journal uses a namespaced tag #project/Alpha, edited in Logseq",
     "added in Logseq",
   ]
+
   await expect(day.getByRole("treeitem")).toHaveText(merged, { timeout: 10_000 })
   await page.waitForTimeout(2500)
   expect(await textOf(page, journal)).toBe(saved)
@@ -331,12 +375,14 @@ test("Logseq desktop's half-written save merges in once, next to an edit typed i
   await page.keyboard.type(" (typed in seqno)")
   await page.keyboard.press("Escape")
   await logseqSaved(page)
+
   const merged = [
     "- journal links to [[project/Alpha]] and [[Alpha Project]] (typed in seqno)",
     "- journal uses a namespaced tag #project/Alpha, edited in Logseq",
     "\t- added in Logseq",
   ].join("\n")
-  await expect.poll(() => textOf(page, journal), { timeout: 15_000 }).toBe(merged)
+
+  await expect.poll(async () => await textOf(page, journal), { timeout: 15_000 }).toBe(merged)
   await expect(day.getByRole("treeitem")).toHaveText([
     /journal links to .* \(typed in seqno\)$/,
     "journal uses a namespaced tag #project/Alpha, edited in Logseq",
@@ -368,8 +414,8 @@ test("a page made in Logseq desktop shows up in seqno, and one deleted there lea
   expect(await textOf(page, "logseq/.recycle/pages_headings.md")).toBeNull()
 })
 
-const lockFile = (page: Page, root: ReadonlyArray<string>, path: string) =>
-  page.evaluate(
+const lockFile = async (page: Page, root: readonly string[], path: string) => {
+  await page.evaluate(
     async ({ dirs, file }) => {
       const source = `onmessage = async ({ data }) => {
         if (data === "release") { self.handle.close(); postMessage("released"); return }
@@ -378,13 +424,16 @@ const lockFile = (page: Page, root: ReadonlyArray<string>, path: string) =>
         self.handle = await (await dir.getFileHandle(data.name)).createSyncAccessHandle()
         postMessage("locked")
       }`
+
       const worker = new Worker(URL.createObjectURL(new Blob([source])))
       const parts = [...dirs, ...file.split("/")]
       const name = parts.pop()
-      const reply = () =>
-        new Promise<unknown>((resolve) =>
-          worker.addEventListener("message", resolve, { once: true }),
-        )
+
+      const reply = async () =>
+        await new Promise<unknown>((resolve) => {
+          worker.addEventListener("message", resolve, { once: true })
+        })
+
       const locked = reply()
       worker.postMessage({ dirs: parts, name }, [])
       await locked
@@ -392,17 +441,24 @@ const lockFile = (page: Page, root: ReadonlyArray<string>, path: string) =>
     },
     { dirs: root, file: path },
   )
+}
 
-const releaseFile = (page: Page) =>
-  page.evaluate(async () => {
+const releaseFile = async (page: Page) => {
+  await page.evaluate(async () => {
     const worker = Reflect.get(window, "lockWorker")
-    if (!(worker instanceof Worker)) return
-    const released = new Promise((resolve) =>
-      worker.addEventListener("message", resolve, { once: true }),
-    )
+
+    if (!(worker instanceof Worker)) {
+      return
+    }
+
+    const released = new Promise((resolve) => {
+      worker.addEventListener("message", resolve, { once: true })
+    })
+
     worker.postMessage("release", [])
     await released
   })
+}
 
 test("a write that fails shows Logseq's notice, and the file catches up once writes work again", async ({
   page,
@@ -416,7 +472,7 @@ test("a write that fails shows Logseq's notice, and the file catches up once wri
     `Write to the file ${journal} failed`,
   )
   await releaseFile(page)
-  await expect.poll(() => textOf(page, journal), { timeout: 40_000 }).toBe(ogJournal)
+  await expect.poll(async () => await textOf(page, journal), { timeout: 40_000 }).toBe(ogJournal)
   await expect(page.locator("[data-mirror-report]")).toHaveCount(0)
 })
 
@@ -456,11 +512,17 @@ test("two tabs typing on one page write its file once per tick", async ({ page }
   const start = (await opfsFile(page, ogFolder, journal))?.modified
   await page.keyboard.type(" A")
   await other.keyboard.type(" B")
+
   for (let tick = 0; tick < 40; tick++) {
     const now = await opfsFile(page, ogFolder, journal)
-    if (now !== null && now.modified !== start) writes.add(now.modified)
+
+    if (now !== null && now.modified !== start) {
+      writes.add(now.modified)
+    }
+
     await page.waitForTimeout(50)
   }
+
   const text = (await textOf(page, journal)) ?? ""
   expect({
     writes: writes.size,
@@ -473,8 +535,10 @@ test("a second device's higher claim stops this tab writing, and Write them from
   page,
 }) => {
   await openFolder(page, og)
+
   const ownText = async () =>
     (await opfsFile(page, ogFolder, `seen/${await seenName(page)}`))?.text ?? ""
+
   await expect.poll(ownText, { timeout: 15_000 }).toContain('"mirror"')
   const own = { text: await ownText() }
   const vv = JSON.parse(own.text).vv
@@ -501,5 +565,5 @@ test("a second device's higher claim stops this tab writing, and Write them from
   await settings.getByRole("tab", { name: "Version control" }).click()
   await settings.getByRole("button", { name: "Write them from this device" }).click()
   await expect(settings).toContainText("This device writes them", { timeout: 10_000 })
-  await expect.poll(() => textOf(page, journal), { timeout: 10_000 }).toBe(ogJournal)
+  await expect.poll(async () => await textOf(page, journal), { timeout: 10_000 }).toBe(ogJournal)
 })

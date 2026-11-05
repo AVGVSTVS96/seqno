@@ -5,9 +5,14 @@ import { fail } from "../error.ts"
 const pad = (n: number, width: number) => String(n).padStart(width, "0")
 
 const value = (v: Value): string => {
-  if (typeof v === "number" || typeof v === "boolean") return String(v)
-  if (typeof v === "string")
+  if (typeof v === "number" || typeof v === "boolean") {
+    return String(v)
+  }
+
+  if (typeof v === "string") {
     return /^[a-z_][\w./-]*$/i.test(v) && !/^[+-]?\d/.test(v) ? v : JSON.stringify(v)
+  }
+
   return Match.valueTags(v, {
     Context: (c) => `@${c.of}`,
     AbsDate: (d) =>
@@ -17,16 +22,29 @@ const value = (v: Value): string => {
   })
 }
 
-const values = (vs: ReadonlyArray<Value>) => vs.map(value).join(" ")
+const values = (vs: readonly Value[]) => vs.map(value).join(" ")
 
 const PROPERTY = /^property\.(.+)$/
 
-const equals = (field: Field, vs: ReadonlyArray<Value>): string => {
-  if (field === "task.status") return `(task ${values(vs)})`
-  if (field === "task.priority") return `(priority ${values(vs)})`
-  if (field === "page.namespace") return `(namespace ${values(vs)})`
+const equals = (field: Field, vs: readonly Value[]): string => {
+  if (field === "task.status") {
+    return `(task ${values(vs)})`
+  }
+
+  if (field === "task.priority") {
+    return `(priority ${values(vs)})`
+  }
+
+  if (field === "page.namespace") {
+    return `(namespace ${values(vs)})`
+  }
+
   const [, key] = PROPERTY.exec(field) ?? []
-  if (key !== undefined) return `(property ${key} ${values(vs)})`
+
+  if (key !== undefined) {
+    return `(property ${key} ${values(vs)})`
+  }
+
   return `(${field} ${values(vs)})`
 }
 
@@ -42,18 +60,23 @@ const filter = (f: Filter): string =>
     HasBlock: (x) => `(has-block ${filter(x.filter)})`,
     Under: (x) => {
       const a = x.ancestor
+
       if (x.self && !x.direct && a._tag === "Compare" && a.field === "ref" && a.op === "=") {
         return typeof a.value === "object" && a.value._tag === "Context"
           ? "@page"
           : `[[${String(a.value)}]]`
       }
-      if (x.self)
+
+      if (x.self) {
         return fail("an inclusive UNDER over anything but a page reference has no text form")
+      }
+
       return `(${x.direct ? "child-of" : "under"} ${filter(a)})`
     },
     Has: (x) => {
       const [, key] = PROPERTY.exec(x.field) ?? []
-      return key !== undefined ? `(property ${key})` : `(${x.field})`
+
+      return key === undefined ? `(${x.field})` : `(property ${key})`
     },
     Between: (x) =>
       x.field === "page.day"
@@ -72,12 +95,14 @@ const view = (v: View): string | null =>
 
 export const printLogseq = (q: Query): string => {
   const where = q.where ? filter(q.where) : null
+
   const parts = [
     q.find === "pages" ? `(pages${where ? ` ${where}` : ""})` : where,
     ...(q.sort ?? []).map((s) => `(sort-by ${s.field} ${s.dir})`),
     q.group ? `(group-by ${q.group})` : null,
     q.view ? view(q.view) : null,
-    q.limit !== undefined ? `(limit ${q.limit})` : null,
+    q.limit === undefined ? null : `(limit ${q.limit})`,
   ]
+
   return `{{query ${parts.filter((p) => p !== null).join(" ")}}}`
 }

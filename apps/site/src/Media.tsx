@@ -6,15 +6,18 @@ const files = import.meta.glob<string>("./media/*", {
   import: "default",
   query: "?url",
 })
+
 const dark = "(prefers-color-scheme: dark)"
 const themes = ["dark", "light"] as const
 const images = ["avif", "webp"] as const
 
 function variants(name: string, theme: string, ext: string) {
   const pattern = new RegExp(`/${name}-${theme}-(\\d+)\\.${ext}$`)
+
   return Object.entries(files)
     .flatMap(([path, url]) => {
       const width = pattern.exec(path)?.[1]
+
       return width ? [{ url, width: Number(width) }] : []
     })
     .sort((a, b) => a.width - b.width)
@@ -27,7 +30,11 @@ const srcset = (name: string, theme: string, ext: string) =>
 
 const file = (name: string) => {
   const url = Object.entries(files).find(([path]) => path.endsWith(`/${name}`))?.[1]
-  if (!url) throw new Error(`missing media ${name}`)
+
+  if (!url) {
+    throw new Error(`missing media ${name}`)
+  }
+
   return url
 }
 
@@ -42,6 +49,7 @@ interface PictureProps {
 
 export function Picture({ name, alt, width, height, sizes, className }: PictureProps) {
   const fallback = variants(name, "light", "webp").at(-1)?.url
+
   return (
     <picture className={className}>
       {themes.flatMap((theme) =>
@@ -61,13 +69,22 @@ export function Picture({ name, alt, width, height, sizes, className }: PictureP
 }
 
 function playInView(video: HTMLVideoElement | null) {
-  if (!video || reduced()) return
+  if (!video || reduced()) {
+    return
+  }
+
   return inView(
     video,
     () => {
-      if (video.ended) video.currentTime = 0
+      if (video.ended) {
+        video.currentTime = 0
+      }
+
       video.play().catch(() => {})
-      return () => video.pause()
+
+      return () => {
+        video.pause()
+      }
     },
     { amount: 0.6 },
   )

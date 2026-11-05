@@ -39,10 +39,13 @@ const tasksAt = (priority: TaskPriority) =>
     let live = true
     void scheduler.postTask(
       () => {
-        if (live) task()
+        if (live) {
+          task()
+        }
       },
       { priority },
     )
+
     return () => {
       live = false
     }

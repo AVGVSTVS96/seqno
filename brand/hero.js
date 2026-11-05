@@ -35,7 +35,8 @@
 
   const wrap = (a) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI
   const smooth = (e) => e * e * (3 - 2 * e)
-  const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+  const overlaps = (a, b) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
   function outlineShape(rand) {
     const rows = 3 + Math.floor(rand() * 4)
@@ -96,7 +97,13 @@
       canvas.width = Math.round(width * dpr)
       canvas.height = Math.round(height * dpr)
       bullets = []
-      for (const outline of placeOutlines({ width, height, avoid: o.avoid, rand, count: o.count })) {
+      for (const outline of placeOutlines({
+        width,
+        height,
+        avoid: o.avoid,
+        rand,
+        count: o.count,
+      })) {
         const stack = []
         outline.shape.forEach((row, i) => {
           while (stack.length && bullets[stack[stack.length - 1]].depth >= row.depth) stack.pop()
@@ -104,9 +111,19 @@
           stack.push(bullets.length)
           const hx = (outline.gx + row.depth) * GRID + GRID / 2
           const hy = (outline.gy + i) * GRID + GRID / 2
-          const loose = { ...scatter(rand, hx, hy), vx: (rand() - 0.5) * 60, vy: (rand() - 0.5) * 60, e: 1, ta: (rand() - 0.5) * 2 }
+          const loose = {
+            ...scatter(rand, hx, hy),
+            vx: (rand() - 0.5) * 60,
+            vy: (rand() - 0.5) * 60,
+            e: 1,
+            ta: (rand() - 0.5) * 2,
+          }
           bullets.push({
-            hx, hy, row: i, depth: row.depth, parent,
+            hx,
+            hy,
+            row: i,
+            depth: row.depth,
+            parent,
             bar: row.width * GRID - GRID / 2,
             ...(scattered ? loose : { x: hx, y: hy, vx: 0, vy: 0, e: 0, ta: 0 }),
             tw: 0,
@@ -121,7 +138,13 @@
     }
 
     function flow(x, y, t) {
-      return (Math.sin(x * 0.0041 + t * 0.31) + Math.cos(y * 0.0052 - t * 0.23) + Math.sin((x + y) * 0.0029 + t * 0.17)) * Math.PI * 0.9
+      return (
+        (Math.sin(x * 0.0041 + t * 0.31) +
+          Math.cos(y * 0.0052 - t * 0.23) +
+          Math.sin((x + y) * 0.0029 + t * 0.17)) *
+        Math.PI *
+        0.9
+      )
     }
 
     function settledness(b) {
@@ -130,7 +153,10 @@
 
     function step(dt) {
       time += dt
-      if (!pointer.moved) { pointer.vx = 0; pointer.vy = 0 }
+      if (!pointer.moved) {
+        pointer.vx = 0
+        pointer.vy = 0
+      }
       pointer.moved = false
       const moving = pointer.inside && Math.hypot(pointer.vx, pointer.vy) > 40
       const decay = Math.exp(-dt / o.calm)
@@ -151,7 +177,11 @@
           const angle = flow(b.x, b.y, time)
           let tx = Math.cos(angle) * o.swim
           let ty = Math.sin(angle) * o.swim
-          let n = 0, avx = 0, avy = 0, sx = 0, sy = 0
+          let n = 0,
+            avx = 0,
+            avy = 0,
+            sx = 0,
+            sy = 0
           for (const q of bullets) {
             if (q === b || q.e < 0.2) continue
             const qx = q.x - b.x
@@ -161,9 +191,15 @@
             n++
             avx += q.vx
             avy += q.vy
-            if (dd < 196) { sx -= qx / (dd + 1); sy -= qy / (dd + 1) }
+            if (dd < 196) {
+              sx -= qx / (dd + 1)
+              sy -= qy / (dd + 1)
+            }
           }
-          if (n) { tx = tx * 0.6 + (avx / n) * 0.4; ty = ty * 0.6 + (avy / n) * 0.4 }
+          if (n) {
+            tx = tx * 0.6 + (avx / n) * 0.4
+            ty = ty * 0.6 + (avy / n) * 0.4
+          }
           ax += ((tx - b.vx) * 1.8 + sx * 900) * w
           ay += ((ty - b.vy) * 1.8 + sy * 900) * w
           const m = 2 * GRID
@@ -180,7 +216,10 @@
         b.vx += ax * dt
         b.vy += ay * dt
         const speed = Math.hypot(b.vx, b.vy)
-        if (speed > 620) { b.vx *= 620 / speed; b.vy *= 620 / speed }
+        if (speed > 620) {
+          b.vx *= 620 / speed
+          b.vy *= 620 / speed
+        }
         b.x += b.vx * dt
         b.y += b.vy * dt
         const target = Math.atan2(-b.vx, 70 - b.vy)
@@ -189,7 +228,8 @@
       }
       for (const b of bullets) {
         if (settledness(b) <= 0.6) continue
-        for (let p = b.parent; p >= 0; p = bullets[p].parent) bullets[p].reach = Math.max(bullets[p].reach, b.row - bullets[p].row)
+        for (let p = b.parent; p >= 0; p = bullets[p].parent)
+          bullets[p].reach = Math.max(bullets[p].reach, b.row - bullets[p].row)
       }
       for (const b of bullets) {
         const s = settledness(b)
@@ -236,7 +276,15 @@
         ctx.globalAlpha = b.tone === "ink" ? 0.92 : 0.96
         ctx.fillStyle = tone
         ctx.beginPath()
-        ctx.ellipse(b.x, b.y, b.r * stretch, b.r / Math.sqrt(stretch), Math.atan2(b.vy, b.vx), 0, TAU)
+        ctx.ellipse(
+          b.x,
+          b.y,
+          b.r * stretch,
+          b.r / Math.sqrt(stretch),
+          Math.atan2(b.vy, b.vx),
+          0,
+          TAU,
+        )
         ctx.fill()
       }
       ctx.globalAlpha = 1
@@ -277,7 +325,10 @@
         move(x, y, previous ? (x - previous.x) / dt : 0, previous ? (y - previous.y) / dt : 0)
         previous = { x, y, t: e.timeStamp }
       }
-      const onLeave = () => { pointer.inside = false; previous = null }
+      const onLeave = () => {
+        pointer.inside = false
+        previous = null
+      }
       const onVisibility = () => {
         cancelAnimationFrame(frame)
         last = 0
@@ -304,8 +355,14 @@
 
     build()
     return {
-      run, step, draw, order, move,
-      leave: () => { pointer.inside = false },
+      run,
+      step,
+      draw,
+      order,
+      move,
+      leave: () => {
+        pointer.inside = false
+      },
       advance(seconds, fps = 60) {
         for (let i = 0; i < Math.round(seconds * fps); i++) step(1 / fps)
         draw()

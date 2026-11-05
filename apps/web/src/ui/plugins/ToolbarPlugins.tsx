@@ -20,10 +20,10 @@ import {
   uiItems,
   updatesChecking,
   updatesComing,
-  type Host,
-  type UIItem,
 } from "@seqno/plugins"
-import { useContext, type KeyboardEvent, type MouseEvent } from "react"
+import type { Host, UIItem } from "@seqno/plugins"
+import { useContext } from "react"
+import type { KeyboardEvent, MouseEvent } from "react"
 import { leftSidebarOpen } from "../../atoms.ts"
 import { IconButton } from "../shell/IconButton.tsx"
 import { Menu, MenuItem, MenuSeparator, usePopover } from "../shell/popover.tsx"
@@ -50,12 +50,17 @@ const Entry = ({
     tabIndex={-1}
     {...logseq("menu-item")}
     onClick={(event: MouseEvent<HTMLElement>) => {
-      if (event.target instanceof Element && event.target.closest("[data-injected-ui]") !== null)
+      if (event.target instanceof Element && event.target.closest("[data-injected-ui]") !== null) {
         return
+      }
+
       onToggle()
     }}
     onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
-      if (event.key !== "Enter" && event.key !== " ") return
+      if (event.key !== "Enter" && event.key !== " ") {
+        return
+      }
+
       event.preventDefault()
       onToggle()
     }}
@@ -79,41 +84,63 @@ const capWidth = (registry: AtomRegistry.AtomRegistry) => (list: HTMLDivElement)
   const left = header?.querySelector(":scope > .head-left")
   const right = header?.querySelector(":scope > .head-right")
   const main = document.querySelector(".main-content-container")
-  if (header === null || right === null || right === undefined || main === null) return
+
+  if (header === null || right === null || right === undefined || main === null) {
+    return
+  }
+
   const cap = () => {
     const others = [...right.children]
       .filter((child) => !child.contains(list) && !child.matches("[popover]"))
       .reduce((sum, child) => sum + widthOf(child), 0)
+
     const room = widthOf(main) - (registry.get(leftSidebarOpen) ? 0 : widthOf(left))
     list.style.maxWidth = `${Math.max(room - others - 100, 76)}px`
   }
+
   const observer = new ResizeObserver(cap)
-  for (const watched of [main, left, right])
-    if (watched instanceof Element) observer.observe(watched)
-  return () => observer.disconnect()
+
+  for (const watched of [main, left, right]) {
+    if (watched instanceof Element) {
+      observer.observe(watched)
+    }
+  }
+
+  return () => {
+    observer.disconnect()
+  }
 }
 
 export const ToolbarPlugins = () => {
   const registry = useContext(RegistryContext)
   const host = useAtomValue(hostAtom)
+
   const items = useAtomValue(uiItems)
     .filter((item) => item.type === "toolbar")
     .toSorted((left, right) => left.key.localeCompare(right.key))
+
   const [pinned, setPinned] = useAtom(pinnedToolbarItems)
   const checking = useAtomValue(updatesChecking)
   const coming = useAtomValue(updatesComing)
   const found = checking?.auto !== true && coming.length > 0
   const menu = usePopover({ placement: { align: "end", gap: 4, inset: 0 }, kind: "menu" })
-  if (host === null || items.length === 0) return null
+
+  if (host === null || items.length === 0) {
+    return null
+  }
+
   const isPinned = (item: UIItem) => pinned?.includes(pinKey(item)) ?? false
+
   const toggle = (item: UIItem) => {
     const current = pinned ?? []
     setPinned(
       isPinned(item) ? current.filter((key) => key !== pinKey(item)) : [...current, pinKey(item)],
     )
   }
+
   const openFirstSettings = () => {
     const states = registry.get(running)
+
     const first = registry
       .get(installedPlugins)
       .find(
@@ -121,8 +148,12 @@ export const ToolbarPlugins = () => {
           registry.get(pluginSettings(plugin.id))["disabled"] !== true &&
           (states[plugin.id]?.schema.length ?? 0) > 0,
       )
-    if (first !== undefined) registry.set(settingsFor, first.id)
+
+    if (first !== undefined) {
+      registry.set(settingsFor, first.id)
+    }
   }
+
   return (
     <div {...logseq("plugin-toolbar")} data-type="toolbar">
       <div {...logseq("plugin-toolbar-list")} ref={capWidth(registry)}>
@@ -153,7 +184,9 @@ export const ToolbarPlugins = () => {
                   host={host}
                   item={item}
                   pinned={isPinned(item)}
-                  onToggle={() => toggle(item)}
+                  onToggle={() => {
+                    toggle(item)
+                  }}
                 />
               ))}
               <MenuSeparator />
@@ -169,7 +202,9 @@ export const ToolbarPlugins = () => {
               {found ? (
                 <MenuItem
                   icon={<IconDownload size={18} aria-hidden />}
-                  onSelect={() => openPluginUpdates(registry)}
+                  onSelect={() => {
+                    openPluginUpdates(registry)
+                  }}
                 >
                   New updates
                   <span {...logseq("plugin-updates-point")} data-place="menu" />

@@ -14,6 +14,7 @@ describe("config flags", () => {
   it("rewrites the flag in place and keeps the rest of the text", () => {
     const source =
       '{:meta/version 1\n ;; brackets\n :ui/show-brackets? true\n :preferred-format "Markdown"}\n'
+
     expect(writeConfigFlag(source, key, false)).toBe(source.replace("? true", "? false"))
   })
 
@@ -29,6 +30,7 @@ describe("config strings", () => {
   it("reads a top-level string, and nothing for another type, a missing key or broken EDN", () => {
     const source =
       '{:meta/version 1\n ;; :custom-css-url "commented"\n :custom-css-url "https://example.com/theme.css"}'
+
     expect(readConfigString(source, ":custom-css-url")).toBe("https://example.com/theme.css")
     expect(readConfigString(source, ":meta/version")).toBe(null)
     expect(readConfigString("{:meta/version 1}", ":custom-css-url")).toBe(null)

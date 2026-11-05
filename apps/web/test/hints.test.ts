@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
-import { placeTip, type Box, type Surroundings } from "../src/ui/hints/place.ts"
+import { placeTip } from "../src/ui/hints/place.ts"
+import type { Box, Surroundings } from "../src/ui/hints/place.ts"
 
 const box = (left: number, top: number, width: number, height: number): Box => ({
   left,

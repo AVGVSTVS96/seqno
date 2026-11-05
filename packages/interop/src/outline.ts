@@ -7,12 +7,12 @@ export interface OutlineBlock {
   readonly text: string
   readonly props: Props
   readonly collapsed: boolean
-  readonly children: ReadonlyArray<OutlineBlock>
+  readonly children: readonly OutlineBlock[]
 }
 
 export interface Outline {
   readonly props: Props
-  readonly blocks: ReadonlyArray<OutlineBlock>
+  readonly blocks: readonly OutlineBlock[]
   readonly frontMatter?: true
   readonly format?: "org"
 }
@@ -37,37 +37,47 @@ interface PropertyRun {
   readonly length: number
 }
 
-const propertyRun = (lines: ReadonlyArray<string>): PropertyRun => {
+const propertyRun = (lines: readonly string[]): PropertyRun => {
   const props: Record<string, string> = {}
   let collapsed = false
   let length = 0
+
   for (const line of lines) {
     const match = property.exec(line)
     const key = match?.[1]
     const value = match?.[2]
-    if (key === undefined || value === undefined || key in props || /^\d+$/.test(key)) break
+
+    if (key === undefined || value === undefined || key in props || /^\d+$/.test(key)) {
+      break
+    }
+
     if (key === "collapsed") {
-      if (value !== "true" || collapsed) break
+      if (value !== "true" || collapsed) {
+        break
+      }
+
       collapsed = true
     } else {
       props[key] = value
     }
+
     length += 1
   }
+
   return { props, collapsed, length }
 }
 
-const fromLines = (
-  lines: ReadonlyArray<string>,
-  children: ReadonlyArray<OutlineBlock>,
-): OutlineBlock => {
+const fromLines = (lines: readonly string[], children: readonly OutlineBlock[]): OutlineBlock => {
   const head = lines[0] ?? ""
   const whole = propertyRun(lines)
+
   if (head !== "" && whole.length === lines.length) {
     return { text: "", props: whole.props, collapsed: whole.collapsed, children }
   }
+
   const run = propertyRun(opensVerbatim.test(head) ? [] : lines.slice(1))
   const body = [head, ...lines.slice(1 + run.length)]
+
   return { text: body.join("\n"), props: run.props, collapsed: run.collapsed, children }
 }
 
@@ -78,22 +88,37 @@ const filled = (line: string) => line.trim() !== ""
 
 const frontMatterLine = /^([^:]+):(.*)$/
 
-const frontMatterOf = (preamble: ReadonlyArray<string>) => {
+const frontMatterOf = (preamble: readonly string[]) => {
   const close = preamble.findIndex((line, index) => index > 0 && line.startsWith("---"))
-  if (preamble[0] !== "---" || close < 2) return null
+
+  if (preamble[0] !== "---" || close < 2) {
+    return null
+  }
+
   const props: Record<string, string> = {}
+
   for (const line of preamble.slice(1, close)) {
     const match = frontMatterLine.exec(line)
-    if (match === null) return null
+
+    if (match === null) {
+      return null
+    }
+
     props[match[1] ?? ""] = (match[2] ?? "").trim()
   }
+
   return { props, rest: preamble.slice(close + 1) }
 }
 
-const frontMatterOutline = (preamble: ReadonlyArray<string>): Outline | null => {
+const frontMatterOutline = (preamble: readonly string[]): Outline | null => {
   const front = frontMatterOf(preamble)
-  if (front === null) return null
+
+  if (front === null) {
+    return null
+  }
+
   const body = front.rest.slice(front.rest.findIndex(filled), front.rest.findLastIndex(filled) + 1)
+
   return {
     props: front.props,
     blocks: body.length === 0 ? [] : [fromLines(body, [])],
@@ -102,28 +127,40 @@ const frontMatterOutline = (preamble: ReadonlyArray<string>): Outline | null => 
 }
 
 const parse = (source: string, format?: "org"): Outline => {
-  if (format === "org") return { ...parseOrg(source, frontMatterOutline), format }
+  if (format === "org") {
+    return { ...parseOrg(source, frontMatterOutline), format }
+  }
+
   const outline = Syntax.toOutline(Syntax.parse(source.replaceAll("\r\n", "\n")))
   const preamble = outline.preamble === "" ? [] : outline.preamble.split("\n")
-  if (preamble.at(-1) === "") preamble.pop()
+
+  if (preamble.at(-1) === "") {
+    preamble.pop()
+  }
+
   const blocks = outline.blocks.map(fromSyntax)
   const front = frontMatterOf(preamble)
+
   if (front !== null) {
     const body = front.rest.slice(
       front.rest.findIndex(filled),
       front.rest.findLastIndex(filled) + 1,
     )
+
     const extra = body.length === 0 ? [] : [fromLines(body, [])]
+
     return { props: front.props, blocks: [...extra, ...blocks], frontMatter: true }
   }
+
   const pageRun = propertyRun(preamble)
   const rest = preamble.slice(pageRun.length)
+
   return rest.every((line) => line.trim() === "")
     ? { props: pageRun.props, blocks }
     : { props: {}, blocks: [fromLines(preamble, []), ...blocks] }
 }
 
-const propertyLines = (props: Props, collapsed: boolean): Array<string> => [
+const propertyLines = (props: Props, collapsed: boolean): string[] => [
   ...Object.entries(props).map(([key, value]) => `${key}:: ${value}`),
   ...(collapsed ? ["collapsed:: true"] : []),
 ]
@@ -131,6 +168,7 @@ const propertyLines = (props: Props, collapsed: boolean): Array<string> => [
 export const blockContent = (block: Omit<OutlineBlock, "children">): string => {
   const [head = "", ...rest] = block.text === "" ? [] : block.text.split("\n")
   const props = propertyLines(block.props, block.collapsed)
+
   return (block.text === "" ? props : [head, ...props, ...rest]).join("\n")
 }
 
@@ -147,6 +185,7 @@ const heading = /^#+[ \t]/
 const topHeading = (block: Syntax.Block): Syntax.Block => {
   const [first = "", ...rest] = block.text.split("\n")
   const plain = rest.every((line) => !Syntax.startsBlock(line) && !/^[ \t]/.test(line))
+
   return heading.test(first) && plain ? { ...block, bare: true } : block
 }
 
@@ -156,22 +195,28 @@ const frontMatterLines = (props: Props) =>
     : ["---", ...Object.entries(props).map(([key, value]) => `${key}: ${value}`), "---"]
 
 const print = (outline: Outline): string => {
-  if (outline.format === "org") return printOrg(outline, frontMatterLines)
+  if (outline.format === "org") {
+    return printOrg(outline, frontMatterLines)
+  }
+
   const props =
     outline.frontMatter === true
       ? frontMatterLines(outline.props)
       : propertyLines(outline.props, false)
+
   const preamble = [...props, ...(props.length > 0 && outline.blocks.length > 0 ? ["", ""] : [])]
   const [first, ...rest] = outline.blocks.map(toSyntax)
+
   const blocks =
     first === undefined ? [] : [props.length === 0 ? topHeading(first) : first, ...rest]
+
   return Syntax.render({
     preamble: preamble.join("\n"),
     blocks,
     format: Syntax.logseqFormat,
   })
-    .replace(/^[ \t]+$/gm, "")
-    .replace(/^([ \t]*-) $/gm, "$1")
+    .replaceAll(/^[ \t]+$/gm, "")
+    .replaceAll(/^([ \t]*-) $/gm, "$1")
 }
 
 export const LogseqSyntaxLive = Layer.succeed(LogseqSyntax, LogseqSyntax.of({ parse, print }))

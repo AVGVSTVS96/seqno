@@ -14,8 +14,10 @@ import {
   IconX,
 } from "@tabler/icons-react"
 import { Effect } from "effect"
-import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity"
-import { useContext, useState, type ReactNode } from "react"
+import { AsyncResult, Atom } from "effect/reactivity"
+import type { AtomRegistry } from "effect/reactivity"
+import { useContext, useState } from "react"
+import type { ReactNode } from "react"
 import {
   checkUpdate,
   chosenThemes,
@@ -32,11 +34,8 @@ import {
   uninstall,
   updatePlugin,
   updatesComing,
-  type ChosenTheme,
-  type MarketItem,
-  type PluginInfo,
-  type PluginTheme,
 } from "@seqno/plugins"
+import type { ChosenTheme, MarketItem, PluginInfo, PluginTheme } from "@seqno/plugins"
 import { theme } from "../../atoms.ts"
 import { IconButton } from "../shell/IconButton.tsx"
 import { notify } from "../shell/Notices.tsx"
@@ -53,18 +52,22 @@ import { AutoCheckUpdates, checkAll, notifyUpdated } from "./PluginUpdates.tsx"
 
 const dialogId = "seqno-plugins"
 
-export const openPlugins = () => openDialog(dialogId)
+export const openPlugins = () => {
+  openDialog(dialogId)
+}
 
 type Tab = "installed" | "marketplace"
+
 type Kind = "plugins" | "themes"
 
-const market = Atom.make(Effect.tryPromise(() => loadMarket())).pipe(Atom.keepAlive)
+const market = Atom.make(Effect.tryPromise(async () => await loadMarket())).pipe(Atom.keepAlive)
 
 const compact = (count: number) =>
   count >= 1000 ? `${(count / 1000).toFixed(count >= 100_000 ? 0 : 1)}k` : String(count)
 
-const matches = (query: string, ...fields: ReadonlyArray<string>) => {
+const matches = (query: string, ...fields: readonly string[]) => {
   const needle = query.trim().toLowerCase()
+
   return needle === "" || fields.some((field) => field.toLowerCase().includes(needle))
 }
 
@@ -76,12 +79,21 @@ const Icon = ({
   readonly theme: boolean
 }) => {
   const [failed, setFailed] = useState(false)
+
   return src === null || failed ? (
     <span className="plugin-icon plugin-icon-empty" aria-hidden>
       {isTheme ? <IconPalette size={28} /> : <IconPuzzle size={28} />}
     </span>
   ) : (
-    <img className="plugin-icon" src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+    <img
+      className="plugin-icon"
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={() => {
+        setFailed(true)
+      }}
+    />
   )
 }
 
@@ -143,17 +155,21 @@ const MarketCard = ({ item }: { readonly item: MarketItem }) => {
   const registry = useContext(RegistryContext)
   const installed = useAtomValue(installedPlugins).some((plugin) => plugin.id === item.id)
   const [busy, setBusy] = useState(false)
+
   const add = () => {
     setBusy(true)
     install(registry, item)
-      .catch((error: unknown) =>
+      .catch((error: unknown) => {
         notify(
           registry,
           `${item.title} couldn't be installed: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      )
-      .finally(() => setBusy(false))
+        )
+      })
+      .finally(() => {
+        setBusy(false)
+      })
   }
+
   return (
     <Card
       {...item}
@@ -201,17 +217,29 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
   const busy = useAtomValue(pluginBusy)
   const updating = busy === plugin.id
   const coming = useAtomValue(updatesComing).find((one) => one.pid === plugin.id)
+
   const update = () => {
-    if (busy !== null) return
-    if (coming !== undefined)
-      return void updatePlugin(registry, plugin.id).then((result) =>
-        notifyUpdated(registry, result),
-      )
+    if (busy !== null) {
+      return
+    }
+
+    if (coming !== undefined) {
+      return void updatePlugin(registry, plugin.id).then((result) => {
+        notifyUpdated(registry, result)
+      })
+    }
+
     void checkUpdate(registry, plugin.id).then((checked) => {
-      if (checked?._tag === "Current") notify(registry, `<${plugin.id}> It's up to date :)`)
-      if (checked?._tag === "Failed") notify(registry, `[Error]<${plugin.id}> ${checked.reason}`)
+      if (checked?._tag === "Current") {
+        notify(registry, `<${plugin.id}> It's up to date :)`)
+      }
+
+      if (checked?._tag === "Failed") {
+        notify(registry, `[Error]<${plugin.id}> ${checked.reason}`)
+      }
     })
   }
+
   return (
     <Card
       {...plugin}
@@ -234,7 +262,9 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
                   type="button"
                   className="icon-button"
                   aria-label={`${plugin.title} settings`}
-                  onClick={() => openSettings(plugin.id)}
+                  onClick={() => {
+                    openSettings(plugin.id)
+                  }}
                 >
                   <IconSettings size={18} aria-hidden />
                 </button>
@@ -293,9 +323,20 @@ export const themeChosen = (
     : [chosen.light, chosen.dark].some((pick) => pick?.url === entry.url)
 
 export const applyTheme = (registry: AtomRegistry.AtomRegistry, entry: PluginTheme | null) => {
-  if (entry === null) return registry.set(chosenThemes, { light: null, dark: null })
+  if (entry === null) {
+    registry.set(chosenThemes, { light: null, dark: null })
+
+    return
+  }
+
   const pick = { pid: entry.pid, url: entry.url }
-  if (entry.mode === null) return registry.set(chosenThemes, { light: pick, dark: pick })
+
+  if (entry.mode === null) {
+    registry.set(chosenThemes, { light: pick, dark: pick })
+
+    return
+  }
+
   registry.set(chosenThemes, { ...registry.get(chosenThemes), [entry.mode]: pick })
   registry.set(theme, entry.mode)
 }
@@ -304,7 +345,11 @@ const ThemeRow = ({ entry }: { readonly entry: PluginTheme | null }) => {
   const chosen = useAtomValue(chosenThemes)
   const registry = useContext(RegistryContext)
   const active = themeChosen(chosen, entry)
-  const use = () => applyTheme(registry, entry)
+
+  const use = () => {
+    applyTheme(registry, entry)
+  }
+
   return (
     <li className="plugin-theme-row">
       <button
@@ -328,11 +373,13 @@ const ThemeRow = ({ entry }: { readonly entry: PluginTheme | null }) => {
 const Installed = ({ kind, query }: { readonly kind: Kind; readonly query: string }) => {
   const plugins = useAtomValue(installedPlugins)
   const themes = useAtomValue(runtimeThemes)
+
   const shown = plugins.filter(
     (plugin) =>
       (kind === "themes") === isThemePackage(plugin) &&
       matches(query, plugin.title, plugin.description, plugin.id),
   )
+
   return (
     <>
       {kind === "themes" ? (
@@ -368,6 +415,7 @@ const Marketplace = ({ kind, query }: { readonly kind: Kind; readonly query: str
             matches(query, item.title, item.description, item.author, item.id),
         )
         .toSorted((left, right) => right.downloads - left.downloads)
+
       return shown.length === 0 ? (
         <p className="plugins-empty">Nothing found.</p>
       ) : (
@@ -399,7 +447,9 @@ const Kinds = ({
         role="radio"
         aria-checked={kind === one}
         className="plugins-kind"
-        onClick={() => onKind(one)}
+        onClick={() => {
+          onKind(one)
+        }}
       >
         {one === "plugins" ? (
           <IconPuzzle size={16} aria-hidden />
@@ -415,18 +465,21 @@ const Kinds = ({
 const InstalledKinds = (props: { readonly kind: Kind; readonly onKind: (kind: Kind) => void }) => {
   const installed = useAtomValue(installedPlugins)
   const themes = installed.filter(isThemePackage).length
+
   return <Kinds {...props} plugins={installed.length - themes} themes={themes} />
 }
 
 const MarketKinds = (props: { readonly kind: Kind; readonly onKind: (kind: Kind) => void }) => {
-  const listed = AsyncResult.getOrElse(useAtomValue(market), (): ReadonlyArray<MarketItem> => [])
+  const listed = AsyncResult.getOrElse(useAtomValue(market), (): readonly MarketItem[] => [])
   const themes = listed.filter((item) => item.theme).length
+
   return <Kinds {...props} plugins={listed.length - themes} themes={themes} />
 }
 
 const PluginActions = ({ tab, kind }: { readonly tab: Tab; readonly kind: Kind }) => {
   const registry = useContext(RegistryContext)
   const menu = usePopover({ placement: { align: "end", gap: 4, inset: 0 }, kind: "menu" })
+
   return (
     <>
       <IconButton
@@ -446,7 +499,9 @@ const PluginActions = ({ tab, kind }: { readonly tab: Tab; readonly kind: Kind }
         ) : (
           <MenuItem
             icon={<IconRotateClockwise size={18} aria-hidden />}
-            onSelect={() => registry.refresh(market)}
+            onSelect={() => {
+              registry.refresh(market)
+            }}
           >
             Refresh lists
           </MenuItem>
@@ -462,6 +517,7 @@ const Body = () => {
   const [tab, setTab] = useState<Tab>("installed")
   const [kind, setKind] = useState<Kind>("plugins")
   const [query, setQuery] = useState("")
+
   return (
     <>
       <style href="seqno/plugins" precedence="app">
@@ -477,7 +533,9 @@ const Body = () => {
               role="tab"
               aria-selected={tab === one}
               className="plugins-tab"
-              onClick={() => setTab(one)}
+              onClick={() => {
+                setTab(one)
+              }}
             >
               {one === "installed" ? "Installed" : "Marketplace"}
             </button>
@@ -505,7 +563,9 @@ const Body = () => {
             placeholder="Search plugins"
             aria-label="Search plugins"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+            }}
           />
         </label>
         <PluginActions tab={tab} kind={kind} />
@@ -523,12 +583,15 @@ const Body = () => {
 
 export const PluginsDialog = () => {
   const [opened, setOpened] = useState(0)
+
   return (
     <Dialog
       id={dialogId}
       label="Plugins"
       className={logseq("plugins-dialog").className}
-      onClose={() => setOpened(opened + 1)}
+      onClose={() => {
+        setOpened(opened + 1)
+      }}
     >
       <Body key={opened} />
     </Dialog>

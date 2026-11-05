@@ -3,8 +3,10 @@ import { Effect, Layer, Option, Stream, SubscriptionRef } from "effect"
 import { KeyValueStore } from "effect/persistence"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { RpcTest } from "effect/rpc"
-import { BlockId, Command, PageId, type Block, type GraphEvent, type Page } from "@seqno/domain"
-import { CommandRejected, CoreClient, CoreRpcs, type PageTree } from "@seqno/rpc"
+import { BlockId, Command, PageId } from "@seqno/domain"
+import type { Block, GraphEvent, Page } from "@seqno/domain"
+import { CommandRejected, CoreClient, CoreRpcs } from "@seqno/rpc"
+import type { PageTree } from "@seqno/rpc"
 import {
   appLayer,
   favorites,
@@ -21,9 +23,10 @@ import {
   startingGraph,
   theme,
   toggleFavorite,
-  type AppServices,
 } from "../src/atoms.ts"
-import { GraphLocations, type GraphLocation } from "../src/graph-locations.ts"
+import type { AppServices } from "../src/atoms.ts"
+import { GraphLocations } from "../src/graph-locations.ts"
+import type { GraphLocation } from "../src/graph-locations.ts"
 
 const pageOf = (id: string, title: string, journalDay: number | null): Page => ({
   id: PageId.make(id),
@@ -34,8 +37,8 @@ const pageOf = (id: string, title: string, journalDay: number | null): Page => (
 })
 
 const inbox = pageOf("01920000-0000-7000-8000-0000000000a1", "Inbox", null)
-const older = pageOf("01920000-0000-7000-8000-0000000000a2", "Oct 5th, 2026", 20261005)
-const today = pageOf("01920000-0000-7000-8000-0000000000a3", "Oct 6th, 2026", 20261006)
+const older = pageOf("01920000-0000-7000-8000-0000000000a2", "Oct 5th, 2026", 20_261_005)
+const today = pageOf("01920000-0000-7000-8000-0000000000a3", "Oct 6th, 2026", 20_261_006)
 
 const blockOf = (id: string, parent: string | null, text: string, collapsed: boolean): Block => ({
   id: BlockId.make(id),
@@ -56,6 +59,7 @@ const FakeCore = CoreRpcs.toLayer(
       page: inbox,
       blocks: [parentBlock, childBlock, siblingBlock],
     })
+
     const change = (update: (current: Block) => Block, blockId: BlockId) =>
       Effect.map(
         SubscriptionRef.updateAndGet(tree, (current) => ({
@@ -64,7 +68,7 @@ const FakeCore = CoreRpcs.toLayer(
             candidate.id === blockId ? update(candidate) : candidate,
           ),
         })),
-        (current): ReadonlyArray<GraphEvent> =>
+        (current): readonly GraphEvent[] =>
           current.blocks
             .filter((candidate) => candidate.id === blockId)
             .map((changed) => ({
@@ -74,9 +78,11 @@ const FakeCore = CoreRpcs.toLayer(
               updatedAt: 2,
             })),
       )
-    const rejected: Effect.Effect<ReadonlyArray<GraphEvent>, CommandRejected> = Effect.fail(
+
+    const rejected: Effect.Effect<readonly GraphEvent[], CommandRejected> = Effect.fail(
       new CommandRejected({ reason: "not in the fake core" }),
     )
+
     return CoreRpcs.of({
       Attach: () => Stream.empty,
       OpenGraph: ({ graph }) => Effect.succeed({ graph, skipped: [] }),
@@ -157,7 +163,7 @@ const testRegistry = (entries = new Map<string, string>()) =>
     ],
   })
 
-const settle = Effect.promise(() => new Promise((resolve) => setTimeout(resolve, 10)))
+const settle = Effect.promise(async () => await new Promise((resolve) => setTimeout(resolve, 10)))
 
 describe("app atoms", () => {
   it.effect("opens a graph and derives journals, favorites and pages by name", () =>
@@ -232,7 +238,9 @@ const memoryStorage = (entries: Map<string, string>): Storage => ({
   get length() {
     return entries.size
   },
-  clear: () => entries.clear(),
+  clear: () => {
+    entries.clear()
+  },
   getItem: (key) => entries.get(key) ?? null,
   key: (index) => [...entries.keys()][index] ?? null,
   removeItem: (key) => {

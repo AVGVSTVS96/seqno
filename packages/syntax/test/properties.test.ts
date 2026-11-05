@@ -127,6 +127,7 @@ describe("config.edn property settings", () => {
         ' :ignored-page-references-keywords #{:author "Website"}}',
       ].join("\n"),
     )
+
     expect([[...config.listKeys], [...config.unparsedKeys]]).toStrictEqual([
       ["tags", "alias", "genre", "people"],
       ["website"],
@@ -147,6 +148,7 @@ describe("config.edn property settings", () => {
 
 describe("property lines in Org blocks and front matter", () => {
   const org = "TODO Tomato bed\nstaked on the south side"
+
   const props = [
     ["variety", "San Marzano"],
     ["plants", "6"],

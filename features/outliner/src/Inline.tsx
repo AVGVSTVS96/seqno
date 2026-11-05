@@ -1,10 +1,12 @@
-import { use, useRef, useState, type ReactNode } from "react"
+import { use, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { useAtomValue } from "@effect/atom-react"
 import { Match, Schema } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { IconCopy, IconMaximize, IconPhoto, IconTrash } from "@tabler/icons-react"
 import { logseq } from "@seqno/dom"
-import { BlockId, type Block } from "@seqno/domain"
+import { BlockId } from "@seqno/domain"
+import type { Block } from "@seqno/domain"
 import {
   assetPageName,
   hlsPagePrefix,
@@ -13,10 +15,8 @@ import {
   parseVideo,
   isLocalAsset,
   plainText,
-  type Inline,
-  type LinkTarget,
-  type Span,
 } from "@seqno/syntax"
+import type { Inline, LinkTarget, Span } from "@seqno/syntax"
 import { AnnotationPrefix, annotationMarks, isAnnotation, isAreaAnnotation } from "./Annotation.tsx"
 import { AssetFileLink, AssetMedia } from "./Asset.tsx"
 import { copyImage, ImageViewer } from "./ImageViewer.tsx"
@@ -43,9 +43,11 @@ const isBlockId = Schema.is(BlockId)
 const safeUrl = /^(?:https?|mailto|ftp):/i
 const absoluteUrl = /^(?:https?:|data:image\/|blob:)/i
 
-const stop = (event: { stopPropagation: () => void }) => event.stopPropagation()
+const stop = (event: { stopPropagation: () => void }) => {
+  event.stopPropagation()
+}
 
-export const Inlines = ({ nodes }: { readonly nodes: ReadonlyArray<Inline> }): ReactNode =>
+export const Inlines = ({ nodes }: { readonly nodes: readonly Inline[] }): ReactNode =>
   nodes.map((node) => <InlineNode key={node.span.from} node={node} />)
 
 const AnnotationRef = ({
@@ -62,21 +64,31 @@ const AnnotationRef = ({
   const blank = area && (block.text.split("\n")[0] ?? "").trim() === "[:span]"
   const title = blank ? [] : (contentOf(block.text, dialect).title ?? [])
   const prefix = <AnnotationPrefix block={block} />
+
   return (
     <span {...logseq("seqno-annotation-ref", { area })} {...annotationMarks(block.props)}>
       <span
         className="seqno-blockref"
         onMouseDown={(event) => {
-          if (event.button !== 0) return
+          if (event.button !== 0) {
+            return
+          }
+
           if (
             event.target instanceof Element &&
             event.target.closest(".seqno-annotation-blank") !== null
-          )
+          ) {
             return
+          }
+
           event.preventDefault()
           event.stopPropagation()
-          if (event.shiftKey) renderer.navigate({ _tag: "SidebarBlock", blockId: block.id })
-          else openAnnotation(block)
+
+          if (event.shiftKey) {
+            renderer.navigate({ _tag: "SidebarBlock", blockId: block.id })
+          } else {
+            openAnnotation(block)
+          }
         }}
         onClick={stop}
       >
@@ -115,6 +127,7 @@ const PlainRef = ({
   const renderer = use(RenderContext)
   const preview = usePreview({ _tag: "Block", blockId: block.id })
   const title = contentOf(block.text, use(PageDialects)(block.pageId)).title ?? []
+
   return (
     <span
       {...logseq("seqno-blockref")}
@@ -145,6 +158,7 @@ const LiveRef = ({ block, children }: { readonly block: Block; readonly children
     ),
     () => undefined,
   )
+
   return <RefBody block={latest ?? block}>{children}</RefBody>
 }
 
@@ -157,6 +171,7 @@ const RemoteRef = ({ uuid, children }: { readonly uuid: string; readonly childre
 
 const BlockRefEmbed = ({ uuid, raw }: { readonly uuid: string; readonly raw: string }) => {
   const { Embed } = use(RenderContext)
+
   return AsyncResult.match(useAtomValue(blockRefAtom(uuid)), {
     onInitial: () => null,
     onFailure: () => <span className="seqno-macro">{raw}</span>,
@@ -167,6 +182,7 @@ const BlockRefEmbed = ({ uuid, raw }: { readonly uuid: string; readonly raw: str
 const BlockRef = ({ uuid, children }: { readonly uuid: string; readonly children?: ReactNode }) => {
   const renderer = use(RenderContext)
   const local = renderer.localBlock(uuid)
+
   return local === undefined ? (
     <RemoteRef uuid={uuid}>{children}</RemoteRef>
   ) : (
@@ -188,6 +204,7 @@ const PageLink = ({
   const renderer = use(RenderContext)
   const shown = use(ShowBrackets)
   const preview = usePreview({ _tag: "Page", name })
+
   return (
     <span {...logseq("seqno-pageref", name)}>
       {brackets && shown ? (
@@ -223,7 +240,7 @@ const Link = ({
   label,
 }: {
   readonly target: LinkTarget
-  readonly label: ReadonlyArray<Inline>
+  readonly label: readonly Inline[]
 }) =>
   Match.valueTags(target, {
     Url: ({ url }) =>
@@ -259,6 +276,7 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
   const picture = useRef<HTMLImageElement>(null)
   const { url, alt, span, size, width } = node
   const source = renderer.resolveAsset(url) ?? (absoluteUrl.test(url) ? url : undefined)
+
   if (source === undefined) {
     return (
       <span className="seqno-image is-missing" title={url}>
@@ -267,25 +285,37 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
       </span>
     )
   }
+
   const keepWidth = (frame: HTMLElement) => {
     const before = frame.offsetWidth
     window.addEventListener(
       "pointerup",
       () => {
         const after = Math.round(frame.offsetWidth)
-        if (edit === null || after === before) return
+
+        if (edit === null || after === before) {
+          return
+        }
+
         const suffix = `{:width ${after}}`
-        if (size === null) edit(span.to, span.to, suffix)
-        else edit(size.from, size.to, suffix)
+
+        if (size === null) {
+          edit(span.to, span.to, suffix)
+        } else {
+          edit(size.from, size.to, suffix)
+        }
       },
       { once: true },
     )
   }
+
   return (
     <span
       {...logseq("seqno-image-frame")}
       style={width === null ? undefined : { width }}
-      onPointerDown={(event) => keepWidth(event.currentTarget)}
+      onPointerDown={(event) => {
+        keepWidth(event.currentTarget)
+      }}
     >
       <img
         ref={picture}
@@ -303,7 +333,9 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
             type="button"
             title="Delete image"
             aria-label="Delete image"
-            onClick={() => edit(span.from, span.to, "")}
+            onClick={() => {
+              edit(span.from, span.to, "")
+            }}
           >
             <IconTrash size={18} stroke={2} aria-hidden />
           </button>
@@ -314,7 +346,9 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
           title="Copy image"
           aria-label="Copy image"
           onClick={() => {
-            if (picture.current !== null) void copyImage(picture.current).catch(() => undefined)
+            if (picture.current !== null) {
+              void copyImage(picture.current).catch(() => undefined)
+            }
           }}
         >
           <IconCopy size={18} stroke={2} aria-hidden />
@@ -324,12 +358,22 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
           type="button"
           title="Maximize image"
           aria-label="Maximize image"
-          onClick={() => setFull(true)}
+          onClick={() => {
+            setFull(true)
+          }}
         >
           <IconMaximize size={18} stroke={2} aria-hidden />
         </button>
       </span>
-      {full ? <ImageViewer source={source} alt={alt} onClose={() => setFull(false)} /> : null}
+      {full ? (
+        <ImageViewer
+          source={source}
+          alt={alt}
+          onClose={() => {
+            setFull(false)
+          }}
+        />
+      ) : null}
     </span>
   )
 }
@@ -349,17 +393,31 @@ const Macro = ({
   const macros = use(MacroSlot)
   const host = use(HostBlock)
   const Slot = macros?.Slot
+
   if (Slot !== undefined && name === "renderer") {
     return <Slot name={name} args={args} blockId={host} />
   }
+
   const [target] = name === "embed" ? parseInline(args.trim()) : []
   const Embed = renderer.Embed
   const Query = renderer.Query
-  if (renderer.depth < maxDepth && name === "query") return <Query query={args.trim()} />
+
+  if (renderer.depth < maxDepth && name === "query") {
+    return <Query query={args.trim()} />
+  }
+
   const video = videoMacros.has(name) ? parseVideo(args) : null
-  if (video !== null) return <VideoEmbed video={video} />
+
+  if (video !== null) {
+    return <VideoEmbed video={video} />
+  }
+
   const seconds = name === "youtube-timestamp" ? parseTimestamp(args) : null
-  if (seconds !== null) return <Timestamp seconds={seconds} />
+
+  if (seconds !== null) {
+    return <Timestamp seconds={seconds} />
+  }
+
   if (renderer.depth < maxDepth && target?._tag === "BlockRef") {
     return isBlockId(target.uuid) ? (
       <Embed target={{ _tag: "Block", blockId: target.uuid }} />
@@ -367,15 +425,18 @@ const Macro = ({
       <BlockRefEmbed uuid={target.uuid} raw={raw} />
     )
   }
+
   if (renderer.depth < maxDepth && target?._tag === "PageRef") {
     return <Embed target={{ _tag: "Page", name: target.name }} />
   }
+
   return <span className="seqno-macro">{raw}</span>
 }
 
 const TagLink = ({ name }: { readonly name: string }) => {
   const renderer = use(RenderContext)
   const preview = usePreview({ _tag: "Page", name })
+
   return (
     <>
       <a
@@ -395,6 +456,7 @@ const TagLink = ({ name }: { readonly name: string }) => {
 
 const InlineNode = ({ node }: { readonly node: Inline }): ReactNode => {
   const renderer = use(RenderContext)
+
   return Match.valueTags(node, {
     Text: ({ text, span }) => <span data-from={span.from}>{text}</span>,
     Code: ({ code, span }) => (

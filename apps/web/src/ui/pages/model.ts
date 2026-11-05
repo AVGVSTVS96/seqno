@@ -3,49 +3,60 @@ import type { Block, BlockId, Page, PageId } from "@seqno/domain"
 import type { PageStat, ReferencedPage, Reference } from "@seqno/rpc"
 
 export const SortColumn = Schema.Literals(["title", "backlinks", "created", "updated"])
+
 export type SortColumn = typeof SortColumn.Type
 
 export const TableSort = Schema.Struct({
   column: SortColumn,
   descending: Schema.Boolean,
 })
+
 export type TableSort = typeof TableSort.Type
 
 export interface ReferenceGroup {
   readonly pageId: PageId
-  readonly blockIds: ReadonlyArray<BlockId>
+  readonly blockIds: readonly BlockId[]
 }
 
-export const groupByPage = (
-  references: ReadonlyArray<Reference>,
-): ReadonlyArray<ReferenceGroup> => {
-  const groups = new Map<PageId, Array<BlockId>>()
+export const groupByPage = (references: readonly Reference[]): readonly ReferenceGroup[] => {
+  const groups = new Map<PageId, BlockId[]>()
+
   for (const { pageId, blockId } of references) {
     const group = groups.get(pageId)
-    if (group === undefined) groups.set(pageId, [blockId])
-    else group.push(blockId)
+
+    if (group === undefined) {
+      groups.set(pageId, [blockId])
+    } else {
+      group.push(blockId)
+    }
   }
+
   return [...groups].map(([pageId, blockIds]) => ({ pageId, blockIds }))
 }
 
-export const trailOf = (blocks: ReadonlyArray<Block>) => {
+export const trailOf = (blocks: readonly Block[]) => {
   const byId = new Map(blocks.map((block) => [block.id, block]))
+
   const parentOf = (block: Block | undefined) =>
     block?.parentId == null ? undefined : byId.get(block.parentId)
-  return (blockId: BlockId): ReadonlyArray<Block> => {
-    const trail: Array<Block> = []
+
+  return (blockId: BlockId): readonly Block[] => {
+    const trail: Block[] = []
+
     for (let at = parentOf(byId.get(blockId)); at !== undefined; at = parentOf(at)) {
       trail.unshift(at)
     }
+
     return trail
   }
 }
 
 export const outermost = (
-  blockIds: ReadonlyArray<BlockId>,
-  trail: (blockId: BlockId) => ReadonlyArray<Block>,
-): ReadonlyArray<BlockId> => {
+  blockIds: readonly BlockId[],
+  trail: (blockId: BlockId) => readonly Block[],
+): readonly BlockId[] => {
   const chosen = new Set(blockIds)
+
   return blockIds.filter((id) => !trail(id).some((parent) => chosen.has(parent.id)))
 }
 
@@ -73,14 +84,16 @@ export interface PageRow {
 }
 
 export const pageRows = (
-  pages: ReadonlyArray<Page>,
-  stats: ReadonlyArray<PageStat>,
-  referenced: ReadonlyArray<ReferencedPage> = [],
-): ReadonlyArray<PageRow> => {
+  pages: readonly Page[],
+  stats: readonly PageStat[],
+  referenced: readonly ReferencedPage[] = [],
+): readonly PageRow[] => {
   const byPage = new Map(stats.map((stat) => [stat.pageId, stat]))
+
   return [
     ...pages.map((page) => {
       const stat = byPage.get(page.id)
+
       return {
         page,
         backlinks: stat?.backlinks ?? 0,
@@ -98,26 +111,41 @@ export const pageRows = (
 }
 
 const compareBy = (column: SortColumn) => (left: PageRow, right: PageRow) => {
-  if (column === "title") return left.page.title.localeCompare(right.page.title)
+  if (column === "title") {
+    return left.page.title.localeCompare(right.page.title)
+  }
+
   const a = left[column]
   const b = right[column]
-  if (a === b) return 0
-  if (a === null) return -1
-  if (b === null) return 1
+
+  if (a === b) {
+    return 0
+  }
+
+  if (a === null) {
+    return -1
+  }
+
+  if (b === null) {
+    return 1
+  }
+
   return a - b
 }
 
 export const visibleRows = (
-  rows: ReadonlyArray<PageRow>,
+  rows: readonly PageRow[],
   options: { readonly sort: TableSort; readonly filter: string; readonly journals: boolean },
-): ReadonlyArray<PageRow> => {
+): readonly PageRow[] => {
   const needle = options.filter.trim().toLowerCase()
   const compare = compareBy(options.sort.column)
+
   return rows
     .filter((row) => options.journals || row.page.journalDay === null)
     .filter((row) => needle === "" || row.page.title.toLowerCase().includes(needle))
     .toSorted((left, right) => {
       const order = options.sort.descending ? compare(right, left) : compare(left, right)
+
       return order === 0 ? left.page.name.localeCompare(right.page.name) : order
     })
 }
@@ -125,8 +153,12 @@ export const visibleRows = (
 const two = (n: number) => String(n).padStart(2, "0")
 
 export const timestamp = (millis: number | null) => {
-  if (millis === null) return ""
+  if (millis === null) {
+    return ""
+  }
+
   const at = new Date(millis)
+
   return `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`
 }
 

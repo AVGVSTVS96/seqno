@@ -1,8 +1,10 @@
-export const at = <T>(items: ReadonlyArray<T>, index: number): T => {
+export const at = <T>(items: readonly T[], index: number): T => {
   const item = items[index]
+
   if (item === undefined) {
     throw new RangeError(`index ${index} is outside 0..${items.length - 1}`)
   }
+
   return item
 }
 
@@ -14,6 +16,7 @@ export const HOUR = 60 * MINUTE
 
 export const splitPath = (path: string): readonly [dir: string, name: string] => {
   const slash = path.lastIndexOf("/")
+
   return [path.slice(0, slash), path.slice(slash + 1)]
 }
 

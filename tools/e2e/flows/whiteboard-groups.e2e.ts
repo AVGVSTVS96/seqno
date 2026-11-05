@@ -16,8 +16,8 @@ const twoBoxes = async (page: Page) => {
   await expect(shapes(page, "box")).toHaveCount(2)
 }
 
-const left = (page: Page, nth: number) =>
-  shapes(page, "box")
+const left = async (page: Page, nth: number) =>
+  await shapes(page, "box")
     .nth(nth)
     .evaluate((node) => (node instanceof HTMLElement ? node.style.left : ""))
 
@@ -40,10 +40,12 @@ test("Mod+G groups the selection: a click picks the group, a drag moves its shap
 
   const before = [await left(page, 0), await left(page, 1)]
   await drag(page, [350, 350], [350, 450])
-  await expect.poll(() => left(page, 0)).toBe(before[0])
+  await expect.poll(async () => await left(page, 0)).toBe(before[0])
+
   const tops = await shapes(page, "box").evaluateAll((nodes) =>
     nodes.map((node) => (node instanceof HTMLElement ? node.style.top : "")),
   )
+
   expect(new Set(tops).size).toBe(1)
   expect(tops[0]).not.toBe("")
 

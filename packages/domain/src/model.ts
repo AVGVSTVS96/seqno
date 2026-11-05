@@ -2,6 +2,7 @@ import { Schema } from "effect"
 import { BlockId, PageId } from "./ids.ts"
 
 export const Props = Schema.Record(Schema.String, Schema.String)
+
 export type Props = typeof Props.Type
 
 export const normalizePageName = (title: string): string =>
@@ -14,10 +15,11 @@ export const PageName = Schema.String.check(
 )
 
 const isCalendarDay = (day: number): boolean => {
-  const year = Math.floor(day / 10000)
+  const year = Math.floor(day / 10_000)
   const month = Math.floor(day / 100) % 100
   const date = day % 100
   const parsed = new Date(Date.UTC(year, month - 1, date))
+
   return (
     parsed.getUTCFullYear() === year &&
     parsed.getUTCMonth() === month - 1 &&
@@ -26,9 +28,10 @@ const isCalendarDay = (day: number): boolean => {
 }
 
 export const JournalDay = Schema.Int.check(
-  Schema.isBetween({ minimum: 10000101, maximum: 99991231 }),
+  Schema.isBetween({ minimum: 10_000_101, maximum: 99_991_231 }),
   Schema.makeFilter(isCalendarDay, { expected: "a real calendar day as YYYYMMDD" }),
 )
+
 export type JournalDay = typeof JournalDay.Type
 
 export const Block = Schema.Struct({
@@ -39,17 +42,20 @@ export const Block = Schema.Struct({
   collapsed: Schema.Boolean,
   props: Props,
 })
+
 export type Block = typeof Block.Type
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export const blockRefId = (block: Block): string => {
   const written = block.props["id"]
+
   return written !== undefined && UUID.test(written) ? written.toLowerCase() : block.id
 }
 
 export const isBlockRefTo = (block: Block, uuid: string): boolean => {
   const wanted = uuid.toLowerCase()
+
   return block.id === wanted || block.props["id"]?.toLowerCase() === wanted
 }
 
@@ -62,4 +68,5 @@ export const Page = Schema.Struct({
   format: Schema.optionalKey(Schema.Literal("org")),
   frontMatter: Schema.optionalKey(Schema.Literal(true)),
 })
+
 export type Page = typeof Page.Type

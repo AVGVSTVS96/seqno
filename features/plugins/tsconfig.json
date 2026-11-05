@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "include": ["src", "test"],
   "compilerOptions": {
+    "rootDir": ".",
     "lib": ["es2024", "dom", "dom.iterable"],
     "jsx": "react-jsx",
     "types": ["vite/client"]

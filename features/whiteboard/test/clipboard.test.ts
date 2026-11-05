@@ -1,5 +1,6 @@
 import { assert, describe, it } from "vitest"
-import { BlockId, PageId, shapeProps, type Block } from "@seqno/domain"
+import { BlockId, PageId, shapeProps } from "@seqno/domain"
+import type { Block } from "@seqno/domain"
 import { clipboardHtml, copiedOf, readClipboard } from "../src/clipboard.ts"
 import { clones, copiesAt } from "../src/commands.ts"
 import { freshId } from "../src/ids.ts"
@@ -38,11 +39,14 @@ describe("clipboard", () => {
       ),
       block(4, { type: "logseq-portal", point: [0, 200], size: [400, 320] }, "[[Harvest log]]"),
     ]
+
     const scene = sceneOf(itemsOf(blocks), new Map())
+
     const copied = copiedOf(
       scene,
       scene.items.filter((item) => item.block.id !== id(2)),
     )
+
     const html = clipboardHtml(copied)
     const inner = decodeURIComponent(html)
     assert.match(inner, /^<whiteboard-tldr>.*<\/whiteboard-tldr>$/)
@@ -89,6 +93,7 @@ describe("clipboard", () => {
         b2: { id: "b2", type: "line", fromId: "l", toId: "elsewhere", handleId: "end" },
       },
     }
+
     const html = `<meta charset="utf-8">${encodeURIComponent(`<whiteboard-tldr>${JSON.stringify(tldr)}</whiteboard-tldr>`)}`
     const copied = readClipboard(html)
     const pasted = clones(copied, copiesAt(copied, [100, 100]), [id(21), id(22)])

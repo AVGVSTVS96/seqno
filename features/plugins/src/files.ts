@@ -25,15 +25,26 @@ const elsewhere = {
 
 const kindOf = (url: string, type = "") => {
   const path = new URL(url).pathname
-  if (/\.html?$/.test(path) || type.startsWith("text/html")) return "html"
-  if (path.endsWith(".css") || type.startsWith("text/css")) return "css"
-  if (/\.m?js$/.test(path) || type.includes("javascript")) return "js"
+
+  if (/\.html?$/.test(path) || type.startsWith("text/html")) {
+    return "html"
+  }
+
+  if (path.endsWith(".css") || type.startsWith("text/css")) {
+    return "css"
+  }
+
+  if (/\.m?js$/.test(path) || type.includes("javascript")) {
+    return "js"
+  }
+
   return null
 }
 
 const unhashed = (url: string) => {
   const parsed = new URL(url)
   parsed.hash = ""
+
   return parsed.href
 }
 
@@ -41,10 +52,11 @@ const bare = (url: string) => {
   const parsed = new URL(url)
   parsed.search = ""
   parsed.hash = ""
+
   return parsed.href
 }
 
-const matches = (url: string, body: string, found: ReadonlyArray<RegExp>) =>
+const matches = (url: string, body: string, found: readonly RegExp[]) =>
   found.flatMap((pattern) =>
     [...body.matchAll(pattern)].flatMap(([, match]) =>
       match === undefined || /^(?:data|blob|javascript|mailto):/.test(match)
@@ -53,20 +65,27 @@ const matches = (url: string, body: string, found: ReadonlyArray<RegExp>) =>
     ),
   )
 
-export const referencesIn = (url: string, body: string, type = ""): ReadonlyArray<string> => {
+export const referencesIn = (url: string, body: string, type = ""): readonly string[] => {
   const kind = kindOf(url, type)
+
   return kind === null ? [] : matches(url, body, patterns[kind]).map(bare)
 }
 
 const fallbackFont = /\.(?:woff|ttf|otf|eot)(?:[?#]|$)/
 
-export const elsewhereIn = (url: string, body: string, type = ""): ReadonlyArray<string> => {
+export const elsewhereIn = (url: string, body: string, type = ""): readonly string[] => {
   const kind = kindOf(url, type)
-  if (kind === null) return []
+
+  if (kind === null) {
+    return []
+  }
+
   const found = matches(url, body, elsewhere[kind]).filter(
     (ref) => new URL(ref).origin !== location.origin,
   )
+
   const woff2 = found.some((ref) => /\.woff2(?:[?#]|$)/.test(ref))
+
   return found.filter((ref) => !(woff2 && fallbackFont.test(ref))).map(unhashed)
 }
 
@@ -81,48 +100,85 @@ const startsOf = (info: PluginInfo) =>
 const canKeep = () => typeof caches !== "undefined"
 
 export const keepCopy = async (info: PluginInfo) => {
-  if (!canKeep()) return
+  if (!canKeep()) {
+    return
+  }
+
   const root = local(info.root)
   const cache = await caches.open(pluginFiles.cache)
   const seen = new Set<string>()
+
   const store = async (url: string) => {
     seen.add(url)
     const response = await fetch(url)
-    if (!response.ok) return null
+
+    if (!response.ok) {
+      return null
+    }
+
     await cache.put(url, response.clone())
     const type = response.headers.get("content-type") ?? ""
+
     return { type, body: kindOf(url, type) === null ? "" : await response.text() }
   }
+
   const away = async (url: string): Promise<void> => {
-    if (seen.has(url) || !/^https?:/.test(url)) return
+    if (seen.has(url) || !/^https?:/.test(url)) {
+      return
+    }
+
     const file = await store(url).catch(() => null)
-    if (file !== null) await Promise.all(elsewhereIn(url, file.body, file.type).map(away))
+
+    if (file !== null) {
+      await Promise.all(elsewhereIn(url, file.body, file.type).map(away))
+    }
   }
+
   const visit = async (url: string): Promise<void> => {
-    if (!url.startsWith(root) || seen.has(url)) return
+    if (!url.startsWith(root) || seen.has(url)) {
+      return
+    }
+
     const file = await store(url)
-    if (file === null) return
+
+    if (file === null) {
+      return
+    }
+
     await Promise.all([
       ...referencesIn(url, file.body, file.type).map(visit),
       ...elsewhereIn(url, file.body, file.type).map(away),
     ])
   }
+
   await Promise.all(startsOf(info).map(visit))
 }
 
 export const ensureCopy = async (info: PluginInfo) => {
-  if (!canKeep()) return
+  if (!canKeep()) {
+    return
+  }
+
   const [first] = startsOf(info)
-  if (first === undefined || (await caches.match(first, { ignoreVary: true })) !== undefined) return
+
+  if (first === undefined || (await caches.match(first, { ignoreVary: true })) !== undefined) {
+    return
+  }
+
   await keepCopy(info)
 }
 
 export const dropCopy = async (info: PluginInfo) => {
-  if (!canKeep()) return
+  if (!canKeep()) {
+    return
+  }
+
   const root = local(info.root)
   const cache = await caches.open(pluginFiles.cache)
   const kept = await cache.keys()
   await Promise.all(
-    kept.filter((request) => request.url.startsWith(root)).map((request) => cache.delete(request)),
+    kept
+      .filter((request) => request.url.startsWith(root))
+      .map(async (request) => await cache.delete(request)),
   )
 }

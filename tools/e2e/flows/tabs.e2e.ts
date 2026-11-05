@@ -9,10 +9,11 @@ const second = "Open Getting started to see how pages link"
 
 const anotherTab = async (page: Page) => {
   const other = await page.context().newPage()
-  const errors: Array<string> = []
+  const errors: string[] = []
   other.on("pageerror", (error) => errors.push(error.message))
   await other.goto("/")
   await expect(todayOn(other).getByRole("treeitem").first()).toHaveText(welcome)
+
   return { other, errors }
 }
 
@@ -67,10 +68,12 @@ test("two tabs typing at the same time keep every key", async ({ page, seqno }) 
   const { other, errors } = await anotherTab(page)
   await editEnd(page, welcome)
   await editEnd(other, second)
+
   for (const key of "0123456789") {
     await page.keyboard.press(key)
     await other.keyboard.press(key)
   }
+
   await page.keyboard.press("Escape")
   await other.keyboard.press("Escape")
   const both = [`${welcome}0123456789`, `${second}0123456789`, ...restOfToday]
@@ -150,19 +153,18 @@ for (const heldMs of [300, 600, 900, 1500]) {
     page,
   }) => {
     await page.goto("/favicon.svg")
-    await page.evaluate(
-      () =>
-        new Promise<void>((held) => {
-          void navigator.locks.request(
-            "seqno/graph/demo",
-            () =>
-              new Promise<void>((letGo) => {
-                Reflect.set(globalThis, "letGo", letGo)
-                held()
-              }),
-          )
-        }),
-    )
+    await page.evaluate(async () => {
+      await new Promise<void>((held) => {
+        void navigator.locks.request(
+          "seqno/graph/demo",
+          async () =>
+            await new Promise<void>((letGo) => {
+              Reflect.set(globalThis, "letGo", letGo)
+              held()
+            }),
+        )
+      })
+    })
     const other = await page.context().newPage()
     await other.goto("/")
     await expect(
@@ -171,7 +173,10 @@ for (const heldMs of [300, 600, 900, 1500]) {
     await other.waitForTimeout(heldMs)
     await page.evaluate(() => {
       const letGo: unknown = Reflect.get(globalThis, "letGo")
-      if (typeof letGo === "function") letGo()
+
+      if (typeof letGo === "function") {
+        letGo()
+      }
     })
     await expect(todayOn(other).getByRole("treeitem").first()).toHaveText(welcome)
   })

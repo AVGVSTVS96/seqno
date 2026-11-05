@@ -13,8 +13,10 @@ import {
 } from "@tabler/icons-react"
 import { AsyncResult, Atom } from "effect/reactivity"
 import type { ComponentType } from "react"
-import { blockRefId, type Block, type Command } from "@seqno/domain"
-import { pageTreeAtom, type BlockMenuRequest } from "@seqno/outliner"
+import { blockRefId } from "@seqno/domain"
+import type { Block, Command } from "@seqno/domain"
+import { pageTreeAtom } from "@seqno/outliner"
+import type { BlockMenuRequest } from "@seqno/outliner"
 import { blockContent } from "@seqno/syntax"
 import { dispatch, rightSidebar } from "../../atoms.ts"
 import { childrenOf, exported, markdownOf } from "./Export.tsx"
@@ -47,18 +49,22 @@ const levels = [1, 2, 3, 4, 5, 6] as const
 
 const headingOf = (block: Block): Heading => {
   const level = levels.find((candidate) => candidate === blockContent(block.text).heading)
+
   return level ?? (block.props["heading"] === "true" ? "auto" : null)
 }
 
-const headingCommands = (block: Block, heading: Heading): ReadonlyArray<Command> => {
+const headingCommands = (block: Block, heading: Heading): readonly Command[] => {
   const prefix = headingPrefix.exec(block.text)?.[0] ?? ""
   const wanted = typeof heading === "number" ? `${"#".repeat(heading)} ` : ""
-  const text: ReadonlyArray<Command> =
+
+  const text: readonly Command[] =
     prefix === wanted
       ? []
       : [{ _tag: "EditText", blockId: block.id, from: 0, to: prefix.length, insert: wanted }]
+
   const auto = heading === "auto" ? "true" : null
-  const prop: ReadonlyArray<Command> =
+
+  const prop: readonly Command[] =
     (block.props["heading"] ?? null) === auto
       ? []
       : [
@@ -69,6 +75,7 @@ const headingCommands = (block: Block, heading: Heading): ReadonlyArray<Command>
             value: auto,
           },
         ]
+
   return [...text, ...prop]
 }
 
@@ -94,29 +101,38 @@ const MenuView = ({
   onClose,
 }: {
   readonly request: BlockMenuRequest
-  readonly blocks: ReadonlyArray<Block>
+  readonly blocks: readonly Block[]
   readonly onClose: () => void
 }) => {
   const run = useAtomSet(dispatch)
   const updateSidebar = useAtomSet(rightSidebar)
   const host = useAtomValue(hostAtom)
+
   const pluginItems = useAtomValue(pluginCommands).filter(
     (command) => command.type === "block-context-menu-item",
   )
+
   const setExported = useAtomSet(exported)
   const byId = new Map(blocks.map((block) => [block.id, block]))
+
   const chosen = request.blockIds.flatMap((id) => {
     const block = byId.get(id)
+
     return block === undefined ? [] : [block]
   })
+
   const children = childrenOf(blocks)
   const first = chosen[0]
   const current = first === undefined ? null : headingOf(first)
   const numbered = chosen.every((block) => block.props["logseq.order-list-type"] === "number")
-  const send = (commands: ReadonlyArray<Command>) => {
-    for (const command of commands) run(command)
+
+  const send = (commands: readonly Command[]) => {
+    for (const command of commands) {
+      run(command)
+    }
   }
-  const property = (key: string, value: string | null) =>
+
+  const property = (key: string, value: string | null) => {
     send(
       chosen.map((block) => ({
         _tag: "SetProperty",
@@ -125,19 +141,28 @@ const MenuView = ({
         value,
       })),
     )
+  }
+
   const markdown = () => chosen.map((block) => markdownOf(children, block, 0)).join("\n")
-  const descendants = (block: Block): ReadonlyArray<Block> => [
+
+  const descendants = (block: Block): readonly Block[] => [
     block,
     ...children(block.id).flatMap(descendants),
   ]
-  const collapseAll = (collapsed: boolean) =>
+
+  const collapseAll = (collapsed: boolean) => {
     send(
       chosen
         .flatMap(descendants)
         .filter((block) => children(block.id).length > 0 && block.collapsed !== collapsed)
         .map((block) => ({ _tag: "SetCollapsed", blockId: block.id, collapsed })),
     )
-  const remove = () => send([{ _tag: "DeleteBlocks", blockIds: request.blockIds }])
+  }
+
+  const remove = () => {
+    send([{ _tag: "DeleteBlocks", blockIds: request.blockIds }])
+  }
+
   return (
     <div
       popover="manual"
@@ -147,24 +172,38 @@ const MenuView = ({
       {...logseq("block-menu")}
       data-keeps-selection
       ref={(menu) => {
-        if (menu === null) return
+        if (menu === null) {
+          return
+        }
+
         menu.showPopover()
         placeAt(menu, request.x, request.y)
         menu.focus()
+
         const outside = (event: PointerEvent) => {
-          if (!(event.target instanceof Node && menu.contains(event.target))) menu.hidePopover()
+          if (!(event.target instanceof Node && menu.contains(event.target))) {
+            menu.hidePopover()
+          }
         }
+
         document.addEventListener("pointerdown", outside, true)
-        return () => document.removeEventListener("pointerdown", outside, true)
+
+        return () => {
+          document.removeEventListener("pointerdown", outside, true)
+        }
       }}
       onToggle={(event) => {
-        if (event.newState === "closed") onClose()
+        if (event.newState === "closed") {
+          onClose()
+        }
       }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault()
           event.currentTarget.hidePopover()
-        } else onMenuKeyDown(event)
+        } else {
+          onMenuKeyDown(event)
+        }
       }}
     >
       <div className="block-menu-colors">
@@ -217,34 +256,38 @@ const MenuView = ({
       <MenuSeparator />
       <MenuItem
         hint={<Keys keys={["shift", "Click"]} />}
-        onSelect={() =>
+        onSelect={() => {
           updateSidebar({
             _tag: "Open",
             item: { _tag: "Block", blockId: request.blockIds[0] },
           })
-        }
+        }}
       >
         Open in sidebar
       </MenuItem>
       <MenuSeparator />
-      <MenuItem onSelect={() => copy(chosen.map((block) => `((${blockRefId(block)}))`).join("\n"))}>
+      <MenuItem
+        onSelect={() => {
+          copy(chosen.map((block) => `((${blockRefId(block)}))`).join("\n"))
+        }}
+      >
         Copy block ref
       </MenuItem>
       <MenuItem
-        onSelect={() =>
+        onSelect={() => {
           copy(chosen.map((block) => `{{embed ((${blockRefId(block)}))}}`).join("\n"))
-        }
+        }}
       >
         Copy block embed
       </MenuItem>
       <MenuItem
-        onSelect={() =>
+        onSelect={() => {
           setExported({
             name: "blocks",
             target: { _tag: "Blocks", blockIds: request.blockIds },
             pages: [...new Set(chosen.map((block) => block.pageId))],
           })
-        }
+        }}
       >
         Copy / Export as..
       </MenuItem>
@@ -261,14 +304,28 @@ const MenuView = ({
         Delete selected blocks
       </MenuItem>
       <MenuSeparator />
-      <MenuItem onSelect={() => property("logseq.order-list-type", numbered ? null : "number")}>
+      <MenuItem
+        onSelect={() => {
+          property("logseq.order-list-type", numbered ? null : "number")
+        }}
+      >
         Toggle number list
       </MenuItem>
       <MenuSeparator />
-      <MenuItem hint={<Keys keys={["mod", "↓"]} />} onSelect={() => collapseAll(false)}>
+      <MenuItem
+        hint={<Keys keys={["mod", "↓"]} />}
+        onSelect={() => {
+          collapseAll(false)
+        }}
+      >
         Expand all
       </MenuItem>
-      <MenuItem hint={<Keys keys={["mod", "↑"]} />} onSelect={() => collapseAll(true)}>
+      <MenuItem
+        hint={<Keys keys={["mod", "↑"]} />}
+        onSelect={() => {
+          collapseAll(true)
+        }}
+      >
         Collapse all
       </MenuItem>
       {host === null || pluginItems.length === 0 ? null : (
@@ -277,7 +334,9 @@ const MenuView = ({
           {pluginItems.map((command) => (
             <MenuItem
               key={`${command.pid} ${command.key}`}
-              onSelect={() => runCommand(host, command, request.blockIds[0])}
+              onSelect={() => {
+                runCommand(host, command, request.blockIds[0])
+              }}
             >
               {command.label}
             </MenuItem>
@@ -288,7 +347,7 @@ const MenuView = ({
   )
 }
 
-const noBlocks: ReadonlyArray<Block> = []
+const noBlocks: readonly Block[] = []
 
 const LoadedMenu = ({
   request,
@@ -298,10 +357,12 @@ const LoadedMenu = ({
   readonly onClose: () => void
 }) => {
   const tree = useAtomValue(pageTreeAtom(request.pageId))
+
   const blocks = AsyncResult.getOrElse(
     AsyncResult.map(tree, (value) => value.blocks),
     () => noBlocks,
   )
+
   return blocks.length === 0 ? null : (
     <MenuView request={request} blocks={blocks} onClose={onClose} />
   )
@@ -309,11 +370,14 @@ const LoadedMenu = ({
 
 export const BlockMenu = () => {
   const [request, setRequest] = useAtom(blockMenu)
+
   return request === null ? null : (
     <LoadedMenu
       key={`${request.x},${request.y},${request.blockIds.join()}`}
       request={request}
-      onClose={() => setRequest(null)}
+      onClose={() => {
+        setRequest(null)
+      }}
     />
   )
 }

@@ -46,33 +46,41 @@ export interface BoardFile {
   readonly bytes?: Buffer
 }
 
-export const fireFiles = (
+export const fireFiles = async (
   page: Page,
   kind: "drop" | "paste",
   at: readonly [number, number],
-  files: ReadonlyArray<BoardFile>,
-) =>
-  page.evaluate(
+  files: readonly BoardFile[],
+) => {
+  await page.evaluate(
     async (given) => {
       const transfer = new DataTransfer()
+
       for (const file of given.files) {
         const canvas = document.createElement("canvas")
         const [width, height] = file.drawn ?? [1, 1]
         canvas.width = width
         canvas.height = height
         const context = canvas.getContext("2d")
+
         if (context !== null) {
           context.fillStyle = "#3a7"
           context.fillRect(0, 0, width, height)
         }
+
         const blob =
           file.data === null
-            ? await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, file.type))
+            ? await new Promise<Blob | null>((resolve) => {
+                canvas.toBlob(resolve, file.type)
+              })
             : new Blob([Uint8Array.from(atob(file.data), (char) => char.charCodeAt(0))])
+
         transfer.items.add(new File([blob ?? new Blob()], file.name, { type: file.type }))
       }
+
       const [clientX, clientY] = given.at
       const target = document.elementFromPoint(clientX, clientY) ?? document.body
+
       const event =
         given.kind === "paste"
           ? new ClipboardEvent("paste", {
@@ -87,6 +95,7 @@ export const fireFiles = (
               bubbles: true,
               cancelable: true,
             })
+
       target.dispatchEvent(event)
     },
     {
@@ -100,17 +109,25 @@ export const fireFiles = (
       })),
     },
   )
+}
 
-export const firePaste = (
+export const firePaste = async (
   page: Page,
   at: readonly [number, number],
   data: { readonly text?: string; readonly html?: string },
-) =>
-  page.evaluate(
+) => {
+  await page.evaluate(
     (given) => {
       const transfer = new DataTransfer()
-      if (given.text !== null) transfer.setData("text/plain", given.text)
-      if (given.html !== null) transfer.setData("text/html", given.html)
+
+      if (given.text !== null) {
+        transfer.setData("text/plain", given.text)
+      }
+
+      if (given.html !== null) {
+        transfer.setData("text/html", given.html)
+      }
+
       const [x, y] = given.at
       const target = document.elementFromPoint(x, y) ?? document.body
       target.dispatchEvent(
@@ -119,3 +136,4 @@ export const firePaste = (
     },
     { at, text: data.text ?? null, html: data.html ?? null },
   )
+}

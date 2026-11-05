@@ -1,4 +1,5 @@
-import { Context, Data, Schema, type Effect } from "effect"
+import { Context, Data, Schema } from "effect"
+import type { Effect } from "effect"
 
 export class StorageFailed extends Schema.TaggedError<StorageFailed>()("StorageFailed", {
   path: Schema.String,
@@ -14,12 +15,13 @@ export type Entry = Data.TaggedEnum<{
   File: { readonly name: string; readonly placeholder: boolean }
   Directory: { readonly name: string }
 }>
+
 export const Entry = Data.taggedEnum<Entry>()
 
 export class Storage extends Context.Service<
   Storage,
   {
-    readonly list: (dir: string) => Effect.Effect<ReadonlyArray<Entry>, StorageFailed>
+    readonly list: (dir: string) => Effect.Effect<readonly Entry[], StorageFailed>
     readonly read: (path: string) => Effect.Effect<Uint8Array, StorageFailed | FileUnavailable>
     readonly write: (path: string, bytes: Uint8Array) => Effect.Effect<void, StorageFailed>
     readonly remove: (path: string) => Effect.Effect<void, StorageFailed>

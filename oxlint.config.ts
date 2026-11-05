@@ -6,7 +6,7 @@ import vitest from "ultracite/oxlint/vitest"
 
 type Side = "domain" | "contract" | "pure" | "core" | "ui" | "tool"
 
-const packages: Record<Side, ReadonlyArray<string>> = {
+const packages: Record<Side, readonly string[]> = {
   domain: ["domain"],
   contract: ["rpc"],
   pure: ["syntax", "query", "export", "dom"],
@@ -19,8 +19,8 @@ const uiToCore =
   "UI code reaches the core only through @seqno/rpc: add or use an Rpc in packages/rpc and call it from the UI. Shared types belong in @seqno/domain, and pure parsing in @seqno/syntax or @seqno/query."
 
 const sides: ReadonlyArray<{
-  files: Array<string>
-  forbidden: ReadonlyArray<Side>
+  files: string[]
+  forbidden: readonly Side[]
   message: string
 }> = [
   {
@@ -58,15 +58,18 @@ const effectHooks = {
     "Derive the value during render, do the work in the event handler that caused the change, or read outside state through an @effect/atom-react atom (useAtomValue, useAtomSet).",
 }
 
-const restrictImports = (forbidden: ReadonlyArray<Side>, message: string) => [
+const restrictImports = (forbidden: readonly Side[], message: string) => [
   "error",
   {
     paths: [effectHooks],
     patterns: [
       {
-        group: forbidden.flatMap((side) =>
-          packages[side].flatMap((name) => [`@seqno/${name}`, `@seqno/${name}/*`]),
-        ),
+        group: [
+          ...forbidden.flatMap((side) =>
+            packages[side].flatMap((name) => [`@seqno/${name}`, `@seqno/${name}/*`]),
+          ),
+          ...(forbidden.includes("core") ? ["**/worker/**"] : []),
+        ],
         message,
       },
     ],
@@ -93,14 +96,52 @@ export default defineConfig({
     "oxc/no-accumulating-spread": "error",
     "import/no-cycle": "error",
     "typescript/consistent-type-assertions": ["error", { assertionStyle: "never" }],
+    "typescript/array-type": ["error", { default: "array-simple" }],
+    "eslint/func-names": ["error", "as-needed", { generators: "never" }],
+    "eslint/complexity": "off",
+    "eslint/default-case": "off",
+    "eslint/func-style": "off",
+    "eslint/max-classes-per-file": "off",
+    "eslint/no-await-in-loop": "off",
+    "eslint/no-empty-function": "off",
+    "eslint/no-nested-ternary": "off",
+    "eslint/no-plusplus": "off",
+    "eslint/no-use-before-define": "off",
+    "eslint/no-void": "off",
+    "eslint/prefer-destructuring": "off",
+    "eslint/prefer-named-capture-group": "off",
+    "promise/avoid-new": "off",
+    "promise/prefer-await-to-callbacks": "off",
+    "react/function-component-definition": "off",
+    "react/hook-use-state": "off",
+    "react/jsx-handler-names": "off",
+    "typescript/consistent-return": "off",
+    "unicorn/filename-case": "off",
+    "unicorn/import-style": "off",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-array-reduce": "off",
+    "unicorn/no-await-expression-member": "off",
+    "eslint/no-bitwise": "off",
+    "eslint/no-redeclare": "off",
+    "eslint/sort-keys": "off",
+    "anti-slop/no-shape-in-symbol-names": "off",
+    "unicorn/no-array-method-this-argument": "off",
+    "unicorn/throw-new-error": "off",
     "no-restricted-imports": ["error", { paths: [effectHooks] }],
     "anti-slop-effect/no-manual-effect-error-tag": "error",
-    "anti-slop-effect/no-manual-tag-comparison": "error",
-    "anti-slop-effect/no-manual-tagged-construction": "error",
     "anti-slop-effect/no-service-constructor-imports": "error",
     "anti-slop-effect/prefer-effect-match": "error",
   },
   overrides: [
+    {
+      files: ["**/*.test.{ts,tsx}"],
+      plugins: ["vitest"],
+      rules: {
+        "vitest/max-expects": "off",
+        "vitest/prefer-strict-equal": "off",
+        "vitest/require-top-level-describe": "off",
+      },
+    },
     ...sides.map(({ files, forbidden, message }) => ({
       files,
       rules: { "no-restricted-imports": restrictImports(forbidden, message) },

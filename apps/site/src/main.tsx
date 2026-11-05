@@ -4,6 +4,11 @@ import { commits } from "./commits.ts"
 import "./styles.css"
 
 const root = document.getElementById("root")
-if (root?.hasChildNodes()) hydrateRoot(root, <App />)
-else if (root) createRoot(root).render(<App />)
+
+if (root?.hasChildNodes()) {
+  hydrateRoot(root, <App />)
+} else if (root) {
+  createRoot(root).render(<App />)
+}
+
 void commits.refresh()

@@ -129,6 +129,7 @@ describe("graph model", () => {
   it("zooms around the pointer and fits every node in view", () => {
     const camera = zoomAt({ x: 0, y: 0, scale: 1 }, { x: 100, y: 50 }, 2)
     assert.deepStrictEqual(camera, { x: -100, y: -50, scale: 2 })
+
     const fitted = fitCamera(
       [
         { x: -500, y: 0, radius: 0 },
@@ -138,6 +139,7 @@ describe("graph model", () => {
       400,
       0,
     )
+
     assert.strictEqual(fitted.scale, 0.6)
     assert.strictEqual(fitted.x, 300)
   })
@@ -155,8 +157,10 @@ describe("graph model", () => {
     const options = { linkDistance: 72, seed: new Map() }
     const first = layoutNow(scene, options)
     assert.deepStrictEqual(layoutNow(scene, options), first)
+
     const distance = (a: number, b: number) =>
       Math.hypot((first[a]?.x ?? 0) - (first[b]?.x ?? 0), (first[a]?.y ?? 0) - (first[b]?.y ?? 0))
+
     assert.isTrue(distance(0, 2) < distance(0, 4))
   })
 })

@@ -25,6 +25,7 @@ export interface ListedName {
 export const readName = (listed: string): ListedName => {
   const inner = /^\.(.+)\.icloud$/.exec(listed)?.[1]
   const raw = inner ?? listed
+
   return { raw, name: raw.normalize("NFC"), stub: inner !== undefined }
 }
 
@@ -55,5 +56,6 @@ export const snapshotName = async (owner: string, bytes: Uint8Array): Promise<st
   const input = new Uint8Array(prefix.length + bytes.length)
   input.set(prefix)
   input.set(bytes, prefix.length)
+
   return `${hex(await crypto.subtle.digest("SHA-256", input)).slice(0, 32)}.loro`
 }

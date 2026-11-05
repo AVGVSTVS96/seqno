@@ -6,9 +6,8 @@ import {
   plainText,
   propertyValue,
   setMarker,
-  type Body,
-  type BlockContent,
 } from "../src/index.ts"
+import type { Body, BlockContent } from "../src/index.ts"
 
 const summary = (content: BlockContent) => ({
   marker: content.marker,
@@ -19,18 +18,29 @@ const summary = (content: BlockContent) => ({
   logbook: content.logbook === null ? null : clockTotal(content.logbook.seconds),
   body: content.body.map((body: Body) => {
     switch (body._tag) {
-      case "Paragraph":
+      case "Paragraph": {
         return `p: ${plainText(body.inline)}`
-      case "Heading":
+      }
+
+      case "Heading": {
         return `h${body.level}: ${plainText(body.inline)}`
-      case "Code":
+      }
+
+      case "Code": {
         return `code ${body.language}: ${body.code}`
-      case "Quote":
+      }
+
+      case "Quote": {
         return `quote: ${body.lines.map(plainText).join(" / ")}`
-      case "Admonition":
+      }
+
+      case "Admonition": {
         return `${body.kind}: ${body.lines.map(plainText).join(" / ")}`
-      case "Math":
+      }
+
+      case "Math": {
         return `math: ${body.tex}`
+      }
     }
   }),
   numbered: content.numbered,
@@ -176,6 +186,7 @@ describe("clockTotal", () => {
 
 const apply = (text: string, marker: Parameters<typeof setMarker>[1]) => {
   const edit = setMarker(text, marker)
+
   return edit === null ? text : applyEdit(text, edit)
 }
 

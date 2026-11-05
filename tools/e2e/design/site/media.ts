@@ -10,13 +10,24 @@ const top = 24
 
 for (const theme of ["light", "dark"]) {
   const showcase = join(scratch, `showcase-${theme}.png`)
-  const source = resolve(import.meta.dirname, "../../../../docs/screenshots", `showcase-${theme}.png`)
+
+  const source = resolve(
+    import.meta.dirname,
+    "../../../../docs/screenshots",
+    `showcase-${theme}.png`,
+  )
+
   const geometry = `2880x${1800 - top}+${margin}+${margin + top}`
   execFileSync("magick", [source, "-crop", geometry, "+repage", showcase])
   encode(showcase, `showcase-${theme}`, [800, 1440, 2256])
+
   for (const loop of ["outline", "queries"]) {
     const video = join(media, `${loop}-${theme}.mp4`)
-    if (!existsSync(video)) continue
+
+    if (!existsSync(video)) {
+      continue
+    }
+
     const still = join(scratch, `${loop}-${theme}.png`)
     execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-i", video, "-frames:v", "1", still])
     encode(still, `${loop}-${theme}`, [600, 1200])

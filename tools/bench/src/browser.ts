@@ -3,11 +3,13 @@ import { createReadStream } from "node:fs"
 import { createServer } from "node:http"
 import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
-import { chromium, test as playwright, type Page } from "@playwright/test"
+import { chromium, test as playwright } from "@playwright/test"
+import type { Page } from "@playwright/test"
 
 export const test = playwright.extend<{ page: Page }>({
   page: async ({ baseURL, viewport, channel, headless, launchOptions }, use) => {
     const profile = await mkdtemp(join(tmpdir(), "seqno-bench-profile-"))
+
     const context = await chromium.launchPersistentContext(profile, {
       ...launchOptions,
       ...(channel === undefined ? {} : { channel }),
@@ -15,6 +17,7 @@ export const test = playwright.extend<{ page: Page }>({
       headless,
       viewport,
     })
+
     try {
       await use(context.pages()[0] ?? (await context.newPage()))
     } finally {
@@ -24,15 +27,21 @@ export const test = playwright.extend<{ page: Page }>({
   },
 })
 
-const serveFolder = async (from: string, files: ReadonlyArray<string>) => {
+const serveFolder = async (from: string, files: readonly string[]) => {
   const server = createServer((request, response) => {
     const file = files[Number(request.url?.slice(1))]
     response.setHeader("Access-Control-Allow-Origin", "*")
-    if (file === undefined) return void response.writeHead(404).end()
+
+    if (file === undefined) {
+      return void response.writeHead(404).end()
+    }
+
     createReadStream(join(from, file)).pipe(response)
   })
+
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
   const address = server.address()
+
   return {
     server,
     base:
@@ -40,27 +49,34 @@ const serveFolder = async (from: string, files: ReadonlyArray<string>) => {
   }
 }
 
-const copyIntoOpfs = async (page: Page, from: string, into: ReadonlyArray<string>) => {
+const copyIntoOpfs = async (page: Page, from: string, into: readonly string[]) => {
   const files = (await readdir(from, { recursive: true, withFileTypes: true }))
     .filter((entry) => entry.isFile())
     .map((entry) => relative(from, join(entry.parentPath, entry.name)))
+
   const { server, base } = await serveFolder(from, files)
+
   try {
     await page.goto("/")
     await page.evaluate(
       async (seed) => {
         const root = navigator.storage.getDirectory()
-        const directory = (path: ReadonlyArray<string>) =>
-          path.reduce(
-            async (handle, part) => (await handle).getDirectoryHandle(part, { create: true }),
+
+        const directory = async (path: readonly string[]) =>
+          await path.reduce(
+            async (handle, part) => await (await handle).getDirectoryHandle(part, { create: true }),
             root,
           )
+
         for (const [at, path] of seed.files.entries()) {
           const parts = [...seed.into, ...path.split("/")]
           const name = parts.pop() ?? ""
           const file = await (await directory(parts)).getFileHandle(name, { create: true })
           const body = (await fetch(`${seed.base}${at}`)).body
-          if (body !== null) await body.pipeTo(await file.createWritable())
+
+          if (body !== null) {
+            await body.pipeTo(await file.createWritable())
+          }
         }
       },
       { base, files, into },
@@ -70,8 +86,8 @@ const copyIntoOpfs = async (page: Page, from: string, into: ReadonlyArray<string
   }
 }
 
-const dismissHints = (page: Page) =>
-  page.addInitScript(() => {
+const dismissHints = async (page: Page) =>
+  await page.addInitScript(() => {
     localStorage.setItem(
       "seqno.dismissedHints",
       JSON.stringify(["contents", "page-link", "shift-click", "references", "search"]),
@@ -83,9 +99,9 @@ export const pickFolder = async (page: Page, from: string, graph = "graph") => {
   await copyIntoOpfs(page, from, picked)
   await dismissHints(page)
   await page.addInitScript((path) => {
-    window.showDirectoryPicker = () =>
-      path.reduce(
-        async (dir, part) => (await dir).getDirectoryHandle(part),
+    window.showDirectoryPicker = async () =>
+      await path.reduce(
+        async (dir, part) => await (await dir).getDirectoryHandle(part),
         navigator.storage.getDirectory(),
       )
   }, picked)
@@ -93,25 +109,30 @@ export const pickFolder = async (page: Page, from: string, graph = "graph") => {
 
 export const keepInBrowser = async (page: Page, from: string, graph: string) => {
   await copyIntoOpfs(page, from, ["graphs", graph])
-  await page.evaluate(
-    (name) =>
-      new Promise<void>((resolve, reject) => {
-        const opening = indexedDB.open("seqno", 1)
-        opening.addEventListener("upgradeneeded", () =>
-          opening.result.createObjectStore("graphs", { keyPath: "name" }),
-        )
-        opening.addEventListener("error", () => reject(opening.error))
-        opening.addEventListener("success", () => {
-          const saving = opening.result
-            .transaction("graphs", "readwrite")
-            .objectStore("graphs")
-            .put({ _tag: "OpfsGraph", name })
-          saving.addEventListener("success", () => resolve())
-          saving.addEventListener("error", () => reject(saving.error))
+  await page.evaluate(async (name) => {
+    await new Promise<void>((resolve, reject) => {
+      const opening = indexedDB.open("seqno", 1)
+      opening.addEventListener("upgradeneeded", () =>
+        opening.result.createObjectStore("graphs", { keyPath: "name" }),
+      )
+      opening.addEventListener("error", () => {
+        reject(opening.error)
+      })
+      opening.addEventListener("success", () => {
+        const saving = opening.result
+          .transaction("graphs", "readwrite")
+          .objectStore("graphs")
+          .put({ _tag: "OpfsGraph", name })
+
+        saving.addEventListener("success", () => {
+          resolve()
         })
-      }),
-    graph,
-  )
+        saving.addEventListener("error", () => {
+          reject(saving.error)
+        })
+      })
+    })
+  }, graph)
   await dismissHints(page)
 }
 
@@ -125,24 +146,36 @@ export interface Frames {
   readonly travelled: number
 }
 
-export const scrollFrames = (page: Page, pxPerFrame: number, frames: number): Promise<Frames> =>
-  page.evaluate(
-    (run) =>
-      new Promise<Frames>((resolve) => {
+export const scrollFrames = async (
+  page: Page,
+  pxPerFrame: number,
+  frames: number,
+): Promise<Frames> =>
+  await page.evaluate(
+    async (run) =>
+      await new Promise<Frames>((resolve) => {
         const scroller = document.querySelector(".main-content-container")
-        if (!(scroller instanceof HTMLElement)) throw new Error("no scroller")
+
+        if (!(scroller instanceof HTMLElement)) {
+          throw new Error("no scroller")
+        }
+
         const start = scroller.scrollTop
-        const gaps: Array<number> = []
+        const gaps: number[] = []
         let last = performance.now()
+
         const step = (now: number) => {
           gaps.push(now - last)
           last = now
+
           if (gaps.length > run.frames) {
             const sorted = gaps.slice(1).toSorted((a, b) => a - b)
+
             const at = (q: number) =>
               Math.round(
                 (sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] ?? 0) * 10,
               ) / 10
+
             resolve({
               frames: sorted.length,
               p50: at(0.5),
@@ -152,11 +185,14 @@ export const scrollFrames = (page: Page, pxPerFrame: number, frames: number): Pr
               over50: sorted.filter((gap) => gap > 50).length,
               travelled: Math.round(scroller.scrollTop - start),
             })
+
             return
           }
+
           scroller.scrollTop += run.pxPerFrame
           requestAnimationFrame(step)
         }
+
         requestAnimationFrame(step)
       }),
     { pxPerFrame, frames },
@@ -164,23 +200,28 @@ export const scrollFrames = (page: Page, pxPerFrame: number, frames: number): Pr
 
 const procs = async () => {
   const all = await readdir("/proc")
+
   const rows = await Promise.all(
     all
       .filter((name) => /^\d+$/.test(name))
       .map(async (pid) => {
         const [stat, cmdline] = await Promise.all([
-          readFile(`/proc/${pid}/stat`, "utf8").catch(() => ""),
-          readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => ""),
+          readFile(`/proc/${pid}/stat`, "utf-8").catch(() => ""),
+          readFile(`/proc/${pid}/cmdline`, "utf-8").catch(() => ""),
         ])
+
         const ppid = stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1] ?? ""
+
         return { pid, ppid, cmdline }
       }),
   )
+
   return rows
 }
 
 const pss = async (pid: string) => {
-  const rollup = await readFile(`/proc/${pid}/smaps_rollup`, "utf8").catch(() => "")
+  const rollup = await readFile(`/proc/${pid}/smaps_rollup`, "utf-8").catch(() => "")
+
   return Number(/^Pss:\s+(\d+) kB/m.exec(rollup)?.[1] ?? 0) * 1024
 }
 
@@ -193,11 +234,14 @@ export const memory = async (page: Page) => {
   await session.detach()
   const metric = (name: string) => metrics.find((one) => one.name === name)?.value ?? 0
   const all = await procs()
+
   const tree = new Set(
     all.filter((proc) => proc.cmdline.includes(browserFlag)).map((proc) => proc.pid),
   )
+
   for (let grew = true; grew;) {
     grew = false
+
     for (const proc of all) {
       if (!tree.has(proc.pid) && tree.has(proc.ppid)) {
         tree.add(proc.pid)
@@ -205,7 +249,9 @@ export const memory = async (page: Page) => {
       }
     }
   }
+
   const total = (await Promise.all([...tree].map(pss))).reduce((a, b) => a + b, 0)
+
   return {
     pageHeapMb: Math.round(metric("JSHeapUsedSize") / 1e6),
     chromeMb: Math.round(total / 1e6),
@@ -218,44 +264,59 @@ export const domNodes = async (page: Page) => {
   await session.send("Performance.enable")
   const { metrics } = await session.send("Performance.getMetrics")
   await session.detach()
+
   return metrics.find((one) => one.name === "Nodes")?.value ?? 0
 }
 
-export const shown = (
+export const shown = async (
   page: Page,
   selector: string,
   text?: { readonly is: string } | { readonly has: string },
 ) =>
-  page.waitForFunction(
+  await page.waitForFunction(
     (wanted) =>
       [...document.querySelectorAll(wanted.selector)].some((element) => {
         const content = element.textContent ?? ""
+
         const matches =
           wanted.text === undefined ||
           ("is" in wanted.text ? content === wanted.text.is : content.includes(wanted.text.has))
+
         return matches && element.checkVisibility()
       }),
     { selector, text },
     { polling: "raf", timeout: 0 },
   )
 
-export const firstJournal = (page: Page) => shown(page, ".seqno-journal [role=treeitem]")
+export const firstJournal = async (page: Page) =>
+  await shown(page, ".seqno-journal [role=treeitem]")
 
-export const jump = (page: Page, fraction: number) =>
-  page.evaluate(async (to) => {
+export const jump = async (page: Page, fraction: number) =>
+  await page.evaluate(async (to) => {
     const scroller = document.querySelector(".main-content-container")
-    if (!(scroller instanceof HTMLElement)) throw new Error("no scroller")
+
+    if (!(scroller instanceof HTMLElement)) {
+      throw new Error("no scroller")
+    }
+
     const started = performance.now()
     scroller.scrollTop = (scroller.scrollHeight - scroller.clientHeight) * to
     const box = scroller.getBoundingClientRect()
+
     const rowOnScreen = () =>
       [...document.querySelectorAll("[role=treeitem]")].some((row) => {
         const at = row.getBoundingClientRect()
+
         return at.bottom > box.top && at.top < box.bottom
       })
+
     for (let frame = 0; frame < 600; frame++) {
       await new Promise(requestAnimationFrame)
-      if (rowOnScreen()) return Math.round(performance.now() - started)
+
+      if (rowOnScreen()) {
+        return Math.round(performance.now() - started)
+      }
     }
+
     return Number.POSITIVE_INFINITY
   }, fraction)

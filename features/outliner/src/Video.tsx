@@ -9,36 +9,54 @@ const youtubeOrigin = "https://www.youtube-nocookie.com"
 const vimeoOrigin = "https://player.vimeo.com"
 const playableUrl = /^(?:https?:|blob:)/i
 
-const stop = (event: { stopPropagation: () => void }) => event.stopPropagation()
+const stop = (event: { stopPropagation: () => void }) => {
+  event.stopPropagation()
+}
 
 const playerSandbox =
   "allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
 
 const seekable = (seek: (seconds: number) => void) => {
   const listener = (event: Event) => {
-    if (event instanceof CustomEvent && typeof event.detail === "number") seek(event.detail)
+    if (event instanceof CustomEvent && typeof event.detail === "number") {
+      seek(event.detail)
+    }
   }
+
   return (element: HTMLElement | null) => {
-    if (element === null) return
+    if (element === null) {
+      return
+    }
+
     element.addEventListener(seekEvent, listener)
-    return () => element.removeEventListener(seekEvent, listener)
+
+    return () => {
+      element.removeEventListener(seekEvent, listener)
+    }
   }
 }
 
 const YouTube = ({ id, start }: { readonly id: string; readonly start: number }) => {
   const [playingFrom, setPlayingFrom] = useState<number | null>(null)
   const frame = useRef<HTMLIFrameElement>(null)
+
   const seek = (seconds: number) => {
     const player = frame.current?.contentWindow
+
     if (playingFrom === null || player === null || player === undefined) {
       setPlayingFrom(seconds)
+
       return
     }
-    const command = (func: string, args: ReadonlyArray<unknown>) =>
+
+    const command = (func: string, args: readonly unknown[]) => {
       player.postMessage(JSON.stringify({ event: "command", func, args }), youtubeOrigin)
+    }
+
     command("seekTo", [seconds, true])
     command("playVideo", [])
   }
+
   return (
     <span
       className="seqno-video"
@@ -52,7 +70,9 @@ const YouTube = ({ id, start }: { readonly id: string; readonly start: number })
           type="button"
           className="seqno-video-poster"
           aria-label="Play video"
-          onClick={() => setPlayingFrom(start)}
+          onClick={() => {
+            setPlayingFrom(start)
+          }}
         >
           <img
             src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}
@@ -81,11 +101,13 @@ const YouTube = ({ id, start }: { readonly id: string; readonly start: number })
 
 const Vimeo = ({ id, hash }: { readonly id: string; readonly hash: string | null }) => {
   const frame = useRef<HTMLIFrameElement>(null)
+
   const seek = (seconds: number) => {
     const player = frame.current?.contentWindow
     player?.postMessage(JSON.stringify({ method: "setCurrentTime", value: seconds }), vimeoOrigin)
     player?.postMessage(JSON.stringify({ method: "play" }), vimeoOrigin)
   }
+
   return (
     <span
       className="seqno-video"
@@ -111,6 +133,7 @@ export const VideoFile = ({ url }: { readonly url: string }) => {
   const renderer = use(RenderContext)
   const player = useRef<HTMLVideoElement>(null)
   const source = renderer.resolveAsset(url) ?? (playableUrl.test(url) ? url : undefined)
+
   if (source === undefined) {
     return (
       <span className="seqno-image is-missing" title={url}>
@@ -119,11 +142,16 @@ export const VideoFile = ({ url }: { readonly url: string }) => {
       </span>
     )
   }
+
   const seek = (seconds: number) => {
-    if (player.current === null) return
+    if (player.current === null) {
+      return
+    }
+
     player.current.currentTime = seconds
     void player.current.play().catch(() => undefined)
   }
+
   return (
     <span
       className="seqno-video"
@@ -148,9 +176,11 @@ export const VideoEmbed = ({ video }: { readonly video: Video }) =>
 const seekNearest = (from: HTMLElement, seconds: number) => {
   const page = from.closest("article") ?? from.closest(".seqno-outliner") ?? document
   const videos = [...page.querySelectorAll<HTMLElement>("[data-video]")]
+
   const before = videos.filter(
     (video) => (video.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
   )
+
   const nearest = before.at(-1) ?? videos[0]
   nearest?.dispatchEvent(new CustomEvent(seekEvent, { detail: seconds }))
 }
@@ -161,6 +191,7 @@ const clock = (total: number) => {
   const hours = Math.floor(total / 3600)
   const minutes = Math.floor((total % 3600) / 60)
   const seconds = Math.floor(total % 60)
+
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`
 }
 

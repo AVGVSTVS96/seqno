@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { exportBlocks, type BlockOptions } from "../src/index.ts"
+import { exportBlocks } from "../src/index.ts"
+import type { BlockOptions } from "../src/index.ts"
 import { libraryOf, pageId } from "./graph.ts"
 
 const library = libraryOf({

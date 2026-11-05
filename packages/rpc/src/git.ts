@@ -1,5 +1,6 @@
 import { Context, Schema } from "effect"
-import { Rpc, RpcGroup, type RpcClient, type RpcClientError } from "effect/rpc"
+import { Rpc, RpcGroup } from "effect/rpc"
+import type { RpcClient, RpcClientError } from "effect/rpc"
 import { GraphNotOpen } from "./errors.ts"
 
 export class GitFailed extends Schema.TaggedError<GitFailed>()("GitFailed", {
@@ -11,6 +12,7 @@ export const GitResult = Schema.Struct({
   stderr: Schema.String,
   exitCode: Schema.Int,
 })
+
 export type GitResult = typeof GitResult.Type
 
 export const GitCommitted = Schema.TaggedUnion({
@@ -19,6 +21,7 @@ export const GitCommitted = Schema.TaggedUnion({
   NoIdentity: {},
   Busy: {},
 })
+
 export type GitCommitted = typeof GitCommitted.Type
 
 export const GitVersion = Schema.Struct({
@@ -26,13 +29,15 @@ export const GitVersion = Schema.Struct({
   subject: Schema.String,
   date: Schema.String,
 })
+
 export type GitVersion = typeof GitVersion.Type
 
 export const GitSettings = Schema.Struct({
   autoCommit: Schema.Boolean,
-  seconds: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 86400 })),
+  seconds: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 86_400 })),
   commitOnClose: Schema.Boolean,
 })
+
 export type GitSettings = typeof GitSettings.Type
 
 export const defaultGitSettings: GitSettings = {
@@ -45,6 +50,7 @@ export const GitNotice = Schema.TaggedUnion({
   IdentityNeeded: {},
   CommitFailed: { reason: Schema.String },
 })
+
 export type GitNotice = typeof GitNotice.Type
 
 export const GitRun = Rpc.make("GitRun", {

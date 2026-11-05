@@ -1,5 +1,6 @@
 import { Schema } from "effect"
-import { Marker, setProperty, type Priority } from "@seqno/syntax"
+import { Marker, setProperty } from "@seqno/syntax"
+import type { Priority } from "@seqno/syntax"
 
 export interface Draft {
   readonly text: string
@@ -39,6 +40,7 @@ const headingLength = (text: string) => headingPattern.exec(text)?.[0].length ??
 const markerOf = (text: string) => {
   const start = headingLength(text)
   const found = markerPattern.exec(text.slice(start))?.[1]
+
   return found === undefined ? null : { name: found, from: start, to: start + found.length }
 }
 
@@ -47,6 +49,7 @@ export const setMarker = (draft: Draft, marker: Marker | null): Draft => {
   const current = markerOf(draft.text)
   const end = current === null ? start : current.to
   const spaced = /[ \t]/.test(draft.text.charAt(end)) ? end + 1 : end
+
   return replace(draft, { from: start, to: spaced, insert: marker === null ? "" : `${marker} ` })
 }
 
@@ -68,15 +71,19 @@ const isMarker = Schema.is(Marker)
 
 export const cycleMarker = (draft: Draft): Draft => {
   const current = markerOf(draft.text)?.name
+
   return setMarker(draft, isMarker(current) ? nextMarker[current] : "TODO")
 }
 
 export const setPriority = (draft: Draft, priority: Priority | null): Draft => {
   const marker = markerOf(draft.text)
   const afterMarker = marker === null ? headingLength(draft.text) : marker.to
+
   const start =
     marker !== null && /[ \t]/.test(draft.text.charAt(afterMarker)) ? afterMarker + 1 : afterMarker
+
   const existing = priorityPattern.exec(draft.text.slice(start))?.[0].length ?? 0
+
   return replace(draft, {
     from: start,
     to: start + existing,
@@ -93,12 +100,14 @@ export const setHeading = (draft: Draft, level: number | null): Draft =>
 
 export const headingLevel = (text: string): number | null => {
   const length = headingLength(text)
+
   return length === 0 ? null : text.slice(0, length).trimEnd().length
 }
 
 export const setPlanning = (draft: Draft, kind: "SCHEDULED" | "DEADLINE", date: string): Draft => {
   const stamp = `${kind}: <${date}>`
   const existing = new RegExp(`${kind}: <[^>\\n]*>`).exec(draft.text)
+
   if (existing !== null) {
     return replace(draft, {
       from: existing.index,
@@ -106,19 +115,23 @@ export const setPlanning = (draft: Draft, kind: "SCHEDULED" | "DEADLINE", date: 
       insert: stamp,
     })
   }
+
   const firstLineEnd = draft.text.indexOf("\n")
   const at = firstLineEnd === -1 ? draft.text.length : firstLineEnd
   const from = at - (/[ \t]*$/.exec(draft.text.slice(0, at))?.[0].length ?? 0)
+
   return replace(draft, { from, to: at, insert: `\n${stamp}` })
 }
 
 export const setOrderedList = (draft: Draft): Draft => {
   const edit = setProperty(draft.text, "logseq.order-list-type", "number")
+
   return edit === null ? draft : replace(draft, edit)
 }
 
 export const quoteLine = (draft: Draft): Draft => {
   const lineStart = draft.text.lastIndexOf("\n", draft.from - 1) + 1
+
   return draft.text.startsWith("> ", lineStart)
     ? draft
     : replace(draft, { from: lineStart, to: lineStart, insert: "> " })
@@ -133,6 +146,7 @@ export const toggleMark = (draft: Draft, mark: string): Draft => {
   const { text, from, to } = draft
   const size = mark.length
   const selected = text.slice(from, to)
+
   if (wrappedBy(text, from, to, mark)) {
     return {
       text: text.slice(0, from - size) + selected + text.slice(to + size),
@@ -140,6 +154,7 @@ export const toggleMark = (draft: Draft, mark: string): Draft => {
       to: to - size,
     }
   }
+
   if (selected.length >= size * 2 && selected.startsWith(mark) && selected.endsWith(mark)) {
     return {
       text: text.slice(0, from) + selected.slice(size, -size) + text.slice(to),
@@ -147,6 +162,7 @@ export const toggleMark = (draft: Draft, mark: string): Draft => {
       to: to - size * 2,
     }
   }
+
   return caretAt(text.slice(0, from) + mark + selected + mark + text.slice(to), to + size)
 }
 
@@ -155,6 +171,7 @@ export const insertLink = (draft: Draft): Draft => {
   const selected = text.slice(from, to)
   const labelled = selected !== "" && !url.test(selected)
   const link = labelled ? `[${selected}]()` : `[](${selected})`
+
   return caretAt(
     text.slice(0, from) + link + text.slice(to),
     labelled ? from + selected.length + 3 : from + 1,

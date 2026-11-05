@@ -1,5 +1,6 @@
 import type { AccentChoice } from "./accents.ts"
-import { names, type LogseqNames } from "./names.ts"
+import { names } from "./names.ts"
+import type { LogseqNames } from "./names.ts"
 
 export interface DocumentState {
   readonly mode: "light" | "dark"

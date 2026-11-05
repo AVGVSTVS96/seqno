@@ -3,21 +3,12 @@ import { useRouter } from "@tanstack/react-router"
 import { Effect, Equal, Match, Option, Schema, Stream } from "effect"
 import { AsyncResult, AtomRegistry } from "effect/reactivity"
 import { use, useContext } from "react"
-import { BlockId, type Block, type Command } from "@seqno/domain"
-import {
-  BlockEditor,
-  createHandoff,
-  EditorAction,
-  LinkTarget,
-  type EditorHost,
-} from "@seqno/editor"
-import {
-  blockAtom,
-  PageDialects,
-  pageTreeAtom,
-  type EditorIntent,
-  type EditorSlotProps,
-} from "@seqno/outliner"
+import { BlockId } from "@seqno/domain"
+import type { Block, Command } from "@seqno/domain"
+import { BlockEditor, createHandoff, EditorAction, LinkTarget } from "@seqno/editor"
+import type { EditorHost } from "@seqno/editor"
+import { blockAtom, PageDialects, pageTreeAtom } from "@seqno/outliner"
+import type { EditorIntent, EditorSlotProps } from "@seqno/outliner"
 import { editorCommands, hostAtom, slashCommands as pluginSlashCommands } from "@seqno/plugins"
 import { pages } from "../atoms.ts"
 import { saveAssets } from "./assets.ts"
@@ -56,17 +47,21 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
   const vim = useAtomValue(vimMode)
   const docMode = useAtomValue(documentMode)
   const dialect = use(PageDialects)(block.pageId)
+
   const commands = editorCommands(
     useAtomValue(hostAtom),
     useAtomValue(pluginSlashCommands),
     block.id,
   )
+
   const latest = () => AsyncResult.value(registry.get(pageTreeAtom(block.pageId)))
+
   const childrenOf = (parentId: BlockId | null) =>
     Option.match(latest(), {
       onNone: () => [],
       onSome: (tree) => tree.blocks.filter((candidate) => candidate.parentId === parentId),
     })
+
   const current = () =>
     Option.match(latest(), {
       onNone: () => block,
@@ -78,8 +73,10 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
     const siblings = childrenOf(self.parentId)
     const index = siblings.findIndex((sibling) => sibling.id === self.id)
     const next = (self.collapsed ? undefined : childrenOf(self.id)[0]) ?? siblings[index + 1]
-    if (index !== -1 && next !== undefined)
+
+    if (index !== -1 && next !== undefined) {
       dispatch({ _tag: "MergeWithPrevious", blockId: next.id })
+    }
   }
 
   const zoomOut = () =>
@@ -117,26 +114,56 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
     })
 
   const host: EditorHost = {
-    dispatch: (command) =>
-      Option.match(intentOf(command), { onSome: onIntent, onNone: () => dispatch(command) }),
+    dispatch: (command) => {
+      Option.match(intentOf(command), {
+        onSome: onIntent,
+        onNone: () => {
+          dispatch(command)
+        },
+      })
+    },
     dispatchAll,
     act: EditorAction.match({
-      NewBlock: ({ below }) => onIntent({ _tag: "NewBlock", below }),
-      FocusPrevious: () => onIntent({ _tag: "FocusPrevious" }),
-      FocusNext: () => onIntent({ _tag: "FocusNext" }),
-      Exit: () => onIntent({ _tag: "Exit" }),
-      SelectUp: () => onIntent({ _tag: "SelectUp" }),
-      SelectDown: () => onIntent({ _tag: "SelectDown" }),
-      MoveUp: () => onIntent({ _tag: "MoveUp" }),
-      MoveDown: () => onIntent({ _tag: "MoveDown" }),
-      Collapse: () => onIntent({ _tag: "Collapse" }),
-      Expand: () => onIntent({ _tag: "Expand" }),
-      ToggleCollapse: () => onIntent({ _tag: current().collapsed ? "Expand" : "Collapse" }),
+      NewBlock: ({ below }) => {
+        onIntent({ _tag: "NewBlock", below })
+      },
+      FocusPrevious: () => {
+        onIntent({ _tag: "FocusPrevious" })
+      },
+      FocusNext: () => {
+        onIntent({ _tag: "FocusNext" })
+      },
+      Exit: () => {
+        onIntent({ _tag: "Exit" })
+      },
+      SelectUp: () => {
+        onIntent({ _tag: "SelectUp" })
+      },
+      SelectDown: () => {
+        onIntent({ _tag: "SelectDown" })
+      },
+      MoveUp: () => {
+        onIntent({ _tag: "MoveUp" })
+      },
+      MoveDown: () => {
+        onIntent({ _tag: "MoveDown" })
+      },
+      Collapse: () => {
+        onIntent({ _tag: "Collapse" })
+      },
+      Expand: () => {
+        onIntent({ _tag: "Expand" })
+      },
+      ToggleCollapse: () => {
+        onIntent({ _tag: current().collapsed ? "Expand" : "Collapse" })
+      },
       MergeNext: mergeNext,
       ZoomIn: () => navigateTo({ _tag: "Zoom", pageId: block.pageId, blockId: block.id }),
       ZoomOut: zoomOut,
       Open: ({ target, sidebar }) => open(target, sidebar),
-      Notify: ({ message }) => notify(registry, message),
+      Notify: ({ message }) => {
+        notify(registry, message)
+      },
     }),
     searchPages: () =>
       AtomRegistry.getResult(registry, pages).pipe(
@@ -153,7 +180,7 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
         ),
         Effect.orElseSucceed(() => []),
       ),
-    saveAssets: (files) => saveAssets(registry, files, dialect),
+    saveAssets: async (files) => await saveAssets(registry, files, dialect),
   }
 
   const updates = AtomRegistry.toStreamResult(registry, pageTreeAtom(block.pageId)).pipe(

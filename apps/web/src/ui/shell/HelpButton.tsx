@@ -16,18 +16,22 @@ const logseqDocs = "https://docs.logseq.com"
 export const HelpButton = () => {
   const updateSidebar = useAtomSet(rightSidebar)
   const showTips = useAtomSet(dismissedHints)
+
   const inDemo = Option.exists(AsyncResult.value(useAtomValue(openGraph)), (opened) =>
     isDemoGraph(opened.graph),
   )
+
   const menu = usePopover({
     id: helpMenuId,
     placement: { align: "end", gap: 8, inset: 8, side: "top" },
     kind: "menu",
   })
+
   const hint = useTooltip(
     { label: "View shortcuts and tips" },
     { align: "end", gap: 8, inset: 4, side: "top" },
   )
+
   return (
     <div {...logseq("help")}>
       <button
@@ -53,7 +57,9 @@ export const HelpButton = () => {
       >
         <MenuItem
           icon={<IconCommand size={20} aria-hidden />}
-          onSelect={() => updateSidebar({ _tag: "Open", item: helpItem })}
+          onSelect={() => {
+            updateSidebar({ _tag: "Open", item: helpItem })
+          }}
         >
           Keyboard shortcuts
         </MenuItem>
@@ -64,14 +70,21 @@ export const HelpButton = () => {
           Logseq documentation
         </MenuItem>
         {inDemo ? (
-          <MenuItem icon={<IconBulb size={20} aria-hidden />} onSelect={() => showTips([])}>
+          <MenuItem
+            icon={<IconBulb size={20} aria-hidden />}
+            onSelect={() => {
+              showTips([])
+            }}
+          >
             Show tips again
           </MenuItem>
         ) : null}
         {embedded ? null : (
           <MenuItem
             icon={<IconInfoCircle size={20} aria-hidden />}
-            onSelect={() => window.location.assign(homepage)}
+            onSelect={() => {
+              window.location.assign(homepage)
+            }}
           >
             About seqno
           </MenuItem>

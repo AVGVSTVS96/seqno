@@ -6,11 +6,13 @@ import { join, resolve } from "node:path"
 export const media = resolve(import.meta.dirname, "../../../../apps/site/src/media")
 
 const flags = (line: string) => line.split(" ")
-const run = (command: string, args: ReadonlyArray<string>) =>
+
+const run = (command: string, args: readonly string[]) =>
   execFileSync(command, args, { stdio: "inherit" })
 
-export function encode(png: string, name: string, widths: ReadonlyArray<number>) {
+export function encode(png: string, name: string, widths: readonly number[]) {
   const scratch = mkdtempSync(join(tmpdir(), "seqno-encode-"))
+
   for (const width of widths) {
     const resized = join(scratch, `${width}.png`)
     const out = join(media, `${name}-${width}`)
@@ -23,5 +25,6 @@ export function encode(png: string, name: string, widths: ReadonlyArray<number>)
       `${out}.avif`,
     ])
   }
+
   rmSync(scratch, { recursive: true })
 }

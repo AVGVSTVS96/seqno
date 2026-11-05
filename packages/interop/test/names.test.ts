@@ -77,7 +77,7 @@ describe("journal days", () => {
   it("formats every token Logseq's title formats use", () => {
     assert.deepStrictEqual(
       ["MMM do, yyyy", "EEEE, dd.MM.yyyy", "E, MM/dd/yyyy", "do MMMM yyyy", "yyyy年MM月dd日"].map(
-        (format) => formatJournalDay(20261006, format),
+        (format) => formatJournalDay(20_261_006, format),
       ),
       [
         "Oct 6th, 2026",
@@ -88,17 +88,22 @@ describe("journal days", () => {
       ],
     )
     assert.deepStrictEqual(
-      [20260101, 20260102, 20260103, 20260111, 20260122].map((day) => formatJournalDay(day, "do")),
+      [20_260_101, 20_260_102, 20_260_103, 20_260_111, 20_260_122].map((day) =>
+        formatJournalDay(day, "do"),
+      ),
       ["1st", "2nd", "3rd", "11th", "22nd"],
     )
   })
 
   it("parses file names and titles back to days, rejecting impossible dates", () => {
-    assert.deepStrictEqual(parseJournalDay("2026_10_06", "yyyy_MM_dd"), Option.some(20261006))
-    assert.deepStrictEqual(parseJournalDay("Oct 6th, 2026", "MMM do, yyyy"), Option.some(20261006))
+    assert.deepStrictEqual(parseJournalDay("2026_10_06", "yyyy_MM_dd"), Option.some(20_261_006))
+    assert.deepStrictEqual(
+      parseJournalDay("Oct 6th, 2026", "MMM do, yyyy"),
+      Option.some(20_261_006),
+    )
     assert.deepStrictEqual(
       parseJournalDay("Tuesday, 06.10.2026", "EEEE, dd.MM.yyyy"),
-      Option.some(20261006),
+      Option.some(20_261_006),
     )
     assert.deepStrictEqual(parseJournalDay("2026_02_30", "yyyy_MM_dd"), Option.none())
     assert.deepStrictEqual(parseJournalDay("meeting notes", "yyyy_MM_dd"), Option.none())
@@ -119,6 +124,7 @@ describe("config.edn", () => {
       ' :preferred-format "Org"',
       ' :hidden ["/archive" "drafts"]}',
     ].join("\n")
+
     assert.deepStrictEqual(parseConfig(source), {
       journalTitleFormat: "EEEE, dd.MM.yyyy",
       journalFileFormat: "yyyy-MM-dd",

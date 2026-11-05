@@ -1,9 +1,9 @@
 import type { StarterFile } from "../place.ts"
 import { commit, dated, ids, on, post, pr, ref } from "./kit.ts"
 
-export const fall: ReadonlyArray<StarterFile> = [
+export const fall: readonly StarterFile[] = [
   on(
-    20260915,
+    20_260_915,
     `- Theo's videos are a big part of why I'm the engineer I am. learning from engineers of that caliber as a beginner was a privilege [[Theo Browne]] ${post("2099685765085356163", "94 likes")}`,
     "\t- Theo, Kent C. Dodds, and everyone whose videos, articles and open source code taught me [[learning to code]]",
     `- the Omarchy server comes online today. a stable Linux box for dev, and a homelab to tinker with [[terminal]] ${post("2099656477757915408")}`,
@@ -11,30 +11,30 @@ export const fall: ReadonlyArray<StarterFile> = [
     `- the purpose of creation is to fill the world with beauty, and there's beauty in the act itself. the care echoes out even when a copy gets the credit ${post("2099773324293472490")}`,
   ),
   on(
-    20260917,
+    20_260_917,
     `- every person's opinions make sense inside their own lived experience. before reacting with "wtf", get curious and ask why ${post("2100731406553071851")} [[philosophy]]`,
   ),
   on(
-    20260918,
+    20_260_918,
     `- so inspired I'm paralyzed by all the projects I want to do. still better than staring at a blank wall ${post("2100752079824507270")}`,
     "- parametric test print for fuzzy skin on the Bambu: thickness 0.2 and 0.5, point distance 0.1 to 0.6 [[making things]]",
   ),
-  on(20260921, `- become a data hoarder ${post("2101907981483090252")} [[projects/commonplace]]`),
+  on(20_260_921, `- become a data hoarder ${post("2101907981483090252")} [[projects/commonplace]]`),
   on(
-    20260922,
+    20_260_922,
     `- stopped using Aside's hover sidebar: overshoot the screen edge and it closes right after it opens ${post("2102192118349631858")} [[motion design]]`,
   ),
   on(
-    20260923,
+    20_260_923,
     `- one good designer can carry a startup's whole brand. they should get paid a real premium over engineers ${post("2102817258246738342")} [[design]]`,
   ),
   on(
-    20260925,
+    20_260_925,
     `- T3 Code: an open source alternative to Codex that benefits everyone. I've learned a lot from its code [[Theo Browne]] ${post("2103431646771097828")}`,
     "- [[projects/comet-kvm-plugin]]: agents get eyes and hands on a physical computer through a KVM",
   ),
   on(
-    20261002,
+    20_261_002,
     "- first messages with my assistant on Telegram, built on Claude Code. it becomes [[projects/hex]]",
     "- build on the harness, not against it. Claude Code already did the hard part #rule",
     "- the whole thing should stay small enough to read in one sitting",
@@ -46,7 +46,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     `\t- what I want from a window manager: opening a window doesn't resize the others, and moving around the desktop is easy. horizontal scrolling gets both right ${post("2106154831518085487")}`,
   ),
   on(
-    20261003,
+    20_261_003,
     "- one reworded line beat three new rules [[prompting]]",
     `  id:: ${ids.reword}`,
     '\t- before: "you can hand work off to subagents"',
@@ -57,7 +57,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "- words it keeps mishearing: herdr, shadcn, tmux, TanStack, react-shiki. a dictionary file, not a longer prompt",
   ),
   on(
-    20261004,
+    20_261_004,
     "- [[projects/hex]] goes public, bootstrapped in 6 hours at the Personal Agents Hackathon. [repo](https://github.com/AVGVSTVS96/hex)",
     "- hex reaches my accounts through one connector, added once, and gets an inbox of its own #decision #hex",
     "\t- no per-service setup on the machine",
@@ -67,7 +67,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     `- don't get to talk about racing much on X. it's demanding, and rewarding [[racing]] ${post("2106656717216067980")}`,
   ),
   on(
-    20261005,
+    20_261_005,
     "- forks that maintain themselves: each patch is a short markdown spec, CI re-applies them on every upstream release #decision #patch-md",
     "\t- the [herdr fork](https://github.com/AVGVSTVS96/herdr) is the proof of concept",
     `- being opinionated as a developer matters more than ever ${post("2107099955425108277")}`,
@@ -75,7 +75,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     `- assistant sessions, the sweet spot: one main session, cleaned up and integrated daily, plus threads for units of work [[projects/hex]] ${post("2107108091473129653")}`,
   ),
   on(
-    20261006,
+    20_261_006,
     "- [[projects/seqno]] phase 0: spikes before any app code. measure first",
     `\t- then the whole stack in one day: schemas, a lossless Logseq parser, a query compiler, a Loro graph, a SQLite index, a fake-iCloud sync sim ${commit("AVGVSTVS96/seqno", "3363d6f")}`,
     "- Loro is the source of truth, markdown is the mirror #decision #seqno",
@@ -108,7 +108,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     `\t- the playground stays on TypeScript 6, its MDX language service needs the JS compiler API ${pr("AVGVSTVS96/react-shiki", 205)}`,
   ),
   on(
-    20261007,
+    20_261_007,
     "- sidebar idea: a compact rail, plus a hover peek from the left edge [[motion design]]",
     "\t- I move fast and overshoot the edge. ==open slow, close slower==",
     `\t  id:: ${ids.overshoot}`,
@@ -119,7 +119,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     `- Theo's framing: OpenAI is run by engineers, Anthropic by researchers. you can see it in how the two model families behave [[Theo Browne]] ${post("2107641647412793493", "98 likes")}`,
   ),
   on(
-    20261008,
+    20_261_008,
     "- started [[projects/commonplace]]: all your data in one place, one door for every agent",
     "- agents don't get raw sqlite3. the CLI is the only door, with an MCP subcommand #decision #commonplace",
     `  id:: ${ids.oneDoor}`,
@@ -175,7 +175,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "\t- clients at launch: Telegram, Discord, Buzz, T3 Code",
   ),
   on(
-    20261009,
+    20_261_009,
     "- DONE seqno lazy open, first step of hardening [[projects/seqno]]",
     "- 509 commits across 22 projects in 6 days. the 95 days before that: 580. the slow part is me reading now, not typing",
     "- week #weekly",
@@ -209,7 +209,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     '- "thank you opus 5.5, my favorite anti-entropy device"',
   ),
   on(
-    20261010,
+    20_261_010,
     "- seqno lazy open landed: 50k blocks to the first page went from 13.5 s to 0.93 s #decision #seqno",
     "\t- open restores quietly with no subscriber, and the index fills behind it. a subscriber made Loro diff the whole history first",
     `\t- ${commit("AVGVSTVS96/seqno", "7d4349d")}`,
@@ -251,7 +251,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "- write the rule from the point behind a correction, not from the words of the complaint #rule [[prompting]]",
   ),
   on(
-    20261011,
+    20_261_011,
     "- undo is my own: recorded inverses, rebased like OT. not Loro's UndoManager #decision #seqno",
     "\t- Loro's undo replays history, so one undo after 1,000 remote edits took 62 s. mine stays at 0.3 to 2.8 ms",
     `\t- ${commit("AVGVSTVS96/seqno", "89f8501")}`,
@@ -268,7 +268,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "- my words carry intent, and they aren't for pasting raw. routing words come out, the rest goes in as a real prompt #rule [[prompting]]",
   ),
   on(
-    20261012,
+    20_261_012,
     "- autofork follows upstream's releases by default. checks between releases are git only #decision #autofork",
     "\t- the agent runs only when a release breaks a patch",
     `\t- ${commit("AVGVSTVS96/autofork", "21ff67b")}`,
@@ -284,7 +284,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     '\t- "we can loop practically millions of times with those lil guy models if we can get a solid verifiable way to get parity down to the last animation"',
   ),
   on(
-    20261013,
+    20_261_013,
     "- started [[projects/pigeon]]: read, search, watch and send iMessages, through filters",
     "- pigeon publishes to npm only after `send` is proven [[projects/pigeon]]",
     "- PATCH.md says what you want and why, written from your ask. the agent adds why it's built that way, and your words stay as they are #decision #autofork",
@@ -311,14 +311,14 @@ export const fall: ReadonlyArray<StarterFile> = [
     "- examples beat rules. a rule worded with intent steers an agent without a hard limit #rule [[prompting]]",
   ),
   on(
-    20261014,
+    20_261_014,
     "- a graph opens before its index fills. open-to-rows on the Mac: 185 to 410 ms #decision #seqno",
     "\t- the fill held the index lock that today's journal needed, a 250 ms wait",
     "- keyboard Sources: a web service you add sees the field's text and shows a hint above the keys. never password or code fields #decision #hex-keyboard",
     "- memory arrives as a dated record to check against live state, not as instructions #decision #hex",
   ),
   on(
-    20261015,
+    20_261_015,
     "- one rule for what agents see in commonplace: everything in the archive. the MCP allowlist and `--sources` are gone #decision #commonplace",
     `  id:: ${ids.fakeWalls}`,
     "\t- it was a fake wall. any agent with a shell could read every source through the CLI anyway",
@@ -330,7 +330,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "- design the whole system before writing code. a patch per bug is how the mess gets made #rule",
   ),
   on(
-    20261016,
+    20_261_016,
     "- every long list is windowed by TanStack Virtual #decision #seqno",
     "\t- my own IntersectionObserver windowing went blank on a fast fling through this graph",
     "- dropped the lint rule that banned IntersectionObserver #decision #seqno",
@@ -342,7 +342,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "- hex and its channels ship as one pinned pair, checked together before going live #decision #hex",
   ),
   on(
-    20261017,
+    20_261_017,
     "- autofork is for many repos #decision #autofork",
     '\t- "autofork is for MANY repos never for specific repos unless that instruction could help MANY repos"',
     "\t- one app's details live in its fork's own files",
@@ -358,7 +358,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "\t- so it never fixes one patch's failure inside another",
   ),
   on(
-    20261018,
+    20_261_018,
     "- SQLite or a folder of files for hex's records? settled by a blind bake-off, not my gut #decision #hex",
     "\t- I was 50/50. two models argued it, then 6 blind builds, 3 per store, each survived 60 random `kill -9`s",
     "\t- both were crash-safe. files needed about twice the code plus repair steps, and stopped being hand-readable once made safe. one SQLite file",
@@ -370,7 +370,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     '- check everything before answering. "not checked yet" is never an answer #rule',
   ),
   on(
-    20261019,
+    20_261_019,
     "- messages are kept in hex.db before an app is told they arrived #decision #hex",
     `\t- ${pr("AVGVSTVS96/hex", 9)}`,
     "- tasks keep the owner's words, quoted. questions stay open until they're settled #decision #hex",
@@ -381,7 +381,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "- talk about seqno as a product, not mechanism. a speed fix that changes nothing I see is the agent's call [[projects/seqno]]",
   ),
   on(
-    20261020,
+    20_261_020,
     "- a memory agent records what's worth keeping after each turn. sessions stop writing notes #decision #hex",
     `\t- ${pr("AVGVSTVS96/hex", 64)}`,
     "- HEX.md down about 45%: guidance only sometimes needed moves to skills, hooks and signals [[projects/hex]]",
@@ -392,13 +392,13 @@ export const fall: ReadonlyArray<StarterFile> = [
     "\t- iOS doesn't let keyboards use the mic, so Hex opens its app to listen",
   ),
   on(
-    20261021,
+    20_261_021,
     "- length is the problem with most instructions. one good reworded line beats 20 new ones #rule [[prompting]]",
     `\t- ${ref(ids.reword)}`,
     '- when a model\'s vendor publishes its prompt template, use it as is. "there is one correct answer" #rule [[prompting]]',
   ),
   on(
-    20261022,
+    20_261_022,
     '- seqno builds every Logseq feature Logseq users rely on: vim mode, whiteboards, flashcards, plugins, exports, and this graph\'s second round. "All of them" #decision #seqno',
     "- moves vs deletes across devices: nothing you wrote disappears because of another device's change, unless you deleted it yourself [[projects/seqno]]",
     "- whiteboard shapes are blocks, and a page is created with its properties in one step [[projects/seqno]]",
@@ -407,24 +407,24 @@ export const fall: ReadonlyArray<StarterFile> = [
     `\t- ${pr("AVGVSTVS96/hex", 95)}`,
   ),
   on(
-    20261025,
+    20_261_025,
     "- started [[projects/detour]]: the best drives near you, twisty, scenic, smooth and quiet",
     "- web first, California first #decision #detour",
   ),
   on(
-    20261027,
+    20_261_027,
     "- detour lists every road worth driving, with the pavement along each one #decision #detour",
     "\t- credit the pavement surveys",
   ),
   on(
-    20261028,
+    20_261_028,
     "- detour draws each road whole, across bridges and tunnels, without U-turns, and under place names, as Google and Apple do #decision #detour",
   ),
   on(
-    20261029,
+    20_261_029,
     "- autofork: one agent run fixes the patches when verify fails, instead of bisecting and restacking #decision #autofork",
     `  id:: ${ids.oneRunFixes}`,
-    `\t- undoes the bisect from ${dated(20261017)}. one run that sees the whole stack beats many runs that each see one patch`,
+    `\t- undoes the bisect from ${dated(20_261_017)}. one run that sees the whole stack beats many runs that each see one patch`,
     `\t- ${pr("AVGVSTVS96/autofork", 14)}`,
     "- upstream's `.github/` comes in like code, except the fork's own workflows, which an agent updates #decision #autofork",
     `\t- ${pr("AVGVSTVS96/autofork", 12)}`,
@@ -432,11 +432,11 @@ export const fall: ReadonlyArray<StarterFile> = [
     `\t- ${pr("AVGVSTVS96/autofork", 13)}`,
   ),
   on(
-    20261101,
+    20_261_101,
     "- detour draws roads from every OSM point, within 2 m of the road at any zoom, above the dark map's own roads and under their names [[projects/detour]]",
   ),
   on(
-    20261102,
+    20_261_102,
     "- autofork checks spend limits before every agent run, and reports each run's cost to autofork.com #decision #autofork",
     `\t- ${pr("AVGVSTVS96/autofork", 16)}`,
     "- autofork labels its Claude runs, so the 5-hour limit meters them like interactive Claude Code #decision #autofork",
@@ -444,7 +444,7 @@ export const fall: ReadonlyArray<StarterFile> = [
     "- hex keyboard dictation: each recording is written to disk as it's heard, so a recording an ended app left gets written down on the next launch #decision #hex-keyboard",
   ),
   on(
-    20261103,
+    20_261_103,
     "- NOW seqno: whiteboards, flashcards and plugins, the Logseq features still to build [[projects/seqno]]",
     "- DOING the hex keyboard on the iPhone Duo, in every pose [[projects/hex-keyboard]]",
     "- vim mode is CodeMirror's vim inside a block, and block keys outside it #decision #seqno",

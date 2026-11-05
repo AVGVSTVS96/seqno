@@ -1,9 +1,11 @@
 import { Context, Schema } from "effect"
-import { Rpc, RpcGroup, type RpcClient, type RpcClientError } from "effect/rpc"
+import { Rpc, RpcGroup } from "effect/rpc"
+import type { RpcClient, RpcClientError } from "effect/rpc"
 import { Block, BlockId, JournalDay, PageId } from "@seqno/domain"
 import { GraphNotOpen } from "./errors.ts"
 
 export const Reference = Schema.Struct({ blockId: BlockId, pageId: PageId })
+
 export type Reference = typeof Reference.Type
 
 export const PageStat = Schema.Struct({
@@ -12,6 +14,7 @@ export const PageStat = Schema.Struct({
   created: Schema.NullOr(Schema.Number),
   updated: Schema.NullOr(Schema.Number),
 })
+
 export type PageStat = typeof PageStat.Type
 
 export const ReferencedPage = Schema.Struct({
@@ -23,9 +26,11 @@ export const ReferencedPage = Schema.Struct({
   created: Schema.NullOr(Schema.Number),
   updated: Schema.NullOr(Schema.Number),
 })
+
 export type ReferencedPage = typeof ReferencedPage.Type
 
 export const GraphNodeKind = Schema.Literals(["page", "journal", "tag"])
+
 export type GraphNodeKind = typeof GraphNodeKind.Type
 
 export const GraphNode = Schema.Struct({
@@ -34,12 +39,14 @@ export const GraphNode = Schema.Struct({
   kind: GraphNodeKind,
   created: Schema.NullOr(Schema.Number),
 })
+
 export type GraphNode = typeof GraphNode.Type
 
 export const PagesGraph = Schema.Struct({
   nodes: Schema.Array(GraphNode),
   links: Schema.Array(Schema.Tuple([Schema.String, Schema.String])),
 })
+
 export type PagesGraph = typeof PagesGraph.Type
 
 export const WatchReferences = Rpc.make("WatchReferences", {

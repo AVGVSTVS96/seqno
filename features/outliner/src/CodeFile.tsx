@@ -1,6 +1,8 @@
-import { logseq, type CodeLook } from "@seqno/dom"
+import { logseq } from "@seqno/dom"
+import type { CodeLook } from "@seqno/dom"
 import { use } from "react"
-import { FileEditor, type FileEdit } from "./CodeEditor.tsx"
+import { FileEditor } from "./CodeEditor.tsx"
+import type { FileEdit } from "./CodeEditor.tsx"
 import styles from "./outliner.css?inline"
 import { Accent, ColorMode } from "./render.ts"
 
@@ -10,6 +12,7 @@ export const CodeFile = ({ code, language, onSave }: FileEdit) => {
     mode: use(ColorMode),
     accent: use(Accent) !== "logseq",
   }
+
   return (
     <div {...logseq("seqno-file-code", language, look)}>
       <style href="@seqno/outliner" precedence="default">

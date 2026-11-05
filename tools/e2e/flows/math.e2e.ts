@@ -110,10 +110,12 @@ test("math renders in a block ref, an embed and linked references", async ({ pag
   await expect(embed.locator(".latex-inline .katex annotation").first()).toHaveText("E = mc^2")
 
   await page.goto("/page/physics")
+
   const see = page
     .getByRole("main")
     .locator(".references.page-linked")
     .getByRole("treeitem")
     .filter({ hasText: "See" })
+
   await expect(see.locator(".latex-inline .katex annotation")).toHaveText("F = ma")
 })

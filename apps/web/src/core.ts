@@ -45,13 +45,17 @@ const sending = { next: 0, now: { inFlight: 0, answered: 0 }, listeners: new Set
 
 const change = (next: (now: Sends) => Sends) => {
   sending.now = next(sending.now)
-  for (const listener of sending.listeners) listener()
+
+  for (const listener of sending.listeners) {
+    listener()
+  }
 }
 
 export const sends = {
   get: (): Sends => sending.now,
   subscribe: (listener: () => void) => {
     sending.listeners.add(listener)
+
     return () => sending.listeners.delete(listener)
   },
 }
@@ -61,13 +65,14 @@ const sent = <A, E, R>(send: (seq: number) => Effect.Effect<A, E, R>) =>
     sending.next += 1
     const seq = sending.next
     change((now) => ({ ...now, inFlight: now.inFlight + 1 }))
+
     return Effect.onExit(send(seq), (exit) =>
-      Effect.sync(() =>
+      Effect.sync(() => {
         change((now) => ({
           inFlight: now.inFlight - 1,
           answered: Exit.hasInterrupts(exit) ? now.answered : Math.max(now.answered, seq),
-        })),
-      ),
+        }))
+      }),
     )
   })
 
@@ -107,13 +112,16 @@ export const WorkerGit: Layer.Layer<GitClient, WorkerError> = Layer.effect(
 
 const holdForThisTab = (name: string) =>
   Effect.callback<void>((resume) => {
-    void navigator.locks.request(name, () => {
+    void navigator.locks.request(name, async () => {
       resume(Effect.void)
-      return new Promise<void>((release) =>
+
+      await new Promise<void>((release) => {
         addEventListener("pagehide", (event) => {
-          if (!event.persisted) release()
-        }),
-      )
+          if (!event.persisted) {
+            release()
+          }
+        })
+      })
     })
   })
 
@@ -122,6 +130,7 @@ export const attachTab = Stream.unwrap(
     const tab = crypto.randomUUID()
     yield* holdForThisTab(tabLock(tab))
     const core = yield* CoreClient
+
     return core.Attach({ tab })
   }),
 )

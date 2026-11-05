@@ -2,17 +2,17 @@ import { existsSync } from "node:fs"
 import { createServer } from "node:net"
 import { Schema } from "effect"
 
-const freePort = () =>
-  new Promise<number>((resolve, reject) => {
+const freePort = async () =>
+  await new Promise<number>((resolve, reject) => {
     const server = createServer()
     server.once("error", reject)
     server.listen(0, "localhost", () => {
       const address = server.address()
-      server.close(() =>
+      server.close(() => {
         typeof address === "object" && address !== null
           ? resolve(address.port)
-          : reject(new Error("no port")),
-      )
+          : reject(new Error("no port"))
+      })
     })
   })
 
@@ -20,7 +20,9 @@ const managedPort =
   Schema.decodeUnknownSync(Schema.UndefinedOr(Schema.FiniteFromString))(
     process.env["SEQNO_E2E_PORT"],
   ) ?? (await freePort())
+
 process.env["SEQNO_E2E_PORT"] = String(managedPort)
+
 const managedUrl = `http://localhost:${managedPort}/`
 
 export const externalUrl = Schema.decodeUnknownSync(Schema.UndefinedOr(Schema.URLFromString))(

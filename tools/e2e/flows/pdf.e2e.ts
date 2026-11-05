@@ -27,25 +27,29 @@ const openPaper = async (page: Page) => {
   await expect(viewer(page).locator(".textLayer span").first()).toBeVisible()
 }
 
-const assets = (page: Page): ReturnType<typeof opfsFiles> =>
-  opfsFiles(page, ["graphs", "demo", "assets"]).catch((cause: unknown) =>
-    String(cause).includes("NotFoundError") ? assets(page) : Promise.reject(cause),
+const assets = async (page: Page): ReturnType<typeof opfsFiles> =>
+  await opfsFiles(page, ["graphs", "demo", "assets"]).catch(async (error: unknown) =>
+    String(error).includes("NotFoundError") ? await assets(page) : await Promise.reject(error),
   )
 
-const highlightsFile = (page: Page) =>
-  page.evaluate(async (name) => {
+const highlightsFile = async (page: Page) =>
+  await page.evaluate(async (name) => {
     const root = await navigator.storage.getDirectory()
     const graph = await (await root.getDirectoryHandle("graphs")).getDirectoryHandle("demo")
     const file = await (await graph.getDirectoryHandle("assets")).getFileHandle(name)
+
     const read = async (): Promise<string> =>
-      (await file.getFile())
+      await (
+        await file.getFile()
+      )
         .text()
-        .catch((cause: unknown) =>
-          cause instanceof DOMException && cause.name === "NotReadableError"
-            ? read()
-            : Promise.reject(cause),
+        .catch(async (error: unknown) =>
+          error instanceof DOMException && error.name === "NotReadableError"
+            ? await read()
+            : await Promise.reject(error),
         )
-    return read()
+
+    return await read()
   }, `${key}.edn`)
 
 const exported = async (page: Page) => {
@@ -54,6 +58,7 @@ const exported = async (page: Page) => {
   const dialog = page.getByRole("dialog", { name: "Export" })
   const text = await dialog.getByRole("textbox", { name: "Exported text" }).inputValue()
   await page.keyboard.press("Escape")
+
   return text
 }
 
@@ -67,7 +72,11 @@ const drag = async (page: Page, from: { x: number; y: number }, to: { x: number;
 const selectLine = async (page: Page, line: Locator) => {
   await line.scrollIntoViewIfNeeded()
   const box = await line.boundingBox()
-  if (box === null) throw new Error("the line has no box")
+
+  if (box === null) {
+    throw new Error("the line has no box")
+  }
+
   await drag(
     page,
     { x: box.x + 1, y: box.y + box.height / 2 },
@@ -75,7 +84,8 @@ const selectLine = async (page: Page, line: Locator) => {
   )
 }
 
-const clipboard = (page: Page) => page.evaluate(() => navigator.clipboard.readText())
+const clipboard = async (page: Page) =>
+  await page.evaluate(async () => await navigator.clipboard.readText())
 
 test.beforeEach(async ({ page, seqno }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
@@ -98,6 +108,7 @@ test("a PDF link opens Logseq's viewer on the left, at the page and with the hig
     await page.evaluate(() => {
       const active: unknown = Reflect.get(window, "lsActivePdfViewer")
       const element: unknown = Reflect.get(Object(active), "viewer")
+
       return element instanceof HTMLElement && element.ownerDocument === document
     }),
   ).toBe(true)
@@ -138,7 +149,7 @@ test("picking a color for selected text makes a highlight, its annotation block 
   await expect(menu(page)).toHaveCount(0)
   const made = pdfPage(page, 1).locator(".seqno-pdf-text-region-item[data-color=yellow]")
   await expect(made).toHaveCount(1)
-  await expect.poll(() => clipboard(page)).toMatch(new RegExp(`^\\(\\(${uuid}\\)\\)$`))
+  await expect.poll(async () => await clipboard(page)).toMatch(new RegExp(`^\\(\\(${uuid}\\)\\)$`))
   const id = (await clipboard(page)).slice(2, -2)
   await viewer(page).getByTitle("Annotations page").click()
   await expect(page).toHaveTitle("Paper")
@@ -178,7 +189,7 @@ test("picking a color for selected text makes a highlight, its annotation block 
     ].join("\n"),
   )
   await viewer(page).getByRole("button", { name: "Close" }).click()
-  await expect.poll(() => highlightsFile(page)).toContain(id)
+  await expect.poll(async () => await highlightsFile(page)).toContain(id)
   const file = await highlightsFile(page)
   expect(file).toContain(
     `              {:id #uuid "${id}",\n               :page 1,\n               :position {:bounding {:x1 `,
@@ -193,9 +204,11 @@ test("a saved highlight's menu copies its ref and text, recolors it, links to it
 }) => {
   await openPaper(page)
   await pdfPage(page, 1).scrollIntoViewIfNeeded()
+
   const region = pdfPage(page, 1).locator(
     `[data-highlight-id="${green}"] .seqno-pdf-text-region-item`,
   )
+
   await region.click()
   await expect(menu(page).locator("li.seqno-pdf-item")).toHaveText([
     "Copy ref",
@@ -204,10 +217,10 @@ test("a saved highlight's menu copies its ref and text, recolors it, links to it
     "Delete",
   ])
   await menu(page).getByText("Copy text").click()
-  await expect.poll(() => clipboard(page)).toBe("The quick brown fox jumps")
+  await expect.poll(async () => await clipboard(page)).toBe("The quick brown fox jumps")
   await region.click()
   await menu(page).getByText("Copy ref").click()
-  await expect.poll(() => clipboard(page)).toBe(`((${green}))`)
+  await expect.poll(async () => await clipboard(page)).toBe(`((${green}))`)
   await region.click()
   await menu(page).locator("a[data-color=red]").click()
   await expect(region).toHaveAttribute("data-color", "red")
@@ -231,7 +244,7 @@ test("a saved highlight's menu copies its ref and text, recolors it, links to it
   await expect(region).toHaveCount(0)
   await expect(hlsPage(page).getByRole("treeitem")).toHaveText(["P2"])
   await viewer(page).getByRole("button", { name: "Close" }).click()
-  await expect.poll(() => highlightsFile(page)).not.toContain(green)
+  await expect.poll(async () => await highlightsFile(page)).not.toContain(green)
 })
 
 test("dragging out an area makes an area highlight with its picture, shown in its block", async ({
@@ -239,7 +252,11 @@ test("dragging out an area makes an area highlight with its picture, shown in it
 }) => {
   await openPaper(page)
   const box = await pdfPage(page, 2).boundingBox()
-  if (box === null) throw new Error("page 2 has no box")
+
+  if (box === null) {
+    throw new Error("page 2 has no box")
+  }
+
   await page.keyboard.down("Shift")
   await drag(page, { x: box.x + 40, y: box.y + 30 }, { x: box.x + 260, y: box.y + 110 })
   await page.keyboard.up("Shift")
@@ -247,7 +264,7 @@ test("dragging out an area makes an area highlight with its picture, shown in it
   await menu(page).locator("a[data-color=blue]").click()
   const area = pdfPage(page, 2).locator(".seqno-pdf-area-region[data-color=blue]")
   await expect(area).toHaveCount(1)
-  await expect.poll(() => clipboard(page)).toMatch(new RegExp(`^\\(\\(${uuid}\\)\\)$`))
+  await expect.poll(async () => await clipboard(page)).toMatch(new RegExp(`^\\(\\(${uuid}\\)\\)$`))
   const id = (await clipboard(page)).slice(2, -2)
   const picture = new RegExp(`^${key}/2_${id}_(\\d{13})\\.png$`)
   await expect

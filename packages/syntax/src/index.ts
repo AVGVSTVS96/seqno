@@ -1,14 +1,27 @@
 export * from "./document.ts"
+
 export * from "./outline.ts"
+
 export * from "./block.ts"
+
 export * from "./inline.ts"
+
 export * from "./content.ts"
+
 export * from "./properties.ts"
+
 export * from "./paste.ts"
+
 export * from "./rename.ts"
+
 export * from "./video.ts"
+
 export * from "./lists.ts"
+
 export * from "./config.ts"
+
 export * from "./assets.ts"
+
 export * from "./edn.ts"
+
 export * from "./math.ts"

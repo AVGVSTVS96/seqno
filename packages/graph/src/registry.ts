@@ -16,5 +16,7 @@ export const emptyRegistry = (): Registry => ({
 })
 
 export const forget = <K>(index: Map<K, TreeID>, key: K, node: TreeID): void => {
-  if (index.get(key) === node) index.delete(key)
+  if (index.get(key) === node) {
+    index.delete(key)
+  }
 }

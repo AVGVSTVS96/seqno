@@ -9,10 +9,14 @@ export function offscreen(element: HTMLElement) {
 }
 
 export function reveal(row: HTMLElement | null) {
-  if (!row || !offscreen(row)) return
+  if (!row || !offscreen(row)) {
+    return
+  }
+
   row.style.opacity = "0"
   row.style.transform = "translateY(8px)"
   row.style.setProperty("--dot", "0")
+
   const stop = inView(
     row,
     () => {
@@ -25,5 +29,6 @@ export function reveal(row: HTMLElement | null) {
     },
     { margin: "0px 0px -12% 0px" },
   )
+
   return stop
 }

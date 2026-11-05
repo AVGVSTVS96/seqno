@@ -1,8 +1,13 @@
-import { normalizePageName, type Block, type BlockId, type PageId } from "@seqno/domain"
-import { joinProperties, parseInline, propertyKey, type PropertyConfig } from "@seqno/syntax"
-import { propertyLines, type PropertyLine } from "./items.ts"
-import { shelve, type Library, type PageBlocks, type Shelf } from "./library.ts"
-import { propertyValue, type PropertyValue } from "./values.ts"
+import { normalizePageName } from "@seqno/domain"
+import type { Block, BlockId, PageId } from "@seqno/domain"
+import { joinProperties, parseInline, propertyKey } from "@seqno/syntax"
+import type { PropertyConfig } from "@seqno/syntax"
+import { propertyLines } from "./items.ts"
+import type { PropertyLine } from "./items.ts"
+import { shelve } from "./library.ts"
+import type { Library, PageBlocks, Shelf } from "./library.ts"
+import { propertyValue } from "./values.ts"
+import type { PropertyValue } from "./values.ts"
 
 type Edn =
   | string
@@ -11,15 +16,17 @@ type Edn =
   | null
   | { readonly _tag: "Keyword"; readonly name: string }
   | { readonly _tag: "Uuid"; readonly value: string }
-  | { readonly _tag: "Vector"; readonly items: ReadonlyArray<Edn> }
-  | { readonly _tag: "List"; readonly items: ReadonlyArray<Edn> }
-  | { readonly _tag: "Set"; readonly items: ReadonlyArray<Edn> }
+  | { readonly _tag: "Vector"; readonly items: readonly Edn[] }
+  | { readonly _tag: "List"; readonly items: readonly Edn[] }
+  | { readonly _tag: "Set"; readonly items: readonly Edn[] }
   | { readonly _tag: "Map"; readonly entries: ReadonlyArray<readonly [Edn, Edn]> }
 
 const keyword = (name: string): Edn => ({ _tag: "Keyword", name })
-const vector = (items: ReadonlyArray<Edn>): Edn => ({ _tag: "Vector", items })
-const seq = (items: ReadonlyArray<Edn>): Edn =>
+const vector = (items: readonly Edn[]): Edn => ({ _tag: "Vector", items })
+
+const seq = (items: readonly Edn[]): Edn =>
   items.length === 0 ? vector(items) : { _tag: "List", items }
+
 const map = (entries: ReadonlyArray<readonly [string, Edn]>): Edn => ({
   _tag: "Map",
   entries: entries.map(([key, value]) => [keyword(key), value]),
@@ -36,55 +43,89 @@ const ednString = (text: string) =>
 const MARGIN = 72
 
 const flat = (value: Edn): string => {
-  if (value === null) return "nil"
-  if (typeof value === "string") return ednString(value)
-  if (typeof value === "number" || typeof value === "boolean") return String(value)
+  if (value === null) {
+    return "nil"
+  }
+
+  if (typeof value === "string") {
+    return ednString(value)
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value)
+  }
+
   switch (value._tag) {
-    case "Keyword":
+    case "Keyword": {
       return `:${value.name}`
-    case "Uuid":
+    }
+
+    case "Uuid": {
       return `#uuid ${ednString(value.value)}`
-    case "Vector":
+    }
+
+    case "Vector": {
       return `[${value.items.map(flat).join(" ")}]`
-    case "List":
+    }
+
+    case "List": {
       return `(${value.items.map(flat).join(" ")})`
-    case "Set":
+    }
+
+    case "Set": {
       return `#{${value.items.map(flat).join(" ")}}`
-    case "Map":
+    }
+
+    case "Map": {
       return `{${value.entries.map(([key, item]) => `${flat(key)} ${flat(item)}`).join(", ")}}`
+    }
   }
 }
 
 const printEdn = (value: Edn, column: number, tail: number): string => {
   const one = flat(value)
-  if (column + one.length + tail < MARGIN || value === null || typeof value !== "object") return one
+
+  if (column + one.length + tail < MARGIN || value === null || typeof value !== "object") {
+    return one
+  }
+
   const pad = " ".repeat(column + 1)
-  const items = (open: string, close: string, list: ReadonlyArray<Edn>) =>
+
+  const items = (open: string, close: string, list: readonly Edn[]) =>
     `${open}${list
       .map((item, index) =>
         printEdn(item, column + open.length, index === list.length - 1 ? tail + 1 : 0),
       )
       .join(`\n${" ".repeat(column + open.length)}`)}${close}`
+
   switch (value._tag) {
     case "Keyword":
     case "Uuid":
-    case "Set":
+    case "Set": {
       return one
-    case "Vector":
+    }
+
+    case "Vector": {
       return items("[", "]", value.items)
-    case "List":
+    }
+
+    case "List": {
       return items("(", ")", value.items)
-    case "Map":
+    }
+
+    case "Map": {
       return `{${value.entries
         .map(([key, item], index) => {
           const last = index === value.entries.length - 1 ? tail + 1 : 1
           const head = flat(key)
           const inline = flat(item)
+
           return column + 1 + head.length + 1 + inline.length + last < MARGIN
             ? `${head} ${inline}`
             : `${head}\n${pad}${printEdn(item, column + 1, last)}`
         })
         .join(`,\n${pad}`)}}`
+    }
   }
 }
 
@@ -103,6 +144,7 @@ const pagePropertiesOf = (
   config: PropertyConfig,
 ): Properties => {
   const kept = typed(Object.entries(props), config)
+
   return kept.length === 0 ? null : kept
 }
 
@@ -112,10 +154,12 @@ type Format = "markdown" | "org"
 
 const blockPropertiesOf = (block: Block, config: PropertyConfig, format: Format): Properties => {
   const level = format === "org" ? undefined : HEADING.exec(block.text)?.[1]?.length
+
   const kept = [
     ...(level === undefined ? [] : [["heading", level] as const]),
     ...typed(Object.entries(block.props), config),
   ]
+
   return kept.length === 0 && Object.keys(block.props).length === 0 ? null : kept
 }
 
@@ -123,8 +167,13 @@ const contentOf = (block: Block, format: Format, last: boolean) => {
   if (format === "markdown") {
     return block.collapsed ? joinProperties(block.text, [["collapsed", "true"]]) : block.text
   }
-  if (Object.keys(block.props).length > 0) return block.text
+
+  if (Object.keys(block.props).length > 0) {
+    return block.text
+  }
+
   const raw = joinProperties(block.text, block.collapsed ? [["collapsed", "true"]] : [], "org")
+
   return last ? raw : `${raw}\n`
 }
 
@@ -132,16 +181,16 @@ export interface ExportedPage {
   readonly id: string
   readonly title: string
   readonly properties: Properties
-  readonly children: ReadonlyArray<ExportedBlock>
+  readonly children: readonly ExportedBlock[]
 }
 
 export interface ExportedBlock {
   readonly id: string
   readonly format: Format
   readonly content: string
-  readonly lines: ReadonlyArray<PropertyLine>
+  readonly lines: readonly PropertyLine[]
   readonly properties: Properties
-  readonly children: ReadonlyArray<ExportedBlock>
+  readonly children: readonly ExportedBlock[]
 }
 
 interface Placement {
@@ -161,6 +210,7 @@ const blockOf = (shelf: Shelf, at: Placement, block: Block): ExportedBlock => ({
 
 const lastBlock = (shelf: Shelf, pageId: PageId, parentId: BlockId | null): BlockId | null => {
   const last = shelf.children(pageId, parentId).at(-1)
+
   return last === undefined ? parentId : lastBlock(shelf, pageId, last.id)
 }
 
@@ -169,13 +219,17 @@ export const hasFile = ({ page, blocks }: PageBlocks) =>
 
 const derivedUuid = (seed: string) => {
   const half = (salt: string) => {
-    let hash = 0xcbf29ce484222325n
+    let hash = 0xcb_f2_9c_e4_84_22_23_25n
+
     for (const char of salt + seed) {
-      hash = BigInt.asUintN(64, (hash ^ BigInt(char.charCodeAt(0))) * 0x100000001b3n)
+      hash = BigInt.asUintN(64, (hash ^ BigInt(char.charCodeAt(0))) * 0x1_00_00_00_01_b3n)
     }
+
     return hash.toString(16).padStart(16, "0")
   }
+
   const hex = half("a") + half("b")
+
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`
 }
 
@@ -199,13 +253,15 @@ const propertiesBlock = (page: PageBlocks["page"], properties: Properties) =>
         },
       ]
 
-export const exportedPages = (library: Library): ReadonlyArray<ExportedPage> => {
+export const exportedPages = (library: Library): readonly ExportedPage[] => {
   const shelf = shelve(library)
+
   return library.pages
     .filter(hasFile)
     .toSorted((a, b) => (a.page.name < b.page.name ? -1 : a.page.name > b.page.name ? 1 : 0))
     .map(({ page }) => {
       const properties = pagePropertiesOf(page.props, shelf.properties)
+
       return {
         id: page.id,
         title: page.title,
@@ -248,7 +304,7 @@ const ednBlock = (block: ExportedBlock): Edn =>
     ["block/content", block.content],
   ])
 
-export const ednOf = (pages: ReadonlyArray<ExportedPage>): string =>
+export const ednOf = (pages: readonly ExportedPage[]): string =>
   `${printEdn(
     map([
       ["version", 1],
@@ -274,7 +330,7 @@ interface JsonBlock {
   readonly id: string
   readonly properties: Record<string, PropertyValue> | null
   readonly format: Format
-  readonly children: ReadonlyArray<JsonBlock>
+  readonly children: readonly JsonBlock[]
   readonly content: string
 }
 
@@ -291,7 +347,7 @@ const jsonBlock = (block: ExportedBlock): JsonBlock => ({
   content: block.content,
 })
 
-export const jsonOf = (pages: ReadonlyArray<ExportedPage>): string =>
+export const jsonOf = (pages: readonly ExportedPage[]): string =>
   JSON.stringify({
     version: 1,
     blocks: pages.map((page) => ({
@@ -305,14 +361,19 @@ export const jsonOf = (pages: ReadonlyArray<ExportedPage>): string =>
 const UID_CHARS = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 const uidOf = (uuid: string) => {
-  let hash = 0xcbf29ce484222325n
-  for (const char of uuid)
-    hash = BigInt.asUintN(64, (hash ^ BigInt(char.charCodeAt(0))) * 0x100000001b3n)
+  let hash = 0xcb_f2_9c_e4_84_22_23_25n
+
+  for (const char of uuid) {
+    hash = BigInt.asUintN(64, (hash ^ BigInt(char.charCodeAt(0))) * 0x1_00_00_00_01_b3n)
+  }
+
   let uid = ""
+
   for (let index = 0; index < 9; index++) {
     uid += UID_CHARS[Number(hash % 64n)] ?? "_"
     hash /= 64n
   }
+
   return uid
 }
 
@@ -322,31 +383,45 @@ const UUIDS = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 interface RoamBlock {
   readonly string: string
   readonly uid?: string
-  readonly children: ReadonlyArray<RoamBlock>
+  readonly children: readonly RoamBlock[]
 }
 
-const linkedNames = (pages: ReadonlyArray<ExportedPage>): ReadonlySet<string> => {
+const linkedNames = (pages: readonly ExportedPage[]): ReadonlySet<string> => {
   const names = new Set<string>()
   const add = (name: string) => names.add(normalizePageName(name))
+
   const visit = (block: ExportedBlock) => {
     for (const node of parseInline(block.content)) {
-      if (node._tag === "PageRef" || node._tag === "Tag") add(node.name)
-      else if (node._tag === "Link" && node.target._tag === "Page") add(node.target.name)
-      else if (node._tag === "Macro" && node.name === "embed") {
+      if (node._tag === "PageRef" || node._tag === "Tag") {
+        add(node.name)
+      } else if (node._tag === "Link" && node.target._tag === "Page") {
+        add(node.target.name)
+      } else if (node._tag === "Macro" && node.name === "embed") {
         const page = /^\s*\[\[(.+)\]\]\s*$/.exec(node.args)?.[1]
-        if (page !== undefined) add(page)
+
+        if (page !== undefined) {
+          add(page)
+        }
       }
     }
+
     for (const [, value] of block.properties ?? []) {
-      if (typeof value === "object") value.forEach(add)
+      if (typeof value === "object") {
+        value.forEach(add)
+      }
     }
+
     block.children.forEach(visit)
   }
-  pages.forEach((page) => page.children.forEach(visit))
+
+  pages.forEach((page) => {
+    page.children.forEach(visit)
+  })
+
   return names
 }
 
-export const roamJsonOf = (pages: ReadonlyArray<ExportedPage>, referenced: ReadonlySet<string>) => {
+export const roamJsonOf = (pages: readonly ExportedPage[], referenced: ReadonlySet<string>) => {
   const roamString = (block: ExportedBlock) =>
     (block.format === "org"
       ? block.properties === null
@@ -364,12 +439,15 @@ export const roamJsonOf = (pages: ReadonlyArray<ExportedPage>, referenced: Reado
       .replace(/^DONE/, "{{[[DONE]]}}")
       .replaceAll("{{embed ", "{{embed: ")
       .trim()
+
   const roamBlock = (block: ExportedBlock): RoamBlock => ({
     string: roamString(block),
     ...(referenced.has(block.id) ? { uid: uidOf(block.id) } : {}),
     children: block.children.map(roamBlock),
   })
+
   const linked = linkedNames(pages)
+
   return JSON.stringify(
     pages.map((page) => ({
       title: page.title,

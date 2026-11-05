@@ -17,14 +17,8 @@ import type { PageStat } from "@seqno/rpc"
 import { allPages } from "../../atoms.ts"
 import { PagesStyle } from "../PageView.tsx"
 import { allPagesJournals, allPagesSort, pageStats, referencedOnly } from "./atoms.ts"
-import {
-  listValues,
-  pageRows,
-  timestamp,
-  visibleRows,
-  type PageRow,
-  type SortColumn,
-} from "./model.ts"
+import { listValues, pageRows, timestamp, visibleRows } from "./model.ts"
+import type { PageRow, SortColumn } from "./model.ts"
 import { PageLink } from "./PageLink.tsx"
 
 const columns: ReadonlyArray<readonly [SortColumn | "tags", string]> = [
@@ -35,7 +29,7 @@ const columns: ReadonlyArray<readonly [SortColumn | "tags", string]> = [
   ["updated", "Updated At"],
 ]
 
-const noStats: ReadonlyArray<PageStat> = []
+const noStats: readonly PageStat[] = []
 
 const estimateRow = () => 33
 
@@ -57,7 +51,9 @@ const Filter = ({
       type="button"
       className="seqno-view-action"
       aria-label="Search pages"
-      onClick={() => onText("")}
+      onClick={() => {
+        onText("")
+      }}
     >
       <IconSearch size={18} aria-hidden />
     </button>
@@ -70,7 +66,9 @@ const Filter = ({
         placeholder="Type to search"
         value={text}
         autoFocus
-        onChange={(event) => onText(event.currentTarget.value)}
+        onChange={(event) => {
+          onText(event.currentTarget.value)
+        }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault()
@@ -82,14 +80,16 @@ const Filter = ({
         type="button"
         className="seqno-view-action"
         aria-label="Close search"
-        onClick={() => onText(null)}
+        onClick={() => {
+          onText(null)
+        }}
       >
         <IconX size={18} aria-hidden />
       </button>
     </div>
   )
 
-const PageRows = ({ rows }: { readonly rows: ReadonlyArray<PageRow> }) => {
+const PageRows = ({ rows }: { readonly rows: readonly PageRow[] }) => {
   const { placed, trailing, attach, measure } = useVirtualList({
     id: "all-pages",
     windowed: true,
@@ -98,12 +98,18 @@ const PageRows = ({ rows }: { readonly rows: ReadonlyArray<PageRow> }) => {
     key: (index) => rows[index]?.page.name ?? index,
     overscan: 20,
   })
+
   return (
     <tbody ref={attach}>
       {placed.flatMap(({ index, gap }) => {
         const row = rows[index]
-        if (row === undefined) return []
+
+        if (row === undefined) {
+          return []
+        }
+
         const { page, backlinks, created, updated } = row
+
         const shown = (
           <tr key={page.name} ref={measure} data-index={index}>
             <td className="seqno-table-gutter" />
@@ -127,6 +133,7 @@ const PageRows = ({ rows }: { readonly rows: ReadonlyArray<PageRow> }) => {
             <td className="seqno-table-rest" />
           </tr>
         )
+
         return gap === 0 ? [shown] : [<Gap key={`gap-${page.name}`} height={gap} />, shown]
       })}
       {trailing === 0 ? null : <Gap key="gap-end" height={trailing} />}
@@ -141,16 +148,20 @@ export const AllPages = () => {
   const [journals, setJournals] = useAtom(allPagesJournals)
   const [filter, setFilter] = useState<string | null>(null)
   const referenced = useAtomValue(referencedOnly)
+
   const rows = visibleRows(pageRows(everyPage, stats, referenced), {
     sort,
     filter: filter ?? "",
     journals,
   })
-  const sortBy = (column: SortColumn) =>
+
+  const sortBy = (column: SortColumn) => {
     setSort({
       column,
       descending: sort.column === column ? !sort.descending : column !== "title",
     })
+  }
+
   return (
     <div {...logseq("seqno-all-pages")}>
       <PagesStyle />
@@ -168,7 +179,9 @@ export const AllPages = () => {
             aria-label="Include journals"
             title={journals ? "Hide journals" : "Show journals"}
             aria-pressed={journals}
-            onClick={() => setJournals(!journals)}
+            onClick={() => {
+              setJournals(!journals)
+            }}
           >
             {journals ? (
               <IconCalendar size={18} aria-hidden />
@@ -189,23 +202,30 @@ export const AllPages = () => {
                   scope="col"
                   data-column={column}
                   aria-sort={
-                    sort.column !== column
-                      ? undefined
-                      : sort.descending
+                    sort.column === column
+                      ? sort.descending
                         ? "descending"
                         : "ascending"
+                      : undefined
                   }
                 >
                   {column === "tags" ? (
                     <span className="seqno-table-label">{label}</span>
                   ) : (
-                    <button type="button" onClick={() => sortBy(column)}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sortBy(column)
+                      }}
+                    >
                       {label}
-                      {sort.column !== column ? null : sort.descending ? (
-                        <IconArrowDown size={18} aria-hidden />
-                      ) : (
-                        <IconArrowUp size={18} aria-hidden />
-                      )}
+                      {sort.column === column ? (
+                        sort.descending ? (
+                          <IconArrowDown size={18} aria-hidden />
+                        ) : (
+                          <IconArrowUp size={18} aria-hidden />
+                        )
+                      ) : null}
                     </button>
                   )}
                 </th>

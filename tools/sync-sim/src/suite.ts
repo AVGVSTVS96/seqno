@@ -1,14 +1,16 @@
 import { Effect, Layer, Schema } from "effect"
 import { LoroGraphs } from "./loro-graph.ts"
-import { bugs, loroVaults, type Bug } from "./loro-vault.ts"
+import { bugs, loroVaults } from "./loro-vault.ts"
+import type { Bug } from "./loro-vault.ts"
 import { PagesGraphs, RealGraphs } from "./real-graph.ts"
 import { realVaults } from "./real-vault.ts"
-import { runSeed, type SeedResult, type SimConfig } from "./sim.ts"
+import { runSeed } from "./sim.ts"
+import type { SeedResult, SimConfig } from "./sim.ts"
 
 export const suites = {
   ci: { seeds: 50, ops: 600, hours: 24 },
   "1k": { seeds: 1000, ops: 1000, hours: 48 },
-  "10k": { seeds: 100, ops: 10000, hours: 48 },
+  "10k": { seeds: 100, ops: 10_000, hours: 48 },
 } as const
 
 export type SuiteName = keyof typeof suites
@@ -23,6 +25,7 @@ export const SeedJob = Schema.Struct({
   vault: Schema.Literals(["stand-in", "real"]),
   graph: Schema.Literals(["stand-in", "real", "pages"]),
 })
+
 export type SeedJob = typeof SeedJob.Type
 
 export const decodeSeedJob = Schema.decodeUnknownSync(Schema.fromJsonString(SeedJob))
@@ -45,6 +48,7 @@ export const runJob = (job: SeedJob): Effect.Effect<SeedResult> => {
     compaction: job.compaction,
     restarts: job.vault === "real",
   }
+
   return runSeed(cfg).pipe(
     Effect.provide(
       job.graph === "pages"

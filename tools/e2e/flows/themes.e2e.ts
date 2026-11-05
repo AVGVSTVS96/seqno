@@ -91,7 +91,9 @@ test("Dev theme labels headings, shrinks bullets and lays out the left sidebar t
   await page.goto("/page/queries")
   const heading = page.locator(".ls-block h2").first()
   await expect
-    .poll(() => heading.evaluate((element) => getComputedStyle(element, "::after").content))
+    .poll(
+      async () => await heading.evaluate((element) => getComputedStyle(element, "::after").content),
+    )
     .toBe('"h2"')
   await expect(page.locator(".ls-block .bullet-container").first()).toHaveCSS("height", "14px")
   await expect(page.locator(".left-sidebar-inner > .wrap")).toHaveCSS("padding-top", "12px")
@@ -152,10 +154,11 @@ const themesSelect = () => {
     selectorNames(
       readFileSync(
         new URL(`../../../fixtures/logseq-plugins/files/${file}`, import.meta.url),
-        "utf8",
+        "utf-8",
       ),
     ),
   )
+
   return new Set([
     ...selected
       .flatMap((names) => names.classes.filter((name) => logseqClasses.has(name)))
@@ -169,8 +172,8 @@ const themesSelect = () => {
   ])
 }
 
-const renderedNames = (page: Page) =>
-  page.evaluate(() =>
+const renderedNames = async (page: Page) =>
+  await page.evaluate(() =>
     [document.documentElement, ...document.querySelectorAll("*")].flatMap((element) => [
       ...[...element.classList].map((name) => `.${name}`),
       ...(element.id === "" ? [] : [`#${element.id}`]),
@@ -253,6 +256,7 @@ const themeNamesScreens = async (page: Page, collect: Collect) => {
   await expect(page.getByRole("textbox", { name: "Page title" })).toBeFocused()
   await collect()
   await page.keyboard.press("Escape")
+
   for (const level of ["two", "three", "four", "five", "six"]) {
     await main.locator(".seqno-content", { hasText: `Heading ${level}` }).click()
     await expect(page.locator(".seqno-editor-content:focus")).toHaveText(
@@ -261,6 +265,7 @@ const themeNamesScreens = async (page: Page, collect: Collect) => {
     await collect()
     await page.keyboard.press("Escape")
   }
+
   const scheduled = main.locator(".seqno-row", { hasText: "A block to schedule" })
   await scheduled.locator(".seqno-content").click()
   await page.keyboard.press("End")
@@ -273,7 +278,11 @@ const themeNamesScreens = async (page: Page, collect: Collect) => {
   await expect(picker).toBeHidden()
   await page.keyboard.press("Escape")
   const bullet = await scheduled.locator(".seqno-bullet").boundingBox()
-  if (bullet === null) throw new Error("the bullet has no box")
+
+  if (bullet === null) {
+    throw new Error("the bullet has no box")
+  }
+
   const at = { x: bullet.x + bullet.width / 2, y: bullet.y + bullet.height / 2 }
   await page.mouse.move(at.x, at.y)
   await page.mouse.down()
@@ -290,7 +299,9 @@ const themeNamesScreens = async (page: Page, collect: Collect) => {
   await expect(page.getByRole("complementary").locator(".seqno-slides-deck .hljs")).toHaveCount(5)
   await collect()
   await page.setViewportSize({ width: 1440, height: 300 })
-  await page.locator(".nav-contents-container").evaluate((contents) => contents.scrollTo(0, 60))
+  await page.locator(".nav-contents-container").evaluate((contents) => {
+    contents.scrollTo(0, 60)
+  })
   await expect(page.locator(".nav-contents-container.is-scrolled")).toHaveCount(1)
   await collect()
   await page.setViewportSize({ width: 1440, height: 4000 })
@@ -303,17 +314,25 @@ const pdfScreens = async (page: Page, collect: Collect) => {
   const text = pdf.locator(".textLayer span").first()
   await expect(text).toBeVisible()
   await collect()
+
   for (const title of ["More settings", "Search", "Outline"]) {
     await pdf.getByTitle(title, { exact: true }).click()
+
     if (title === "Search") {
       await pdf.getByPlaceholder("search").fill("fox")
       await expect(pdf.getByTitle("Enter to search")).toBeVisible()
     }
+
     await collect()
     await pdf.getByTitle(title, { exact: true }).click()
   }
+
   const line = await text.boundingBox()
-  if (line === null) throw new Error("the line has no box")
+
+  if (line === null) {
+    throw new Error("the line has no box")
+  }
+
   await page.mouse.move(line.x + 1, line.y + line.height / 2)
   await page.mouse.down()
   await page.mouse.move(line.x + line.width - 1, line.y + line.height / 2, { steps: 8 })
@@ -331,19 +350,26 @@ test("seqno renders every Logseq name the fixture themes select, except the gaps
 }) => {
   test.setTimeout(240_000)
   const rendered = new Set<string>()
+
   const collect = async () => {
-    for (const name of await renderedNames(page)) rendered.add(name)
+    for (const name of await renderedNames(page)) {
+      rendered.add(name)
+    }
   }
+
   const editAtEnd = async () => {
     await page.getByRole("main").locator(".seqno-content").first().click()
     await page.keyboard.press("End")
   }
+
   await page.setViewportSize({ width: 1440, height: 4000 })
   await seedOpfs(page, fixtureGraph("graphs/showcase"), ["graphs", "demo"])
   await seedOpfs(page, fixtureGraph("graphs/theme-names/pages"), ["graphs", "demo", "pages"])
   await seedOpfs(page, fixtureGraph("graphs/pdf-highlights/pages"), ["graphs", "demo", "pages"])
   await seedOpfs(page, fixtureGraph("graphs/pdf-highlights/assets"), ["graphs", "demo", "assets"])
-  await page.evaluate(() => localStorage.setItem("seqno.leftSidebar", "true"))
+  await page.evaluate(() => {
+    localStorage.setItem("seqno.leftSidebar", "true")
+  })
   await openDemo(page, "/page/showcase")
   await expect(page.locator(".seqno-query").first()).toBeVisible()
   await collect()
@@ -427,8 +453,10 @@ test("seqno renders every Logseq name the fixture themes select, except the gaps
   await collect()
   const platforms = new Set([".is-mac", ".is-win32", ".is-linux"])
   expect([...platforms].filter((name) => rendered.has(name))).toHaveLength(1)
+
   const missing = [...themesSelect()]
     .filter((name) => !rendered.has(name) && !platforms.has(name))
     .toSorted()
+
   expect(missing).toEqual(Object.keys(gaps))
 })

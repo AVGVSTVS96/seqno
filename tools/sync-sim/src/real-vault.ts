@@ -1,23 +1,21 @@
 import { Duration, Effect, Layer, Option } from "effect"
-import {
-  Entry,
-  FileUnavailable,
-  Storage,
-  Vault,
-  layer,
-  type Replica as VaultReplica,
-} from "@seqno/vault"
+import { Entry, FileUnavailable, Storage, Vault, layer } from "@seqno/vault"
+import type { Replica as VaultReplica } from "@seqno/vault"
 import type { CloudFs } from "./cloud.ts"
-import { Vaults, type Replica, type VaultSpec, type VaultSync } from "./ports.ts"
+import { Vaults } from "./ports.ts"
+import type { Replica, VaultSpec, VaultSync } from "./ports.ts"
 
 const entryOf = (fs: CloudFs, dir: string, name: string) =>
   Effect.gen(function* () {
     const path = `${dir}/${name}`
     const stat = yield* fs.stat(path)
+
     if (Option.isSome(stat)) {
       return [Entry.File({ name, placeholder: stat.value.dataless })]
     }
+
     const inside = yield* fs.list(path)
+
     return inside.length > 0 ? [Entry.Directory({ name })] : []
   })
 
@@ -69,6 +67,7 @@ const attach = (spec: VaultSpec, fs: CloudFs, replica: Replica) =>
         compactEvery: Duration.millis(spec.compactMinIntervalMs),
       }).pipe(Layer.provide(Layer.succeed(Storage, cloudStorage(fs)))),
     )
+
     const stats = { importedFiles: 0, importedBytes: 0, placeholdersSeen: 0 }
     const flush = replica.flushTo((bytes) => Effect.orDie(vault.writeUpdate(bytes)))
 
@@ -77,6 +76,7 @@ const attach = (spec: VaultSpec, fs: CloudFs, replica: Replica) =>
       (report) => {
         stats.importedFiles += report.merged.length
         stats.placeholdersSeen += report.waiting.length
+
         return { wakeInMs: report.waiting.length > 0 || report.behind ? RETRY_MS : null }
       },
     )

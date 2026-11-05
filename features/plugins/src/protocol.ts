@@ -15,9 +15,9 @@ export const channelOf = (pid: string) => `#lspmsg#${pid}`
 
 export const snakeCase = (input: string) =>
   input
-    .replace(/([a-z0-9])([A-Z])/g, "$1\0$2")
-    .replace(/([A-Z])([A-Z][a-z])/g, "$1\0$2")
-    .replace(/[^A-Z0-9]+/gi, "\0")
+    .replaceAll(/([a-z0-9])([A-Z])/g, "$1\0$2")
+    .replaceAll(/([A-Z])([A-Z][a-z])/g, "$1\0$2")
+    .replaceAll(/[^A-Z0-9]+/gi, "\0")
     .split("\0")
     .filter((part) => part !== "")
     .map((part) => part.toLowerCase())
@@ -43,6 +43,7 @@ export const PluginMessage = Schema.Union([
     }),
   }),
 ])
+
 export type PluginMessage = typeof PluginMessage.Type
 
 export const decodeMessage = Schema.decodeUnknownOption(PluginMessage)
@@ -52,6 +53,7 @@ export const ApiCall = Schema.Struct({
   args: Schema.optionalKey(Schema.Array(Schema.Unknown)),
   _sync: Schema.optionalKey(Schema.Number),
 })
+
 export type ApiCall = typeof ApiCall.Type
 
 export const decodeApiCall = Schema.decodeUnknownOption(ApiCall)
@@ -63,7 +65,7 @@ export const call = (property: string, data: unknown) => ({
   data,
 })
 
-export const request = (property: string, args: ReadonlyArray<unknown>, uid: number) => ({
+export const request = (property: string, args: readonly unknown[], uid: number) => ({
   postmate: "request",
   type: messageType,
   property,

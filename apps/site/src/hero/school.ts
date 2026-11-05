@@ -49,42 +49,43 @@ const INK_SHARE = 0.12
 
 function random(seed: number) {
   let s = seed >>> 0
+
   return () => {
-    s = (s + 0x6d2b79f5) >>> 0
+    s = (s + 0x6d_2b_79_f5) >>> 0
     let t = s
     t = Math.imul(t ^ (t >>> 15), t | 1)
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296
   }
 }
 
 const wrap = (a: number) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI
 const smooth = (e: number) => e * e * (3 - 2 * e)
+
 const overlaps = (a: Box, b: Box) =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
 function outlineShape(rand: () => number) {
   const rows = 3 + Math.floor(rand() * 4)
   const depths = [0]
+
   for (let i = 1; i < rows; i++) {
     const prev = depths[i - 1] ?? 0
     const r = rand()
     depths.push(r < 0.45 ? Math.min(prev + 1, 2) : r < 0.8 ? prev : Math.max(prev - 1, 0))
   }
+
   return depths.map((depth) => ({ depth, width: 3 + Math.floor(rand() * 5) }))
 }
 
-function placeOutlines(
-  width: number,
-  height: number,
-  avoid: ReadonlyArray<Box>,
-  rand: () => number,
-) {
+function placeOutlines(width: number, height: number, avoid: readonly Box[], rand: () => number) {
   const count = Math.min(12, Math.max(4, Math.floor((width * height) / 130_000)))
   const cols = Math.floor(width / GRID)
   const rows = Math.floor(height / GRID)
-  const taken: Array<Box> = []
+  const taken: Box[] = []
   const outlines: Array<{ gx: number; gy: number; shape: ReturnType<typeof outlineShape> }> = []
+
   for (let tries = 0; tries < 800 && outlines.length < count; tries++) {
     const shape = outlineShape(rand)
     const w = Math.max(...shape.map((r) => r.depth + r.width + 1))
@@ -92,11 +93,19 @@ function placeOutlines(
     const gx = 1 + Math.floor(rand() * Math.max(1, cols - w - 2))
     const gy = 2 + Math.floor(rand() * Math.max(1, rows - h - 3))
     const box = { x: (gx - 1) * GRID, y: (gy - 1) * GRID, w: (w + 2) * GRID, h: (h + 2) * GRID }
-    if (box.x + box.w > width || box.y + box.h > height) continue
-    if (taken.some((t) => overlaps(t, box)) || avoid.some((a) => overlaps(a, box))) continue
+
+    if (box.x + box.w > width || box.y + box.h > height) {
+      continue
+    }
+
+    if (taken.some((t) => overlaps(t, box)) || avoid.some((a) => overlaps(a, box))) {
+      continue
+    }
+
     taken.push(box)
     outlines.push({ gx, gy, shape })
   }
+
   return outlines
 }
 
@@ -118,9 +127,9 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
   let height = 0
   let dpr = 1
   let time = 0
-  let bullets: Array<Bullet> = []
+  let bullets: Bullet[] = []
 
-  function build(avoid: ReadonlyArray<Box>, scattered: boolean) {
+  function build(avoid: readonly Box[], scattered: boolean) {
     const rand = random(seed)
     const rect = canvas.getBoundingClientRect()
     width = rect.width
@@ -130,16 +139,21 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
     canvas.height = Math.round(height * dpr)
     bullets = []
     const spread = () => 90 + rand() * 210
+
     for (const outline of placeOutlines(width, height, avoid, rand)) {
-      const stack: Array<number> = []
+      const stack: number[] = []
       outline.shape.forEach((row, i) => {
-        while (stack.length && (bullets[stack.at(-1) ?? 0]?.depth ?? 0) >= row.depth) stack.pop()
+        while (stack.length && (bullets[stack.at(-1) ?? 0]?.depth ?? 0) >= row.depth) {
+          stack.pop()
+        }
+
         const parent = stack.at(-1) ?? -1
         stack.push(bullets.length)
         const hx = (outline.gx + row.depth) * GRID + GRID / 2
         const hy = (outline.gy + i) * GRID + GRID / 2
         const a = rand() * TAU
         const d = spread()
+
         const loose = {
           x: Math.min(width - GRID, Math.max(GRID, hx + Math.cos(a) * d)),
           y: Math.min(height - GRID, Math.max(GRID, hy + Math.sin(a) * d)),
@@ -148,6 +162,7 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
           e: 1,
           ta: (rand() - 0.5) * 2,
         }
+
         bullets.push({
           hx,
           hy,
@@ -164,23 +179,35 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
         })
       })
     }
-    if (!scattered) for (let i = 0; i < 90; i++) step(1 / 60)
+
+    if (!scattered) {
+      for (let i = 0; i < 90; i++) {
+        step(1 / 60)
+      }
+    }
   }
 
   function step(dt: number) {
     time += dt
+
     if (!pointer.moved) {
       pointer.vx = 0
       pointer.vy = 0
     }
+
     pointer.moved = false
     const moving = pointer.inside && Math.hypot(pointer.vx, pointer.vy) > 40
     const decay = Math.exp(-dt / CALM)
+
     for (const b of bullets) {
       const dx = b.x - pointer.x
       const dy = b.y - pointer.y
       const d = Math.hypot(dx, dy) || 1
-      if (moving && d < WAKE) b.e = Math.max(b.e, 1 - (d / WAKE) * 0.4)
+
+      if (moving && d < WAKE) {
+        b.e = Math.max(b.e, 1 - (d / WAKE) * 0.4)
+      }
+
       b.e *= decay
       const w = smooth(b.e)
       const hx = b.hx - b.x
@@ -189,6 +216,7 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
       const want = Math.min(HOME_SPEED, hd * GAIN)
       let ax = ((hx / hd) * want - b.vx) * STEER * (1 - w)
       let ay = ((hy / hd) * want - b.vy) * STEER * (1 - w)
+
       if (w > 0.001) {
         const angle = flow(b.x, b.y, time)
         let tx = Math.cos(angle) * SWIM
@@ -198,60 +226,97 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
         let avy = 0
         let sx = 0
         let sy = 0
+
         for (const q of bullets) {
-          if (q === b || q.e < 0.2) continue
+          if (q === b || q.e < 0.2) {
+            continue
+          }
+
           const qx = q.x - b.x
           const qy = q.y - b.y
           const dd = qx * qx + qy * qy
-          if (dd > 3136) continue
+
+          if (dd > 3136) {
+            continue
+          }
+
           n++
           avx += q.vx
           avy += q.vy
+
           if (dd < 196) {
             sx -= qx / (dd + 1)
             sy -= qy / (dd + 1)
           }
         }
+
         if (n) {
           tx = tx * 0.6 + (avx / n) * 0.4
           ty = ty * 0.6 + (avy / n) * 0.4
         }
+
         ax += ((tx - b.vx) * 1.8 + sx * 900) * w
         ay += ((ty - b.vy) * 1.8 + sy * 900) * w
         const m = 2 * GRID
-        if (b.x < m) ax += (m - b.x) * 6 * w
-        if (b.x > width - m) ax -= (b.x - width + m) * 6 * w
-        if (b.y < m) ay += (m - b.y) * 6 * w
-        if (b.y > height - m) ay -= (b.y - height + m) * 6 * w
+
+        if (b.x < m) {
+          ax += (m - b.x) * 6 * w
+        }
+
+        if (b.x > width - m) {
+          ax -= (b.x - width + m) * 6 * w
+        }
+
+        if (b.y < m) {
+          ay += (m - b.y) * 6 * w
+        }
+
+        if (b.y > height - m) {
+          ay -= (b.y - height + m) * 6 * w
+        }
       }
+
       if (moving && d < FLEE) {
         const f = FLEE_ACCEL * (1 - d / FLEE) ** 2
         ax += (dx / d) * f
         ay += (dy / d) * f
       }
+
       b.vx += ax * dt
       b.vy += ay * dt
       const speed = Math.hypot(b.vx, b.vy)
+
       if (speed > MAX_SPEED) {
         b.vx *= MAX_SPEED / speed
         b.vy *= MAX_SPEED / speed
       }
+
       b.x += b.vx * dt
       b.y += b.vy * dt
       const target = Math.atan2(-b.vx, 70 - b.vy)
       b.tw += (TAIL_STIFFNESS * wrap(target - b.ta) - TAIL_DAMPING * b.tw) * dt
       b.ta = wrap(b.ta + b.tw * dt)
     }
+
     for (const b of bullets) {
-      if (settledness(b) <= 0.6) continue
+      if (settledness(b) <= 0.6) {
+        continue
+      }
+
       for (let p = b.parent; p >= 0;) {
         const up = bullets[p]
-        if (!up) break
+
+        if (!up) {
+          break
+        }
+
         up.reach = Math.max(up.reach, b.row - up.row)
         p = up.parent
       }
     }
+
     let restless = false
+
     for (const b of bullets) {
       const s = settledness(b)
       const loose = 12 + Math.min(12, Math.hypot(b.vx, b.vy) * 0.04)
@@ -266,17 +331,23 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
         Math.abs(b.tw) > 0.01 ||
         Math.abs(len - b.len) > 0.05
     }
+
     return !restless
   }
 
   function draw() {
-    if (!ctx) return
+    if (!ctx) {
+      return
+    }
+
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, width, height)
     ctx.lineCap = "round"
+
     for (const b of bullets) {
       const s = settledness(b)
       const tone = colors[b.tone]
+
       if (s > 0.01) {
         const bw = b.bar * Math.min(1, s * 1.15)
         ctx.globalAlpha = s
@@ -288,7 +359,9 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
         ctx.roundRect(b.x + 11, b.y - 1.5, bw, 3, 1.5)
         ctx.fill()
       }
+
       const from = b.r + 3.5
+
       if (b.len > from + 1) {
         const ux = Math.sin(b.ta)
         const uy = Math.cos(b.ta)
@@ -300,6 +373,7 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
         ctx.lineTo(b.x + ux * b.len, b.y + uy * b.len)
         ctx.stroke()
       }
+
       const stretch = 1 + Math.min(0.45, Math.hypot(b.vx, b.vy) / 900)
       ctx.globalAlpha = b.tone === "ink" ? 0.92 : 0.96
       ctx.fillStyle = tone
@@ -307,13 +381,21 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
       ctx.ellipse(b.x, b.y, b.r * stretch, b.r / Math.sqrt(stretch), Math.atan2(b.vy, b.vx), 0, TAU)
       ctx.fill()
     }
+
     ctx.globalAlpha = 1
   }
 
   function order() {
-    if (!bullets.length) return 1
+    if (!bullets.length) {
+      return 1
+    }
+
     let sum = 0
-    for (const b of bullets) sum += settledness(b)
+
+    for (const b of bullets) {
+      sum += settledness(b)
+    }
+
     return sum / bullets.length
   }
 
@@ -338,7 +420,7 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
 export type School = ReturnType<typeof createSchool>
 
 interface RunOptions {
-  readonly avoid: () => ReadonlyArray<Box>
+  readonly avoid: () => readonly Box[]
   readonly colors: () => Colors
   readonly onFrame: (order: number) => void
   readonly still: boolean
@@ -358,15 +440,21 @@ export function run(canvas: HTMLCanvasElement, element: HTMLElement, options: Ru
     options.onFrame(school.order())
     frame = rested ? 0 : requestAnimationFrame(tick)
   }
+
   const wake = () => {
-    if (frame || document.hidden || options.still) return
+    if (frame || document.hidden || options.still) {
+      return
+    }
+
     last = 0
     frame = requestAnimationFrame(tick)
   }
+
   const sleep = () => {
     cancelAnimationFrame(frame)
     frame = 0
   }
+
   const onMove = (event: PointerEvent) => {
     const r = canvas.getBoundingClientRect()
     const x = event.clientX - r.left
@@ -376,12 +464,19 @@ export function run(canvas: HTMLCanvasElement, element: HTMLElement, options: Ru
     previous = { x, y, t: event.timeStamp }
     wake()
   }
+
   const onLeave = () => {
     school.leave()
     previous = null
   }
-  const onVisibility = () => (document.hidden ? sleep() : wake())
-  const onScheme = () => school.paint(options.colors())
+
+  const onVisibility = () => {
+    document.hidden ? sleep() : wake()
+  }
+
+  const onScheme = () => {
+    school.paint(options.colors())
+  }
 
   school.paint(options.colors())
   school.build(options.avoid(), !options.still)
@@ -390,14 +485,17 @@ export function run(canvas: HTMLCanvasElement, element: HTMLElement, options: Ru
   wake()
 
   let observed = false
+
   const resize = new ResizeObserver(() => {
     if (observed) {
       school.build(options.avoid(), false)
       school.draw()
       options.onFrame(school.order())
     }
+
     observed = true
   })
+
   resize.observe(canvas)
   element.addEventListener("pointermove", onMove)
   element.addEventListener("pointerleave", onLeave)

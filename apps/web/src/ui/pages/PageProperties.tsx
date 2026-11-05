@@ -3,8 +3,10 @@ import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { Effect, Exit, Stream } from "effect"
 import { AtomRegistry } from "effect/reactivity"
 import { useContext, useState } from "react"
-import { BlockId, normalizePageName, type Page } from "@seqno/domain"
-import { BlockEditor, createHandoff, type EditorHost } from "@seqno/editor"
+import { BlockId, normalizePageName } from "@seqno/domain"
+import type { Page } from "@seqno/domain"
+import { BlockEditor, createHandoff } from "@seqno/editor"
+import type { EditorHost } from "@seqno/editor"
 import { PropertyValue } from "@seqno/outliner"
 import { assetResolver, dispatch, dispatchAll, pages } from "../../atoms.ts"
 import { saveAssets } from "../assets.ts"
@@ -26,14 +28,21 @@ const PropertiesEditor = ({
   const run = useAtomSet(dispatch)
   const runAll = useAtomSet(dispatchAll, { mode: "promiseExit" })
   const registry = useContext(RegistryContext)
+
   const host: EditorHost = {
     dispatch: (command) => {
-      if (command._tag === "SetProperty") run(command)
+      if (command._tag === "SetProperty") {
+        run(command)
+      }
     },
-    dispatchAll: (commands) =>
-      runAll(commands.filter((command) => command._tag === "SetProperty")).then(Exit.isSuccess),
+    dispatchAll: async (commands) =>
+      await runAll(commands.filter((command) => command._tag === "SetProperty")).then(
+        Exit.isSuccess,
+      ),
     act: (action) => {
-      if (action._tag === "Exit") onExit()
+      if (action._tag === "Exit") {
+        onExit()
+      }
     },
     searchPages: () =>
       AtomRegistry.getResult(registry, pages).pipe(
@@ -41,14 +50,18 @@ const PropertiesEditor = ({
         Effect.map((real) => [...real, ...registry.get(referencedOnly)]),
       ),
     searchBlocks: () => Effect.succeed([]),
-    saveAssets: (files) => saveAssets(registry, files),
+    saveAssets: async (files) => await saveAssets(registry, files),
   }
+
   return (
     <div
       className="seqno-page-properties-editor"
       onBlur={(event) => {
         const next = event.relatedTarget
-        if (!(next instanceof Node && event.currentTarget.contains(next))) onExit()
+
+        if (!(next instanceof Node && event.currentTarget.contains(next))) {
+          onExit()
+        }
       }}
     >
       <BlockEditor
@@ -83,20 +96,32 @@ export const PageProperties = ({ page }: { readonly page: Page }) => {
   const navigateTo = useNavigateTo()
   const resolveAsset = useAtomValue(assetResolver)
   const props = visibleProps(page.props)
-  if (props.length === 0) return null
+
+  if (props.length === 0) {
+    return null
+  }
+
   return (
     <div {...logseq("seqno-page-properties")}>
       <div {...logseq("seqno-page-properties-control")} aria-hidden>
         <span {...logseq("seqno-page-properties-bullet")} />
       </div>
       {editing ? (
-        <PropertiesEditor page={page} onExit={() => setEditing(false)} />
+        <PropertiesEditor
+          page={page}
+          onExit={() => {
+            setEditing(false)
+          }}
+        />
       ) : (
         <dl
           {...logseq("seqno-properties")}
           aria-label="Page properties"
           onClick={(event) => {
-            if (event.target instanceof Element && event.target.closest("a") !== null) return
+            if (event.target instanceof Element && event.target.closest("a") !== null) {
+              return
+            }
+
             setEditing(true)
           }}
         >

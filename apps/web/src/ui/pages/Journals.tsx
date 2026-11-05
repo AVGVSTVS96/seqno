@@ -14,6 +14,7 @@ const Gap = ({ height }: { readonly height: number }) => (
 export const Journals = () => {
   const until = useAtomValue(today)
   const days = useAtomValue(journals).filter((page) => (page.journalDay ?? 0) <= until)
+
   const { placed, trailing, attach, measure } = useVirtualList({
     id: "journals",
     windowed: true,
@@ -22,17 +23,23 @@ export const Journals = () => {
     key: (index) => days[index]?.id ?? index,
     overscan: 2,
   })
+
   return (
     <div ref={attach} {...logseq("seqno-journals")}>
       <NestedLists>
         {placed.flatMap(({ index, gap }) => {
           const page = days[index]
-          if (page === undefined) return []
+
+          if (page === undefined) {
+            return []
+          }
+
           const day = (
             <div key={page.id} ref={measure} data-index={index} {...logseq("seqno-journal")}>
               <PageView page={page} zoom={null} inJournals />
             </div>
           )
+
           return gap === 0 ? [day] : [<Gap key={`gap-${page.id}`} height={gap} />, day]
         })}
       </NestedLists>

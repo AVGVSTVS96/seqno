@@ -7,8 +7,8 @@ test.skip(!appAvailable, "waits on apps/web")
 
 const mod = process.platform === "darwin" ? "Meta" : "Control"
 
-const boxes = (page: Page) =>
-  shapes(page, "box").evaluateAll((nodes) =>
+const boxes = async (page: Page) =>
+  await shapes(page, "box").evaluateAll((nodes) =>
     nodes.map((node) =>
       node instanceof HTMLElement
         ? [
@@ -54,11 +54,13 @@ test("the right-click menu aligns, distributes and flips the selection, as Logse
 
   await menu(page, [240, 220], "Distribute horizontally")
   const spread = await boxes(page)
+
   const gaps = spread
     .toSorted(([a = 0], [b = 0]) => a - b)
     .flatMap(([x = 0], index, all) =>
       index === 0 ? [] : [x - ((all[index - 1]?.[0] ?? 0) + (all[index - 1]?.[2] ?? 0))],
     )
+
   expect(gaps[0]).toBeCloseTo(gaps[1] ?? 0, 5)
   expect(spread[0]?.[0]).toBe(start[0]?.[0])
   expect((spread[2]?.[0] ?? 0) + (spread[2]?.[2] ?? 0)).toBe(
@@ -87,6 +89,7 @@ test("Pack into rectangle packs the selection with 16px gaps, and a group aligns
   await expect
     .poll(async () => {
       const [a = [], b = []] = await boxes(page)
+
       return Math.abs((b[0] ?? 0) - (a[0] ?? 0)) + Math.abs((b[1] ?? 0) - (a[1] ?? 0)) - (a[2] ?? 0)
     })
     .toBe(16)
@@ -119,6 +122,7 @@ test("files dropped together are packed into a rectangle with 16px gaps", async 
   )
   const images = shapes(page, "image")
   await expect(images).toHaveCount(2)
+
   const [a, b] = await images.evaluateAll((nodes) =>
     nodes.map((node) =>
       node instanceof HTMLElement
@@ -126,6 +130,7 @@ test("files dropped together are packed into a rectangle with 16px gaps", async 
         : [],
     ),
   )
+
   expect(Math.abs((b?.[0] ?? 0) - (a?.[0] ?? 0)) + Math.abs((b?.[1] ?? 0) - (a?.[1] ?? 0))).toBe(
     116,
   )

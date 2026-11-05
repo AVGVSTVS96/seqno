@@ -18,7 +18,8 @@ import {
 } from "@tabler/icons-react"
 import { Exit, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
-import { use, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { use, useRef, useState } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import {
   isBlockLink,
   normalizePageName,
@@ -26,12 +27,8 @@ import {
   portalText,
   shapeRaw,
   whiteboardProps,
-  type BlockId,
-  type Command,
-  type GraphEvent,
-  type Page,
-  type Vec,
 } from "@seqno/domain"
+import type { BlockId, Command, GraphEvent, Page, Vec } from "@seqno/domain"
 import {
   AssetActions,
   dispatchAllAtom,
@@ -52,12 +49,13 @@ import {
   remove,
   reorder,
   ungroup,
-  type Draft,
-  type Raw,
 } from "./commands.ts"
+import type { Draft, Raw } from "./commands.ts"
 import { ContextBar } from "./ContextBar.tsx"
-import { ContextMenu, type MenuGroup, type MenuRow } from "./ContextMenu.tsx"
-import { align, distribute, flip, pack, type Align } from "./arrange.ts"
+import { ContextMenu } from "./ContextMenu.tsx"
+import type { MenuGroup, MenuRow } from "./ContextMenu.tsx"
+import { align, distribute, flip, pack } from "./arrange.ts"
+import type { Align } from "./arrange.ts"
 import {
   add,
   boundsOfPoints,
@@ -76,10 +74,8 @@ import {
   ZOOM_STEP,
   union,
   zoomAt,
-  type Bounds,
-  type Camera,
-  type Viewport,
 } from "./geometry.ts"
+import type { Bounds, Camera, Viewport } from "./geometry.ts"
 import {
   DRAG_THRESHOLD,
   bindTarget,
@@ -93,10 +89,8 @@ import {
   rotationStarted,
   selectionBounds,
   turnOf,
-  type Corner,
-  type Gesture,
-  type ResizeHandle,
 } from "./gestures.ts"
+import type { Corner, Gesture, ResizeHandle } from "./gestures.ts"
 import {
   GROUP_PADDING,
   isInteractive,
@@ -108,32 +102,28 @@ import {
   withMembers,
   sceneOf,
   topHit,
-  type Item,
-  type Measured,
-  type Scene,
 } from "./model.ts"
+import type { Item, Measured, Scene } from "./model.ts"
 import type { OutlinerEnv } from "./Portal.tsx"
 import { IconGroup, IconUngroup } from "./icons.tsx"
-import { BacklinksBadge, QuickLinks, type LinkEnv } from "./links.tsx"
+import { BacklinksBadge, QuickLinks } from "./links.tsx"
+import type { LinkEnv } from "./links.tsx"
 import { freshId } from "./ids.ts"
 import { glide, savedCamera } from "./camera.ts"
 import { RotateTargets, resizeCursor, rotateCursor } from "./Rotate.tsx"
 import { EMBED_SIZE, embedOf, isWebUrl } from "./Embeds.tsx"
-import { mediaDrafts, mediaOf, naturalSize, type Saved } from "./media.ts"
+import { mediaDrafts, mediaOf, naturalSize } from "./media.ts"
+import type { Saved } from "./media.ts"
 import { applyLocally, isGhost, withIds } from "./preview.ts"
-import { QuickSearch, type Pick } from "./QuickSearch.tsx"
-import { ShapeView, type ShapeSlots } from "./ShapeView.tsx"
+import { QuickSearch } from "./QuickSearch.tsx"
+import type { Pick } from "./QuickSearch.tsx"
+import { ShapeView } from "./ShapeView.tsx"
+import type { ShapeSlots } from "./ShapeView.tsx"
 import { Tooltip } from "./Tooltip.tsx"
-import { ActionBar, PrimaryTools, usePopoverIds, type ZoomAction } from "./Toolbar.tsx"
-import {
-  DEFAULT_SIZE,
-  PORTAL_WIDTH,
-  defaultStyles,
-  newShape,
-  type ShapeTool,
-  type Styles,
-  type Tool,
-} from "./tools.ts"
+import { ActionBar, PrimaryTools, usePopoverIds } from "./Toolbar.tsx"
+import type { ZoomAction } from "./Toolbar.tsx"
+import { DEFAULT_SIZE, PORTAL_WIDTH, defaultStyles, newShape } from "./tools.ts"
+import type { ShapeTool, Styles, Tool } from "./tools.ts"
 
 export const BoardStyle = () => (
   <style href="seqno/whiteboard" precedence="app">
@@ -146,10 +136,10 @@ export interface BoardProps {
   readonly focus: BlockId | null
   readonly outliner: OutlinerEnv
   readonly resolveAsset: (path: string) => string | undefined
-  readonly saveFiles: (files: ReadonlyArray<File>) => Promise<ReadonlyArray<Asset>>
+  readonly saveFiles: (files: readonly File[]) => Promise<readonly Asset[]>
   readonly openPage: (name: string, sidebar: boolean) => void
   readonly onRenamed: (name: string) => void
-  readonly onExport: (ids: ReadonlyArray<BlockId>) => void
+  readonly onExport: (ids: readonly BlockId[]) => void
   readonly references: number
   readonly referencesPanel: ReactNode
 }
@@ -162,7 +152,7 @@ export const boardTitle = (page: Page) => (isUntitled(page) ? "Untitled" : page.
 
 interface Pending {
   readonly base: PageTree
-  readonly commands: ReadonlyArray<Command>
+  readonly commands: readonly Command[]
 }
 
 interface Press {
@@ -223,10 +213,11 @@ const onSelectedMedia = (target: EventTarget | null) =>
 
 const handleOf = (target: EventTarget | null) => {
   const element = target instanceof Element ? target.closest<HTMLElement>("[data-handle]") : null
+
   return element?.dataset["handle"] ?? null
 }
 
-const RESIZE_HANDLES: ReadonlyArray<ResizeHandle> = [
+const RESIZE_HANDLES: readonly ResizeHandle[] = [
   "top-left",
   "top-right",
   "bottom-right",
@@ -239,17 +230,12 @@ const RESIZE_HANDLES: ReadonlyArray<ResizeHandle> = [
 
 const resizeHandleOf = (name: string | null) => RESIZE_HANDLES.find((handle) => handle === name)
 
-const ROTATE_CORNERS: ReadonlyArray<Corner> = [
-  "top-left",
-  "top-right",
-  "bottom-right",
-  "bottom-left",
-]
+const ROTATE_CORNERS: readonly Corner[] = ["top-left", "top-right", "bottom-right", "bottom-left"]
 
 const rotateCornerOf = (name: string | null) =>
   ROTATE_CORNERS.find((corner) => `rotate-${corner}` === name)
 
-const createdIds = (events: ReadonlyArray<GraphEvent>) =>
+const createdIds = (events: readonly GraphEvent[]) =>
   events.flatMap((event) => (event._tag === "BlockUpserted" ? [event.block.id] : []))
 
 const snapAngle = (from: Vec, to: Vec): Vec => {
@@ -257,6 +243,7 @@ const snapAngle = (from: Vec, to: Vec): Vec => {
   const step = Math.PI / 12
   const angle = Math.round(Math.atan2(dy, dx) / step) * step
   const span = Math.hypot(dx, dy)
+
   return [from[0] + Math.cos(angle) * span, from[1] + Math.sin(angle) * span]
 }
 
@@ -267,8 +254,13 @@ const initialCamera = (
   restored: boolean,
 ): Camera | null => {
   const focused = focus === null ? undefined : scene.bounds.get(focus)
-  if (focused !== undefined) return fitBounds(focused, viewport, 1)
+
+  if (focused !== undefined) {
+    return fitBounds(focused, viewport, 1)
+  }
+
   const drawing = union([...scene.bounds.values()])
+
   return restored || drawing === null ? null : fitBounds(drawing, viewport, 1)
 }
 
@@ -291,16 +283,26 @@ const TitleChip = ({
   readonly onRename: (title: string) => void
 }) => {
   const panel = usePopoverIds()
+
   const commit = (input: HTMLInputElement) => {
     const title = input.value.trim()
+
     if (title === "" || title === boardTitle(page) || (isUntitled(page) && title === "")) {
       input.value = isUntitled(page) ? "" : page.title
+
       return
     }
+
     onRename(title)
   }
+
   return (
-    <div className="wb-title" onPointerDown={(event) => event.stopPropagation()}>
+    <div
+      className="wb-title"
+      onPointerDown={(event) => {
+        event.stopPropagation()
+      }}
+    >
       <IconChalkboard size={20} aria-hidden />
       <input
         key={page.title}
@@ -308,10 +310,16 @@ const TitleChip = ({
         aria-label="Whiteboard title"
         placeholder="Untitled"
         defaultValue={isUntitled(page) ? "" : page.title}
-        onBlur={(event) => commit(event.currentTarget)}
+        onBlur={(event) => {
+          commit(event.currentTarget)
+        }}
         onKeyDown={(event) => {
           event.stopPropagation()
-          if (event.key === "Enter") event.currentTarget.blur()
+
+          if (event.key === "Enter") {
+            event.currentTarget.blur()
+          }
+
           if (event.key === "Escape") {
             event.currentTarget.value = isUntitled(page) ? "" : page.title
             event.currentTarget.blur()
@@ -335,8 +343,12 @@ const TitleChip = ({
             className="wb-popover wb-references-panel"
             data-side="below"
             style={panel.popover}
-            onKeyDown={(event) => event.stopPropagation()}
-            onWheel={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              event.stopPropagation()
+            }}
+            onWheel={(event) => {
+              event.stopPropagation()
+            }}
           >
             {referencesPanel}
           </div>
@@ -348,8 +360,12 @@ const TitleChip = ({
 
 const readClipboardItems = async () => {
   const [item] = await navigator.clipboard.read()
+
   const read = (type: string) =>
-    item?.types.includes(type) === true ? item.getType(type).then((blob) => blob.text()) : ""
+    item?.types.includes(type) === true
+      ? item.getType(type).then(async (blob) => await blob.text())
+      : ""
+
   return { html: await read("text/html"), text: await read("text/plain") }
 }
 
@@ -368,7 +384,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const [viewport, setViewport] = useState<Viewport>({ width: 0, height: 0 })
   const [tool, setTool] = useState<Tool>("select")
   const [geometry, setGeometry] = useState<ShapeTool>("box")
-  const [selected, setSelected] = useState<ReadonlyArray<BlockId>>(focus === null ? [] : [focus])
+  const [selected, setSelected] = useState<readonly BlockId[]>(focus === null ? [] : [focus])
   const [gesture, setGesture] = useState<Gesture>(idle)
   const [editing, setEditing] = useState<BlockId | null>(null)
   const [draft, setDraft] = useState("")
@@ -391,13 +407,19 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     pending !== null && pending.base === tree
       ? applyLocally(tree.blocks, pending.commands)
       : tree.blocks
+
   const scene = sceneOf(itemsOf(blocks), measured)
   const cam = camera ?? origin
-  const moveTo = (to: Camera) => glide(flight, setCamera, cam, to, viewport)
+
+  const moveTo = (to: Camera) => {
+    glide(flight, setCamera, cam, to, viewport)
+  }
+
   const live =
     gesture._tag === "Erasing" || gesture._tag === "Brushing"
       ? []
       : changesOf(page.id, scene, gesture, styles)
+
   const shown = live.length === 0 ? scene : sceneOf(itemsOf(applyLocally(blocks, live)), measured)
   const exists = (id: BlockId) => scene.byId.has(id)
   const selection = gesture._tag === "Brushing" ? brushed(scene, gesture) : selected.filter(exists)
@@ -405,74 +427,125 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const selectedItems = selection.flatMap((id) => shown.byId.get(id) ?? [])
   const erasing = gesture._tag === "Erasing" ? new Set(gesture.ids) : new Set<BlockId>()
 
-  const commit = (given: ReadonlyArray<Command>) => {
-    if (given.length === 0) return Promise.resolve<ReadonlyArray<GraphEvent>>([])
+  const commit = async (given: readonly Command[]) => {
+    if (given.length === 0) {
+      return await Promise.resolve<readonly GraphEvent[]>([])
+    }
+
     const commands = withIds(given)
     setPending((current) =>
       current !== null && current.base === tree
         ? { base: tree, commands: [...current.commands, ...commands] }
         : { base: tree, commands },
     )
-    return run(commands).then((exit) => {
-      if (Exit.isSuccess(exit)) return exit.value
+
+    return await run(commands).then((exit) => {
+      if (Exit.isSuccess(exit)) {
+        return exit.value
+      }
+
       setPending(null)
+
       return []
     })
   }
 
   const screenOf = (event: { readonly clientX: number; readonly clientY: number }): Vec => {
     const rect = root.current?.getBoundingClientRect()
+
     return rect === undefined ? [0, 0] : [event.clientX - rect.left, event.clientY - rect.top]
   }
+
   const snapped = (point: Vec): Vec => (snap ? [snapToGrid(point[0]), snapToGrid(point[1])] : point)
 
   const setZoom = (action: ZoomAction) => {
     const at = center(viewport)
+
     switch (action) {
-      case "in":
-        return moveTo(zoomAt(cam, at, cam.zoom / ZOOM_STEP))
-      case "out":
-        return moveTo(zoomAt(cam, at, cam.zoom * ZOOM_STEP))
-      case "reset":
-        return moveTo(zoomAt(cam, at, 1))
-      case "drawing": {
-        const drawing = union([...scene.bounds.values()])
-        if (drawing !== null) moveTo(fitBounds(drawing, viewport, 1))
+      case "in": {
+        moveTo(zoomAt(cam, at, cam.zoom / ZOOM_STEP))
+
         return
       }
+
+      case "out": {
+        moveTo(zoomAt(cam, at, cam.zoom * ZOOM_STEP))
+
+        return
+      }
+
+      case "reset": {
+        moveTo(zoomAt(cam, at, 1))
+
+        return
+      }
+
+      case "drawing": {
+        const drawing = union([...scene.bounds.values()])
+
+        if (drawing !== null) {
+          moveTo(fitBounds(drawing, viewport, 1))
+        }
+
+        return
+      }
+
       case "selection": {
         const box = selectionBounds(scene, selection)
-        if (box !== null) moveTo(fitBounds(box, viewport, 1))
+
+        if (box !== null) {
+          moveTo(fitBounds(box, viewport, 1))
+        }
       }
     }
   }
 
   const startEditing = (id: BlockId) => {
     const item = scene.byId.get(id)
-    if (item === undefined || isLocked(item) || !isEditableShape(item)) return false
+
+    if (item === undefined || isLocked(item) || !isEditableShape(item)) {
+      return false
+    }
+
     setSelected([id])
     setEditing(id)
     setDraft(item.block.text)
+
     return true
   }
 
   const finishEditing = (next: EventTarget | null) => {
     const id = editing
     setEditing(null)
-    if (!isEditableTarget(next)) root.current?.focus()
-    if (id === null) return
-    const item = scene.byId.get(id)
-    if (item === undefined) return
-    if (item.shape.type === "text" && draft.trim() === "") {
-      void commit(remove(scene, [id]))
+
+    if (!isEditableTarget(next)) {
+      root.current?.focus()
+    }
+
+    if (id === null) {
       return
     }
+
+    const item = scene.byId.get(id)
+
+    if (item === undefined) {
+      return
+    }
+
+    if (item.shape.type === "text" && draft.trim() === "") {
+      void commit(remove(scene, [id]))
+
+      return
+    }
+
     const text = editText(id, item.block.text, draft)
     const seen = measured.get(id)
+
     const sized =
       item.shape.type === "text" && item.shape.isSizeLocked !== false && seen !== undefined
         ? [patch(item, { size: [round(seen[0]), round(seen[1])] })]
         : []
+
     void commit([...(text === null ? [] : [text]), ...sized])
   }
 
@@ -482,8 +555,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         .filter((item) => !isLocked(item))
         .flatMap((item) => {
           const original = scene.byId.get(item.block.id)
-          if (original === undefined || isGhost(original.block.id)) return []
+
+          if (original === undefined || isGhost(original.block.id)) {
+            return []
+          }
+
           const next = change(original)
+
           return Object.keys(next).length === 0 ? [] : [patch(original, next)]
         }),
     )
@@ -491,15 +569,18 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const deleteSelection = () => {
     const ids = selection.filter((id) => {
       const item = scene.byId.get(id)
+
       return item !== undefined && !isLocked(item)
     })
+
     setSelected([])
     void commit(remove(scene, ids))
   }
 
-  const placeShape = (raw: Raw, text: string) => {
+  const placeShape = async (raw: Raw, text: string) => {
     const made = create(page.id, scene, [{ raw, text }])
-    return made === null ? Promise.resolve([]) : commit([made])
+
+    return made === null ? await Promise.resolve([]) : await commit([made])
   }
 
   const portalRaw = (point: Vec, blockType: "P" | "B") =>
@@ -514,15 +595,21 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const selectCreated = () => {
     const pressed = presses.current
-    return (events: ReadonlyArray<GraphEvent>) => {
+
+    return (events: readonly GraphEvent[]) => {
       const ids = createdIds(events)
-      if (ids.length > 0 && presses.current === pressed) setSelected(ids.slice(-1))
+
+      if (ids.length > 0 && presses.current === pressed) {
+        setSelected(ids.slice(-1))
+      }
+
       return ids
     }
   }
 
   const newBlockPortal = (point: Vec, text: string) => {
     const after = scene.items.findLast((item) => !isGhost(item.block.id))?.block.id
+
     const made: Command = {
       _tag: "InsertBlocks",
       pageId: page.id,
@@ -530,42 +617,61 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       ...(after === undefined ? {} : { after }),
       blocks: [{ text, props: {}, children: [] }],
     }
+
     void commit([made]).then((events) => {
       const blockId = createdIds(events)[0]
-      if (blockId === undefined) return
+
+      if (blockId === undefined) {
+        return
+      }
+
       void placeShape(portalRaw(point, "B"), portalText({ _tag: "BlockPortal", uuid: blockId }))
         .then(selectCreated())
-        .then(() => requestEdit({ blockId, caret: text.length }))
+        .then(() => {
+          requestEdit({ blockId, caret: text.length })
+        })
     })
   }
 
   const pick = (point: Vec, choice: Pick) => {
     setSearchAt(null)
     root.current?.focus()
+
     const pagePortal = (title: string) => ({
       raw: portalRaw(point, "P"),
       text: portalText({ _tag: "PagePortal", name: title }),
     })
+
     switch (choice._tag) {
-      case "NewBlock":
-        return newBlockPortal(point, choice.text)
+      case "NewBlock": {
+        newBlockPortal(point, choice.text)
+
+        return
+      }
+
       case "Page": {
         const { raw, text } = pagePortal(choice.page.title)
+
         return void placeShape(raw, text).then(selectCreated())
       }
-      case "Block":
+
+      case "Block": {
         return void placeShape(
           portalRaw(point, "B"),
           portalText({ _tag: "BlockPortal", uuid: choice.block.id }),
         ).then(selectCreated())
+      }
+
       case "NewPage":
       case "NewWhiteboard": {
         const { raw, text } = pagePortal(choice.title)
         const made = create(page.id, scene, [{ raw, text }])
+
         const createPage: Command =
           choice._tag === "NewPage"
             ? { _tag: "CreatePage", title: choice.title }
             : { _tag: "CreatePage", title: choice.title, props: whiteboardProps }
+
         return void commit(made === null ? [createPage] : [createPage, made]).then(selectCreated())
       }
     }
@@ -576,13 +682,18 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     setGesture(idle)
     const pressed = press.current
     press.current = null
+
     switch (done._tag) {
-      case "Brushing":
+      case "Brushing": {
         setSelected(brushed(scene, done))
+
         return
+      }
+
       case "Creating": {
         const box = boundsOfPoints([done.from, done.to])
         const tiny = box.maxX - box.minX < DRAG_THRESHOLD && box.maxY - box.minY < DRAG_THRESHOLD
+
         const commands = tiny
           ? [
               create(page.id, scene, [
@@ -598,52 +709,93 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
               ]),
             ].flatMap((command) => (command === null ? [] : [command]))
           : changesOf(page.id, scene, done, styles)
+
         setTool("select")
         void commit(commands).then(selectCreated())
+
         return
       }
+
       case "Connecting": {
         const span = Math.hypot(done.to[0] - done.from[0], done.to[1] - done.from[1])
         setTool("select")
-        if (span < DRAG_THRESHOLD) return
+
+        if (span < DRAG_THRESHOLD) {
+          return
+        }
+
         void commit(changesOf(page.id, scene, done, styles)).then(selectCreated())
+
         return
       }
-      case "Translating":
+
+      case "Translating": {
         if (pressed !== null && !pressed.moved && !pressed.shift && pressed.hit !== null) {
           setSelected([pressed.hit])
-          if (pressed.again) editAgain(pressed.hit)
+
+          if (pressed.again) {
+            editAgain(pressed.hit)
+          }
         }
+
         void commit(changesOf(page.id, scene, done, styles)).then((events) => {
           const copies = done.copy
-          if (copies === null) return
+
+          if (copies === null) {
+            return
+          }
+
           const top = withMembers(scene, done.ids).flatMap((id, index) =>
             done.ids.includes(id) ? (copies[index] ?? []) : [],
           )
-          if (createdIds(events).length > 0) setSelected(top)
+
+          if (createdIds(events).length > 0) {
+            setSelected(top)
+          }
         })
+
         return
+      }
+
       case "Idle":
-      case "Panning":
+      case "Panning": {
         return
-      default:
+      }
+
+      default: {
         void commit(changesOf(page.id, scene, done, styles))
+      }
     }
   }
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button === 2 || insideLivePortal(event.target)) return
+    if (event.button === 2 || insideLivePortal(event.target)) {
+      return
+    }
+
     presses.current += 1
-    if (searchAt !== null) setSearchAt(null)
-    if (menuAt !== null) setMenuAt(null)
-    if (active !== null) setActive(null)
+
+    if (searchAt !== null) {
+      setSearchAt(null)
+    }
+
+    if (menuAt !== null) {
+      setMenuAt(null)
+    }
+
+    if (active !== null) {
+      setActive(null)
+    }
+
     const at = screenOf(event)
     const world = toWorld(cam, at)
+
     if (!onSelectedMedia(event.target)) {
       event.preventDefault()
       event.currentTarget.setPointerCapture(event.pointerId)
       root.current?.focus()
     }
+
     if (
       event.button === 1 ||
       spacePan ||
@@ -651,14 +803,18 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       (penMode && event.pointerType === "touch")
     ) {
       setGesture({ _tag: "Panning", last: at })
+
       return
     }
+
     const handle = handleOf(event.target)
     const resize = resizeHandleOf(handle)
     const [first, ...others] = selection
     const only = first !== undefined && others.length === 0 ? scene.byId.get(first) : undefined
+
     if (resize !== undefined) {
       const box = selectionBounds(scene, selection)
+
       if (box !== null) {
         setGesture({
           _tag: "Resizing",
@@ -670,11 +826,15 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           rotation: only === undefined ? 0 : rotationOf(only),
         })
       }
+
       return
     }
+
     const corner = rotateCornerOf(handle)
+
     if (corner !== undefined) {
       const box = selectionBounds(scene, selection)
+
       if (box !== null) {
         setGesture({
           _tag: "Rotating",
@@ -687,14 +847,20 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           snap: event.shiftKey,
         })
       }
+
       return
     }
+
     if (handle === "start" || handle === "end") {
       const line = selection[0]
-      if (line !== undefined)
+
+      if (line !== undefined) {
         setGesture({ _tag: "MovingEnd", line, end: handle, to: world, bind: null })
+      }
+
       return
     }
+
     switch (tool) {
       case "select": {
         const hit = event.ctrlKey ? null : topHit(scene, world, cam.zoom)
@@ -705,25 +871,38 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           shift: event.shiftKey,
           again: false,
         }
+
         if (hit === null) {
-          if (!event.shiftKey) setSelected([])
+          if (!event.shiftKey) {
+            setSelected([])
+          }
+
           setGesture({
             _tag: "Brushing",
             from: world,
             to: world,
             keep: event.shiftKey ? selection : [],
           })
+
           return
         }
+
         const parent = scene.groupOf.get(hit.block.id)
         const id = parent === undefined || selection.includes(hit.block.id) ? hit.block.id : parent
         const entering = parent !== undefined && id === parent && selection.includes(parent)
-        if (entering) press.current = { ...press.current, hit: hit.block.id }
-        else press.current = { ...press.current, hit: id }
+
+        if (entering) {
+          press.current = { ...press.current, hit: hit.block.id }
+        } else {
+          press.current = { ...press.current, hit: id }
+        }
+
         const already = selection.includes(id)
+
         if (!event.shiftKey && !entering && selection.length === 1 && already) {
           press.current = { ...press.current, again: true }
         }
+
         const next = event.shiftKey
           ? already
             ? selection.filter((other) => other !== id)
@@ -731,6 +910,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           : already
             ? selection
             : [id]
+
         setSelected(next)
         setGesture({
           _tag: "Translating",
@@ -739,16 +919,22 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           ids: next,
           copy: event.altKey ? withMembers(scene, next).map(() => freshId()) : null,
         })
+
         return
       }
+
       case "box":
       case "ellipse":
-      case "polygon":
+      case "polygon": {
         setGesture({ _tag: "Creating", tool, from: snapped(world), to: snapped(world) })
+
         return
+      }
+
       case "line": {
         const start =
           event.metaKey || event.ctrlKey ? null : bindTarget(scene, world, cam.zoom, null)
+
         setGesture({
           _tag: "Connecting",
           from: world,
@@ -756,29 +942,44 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           start: start?.block.id ?? null,
           end: null,
         })
+
         return
       }
+
       case "pencil":
-      case "highlighter":
+      case "highlighter": {
         setGesture({ _tag: "Drawing", tool, points: [world] })
+
         return
-      case "eraser":
+      }
+
+      case "eraser": {
         setGesture({ _tag: "Erasing", ids: erasedAt(scene, world, cam.zoom), last: world })
+
         return
+      }
+
       case "text": {
         setTool("select")
         void placeShape(newShape("text", snapped(world), [0, 0], styles, {}), "").then((events) => {
           const id = createdIds(events)[0]
-          if (id === undefined) return
+
+          if (id === undefined) {
+            return
+          }
+
           setSelected([id])
           setEditing(id)
           setDraft("")
         })
+
         return
       }
-      case "portal":
+
+      case "portal": {
         setTool("select")
         setSearchAt(world)
+      }
     }
   }
 
@@ -786,41 +987,62 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     const at = screenOf(event)
     const world = toWorld(cam, at)
     pointer.current = world
+
     if (gesture._tag === "Idle") {
       if (event.target instanceof Element && event.target.closest(".wb-quick-links") !== null) {
         return
       }
+
       if (tool === "select" && !insideLivePortal(event.target)) {
         const hit = topHit(scene, world, cam.zoom)?.block.id ?? null
-        if (hit !== hover) setHover(hit)
+
+        if (hit !== hover) {
+          setHover(hit)
+        }
       }
+
       return
     }
+
     const pressed = press.current
+
     if (pressed !== null && !pressed.moved) {
-      if (Math.hypot(at[0] - pressed.at[0], at[1] - pressed.at[1]) <= DRAG_THRESHOLD) return
+      if (Math.hypot(at[0] - pressed.at[0], at[1] - pressed.at[1]) <= DRAG_THRESHOLD) {
+        return
+      }
+
       press.current = { ...pressed, moved: true }
     }
+
     switch (gesture._tag) {
-      case "Panning":
+      case "Panning": {
         setCamera(panBy(cam, sub(at, gesture.last)))
         setGesture({ ...gesture, last: at })
+
         return
-      case "Brushing":
+      }
+
+      case "Brushing": {
         setGesture({ ...gesture, to: world })
+
         return
+      }
+
       case "Translating": {
         const box = selectionBounds(scene, gesture.ids)
         const raw = sub(world, gesture.from)
+
         const locked: Vec = event.shiftKey
           ? Math.abs(raw[0]) > Math.abs(raw[1])
             ? [raw[0], 0]
             : [0, raw[1]]
           : raw
+
         const delta =
           box === null || !snap
             ? locked
             : sub(snapped(add([box.minX, box.minY], locked)), [box.minX, box.minY])
+
         setGesture({
           ...gesture,
           to: add(gesture.from, delta),
@@ -828,44 +1050,64 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             ? (gesture.copy ?? withMembers(scene, gesture.ids).map(() => freshId()))
             : null,
         })
+
         return
       }
-      case "Rotating":
+
+      case "Rotating": {
         setGesture({
           ...gesture,
           start: rotationStarted(gesture, world),
           to: world,
           snap: event.shiftKey,
         })
+
         return
-      case "Resizing":
+      }
+
+      case "Resizing": {
         setGesture({
           ...gesture,
           to: snap && !event.shiftKey && gesture.rotation === 0 ? snapped(world) : world,
           keepRatio: event.shiftKey || ratioLocked(scene, gesture.ids),
         })
+
         return
-      case "Creating":
+      }
+
+      case "Creating": {
         setGesture({ ...gesture, to: snapped(world) })
+
         return
+      }
+
       case "Connecting": {
         const end =
           event.metaKey || event.ctrlKey ? null : bindTarget(scene, world, cam.zoom, gesture.start)
+
         const to = event.shiftKey ? snapAngle(gesture.from, world) : world
         setGesture({ ...gesture, to, end: end?.block.id ?? null })
+
         return
       }
+
       case "MovingEnd": {
         const bind =
           event.metaKey || event.ctrlKey ? null : bindTarget(scene, world, cam.zoom, gesture.line)
+
         setGesture({ ...gesture, to: world, bind: bind?.block.id ?? null })
+
         return
       }
-      case "Drawing":
+
+      case "Drawing": {
         setGesture((current) =>
           current._tag === "Drawing" ? { ...current, points: [...current.points, world] } : current,
         )
+
         return
+      }
+
       case "Erasing": {
         const hits = erasedAt(scene, world, cam.zoom)
         setGesture((current) =>
@@ -879,20 +1121,29 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const editAgain = (id: BlockId) => {
     const item = scene.byId.get(id)
-    if (item === undefined || isLocked(item) || startEditing(id)) return
-    if (isInteractive(item)) setActive(id)
+
+    if (item === undefined || isLocked(item) || startEditing(id)) {
+      return
+    }
+
+    if (isInteractive(item)) {
+      setActive(id)
+    }
   }
 
   const onDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isEditableTarget(event.target) || insideLivePortal(event.target) || tool !== "select") {
       return
     }
+
     const screen = screenOf(event)
     const world = toWorld(cam, screen)
     const hit = topHit(scene, world, cam.zoom)
+
     if (hit === null) {
       setSelected([])
       setSearchAt(world)
+
       if (
         screen[0] > viewport.width - 400 ||
         screen[1] > viewport.height - 240 ||
@@ -901,11 +1152,19 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       ) {
         moveTo(fitBounds(boxBounds([world[0], world[1] + 75], [400, 50]), viewport, 1))
       }
+
       return
     }
-    if (startEditing(hit.block.id)) return
+
+    if (startEditing(hit.block.id)) {
+      return
+    }
+
     setSelected([hit.block.id])
-    if (isInteractive(hit) && !isLocked(hit)) setActive(hit.block.id)
+
+    if (isInteractive(hit) && !isLocked(hit)) {
+      setActive(hit.block.id)
+    }
   }
 
   const zoomKeys: Record<string, ZoomAction> = {
@@ -923,62 +1182,99 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     shiftHeld.current = event.shiftKey
-    if (isEditableTarget(event.target) || insideLivePortal(event.target)) return
+
+    if (isEditableTarget(event.target) || insideLivePortal(event.target)) {
+      return
+    }
+
     const mod = event.metaKey || event.ctrlKey
-    const handled = () => event.preventDefault()
+
+    const handled = () => {
+      event.preventDefault()
+    }
+
     const key = event.key
+
     if (key === " ") {
       handled()
       setSpacePan(true)
+
       return
     }
+
     if (key === "Escape") {
       handled()
       setChord(null)
+
       if (gesture._tag !== "Idle") {
         setGesture(idle)
         press.current = null
-      } else if (active !== null) setActive(null)
-      else if (tool !== "select") setTool("select")
-      else setSelected([])
+      } else if (active !== null) {
+        setActive(null)
+      } else if (tool === "select") {
+        setSelected([])
+      } else {
+        setTool("select")
+      }
+
       return
     }
+
     if (key === "Backspace" || key === "Delete") {
       handled()
       deleteSelection()
+
       return
     }
+
     if (key === "Enter") {
       const only = selection.length === 1 ? selection[0] : undefined
-      if (only !== undefined && startEditing(only)) handled()
+
+      if (only !== undefined && startEditing(only)) {
+        handled()
+      }
+
       const item = only === undefined ? undefined : scene.byId.get(only)
+
       if (item !== undefined && isInteractive(item) && !isLocked(item)) {
         handled()
         setActive(item.block.id)
       }
+
       return
     }
+
     const direction = CLONE_KEYS[key]
+
     const cloneChord = navigator.userAgent.includes("Mac")
       ? event.ctrlKey && event.shiftKey && !event.metaKey
       : event.altKey && !event.ctrlKey && !event.metaKey
+
     if (direction !== undefined && cloneChord) {
       const only = selectedItems.length === 1 ? selectedItems[0] : undefined
+
       if (only !== undefined && !isLocked(only)) {
         handled()
         cloneTo(only, direction)
       }
+
       return
     }
+
     if (mod) {
       const lower = key.toLowerCase()
+
       if (lower === "a") {
         handled()
         selectAll()
       } else if (lower === "g") {
         handled()
-        if (event.shiftKey) ungroupSelection()
-        else groupSelection()
+
+        if (event.shiftKey) {
+          ungroupSelection()
+        } else {
+          groupSelection()
+        }
       } else if (lower === "l") {
         handled()
         patchSelectionAll({ isLocked: !event.shiftKey })
@@ -986,86 +1282,130 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         handled()
         const collapse = key === "ArrowUp"
         patchSelection((item) =>
-          item.shape.type !== "logseq-portal"
-            ? {}
-            : item.shape.blockType === "B"
+          item.shape.type === "logseq-portal"
+            ? item.shape.blockType === "B"
               ? { compact: collapse }
-              : { collapsed: collapse },
+              : { collapsed: collapse }
+            : {},
         )
       }
+
       return
     }
+
     if (event.shiftKey) {
       const zoom = zoomKeys[key]
+
       if (zoom !== undefined) {
         handled()
         setZoom(zoom)
+
         return
       }
     }
+
     if (key === "[" || key === "]" || key === "{" || key === "}") {
       handled()
+
       const order =
         key === "{" ? "back" : key === "}" ? "front" : key === "[" ? "backward" : "forward"
+
       const command = reorder(scene, selection, order)
-      if (command !== null) void commit([command])
+
+      if (command !== null) {
+        void commit([command])
+      }
+
       return
     }
-    if (event.altKey || event.shiftKey) return
+
+    if (event.altKey || event.shiftKey) {
+      return
+    }
+
     const lower = key.toLowerCase()
+
     if (chord === "w") {
       setChord(null)
       const chosen = CHORD_KEYS[lower]
+
       if (chosen !== undefined) {
         handled()
         chooseTool(chosen)
       }
+
       return
     }
+
     if (chord === "t") {
       setChord(null)
+
       if (lower === "g") {
         handled()
         setGrid(!grid)
       }
+
       return
     }
+
     if (chord !== null) {
       setChord(null)
+
       return
     }
+
     if (lower === "g" || lower === "n" || lower === "c") {
       setChord(lower)
+
       return
     }
+
     if (lower === "w" || lower === "t") {
       setChord(lower)
-      if (lower === "w") handled()
+
+      if (lower === "w") {
+        handled()
+      }
+
       return
     }
+
     const chosen = SHAPE_KEYS[lower]
+
     if (chosen !== undefined) {
       handled()
       chooseTool(chosen)
     }
   }
 
-  const selectAll = () =>
+  const selectAll = () => {
     setSelected(
       scene.items.flatMap((item) => (scene.groupOf.has(item.block.id) ? [] : [item.block.id])),
     )
+  }
 
   const groupSelection = () => {
     const id = freshId()
     const commands = group(page.id, scene, selection, id)
-    if (commands.length === 0) return
+
+    if (commands.length === 0) {
+      return
+    }
+
     void commit(commands)
-    if (commands.some((command) => command._tag === "InsertBlocks")) setSelected([id])
+
+    if (commands.some((command) => command._tag === "InsertBlocks")) {
+      setSelected([id])
+    }
   }
 
   const ungroupSelection = () => {
     const { commands, members } = ungroup(scene, selection)
-    if (commands.length === 0) return
+
+    if (commands.length === 0) {
+      return
+    }
+
     void commit(commands)
     setSelected(members)
   }
@@ -1074,59 +1414,98 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     void commit(
       selection.flatMap((id) => {
         const item = scene.byId.get(id)
+
         return item === undefined ? [] : [patch(item, change)]
       }),
     )
 
   const chooseTool = (next: Tool) => {
-    if (next === "box" || next === "ellipse" || next === "polygon") setGeometry(next)
+    if (next === "box" || next === "ellipse" || next === "polygon") {
+      setGeometry(next)
+    }
+
     setTool(next)
     setSearchAt(null)
-    if (next !== "select") setSelected([])
+
+    if (next !== "select") {
+      setSelected([])
+    }
   }
 
   const [attach] = useState(() => (node: HTMLDivElement | null) => {
     root.current = node
-    if (node === null) return
+
+    if (node === null) {
+      return
+    }
+
     node.focus({ preventScroll: true })
     let placed = false
+
     const observer = new ResizeObserver(([entry]) => {
-      if (entry === undefined) return
+      if (entry === undefined) {
+        return
+      }
+
       const next = { width: entry.contentRect.width, height: entry.contentRect.height }
       setViewport(next)
-      if (placed) return
+
+      if (placed) {
+        return
+      }
+
       placed = true
       const from = camera ?? origin
       const to = initialCamera(scene, next, focus, camera !== null)
       setCamera(from)
-      if (to !== null) glide(flight, setCamera, from, to, next)
+
+      if (to !== null) {
+        glide(flight, setCamera, from, to, next)
+      }
     })
+
     observer.observe(node)
+
     const onWheel = (event: WheelEvent) => {
       if (
         event.target instanceof Element &&
         event.target.closest(".wb-search, .wb-popover") !== null
-      )
+      ) {
         return
-      if (insideLivePortal(event.target) && !event.ctrlKey && !event.metaKey) return
+      }
+
+      if (insideLivePortal(event.target) && !event.ctrlKey && !event.metaKey) {
+        return
+      }
+
       event.preventDefault()
       const rect = node.getBoundingClientRect()
       const at: Vec = [event.clientX - rect.left, event.clientY - rect.top]
-      if (event.altKey && !event.ctrlKey && !event.metaKey) return
+
+      if (event.altKey && !event.ctrlKey && !event.metaKey) {
+        return
+      }
+
       if (event.ctrlKey || event.metaKey) {
         const step = Math.max(-10, Math.min(10, event.deltaY)) / 100
         setCamera((current) => {
           const now = current ?? origin
+
           return zoomAt(now, at, clampZoom(now.zoom - step * now.zoom))
         })
+
         return
       }
+
       const dx =
         event.shiftKey && !navigator.userAgent.includes("Mac") ? event.deltaY : event.deltaX
+
       const dy = event.shiftKey && !navigator.userAgent.includes("Mac") ? 0 : event.deltaY
       setCamera((current) => panBy(current ?? origin, [-dx * 0.8, -dy * 0.8]))
     }
+
     node.addEventListener("wheel", onWheel, { passive: false })
+
     return () => {
       observer.disconnect()
       node.removeEventListener("wheel", onWheel)
@@ -1135,24 +1514,42 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const [measure] = useState(() => {
     const made = new Map<BlockId, (node: HTMLElement | null) => (() => void) | undefined>()
+
     const measuring = (blockId: BlockId) => (node: HTMLElement | null) => {
-      if (node === null) return
+      if (node === null) {
+        return
+      }
+
       const observer = new ResizeObserver(() => {
         const size: Vec = [node.offsetWidth, node.offsetHeight]
         setMeasured((current) => {
           const now = current.get(blockId)
-          if (now !== undefined && now[0] === size[0] && now[1] === size[1]) return current
+
+          if (now !== undefined && now[0] === size[0] && now[1] === size[1]) {
+            return current
+          }
+
           return new Map(current).set(blockId, size)
         })
       })
+
       observer.observe(node)
-      return () => observer.disconnect()
+
+      return () => {
+        observer.disconnect()
+      }
     }
+
     return (blockId: BlockId) => {
       const known = made.get(blockId)
-      if (known !== undefined) return known
+
+      if (known !== undefined) {
+        return known
+      }
+
       const next = measuring(blockId)
       made.set(blockId, next)
+
       return next
     }
   })
@@ -1162,6 +1559,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       item.shape.type === "logseq-portal" ? [item.block.text.trim().toLowerCase()] : [],
     ),
   )
+
   const bindingTo =
     gesture._tag === "Connecting" ? gesture.end : gesture._tag === "MovingEnd" ? gesture.bind : null
 
@@ -1183,19 +1581,31 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
   const pasteAsLink = (text: string) => {
     const only = selectedItems.length === 1 ? selectedItems[0] : undefined
-    if (only === undefined) return false
+
+    if (only === undefined) {
+      return false
+    }
+
     const block = /^\(\(([0-9a-f-]{36})\)\)$/i.exec(text)?.[1]
     const name = /^\[\[(.*)\]\]$/s.exec(text)?.[1]
     const link = block ?? (name === "" ? undefined : name)
-    if (link === undefined) return false
+
+    if (link === undefined) {
+      return false
+    }
+
     void commit([patch(only, { refs: [link] })])
+
     return true
   }
 
   const focusShape = (id: BlockId) => {
     const box = scene.bounds.get(id)
     setSelected([id])
-    if (box !== undefined) moveTo(fitBounds(box, viewport, 1))
+
+    if (box !== undefined) {
+      moveTo(fitBounds(box, viewport, 1))
+    }
   }
 
   const links: LinkEnv = {
@@ -1210,6 +1620,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const toBox = (box: Bounds) => {
     const [left, top] = toScreen(cam, [box.minX, box.minY])
     const [right, bottom] = toScreen(cam, [box.maxX, box.maxY])
+
     return { left, top, width: right - left, height: bottom - top }
   }
 
@@ -1218,6 +1629,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const quiet = gesture._tag === "Idle" && editingId === null
   const brush = brushOf(gesture)
   const bound = bindingTo === null ? undefined : shown.bounds.get(bindingTo)
+
   const cursor =
     gesture._tag === "Panning"
       ? "grabbing"
@@ -1229,27 +1641,40 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           : tool === "select"
             ? "default"
             : "crosshair"
+
   const fine = Math.max(0, Math.min(1, (cam.zoom - 0.5) * 0.34))
+
   const contextAt = (() => {
-    if (selectedBox === null) return null
+    if (selectedBox === null) {
+      return null
+    }
+
     const box = toBox(selectedBox)
     const above = box.top - 18 - 44
     const top = above < 16 + 100 - 18 ? box.top + box.height + 18 : above
     const left = Math.max(16 + 150, Math.min(viewport.width - 16 - 150, box.left + box.width / 2))
+
     return { left, top: Math.min(top, viewport.height - 140) }
   })()
 
   const overlay: ReactNode[] = []
+
   const groupFrame = (id: BlockId, kind: "hover" | "selected" | "member") => {
     const box = shown.bounds.get(id)
-    if (box === undefined) return
+
+    if (box === undefined) {
+      return
+    }
+
     const pad = GROUP_PADDING
+
     const frame = toBox({
       minX: box.minX - pad,
       minY: box.minY - pad,
       maxX: box.maxX + pad,
       maxY: box.maxY + pad,
     })
+
     overlay.push(
       <svg
         key={`group-${kind}-${id}`}
@@ -1270,22 +1695,37 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       </svg>,
     )
   }
+
   if (hover !== null && !selection.includes(hover) && quiet) {
     const box = shown.bounds.get(hover)
     const hovered = shown.byId.get(hover)
+
     if (box !== undefined && hovered?.shape.type !== "group") {
       overlay.push(<div key="hover" className="wb-outline" data-hover style={toBox(box)} />)
     }
+
     const parent = hovered?.shape.type === "group" ? hover : shown.groupOf.get(hover)
-    if (parent !== undefined && !selection.includes(parent)) groupFrame(parent, "hover")
+
+    if (parent !== undefined && !selection.includes(parent)) {
+      groupFrame(parent, "hover")
+    }
   }
+
   for (const item of selectedItems) {
-    if (item.shape.type === "group") groupFrame(item.block.id, "selected")
+    if (item.shape.type === "group") {
+      groupFrame(item.block.id, "selected")
+    }
+
     const parent = shown.groupOf.get(item.block.id)
-    if (parent !== undefined && !selection.includes(parent)) groupFrame(parent, "member")
+
+    if (parent !== undefined && !selection.includes(parent)) {
+      groupFrame(parent, "member")
+    }
   }
+
   for (const item of selectedItems) {
     const box = shown.bounds.get(item.block.id)
+
     if (box !== undefined && item.shape.type !== "line") {
       overlay.push(
         <div
@@ -1297,13 +1737,16 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       )
     }
   }
+
   const rotating = gesture._tag === "Rotating"
   const rotatable = !rotating && editing === null && canRotate(shown, selection)
+
   if (selectedBox !== null && selectedItems.length > 1 && !rotating) {
     overlay.push(
       <div key="selection" className="wb-outline wb-selection" style={toBox(selectedBox)} />,
     )
   }
+
   if (
     selectedBox !== null &&
     rotatable &&
@@ -1316,6 +1759,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       </div>,
     )
   }
+
   if (
     single !== undefined &&
     single.shape.type !== "group" &&
@@ -1325,8 +1769,10 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     !rotating
   ) {
     const box = shown.bounds.get(single.block.id)
+
     if (single.shape.type === "line") {
       const ends = shown.ends.get(single.block.id)
+
       if (ends !== undefined) {
         ends.forEach((end, index) => {
           const [left, top] = toScreen(cam, end)
@@ -1346,7 +1792,8 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       const { width, height } = frame
       const left = 0
       const top = 0
-      const handles: Array<ReactNode> = []
+      const handles: ReactNode[] = []
+
       if (rotatable) {
         handles.push(
           <RotateTargets
@@ -1357,12 +1804,14 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           />,
         )
       }
+
       const corners: ReadonlyArray<readonly [ResizeHandle, number, number]> = [
         ["top-left", left, top],
         ["top-right", left + width, top],
         ["bottom-right", left + width, top + height],
         ["bottom-left", left, top + height],
       ]
+
       handles.push(
         <div
           key="edge-top"
@@ -1426,6 +1875,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           />
         )),
       )
+
       if (
         single.shape.type === "box" ||
         single.shape.type === "ellipse" ||
@@ -1436,6 +1886,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           ["right", left + width + 30 + 16, top + height / 2, [1, 0]],
           ["bottom", left + width / 2, top + height + 30 + 16, [0, 1]],
         ]
+
         handles.push(
           ...cloneHandles.map(([name, x, y, direction]) => (
             <button
@@ -1455,6 +1906,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           )),
         )
       }
+
       overlay.push(
         <div
           key="frame"
@@ -1466,9 +1918,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       )
     }
   }
+
   if (hover !== null && quiet && hover !== single?.block.id) {
     const box = shown.bounds.get(hover)
     const hovered = shown.byId.get(hover)
+
     if (box !== undefined && hovered !== undefined) {
       const { left, top, height } = toBox(box)
       overlay.push(
@@ -1482,8 +1936,10 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       )
     }
   }
+
   if (single !== undefined && quiet) {
     const box = shown.bounds.get(single.block.id)
+
     if (box !== undefined) {
       const { left, top, width, height } = toBox(box)
       overlay.push(
@@ -1498,39 +1954,64 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       )
     }
   }
-  if (brush !== null) overlay.push(<div key="brush" className="wb-brush" style={toBox(brush)} />)
+
+  if (brush !== null) {
+    overlay.push(<div key="brush" className="wb-brush" style={toBox(brush)} />)
+  }
+
   const boundItem = bindingTo === null ? undefined : scene.byId.get(bindingTo)
+
   if (bound !== undefined && boundItem?.shape.type !== "logseq-portal") {
     overlay.push(<div key="bind" className="wb-bind" style={toBox(bound)} />)
   }
 
-  const createLinked = (drafts: ReadonlyArray<Draft>, from: BlockId, to: BlockId) => {
+  const createLinked = (drafts: readonly Draft[], from: BlockId, to: BlockId) => {
     const lineId = freshId()
+
     const link = (start: Vec, end: Vec): Draft => ({
       id: lineId,
       raw: lineRaw(start, end, from, to, styles),
       text: "",
     })
+
     const sketch = create(page.id, scene, [...drafts, link([0, 0], [1, 1])])
-    if (sketch === null) return null
+
+    if (sketch === null) {
+      return null
+    }
+
     const ends = sceneOf(itemsOf(applyLocally(blocks, [sketch])), measured).ends.get(lineId)
+
     return ends === undefined ? sketch : create(page.id, scene, [...drafts, link(ends[0], ends[1])])
   }
 
   const cloneTo = (item: Item, [dx, dy]: Vec) => {
-    if (item.shape.type !== "box" && item.shape.type !== "ellipse" && item.shape.type !== "polygon")
+    if (
+      item.shape.type !== "box" &&
+      item.shape.type !== "ellipse" &&
+      item.shape.type !== "polygon"
+    ) {
       return
+    }
+
     const [width, height] = item.shape.size
+
     const point: Vec = [
       item.shape.point[0] + dx * (width + 100),
       item.shape.point[1] + dy * (height + 100),
     ]
+
     const raw = Object.fromEntries(
       Object.entries({ ...shapeRaw(item.block), point }).filter(([key]) => key !== "refs"),
     )
+
     const id = freshId()
     const made = createLinked([{ id, raw, text: "" }], item.block.id, id)
-    if (made === null) return
+
+    if (made === null) {
+      return
+    }
+
     void commit([made])
     setSelected([id])
     setEditing(id)
@@ -1538,12 +2019,21 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   }
 
   const onCopy = (event: React.ClipboardEvent<HTMLDivElement>, cut: boolean) => {
-    if (isEditableTarget(event.target) || insideLivePortal(event.target) || selection.length === 0)
+    if (
+      isEditableTarget(event.target) ||
+      insideLivePortal(event.target) ||
+      selection.length === 0
+    ) {
       return
+    }
+
     event.preventDefault()
     event.clipboardData.setData("text/plain", copyText())
     event.clipboardData.setData("text/html", copyHtml())
-    if (cut) deleteSelection()
+
+    if (cut) {
+      deleteSelection()
+    }
   }
 
   const copyText = () =>
@@ -1557,67 +2047,104 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       ),
     )
 
-  const writeClipboard = () =>
-    navigator.clipboard.write([
+  const writeClipboard = async () => {
+    await navigator.clipboard.write([
       new ClipboardItem({
         "text/plain": new Blob([copyText()], { type: "text/plain" }),
         "text/html": new Blob([copyHtml()], { type: "text/html" }),
       }),
     ])
+  }
 
   const onPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
-    if (isEditableTarget(event.target) || insideLivePortal(event.target)) return
+    if (isEditableTarget(event.target) || insideLivePortal(event.target)) {
+      return
+    }
+
     const files = [...event.clipboardData.files]
+
     if (files.some((file) => mediaOf(file.name) !== null)) {
       event.preventDefault()
       void placeFiles(files, pointer.current ?? toWorld(cam, center(viewport)), false)
+
       return
     }
+
     const html = event.clipboardData.getData("text/html")
     const text = event.clipboardData.getData("text/plain").trim()
-    if (html === "" && text === "") return
+
+    if (html === "" && text === "") {
+      return
+    }
+
     event.preventDefault()
-    if (shiftHeld.current && pasteAsLink(text)) return
+
+    if (shiftHeld.current && pasteAsLink(text)) {
+      return
+    }
+
     paste(html, text, pointer.current, { shift: shiftHeld.current })
   }
 
-  const placeFiles = async (files: ReadonlyArray<File>, at: Vec, fromDrop: boolean) => {
+  const placeFiles = async (files: readonly File[], at: Vec, fromDrop: boolean) => {
     const media = files.flatMap((file) => {
       const kind = mediaOf(file.name)
+
       return kind === null ? [] : [{ file, kind }]
     })
-    if (media.length === 0) return false
+
+    if (media.length === 0) {
+      return false
+    }
+
     const linkFrom = fromDrop && selectedItems.length === 1 ? selectedItems[0] : undefined
     const assets = await props.saveFiles(media.map(({ file }) => file))
+
     const saved = await Promise.all(
       assets.flatMap((asset, index): ReadonlyArray<Promise<Saved>> => {
         const kind = media[index]?.kind
-        if (kind === undefined) return []
+
+        if (kind === undefined) {
+          return []
+        }
+
         return [
           naturalSize(asset.url, kind).then((size) => ({ media: kind, path: asset.path, size })),
         ]
       }),
     )
+
     const drafts = mediaDrafts(saved, at)
     const ids = drafts.flatMap((made) => made.id ?? [])
     const [only] = ids
+
     const made =
       linkFrom === undefined || only === undefined || ids.length !== 1
         ? create(page.id, scene, drafts)
         : createLinked(drafts, linkFrom.block.id, only)
-    if (made !== null) void commit([made])
+
+    if (made !== null) {
+      void commit([made])
+    }
+
     setSelected(ids)
+
     return true
   }
 
-  const placeEmbeds = (drafts: ReadonlyArray<Draft>, fromDrop: boolean) => {
+  const placeEmbeds = (drafts: readonly Draft[], fromDrop: boolean) => {
     const linkFrom = fromDrop && selectedItems.length === 1 ? selectedItems[0] : undefined
     const [only, ...rest] = drafts.flatMap((one) => one.id ?? [])
+
     const made =
       linkFrom === undefined || only === undefined || rest.length > 0
         ? create(page.id, scene, drafts)
         : createLinked(drafts, linkFrom.block.id, only)
-    if (made === null) return
+
+    if (made === null) {
+      return
+    }
+
     void commit([made])
     setSelected(only === undefined ? [] : [only, ...rest])
   }
@@ -1632,14 +2159,17 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     const drop = how.drop === true
     const where = at ?? toWorld(cam, center(viewport))
     const point: Vec = [round(where[0]), round(where[1])]
+
     if (text !== "" && !shift && isWebUrl(text)) {
       const type = embedOf(text)
       placeEmbeds(
         [{ id: freshId(), text: "", raw: { type, point, size: EMBED_SIZE[type], url: text } }],
         drop,
       )
+
       return
     }
+
     if (text.startsWith("<iframe")) {
       placeEmbeds(
         [
@@ -1651,49 +2181,72 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         ],
         drop,
       )
+
       return
     }
+
     const skipsHtml = text !== "" && (shift || drop)
     const copied = skipsHtml ? [] : readClipboard(html)
+
     if (copied.length === 0 && html !== "" && !skipsHtml) {
       placeEmbeds(
         [{ id: freshId(), text: "", raw: { type: "html", point, size: EMBED_SIZE.html, html } }],
         drop,
       )
+
       return
     }
+
     if (copied.length > 0) {
       const drafts = clones(
         copied,
         copiesAt(copied, snapped(where)),
         copied.map(() => freshId()),
       )
+
       const made = create(page.id, scene, drafts)
-      if (made !== null) void commit([made])
+
+      if (made !== null) {
+        void commit([made])
+      }
+
       const nested = new Set(
         drafts.flatMap(({ raw }) => (Array.isArray(raw["children"]) ? raw["children"] : [])),
       )
+
       setSelected(
         drafts.flatMap((copy) => (copy.id === undefined || nested.has(copy.id) ? [] : [copy.id])),
       )
+
       return
     }
-    if (text === "") return
+
+    if (text === "") {
+      return
+    }
+
     const centered: Vec = [where[0] - PORTAL_WIDTH / 2, where[1]]
     const target = portalTarget(text)
+
     if (Option.isSome(target)) {
       void placeShape(
         portalRaw(centered, target.value._tag === "PagePortal" ? "P" : "B"),
         text,
       ).then(selectCreated())
+
       return
     }
+
     newBlockPortal(centered, text)
   }
 
   const dropBlocks = (text: string, at: Vec) => {
     const ids = text.split("\n").map((line) => line.trim())
-    if (ids.length === 0 || !ids.every((id) => isBlockLink(id))) return false
+
+    if (ids.length === 0 || !ids.every((id) => isBlockLink(id))) {
+      return false
+    }
+
     placeEmbeds(
       ids.map((id, index) => ({
         id: freshId(),
@@ -1706,10 +2259,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       })),
       true,
     )
+
     return true
   }
 
-  const dropPdfLink = (href: string, at: Vec) =>
+  const dropPdfLink = (href: string, at: Vec) => {
     placeEmbeds(
       [
         {
@@ -1728,18 +2282,25 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       ],
       true,
     )
+  }
 
-  const arrange = (commands: ReadonlyArray<Command>) => void commit(commands)
+  const arrange = (commands: readonly Command[]) => void commit(commands)
 
   const someUnlocked = () => selectedItems.some((item) => !isLocked(item))
 
-  const menuRows = (): ReadonlyArray<MenuRow> => {
-    if (selection.length < 2 || !someUnlocked()) return []
+  const menuRows = (): readonly MenuRow[] => {
+    if (selection.length < 2 || !someUnlocked()) {
+      return []
+    }
+
     const aligned = (label: string, type: Align, icon: typeof IconLayoutAlignLeft) => ({
       label,
       icon,
-      run: () => arrange(align(scene, selection, type)),
+      run: () => {
+        arrange(align(scene, selection, type))
+      },
     })
+
     return [
       [
         aligned("Align left", "left", IconLayoutAlignLeft),
@@ -1749,7 +2310,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         {
           label: "Distribute horizontally",
           icon: IconLayoutDistributeVertical,
-          run: () => arrange(distribute(scene, selection, "horizontal")),
+          run: () => {
+            arrange(distribute(scene, selection, "horizontal"))
+          },
         },
       ],
       [
@@ -1760,30 +2323,49 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         {
           label: "Distribute vertically",
           icon: IconLayoutDistributeHorizontal,
-          run: () => arrange(distribute(scene, selection, "vertical")),
+          run: () => {
+            arrange(distribute(scene, selection, "vertical"))
+          },
         },
       ],
     ]
   }
 
-  const menuGroups = (): ReadonlyArray<MenuGroup> => {
+  const menuGroups = (): readonly MenuGroup[] => {
     const unlocked = selectedItems.filter((item) => !isLocked(item))
     const some = selection.length > 0
+
     const reorderTo = (order: "front" | "back") => {
       const command = reorder(scene, selection, order)
-      if (command !== null) void commit([command])
+
+      if (command !== null) {
+        void commit([command])
+      }
     }
+
     return [
       selection.length > 1 && someUnlocked()
         ? [
             {
               label: "Pack into rectangle",
               icon: IconLayoutGrid,
-              run: () => arrange(pack(scene, selection)),
+              run: () => {
+                arrange(pack(scene, selection))
+              },
             },
           ]
         : [],
-      some ? [{ label: "Zoom to fit", keys: "Shift+1", run: () => setZoom("selection") }] : [],
+      some
+        ? [
+            {
+              label: "Zoom to fit",
+              keys: "Shift+1",
+              run: () => {
+                setZoom("selection")
+              },
+            },
+          ]
+        : [],
       unlocked.length > 0 &&
       (selection.length > 1 ||
         selectedItems.some(
@@ -1823,7 +2405,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           keys: "Mod+V",
           run: () => {
             const at = menuAt === null ? null : toWorld(cam, menuAt)
-            void readClipboardItems().then(({ html, text }) => paste(html, text.trim(), at))
+            void readClipboardItems().then(({ html, text }) => {
+              paste(html, text.trim(), at)
+            })
           },
         },
         ...(selection.length === 1
@@ -1833,29 +2417,58 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
                 keys: "Mod+Shift+V",
                 run: () =>
                   void readClipboardItems().then(({ html, text }) => {
-                    if (!pasteAsLink(text.trim())) paste(html, text.trim(), null, { shift: true })
+                    if (!pasteAsLink(text.trim())) {
+                      paste(html, text.trim(), null, { shift: true })
+                    }
                   }),
               },
             ]
           : []),
       ],
-      some ? [{ label: "Export", icon: IconFileExport, run: () => props.onExport(selection) }] : [],
+      some
+        ? [
+            {
+              label: "Export",
+              icon: IconFileExport,
+              run: () => {
+                props.onExport(selection)
+              },
+            },
+          ]
+        : [],
       [
         {
           label: "Select all",
           keys: "Mod+A",
           run: selectAll,
         },
-        ...(selection.length > 1 ? [{ label: "Deselect all", run: () => setSelected([]) }] : []),
+        ...(selection.length > 1
+          ? [
+              {
+                label: "Deselect all",
+                run: () => {
+                  setSelected([])
+                },
+              },
+            ]
+          : []),
       ],
       some
         ? [
             unlocked.length > 0
-              ? { label: "Lock", keys: "Mod+L", run: () => patchSelectionAll({ isLocked: true }) }
+              ? {
+                  label: "Lock",
+                  keys: "Mod+L",
+                  run: () => {
+                    patchSelectionAll({ isLocked: true })
+                  },
+                }
               : {
                   label: "Unlock",
                   keys: "Mod+Shift+L",
-                  run: () => patchSelectionAll({ isLocked: false }),
+                  run: () => {
+                    patchSelectionAll({ isLocked: false })
+                  },
                 },
             ...(unlocked.length > 0
               ? [{ label: "Delete", keys: "Del", run: deleteSelection }]
@@ -1867,19 +2480,35 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
             {
               label: "Flip horizontally",
               icon: IconFlipHorizontal,
-              run: () => arrange(flip(scene, selection, "horizontal")),
+              run: () => {
+                arrange(flip(scene, selection, "horizontal"))
+              },
             },
             {
               label: "Flip vertically",
               icon: IconFlipVertical,
-              run: () => arrange(flip(scene, selection, "vertical")),
+              run: () => {
+                arrange(flip(scene, selection, "vertical"))
+              },
             },
           ]
         : [],
       some
         ? [
-            { label: "Move to front", keys: "Shift+]", run: () => reorderTo("front") },
-            { label: "Move to back", keys: "Shift+[", run: () => reorderTo("back") },
+            {
+              label: "Move to front",
+              keys: "Shift+]",
+              run: () => {
+                reorderTo("front")
+              },
+            },
+            {
+              label: "Move to back",
+              keys: "Shift+[",
+              run: () => {
+                reorderTo("back")
+              },
+            },
           ]
         : [],
     ]
@@ -1888,6 +2517,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const gridSize = 8 * cam.zoom
   const [gridX, gridY] = toScreen(cam, [0, 0])
   const searchScreen = searchAt === null ? null : toScreen(cam, searchAt)
+
   const gridVars: CSSProperties = {
     "--wb-fine-size": `${gridSize}px`,
     "--wb-coarse-size": `${gridSize * 4}px`,
@@ -1899,6 +2529,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   const turningCursor = (turning: Extract<Gesture, { _tag: "Rotating" }>) => {
     const [first, ...others] = turning.ids
     const own = first === undefined || others.length > 0 ? undefined : scene.byId.get(first)
+
     return rotateCursor(turning.corner, (own === undefined ? 0 : rotationOf(own)) + turnOf(turning))
   }
 
@@ -1923,44 +2554,84 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         setGesture(idle)
         press.current = null
       }}
-      onPointerLeave={() => setHover(null)}
+      onPointerLeave={() => {
+        setHover(null)
+      }}
       onDoubleClick={onDoubleClick}
       onKeyDown={onKeyDown}
       onKeyUp={(event) => {
         shiftHeld.current = event.shiftKey
-        if (event.key === " ") setSpacePan(false)
+
+        if (event.key === " ") {
+          setSpacePan(false)
+        }
       }}
-      onCopy={(event) => onCopy(event, false)}
-      onCut={(event) => onCopy(event, true)}
+      onCopy={(event) => {
+        onCopy(event, false)
+      }}
+      onCut={(event) => {
+        onCopy(event, true)
+      }}
       onPaste={onPaste}
       onDragOver={(event) => {
-        if (insideLivePortal(event.target)) return
+        if (insideLivePortal(event.target)) {
+          return
+        }
+
         event.preventDefault()
         event.dataTransfer.dropEffect = "copy"
       }}
       onDrop={(event) => {
-        if (insideLivePortal(event.target)) return
+        if (insideLivePortal(event.target)) {
+          return
+        }
+
         event.preventDefault()
         const at = toWorld(cam, screenOf(event))
         const data = event.dataTransfer
         const href = data.getData("file")
-        if (href !== "") return dropPdfLink(href, at)
+
+        if (href !== "") {
+          dropPdfLink(href, at)
+
+          return
+        }
+
         const files = [...data.files]
-        if (files.length > 0) return void placeFiles(files, at, true)
+
+        if (files.length > 0) {
+          return void placeFiles(files, at, true)
+        }
+
         const text = data.getData("text/plain").trim()
-        if (dropBlocks(text, at)) return
+
+        if (dropBlocks(text, at)) {
+          return
+        }
+
         paste(data.getData("text/html"), text, at, { drop: true })
       }}
       onContextMenu={(event) => {
-        if (insideLivePortal(event.target) || isEditableTarget(event.target)) return
+        if (insideLivePortal(event.target) || isEditableTarget(event.target)) {
+          return
+        }
+
         event.preventDefault()
         const at = screenOf(event)
         const hit = topHit(scene, toWorld(cam, at), cam.zoom)
+
         if (hit !== null && !selection.includes(hit.block.id)) {
           const target = outermost(scene, hit.block.id)
-          if (!selection.includes(target)) setSelected([target])
+
+          if (!selection.includes(target)) {
+            setSelected([target])
+          }
         }
-        if (hit === null && !event.shiftKey) setSelected([])
+
+        if (hit === null && !event.shiftKey) {
+          setSelected([])
+        }
+
         setMenuAt(at)
       }}
     >
@@ -1999,8 +2670,12 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           onPatch={patchSelection}
           links={links}
           embeds={{
-            reload: (id) => setReloads(new Map(reloads).set(id, (reloads.get(id) ?? 0) + 1)),
-            openPdf: (src) => openPdf(src),
+            reload: (id) => {
+              setReloads(new Map(reloads).set(id, (reloads.get(id) ?? 0) + 1))
+            },
+            openPdf: (src) => {
+              openPdf(src)
+            },
             measured,
           }}
         />
@@ -2008,8 +2683,12 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       {searchAt === null || searchScreen === null ? null : (
         <QuickSearch
           place={{ left: searchScreen[0], top: searchScreen[1] }}
-          onPick={(choice) => pick(searchAt, choice)}
-          onCancel={() => setSearchAt(null)}
+          onPick={(choice) => {
+            pick(searchAt, choice)
+          }}
+          onCancel={() => {
+            setSearchAt(null)
+          }}
         />
       )}
       <TitleChip
@@ -2018,7 +2697,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         referencesPanel={props.referencesPanel}
         onRename={(title) =>
           void commit([{ _tag: "RenamePage", pageId: page.id, title }]).then((events) => {
-            if (events.length > 0) props.onRenamed(normalizePageName(title))
+            if (events.length > 0) {
+              props.onRenamed(normalizePageName(title))
+            }
           })
         }
       />
@@ -2042,13 +2723,23 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         grid={grid}
         snap={snap}
         hasSelection={selection.length > 0}
-        onUndo={() => history("Undo")}
-        onRedo={() => history("Redo")}
+        onUndo={() => {
+          history("Undo")
+        }}
+        onRedo={() => {
+          history("Redo")
+        }}
         onZoom={setZoom}
-        onGrid={() => setGrid(!grid)}
-        onSnap={() => setSnap(!snap)}
+        onGrid={() => {
+          setGrid(!grid)
+        }}
+        onSnap={() => {
+          setSnap(!snap)
+        }}
         pen={penMode}
-        onPen={() => setPenMode(!penMode)}
+        onPen={() => {
+          setPenMode(!penMode)
+        }}
       />
       <Tooltip />
     </div>
@@ -2057,9 +2748,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
 const Loaded = (props: BoardProps) => {
   const tree = useAtomValue(pageTreeAtom(props.page.id))
+
   if (AsyncResult.isSuccess(tree)) {
     return <Canvas key={`${props.page.id} ${props.focus ?? ""}`} tree={tree.value} {...props} />
   }
+
   return (
     <div className="wb-root">
       {AsyncResult.isFailure(tree) ? (

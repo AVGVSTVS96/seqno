@@ -9,7 +9,7 @@ describe("undo after reopening", () => {
       Effect.gen(function* () {
         const before = yield* openGraph("7")
         const { pageId, ids } = yield* seedPage(before, "Garden Plan", ["Beds run north", "Water"])
-        const files: Array<LocalUpdate> = []
+        const files: LocalUpdate[] = []
         yield* before.flush((update) => Effect.sync(() => void files.push(update)))
 
         const reopened = yield* openGraph("7")

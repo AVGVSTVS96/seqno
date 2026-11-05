@@ -26,19 +26,32 @@ const clips = (style: CSSStyleDeclaration) =>
 
 export const clipper = () => {
   const known = new Map<Element, Box>()
+
   const clipOf = (element: Element | null): Box => {
-    if (element === null) return viewport()
+    if (element === null) {
+      return viewport()
+    }
+
     const cached = known.get(element)
-    if (cached !== undefined) return cached
+
+    if (cached !== undefined) {
+      return cached
+    }
+
     const outer = clipOf(element.parentElement)
+
     const clip = clips(getComputedStyle(element))
       ? intersect(outer, element.getBoundingClientRect())
       : outer
+
     known.set(element, clip)
+
     return clip
   }
+
   return (element: Element, box: Box): Box | null => {
     const visible = intersect(box, clipOf(element.parentElement))
+
     return empty(visible) ? null : visible
   }
 }
@@ -47,32 +60,50 @@ const seen = (element: Element) =>
   element.closest(tips) === null &&
   element.checkVisibility({ opacityProperty: true, visibilityProperty: true })
 
-export const readableContent = (visible: ReturnType<typeof clipper>): ReadonlyArray<Box> => {
-  const lines: Array<Box> = []
+export const readableContent = (visible: ReturnType<typeof clipper>): readonly Box[] => {
+  const lines: Box[] = []
   const range = document.createRange()
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+
   for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
     const parent = node.parentElement
-    if (parent === null || node.textContent?.trim() === "" || !seen(parent)) continue
+
+    if (parent === null || node.textContent?.trim() === "" || !seen(parent)) {
+      continue
+    }
+
     range.selectNodeContents(node)
+
     for (const rect of range.getClientRects()) {
       const line = visible(parent, rect)
-      if (line !== null) lines.push(line)
+
+      if (line !== null) {
+        lines.push(line)
+      }
     }
   }
+
   for (const element of document.body.querySelectorAll(solid)) {
-    if (!seen(element)) continue
+    if (!seen(element)) {
+      continue
+    }
+
     for (const rect of element.getClientRects()) {
       const box = visible(element, rect)
-      if (box !== null) lines.push(box)
+
+      if (box !== null) {
+        lines.push(box)
+      }
     }
   }
+
   return lines
 }
 
 export const fullyVisible = (visible: ReturnType<typeof clipper>, element: Element) => {
   const box = element.getBoundingClientRect()
   const shown = visible(element, box)
+
   return (
     shown !== null &&
     element.getClientRects().length === 1 &&

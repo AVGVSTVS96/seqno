@@ -31,6 +31,7 @@ const phoneOn = (root: string) =>
       ),
       Graph,
     )
+
     const vault = Context.get(
       yield* Layer.build(
         vaultLayer({
@@ -42,7 +43,9 @@ const phoneOn = (root: string) =>
       ),
       Vault,
     )
+
     yield* Effect.orDie(vault.sync(vaultReplica(graph)))
+
     return { graph, vault }
   })
 
@@ -50,9 +53,11 @@ const textsIn = (root: string) =>
   Effect.scoped(
     Effect.gen(function* () {
       const { graph } = yield* phoneOn(root)
+
       const pages = yield* Effect.forEach(yield* graph.pages, (page) =>
         Effect.orDie(graph.page(page.id)),
       )
+
       return pages.flatMap((page) => page.blocks.map((block) => block.text))
     }),
   )
@@ -61,14 +66,19 @@ const onPhone = (root: string) =>
   Effect.scoped(
     Effect.gen(function* () {
       const { graph, vault } = yield* phoneOn(root)
+
       const pages = yield* Effect.forEach(yield* graph.pages, (page) =>
         Effect.orDie(graph.page(page.id)),
       )
+
       const blocks = pages.flatMap((page) => page.blocks)
       const first = blocks.find((one) => one.text === "first")
       const second = blocks.find((one) => one.text === "second")
-      if (first === undefined || second === undefined)
+
+      if (first === undefined || second === undefined) {
         return yield* Effect.die("the phone is missing a block")
+      }
+
       yield* Effect.orDie(
         graph.dispatch({ _tag: "EditText", blockId: first.id, from: 5, to: 5, insert: " (phone)" }),
       )
@@ -80,12 +90,17 @@ const onPhone = (root: string) =>
 const logCopy = async (page: Page, copy: string) => {
   await rm(copy, { recursive: true, force: true })
   const files = await opfsFiles(page, folder)
+
   for (const [path, bytes] of Object.entries(files)) {
-    if (!/^(updates|snapshots|seen)\//.test(path)) continue
+    if (!/^(updates|snapshots|seen)\//.test(path)) {
+      continue
+    }
+
     await mkdir(dirname(join(copy, path)), { recursive: true })
     await writeFile(join(copy, path), bytes)
   }
-  return Effect.runPromise(textsIn(copy))
+
+  return await Effect.runPromise(textsIn(copy))
 }
 
 test("the saved dot shows only once everything typed is in the folder's edit log", async ({
@@ -100,15 +115,20 @@ test("the saved dot shows only once everything typed is in the folder's edit log
   await page.getByRole("button", { name: "Open a folder" }).click()
   const dot = page.locator("[data-save-state]")
   const words = ["first", "second", "third", "fourth", "fifth", "sixth"]
-  const missing: Array<string> = []
+  const missing: string[] = []
   await seqno.today.getByRole("treeitem").first().click()
+
   for (const [at, word] of words.entries()) {
-    if (at > 0) await page.keyboard.press("Enter")
+    if (at > 0) {
+      await page.keyboard.press("Enter")
+    }
+
     await page.keyboard.type(word)
     await expect(dot).toHaveAttribute("data-save-state", "saved")
     const texts = await logCopy(page, testInfo.outputPath(`log-${word}`))
     missing.push(...words.slice(0, at + 1).filter((typed) => !texts.includes(typed)))
   }
+
   expect(missing).toEqual([])
 })
 
@@ -130,16 +150,23 @@ test("a block you move stays where you put it when your phone deleted it before 
   await page.keyboard.type("third")
   await page.keyboard.press("Escape")
   const copy = testInfo.outputPath("phone")
+
   const copied = async () => {
     await rm(copy, { recursive: true, force: true })
     const files = await opfsFiles(page, folder)
+
     for (const [path, bytes] of Object.entries(files)) {
-      if (!/^(updates|snapshots|seen)\//.test(path)) continue
+      if (!/^(updates|snapshots|seen)\//.test(path)) {
+        continue
+      }
+
       await mkdir(dirname(join(copy, path)), { recursive: true })
       await writeFile(join(copy, path), bytes)
     }
-    return Effect.runPromise(textsIn(copy))
+
+    return await Effect.runPromise(textsIn(copy))
   }
+
   await expect.poll(copied).toEqual(expect.arrayContaining(["first", "second", "third"]))
   await Effect.runPromise(onPhone(copy))
 

@@ -39,6 +39,7 @@ const keyedFacets: ReadonlySet<string> = new Set(KEYED_FACETS)
 
 export const isReadKey = (key: string): key is ReadKey => {
   const colon = key.indexOf(":")
+
   return colon === -1 ? facets.has(key) : keyedFacets.has(key.slice(0, colon))
 }
 
@@ -48,9 +49,13 @@ export type Changes = Map<Facet, Set<string>>
 
 export const touch = (changes: Changes, facet: Facet, ids: Iterable<string> = []): void => {
   const set = changes.get(facet) ?? new Set<string>()
-  for (const id of ids) set.add(id)
+
+  for (const id of ids) {
+    set.add(id)
+  }
+
   changes.set(facet, set)
 }
 
-export const toInvalidation = (changes: Changes): Record<string, ReadonlyArray<string>> =>
+export const toInvalidation = (changes: Changes): Record<string, readonly string[]> =>
   Object.fromEntries([...changes].map(([facet, ids]) => [facet, [...ids]]))

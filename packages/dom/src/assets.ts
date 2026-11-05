@@ -1,4 +1,5 @@
-import { names, type Table } from "./names.ts"
+import { names } from "./names.ts"
+import type { Table } from "./names.ts"
 
 export interface AssetParts {
   readonly "seqno-asset": readonly [{ readonly kind: "pdf" | "doc"; readonly url: string }]

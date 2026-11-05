@@ -11,7 +11,7 @@ const flushed = (graph: Opened) =>
     (update) => Option.toArray(Option.map(update, ({ bytes }) => bytes)),
   )
 
-const typed = (blockId: BlockId, at: number, text: string): ReadonlyArray<Command> =>
+const typed = (blockId: BlockId, at: number, text: string): readonly Command[] =>
   [...text].map((char, offset) => ({
     _tag: "EditText",
     blockId,
@@ -30,6 +30,7 @@ const devices = Effect.gen(function* () {
   const { pageId, ids } = yield* seedPage(left, "Shared", ["alpha", "beta", "  beta child"])
   const right = yield* openGraph("2", { snapshot: yield* left.snapshot })
   yield* flushed(left)
+
   return { left, right, pageId, ids }
 })
 
@@ -138,14 +139,17 @@ describe("undo with edits from another device", () => {
 
 const seeded = (seed: number) => {
   let state = seed
+
   return (below: number) => {
-    state = (state * 1103515245 + 12345) % 2 ** 31
+    state = (state * 1_103_515_245 + 12_345) % 2 ** 31
+
     return state % below
   }
 }
 
 const randomEdit = (random: (below: number) => number, blockId: BlockId, text: string): Command => {
   const at = random(text.length + 1)
+
   return random(4) === 0 && at < text.length
     ? { _tag: "EditText", blockId, from: at, to: at + 1, insert: "" }
     : { _tag: "EditText", blockId, from: at, to: at, insert: "abcdefgh"[random(8)] ?? "a" }
@@ -160,27 +164,49 @@ const randomSession = (seed: number, rounds: number, withRight: boolean) =>
     yield* flushed(left)
     const random = seeded(seed)
     let typedByRight = 0
+
     for (let round = 0; round < rounds; round++) {
       for (let key = 0; key < 1 + random(4); key++) {
         yield* left.dispatch(randomEdit(random, block, yield* textOf(left, block)))
       }
+
       yield* left.dispatch({ _tag: "SetCollapsed", blockId: block, collapsed: round % 2 === 0 })
-      if (!withRight) continue
+
+      if (!withRight) {
+        continue
+      }
+
       for (let key = 0; key < random(3); key++) {
         const at = random((yield* textOf(right, block)).length + 1)
         yield* right.dispatch({ _tag: "EditText", blockId: block, from: at, to: at, insert: "X" })
         typedByRight++
       }
-      if (random(3) === 0) yield* left.merge(yield* flushed(right))
-      if (random(3) === 0) yield* right.merge(yield* flushed(left))
+
+      if (random(3) === 0) {
+        yield* left.merge(yield* flushed(right))
+      }
+
+      if (random(3) === 0) {
+        yield* right.merge(yield* flushed(left))
+      }
     }
+
     yield* left.merge(yield* flushed(right))
     const edited = yield* textOf(left, block)
-    for (let step = 0; step < rounds * 2; step++) yield* left.dispatch({ _tag: "Undo" })
+
+    for (let step = 0; step < rounds * 2; step++) {
+      yield* left.dispatch({ _tag: "Undo" })
+    }
+
     const undone = yield* textOf(left, block)
-    for (let step = 0; step < rounds * 2; step++) yield* left.dispatch({ _tag: "Redo" })
+
+    for (let step = 0; step < rounds * 2; step++) {
+      yield* left.dispatch({ _tag: "Redo" })
+    }
+
     const redone = yield* textOf(left, block)
     yield* right.merge(yield* flushed(left))
+
     return { edited, undone, redone, typedByRight, onRight: yield* textOf(right, block) }
   })
 
@@ -203,7 +229,7 @@ describe("undo against random edits", () => {
           const session = yield* randomSession(seed, 12, true)
           const { edited, undone, redone, typedByRight, onRight } = session
           assert.deepStrictEqual(
-            [seed, undone.replace(/[^0-3]/g, "").length, undone.replace(/[^X]/g, "").length],
+            [seed, undone.replaceAll(/[^0-3]/g, "").length, undone.replaceAll(/[^X]/g, "").length],
             [seed, 4, typedByRight],
           )
           assert.deepStrictEqual([redone, onRight], [edited, edited])
@@ -258,9 +284,11 @@ describe("undo and redo", () => {
         const graph = yield* openGraph("1")
         const { ids } = yield* seedPage(graph, "Props", ["bed"])
         const target = { _tag: "BlockTarget", blockId: nth(ids, 0) } as const
+
         for (const key of ["zeta", "alpha", "mid"]) {
           yield* graph.dispatch({ _tag: "SetProperty", target, key, value: key })
         }
+
         yield* graph.dispatch({ _tag: "SetCollapsed", blockId: nth(ids, 0), collapsed: true })
         yield* graph.dispatch({ _tag: "SetProperty", target, key: "alpha", value: null })
         yield* graph.dispatch({ _tag: "Undo" })
@@ -296,6 +324,7 @@ describe("undo and redo", () => {
         const graph = yield* openGraph("1")
         const { pageId, ids } = yield* seedPage(graph, "Batch", ["a", "b"])
         const [a, b] = [nth(ids, 0), nth(ids, 1)]
+
         const rejected = yield* Effect.flip(
           graph.dispatchAll([
             { _tag: "EditText", blockId: a, from: 1, to: 1, insert: "!" },
@@ -303,6 +332,7 @@ describe("undo and redo", () => {
             { _tag: "EditText", blockId: a, from: 9, to: 9, insert: "?" },
           ]),
         )
+
         assert.strictEqual(rejected.reason, "range 9-9 is outside the block text")
         assert.deepStrictEqual(outline(yield* graph.page(pageId)), ["a", "b"])
         yield* graph.dispatch({ _tag: "Undo" })

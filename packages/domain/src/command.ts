@@ -10,20 +10,21 @@ export const PropertyTarget = Schema.TaggedUnion({
   BlockTarget: { blockId: BlockId },
   PageTarget: { pageId: PageId },
 })
+
 export type PropertyTarget = typeof PropertyTarget.Type
 
 export interface BlockDraft {
   readonly id?: BlockId
   readonly text: string
   readonly props: Props
-  readonly children: ReadonlyArray<BlockDraft>
+  readonly children: readonly BlockDraft[]
 }
 
 interface BlockDraftEncoded {
   readonly id?: string
   readonly text: string
   readonly props: Props
-  readonly children: ReadonlyArray<BlockDraftEncoded>
+  readonly children: readonly BlockDraftEncoded[]
 }
 
 export const BlockDraft: Schema.Codec<BlockDraft, BlockDraftEncoded> = Schema.Struct({
@@ -76,4 +77,5 @@ export const Command = Schema.TaggedUnion({
   Undo: {},
   Redo: {},
 })
+
 export type Command = typeof Command.Type

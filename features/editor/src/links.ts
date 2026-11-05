@@ -1,4 +1,5 @@
-import { parseInline, type Inline } from "@seqno/syntax"
+import { parseInline } from "@seqno/syntax"
+import type { Inline } from "@seqno/syntax"
 import type { LinkTarget } from "./host.ts"
 
 const targetOf = (node: Inline): LinkTarget | null =>
@@ -10,11 +11,12 @@ const targetOf = (node: Inline): LinkTarget | null =>
         ? node.target
         : null
 
-const inside = (node: Inline): ReadonlyArray<Inline> =>
+const inside = (node: Inline): readonly Inline[] =>
   "children" in node ? node.children : node._tag === "Link" ? node.label : []
 
-const search = (nodes: ReadonlyArray<Inline>, offset: number): LinkTarget | null => {
+const search = (nodes: readonly Inline[], offset: number): LinkTarget | null => {
   const node = nodes.find(({ span }) => span.from <= offset && offset <= span.to)
+
   return node === undefined ? null : (targetOf(node) ?? search(inside(node), offset))
 }
 

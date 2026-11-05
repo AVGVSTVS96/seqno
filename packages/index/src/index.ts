@@ -10,6 +10,7 @@ export {
   type PagesGraph,
   type SearchResult,
 } from "./service.ts"
+
 export {
   IndexError,
   Row,
@@ -19,5 +20,7 @@ export {
   type Driver,
   type Statements,
 } from "./sqlite.ts"
+
 export { SCHEMA, SCHEMA_VERSION } from "./schema.ts"
+
 export { isReadKey, type Facet, type ReadKey } from "./keys.ts"

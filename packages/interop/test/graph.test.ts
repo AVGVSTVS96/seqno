@@ -5,11 +5,13 @@ import type { PageTree } from "@seqno/rpc"
 import { LogseqSyntaxLive, importGraph, layerFileSystem, renderMirror } from "@seqno/interop"
 
 const counter = { value: 0 }
+
 const SequentialCrypto = Layer.succeed(
   Crypto.Crypto,
   Crypto.make({
     randomBytes: (size) => {
       counter.value += 1
+
       return Uint8Array.from({ length: size }, (_, index) => (counter.value * 31 + index) % 256)
     },
     digest: () => Effect.die("digest is not used by import"),
@@ -63,6 +65,7 @@ const withGraph = <A, E, R>(files: Record<string, string>, use: Effect.Effect<A,
         fs.writeFileString(path.join(root, relative), text),
       ),
     )
+
     return yield* Effect.provide(use, layerFileSystem(root))
   }).pipe(Effect.scoped, Effect.provide(Node))
 
@@ -92,7 +95,7 @@ describe("import", () => {
         {
           title: "Oct 6th, 2026",
           name: "oct 6th, 2026",
-          journalDay: 20261006,
+          journalDay: 20_261_006,
           props: {},
           blocks: [
             {
@@ -181,7 +184,8 @@ describe("mirror", () => {
       const graph = yield* imported
       const [journalPage, project] = graph.pages
       const step = project?.blocks[1]
-      const refer = (pages: ReadonlyArray<PageTree>): ReadonlyArray<PageTree> =>
+
+      const refer = (pages: readonly PageTree[]): readonly PageTree[] =>
         pages.map((tree) =>
           tree === journalPage
             ? {
@@ -192,6 +196,7 @@ describe("mirror", () => {
               }
             : tree,
         )
+
       const files = yield* renderMirror(refer(graph.pages), graph.config)
       assert.strictEqual(
         files.get("pages/Project X.md"),
@@ -211,6 +216,7 @@ describe("mirror", () => {
         },
         importGraph,
       )
+
       assert.deepStrictEqual(
         { pages: graph.pages.map((tree) => tree.page.title), issues: graph.issues },
         { pages: ["Plans"], issues: [] },

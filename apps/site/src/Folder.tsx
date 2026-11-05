@@ -7,9 +7,16 @@ const updates = [0, 412, 577, 809]
 const secondsPerEdit = 0.003
 
 function write(tree: HTMLElement | null) {
-  if (!tree || !offscreen(tree)) return
+  if (!tree || !offscreen(tree)) {
+    return
+  }
+
   const files = [...tree.querySelectorAll<HTMLElement>(".file")]
-  for (const file of files) file.style.opacity = "0"
+
+  for (const file of files) {
+    file.style.opacity = "0"
+  }
+
   const stop = inView(
     tree,
     () => {
@@ -24,6 +31,7 @@ function write(tree: HTMLElement | null) {
     },
     { amount: 0.7 },
   )
+
   return stop
 }
 

@@ -2,14 +2,20 @@ import { EditorView } from "@codemirror/view"
 import { afterEach, assert, describe, it } from "@effect/vitest"
 import { Effect, Stream } from "effect"
 import { act, createElement } from "react"
-import { createRoot, type Root } from "react-dom/client"
+import { createRoot } from "react-dom/client"
+import type { Root } from "react-dom/client"
 import { BlockEditor, createHandoff } from "@seqno/editor"
 import { blockOf, page, typeKeys } from "./mount.ts"
 
-const roots: Array<Root> = []
+const roots: Root[] = []
 
 afterEach(async () => {
-  for (const root of roots.splice(0)) await act(() => root.unmount())
+  for (const root of roots.splice(0)) {
+    await act(() => {
+      root.unmount()
+    })
+  }
+
   document.body.replaceChildren()
 })
 
@@ -17,7 +23,8 @@ const render = async (text: string) => {
   const container = document.body.appendChild(document.createElement("div"))
   const root = createRoot(container)
   roots.push(root)
-  const draw = () =>
+
+  const draw = () => {
     root.render(
       createElement(BlockEditor, {
         block: blockOf(text),
@@ -26,19 +33,25 @@ const render = async (text: string) => {
         handoff: createHandoff(),
         host: {
           dispatch: () => undefined,
-          dispatchAll: () => Promise.resolve(true),
+          dispatchAll: async () => await Promise.resolve(true),
           act: () => undefined,
           searchPages: () => Effect.succeed([page("Garden Plan")]),
           searchBlocks: () => Effect.succeed([]),
-          saveAssets: () => Promise.resolve([]),
+          saveAssets: async () => await Promise.resolve([]),
         },
       }),
     )
+  }
+
   await act(draw)
   await act(draw)
   const dom = container.querySelector(".cm-editor")
   const view = dom instanceof HTMLElement ? EditorView.findFromDOM(dom) : null
-  if (view === null) throw new Error("no editor mounted")
+
+  if (view === null) {
+    throw new Error("no editor mounted")
+  }
+
   return { container, root, view }
 }
 
@@ -59,14 +72,18 @@ describe("BlockEditor", () => {
       ["spellcheck", "autocorrect", "autocapitalize"].map((name) => content?.getAttribute(name)),
       ["true", "on", "sentences"],
     )
-    await act(() => root.unmount())
+    await act(() => {
+      root.unmount()
+    })
     roots.splice(0)
     assert.strictEqual(container.innerHTML, "")
   })
 
   it("draws the slash menu as a listbox with Logseq's group headings", async () => {
     const { view } = await render("")
-    await act(() => typeKeys(view, "/"))
+    await act(() => {
+      typeKeys(view, "/")
+    })
     const listbox = document.querySelector("[role=listbox]")
     const groups = [...document.querySelectorAll("[role=listbox] [role=group]")]
     assert.strictEqual(listbox?.getAttribute("aria-label"), "Commands")
@@ -82,8 +99,12 @@ describe("BlockEditor", () => {
 
   it("marks the matched letters and follows the pointer", async () => {
     const { view } = await render("")
-    await act(() => typeKeys(view, "[[gar"))
-    await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+    await act(() => {
+      typeKeys(view, "[[gar")
+    })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
     assert.deepStrictEqual(options(), [
       ["Garden Plan", "true"],
       ["New page gar", "false"],

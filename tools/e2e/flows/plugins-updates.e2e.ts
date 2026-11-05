@@ -20,8 +20,8 @@ const install = async (page: Page, name: string) => {
   await page.keyboard.press("Escape")
 }
 
-const keptVersions = (page: Page) => () =>
-  page.evaluate(async () =>
+const keptVersions = (page: Page) => async () =>
+  await page.evaluate(async () =>
     [
       ...new Set(
         (await (await caches.open("seqno-plugins")).keys()).flatMap(
@@ -50,10 +50,13 @@ const wordCount = (page: Page) =>
   todayOn(page).getByRole("treeitem").filter({ hasText: "Beds" }).locator(".wordcount-btn")
 
 const checksOf = (context: BrowserContext) => {
-  const checks: Array<string> = []
+  const checks: string[] = []
   context.on("request", (request) => {
-    if (request.url().startsWith("https://plugins.logseq.io/r2/")) checks.push(request.url())
+    if (request.url().startsWith("https://plugins.logseq.io/r2/")) {
+      checks.push(request.url())
+    }
   })
+
   return checks
 }
 
@@ -65,15 +68,16 @@ test("Check all updates finds a plugin's newer version, and Update all of select
   test.slow()
   await seqno.openDemoGraph()
   await expect
-    .poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
+    .poll(async () => await page.evaluate(() => navigator.serviceWorker.controller !== null))
     .toBe(true)
   const releaseNewest = await serveOlderVersion(context, wordcount, "v2.4.2")
   await install(page, "logseq-wordcount-plugin")
   await expect
-    .poll(() =>
-      page.evaluate(
-        () => localStorage.getItem("seqno.plugins.settings.logseq-wordcount-plugin") ?? "",
-      ),
+    .poll(
+      async () =>
+        await page.evaluate(
+          () => localStorage.getItem("seqno.plugins.settings.logseq-wordcount-plugin") ?? "",
+        ),
     )
     .toContain('"wordCountStr":"Words:"')
   const dialog = await openPlugins(page)
@@ -111,7 +115,9 @@ test("Check all updates finds a plugin's newer version, and Update all of select
   await expect(wordCount(page)).toHaveText("Mots: 3")
 
   await context.unrouteAll()
-  await context.route("**", (route) => route.abort("internetdisconnected"))
+  await context.route("**", async (route) => {
+    await route.abort("internetdisconnected")
+  })
   await context.setOffline(true)
   await page.reload()
   await expect(wordCount(page)).toHaveText("Mots: 3")
@@ -134,15 +140,17 @@ test("the auto check finds updates on start once 12 hours have passed, the puzzl
   await install(page, "logseq-wordcount-plugin")
   await releaseNewest()
   const stale = Date.now() - 13 * 60 * 60 * 1000
-  await page.evaluate(
-    (at) => localStorage.setItem("seqno.plugins.lastAutoUpdates", JSON.stringify(at)),
-    stale,
-  )
+  await page.evaluate((at) => {
+    localStorage.setItem("seqno.plugins.lastAutoUpdates", JSON.stringify(at))
+  }, stale)
   await page.reload()
   const puzzle = page.getByRole("button", { name: "Plugin toolbar items" })
   await expect(puzzle.locator(".plugin-updates-point")).toBeVisible()
   await expect
-    .poll(() => page.evaluate(() => Number(localStorage.getItem("seqno.plugins.lastAutoUpdates"))))
+    .poll(
+      async () =>
+        await page.evaluate(() => Number(localStorage.getItem("seqno.plugins.lastAutoUpdates"))),
+    )
     .toBeGreaterThan(stale)
   await puzzle.click()
   const menu = page.getByRole("menu", { name: "Plugin toolbar items" })
@@ -177,7 +185,9 @@ test("the auto check finds updates on start once 12 hours have passed, the puzzl
   await expect(auto).toHaveAttribute("aria-checked", "false")
   await expect(page.getByText("Auto check for updates OFF!")).toBeVisible()
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem("seqno.plugins.lastAutoUpdates")))
+    .poll(
+      async () => await page.evaluate(() => localStorage.getItem("seqno.plugins.lastAutoUpdates")),
+    )
     .toBe("false")
   const checks = checksOf(context)
   await page.reload()
@@ -187,19 +197,22 @@ test("the auto check finds updates on start once 12 hours have passed, the puzzl
   expect(checks).toEqual([])
 })
 
-const capOf = (page: Page) =>
-  page.evaluate(() => {
+const capOf = async (page: Page) =>
+  await page.evaluate(() => {
     const [main, left, right, row] = [
       ".main-content-container",
       "header > .head-left",
       "header > .head-right",
       ".plugin-toolbar-list",
     ].map((selector) => document.querySelector<HTMLElement>(selector))
+
     const others = [...(right?.children ?? [])]
       .filter((child) => !child.matches(".plugin-toolbar, [popover]"))
       .reduce((sum, child) => sum + (child instanceof HTMLElement ? child.offsetWidth : 0), 0)
+
     const leftOpen = localStorage.getItem("seqno.leftSidebar") === "true"
     const room = (main?.offsetWidth ?? 0) - (leftOpen ? 0 : (left?.offsetWidth ?? 0))
+
     return { expected: `${Math.max(room - others - 100, 76)}px`, actual: row?.style.maxWidth }
   })
 
@@ -210,6 +223,7 @@ test("a crowded header caps the plugin buttons' row as Logseq does, at the room 
   test.slow()
   await page.setViewportSize({ width: 520, height: 800 })
   await seqno.openDemoGraph()
+
   for (const name of [
     "Journals calendar",
     "logseq-pomodoro-timer",
@@ -217,11 +231,13 @@ test("a crowded header caps the plugin buttons' row as Logseq does, at the room 
     "Random Note",
     "GitSeq",
     "Hypothesis",
-  ])
+  ]) {
     await install(page, name)
+  }
+
   const row = page.getByRole("banner").locator(".plugin-toolbar-list")
   await expect(row.locator("[data-injected-ui]")).toHaveCount(9)
-  const cap = () => capOf(page).then(({ actual }) => actual)
+  const cap = async () => await capOf(page).then(({ actual }) => actual)
   await expect.poll(cap).toBe("284px")
   expect(await capOf(page)).toEqual({ expected: "284px", actual: "284px" })
   expect(await row.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)

@@ -1,5 +1,6 @@
 import type { Block, BlockId } from "@seqno/domain"
-import { names, type Table } from "./names.ts"
+import { names } from "./names.ts"
+import type { Table } from "./names.ts"
 import { refsSelf } from "./refs.ts"
 
 export interface BlockRow {

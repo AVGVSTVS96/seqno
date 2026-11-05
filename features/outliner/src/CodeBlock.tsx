@@ -1,4 +1,5 @@
-import { logseq, type CodeLook } from "@seqno/dom"
+import { logseq } from "@seqno/dom"
+import type { CodeLook } from "@seqno/dom"
 import { use, useState } from "react"
 import { CodeEditor } from "./CodeEditor.tsx"
 import { highlightLines, tokenClass } from "./highlight.ts"
@@ -17,8 +18,10 @@ export const CodeBlock = ({
   const appearance = { mode: use(ColorMode), accent: use(Accent) !== "logseq" }
   const { codeStyle } = use(RenderContext)
   const lines = highlightLines(code, language)
+
   if (editing !== null && onEdit !== undefined) {
     const look: CodeLook = { ...appearance, style: "codemirror" }
+
     return (
       <div
         {...logseq("seqno-codeblock", language, look, true)}
@@ -31,21 +34,29 @@ export const CodeBlock = ({
           at={editing}
           onDone={(next) => {
             setEditing(null)
-            if (next !== code) onEdit(next)
+
+            if (next !== code) {
+              onEdit(next)
+            }
           }}
         />
         {language === "" ? null : <span {...logseq("seqno-code-lang", look)}>{language}</span>}
       </div>
     )
   }
+
   const look: CodeLook = { ...appearance, style: codeStyle }
   const numbered = codeStyle === "codemirror"
+
   return (
     <div
       {...logseq("seqno-codeblock", language, look, false)}
       data-language={language === "" ? undefined : language}
       onClick={(event) => {
-        if (onEdit === undefined) return
+        if (onEdit === undefined) {
+          return
+        }
+
         event.stopPropagation()
         setEditing({ x: event.clientX, y: event.clientY })
       }}

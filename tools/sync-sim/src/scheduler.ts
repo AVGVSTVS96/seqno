@@ -29,9 +29,11 @@ export class Scheduler {
     return Effect.gen({ self: this }, function* () {
       while (keepGoing()) {
         const task = this.pop()
+
         if (task === undefined) {
           return
         }
+
         this.now = task.at
         yield* task.run
       }
@@ -45,6 +47,7 @@ export class Scheduler {
         this.now = next.at
         yield* next.run
       }
+
       this.now = Math.max(this.now, time)
     })
   }
@@ -53,12 +56,15 @@ export class Scheduler {
     const h = this.heap
     h.push(task)
     let i = h.length - 1
+
     while (i > 0) {
       const parent = (i - 1) >> 1
       const above = h[parent]
+
       if (above === undefined || !earlier(task, above)) {
         break
       }
+
       h[i] = above
       h[parent] = task
       i = parent
@@ -69,28 +75,35 @@ export class Scheduler {
     const h = this.heap
     const top = h[0]
     const last = h.pop()
+
     if (h.length === 0 || last === undefined) {
       return top
     }
+
     h[0] = last
     let i = 0
+
     for (;;) {
       const l = 2 * i + 1
       let m = i
       let best = last
       const left = h[l]
       const right = h[l + 1]
+
       if (left !== undefined && earlier(left, best)) {
         m = l
         best = left
       }
+
       if (right !== undefined && earlier(right, best)) {
         m = l + 1
         best = right
       }
+
       if (m === i) {
         return top
       }
+
       h[m] = last
       h[i] = best
       i = m
