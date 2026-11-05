@@ -4,14 +4,14 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "prepare": "git config core.hooksPath .githooks",
+    "prepare": "lefthook install",
     "check": "pnpm lint && oxfmt --check && pnpm typecheck && pnpm test",
     "check:fast": "pnpm lint && oxfmt --check && pnpm typecheck && vitest run --changed origin/main",
     "lint": "oxlint --deny-warnings",
-    "fmt": "oxfmt",
     "typecheck": "pnpm --recursive --workspace-concurrency=2 typecheck",
     "test": "scripts/turn vitest run",
-    "build": "pnpm --filter @seqno/site build && pnpm --filter @seqno/web build --base /app/ --outDir ../site/dist/app"
+    "build": "pnpm --filter @seqno/site build && pnpm --filter @seqno/web build --base /app/ --outDir ../site/dist/app",
+    "fix": "oxlint --fix; oxfmt"
   },
   "devDependencies": {
     "@oxlint/plugins": "1.91.0",
@@ -21,7 +21,8 @@
     "oxlint-tsgolint": "7.0.2005",
     "typescript": "7.0.2",
     "ultracite": "8.1.1",
-    "vitest": "5.0.3"
+    "vitest": "5.0.3",
+    "lefthook": "2.2.2"
   },
   "engines": {
     "node": ">=24"

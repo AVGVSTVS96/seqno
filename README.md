@@ -7,7 +7,7 @@
 
 A local-first outliner.
 
-[![ci](https://github.com/AVGVSTVS96/seqno/actions/workflows/ci.yml/badge.svg)](https://github.com/AVGVSTVS96/seqno/actions/workflows/ci.yml)
+[![check](https://github.com/AVGVSTVS96/seqno/actions/workflows/check.yml/badge.svg)](https://github.com/AVGVSTVS96/seqno/actions/workflows/check.yml)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/showcase-dark.png">

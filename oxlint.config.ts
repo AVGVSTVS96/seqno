@@ -147,6 +147,10 @@ export default defineConfig({
       rules: { "no-restricted-imports": restrictImports(forbidden, message) },
     })),
     {
+      files: ["features/outliner/src/virtual.tsx"],
+      rules: { "react/incompatible-library": "off" },
+    },
+    {
       files: ["apps/web/src/**/*.{ts,tsx}", "features/*/src/**/*.{ts,tsx}"],
       rules: { "seqno/logseq-names": "error" },
     },

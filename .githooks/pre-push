@@ -1,5 +1,0 @@
-#!/bin/sh
-set -e
-pnpm lint
-pnpm exec oxfmt --check
-pnpm typecheck

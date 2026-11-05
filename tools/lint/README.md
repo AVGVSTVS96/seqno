@@ -1,26 +1,14 @@
 # @seqno/lint
 
-A tool: the `seqno` oxlint plugin that enforces the repo's code rules and package boundaries, plus a guard against lint-disable comments.
+The repo's own oxlint plugins, which the root `oxlint.config.ts` loads.
 
-## What's inside
-
-| File                | What it does                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `src/plugin.ts`     | Registers the rules under the `seqno` name. The root `.oxlintrc.json` loads it as a JS plugin.                                  |
-| `src/code-rules.ts` | `no-comments` (only comments carrying an `https://` link survive), `no-use-effect`, `no-as-cast` (except `as const`), `no-any`. |
-| `src/boundaries.ts` | `import-boundaries`: which sides may import which, relative imports that leave their package, folders missing from `repoMap`.   |
-| `src/directives.ts` | Fails on `oxlint-disable` / `eslint-disable` comments. `pnpm lint` runs it after oxlint.                                        |
-
-- Every message says how to fix the problem.
-- A new folder under `packages/`, `apps/`, `features/` or `tools/` has to be added to `repoMap` in `src/boundaries.ts`, with its side.
-
-## Tests
+| File | What it does |
+| --- | --- |
+| `src/no-comments.ts` | Bans comments except an https:// link, a `SAFETY:` line or a lint directive with its reason. The same file in every one of Bassim's repos. |
+| `src/logseq-names.ts` | `seqno/logseq-names`: Logseq's class names, ids and attributes come only from `@seqno/dom`. |
+| `anti-slop-effect/` | dmmulroy/anti-slop's Effect rules, vendored unchanged at 13909c9 (MIT). |
+| `test/config.test.ts` | Lints probe files with the root config to prove the side rules, the `useEffect` ban and the `any`/`as` bans still fire. |
 
 ```sh
-pnpm test --project @seqno/lint
+pnpm exec vitest run --project @seqno/lint
 ```
-
-## Known gaps
-
-- `fixtures/` is outside lint and format: the root ignore patterns skip it.
-- Nothing stops a nested `.oxlintrc.json` from weakening a rule.

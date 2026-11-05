@@ -4,7 +4,7 @@ sha=$(git rev-parse HEAD)
 while :; do
   git fetch -q origin main
   git merge-base --is-ancestor "$sha" origin/main || { echo "scripts/ci: $sha is not on origin/main; push it first" >&2; exit 1; }
-  run=$(gh run list -w ci -b main -e push -L 1 --json databaseId,headSha -q '.[0] | "\(.databaseId) \(.headSha)"')
+  run=$(gh run list -w check -b main -e push -L 1 --json databaseId,headSha -q '.[0] | "\(.databaseId) \(.headSha)"')
   id=${run% *}
   head=${run#* }
   if ! git merge-base --is-ancestor "$sha" "$head" 2>/dev/null; then sleep 15; continue; fi

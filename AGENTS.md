@@ -1,130 +1,55 @@
 # seqno
 
-A TypeScript rebuild of Logseq: a local-first outliner. Web first (Chrome and Edge), then iOS (Expo) and desktop (Electron).
+A TypeScript rebuild of Logseq: a local-first outliner, web first (Chrome and Edge), then iOS and desktop. The truth is a Loro CRDT edit log; SQLite is a rebuildable index. How it fits together: `docs/architecture.md`; why: `docs/decisions.md`.
 
-The source of truth is a Loro CRDT edit log (`loro-crdt` pinned to exactly 1.16.4). SQLite is a rebuildable index. How it fits together is in `docs/architecture.md`; why each piece was chosen is in `docs/decisions.md`.
+`pnpm check` is the gate (lefthook runs `pnpm check:fast` before each commit, CI runs `pnpm check` on Node 24 and 26). `pnpm fix` lints and formats with fixes. `pnpm --filter @seqno/web dev` runs the app, `pnpm build` builds the site with the app at `/app`, as Vercel serves it.
 
-## Commands
+## Map
 
-| Command           | What it does                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------ |
-| `pnpm check:fast` | lint, format check, typecheck, and the tests your change reaches. Run before every commit. |
-| `pnpm check`      | lint, format check, typecheck, every test. CI runs it on every push.                       |
-| `pnpm lint`       | oxlint with the `seqno` plugin, then the disable-directive guard                           |
-| `pnpm fmt`        | oxfmt, writes files                                                                        |
-| `pnpm typecheck`  | `tsc --noEmit` in every workspace package                                                  |
-| `pnpm test`       | Vitest across every workspace package (one project per package)                            |
-
-## Repo map
-
-| Package             | Folder                | Side     | Job                                                                                                                             |
-| ------------------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `@seqno/domain`     | `packages/domain`     | domain   | Schemas, branded ids, Command and GraphEvent unions. Pure.                                                                      |
-| `@seqno/rpc`        | `packages/rpc`        | contract | UI <-> core-worker contract (Effect RPC).                                                                                       |
-| `@seqno/syntax`     | `packages/syntax`     | pure     | Logseq markdown <-> block tree, exact round-trip. Pure.                                                                         |
-| `@seqno/query`      | `packages/query`      | pure     | Query text (Logseq-style and Dataview-style) -> AST -> SQL. Pure.                                                               |
-| `@seqno/export`     | `packages/export`     | pure     | Logseq's export formats: text, OPML, HTML for pages and blocks; EDN, JSON, Roam JSON and zips for a graph. Pure.                |
-| `@seqno/dom`        | `packages/dom`        | pure     | Logseq 0.10.9's class names, ids and attributes for seqno's elements, so Logseq themes and plugins find them: `logseq()`. Pure. |
-| `@seqno/graph`      | `packages/graph`      | core     | Loro graph: lazy open, commands, undo/redo, GraphEvents.                                                                        |
-| `@seqno/index`      | `packages/index`      | core     | SQLite schema, indexer from GraphEvents, backlinks, FTS, live queries.                                                          |
-| `@seqno/vault`      | `packages/vault`      | core     | Edit-log files: File System Access, OPFS and node-fs adapters, compaction.                                                      |
-| `@seqno/interop`    | `packages/interop`    | core     | Logseq OG graph import, markdown mirror writer.                                                                                 |
-| `@seqno/git`        | `packages/git`        | core     | Git over the graph's markdown files (isomorphic-git): commits, page history, `logseq.Git`.                                      |
-| `@seqno/web`        | `apps/web`            | ui       | Vite app: shell, routing. `apps/web/src/worker/**` is the core worker (worker side).                                            |
-| `@seqno/outliner`   | `features/outliner`   | ui       | Virtualized block tree view, keyboard navigation, collapse, zoom, drag.                                                         |
-| `@seqno/editor`     | `features/editor`     | ui       | Focused-block CodeMirror editor, `[[ (( #` autocomplete, the `/` menu.                                                          |
-| `@seqno/plugins`    | `features/plugins`    | ui       | Runs Logseq plugins: the `@logseq/libs` host in iframes, the API on top of the core, marketplace, settings, slots, themes.      |
-| `@seqno/whiteboard` | `features/whiteboard` | ui       | Logseq whiteboards: the board list, the canvas, shapes, connectors and live page and block portals.                             |
-| `@seqno/pdf`        | `features/pdf`        | ui       | Logseq's PDF viewer: pdf.js, text and area highlights, the `hls__` page and its `.edn` file.                                    |
-| `@seqno/sync-sim`   | `tools/sync-sim`      | tool     | Multi-device fake-iCloud simulator for the sync protocol (stand-in graph; real vault optional).                                 |
-| `@seqno/e2e`        | `tools/e2e`           | tool     | Playwright flows, the feature map and the design harness.                                                                       |
-| `@seqno/lint`       | `tools/lint`          | tool     | The `seqno` oxlint plugin that enforces the rules below.                                                                        |
-| `@seqno/bench`      | `tools/bench`         | tool     | Benchmarks CI runs: 50k-block open, keystroke, undo, bulk edits, index reopen; years of journals opened and reopened in Chrome. |
-| `@seqno/fixtures`   | `fixtures/`           | tool     | Real Logseq graphs, 50k-block generator, edge-case graphs.                                                                      |
-
-A new folder under `packages/`, `apps/`, `features/` or `tools/` must be added to `repoMap` in `tools/lint/src/boundaries.ts` and to this table, or lint fails.
-
-## Dependency rule
+| Folder | Side | Job |
+| --- | --- | --- |
+| `packages/domain` | domain | Schemas, branded ids, Command and GraphEvent unions |
+| `packages/rpc` | contract | UI ↔ core-worker contract (Effect RPC) |
+| `packages/{syntax,query,export,dom}` | pure | Logseq markdown, queries, export formats, Logseq's DOM names |
+| `packages/{graph,index,vault,interop,git}` | core | Loro graph, SQLite index, edit-log files, Logseq import and mirror, git |
+| `apps/web` | ui | The app; `apps/web/src/worker/**` is the core worker (core side) |
+| `apps/site` | ui | The homepage, served at `/` with the app at `/app` |
+| `features/*` | ui | Outliner, editor, plugins, whiteboard, pdf |
+| `tools/*`, `fixtures/` | tool | sync-sim, e2e and design capture, lint plugin, benches, test graphs |
+| `brand/` | | Logo, fonts, og image, copy |
 
 ```
-                 domain   <- everyone may import it; it imports no @seqno package
+                 domain   <- imports no @seqno package
                     ^
-                 contract (rpc)   <- imports domain only
+                 contract (rpc)   <- domain only
                  ^          ^
    ui side ------+          +------ core side
-   apps/web                         pure: syntax, query, export (domain + pure)
-   features/*                       core: graph, index, vault, interop
-   (domain, rpc, pure, ui)          worker: apps/web/src/worker/** (core packages, never ui)
-
-   tools/*  may import anything; nothing imports a tool
+   apps/*, features/*               pure (domain + pure), core, worker
+   (domain, rpc, pure, ui)          (never ui)
+   tools/* may import anything; nothing imports a tool
 ```
 
-- The UI side imports only `@seqno/domain`, `@seqno/rpc`, the pure packages (`@seqno/syntax`, `@seqno/query`, `@seqno/dom`) and other UI packages. Blocks render with the same parser the core uses, not a second one. It never imports graph, index, vault or interop, and talks to the core only through `@seqno/rpc`.
-- The core side never imports UI packages.
-- The core worker entry lives in `apps/web/src/worker/`. Files there count as core side: they may import core packages and may not import UI code. UI files in `apps/web` may not import from `src/worker/` (start the worker with `new SharedWorker(new URL(...))`, not an import).
-- Relative imports never leave their package. Import another package by its `@seqno/*` name and list it in `package.json`.
-
-## Code rules
-
-- Effect services (`Context.Service`) and Layers for anything with effects.
-- Schema at every boundary: decode unknown input with `Schema.decodeUnknown*`, never trust a cast.
-- `_tag` unions, matched exhaustively (`Match.exhaustive`, or the `.match` of a `Schema.TaggedUnion`).
-- Branded ids (`BlockId`, `PageId`, `DeviceId` from `@seqno/domain`).
-- No `as` casts (only `as const`), no `any`.
-- No code comments. The one exception is an outside fact the code cannot express (an upstream bug, a spec quirk), and that comment must carry the `https://` link to its source.
-- No `useEffect`, `useLayoutEffect` or `useInsertionEffect`. Derive during render, act in event handlers, read outside state through `@effect/atom-react`.
-- Tests call code the way users do and compare against literal values. A test that would still pass if the code returned `undefined` gets deleted.
-- One blessed way to do each thing:
-  - Relative imports end in `.ts` / `.tsx`.
-  - A package's public API is `src/index.ts`, exposed through `"exports": { ".": "./src/index.ts" }`. No build step for workspace packages.
-  - Tests live in `<package>/test/*.test.ts` and use `@effect/vitest` (`it.effect`) for Effect code.
-  - Dependencies use exact versions. `effect` is `4.0.1`, `loro-crdt` is `1.16.4`.
-  - An element Logseq also has spreads `logseq("<its seqno class>", state)` from `@seqno/dom`; seqno's own state goes in `data-*`.
-- Effect v4 differs from v3: `Context.Service` instead of `Context.Tag`, `Result` instead of `Either`, Schema v4 names. Check the installed types and https://github.com/Effect-TS/effect/blob/main/MIGRATION.md.
+The UI reaches the core only through `@seqno/rpc`, and starts the worker with `new SharedWorker(new URL(...))`, never an import.
 
 ## What enforces each rule
 
-| Rule                                                                        | Enforced by                                                                                                                                               |
-| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| No code comments (except linked outside facts)                              | `seqno/no-comments` (oxlint, `pnpm lint`)                                                                                                                 |
-| No `useEffect` family                                                       | `seqno/no-use-effect` (oxlint)                                                                                                                            |
-| No `as` casts except `as const`                                             | `seqno/no-as-cast` (oxlint)                                                                                                                               |
-| No `any`                                                                    | `seqno/no-any` (oxlint) and `strict` tsconfig (`noImplicitAny`)                                                                                           |
-| Dependency rule between packages                                            | `seqno/import-boundaries` (oxlint)                                                                                                                        |
-| Relative imports stay inside their package                                  | `seqno/import-boundaries` (oxlint)                                                                                                                        |
-| Every package folder is in the repo map                                     | `seqno/import-boundaries` (oxlint)                                                                                                                        |
-| No `!` non-null assertions                                                  | `typescript/no-non-null-assertion` (oxlint)                                                                                                               |
-| No `@ts-ignore` / `@ts-expect-error`                                        | `seqno/no-comments` and `typescript/ban-ts-comment` (oxlint)                                                                                              |
-| No lint-disable escape hatches                                              | `tools/lint/src/directives.ts` (runs in `pnpm lint`)                                                                                                      |
-| Logseq's names come only from `@seqno/dom`                                  | `seqno/logseq-names` (oxlint)                                                                                                                             |
-| No import cycles                                                            | `import/no-cycle` (oxlint)                                                                                                                                |
-| Strict types, checked index access                                          | `tsconfig.base.json` (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)                                                                 |
-| Erasable TypeScript only (no enums, namespaces)                             | `tsconfig.base.json` (`erasableSyntaxOnly`)                                                                                                               |
-| Formatting                                                                  | oxfmt (`oxfmt --check` in `pnpm check`)                                                                                                                   |
-| Schema at boundaries, services and Layers, exhaustive matching, branded ids | Types: `@seqno/domain` and `@seqno/rpc` only expose Schemas and branded types, so unbranded or undecoded data does not typecheck. Review covers the rest. |
-| Tests compare literal values                                                | Review                                                                                                                                                    |
-| One blessed way                                                             | This file and review                                                                                                                                      |
+| Rule | Enforced by |
+| --- | --- |
+| The side rules above | `no-restricted-imports` overrides in `oxlint.config.ts`, tested in `tools/lint/test/config.test.ts` |
+| Undeclared packages can't be imported | pnpm's strict `node_modules` |
+| Relative imports stay inside their package | `rootDir: "."` in each package's `tsconfig.json` |
+| No comments, except an https:// link, a `SAFETY:` line, or a lint directive with its reason after `--` | `no-comments/no-comments` |
+| No `useEffect` family | `no-restricted-imports` (react) |
+| No `as` (only `as const`), no `any`, no `!` | `typescript/consistent-type-assertions` (never), `no-explicit-any`, `no-non-null-assertion` |
+| Logseq's names come only from `@seqno/dom` | `seqno/logseq-names` |
+| Strict types, erasable syntax only | `tsconfig.base.json` |
+| The rest of the house style | Ultracite core, react, vitest and anti-slop presets, anti-slop's Effect rules |
 
-Every lint message says how to fix the problem. Do not weaken a rule in `.oxlintrc.json` or add nested lint configs; if a rule blocks real work, report it.
+## Judgment calls
 
-## Shared contract
-
-`@seqno/domain` holds the shared contract. Code against these names:
-
-- `BlockId`, `PageId` (UUIDv7, branded), `DeviceId` (filename-safe ASCII, branded). Mint ids with `newBlockId` / `newPageId` (need the Effect `Crypto` service).
-- `Block { id, pageId, parentId: BlockId | null, text, collapsed, props }`. Sibling order comes from the Loro tree, not a field.
-- `Page { id, name, title, journalDay: number | null, props }`. `name` is `normalizePageName(title)`: NFC, trimmed, lowercase.
-- `Command`: `CreatePage, RenamePage, DeletePage, InsertBlock, InsertBlocks, EditText, SplitBlock, MergeWithPrevious, Indent, Outdent, MoveBlocks, DeleteBlocks, SetCollapsed, SetProperty, Undo, Redo`. `InsertBlocks` inserts a tree of `BlockDraft`s (text, props, children) in one commit.
-- `GraphEvent`: `PageUpserted, PageDeleted, BlockUpserted, BlockMoved, BlockDeleted`.
-
-`@seqno/rpc` exports `CoreRpcs`: `Attach` (stream, tells a tab its graph moved to a newer build), `OpenGraph`, `ForgetGraph` (off the list, and its saved index deleted), `Dispatch`, `DispatchAll` (several commands as one commit), `GetPages`, `GetPage`, `GetBlock`, `GetBlockByRef` (the block a `((uuid))` names, by its id or its Logseq `id::`), `WatchPage` (stream), `WatchQuery` (stream, query text through `@seqno/query`), `Search` (full text, pages and blocks), `WatchBlockRefCounts` (stream, blocks referencing each block), `WatchBlockReferences` (stream, the blocks that reference one block), `WatchChanges` (stream, the events of every committed edit). `PageRpcs` adds backlinks, page stats, `Ancestors` and `WatchReferencedPages` (names that exist only as references).
-
-If you need something the contract lacks, add it in your package and note it in that package's README.
-
-## Working in this repo
-
-- Commit with conventional-commit messages, and run `pnpm check:fast` first (seconds for most changes: `vitest --changed origin/main` runs only the tests that import what you changed). Push to main in small working steps.
-- CI is the full check: every push to main runs `pnpm check` on Node 24 and 26, the e2e flows, sync-sim seeds and the benches, sharded across machines, and a newer push cancels the older run, so the newest run covers everything landed. `scripts/ci` waits for the newest run that includes your commit and prints what failed.
-- e2e, bench and sync-sim runs take turns on a machine (`scripts/turn`, inside their package scripts), with every other project's builds and tests where `turn` is installed. Run the flows your change touches (`pnpm --filter @seqno/e2e test flows/editor.e2e.ts`) and leave the rest to CI.
-- Keep each package's README current: what it does, how to test it, known gaps.
-- `pnpm --filter @seqno/e2e test` runs the browser flows; `SEQNO_SCREENS=1` on `flows/screens.e2e.ts` refreshes `docs/screenshots`.
+- pnpm, not bun: the tests run on Vitest, the outliner's in Vitest browser mode in real Chrome, and CI runs them on Node 24 and 26.
+- `loro-crdt` stays at exactly 1.16.4 and KaTeX at 0.16.10: the iOS build reads the same Loro bytes, and Logseq 0.10.9 ships that KaTeX, which plugins extend.
+- Effect 4 differs from what models remember: `Context.Service`, `Result`, Schema v4 names. Check the installed types and https://github.com/Effect-TS/effect/blob/main/MIGRATION.md.
+- Domain data is plain readonly `_tag` unions matched exhaustively; they cross to the worker by structured clone.
+- Tests call code the way users do and compare against literal values.
+- e2e, bench and sync-sim runs take turns on a machine through `scripts/turn`; run the flows your change touches and leave the rest to CI.
