@@ -39,9 +39,7 @@ export const PageMenuItems = ({ page }: { readonly page: Page }) => {
 
   const copyUrl = () => {
     const { href } = router.buildLocation({ to: "/page/$name", params: { name: page.name } })
-    void navigator.clipboard
-      .writeText(new URL(href, window.location.origin).href)
-      .catch(() => undefined)
+    void navigator.clipboard.writeText(new URL(href, window.location.origin).href).catch(() => {})
   }
 
   return (

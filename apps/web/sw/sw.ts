@@ -72,8 +72,10 @@ const serve = (worker: ServiceWorkerGlobalScope) => {
   const shellFile = async (request: Request) =>
     await ((await caches.match(request, { cacheName: shell, ignoreVary: true })) ?? fetch(request))
 
-  const navigation = async (request: Request) =>
-    await fetch(request).catch(async (error: unknown) => {
+  const navigation = async (request: Request) => {
+    try {
+      return await fetch(request)
+    } catch (error) {
       const kept = await caches.match(page, { cacheName: shell })
 
       if (kept === undefined) {
@@ -81,37 +83,33 @@ const serve = (worker: ServiceWorkerGlobalScope) => {
       }
 
       return kept
-    })
+    }
+  }
+
+  const install = async () => {
+    const cache = await caches.open(shell)
+
+    await cache.addAll([...files])
+    await worker.skipWaiting()
+  }
+
+  const activate = async () => {
+    const names = await caches.keys()
+
+    await Promise.all(
+      names
+        .filter((name) => name.startsWith(shellPrefix) && name !== shell)
+        .map(async (name) => await caches.delete(name)),
+    )
+    await worker.clients.claim()
+  }
 
   worker.addEventListener("install", (event) => {
-    event.waitUntil(
-      caches
-        .open(shell)
-        .then(async (cache) => {
-          await cache.addAll([...files])
-        })
-        .then(async () => {
-          await worker.skipWaiting()
-        }),
-    )
+    event.waitUntil(install())
   })
 
   worker.addEventListener("activate", (event) => {
-    event.waitUntil(
-      caches
-        .keys()
-        .then(
-          async (names) =>
-            await Promise.all(
-              names
-                .filter((name) => name.startsWith(shellPrefix) && name !== shell)
-                .map(async (name) => await caches.delete(name)),
-            ),
-        )
-        .then(async () => {
-          await worker.clients.claim()
-        }),
-    )
+    event.waitUntil(activate())
   })
 
   worker.addEventListener("fetch", (event) => {
@@ -145,8 +143,6 @@ const serve = (worker: ServiceWorkerGlobalScope) => {
 
     if (files.has(bare(request.url))) {
       event.respondWith(shellFile(request))
-
-      return
     }
   })
 }

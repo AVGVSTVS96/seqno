@@ -1,5 +1,5 @@
 import { RegistryContext, useAtomValue } from "@effect/atom-react"
-import { Result, Schema } from "effect"
+import { Predicate, Result, Schema } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import type { AtomRegistry } from "effect/reactivity"
 import { useContext, useId } from "react"
@@ -26,11 +26,7 @@ const configProblem = (text: string): string | null => {
     return "Failed to read file logseq/config.edn. Make sure your config is wrapped in {}. Also make sure that the characters '( { [' have their corresponding closing character ') } ]'."
   }
 
-  const edn = read.success
-
-  return edn !== null && typeof edn === "object" && edn._tag === "Map"
-    ? null
-    : "The file logseq/config.edn is not valid."
+  return Predicate.isTagged(read.success, "Map") ? null : "The file logseq/config.edn is not valid."
 }
 
 const save = (

@@ -100,7 +100,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
   const files = new URLSearchParams({ plugins: pluginFiles.path, cache: pluginFiles.cache })
   void navigator.serviceWorker
     .register(`${import.meta.env.BASE_URL}sw.js?${files}`, { scope: import.meta.env.BASE_URL })
-    .catch(() => undefined)
+    .catch(() => {})
 }
 
 await Promise.allSettled([
@@ -108,7 +108,7 @@ await Promise.allSettled([
   document.fonts.load('italic 16px "Inter Variable"'),
 ])
 
-const container = document.getElementById("root")
+const container = document.querySelector("#root")
 
 if (container !== null) {
   createRoot(container).render(

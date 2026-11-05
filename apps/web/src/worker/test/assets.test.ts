@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, SubscriptionRef } from "effect"
 import { nodeStorage } from "@seqno/vault/node"
-import { makeAssetFiles } from "../assets.ts"
+import { openAssetFiles } from "../assets.ts"
 
 const graphFolder = Effect.acquireRelease(
   Effect.promise(async () => {
@@ -26,7 +26,7 @@ const graphFolder = Effect.acquireRelease(
 const filesOf = (root: string, wrote?: (paths: readonly string[]) => Effect.Effect<void>) => {
   const storage = nodeStorage(root)
 
-  return makeAssetFiles(
+  return openAssetFiles(
     storage,
     (path) => Effect.map(storage.read(path), (bytes) => new File([new Uint8Array(bytes)], path)),
     wrote,

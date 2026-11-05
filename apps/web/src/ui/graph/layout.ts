@@ -70,7 +70,9 @@ const startOf = (scene: Scene, linked: readonly number[], seed: ReadonlyMap<stri
           (scene.nodes[right]?.degree ?? 0) - (scene.nodes[left]?.degree ?? 0) ||
           left - right,
       )
-      .forEach((node, rank) => starts.set(node, spiral(rank)))
+      .forEach((node, rank) => {
+        starts.set(node, spiral(rank))
+      })
   }
 
   for (const node of linked) {
@@ -125,15 +127,9 @@ export const startLayout = (scene: Scene, { linkDistance, seed }: LayoutOptions)
 
   const bodies: readonly Body[] = linked.map((node) => {
     const start = starts.get(node) ?? spiral(node)
-    const root = scene.nodes[node]?.root === true
+    const body: Body = { node, radius: scene.nodes[node]?.radius ?? 4, x: start.x, y: start.y }
 
-    return {
-      node,
-      radius: scene.nodes[node]?.radius ?? 4,
-      x: start.x,
-      y: start.y,
-      ...(root ? { fx: 0, fy: 0 } : {}),
-    }
+    return scene.nodes[node]?.root === true ? { ...body, fx: 0, fy: 0 } : body
   })
 
   const bodyOf = new Map(bodies.map((body) => [body.node, body]))

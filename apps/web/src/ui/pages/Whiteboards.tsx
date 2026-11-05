@@ -40,10 +40,14 @@ export const useCreateWhiteboard = () => {
   const create = useAtomSet(createWhiteboard, { mode: "promise" })
   const navigate = useNavigate()
 
-  return () =>
-    void create(crypto.randomUUID()).then(async (name) => {
-      await navigate({ to: "/page/$name", params: { name } })
-    })
+  const createAndOpen = async () => {
+    const name = await create(crypto.randomUUID())
+    await navigate({ to: "/page/$name", params: { name } })
+  }
+
+  return () => {
+    void createAndOpen()
+  }
 }
 
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
@@ -100,7 +104,11 @@ const Card = ({
       aria-label={title}
       data-dim={selecting && !checked}
       onClick={() => {
-        selecting ? onToggle() : open()
+        if (selecting) {
+          onToggle()
+        } else {
+          open()
+        }
       }}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
@@ -154,11 +162,11 @@ export const Whiteboards = () => {
     setConfirming(false)
   }
 
-  const deleteChosen = () =>
-    void remove(chosen.map((page) => ({ _tag: "DeletePage", pageId: page.id }))).then(() => {
-      setChecked(new Set())
-      setConfirming(false)
-    })
+  const deleteChosen = async () => {
+    await remove(chosen.map((page) => ({ _tag: "DeletePage", pageId: page.id })))
+    setChecked(new Set())
+    setConfirming(false)
+  }
 
   return (
     <div className="seqno-page wb-dashboard">
@@ -170,7 +178,13 @@ export const Whiteboards = () => {
         </span>
         {chosen.length === 0 ? null : confirming ? (
           <span className="wb-dashboard-confirm">
-            <button type="button" className="wb-delete" onClick={deleteChosen}>
+            <button
+              type="button"
+              className="wb-delete"
+              onClick={() => {
+                void deleteChosen()
+              }}
+            >
               Delete {chosen.length} {chosen.length === 1 ? "whiteboard" : "whiteboards"}
             </button>
             <button
@@ -203,13 +217,13 @@ export const Whiteboards = () => {
           <span className="wb-create-caption">New whiteboard</span>
         </button>
         {sorted.map((page) => {
-          const at = times.get(page.id)
+          const at = times.get(page.id) ?? null
 
           return (
             <Card
               key={page.id}
               page={page}
-              edited={typeof at === "number" ? `Edited ${ago(at, now)}` : ""}
+              edited={at === null ? "" : `Edited ${ago(at, now)}`}
               checked={checked.has(page.id)}
               selecting={chosen.length > 0}
               onToggle={() => {

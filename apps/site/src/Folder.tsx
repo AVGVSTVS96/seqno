@@ -21,13 +21,14 @@ function write(tree: HTMLElement | null) {
     tree,
     () => {
       stop()
-      files.forEach((file, i) =>
-        animate(
+
+      for (const [i, file] of files.entries()) {
+        void animate(
           file,
           { opacity: [0, 1], transform: ["translateY(6px)", "translateY(0)"] },
           { ...spring.base, delay: (updates[i] ?? 0) * secondsPerEdit },
-        ),
-      )
+        )
+      }
     },
     { amount: 0.7 },
   )
@@ -40,6 +41,7 @@ export function Folder() {
     <figure
       className="folder"
       ref={write}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a file tree drawn as one labelled image; an <img> can't hold markup
       role="img"
       aria-label="A graph folder with Logseq's files and seqno's numbered edit files"
     >

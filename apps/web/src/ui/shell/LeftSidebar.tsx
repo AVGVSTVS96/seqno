@@ -309,7 +309,11 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
           max={leftSidebarBounds.max}
           onStart={() => {
             const app = document.querySelector<HTMLElement>(".app")
-            app?.setAttribute("data-resizing", "")
+
+            if (app !== null) {
+              app.dataset["resizing"] = ""
+            }
+
             const latest = { width }
 
             return {
@@ -318,7 +322,10 @@ export const LeftSidebar = ({ graph }: { readonly graph: string }) => {
                 app?.style.setProperty("--left-sidebar-width", `${latest.width}px`)
               },
               onEnd: () => {
-                app?.removeAttribute("data-resizing")
+                if (app !== null) {
+                  delete app.dataset["resizing"]
+                }
+
                 setWidth(latest.width)
               },
             }

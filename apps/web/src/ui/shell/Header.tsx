@@ -166,6 +166,7 @@ const NotSaved = ({ reason }: { readonly reason: string }) => {
         className="save-state is-failed"
         data-save-state="failed"
         role="alert"
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- focusable so keyboard users can open the tooltip that carries the failure reason
         tabIndex={0}
         {...hint.props}
       >
@@ -188,12 +189,7 @@ const SaveStatus = () =>
     {
       Saved: () => <span className="save-state" data-save-state="saved" />,
       Unsaved: () => (
-        <span
-          className="save-state is-unsaved"
-          data-save-state="unsaved"
-          role="status"
-          aria-label="Saving"
-        />
+        <output className="save-state is-unsaved" data-save-state="unsaved" aria-label="Saving" />
       ),
       Failed: ({ reason }) => <NotSaved reason={reason} />,
     },

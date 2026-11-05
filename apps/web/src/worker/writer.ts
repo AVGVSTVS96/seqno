@@ -48,7 +48,7 @@ export interface Writers {
   readonly mirrorVersion: (version: Option.Option<Version>) => Effect.Effect<void>
 }
 
-export const makeWriters = (options: {
+export const openWriters = (options: {
   readonly me: DeviceId
   readonly synced: boolean
   readonly setMirror: (claim: MirrorClaim) => Effect.Effect<void>

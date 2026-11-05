@@ -46,23 +46,24 @@ const Preview = ({ choice }: { readonly choice: ThemeChoice }) => (
 
 export const ThemeChoices = ({ labelledBy }: { readonly labelledBy: string }) => {
   const [choice, setChoice] = useAtom(theme)
+  const group = useId()
 
   return (
     <div role="radiogroup" aria-labelledby={labelledBy} className="theme-choices">
       {choices.map((option) => (
-        <button
-          key={option}
-          type="button"
-          role="radio"
-          aria-checked={choice === option}
-          className="theme-choice"
-          onClick={() => {
-            setChoice(option)
-          }}
-        >
+        <label key={option} className="theme-choice">
+          <input
+            type="radio"
+            name={group}
+            value={option}
+            checked={choice === option}
+            onChange={() => {
+              setChoice(option)
+            }}
+          />
           <Preview choice={option} />
           <span className="theme-choice-label">{option}</span>
-        </button>
+        </label>
       ))}
     </div>
   )

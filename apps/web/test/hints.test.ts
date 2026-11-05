@@ -22,7 +22,7 @@ const page = (overrides: Partial<Surroundings>): Surroundings => ({
 const overlaps = (a: Box, b: Box) =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 
-describe("placeTip", () => {
+describe(placeTip, () => {
   it("sits beside a target with nothing around it, its caret level with the target's center", () => {
     const placement = placeTip(page({}))
     expect(placement?.side).toBe("right")

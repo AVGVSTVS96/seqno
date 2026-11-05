@@ -123,7 +123,7 @@ const toggleOpenBlocks = (registry: AtomRegistry.AtomRegistry, router: Registere
 }
 
 const toggleSettings = () => {
-  const dialog = document.getElementById(settingsDialogId)
+  const dialog = document.querySelector(`#${settingsDialogId}`)
 
   if (dialog instanceof HTMLDialogElement && dialog.open) {
     dialog.close()
@@ -160,7 +160,9 @@ export const perform = (
   ToggleBrackets: () => {
     registry.set(toggleBrackets, undefined)
   },
-  ToggleHelp: () => togglePopover(helpMenuId),
+  ToggleHelp: () => {
+    togglePopover(helpMenuId)
+  },
   GoJournals: () => void router.navigate({ to: "/" }),
   GoHome: () => void router.navigate({ to: "/" }),
   GoAllPages: () => void router.navigate({ to: "/all-pages" }),

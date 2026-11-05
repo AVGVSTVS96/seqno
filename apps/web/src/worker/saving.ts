@@ -15,7 +15,7 @@ export interface SaveLog {
   readonly watch: (client: number) => Stream.Stream<SaveState>
 }
 
-export const makeSaveLog = Effect.gen(function* () {
+export const openSaveLog = Effect.gen(function* () {
   const edits = { count: 0 }
   const handled = new Map<number, number>()
 

@@ -6,8 +6,8 @@ import type { WorkerError } from "effect/workers/WorkerError"
 import { BlockId, normalizePageName } from "@seqno/domain"
 import type { Command, GraphEvent, Page } from "@seqno/domain"
 import { editRequest, pageListKey, reportRejection } from "@seqno/outliner"
-import { AssetClient, CoreClient, GitClient } from "@seqno/rpc"
-import type { AppFile, AppFilePath, Asset, SkippedFile } from "@seqno/rpc"
+import { AssetClient, CoreClient } from "@seqno/rpc"
+import type { AppFile, AppFilePath, Asset, GitClient, SkippedFile } from "@seqno/rpc"
 import { assetKey, readConfigFlag, readPropertyConfig } from "@seqno/syntax"
 import { WorkerAssets, WorkerCore, WorkerGit, attachTab } from "./core.ts"
 import { BrowserGraphLocations, DemoGraph, GraphLocations } from "./graph-locations.ts"
@@ -211,7 +211,7 @@ const bracketsKey = ":ui/show-brackets?"
 
 export const showBrackets = Atom.make((get) => readConfigFlag(get(configText), bracketsKey, true))
 
-export const toggleBrackets = appRuntime.fn((_: void, get) =>
+export const toggleBrackets = appRuntime.fn((_, get) =>
   Effect.flatMap(Effect.service(CoreClient), (core) =>
     core.SetConfigFlag({ key: bracketsKey, value: !get(showBrackets) }),
   ),
@@ -331,18 +331,21 @@ export const favorites = Atom.make((get): readonly Page[] => {
 
 export const toggleFavorite = Atom.writable(
   () => null,
-  (ctx, name: string) =>
-    Option.map(
-      openedGraph((atom) => ctx.get(atom)),
-      (graph) => {
-        const all = ctx.get(favoriteNames)
-        const mine = all[graph] ?? []
-        ctx.set(favoriteNames, {
-          ...all,
-          [graph]: mine.includes(name) ? mine.filter((other) => other !== name) : [...mine, name],
-        })
-      },
-    ),
+  (ctx, name: string) => {
+    const graph = openedGraph((atom) => ctx.get(atom))
+
+    if (Option.isNone(graph)) {
+      return
+    }
+
+    const all = ctx.get(favoriteNames)
+    const mine = all[graph.value] ?? []
+
+    ctx.set(favoriteNames, {
+      ...all,
+      [graph.value]: mine.includes(name) ? mine.filter((other) => other !== name) : [...mine, name],
+    })
+  },
 )
 
 export const pageNamed = Atom.family((name: string) =>

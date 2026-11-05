@@ -36,15 +36,10 @@ export const todaysJournal = (graph: Graph["Service"], format?: "org") =>
 
     const pageId = yield* newPageId
 
+    const page = { id: pageId, name, title, journalDay: today, props: {} }
+
     const journal: PageTree = {
-      page: {
-        id: pageId,
-        name,
-        title,
-        journalDay: today,
-        props: {},
-        ...(format === undefined ? {} : { format }),
-      },
+      page: format === undefined ? page : { ...page, format },
       blocks: [
         { id: yield* newBlockId, pageId, parentId: null, text: "", collapsed: false, props: {} },
       ],

@@ -136,7 +136,7 @@ const Picture = ({
       pageId={pageId}
       zoom={zoom}
       embedded
-      onNavigate={() => undefined}
+      onNavigate={() => {}}
       editor={PlainTextEditor}
       resolveAsset={resolveAsset}
     />
@@ -205,8 +205,8 @@ const Options = ({ kind }: { readonly kind: BlockFormat }) => {
   const [removed, setRemoved] = useAtom(removals)
   const [newline, setNewline] = useAtom(newlineAfterBlock)
   const [upTo, setUpTo] = useAtom(level)
-  const indentLabel = useId()
-  const levelLabel = useId()
+  const indentSelect = useId()
+  const levelSelect = useId()
 
   const removal = (key: Removal, label: string) => (
     <Check
@@ -222,9 +222,9 @@ const Options = ({ kind }: { readonly kind: BlockFormat }) => {
     <div className="export-dialog-options">
       {kind === "text" ? (
         <div className="export-dialog-row">
-          <label id={indentLabel}>Indentation style:</label>
+          <label htmlFor={indentSelect}>Indentation style:</label>
           <select
-            aria-labelledby={indentLabel}
+            id={indentSelect}
             value={indent}
             onChange={(event) => {
               const value = event.currentTarget.value
@@ -252,9 +252,9 @@ const Options = ({ kind }: { readonly kind: BlockFormat }) => {
         </div>
       ) : null}
       <div className="export-dialog-row">
-        <label id={levelLabel}>level &lt;=</label>
+        <label htmlFor={levelSelect}>level &lt;=</label>
         <select
-          aria-labelledby={levelLabel}
+          id={levelSelect}
           value={upTo === null ? "all" : String(upTo)}
           onChange={(event) => {
             const value = event.currentTarget.value
@@ -312,40 +312,46 @@ const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
       ? await pictureOf(picture.current)
       : await Promise.resolve(text === null ? null : new Blob([text], { type: typeOf[kind] }))
 
-  const copy = () => {
+  const clipboardItem = () => {
     if (kind === "png") {
-      void navigator.clipboard
-        .write([new ClipboardItem({ "image/png": blob().then((png) => png ?? new Blob()) })])
-        .then(() => {
-          setCopied(true)
-        })
-        .catch(() => undefined)
-
-      return
+      return new ClipboardItem({ "image/png": blob().then((png) => png ?? new Blob()) })
     }
 
-    if (text === null) {
-      return
+    const types = kind === "html" ? ["text/plain", "text/html"] : ["text/plain"]
+
+    return text === null
+      ? null
+      : new ClipboardItem(
+          Object.fromEntries(types.map((type) => [type, new Blob([text], { type })])),
+        )
+  }
+
+  const write = async (item: ClipboardItem) => {
+    await navigator.clipboard.write([item])
+    setCopied(true)
+  }
+
+  const copy = () => {
+    const item = clipboardItem()
+
+    if (item !== null) {
+      write(item).catch(() => {})
     }
+  }
 
-    const items: Record<string, Blob> = { "text/plain": new Blob([text], { type: "text/plain" }) }
+  const saveFile = async () => {
+    const file = await blob()
+    const stamp = request.target._tag === "Page" ? request.name : new Date().toISOString()
 
-    if (kind === "html") {
-      items["text/html"] = new Blob([text], { type: "text/html" })
+    if (file !== null) {
+      save(file, fileName(stamp, extensionOf[kind]))
     }
-
-    void navigator.clipboard
-      .write([new ClipboardItem(items)])
-      .then(() => {
-        setCopied(true)
-      })
-      .catch(() => undefined)
   }
 
   return (
     <>
       <div className="export-dialog-head">
-        <div className="export-dialog-formats" role="group" aria-label="Format">
+        <fieldset className="export-dialog-formats" aria-label="Format">
           {(request.shapes === undefined ? formats : []).map(([value, label]) => (
             <button
               key={value}
@@ -360,7 +366,7 @@ const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
               {label}
             </button>
           ))}
-        </div>
+        </fieldset>
         <button
           type="button"
           aria-label="Close"
@@ -410,15 +416,9 @@ const ExportBody = ({ request }: { readonly request: ExportRequest }) => {
         <button
           type="button"
           className="button-primary"
-          onClick={() =>
-            void blob().then((file) => {
-              const stamp = request.target._tag === "Page" ? request.name : new Date().toISOString()
-
-              if (file !== null) {
-                save(file, fileName(stamp, extensionOf[kind]))
-              }
-            })
-          }
+          onClick={() => {
+            void saveFile()
+          }}
         >
           Save to file
         </button>
@@ -435,6 +435,7 @@ export const ExportDialog = () => {
   }
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop light dismiss; the native dialog closes on Escape and closedby has no Safari support
     <dialog
       className="dialog export-dialog"
       aria-label="Export"
@@ -501,7 +502,11 @@ export const GraphExportDialog = () => {
   const busy = AsyncResult.isWaiting(running) || AsyncResult.isWaiting(publishing)
 
   const choose = (kind: GraphChoice) => {
-    kind === "public-pages" ? publish() : run(kind)
+    if (kind === "public-pages") {
+      publish()
+    } else {
+      run(kind)
+    }
   }
 
   return (

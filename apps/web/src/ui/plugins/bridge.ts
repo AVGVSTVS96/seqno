@@ -43,7 +43,7 @@ export const routeOf = (path: string): Route => {
   return { _tag: "Other", path }
 }
 
-export const makeBridge = (
+export const appBridge = (
   registry: AtomRegistry.AtomRegistry,
   router: typeof appRouter,
 ): Bridge => {
@@ -138,11 +138,11 @@ export const makeBridge = (
             item: { _tag: "Block", blockId: target.blockId },
           })
 
-          return
+          break
         }
 
         case "Other": {
-          return
+          break
         }
       }
     },
@@ -167,10 +167,11 @@ export const makeBridge = (
     editBlock: (blockId, caret) => {
       registry.set(editRequest, { blockId, caret: caret ?? 0 })
     },
-    exitEditing: () =>
+    exitEditing: () => {
       editingBlock()?.view.contentDOM.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
-      ),
+      )
+    },
     selectedBlocks: () =>
       [...document.querySelectorAll('[role="treeitem"][aria-selected="true"]')].flatMap((element) =>
         element instanceof HTMLElement ? Option.toArray(blockIdOf(element.dataset["blockId"])) : [],

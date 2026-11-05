@@ -2,7 +2,7 @@ import { logseq } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import { IconAdjustmentsHorizontal, IconHistory, IconKeyboard, IconX } from "@tabler/icons-react"
 import { Link } from "@tanstack/react-router"
-import { Option } from "effect"
+import { Match, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { useId } from "react"
 import type { ReactNode } from "react"
@@ -145,7 +145,12 @@ export const Settings = () => {
           <IconX size={18} aria-hidden />
         </button>
         <h2 className="settings-panel-title">{title}</h2>
-        {tab === "general" ? <General /> : tab === "keymap" ? <ShortcutList /> : <VersionControl />}
+        {Match.value(tab).pipe(
+          Match.when("general", () => <General />),
+          Match.when("keymap", () => <ShortcutList />),
+          Match.when("version-control", () => <VersionControl />),
+          Match.exhaustive,
+        )}
       </div>
     </Dialog>
   )

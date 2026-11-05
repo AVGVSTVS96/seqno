@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect"
+import { Effect, Match, Option, Schema } from "effect"
 import { BlockId, normalizePageName } from "@seqno/domain"
 import type { Command, PageId, PropertyTarget, Props } from "@seqno/domain"
 import { renameInProperty, renameRefs } from "@seqno/syntax"
@@ -56,7 +56,7 @@ SELECT b.id FROM blocks b WHERE instr(lower(b.content), ?1) > 0
 UNION SELECT b.id FROM props p JOIN blocks b ON b.rid = p.block WHERE instr(lower(p.value), ?1) > 0`
 
 const spansOf = (text: string, needle: string) =>
-  [...text.matchAll(new RegExp(needle.replaceAll(/[()]/gu, "\\$&"), "gi"))].map(
+  [...text.matchAll(new RegExp(needle.replaceAll(/[()]/gu, "\\$&"), "giu"))].map(
     (match) => match.index,
   )
 
@@ -89,18 +89,20 @@ const blockRefEdits = (session: Session, blockId: BlockId) =>
       )
 
     return [
-      ...blocks
-        .filter((block) => block.id !== blockId)
-        .flatMap((block) => [
-          ...spansOf(block.text, from).map((at): Command => ({
-            _tag: "EditText",
-            blockId: block.id,
-            from: at,
-            to: at + from.length,
-            insert: to,
-          })),
-          ...propertyRefs({ _tag: "BlockTarget", blockId: block.id }, block.props),
-        ]),
+      ...blocks.flatMap((block) =>
+        block.id === blockId
+          ? []
+          : [
+              ...spansOf(block.text, from).map((at): Command => ({
+                _tag: "EditText",
+                blockId: block.id,
+                from: at,
+                to: at + from.length,
+                insert: to,
+              })),
+              ...propertyRefs({ _tag: "BlockTarget", blockId: block.id }, block.props),
+            ],
+      ),
       ...pages.flatMap((page) => propertyRefs({ _tag: "PageTarget", pageId: page.id }, page.props)),
     ]
   })
@@ -109,11 +111,15 @@ export const withReferenceEdits = (
   session: Session,
   command: Command,
 ): Effect.Effect<readonly Command[]> =>
-  command._tag === "RenamePage"
-    ? Effect.map(referenceEdits(session, command.pageId, command.title), (edits) => [
-        command,
+  Match.value(command).pipe(
+    Match.tag("RenamePage", (rename) =>
+      Effect.map(referenceEdits(session, rename.pageId, rename.title), (edits) => [
+        rename,
         ...edits,
-      ])
-    : command._tag === "MergeWithPrevious"
-      ? Effect.map(blockRefEdits(session, command.blockId), (edits) => [command, ...edits])
-      : Effect.succeed([command])
+      ]),
+    ),
+    Match.tag("MergeWithPrevious", (merge) =>
+      Effect.map(blockRefEdits(session, merge.blockId), (edits) => [merge, ...edits]),
+    ),
+    Match.orElse(() => Effect.succeed([command])),
+  )

@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option, Queue, Stream, SubscriptionRef } from "effect"
 import { nodeStorage } from "@seqno/vault/node"
-import { makeAppFiles } from "../files.ts"
+import { openAppFiles } from "../files.ts"
 
 const graphFolder = Effect.acquireRelease(
   Effect.promise(async () => {
@@ -24,7 +24,7 @@ const graphFolder = Effect.acquireRelease(
 describe("a graph's logseq/ files", () => {
   it.effect("lists the ones the graph has, in Logseq's order", () =>
     Effect.gen(function* () {
-      const files = yield* makeAppFiles(nodeStorage(yield* graphFolder), Stream.empty)
+      const files = yield* openAppFiles(nodeStorage(yield* graphFolder), Stream.empty)
       assert.deepStrictEqual(yield* SubscriptionRef.get(files.listed), [
         { path: "logseq/config.edn", text: "{:meta/version 1}\n" },
         { path: "logseq/custom.css", text: ".ls-block { color: red }\n" },
@@ -35,7 +35,7 @@ describe("a graph's logseq/ files", () => {
   it.effect("writes a file to the folder and lists its new text", () =>
     Effect.gen(function* () {
       const root = yield* graphFolder
-      const files = yield* makeAppFiles(nodeStorage(root), Stream.empty)
+      const files = yield* openAppFiles(nodeStorage(root), Stream.empty)
       yield* files.write({ path: "logseq/export.css", text: "h1 { margin: 0 }\n" })
       assert.strictEqual(
         yield* Effect.promise(
@@ -54,7 +54,7 @@ describe("a graph's logseq/ files", () => {
     Effect.gen(function* () {
       const root = yield* graphFolder
       const changes = yield* Queue.unbounded<readonly string[]>()
-      const files = yield* makeAppFiles(nodeStorage(root), Stream.fromQueue(changes))
+      const files = yield* openAppFiles(nodeStorage(root), Stream.fromQueue(changes))
       yield* Effect.promise(async () => {
         await writeFile(join(root, "logseq", "custom.css"), ".ls-block { color: blue }\n")
       })

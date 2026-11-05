@@ -26,7 +26,7 @@ const actionsOf = (presses: readonly KeyPress[]) =>
     { state: idle, actions: [] },
   ).actions
 
-const typed = (text: string) => actionsOf([...text].map((key) => press(key)))
+const typed = (text: string) => actionsOf(Array.from(text, (key) => press(key)))
 
 describe("shell shortcuts", () => {
   it("runs Logseq's two-key sequences", () => {
@@ -114,7 +114,7 @@ describe("recent pages", () => {
   it("keeps the 15 most recent pages", () => {
     const fifteen = Array.from({ length: 15 }, (_, index) => `page ${index}`)
     const next = remember(fifteen, "new page")
-    expect(next.length).toBe(15)
+    expect(next).toHaveLength(15)
     expect(next[0]).toBe("new page")
     expect(next.at(-1)).toBe("page 13")
   })

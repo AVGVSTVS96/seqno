@@ -1,7 +1,7 @@
 import { logseq } from "@seqno/dom"
 import { useAtomSet } from "@effect/atom-react"
 import { useMatchRoute, useNavigate } from "@tanstack/react-router"
-import { Cause, Exit } from "effect"
+import { Cause, Exit, Option } from "effect"
 import { useState } from "react"
 import type { MouseEvent } from "react"
 import { normalizePageName } from "@seqno/domain"
@@ -24,13 +24,13 @@ const caretAt = (event: MouseEvent<HTMLElement>, fallback: number) => {
     : fallback
 }
 
-const problemOf = (cause: Cause.Cause<unknown>) => {
-  const error = Cause.squash(cause)
+const renameFailed = "The page could not be renamed."
 
-  return typeof error === "object" && error !== null && "reason" in error
-    ? String(error.reason)
-    : "The page could not be renamed."
-}
+const problemOf = <E extends object>(cause: Cause.Cause<E>) =>
+  Option.match(Cause.findErrorOption(cause), {
+    onSome: (error) => ("reason" in error ? String(error.reason) : renameFailed),
+    onNone: () => renameFailed,
+  })
 
 export const PageTitle = ({
   page,
@@ -56,6 +56,7 @@ export const PageTitle = ({
 
   if (link) {
     return (
+      // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the right-click page menu covers the whole Logseq page-title heading
       <h1 id={id} {...logseq("seqno-page-title")} onContextMenu={onContextMenu}>
         <PageLink page={page} className={logseq("seqno-page-title-link").className} />
       </h1>
@@ -93,10 +94,12 @@ export const PageTitle = ({
 
   if (draft === null) {
     return (
+      // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- click-to-edit keeps Logseq's page-title heading; Enter opens the editor from the keyboard
       <h1
         id={id}
         {...logseq("seqno-page-title")}
         data-editable={editable}
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the editable title is focusable so Enter can open the editor
         tabIndex={editable ? 0 : undefined}
         onContextMenu={onContextMenu}
         onClick={(event) => {
@@ -113,7 +116,7 @@ export const PageTitle = ({
       >
         <span {...logseq("seqno-page-title-sizer")}>
           <span {...logseq("seqno-page-title-text", page.name)}>
-            {hls ? <a className="seqno-asset">{assetPageName(page.title)}</a> : page.title}
+            {hls ? <span className="seqno-asset">{assetPageName(page.title)}</span> : page.title}
           </span>
         </span>
       </h1>

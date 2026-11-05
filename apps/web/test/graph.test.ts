@@ -63,7 +63,8 @@ describe("graph model", () => {
       scene.nodes.map((n) => n.degree),
       [3, 1, 2, 2, 0],
     )
-    const [garden, , , , alone] = scene.nodes
+    const garden = scene.nodes[0]
+    const alone = scene.nodes[4]
     assert.isTrue((garden?.radius ?? 0) > (alone?.radius ?? 0))
   })
 

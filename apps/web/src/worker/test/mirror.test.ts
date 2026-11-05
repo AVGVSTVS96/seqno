@@ -109,6 +109,24 @@ const copyOf = (name: string) =>
     }),
   )
 
+const isMissing = (error: unknown): error is Error =>
+  error instanceof Error && "code" in error && error.code === "ENOENT"
+
+const pageFile = async (
+  root: string,
+  path: string,
+): Promise<ReadonlyArray<readonly [string, string]>> => {
+  try {
+    return [[path, await readFile(join(root, path), "utf-8")]]
+  } catch (error) {
+    if (isMissing(error)) {
+      return []
+    }
+
+    throw error
+  }
+}
+
 const pageFiles = (root: string) =>
   Effect.promise(async () => {
     const entries = await readdir(root, { recursive: true, withFileTypes: true })
@@ -119,18 +137,7 @@ const pageFiles = (root: string) =>
       .filter((path) => /^(journals|pages|whiteboards|logseq)\//u.test(path))
       .toSorted()
 
-    const read = await Promise.all(
-      files.map(
-        async (path) =>
-          await readFile(join(root, path), "utf-8").then(
-            (text) => [[path, text]],
-            (error: unknown) =>
-              error instanceof Error && "code" in error && error.code === "ENOENT"
-                ? []
-                : Promise.reject(error),
-          ),
-      ),
-    )
+    const read = await Promise.all(files.map(async (path) => await pageFile(root, path)))
 
     return Object.fromEntries(read.flat())
   })
@@ -225,9 +232,7 @@ const onPhone = (root: string, edit: (graph: Graph["Service"]) => Effect.Effect<
 const share = (from: string, to: string) =>
   Effect.promise(async () => {
     for (const dir of ["updates", "snapshots", "seen"]) {
-      await cp(join(from, dir), join(to, dir), { recursive: true, force: false }).catch(
-        () => undefined,
-      )
+      await cp(join(from, dir), join(to, dir), { recursive: true, force: false }).catch(() => null)
     }
   })
 
@@ -313,7 +318,7 @@ describe("the markdown mirror", () => {
             {
               left: Option.map(status, (found) => found.left.map((file) => file.path)),
               changed: files.filter((file) => after[file.path] !== file.text).map((f) => f.path),
-              namespaced: files.filter((file) => file.path.includes("___")).length > 0,
+              namespaced: files.some((file) => file.path.includes("___")),
             },
             { left: Option.some(nothing), changed: nothing, namespaced: true },
           )
@@ -403,7 +408,7 @@ describe("the markdown mirror", () => {
             const reread = yield* folderWith(
               Object.fromEntries(
                 Object.entries(files).flatMap(([path, text]) =>
-                  path.startsWith("pages/") ? [[path, String(text)]] : [],
+                  path.startsWith("pages/") ? [[path, text]] : [],
                 ),
               ),
             )
@@ -425,9 +430,9 @@ describe("the markdown mirror", () => {
             assert.deepStrictEqual(
               {
                 left: Option.map(status, (found) => found.left.map((file) => file.path)),
-                existing: files[existing],
+                existing: files[existing] ?? "",
                 written: Object.fromEntries(
-                  Object.keys(written).map((path) => [path, files[path]]),
+                  Object.keys(written).map((path) => [path, files[path] ?? ""]),
                 ),
                 titles,
               },
@@ -1034,9 +1039,9 @@ describe("the markdown mirror", () => {
             (found) => found?.paused !== null && found?.paused !== undefined,
           )
 
-          const titles = (yield* core.GetPages()).map((page) => page.title)
+          const titles = new Set((yield* core.GetPages()).map((page) => page.title))
           assert.deepStrictEqual(
-            { paused: status?.paused, kept: ["a", "b"].map((title) => titles.includes(title)) },
+            { paused: status?.paused, kept: ["a", "b"].map((title) => titles.has(title)) },
             {
               paused:
                 "seqno stopped writing Logseq's files: the folder pages is gone, which looks like the graph's folder moved or isn't available. Nothing in seqno was deleted.",

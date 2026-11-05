@@ -3,7 +3,6 @@ import {
   Clock,
   Context,
   Crypto,
-  Deferred,
   Schedule,
   Effect,
   Exit,
@@ -40,22 +39,23 @@ import {
 import type { SkippedFile } from "@seqno/rpc"
 import { Storage, Vault, layer as vaultLayer } from "@seqno/vault"
 import type { StorageFailed } from "@seqno/vault"
-import { makeAssetFiles } from "./assets.ts"
+import { openAssetFiles } from "./assets.ts"
 import type { AssetFiles } from "./assets.ts"
-import { makeAppFiles } from "./files.ts"
+import { openAppFiles } from "./files.ts"
 import type { AppFiles } from "./files.ts"
 import { openGit } from "./git.ts"
 import type { GraphGit } from "./git.ts"
 import { todaysJournal } from "./journal.ts"
 import { hasEditLog, openEditLog, removeFiles } from "./layout.ts"
-import { makeMergeBack } from "./merge-back.ts"
-import { makeMirror } from "./mirror.ts"
-import type { Mirror } from "./mirror.ts"
-import { makeSaveLog } from "./saving.ts"
+import { openMergeBack } from "./merge-back.ts"
+import { openMirror } from "./mirror.ts"
+import type { Mirror, MirrorDeps } from "./mirror.ts"
+import { openSaveLog } from "./saving.ts"
 import type { SaveLog } from "./saving.ts"
-import { makeWriters, outweighed, staleSince } from "./writer.ts"
+import { openWriters, outweighed, staleSince } from "./writer.ts"
 import { Device, layerFolder } from "./place.ts"
 import type { GraphPlace, Starter } from "./place.ts"
+import { hasReason } from "./reason.ts"
 
 export interface Committed {
   readonly events: readonly GraphEvent[]
@@ -108,12 +108,8 @@ const refsOf = (event: GraphEvent): readonly string[] =>
     ? [event.block.text, ...Object.values(event.block.props)].flatMap(refsIn)
     : []
 
-const reasonOf = (error: unknown): string =>
-  typeof error === "object" && error !== null && "reason" in error
-    ? String(error.reason)
-    : error instanceof Error
-      ? error.message
-      : String(error)
+const reasonOf = (cause: unknown): string =>
+  hasReason(cause) ? String(cause.reason) : cause instanceof Error ? cause.message : String(cause)
 
 const serviceOf = <I, S, E, R>(tag: Context.Key<I, S>, layer: Layer.Layer<I, E, R>) =>
   Effect.map(Layer.build(layer), (context) => Context.get(context, tag))
@@ -209,7 +205,7 @@ export const openSession = (place: GraphPlace) =>
     const peer = yield* newPeerId
     const touched = yield* SubscriptionRef.make<Touched>(new Set())
     const changes = yield* PubSub.unbounded<Committed>()
-    const saving = yield* makeSaveLog
+    const saving = yield* openSaveLog
     const unsaved = yield* Latch.make(false)
     const filling = { running: false, marked: false }
 
@@ -303,7 +299,11 @@ export const openSession = (place: GraphPlace) =>
                   filling.running ? index.owe([...pages], Effect.succeed([])) : Effect.fail(error),
                 ),
               )
-            pages.forEach((page) => sinceSave.pages.add(page))
+
+            for (const page of pages) {
+              sinceSave.pages.add(page)
+            }
+
             yield* SubscriptionRef.set(touched, pages)
             yield* PubSub.publish(changes, { events, client, pages })
             yield* saving.edited
@@ -579,7 +579,7 @@ export const openSession = (place: GraphPlace) =>
       }
     })
 
-    const writers = yield* makeWriters({
+    const writers = yield* openWriters({
       me: device,
       synced: place.synced,
       setMirror: vault.setMirror,
@@ -592,7 +592,7 @@ export const openSession = (place: GraphPlace) =>
       return only !== undefined && rest.length === 0 ? only.peer : null
     })
 
-    const gaveWay = yield* Deferred.make<void>()
+    const gaveWay = yield* Latch.make(false)
     const synced = yield* vault.sync(replica)
     yield* writers.heard(synced, yield* lineage)
     const skipped: SkippedFile[] = []
@@ -630,8 +630,8 @@ export const openSession = (place: GraphPlace) =>
     const git =
       place.git === undefined ? null : yield* openGit(yield* place.git, place.storage, mayWrite)
 
-    const assets = yield* makeAssetFiles(place.storage, place.file, git?.touched)
-    const appFiles = yield* makeAppFiles(place.storage, place.changed, git?.touched)
+    const assets = yield* openAssetFiles(place.storage, place.file, git?.touched)
+    const appFiles = yield* openAppFiles(place.storage, place.changed, git?.touched)
     yield* Effect.forkScoped(
       Effect.forever(
         Effect.gen(function* () {
@@ -685,9 +685,9 @@ export const openSession = (place: GraphPlace) =>
       return Option.map(yield* graph.origin, (origin) => Object.fromEntries(origin))
     })
 
-    const mergeBack = makeMergeBack({ graph, record, blocks, synced: place.synced, baseVersion })
+    const mergeBack = openMergeBack({ graph, record, blocks, synced: place.synced, baseVersion })
 
-    const mirrored = yield* makeMirror({
+    const mirrorDeps: MirrorDeps = {
       graph,
       index,
       storage: place.storage,
@@ -700,8 +700,11 @@ export const openSession = (place: GraphPlace) =>
       writer: Effect.map(SubscriptionRef.get(writers.state), (state) => state.writer),
       outside: (change) => Effect.provideService(mergeBack(change), Crypto.Crypto, crypto),
       baseVersion,
-      ...(git === null ? {} : { wrote: git.touched }),
-    })
+    }
+
+    const mirrored = yield* openMirror(
+      git === null ? mirrorDeps : { ...mirrorDeps, wrote: git.touched },
+    )
 
     yield* Effect.forkScoped(
       Stream.runForEach(place.changed, (paths) =>
@@ -752,7 +755,7 @@ export const openSession = (place: GraphPlace) =>
           schedule: Schedule.spaced("200 millis"),
         })
         yield* place.mirrorStore.clear
-        yield* Deferred.succeed(gaveWay, undefined)
+        yield* gaveWay.open
 
         return
       }
@@ -791,7 +794,7 @@ export const openSession = (place: GraphPlace) =>
         ),
       mirror: mirrored.mirror,
       writeFilesHere: Effect.andThen(writers.takeOver, syncPass),
-      gaveWay: Deferred.await(gaveWay),
+      gaveWay: gaveWay.await,
       closing: saveIndexNow,
       git,
     }

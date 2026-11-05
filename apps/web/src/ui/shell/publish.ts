@@ -112,15 +112,16 @@ const download = (bytes: Uint8Array, name: string) => {
   URL.revokeObjectURL(link.href)
 }
 
+const hasReason = (error: unknown): error is { readonly reason: unknown } =>
+  typeof error === "object" && error !== null && "reason" in error
+
 export const reasonOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
 
-  return typeof error === "object" && error !== null && "reason" in error
-    ? String(error.reason)
-    : String(error)
+  return hasReason(error) ? String(error.reason) : String(error)
 }
 
-export const publishPages = viewRuntime.fn((_: void, get) =>
+export const publishPages = viewRuntime.fn((_, get) =>
   Effect.gen(function* () {
     const graph = Option.match(AsyncResult.value(get(openGraph)), {
       onNone: () => "graph",
@@ -158,20 +159,20 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
     const pageReferences = yield* Effect.forEach(
       chosen,
       ({ page }) =>
-        Effect.map(first(pagesClient.WatchReferences({ pageId: page.id }), []), (found) => [
-          page.name,
-          publishedReferences(chosen, found),
-        ]),
+        Effect.map(
+          first(pagesClient.WatchReferences({ pageId: page.id }), []),
+          (found) => [page.name, publishedReferences(chosen, found)] as const,
+        ),
       { concurrency: 8 },
     )
 
     const nameReferences = yield* Effect.forEach(
       linked,
       ({ name }) =>
-        Effect.map(first(pagesClient.WatchNameReferences({ name }), []), (found) => [
-          name,
-          publishedReferences(chosen, found),
-        ]),
+        Effect.map(
+          first(pagesClient.WatchNameReferences({ name }), []),
+          (found) => [name, publishedReferences(chosen, found)] as const,
+        ),
       { concurrency: 8 },
     )
 
@@ -224,7 +225,7 @@ export const publishPages = viewRuntime.fn((_: void, get) =>
       assets.flat(),
     )
 
-    if (typeof window.showDirectoryPicker !== "function") {
+    if (!("showDirectoryPicker" in window)) {
       const seconds = Math.floor((yield* Clock.currentTimeMillis) / 1000)
       const folder = `${graph}_public_${seconds}`
       yield* Effect.sync(() => {

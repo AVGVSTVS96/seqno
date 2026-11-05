@@ -156,18 +156,19 @@ const MarketCard = ({ item }: { readonly item: MarketItem }) => {
   const installed = useAtomValue(installedPlugins).some((plugin) => plugin.id === item.id)
   const [busy, setBusy] = useState(false)
 
-  const add = () => {
+  const add = async () => {
     setBusy(true)
-    install(registry, item)
-      .catch((error: unknown) => {
-        notify(
-          registry,
-          `${item.title} couldn't be installed: ${error instanceof Error ? error.message : String(error)}`,
-        )
-      })
-      .finally(() => {
-        setBusy(false)
-      })
+
+    try {
+      await install(registry, item)
+    } catch (error) {
+      notify(
+        registry,
+        `${item.title} couldn't be installed: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+
+    setBusy(false)
   }
 
   return (
@@ -193,7 +194,9 @@ const MarketCard = ({ item }: { readonly item: MarketItem }) => {
               type="button"
               {...logseq("plugin-card-button", { disabled: installed || busy, busy })}
               disabled={installed || busy}
-              onClick={add}
+              onClick={() => {
+                void add()
+              }}
             >
               {installed ? "Installed" : busy ? "Installing…" : "Install"}
             </button>
@@ -218,26 +221,26 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
   const updating = busy === plugin.id
   const coming = useAtomValue(updatesComing).find((one) => one.pid === plugin.id)
 
-  const update = () => {
+  const update = async () => {
     if (busy !== null) {
       return
     }
 
     if (coming !== undefined) {
-      return void updatePlugin(registry, plugin.id).then((result) => {
-        notifyUpdated(registry, result)
-      })
+      notifyUpdated(registry, await updatePlugin(registry, plugin.id))
+
+      return
     }
 
-    void checkUpdate(registry, plugin.id).then((checked) => {
-      if (checked?._tag === "Current") {
-        notify(registry, `<${plugin.id}> It's up to date :)`)
-      }
+    const checked = await checkUpdate(registry, plugin.id)
 
-      if (checked?._tag === "Failed") {
-        notify(registry, `[Error]<${plugin.id}> ${checked.reason}`)
-      }
-    })
+    if (checked?._tag === "Current") {
+      notify(registry, `<${plugin.id}> It's up to date :)`)
+    }
+
+    if (checked?._tag === "Failed") {
+      notify(registry, `[Error]<${plugin.id}> ${checked.reason}`)
+    }
   }
 
   return (
@@ -252,9 +255,7 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
         <>
           <div {...logseq("plugin-card-left")}>
             {status?._tag === "Failed" ? (
-              <span className="plugin-problem" role="status">
-                Didn't load
-              </span>
+              <output className="plugin-problem">Didn&apos;t load</output>
             ) : null}
             <div {...logseq("plugin-card-menu")}>
               {hasSettings ? (
@@ -286,7 +287,9 @@ const InstalledCard = ({ plugin }: { readonly plugin: PluginInfo }) => {
                 {...logseq("plugin-card-button", { disabled: updating, busy: false })}
                 aria-label={`${coming === undefined ? "Check update" : "Update"} ${plugin.title}`}
                 disabled={updating}
-                onClick={update}
+                onClick={() => {
+                  void update()
+                }}
               >
                 {updating
                   ? "Updating"
@@ -352,20 +355,21 @@ const ThemeRow = ({ entry }: { readonly entry: PluginTheme | null }) => {
 
   return (
     <li className="plugin-theme-row">
-      <button
-        type="button"
-        role="radio"
-        aria-checked={active}
-        {...logseq("plugin-theme", active)}
-        onClick={use}
-      >
+      <label {...logseq("plugin-theme", active)}>
+        <input
+          type="radio"
+          name="plugin-theme"
+          className="plugin-choice-input"
+          checked={active}
+          onChange={use}
+        />
         <span {...logseq("plugin-theme-name")}>
           {entry === null ? "Logseq default theme" : entry.name}
         </span>
         {entry?.mode === null || entry === null ? null : (
           <span className="plugin-theme-mode">{entry.mode}</span>
         )}
-      </button>
+      </label>
     </li>
   )
 }
@@ -406,7 +410,7 @@ const Installed = ({ kind, query }: { readonly kind: Kind; readonly query: strin
 const Marketplace = ({ kind, query }: { readonly kind: Kind; readonly query: string }) =>
   AsyncResult.match(useAtomValue(market), {
     onInitial: () => <p className="plugins-empty">Loading the marketplace…</p>,
-    onFailure: () => <p className="plugins-empty">The marketplace couldn't be reached.</p>,
+    onFailure: () => <p className="plugins-empty">The marketplace couldn&apos;t be reached.</p>,
     onSuccess: ({ value }) => {
       const shown = value
         .filter(
@@ -441,23 +445,23 @@ const Kinds = ({
 }) => (
   <div role="radiogroup" aria-label="Kind" className="plugins-kinds">
     {(["plugins", "themes"] as const).map((one) => (
-      <button
-        key={one}
-        type="button"
-        role="radio"
-        aria-checked={kind === one}
-        className="plugins-kind"
-        onClick={() => {
-          onKind(one)
-        }}
-      >
+      <label key={one} className="plugins-kind">
+        <input
+          type="radio"
+          name="plugins-kind"
+          className="plugin-choice-input"
+          checked={kind === one}
+          onChange={() => {
+            onKind(one)
+          }}
+        />
         {one === "plugins" ? (
           <IconPuzzle size={16} aria-hidden />
         ) : (
           <IconPalette size={16} aria-hidden />
         )}
         {one === "plugins" ? `Plugins (${plugins})` : `Themes (${themes})`}
-      </button>
+      </label>
     ))}
   </div>
 )

@@ -1,11 +1,11 @@
 import { assert, describe, it } from "@effect/vitest"
 import { Effect, Option, Stream } from "effect"
-import { makeSaveLog } from "../saving.ts"
+import { openSaveLog } from "../saving.ts"
 
 describe("the save log", () => {
   it.effect("tells each tab how far its requests are written", () =>
     Effect.gen(function* () {
-      const log = yield* makeSaveLog
+      const log = yield* openSaveLog
 
       const shown = (client: number) =>
         Effect.map(Stream.runHead(log.watch(client)), Option.getOrNull)

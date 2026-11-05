@@ -14,7 +14,7 @@ export const GraphInUse = ({ graph }: { readonly graph: string }) => {
   return (
     <main className="seqno-graph-in-use" aria-labelledby={title}>
       <PagesStyle />
-      <div className="seqno-graph-in-use-card" role="status">
+      <div className="seqno-graph-in-use-card">
         <h1 id={title}>This graph is open in an older seqno</h1>
         <p>
           Another tab runs an older version of seqno with <strong>{graphTitle(graph)}</strong> open.

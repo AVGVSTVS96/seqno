@@ -335,7 +335,21 @@
   cursor: pointer;
 }
 
-.plugins-kind[aria-checked="true"] {
+.plugin-choice-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.plugins-kind:has(:focus-visible),
+.plugin-theme:has(:focus-visible) {
+  outline: 2px solid var(--fg-link);
+  outline-offset: 2px;
+}
+
+.plugins-kind:has(:checked) {
   border-color: var(--fg-link);
   color: var(--fg-link);
 }
@@ -641,7 +655,7 @@
   cursor: pointer;
 }
 
-.plugin-theme[aria-checked="true"] {
+.plugin-theme:has(:checked) {
   border-color: var(--fg-link);
 }
 
@@ -719,7 +733,11 @@ textarea.plugin-setting-input {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+  min-inline-size: 0;
+  padding: 0;
+  margin: 0;
   font-size: var(--text-sm);
+  border: 0;
 }
 
 .plugin-setting-choice {

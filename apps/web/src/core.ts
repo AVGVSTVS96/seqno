@@ -25,7 +25,7 @@ declare global {
 const callsSharingTheWorker = Number.MAX_SAFE_INTEGER
 
 const spawnCoreWorker = () =>
-  new SharedWorker(new URL("./worker/main.ts", import.meta.url), {
+  new SharedWorker(new URL("worker/main.ts", import.meta.url), {
     type: "module",
     name: "seqno-core",
     extendedLifetime: true,
@@ -43,8 +43,8 @@ interface Sends {
 
 const sending = { next: 0, now: { inFlight: 0, answered: 0 }, listeners: new Set<() => void>() }
 
-const change = (next: (now: Sends) => Sends) => {
-  sending.now = next(sending.now)
+const change = (update: (now: Sends) => Sends) => {
+  sending.now = update(sending.now)
 
   for (const listener of sending.listeners) {
     listener()
@@ -111,14 +111,15 @@ export const WorkerGit: Layer.Layer<GitClient, WorkerError> = Layer.effect(
 ).pipe(Layer.provide(WorkerProtocol))
 
 const holdForThisTab = (name: string) =>
+  // oxlint-disable-next-line typescript/no-invalid-void-type -- oxc flags void type arguments on calls; void is a generic type argument here
   Effect.callback<void>((resume) => {
     void navigator.locks.request(name, async () => {
       resume(Effect.void)
 
-      await new Promise<void>((release) => {
+      await new Promise<void>((resolve) => {
         addEventListener("pagehide", (event) => {
           if (!event.persisted) {
-            release()
+            resolve()
           }
         })
       })

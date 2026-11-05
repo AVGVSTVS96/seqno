@@ -163,7 +163,12 @@ const testRegistry = (entries = new Map<string, string>()) =>
     ],
   })
 
-const settle = Effect.promise(async () => await new Promise((resolve) => setTimeout(resolve, 10)))
+const settle = Effect.promise(
+  async () =>
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10)
+    }),
+)
 
 describe("app atoms", () => {
   it.effect("opens a graph and derives journals, favorites and pages by name", () =>

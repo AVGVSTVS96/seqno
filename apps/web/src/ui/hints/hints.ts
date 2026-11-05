@@ -1,5 +1,5 @@
 import type { RegisteredRouter } from "@tanstack/react-router"
-import { Option } from "effect"
+import { Match, Option } from "effect"
 import { AsyncResult, Atom } from "effect/reactivity"
 import type { AtomRegistry } from "effect/reactivity"
 import { openGraph, rightSidebar, searchOpen } from "../../atoms.ts"
@@ -160,7 +160,7 @@ const transitionsMoving = (elements: readonly Element[]) =>
   })
 
 const inTip = (node: Node) =>
-  (node instanceof Element ? node : node.parentElement)?.closest(".hint") != null
+  ((node instanceof Element ? node : node.parentElement)?.closest(".hint") ?? null) !== null
 
 const outsideTips = (record: MutationRecord) => {
   const nodes = [...record.addedNodes, ...record.removedNodes]
@@ -488,14 +488,15 @@ const track = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter, gr
     const { hint, spot } = candidate
     const target = event.target
 
-    const did =
-      spot.done === "click"
-        ? target.closest(spot.selector) !== null
-        : spot.done === "click-within"
-          ? elementsOf(spot).some((element) =>
-              (element.closest("section") ?? element).contains(target),
-            )
-          : false
+    const did = Match.value(spot.done).pipe(
+      Match.when("click", () => target.closest(spot.selector) !== null),
+      Match.when("click-within", () =>
+        elementsOf(spot).some((element) =>
+          (element.closest("section") ?? element).contains(target),
+        ),
+      ),
+      Match.orElse(() => false),
+    )
 
     if (did) {
       dismiss(hint.id)
@@ -576,16 +577,48 @@ const track = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter, gr
   }
 
   const listeners: ReadonlyArray<readonly [EventTarget, string, EventListener]> = [
-    [window, "pointerdown", (event) => event instanceof PointerEvent && pressedDown(event)],
+    [
+      window,
+      "pointerdown",
+      (event) => {
+        if (event instanceof PointerEvent) {
+          pressedDown(event)
+        }
+      },
+    ],
     [window, "pointerup", released],
     [window, "pointercancel", released],
-    [window, "pointermove", (event) => event instanceof PointerEvent && moved(event)],
+    [
+      window,
+      "pointermove",
+      (event) => {
+        if (event instanceof PointerEvent) {
+          moved(event)
+        }
+      },
+    ],
     [window, "keydown", keyed],
-    [window, "click", (event) => event instanceof MouseEvent && clicked(event)],
+    [
+      window,
+      "click",
+      (event) => {
+        if (event instanceof MouseEvent) {
+          clicked(event)
+        }
+      },
+    ],
     [window, "scroll", scrolled],
     [window, "scrollend", changed],
     [window, "resize", place],
-    [document, "beforetoggle", (event) => event instanceof ToggleEvent && opening(event)],
+    [
+      document,
+      "beforetoggle",
+      (event) => {
+        if (event instanceof ToggleEvent) {
+          opening(event)
+        }
+      },
+    ],
     [document, "toggle", changed],
     [document, "focusin", changed],
     [document, "focusout", changed],
@@ -639,7 +672,9 @@ const track = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter, gr
     stops.forEach((stop) => {
       stop()
     })
-    named.forEach((element) => element.style.removeProperty("anchor-name"))
+    named.forEach((element) => {
+      element.style.removeProperty("anchor-name")
+    })
     registry.set(hintState, none)
   }
 }

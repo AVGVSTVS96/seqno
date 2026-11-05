@@ -1,4 +1,14 @@
-import { Context, Effect, Layer, Option, PubSub, Schema, Stream, SubscriptionRef } from "effect"
+import {
+  Context,
+  Effect,
+  Layer,
+  Match,
+  Option,
+  PubSub,
+  Schema,
+  Stream,
+  SubscriptionRef,
+} from "effect"
 import { makeGit } from "@seqno/git"
 import type { FsClient, Git, Globals } from "@seqno/git"
 import { GitFailed, GitSettings, defaultGitSettings } from "@seqno/rpc"
@@ -8,7 +18,7 @@ import { ignoreSeqnoFiles } from "./mirror.ts"
 
 export interface GitPlace {
   readonly fs: FsClient
-  readonly lock: () => Promise<(() => Promise<void>) | null>
+  readonly lock?: () => Promise<(() => Promise<void>) | null>
   readonly graphPath: string
 }
 
@@ -106,12 +116,7 @@ export const openGit = (
       yield* ignoreSeqnoFiles(storage)
     }
 
-    const git = yield* makeGit({
-      fs: place.fs,
-      globals: device.globals,
-      lock: place.lock,
-      graphPath: place.graphPath,
-    })
+    const git = yield* makeGit({ ...place, globals: device.globals })
 
     const pending = new Set<string>()
     const unstaged = { everything: false }
@@ -149,14 +154,16 @@ export const openGit = (
       const paths = taken()
       yield* git.commitAll("", paths).pipe(
         Effect.flatMap((done) =>
-          done._tag === "NoIdentity"
-            ? Effect.andThen(
+          Match.value(done).pipe(
+            Match.tag("NoIdentity", () =>
+              Effect.andThen(
                 putBack(paths),
                 PubSub.publish(device.notices, { _tag: "IdentityNeeded" }),
-              )
-            : done._tag === "Busy"
-              ? putBack(paths)
-              : Effect.void,
+              ),
+            ),
+            Match.tag("Busy", () => putBack(paths)),
+            Match.orElse(() => Effect.void),
+          ),
         ),
         Effect.catch((error) =>
           Effect.andThen(

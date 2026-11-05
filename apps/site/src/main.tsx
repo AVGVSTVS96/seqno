@@ -3,9 +3,9 @@ import { App } from "./App.tsx"
 import { commits } from "./commits.ts"
 import "./styles.css"
 
-const root = document.getElementById("root")
+const root = document.querySelector("#root")
 
-if (root?.hasChildNodes()) {
+if (root?.hasChildNodes() === true) {
   hydrateRoot(root, <App />)
 } else if (root) {
   createRoot(root).render(<App />)

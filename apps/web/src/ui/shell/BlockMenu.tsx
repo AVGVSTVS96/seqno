@@ -55,7 +55,7 @@ const headingOf = (block: Block): Heading => {
 
 const headingCommands = (block: Block, heading: Heading): readonly Command[] => {
   const prefix = headingPrefix.exec(block.text)?.[0] ?? ""
-  const wanted = typeof heading === "number" ? `${"#".repeat(heading)} ` : ""
+  const wanted = heading === null || heading === "auto" ? "" : `${"#".repeat(heading)} `
 
   const text: readonly Command[] =
     prefix === wanted
@@ -79,7 +79,7 @@ const headingCommands = (block: Block, heading: Heading): readonly Command[] => 
   return [...text, ...prop]
 }
 
-const copy = (text: string) => void navigator.clipboard.writeText(text).catch(() => undefined)
+const copy = (text: string) => void navigator.clipboard.writeText(text).catch(() => {})
 
 const close = (menu: HTMLElement) => menu.closest<HTMLElement>("[popover]")?.hidePopover()
 
@@ -373,7 +373,7 @@ export const BlockMenu = () => {
 
   return request === null ? null : (
     <LoadedMenu
-      key={`${request.x},${request.y},${request.blockIds.join()}`}
+      key={`${request.x},${request.y},${request.blockIds.join(",")}`}
       request={request}
       onClose={() => {
         setRequest(null)

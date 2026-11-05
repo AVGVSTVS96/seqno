@@ -5,8 +5,15 @@ import { pathToFileURL } from "node:url"
 import { defineConfig } from "vite"
 import type { Plugin } from "vite"
 import { fetchCommits } from "./src/github.ts"
+import type * as Render from "./src/render.tsx"
 
 const prerendered = resolve(import.meta.dirname, "node_modules/.prerender")
+
+const isRenderModule = (built: unknown): built is typeof Render =>
+  typeof built === "object" &&
+  built !== null &&
+  "render" in built &&
+  typeof built.render === "function"
 
 function prerender(): Plugin {
   return {
@@ -36,17 +43,21 @@ function prerender(): Plugin {
           return html
         }
 
-        const { render } = await import(pathToFileURL(resolve(prerendered, "render.js")).href)
+        const built: unknown = await import(pathToFileURL(resolve(prerendered, "render.js")).href)
 
-        return html.replace("<!--app-->", render())
+        if (!isRenderModule(built)) {
+          throw new Error("The prerender build has no render function.")
+        }
+
+        return html.replace("<!--app-->", built.render())
       },
     },
   }
 }
 
 function siteUrl(): Plugin {
-  const host = process.env["VERCEL_PROJECT_PRODUCTION_URL"]
-  const url = process.env["SITE_URL"] ?? (host ? `https://${host}` : "")
+  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  const url = process.env.SITE_URL ?? (host === undefined || host === "" ? "" : `https://${host}`)
 
   return {
     name: "seqno:site-url",
@@ -54,16 +65,25 @@ function siteUrl(): Plugin {
   }
 }
 
-export default defineConfig(async () => {
-  const token = process.env["GITHUB_TOKEN"]
+async function commitCount() {
+  const token = process.env.GITHUB_TOKEN
 
-  const { count } = await fetchCommits(
-    token ? { headers: { authorization: `Bearer ${token}` } } : {},
-  ).catch((error: unknown) => {
+  try {
+    const { count } = await fetchCommits(
+      token === undefined || token === "" ? {} : { headers: { authorization: `Bearer ${token}` } },
+    )
+
+    return count
+  } catch (error) {
     throw new Error(
       `Couldn't read seqno's commit count from GitHub (${String(error)}). Set GITHUB_TOKEN if it's rate limiting.`,
+      { cause: error },
     )
-  })
+  }
+}
+
+export default defineConfig(async () => {
+  const count = await commitCount()
 
   return {
     plugins: [react(), prerender(), siteUrl()],

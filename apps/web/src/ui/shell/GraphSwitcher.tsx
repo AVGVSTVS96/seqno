@@ -21,15 +21,16 @@ export const useSwitchGraph = () => {
   const updateSidebar = useAtomSet(rightSidebar)
   const navigate = useNavigate()
 
-  return (source: GraphSource) =>
-    void open(source).then((exit) => {
-      if (!Exit.isSuccess(exit)) {
-        return
-      }
-
+  const switchTo = async (source: GraphSource) => {
+    if (Exit.isSuccess(await open(source))) {
       updateSidebar({ _tag: "Clear" })
-      void navigate({ to: "/" })
-    })
+      await navigate({ to: "/" })
+    }
+  }
+
+  return (source: GraphSource) => {
+    void switchTo(source)
+  }
 }
 
 export const GraphSwitcher = ({ graph }: { readonly graph: string }) => {

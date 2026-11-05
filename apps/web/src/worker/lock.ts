@@ -1,4 +1,4 @@
-import { Context, Deferred, Effect, Exit, Layer, Option } from "effect"
+import { Context, Effect, Latch, Layer, Match, Option } from "effect"
 import type { Scope } from "effect"
 import { tabLock } from "@seqno/rpc"
 
@@ -18,48 +18,37 @@ const handoverLock = (graph: string) => `seqno/graph/${graph}/handover`
 
 type Mode = "now" | "wait" | "steal"
 
-const ask = async (
-  name: string,
-  mode: Mode,
-  signal: AbortSignal,
-  granted: LockGrantedCallback<unknown>,
-) =>
-  mode === "now"
-    ? await navigator.locks.request(name, { ifAvailable: true }, granted)
-    : mode === "steal"
-      ? await navigator.locks.request(name, { steal: true }, granted)
-      : await navigator.locks.request(name, { signal }, granted)
+const options = (mode: Mode, signal: AbortSignal): LockOptions =>
+  Match.value(mode).pipe(
+    Match.when("now", () => ({ ifAvailable: true })),
+    Match.when("steal", () => ({ steal: true })),
+    Match.when("wait", () => ({ signal })),
+    Match.exhaustive,
+  )
 
 const lock = (name: string, mode: Mode) =>
   Effect.gen(function* () {
-    const release = Promise.withResolvers<void>()
-    const settled = Promise.withResolvers<void>()
-    const lost = yield* Deferred.make<void>()
-    yield* Effect.addFinalizer(() =>
-      Effect.promise(async () => {
-        release.resolve()
-
-        await settled.promise
-      }),
-    )
+    const release = yield* Latch.make(false)
+    const settled = yield* Latch.make(false)
+    const lost = yield* Latch.make(false)
+    yield* Effect.addFinalizer(() => Effect.andThen(release.open, settled.await))
 
     const held = yield* Effect.callback<boolean>((resume, signal) => {
-      ask(name, mode, signal, (granted) => {
-        resume(Effect.succeed(granted !== null))
+      void navigator.locks
+        .request(name, options(mode, signal), async (granted) => {
+          resume(Effect.succeed(granted !== null))
 
-        return granted === null ? undefined : release.promise
-      }).then(
-        () => {
-          settled.resolve()
-        },
-        () => {
-          settled.resolve()
-          Deferred.doneUnsafe(lost, Exit.void)
-        },
-      )
+          if (granted !== null) {
+            await Effect.runPromise(release.await)
+          }
+        })
+        .catch(() => lost.openUnsafe())
+        .finally(() => {
+          settled.openUnsafe()
+        })
     })
 
-    return { held, lost: Deferred.await(lost) }
+    return { held, lost: lost.await }
   })
 
 const handsOver = (graph: string) =>
@@ -88,7 +77,7 @@ export const layerWebLocks = Layer.succeed(
       }),
     tabClosed: (tab) =>
       Effect.promise(async () => {
-        await navigator.locks.request(tabLock(tab), () => undefined)
+        await navigator.locks.request(tabLock(tab), () => {})
       }),
   }),
 )

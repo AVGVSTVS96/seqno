@@ -141,8 +141,8 @@ const ensureFile = (
 
 export const ignoreSeqnoFiles = (storage: Storage["Service"]) =>
   ensureFile(storage, ".gitignore", (current) => {
-    const lines = (current ?? "").split("\n").map((line) => line.trim())
-    const missing = ignoredLines.filter((line) => !lines.includes(line))
+    const lines = new Set((current ?? "").split("\n").map((line) => line.trim()))
+    const missing = ignoredLines.filter((line) => !lines.has(line))
 
     if (missing.length === 0) {
       return null
@@ -192,7 +192,7 @@ const readText = (file: File) =>
     Effect.orElseSucceed(() => Option.none<string>()),
   )
 
-export const makeMirror = (deps: MirrorDeps) =>
+export const openMirror = (deps: MirrorDeps) =>
   Effect.gen(function* () {
     const { graph, storage, store, config, syntax } = deps
 
@@ -934,7 +934,9 @@ export const makeMirror = (deps: MirrorDeps) =>
       const pages = yield* graph.pages
 
       if (Option.isSome(changed)) {
-        changed.value.pages.forEach((page) => dirtyPages.add(page))
+        for (const page of changed.value.pages) {
+          dirtyPages.add(page)
+        }
 
         for (const record of records.values()) {
           if (!pages.some((page) => page.id === record.page)) {
@@ -942,15 +944,23 @@ export const makeMirror = (deps: MirrorDeps) =>
           }
         }
       } else {
-        pages.forEach((page) => dirtyPages.add(page.id))
-        records.forEach((record) => dirtyPages.add(record.page))
+        for (const page of pages) {
+          dirtyPages.add(page.id)
+        }
+
+        for (const record of records.values()) {
+          dirtyPages.add(record.page)
+        }
       }
 
       for (const path of yield* ownedFiles) {
         dirtyPaths.add(path)
       }
 
-      records.forEach((_, path) => dirtyPaths.add(path))
+      for (const path of records.keys()) {
+        dirtyPaths.add(path)
+      }
+
       yield* prepareFolder
       state.started = true
     })

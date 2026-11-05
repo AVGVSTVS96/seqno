@@ -100,7 +100,7 @@ const MirrorReport = () => {
         )}
         {left.length === 0 ? null : (
           <>
-            <p className="notice-title">seqno didn't write {files(left.length)}</p>
+            <p className="notice-title">seqno didn&apos;t write {files(left.length)}</p>
             <ul className="notice-list">
               {left.map((file) => (
                 <li key={file.path}>
@@ -159,7 +159,7 @@ export const Notices = () => {
   const [shown, setShown] = useAtom(notices)
 
   return (
-    <div {...logseq("notices")} role="status" aria-live="polite">
+    <output {...logseq("notices")} aria-live="polite">
       <ImportReport />
       <MirrorReport />
       <CheckingUpdates />
@@ -179,6 +179,6 @@ export const Notices = () => {
           </button>
         </div>
       ))}
-    </div>
+    </output>
   )
 }

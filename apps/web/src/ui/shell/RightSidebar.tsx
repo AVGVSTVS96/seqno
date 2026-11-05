@@ -129,28 +129,24 @@ const ContentsBody = () => {
 
   const run = useAtomSet(dispatch, { mode: "promise" })
 
+  const start = async () => {
+    const events = await run({ _tag: "CreatePage", title: "Contents" })
+    const created = events.find((event) => event._tag === "PageUpserted")
+
+    if (created?._tag === "PageUpserted") {
+      await run({ _tag: "InsertBlock", pageId: created.page.id, parentId: null, text: "" })
+    }
+  }
+
   return Option.match(found, {
     onSome: (page) => <PageView page={page} zoom={null} />,
     onNone: () => (
       <button
         type="button"
         className="contents-start"
-        onClick={() =>
-          void run({ _tag: "CreatePage", title: "Contents" }).then((events) => {
-            const created = events.find((event) => event._tag === "PageUpserted")
-
-            if (created?._tag !== "PageUpserted") {
-              return
-            }
-
-            return run({
-              _tag: "InsertBlock",
-              pageId: created.page.id,
-              parentId: null,
-              text: "",
-            })
-          })
-        }
+        onClick={() => {
+          void start()
+        }}
       >
         <span className="contents-start-bullet" aria-hidden />
         <span className="contents-start-label">Click here to edit…</span>
@@ -278,9 +274,9 @@ const Card = ({
         </Menu>
       </div>
       {collapsed ? null : (
-        <div className="sidebar-item-content" role="region" aria-labelledby={headerId}>
+        <section className="sidebar-item-content" aria-labelledby={headerId}>
           <ItemBody item={item} />
-        </div>
+        </section>
       )}
     </section>
   )
@@ -317,9 +313,11 @@ const Cards = ({ items }: { readonly items: readonly SidebarItem[] }) => {
 
           const actions: CardActions = {
             close: () => {
-              items.length === 0
-                ? updateSidebar({ _tag: "Toggle" })
-                : closeSidebarItem(registry, item)
+              if (items.length === 0) {
+                updateSidebar({ _tag: "Toggle" })
+              } else {
+                closeSidebarItem(registry, item)
+              }
             },
             closeOthers: () => {
               items.forEach((other) => {
@@ -395,7 +393,11 @@ export const RightSidebar = () => {
         max={70}
         onStart={() => {
           const app = document.querySelector<HTMLElement>(".app")
-          app?.setAttribute("data-resizing", "")
+
+          if (app !== null) {
+            app.dataset["resizing"] = ""
+          }
+
           const latest = { percent: width, hidden: false }
 
           return {
@@ -410,7 +412,10 @@ export const RightSidebar = () => {
               app?.style.setProperty("--right-sidebar-width", `${latest.percent}vw`)
             },
             onEnd: () => {
-              app?.removeAttribute("data-resizing")
+              if (app !== null) {
+                delete app.dataset["resizing"]
+              }
+
               setWidth(latest.percent)
 
               if (latest.hidden) {

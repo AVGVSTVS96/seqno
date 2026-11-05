@@ -899,6 +899,7 @@
 
 .menu-separator {
   height: 1px;
+  border: 0;
   margin: var(--space-1) calc(-1 * var(--space-1));
   background: var(--border-separator);
 }
@@ -1026,6 +1027,10 @@
 }
 
 .export-dialog-formats {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
   display: flex;
   gap: var(--space-4);
 }
@@ -1429,6 +1434,7 @@
 }
 
 .theme-choice {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 0 var(--space-2) 0 0;
@@ -1440,7 +1446,17 @@
   cursor: pointer;
 }
 
-.theme-choice[aria-checked="true"],
+.theme-choice > input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.theme-choice:has(:focus-visible) {
+  box-shadow: var(--ring);
+}
+
+.theme-choice:has(:checked),
 .theme-choice:hover {
   opacity: 1;
 }
@@ -1455,7 +1471,7 @@
   background: var(--preview-bg);
 }
 
-.theme-choice[aria-checked="true"] .theme-preview {
+.theme-choice:has(:checked) .theme-preview {
   outline: 2px solid var(--ring-choice);
   outline-offset: -2px;
 }
@@ -2317,6 +2333,10 @@ body.seqno-pdf-open .app[data-left-open="true"] .main-container {
 }
 
 .seqno-accent-list {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);

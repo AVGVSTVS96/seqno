@@ -79,39 +79,58 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
     }
   }
 
-  const zoomOut = () =>
-    Option.match(blockIdOf(router.state.location.search.zoom), {
-      onNone: () => undefined,
-      onSome: (zoom) =>
-        navigateTo({
-          _tag: "Zoom",
-          pageId: block.pageId,
-          blockId: Option.match(latest(), {
-            onNone: () => null,
-            onSome: (tree) => tree.blocks.find((found) => found.id === zoom)?.parentId ?? null,
-          }),
+  const zoomOut = () => {
+    const zoom = blockIdOf(router.state.location.search.zoom)
+
+    if (Option.isSome(zoom)) {
+      navigateTo({
+        _tag: "Zoom",
+        pageId: block.pageId,
+        blockId: Option.match(latest(), {
+          onNone: () => null,
+          onSome: (tree) => tree.blocks.find((found) => found.id === zoom.value)?.parentId ?? null,
         }),
-    })
+      })
+    }
+  }
 
   const openBlock = (blockId: BlockId) =>
     void Effect.runPromise(
       AtomRegistry.getResult(registry, blockAtom(blockId)).pipe(
-        Effect.map((found) => navigateTo({ _tag: "Zoom", pageId: found.pageId, blockId })),
+        Effect.flatMap((found) =>
+          Effect.sync(() => {
+            navigateTo({ _tag: "Zoom", pageId: found.pageId, blockId })
+          }),
+        ),
         Effect.ignore,
       ),
     )
 
-  const open = (target: LinkTarget, sidebar: boolean) =>
+  const openBlockId = (uuid: string, sidebar: boolean) => {
+    const blockId = blockIdOf(uuid)
+
+    if (Option.isSome(blockId)) {
+      if (sidebar) {
+        navigateTo({ _tag: "SidebarBlock", blockId: blockId.value })
+      } else {
+        openBlock(blockId.value)
+      }
+    }
+  }
+
+  const open = (target: LinkTarget, sidebar: boolean) => {
     LinkTarget.match(target, {
-      Url: ({ url }) => void window.open(url, "_blank", "noopener"),
-      Page: ({ name }) => navigateTo({ _tag: sidebar ? "SidebarPage" : "Page", name }),
-      Block: ({ uuid }) =>
-        Option.match(blockIdOf(uuid), {
-          onNone: () => undefined,
-          onSome: (blockId) =>
-            sidebar ? navigateTo({ _tag: "SidebarBlock", blockId }) : openBlock(blockId),
-        }),
+      Url: ({ url }) => {
+        window.open(url, "_blank", "noopener")
+      },
+      Page: ({ name }) => {
+        navigateTo({ _tag: sidebar ? "SidebarPage" : "Page", name })
+      },
+      Block: ({ uuid }) => {
+        openBlockId(uuid, sidebar)
+      },
     })
+  }
 
   const host: EditorHost = {
     dispatch: (command) => {
@@ -158,9 +177,13 @@ export const EditorSlot = ({ block, caret, dispatch, dispatchAll, onIntent }: Ed
         onIntent({ _tag: current().collapsed ? "Expand" : "Collapse" })
       },
       MergeNext: mergeNext,
-      ZoomIn: () => navigateTo({ _tag: "Zoom", pageId: block.pageId, blockId: block.id }),
+      ZoomIn: () => {
+        navigateTo({ _tag: "Zoom", pageId: block.pageId, blockId: block.id })
+      },
       ZoomOut: zoomOut,
-      Open: ({ target, sidebar }) => open(target, sidebar),
+      Open: ({ target, sidebar }) => {
+        open(target, sidebar)
+      },
       Notify: ({ message }) => {
         notify(registry, message)
       },

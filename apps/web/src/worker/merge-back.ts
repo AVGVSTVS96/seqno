@@ -1,4 +1,5 @@
-import { Crypto, Effect, Option, Result } from "effect"
+import { Effect, Option, Result, Schema } from "effect"
+import type { Crypto } from "effect"
 import { BlockId, newBlockId } from "@seqno/domain"
 import type { Block, Command, GraphEvent, PageId } from "@seqno/domain"
 import type { Graph } from "@seqno/graph"
@@ -7,6 +8,7 @@ import type { FileTree } from "@seqno/interop"
 import type { PageTree } from "@seqno/rpc"
 import type { Merged, Outside } from "./mirror.ts"
 import type { MirrorVersion } from "./mirror-store.ts"
+import { hasReason } from "./reason.ts"
 
 export interface MergeBackDeps {
   readonly graph: Graph["Service"]
@@ -25,16 +27,22 @@ const lines = (text: string) => text.split("\n")
 const distance = (a: string, b: string) =>
   diff(lines(a), lines(b)).filter((edit) => edit._tag !== "Same").length
 
-const reasonOf = (error: unknown) =>
-  typeof error === "object" && error !== null && "reason" in error
-    ? String(error.reason)
-    : String(error)
+const reasonOf = (cause: unknown) => (hasReason(cause) ? String(cause.reason) : String(cause))
+
+const decodeBlockId = Schema.decodeUnknownOption(BlockId)
+
+const creation = (page: PageTree["page"]): Command => {
+  const plain = { _tag: "CreatePage", title: page.title, props: page.props } as const
+  const dated = page.journalDay === null ? plain : { ...plain, journalDay: page.journalDay }
+
+  return page.format === undefined ? dated : { ...dated, format: page.format }
+}
 
 const leave = (reason: string): Merged => ({ _tag: "Left", reason })
 
 const emptyAt = (tree: PageTree): PageTree => ({ page: tree.page, blocks: [] })
 
-export const makeMergeBack =
+export const openMergeBack =
   (deps: MergeBackDeps) =>
   (change: Outside): Effect.Effect<Merged, never, Crypto.Crypto> =>
     Effect.gen(function* () {
@@ -124,25 +132,17 @@ export const makeMergeBack =
       const mint = () => minted[spare.at++] ?? BlockId.make(crypto.randomUUID())
 
       const written = disk.tree.blocks.flatMap((block) =>
-        Option.toArray(Option.liftThrowable(BlockId.make)(explicitId(disk, block) ?? "")),
+        Option.toArray(decodeBlockId(explicitId(disk, block))),
       )
 
-      const onPage = new Set<string>(tree?.blocks.map((block) => block.id) ?? [])
+      const onPage = new Set<string>(tree?.blocks.map((block) => block.id))
       const elsewhere = yield* deps.blocks(written.filter((id) => !onPage.has(id)))
       const taken = new Set<string>(elsewhere.map((block) => block.id))
 
       if (tree === null) {
         const { page } = disk.tree
 
-        const created = yield* dispatch([
-          {
-            _tag: "CreatePage",
-            title: page.title,
-            ...(page.journalDay === null ? {} : { journalDay: page.journalDay }),
-            ...(Object.keys(page.props).length === 0 ? {} : { props: page.props }),
-            ...(page.format === undefined ? {} : { format: page.format }),
-          },
-        ])
+        const created = yield* dispatch([creation(page)])
 
         if (Result.isFailure(created)) {
           return leave(

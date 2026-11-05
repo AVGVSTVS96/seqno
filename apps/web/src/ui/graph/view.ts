@@ -448,8 +448,14 @@ export const createGraphView = (events: GraphViewEvents) => {
           continue
         }
 
-        dot.x = dot.toX = dot.fromX = base.x + dx * weight
-        dot.y = dot.toY = dot.fromY = base.y + dy * weight
+        const x = base.x + dx * weight
+        const y = base.y + dy * weight
+        dot.x = x
+        dot.toX = x
+        dot.fromX = x
+        dot.y = y
+        dot.toY = y
+        dot.fromY = y
       }
 
       if (canvas !== null) {

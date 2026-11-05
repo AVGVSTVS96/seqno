@@ -26,17 +26,17 @@ export const commandHistory = setting(
   {},
 )
 
-const keyNames: Readonly<Record<string, string>> = {
-  enter: "Enter",
-  tab: "Tab",
-  backspace: "Backspace",
-  delete: "Delete",
-  escape: "Escape",
-  arrowup: "ArrowUp",
-  arrowdown: "ArrowDown",
-  arrowleft: "ArrowLeft",
-  arrowright: "ArrowRight",
-}
+const keyNames = new Map([
+  ["enter", "Enter"],
+  ["tab", "Tab"],
+  ["backspace", "Backspace"],
+  ["delete", "Delete"],
+  ["escape", "Escape"],
+  ["arrowup", "ArrowUp"],
+  ["arrowdown", "ArrowDown"],
+  ["arrowleft", "ArrowLeft"],
+  ["arrowright", "ArrowRight"],
+])
 
 const modifiers = new Set(["mod", "shift", "alt"])
 
@@ -56,7 +56,7 @@ const replayed = (combo: string) => {
   const mod = parts.includes("mod")
 
   return new KeyboardEvent("keydown", {
-    key: keyNames[key] ?? key,
+    key: keyNames.get(key) ?? key,
     bubbles: true,
     cancelable: true,
     shiftKey: parts.includes("shift"),
@@ -121,20 +121,24 @@ export const pluginPaletteCommands = (
   registry: AtomRegistry.AtomRegistry,
   commands: readonly PluginCommand[],
 ): readonly RunnableCommand[] =>
-  commands
-    .filter((command) => command.palette)
-    .map((command) => ({
-      id: `plugin.${command.pid}/${command.key}`,
-      label: command.label,
-      keys: pluginKeys(command),
-      run: () => {
-        const host = registry.get(hostAtom)
+  commands.flatMap((command) =>
+    command.palette
+      ? [
+          {
+            id: `plugin.${command.pid}/${command.key}`,
+            label: command.label,
+            keys: pluginKeys(command),
+            run: () => {
+              const host = registry.get(hostAtom)
 
-        if (host !== null) {
-          runCommand(host, command, null)
-        }
-      },
-    }))
+              if (host !== null) {
+                runCommand(host, command, null)
+              }
+            },
+          },
+        ]
+      : [],
+  )
 
 export const builtInCommands = (
   registry: AtomRegistry.AtomRegistry,
@@ -268,9 +272,7 @@ export const builtInCommands = (
       }
 
       const { href } = router.buildLocation({ to: "/page/$name", params: { name } })
-      void navigator.clipboard
-        .writeText(new URL(href, window.location.origin).href)
-        .catch(() => undefined)
+      void navigator.clipboard.writeText(new URL(href, window.location.origin).href).catch(() => {})
     }),
     app("go/next-journal", "Go to next journal", "GoNextJournal"),
     app("go/prev-journal", "Go to previous journal", "GoPrevJournal"),

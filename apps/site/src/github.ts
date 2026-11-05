@@ -7,6 +7,18 @@ interface CommitJson {
   readonly commit: { readonly committer: { readonly date: string } }
 }
 
+const isCommit = (json: unknown): json is CommitJson =>
+  typeof json === "object" &&
+  json !== null &&
+  "commit" in json &&
+  typeof json.commit === "object" &&
+  json.commit !== null &&
+  "committer" in json.commit &&
+  typeof json.commit.committer === "object" &&
+  json.commit.committer !== null &&
+  "date" in json.commit.committer &&
+  typeof json.commit.committer.date === "string"
+
 export const repo = "https://github.com/AVGVSTVS96/seqno"
 export const history = `${repo}/commits/main`
 
@@ -20,10 +32,14 @@ export async function fetchCommits(init?: RequestInit): Promise<Commits> {
     throw new Error(`GitHub answered ${response.status}`)
   }
 
-  const [newest]: readonly CommitJson[] = await response.json()
+  const json: unknown = await response.json()
+  const newest: unknown = Array.isArray(json) ? json[0] : undefined
   const last = /[?&]page=(\d+)>; rel="last"/u.exec(response.headers.get("link") ?? "")
 
-  return { count: last ? Number(last[1]) : 1, date: newest?.commit.committer.date ?? null }
+  return {
+    count: last ? Number(last[1]) : 1,
+    date: isCommit(newest) ? newest.commit.committer.date : null,
+  }
 }
 
 const day = 86_400_000

@@ -63,7 +63,7 @@ export const BoardPage = ({
     >
       <PagesStyle />
       {onboarding ? (
-        <div className="seqno-board-onboarding" role="status">
+        <output className="seqno-board-onboarding">
           <svg
             className="seqno-board-onboarding-spinner"
             viewBox="0 0 24 24"
@@ -78,7 +78,7 @@ export const BoardPage = ({
             />
           </svg>
           <span>Loading onboarding whiteboard ...</span>
-        </div>
+        </output>
       ) : null}
       <Board
         page={page}

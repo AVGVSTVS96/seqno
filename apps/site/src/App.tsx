@@ -42,6 +42,7 @@ const features: readonly Feature[] = [
     media: (
       <div
         className="pair"
+        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- two pictures labelled as one image; an <img> can't hold them
         role="img"
         aria-label="Linking a page while typing, and the page's references in the sidebar"
       >
@@ -101,7 +102,7 @@ function Intro() {
         <li ref={reveal}>
           A local-first outliner, rebuilt to be minimal, solid and clean.
           <ul>
-            <li ref={reveal}>It's early, so keep your real notes where they are for now.</li>
+            <li ref={reveal}>It&apos;s early, so keep your real notes where they are for now.</li>
           </ul>
         </li>
       </ul>
@@ -186,7 +187,7 @@ function Features() {
               <h2>{title}</h2>
               <ul>
                 <li ref={reveal}>{text}</li>
-                {next && (
+                {next !== undefined && (
                   <li ref={reveal} className="later">
                     <span className="tag">next</span> {next}
                   </li>

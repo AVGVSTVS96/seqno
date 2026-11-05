@@ -142,7 +142,8 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
 
     for (const outline of placeOutlines(width, height, avoid, rand)) {
       const stack: number[] = []
-      outline.shape.forEach((row, i) => {
+
+      for (const [i, row] of outline.shape.entries()) {
         while (stack.length && (bullets[stack.at(-1) ?? 0]?.depth ?? 0) >= row.depth) {
           stack.pop()
         }
@@ -177,7 +178,7 @@ export function createSchool(canvas: HTMLCanvasElement, seed = 7) {
           r: 3 + rand() * 0.8,
           tone: rand() < INK_SHARE ? "ink" : "bullet",
         })
-      })
+      }
     }
 
     if (!scattered) {
@@ -471,7 +472,11 @@ export function run(canvas: HTMLCanvasElement, element: HTMLElement, options: Ru
   }
 
   const onVisibility = () => {
-    document.hidden ? sleep() : wake()
+    if (document.hidden) {
+      sleep()
+    } else {
+      wake()
+    }
   }
 
   const onScheme = () => {

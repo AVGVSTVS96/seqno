@@ -93,12 +93,12 @@ const openDatabase = async () =>
     })
   })
 
-const opened: { database?: Promise<IDBDatabase> } = {}
+let opened: Promise<IDBDatabase> | undefined
 
 const database = Effect.promise(async () => {
-  opened.database ??= openDatabase()
+  opened ??= openDatabase()
 
-  return await opened.database
+  return await opened
 })
 
 type StoreName = "records" | "texts" | "versions"
@@ -111,15 +111,16 @@ const run = <A>(
   Effect.flatMap(database, (db) =>
     Effect.callback<A>((resume) => {
       const transaction = db.transaction(names, mode)
-      const result: { value?: A } = {}
+      let result = Option.none<A>()
       body(transaction, (value) => {
-        result.value = value
+        result = Option.some(value)
       })
       transaction.addEventListener("complete", () => {
         resume(
-          "value" in result
-            ? Effect.succeed(result.value)
-            : Effect.die(new Error("IndexedDB gave no result")),
+          Option.match(result, {
+            onNone: () => Effect.die(new Error("IndexedDB gave no result")),
+            onSome: Effect.succeed,
+          }),
         )
       })
       transaction.addEventListener("error", () => {
@@ -127,6 +128,18 @@ const run = <A>(
       })
       transaction.addEventListener("abort", () => {
         resume(Effect.die(transaction.error ?? new Error("IndexedDB request aborted")))
+      })
+    }),
+  )
+
+const write = (
+  names: readonly StoreName[],
+  body: (transaction: IDBTransaction, done: () => void) => void,
+) =>
+  Effect.asVoid(
+    run(names, "readwrite", (transaction, done) => {
+      body(transaction, () => {
+        done(true)
       })
     }),
   )
@@ -154,27 +167,27 @@ export const indexedDbMirrorStore = (graph: string): MirrorStore => ({
       (row) => Option.match(decodeTexts(row), { onNone: () => [], onSome: (found) => found.texts }),
     ),
   put: (path, record, texts) =>
-    run<void>(["records", "texts"], "readwrite", (transaction, done) => {
+    write(["records", "texts"], (transaction, done) => {
       transaction.objectStore("records").put({ graph, path, record })
       transaction.objectStore("texts").put({ texts }, [graph, path])
-      done(undefined)
+      done()
     }),
   drop: (path) =>
-    run<void>(["records", "texts"], "readwrite", (transaction, done) => {
+    write(["records", "texts"], (transaction, done) => {
       transaction.objectStore("records").delete([graph, path])
       transaction.objectStore("texts").delete([graph, path])
-      done(undefined)
+      done()
     }),
   version: Effect.map(
     read("versions", (versions) => versions.get(graph)),
     (row) => Option.map(decodeVersion(row), (found) => found.version),
   ),
   setVersion: (version) =>
-    run<void>(["versions"], "readwrite", (transaction, done) => {
+    write(["versions"], (transaction, done) => {
       transaction.objectStore("versions").put({ version }, graph)
-      done(undefined)
+      done()
     }),
-  clear: run<void>(["records", "texts", "versions"], "readwrite", (transaction, done) => {
+  clear: write(["records", "texts", "versions"], (transaction, done) => {
     const records = transaction.objectStore("records")
     const texts = transaction.objectStore("texts")
     const listing = records.index("graph").getAllKeys(IDBKeyRange.only(graph))
@@ -185,7 +198,7 @@ export const indexedDbMirrorStore = (graph: string): MirrorStore => ({
       }
 
       transaction.objectStore("versions").delete(graph)
-      done(undefined)
+      done()
     })
   }),
 })

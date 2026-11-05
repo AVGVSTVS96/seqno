@@ -20,6 +20,14 @@ export const DeletePage = ({
   const run = useAtomSet(dispatch, { mode: "promiseExit" })
   const title = useId()
 
+  const remove = async (from: HTMLElement) => {
+    closeDialogOf(from)
+
+    if (Exit.isSuccess(await run({ _tag: "DeletePage", pageId: page.id }))) {
+      onDeleted()
+    }
+  }
+
   return (
     <Dialog
       id={id}
@@ -50,12 +58,7 @@ export const DeletePage = ({
             type="button"
             className="button-primary"
             onClick={(event) => {
-              closeDialogOf(event.currentTarget)
-              void run({ _tag: "DeletePage", pageId: page.id }).then((exit) => {
-                if (Exit.isSuccess(exit)) {
-                  onDeleted()
-                }
-              })
+              void remove(event.currentTarget)
             }}
           >
             Confirm

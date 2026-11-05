@@ -11,6 +11,7 @@ import {
   IconSearch,
   IconTable,
 } from "@tabler/icons-react"
+import { Match } from "effect"
 import { Atom } from "effect/reactivity"
 import { Fragment, useId, useState } from "react"
 import type { ReactNode } from "react"
@@ -72,11 +73,11 @@ export const routeOf = (hash: string): Route => {
 }
 
 export const hrefOf = (route: Route) =>
-  route._tag === "Home"
-    ? "#/"
-    : route._tag === "AllPages"
-      ? "#/all-pages"
-      : `#/page/${encodeURIComponent(route.name)}`
+  Match.valueTags(route, {
+    Home: () => "#/",
+    AllPages: () => "#/all-pages",
+    Page: ({ name }) => `#/page/${encodeURIComponent(name)}`,
+  })
 
 const hash = Atom.make((get) => {
   const changed = () => {
@@ -96,32 +97,25 @@ const go = (route: Route) => {
 }
 
 const navigate: Navigate = (target: NavigationTarget) => {
-  switch (target._tag) {
-    case "Journals": {
+  Match.valueTags(target, {
+    Journals: () => {
       go({ _tag: "Home" })
-
-      return
-    }
-
-    case "Page":
-    case "SidebarPage": {
-      go({ _tag: "Page", name: normalizePageName(target.name) })
-
-      return
-    }
-
-    case "Zoom": {
-      target.blockId === null ? undefined : go({ _tag: "Page", name: target.blockId })
-
-      return
-    }
-
-    case "SidebarBlock": {
-      go({ _tag: "Page", name: target.blockId })
-
-      return
-    }
-  }
+    },
+    Page: ({ name }) => {
+      go({ _tag: "Page", name: normalizePageName(name) })
+    },
+    SidebarPage: ({ name }) => {
+      go({ _tag: "Page", name: normalizePageName(name) })
+    },
+    Zoom: ({ blockId }) => {
+      if (blockId !== null) {
+        go({ _tag: "Page", name: blockId })
+      }
+    },
+    SidebarBlock: ({ blockId }) => {
+      go({ _tag: "Page", name: blockId })
+    },
+  })
 }
 
 interface Site {
@@ -393,7 +387,7 @@ const ZoomView = ({ site, block }: { readonly site: Site; readonly block: Block 
 
   return (
     <div className="seqno-page" data-zoomed>
-      {page === undefined ? null : <title>{`${crumbLabel(block.text) || page.title}`}</title>}
+      {page === undefined ? null : <title>{crumbLabel(block.text) || page.title}</title>}
       <article aria-label={page?.title ?? ""}>
         <div className="seqno-page-blocks">{outline(site, block.pageId, block.id)}</div>
       </article>
@@ -411,7 +405,7 @@ const Unpublished = ({ site, name }: { readonly site: Site; readonly name: strin
         <h1 className="seqno-page-title" data-editable={false}>
           {title}
         </h1>
-        <p className="site-unpublished">This page isn't published.</p>
+        <p className="site-unpublished">This page isn&apos;t published.</p>
       </article>
       <LinkedReferences site={site} references={site.data.references[name] ?? []} />
     </div>
@@ -550,14 +544,14 @@ const AllPages = ({ site }: { readonly site: Site }) => {
           <tbody>
             {rows.map(({ page, backlinks, created, updated }) => (
               <tr key={page.name}>
-                <td className="seqno-table-gutter" />
+                <td className="seqno-table-gutter" aria-hidden />
                 <td>
                   <PageLink name={page.name} title={page.title} className="seqno-table-page" />
                 </td>
                 <td>{backlinks}</td>
                 <td>{timestamp(created)}</td>
                 <td>{timestamp(updated)}</td>
-                <td className="seqno-table-rest" />
+                <td className="seqno-table-rest" aria-hidden />
               </tr>
             ))}
           </tbody>
@@ -593,6 +587,7 @@ const Search = ({ site, onClose }: { readonly site: Site; readonly onClose: () =
   }
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop light dismiss; the native dialog closes on Escape and closedby has no Safari support
     <dialog
       className="dialog site-search"
       aria-label="Search"

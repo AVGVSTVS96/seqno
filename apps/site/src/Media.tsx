@@ -12,15 +12,15 @@ const themes = ["dark", "light"] as const
 const images = ["avif", "webp"] as const
 
 function variants(name: string, theme: string, ext: string) {
-  const pattern = new RegExp(`/${name}-${theme}-(\\d+)\\.${ext}$`)
+  const pattern = new RegExp(`/${name}-${theme}-(\\d+)\\.${ext}$`, "u")
 
   return Object.entries(files)
     .flatMap(([path, url]) => {
       const width = pattern.exec(path)?.[1]
 
-      return width ? [{ url, width: Number(width) }] : []
+      return width === undefined ? [] : [{ url, width: Number(width) }]
     })
-    .sort((a, b) => a.width - b.width)
+    .toSorted((a, b) => a.width - b.width)
 }
 
 const srcset = (name: string, theme: string, ext: string) =>
@@ -31,7 +31,7 @@ const srcset = (name: string, theme: string, ext: string) =>
 const file = (name: string) => {
   const url = Object.entries(files).find(([path]) => path.endsWith(`/${name}`))?.[1]
 
-  if (!url) {
+  if (url === undefined) {
     throw new Error(`missing media ${name}`)
   }
 
@@ -102,7 +102,9 @@ export function Loop(props: PictureProps) {
         aria-hidden="true"
         width={props.width}
         height={props.height}
-        onPlaying={(event) => (event.currentTarget.dataset.playing = "")}
+        onPlaying={(event) => {
+          event.currentTarget.dataset.playing = ""
+        }}
       >
         {themes.flatMap((theme) => [
           <source

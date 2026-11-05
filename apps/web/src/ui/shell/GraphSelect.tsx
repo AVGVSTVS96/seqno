@@ -110,6 +110,7 @@ const Select = ({
             </div>
           ) : null
         ) : (
+          // oxlint-disable jsx-a11y/no-noninteractive-element-to-interactive-role, jsx-a11y/click-events-have-key-events -- the filtered results popup of the combobox input above, which owns the keyboard; a native select cannot render under a text input
           <ul {...logseq("seqno-select-results")} role="listbox" aria-label="Graphs">
             {shown.map((name, at) => (
               <li
@@ -128,6 +129,7 @@ const Select = ({
               </li>
             ))}
           </ul>
+          // oxlint-enable jsx-a11y/no-noninteractive-element-to-interactive-role, jsx-a11y/click-events-have-key-events -- end of the combobox results popup
         )}
       </div>
     </Dialog>

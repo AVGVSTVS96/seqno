@@ -1,4 +1,5 @@
 import { useAtom, useAtomValue } from "@effect/atom-react"
+import { Match } from "effect"
 import { accentColors, accentScale } from "@seqno/dom"
 import type { AccentChoice } from "@seqno/dom"
 import { resolvedTheme } from "../../atoms.ts"
@@ -8,11 +9,15 @@ import { accentColor, accentPickerOpen } from "./state.ts"
 const choices: readonly AccentChoice[] = ["none", "logseq", ...accentColors]
 
 const labelOf = (choice: AccentChoice) =>
-  choice === "none"
-    ? "Cancel accent color. This is currently in beta stage and mainly used for compatibility with custom themes."
-    : choice === "logseq"
-      ? "Logseq classical color"
-      : `${choice} color`
+  Match.value(choice).pipe(
+    Match.when(
+      "none",
+      () =>
+        "Cancel accent color. This is currently in beta stage and mainly used for compatibility with custom themes.",
+    ),
+    Match.when("logseq", () => "Logseq classical color"),
+    Match.orElse((color) => `${color} color`),
+  )
 
 const Swatch = ({ choice, dark }: { readonly choice: AccentChoice; readonly dark: boolean }) => {
   const [current, choose] = useAtom(accentColor)
@@ -44,11 +49,11 @@ export const AccentColorList = () => {
   const dark = useAtomValue(resolvedTheme) === "dark"
 
   return (
-    <div className="seqno-accent-list" role="group" aria-label="Accent color">
+    <fieldset className="seqno-accent-list" aria-label="Accent color">
       {choices.map((choice) => (
         <Swatch key={choice} choice={choice} dark={dark} />
       ))}
-    </div>
+    </fieldset>
   )
 }
 

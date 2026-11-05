@@ -13,7 +13,7 @@ import {
 import type { Host } from "@seqno/plugins"
 import { openGraph, resolvedTheme } from "../../atoms.ts"
 import type { router as appRouter } from "../../router.tsx"
-import { makeBridge } from "./bridge.ts"
+import { appBridge } from "./bridge.ts"
 
 const leadFor = () => {
   const lead = { graph: "", now: false, stop: new AbortController() }
@@ -31,20 +31,20 @@ const leadFor = () => {
         .request(`seqno.plugins.${graph}`, { signal: stop.signal }, async () => {
           lead.now = true
 
-          await new Promise<void>((release) => {
+          await new Promise<void>((resolve) => {
             stop.signal.addEventListener("abort", () => {
-              release()
+              resolve()
             })
           })
         })
-        .catch(() => undefined)
+        .catch(() => {})
     },
     acts: ({ madeIn }: Change) => madeIn === "thisTab" || (madeIn === "noTab" && lead.now),
   }
 }
 
 export const startPluginHost = (registry: AtomRegistry.AtomRegistry, router: typeof appRouter) => {
-  const started: { host: Host | null } = { host: null }
+  let started: Host | null = null
   const lead = leadFor()
 
   const start = () => {
@@ -57,7 +57,7 @@ export const startPluginHost = (registry: AtomRegistry.AtomRegistry, router: typ
       },
       { immediate: true },
     )
-    const bridge = makeBridge(registry, router)
+    const bridge = appBridge(registry, router)
     const host = startPlugins(registry, bridge)
     watchUpdates(registry)
     router.subscribe("onResolved", () => {
@@ -71,14 +71,14 @@ export const startPluginHost = (registry: AtomRegistry.AtomRegistry, router: typ
         Effect.flatMap(CoreClient, (core) =>
           Stream.runForEach(core.WatchChanges(), (change) =>
             Effect.sync(() => {
-              lead.acts(change)
-                ? host.hook("db", "changed", changedPayload(change.events))
-                : undefined
+              if (lead.acts(change)) {
+                host.hook("db", "changed", changedPayload(change.events))
+              }
             }),
           ),
         ),
       )
-      .catch(() => undefined)
+      .catch(() => {})
 
     return host
   }
@@ -92,10 +92,10 @@ export const startPluginHost = (registry: AtomRegistry.AtomRegistry, router: typ
 
       lead.follow(result.value.graph)
 
-      if (started.host === null) {
-        started.host = start()
+      if (started === null) {
+        started = start()
       } else {
-        started.host.hook("app", "current_graph_changed", {})
+        started.hook("app", "current_graph_changed", {})
       }
     },
     { immediate: true },

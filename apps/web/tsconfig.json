@@ -1,12 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": [
-    "src",
-    "test",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "../../features/plugins/src/datascript.d.ts"
-  ],
+  "include": ["src", "test", "*.ts", "../../features/plugins/src/datascript.d.ts"],
   "compilerOptions": {
     "rootDir": ".",
     "lib": ["es2024", "dom", "dom.iterable", "dom.asynciterable"],

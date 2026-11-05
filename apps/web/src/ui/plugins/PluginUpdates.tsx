@@ -81,12 +81,11 @@ const Updates = () => {
   const downloading = useAtomValue(updatesDownloading)
   const [unchecked, setUnchecked] = useAtom(updatesUnchecked)
 
-  const updateAll = () =>
-    void updateSelected(registry).then((done) => {
-      for (const result of done) {
-        notifyUpdated(registry, result)
-      }
-    })
+  const updateAll = async () => {
+    for (const result of await updateSelected(registry)) {
+      notifyUpdated(registry, result)
+    }
+  }
 
   return (
     <>
@@ -133,7 +132,9 @@ const Updates = () => {
               type="button"
               className="button-primary plugin-updates-all"
               disabled={downloading || unchecked.length >= updates.length}
-              onClick={updateAll}
+              onClick={() => {
+                void updateAll()
+              }}
             >
               <IconDownload size={16} aria-hidden />
               {downloading ? "Downloading updates" : "Update all of selected"}
@@ -149,6 +150,7 @@ export const PluginUpdates = () => {
   const [open, setOpen] = useAtom(updatesOpen)
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop light dismiss; the native dialog closes on Escape and closedby has no Safari support
     <dialog
       aria-label="Plugin updates"
       className={`dialog ${logseq("plugin-updates").className}`}

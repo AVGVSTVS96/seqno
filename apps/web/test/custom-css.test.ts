@@ -30,6 +30,6 @@ describe("the graph's custom.css", () => {
   })
 
   it("applies nothing when the file is blank", () => {
-    expect(customStyleHref("", "  \n", resolve)).toBe(null)
+    expect(customStyleHref("", "  \n", resolve)).toBeNull()
   })
 })

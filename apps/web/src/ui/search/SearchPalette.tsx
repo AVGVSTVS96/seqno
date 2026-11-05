@@ -17,7 +17,7 @@ import {
   IconX,
 } from "@tabler/icons-react"
 import { useMatchRoute, useRouter } from "@tanstack/react-router"
-import { Exit, Option } from "effect"
+import { Exit, Match, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { Fragment, useContext, useId, useRef, useState } from "react"
 import type { KeyboardEvent, ReactNode } from "react"
@@ -137,7 +137,10 @@ const textOf = (item: Item, query: string): ReactNode => {
       return (
         <>
           Create page
-          <span className="seqno-palette-detail"> — Create page called '{item.title}'</span>
+          <span className="seqno-palette-detail">
+            {" "}
+            — Create page called &apos;{item.title}&apos;
+          </span>
         </>
       )
     }
@@ -178,12 +181,19 @@ const textOf = (item: Item, query: string): ReactNode => {
   }
 }
 
-const stepsOf = (combo: readonly string[]) =>
-  combo.reduce<ReadonlyArray<readonly string[]>>(
-    (steps, key) =>
-      key === "then" ? [...steps, []] : [...steps.slice(0, -1), [...(steps.at(-1) ?? []), key]],
-    [[]],
-  )
+const stepsOf = (combo: readonly string[]): ReadonlyArray<readonly string[]> => {
+  const steps: string[][] = [[]]
+
+  for (const key of combo) {
+    if (key === "then") {
+      steps.push([])
+    } else {
+      steps.at(-1)?.push(key)
+    }
+  }
+
+  return steps
+}
 
 const Shortcut = ({ combos }: { readonly combos: ReadonlyArray<readonly string[]> }) =>
   combos.length === 0 ? null : (
@@ -223,17 +233,17 @@ const Row = ({ item, query }: { readonly item: Item; readonly query: string }) =
 )
 
 const refOf = (item: Item) =>
-  item._tag === "Block"
-    ? `((${blockRefId(item.block)}))`
-    : item._tag === "Page"
-      ? `[[${item.page.title}]]`
-      : null
+  Match.value(item).pipe(
+    Match.tag("Block", ({ block }) => `((${blockRefId(block)}))`),
+    Match.tag("Page", ({ page }) => `[[${page.title}]]`),
+    Match.orElse(() => null),
+  )
 
 const copyRef = (item: Item) => {
   const ref = refOf(item)
 
   if (ref !== null) {
-    void navigator.clipboard.writeText(ref).catch(() => undefined)
+    void navigator.clipboard.writeText(ref).catch(() => {})
   }
 }
 
@@ -416,7 +426,7 @@ const Palette = ({
 
   const choose = (at: number) => {
     setActive({ query, filter, index: at })
-    document.getElementById(optionId(at))?.scrollIntoView({ block: "nearest" })
+    document.querySelector(`#${CSS.escape(optionId(at))}`)?.scrollIntoView({ block: "nearest" })
   }
 
   const goTo = (name: string, zoom: BlockId | null) => {
@@ -458,7 +468,11 @@ const Palette = ({
     if (file.target._tag === "Page") {
       const name = file.target.name
 
-      sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+      if (sidebar) {
+        toSidebar({ _tag: "Page", name })
+      } else {
+        goTo(name, null)
+      }
 
       return
     }
@@ -466,7 +480,9 @@ const Palette = ({
     onClose()
 
     if (file.target._tag === "Raw") {
-      return void router.navigate({ to: "/file/$path", params: { path: file.path } })
+      void router.navigate({ to: "/file/$path", params: { path: file.path } })
+
+      return
     }
 
     if (file.path.toLowerCase().endsWith(".pdf")) {
@@ -513,7 +529,11 @@ const Palette = ({
 
         const name = created.value
 
-        sidebar ? toSidebar({ _tag: "Page", name }) : goTo(name, null)
+        if (sidebar) {
+          toSidebar({ _tag: "Page", name })
+        } else {
+          goTo(name, null)
+        }
 
         return
       }
@@ -525,17 +545,21 @@ const Palette = ({
       }
 
       case "Page": {
-        sidebar ? toSidebar({ _tag: "Page", name: item.page.name }) : goTo(item.page.name, null)
+        if (sidebar) {
+          toSidebar({ _tag: "Page", name: item.page.name })
+        } else {
+          goTo(item.page.name, null)
+        }
 
         return
       }
 
       case "Block": {
-        sidebar
-          ? toSidebar({ _tag: "Block", blockId: item.block.id })
-          : goTo(item.page.name, item.block.id)
-
-        return
+        if (sidebar) {
+          toSidebar({ _tag: "Block", blockId: item.block.id })
+        } else {
+          goTo(item.page.name, item.block.id)
+        }
       }
     }
   }
@@ -609,6 +633,7 @@ const Palette = ({
   const action = current === undefined ? null : actionOf(current)
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop light dismiss; the native dialog closes on Escape and closedby has no Safari support
     <dialog
       {...logseq("seqno-palette")}
       aria-label="Search"
@@ -713,6 +738,7 @@ const Palette = ({
                 aria-label={group.title ?? "Create page"}
               >
                 {group.items.map((item, at) => (
+                  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- the search input drives these combobox rows through aria-activedescendant, and <select> cannot hold rich rows
                   <div
                     key={itemKey(item)}
                     id={optionId(start + at)}

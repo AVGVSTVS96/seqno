@@ -24,10 +24,8 @@ const fetchText = (url: string) =>
 
 const settled = (pageId: PageId, drafts: readonly BlockDraft[]): readonly BlockDraft[] =>
   rerouted(
-    drafts.flatMap((draft): readonly Block[] =>
-      draft.id === undefined
-        ? []
-        : [{ ...draft, id: draft.id, pageId, parentId: null, collapsed: false }],
+    drafts.flatMap(({ id, text, props }): readonly Block[] =>
+      id === undefined ? [] : [{ id, text, props, pageId, parentId: null, collapsed: false }],
     ),
   ).map((block) => ({ id: block.id, text: block.text, props: block.props, children: [] }))
 

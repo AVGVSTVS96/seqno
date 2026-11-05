@@ -17,9 +17,9 @@ import {
   Clock,
   Context,
   Crypto,
-  Deferred,
   Effect,
   Fiber,
+  Latch,
   Layer,
   Option,
   Queue,
@@ -207,23 +207,17 @@ const tabsOn = (
 
 const holdLock = (name: string) =>
   Effect.gen(function* () {
-    const release = Promise.withResolvers<void>()
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => {
-        release.resolve()
-      }),
-    )
-    yield* Effect.callback<void>((resume) => {
-      void navigator.locks.request(name, async () => {
-        resume(Effect.void)
+    const release = yield* Latch.make(false)
+    const granted = yield* Latch.make(false)
+    yield* Effect.addFinalizer(() => release.open)
+    void navigator.locks.request(name, async () => {
+      granted.openUnsafe()
 
-        await release.promise
-      })
+      await Effect.runPromise(release.await)
     })
+    yield* granted.await
 
-    return Effect.sync(() => {
-      release.resolve()
-    })
+    return release.open
   })
 
 const heldLocks = Effect.map(
@@ -1417,16 +1411,16 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         const pages = yield* core.GetPages()
         const alpha = named(pages, "project/Alpha")
         const tasks = yield* core.GetPage({ pageId: named(pages, "tasks").id })
-        const first = yield* Deferred.make<void>()
+        const first = yield* Latch.make(false)
 
         const updates = yield* core.WatchReferences({ pageId: alpha.id }).pipe(
-          Stream.tap(() => Deferred.succeed(first, undefined)),
+          Stream.tap(() => first.open),
           Stream.take(2),
           Stream.runCollect,
           Effect.forkChild,
         )
 
-        yield* Deferred.await(first)
+        yield* first.await
         const block = tasks.blocks[0] ?? assert.fail("tasks has no first block")
         yield* core.Dispatch({
           command: {
@@ -1759,17 +1753,17 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
         yield* second.OpenGraph({ graph: "og-shared" })
         const tasks = named(pages, "tasks").id
         const block = (yield* first.GetPage({ pageId: tasks })).blocks[2] ?? assert.fail("no block")
-        const watching = yield* Deferred.make<void>()
+        const watching = yield* Latch.make(false)
 
         const seen = yield* second.WatchPage({ pageId: tasks }).pipe(
-          Stream.tap(() => Deferred.succeed(watching, undefined)),
+          Stream.tap(() => watching.open),
           Stream.map((tree) => tree.blocks[2]?.text),
           Stream.takeUntil((text) => text === "We recorded a [[voice note]] today."),
           Stream.runCollect,
           Effect.forkChild,
         )
 
-        yield* Deferred.await(watching)
+        yield* watching.await
         yield* first.Dispatch({
           command: { _tag: "EditText", blockId: block.id, from: 0, to: 1, insert: "We" },
         })
@@ -1886,13 +1880,13 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
           const root = yield* copyOfFixture
           const disk = nodeStorage(root)
           const held = { writes: false }
-          const written = yield* Deferred.make<void>()
+          const written = yield* Latch.make(false)
 
           const storage: Storage["Service"] = {
             ...disk,
             write: (path, bytes) =>
               held.writes
-                ? Effect.andThen(Deferred.await(written), disk.write(path, bytes))
+                ? Effect.andThen(written.await, disk.write(path, bytes))
                 : disk.write(path, bytes),
           }
 
@@ -1918,7 +1912,7 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
           const reopened = yield* Effect.forkChild(reopening.OpenGraph({ graph: "og-reopened" }))
           assert.isTrue(Option.isNone(yield* Fiber.await(reopened).pipe(Effect.timeoutOption(50))))
           held.writes = false
-          yield* Deferred.succeed(written, undefined)
+          yield* written.open
           assert.strictEqual((yield* Fiber.join(reopened)).graph, "og-reopened")
           assert.strictEqual(
             (yield* reopening.GetBlock({ blockId: block.id })).text,
@@ -1936,13 +1930,13 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
           const root = yield* copyOfFixture
           const disk = nodeStorage(root)
           const held = { writes: false }
-          const written = yield* Deferred.make<void>()
+          const written = yield* Latch.make(false)
 
           const storage: Storage["Service"] = {
             ...disk,
             write: (path, bytes) =>
               held.writes
-                ? Effect.andThen(Deferred.await(written), disk.write(path, bytes))
+                ? Effect.andThen(written.await, disk.write(path, bytes))
                 : disk.write(path, bytes),
           }
 
@@ -1983,7 +1977,7 @@ UPDATE meta SET value = '{"version":{"999":1},"pageMs":0}' WHERE key = 'stamp';`
           const reopened = yield* Effect.forkChild(reopening.OpenGraph({ graph: "og-late" }))
           assert.isTrue(Option.isNone(yield* Fiber.await(reopened).pipe(Effect.timeoutOption(50))))
           held.writes = false
-          yield* Deferred.succeed(written, undefined)
+          yield* written.open
           assert.strictEqual((yield* Fiber.join(reopened)).graph, "og-late")
           assert.strictEqual(
             (yield* reopening.GetBlock({ blockId: block.id })).text,

@@ -55,7 +55,7 @@ const freeName = (name: string, taken: (path: string) => boolean) => {
   return path
 }
 
-export const makeAssetFiles = (
+export const openAssetFiles = (
   storage: Storage["Service"],
   open: OpenFile,
   wrote: (paths: readonly string[]) => Effect.Effect<void> = () => Effect.void,

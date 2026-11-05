@@ -44,7 +44,7 @@ const SelectionStatus = ({
   readonly picked: readonly Picked[]
   readonly onOpen: (name: string) => void
 }) => (
-  <div className="graph-status" role="region" aria-label="Selected nodes">
+  <section className="graph-status" aria-label="Selected nodes">
     <p aria-live="polite">
       {picked.length === 0
         ? "No graph node selected."
@@ -69,7 +69,7 @@ const SelectionStatus = ({
         ))}
       </ul>
     )}
-  </div>
+  </section>
 )
 
 const Surface = ({
@@ -141,7 +141,7 @@ const Surface = ({
 
   return (
     <div {...logseq("graph-root")}>
-      <canvas ref={attach} className="graph-canvas" role="application" aria-label={label} />
+      <canvas ref={attach} className="graph-canvas" aria-label={label} />
       {ready ? null : <div className="graph-loading">Preparing graph…</div>}
       <SelectionStatus picked={picked} onOpen={open} />
       {children?.(view, picked)}

@@ -17,7 +17,7 @@ const same = (left: readonly AppFile[], right: readonly AppFile[]) =>
   left.length === right.length &&
   left.every((file, at) => file.path === right[at]?.path && file.text === right[at]?.text)
 
-export const makeAppFiles = (
+export const openAppFiles = (
   storage: Storage["Service"],
   changed: Stream.Stream<readonly string[]>,
   wrote: (paths: readonly string[]) => Effect.Effect<void> = () => Effect.void,

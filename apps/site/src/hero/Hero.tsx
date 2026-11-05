@@ -45,7 +45,10 @@ function start(hero: HTMLElement | null) {
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches
   let stop: (() => void) | null = null
   let cancelled = false
-  void document.fonts.ready.then(() => {
+
+  const begin = async () => {
+    await document.fonts.ready
+
     if (cancelled) {
       return
     }
@@ -61,7 +64,9 @@ function start(hero: HTMLElement | null) {
       },
     })
     hero.dataset.live = ""
-  })
+  }
+
+  void begin()
 
   return () => {
     cancelled = true
@@ -92,11 +97,11 @@ export function Hero() {
           Inspired by Buzz and Logseq
         </button>
         <p className="credit-note" id="credit-note">
-          I fell for <a href="https://logseq.com">Logseq</a>'s design from the start: beautiful, and
-          built on writing one block after another. seqno is me trying to give that a strong, solid
-          home. And the first time I opened <a href="https://buzz.xyz">Buzz</a>, I sat there in pure
-          delight, chasing its bees around with my cursor. This hero is my thank-you to it. I hope
-          all of it reads as flattery more than imitation.
+          I fell for <a href="https://logseq.com">Logseq</a>&apos;s design from the start:
+          beautiful, and built on writing one block after another. seqno is me trying to give that a
+          strong, solid home. And the first time I opened <a href="https://buzz.xyz">Buzz</a>, I sat
+          there in pure delight, chasing its bees around with my cursor. This hero is my thank-you
+          to it. I hope all of it reads as flattery more than imitation.
           <span>bassim</span>
         </p>
       </aside>

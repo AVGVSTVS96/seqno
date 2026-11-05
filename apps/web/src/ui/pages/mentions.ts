@@ -52,7 +52,7 @@ export const markMentions = (words: readonly string[]) => (element: HTMLElement 
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
 
       for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-        if (node.parentElement?.closest(skipped) != null) {
+        if ((node.parentElement?.closest(skipped) ?? null) !== null) {
           continue
         }
 

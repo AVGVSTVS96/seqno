@@ -5,7 +5,7 @@ import {
   useAtomSet,
   useAtomValue,
 } from "@effect/atom-react"
-import { Effect, Option, Stream } from "effect"
+import { Cause, Effect, Option, Stream } from "effect"
 import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity"
 import { useContext, useId, useState } from "react"
 import type { ReactNode } from "react"
@@ -27,22 +27,38 @@ export const gitDialog = Atom.make<GitDialog | null>(null).pipe(Atom.keepAlive)
 
 const client = Effect.service(GitClient)
 
-export const runGit = async <A, E>(
+const withGit = <A, E>(
   registry: AtomRegistry.AtomRegistry,
   effect: Effect.Effect<A, E, GitClient>,
 ) =>
-  await Effect.runPromise(
-    Effect.flatMap(AtomRegistry.getResult(registry, gitRuntime), (context) =>
-      Effect.provide(effect, context),
-    ),
+  Effect.flatMap(AtomRegistry.getResult(registry, gitRuntime), (context) =>
+    Effect.provide(effect, context),
   )
 
-const reasonOf = (cause: unknown) =>
+export const runGit = async <A, E>(
+  registry: AtomRegistry.AtomRegistry,
+  effect: Effect.Effect<A, E, GitClient>,
+) => await Effect.runPromise(withGit(registry, effect))
+
+const hasReason = (cause: unknown): cause is { readonly reason: unknown } =>
   typeof cause === "object" && cause !== null && "reason" in cause
-    ? String(cause.reason)
-    : cause instanceof Error
-      ? cause.message
-      : String(cause)
+
+const reasonOf = (cause: unknown) =>
+  hasReason(cause) ? String(cause.reason) : cause instanceof Error ? cause.message : String(cause)
+
+const runGitReporting = async <A, E>(
+  registry: AtomRegistry.AtomRegistry,
+  effect: Effect.Effect<A, E, GitClient>,
+  hint = "",
+) => {
+  await Effect.runPromise(
+    Effect.catchCause(Effect.asVoid(withGit(registry, effect)), (cause) =>
+      Effect.sync(() => {
+        notify(registry, `${reasonOf(Cause.squash(cause))}${hint}`)
+      }),
+    ),
+  )
+}
 
 export const gitSettings = gitRuntime
   .atom(Stream.unwrap(Effect.map(client, (git) => git.WatchGitSettings())))
@@ -53,9 +69,11 @@ const gitNotices = gitRuntime
     Stream.unwrap(Effect.map(client, (git) => git.WatchGitNotices())).pipe(
       Stream.tap((notice) =>
         Effect.sync(() => {
-          notice._tag === "IdentityNeeded"
-            ? get.registry.set(gitDialog, { _tag: "Identity" })
-            : notify(get.registry, notice.reason)
+          if (notice._tag === "IdentityNeeded") {
+            get.registry.set(gitDialog, { _tag: "Identity" })
+          } else {
+            notify(get.registry, notice.reason)
+          }
         }),
       ),
     ),
@@ -67,7 +85,7 @@ const commitOnClose = Atom.make((get) => {
     void runGit(
       get.registry,
       Effect.flatMap(client, (git) => git.GitClosing()),
-    ).catch(() => undefined)
+    ).catch(() => {})
 
   addEventListener("pagehide", closing)
   get.addFinalizer(() => {
@@ -105,27 +123,25 @@ const commitHint =
   "\nIf you don't want to see those errors or don't need git, you can disable the \"Git auto commit\" feature on Settings > Version control."
 
 const commitAll = (registry: AtomRegistry.AtomRegistry, message: string) =>
-  void runGit(
+  void runGitReporting(
     registry,
-    Effect.flatMap(client, (git) => git.GitCommit({ message })),
-  ).then(
-    (done) => {
-      if (done._tag === "NoIdentity") {
-        registry.set(gitDialog, { _tag: "Identity" })
-      }
-    },
-    (error: unknown) => {
-      notify(registry, `${reasonOf(error)}${commitHint}`)
-    },
+    Effect.flatMap(client, (git) => git.GitCommit({ message })).pipe(
+      Effect.tap((done) =>
+        Effect.sync(() => {
+          if (done._tag === "NoIdentity") {
+            registry.set(gitDialog, { _tag: "Identity" })
+          }
+        }),
+      ),
+    ),
+    commitHint,
   )
 
 const revert = (registry: AtomRegistry.AtomRegistry, oid: string, path: string) =>
-  void runGit(
+  void runGitReporting(
     registry,
     Effect.flatMap(client, (git) => git.GitRevert({ oid, path })),
-  ).catch((error: unknown) => {
-    notify(registry, reasonOf(error))
-  })
+  )
 
 const statusKind = (line: string) => line.trim()[0] ?? ""
 
@@ -241,16 +257,15 @@ const IdentityDialog = ({ onClose }: { readonly onClose: () => void }) => {
     }
 
     closeDialogOf(from)
-    void runGit(
+    void runGitReporting(
       registry,
-      Effect.flatMap(client, (git) => git.GitSetIdentity({ name, email })),
-    ).then(
-      () => {
-        notify(registry, "git config successfully!")
-      },
-      (error: unknown) => {
-        notify(registry, reasonOf(error))
-      },
+      Effect.flatMap(client, (git) => git.GitSetIdentity({ name, email })).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            notify(registry, "git config successfully!")
+          }),
+        ),
+      ),
     )
   }
 
@@ -329,23 +344,24 @@ const runCommand = async (registry: AtomRegistry.AtomRegistry, input: string) =>
   const rest = space === -1 ? "" : trimmed.slice(space + 1).trim()
 
   if (command === "") {
-    await Promise.resolve()
     return
   }
 
   if (denied.has(command)) {
-    await Promise.resolve(notify(registry, `${command} is too dangerous!`))
+    notify(registry, `${command} is too dangerous!`)
+
     return
   }
 
   if (command !== "git") {
-    await Promise.resolve(notify(registry, `seqno runs only git commands, not ${command}`))
+    notify(registry, `seqno runs only git commands, not ${command}`)
+
     return
   }
 
   const args = splitArgs(rest)
 
-  await runGit(
+  await runGitReporting(
     registry,
     Effect.gen(function* () {
       const git = yield* client
@@ -354,10 +370,8 @@ const runCommand = async (registry: AtomRegistry.AtomRegistry, input: string) =>
         yield* git.GitRun({ args: ["add", "--ignore-errors", "./*"] })
       }
 
-      return yield* git.GitRun({ args })
-    }),
-  ).then(
-    (result) => {
+      const result = yield* git.GitRun({ args })
+
       notify(
         registry,
         result.exitCode === 0
@@ -366,10 +380,7 @@ const runCommand = async (registry: AtomRegistry.AtomRegistry, input: string) =>
             : result.stdout
           : `${args[0] ?? ""} error: ${result.stderr || result.stdout}`,
       )
-    },
-    (error: unknown) => {
-      notify(registry, reasonOf(error))
-    },
+    }),
   )
 }
 
@@ -538,12 +549,10 @@ export const GitDialogs = () => {
 }
 
 export const saveGitSettings = (registry: AtomRegistry.AtomRegistry, settings: GitSettings) =>
-  void runGit(
+  void runGitReporting(
     registry,
     Effect.flatMap(client, (git) => git.SetGitSettings(settings)),
-  ).catch((error: unknown) => {
-    notify(registry, reasonOf(error))
-  })
+  )
 
 const Row = ({
   label,

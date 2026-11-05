@@ -44,16 +44,17 @@ const items = (menu: HTMLElement) =>
 
 const moveFocus = (menu: HTMLElement, by: (index: number, count: number) => number) => {
   const all = items(menu)
-  const current = all.findIndex((item) => item === document.activeElement)
+  const active = document.activeElement
+  const current = active instanceof HTMLElement ? all.indexOf(active) : -1
   all[by(current, all.length)]?.focus()
 }
 
-const menuKeys: Readonly<Record<string, (index: number, count: number) => number>> = {
-  ArrowDown: (index, count) => (index + 1) % count,
-  ArrowUp: (index, count) => (index <= 0 ? count - 1 : index - 1),
-  Home: () => 0,
-  End: (_, count) => count - 1,
-}
+const menuKeys = new Map<string, (index: number, count: number) => number>([
+  ["ArrowDown", (index, count) => (index + 1) % count],
+  ["ArrowUp", (index, count) => (index <= 0 ? count - 1 : index - 1)],
+  ["Home", () => 0],
+  ["End", (_, count) => count - 1],
+])
 
 export const onMenuKeyDown = (event: KeyboardEvent<HTMLElement>) => {
   if (event.key === "Tab") {
@@ -63,7 +64,7 @@ export const onMenuKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     return
   }
 
-  const step = menuKeys[event.key]
+  const step = menuKeys.get(event.key)
 
   if (step === undefined) {
     return
@@ -81,9 +82,11 @@ const closePopoverOf = (element: Element) => {
   }
 }
 
-export const showPopover = (id: string) => document.getElementById(id)?.showPopover()
+export const showPopover = (id: string) =>
+  document.querySelector<HTMLElement>(`#${CSS.escape(id)}`)?.showPopover()
 
-export const togglePopover = (id: string) => document.getElementById(id)?.togglePopover()
+export const togglePopover = (id: string) =>
+  document.querySelector<HTMLElement>(`#${CSS.escape(id)}`)?.togglePopover()
 
 interface TriggerProps {
   readonly ref: Ref<HTMLButtonElement>
@@ -243,7 +246,7 @@ export const MenuItem = ({
   </button>
 )
 
-export const MenuSeparator = () => <div role="separator" {...logseq("menu-separator")} />
+export const MenuSeparator = () => <hr {...logseq("menu-separator")} />
 
 export interface TooltipContent {
   readonly label: string
@@ -313,7 +316,7 @@ export const useTooltip = (content: TooltipContent | undefined, placement: Place
 }
 
 export const openDialog = (id: string) => {
-  const dialog = document.getElementById(id)
+  const dialog = document.querySelector(`#${CSS.escape(id)}`)
 
   if (!(dialog instanceof HTMLDialogElement) || dialog.open) {
     return
@@ -345,12 +348,13 @@ export const Dialog = ({
   readonly ref?: Ref<HTMLDialogElement>
   readonly children: ReactNode
 }) => (
+  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop light dismiss; the native dialog closes on Escape and closedby has no Safari support
   <dialog
     id={id}
     ref={ref}
     onClose={onClose}
     aria-label={label}
-    {...(focusSelf ? { tabIndex: -1, "data-focus-self": "" } : {})}
+    {...(focusSelf === true ? { tabIndex: -1, "data-focus-self": "" } : {})}
     className={names(logseq("dialog").className, className)}
     onClick={(event) => {
       if (event.target === event.currentTarget) {

@@ -38,15 +38,16 @@ export const PageView = ({
   const openMenu = useAtomSet(blockMenu)
   const vim = useAtomValue(vimMode)
   const zoomed = zoom !== null
+  const journal = inJournals === true
 
   return (
-    <div {...logseq("seqno-page", inJournals === true)} data-zoomed={zoomed}>
+    <div {...logseq("seqno-page", journal)} data-zoomed={zoomed}>
       <PagesStyle />
       <article {...(zoomed ? { "aria-label": page.title } : { "aria-labelledby": heading })}>
-        {zoomed || inJournals === true ? null : <PluginItems type="pagebar" />}
+        {zoomed || journal ? null : <PluginItems type="pagebar" />}
         {zoomed ? null : (
           <div {...logseq("seqno-page-title-wrap")}>
-            <PageTitle page={page} id={heading} link={inJournals ?? false} />
+            <PageTitle page={page} id={heading} link={journal} />
           </div>
         )}
         <div {...logseq("seqno-page-blocks")}>
@@ -64,7 +65,7 @@ export const PageView = ({
           />
         </div>
       </article>
-      {zoomed ? null : <References page={page} unlinked={!inJournals} />}
+      {zoomed ? null : <References page={page} unlinked={!journal} />}
     </div>
   )
 }

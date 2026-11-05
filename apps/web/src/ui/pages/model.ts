@@ -38,7 +38,7 @@ export const trailOf = (blocks: readonly Block[]) => {
   const byId = new Map(blocks.map((block) => [block.id, block]))
 
   const parentOf = (block: Block | undefined) =>
-    block?.parentId == null ? undefined : byId.get(block.parentId)
+    block === undefined || block.parentId === null ? undefined : byId.get(block.parentId)
 
   return (blockId: BlockId): readonly Block[] => {
     const trail: Block[] = []

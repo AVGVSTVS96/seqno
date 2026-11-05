@@ -158,8 +158,9 @@ export const publishedCore = (data: Published): Layer.Layer<CoreClient> => {
               ? { pages: [], blocks: [] }
               : {
                   pages: all
-                    .map((tree) => tree.page)
-                    .filter((page) => page.title.toLowerCase().includes(needle))
+                    .flatMap(({ page }) =>
+                      page.title.toLowerCase().includes(needle) ? [page] : [],
+                    )
                     .slice(0, 10),
                   blocks: blocksOf(trees)
                     .filter((block) => block.text.toLowerCase().includes(needle))

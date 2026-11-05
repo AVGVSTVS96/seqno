@@ -9,10 +9,10 @@ import { publishedCore } from "./core.ts"
 import { SiteView } from "./Site.tsx"
 
 const data = Schema.decodeUnknownOption(Schema.fromJsonString(Published))(
-  document.getElementById(publishedDataId)?.textContent ?? "",
+  document.querySelector(`#${publishedDataId}`)?.textContent ?? "",
 )
 
-const container = document.getElementById("root")
+const container = document.querySelector("#root")
 
 if (container !== null) {
   Option.match(data, {

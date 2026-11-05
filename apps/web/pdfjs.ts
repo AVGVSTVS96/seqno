@@ -1,7 +1,8 @@
 import { readdir, readFile } from "node:fs/promises"
+import type { ServerResponse } from "node:http"
 import { createRequire } from "node:module"
 import { dirname, join } from "node:path"
-import type { Plugin } from "vite"
+import type { Connect, Plugin } from "vite"
 
 const folders = ["cmaps", "standard_fonts", "wasm", "iccs"]
 
@@ -20,6 +21,20 @@ const filesOf = async (): Promise<readonly string[]> =>
     )
   ).flat()
 
+const serveFile = async (path: string, response: ServerResponse, next: Connect.NextFunction) => {
+  let source: Buffer
+
+  try {
+    source = await readFile(join(distRoot, path))
+  } catch {
+    next()
+
+    return
+  }
+
+  response.end(source)
+}
+
 export const pdfjsAssets = (): Plugin => ({
   name: "seqno-pdfjs-assets",
   configureServer(server) {
@@ -32,12 +47,7 @@ export const pdfjsAssets = (): Plugin => ({
         return
       }
 
-      readFile(join(distRoot, path)).then(
-        (source) => response.end(source),
-        () => {
-          next()
-        },
-      )
+      void serveFile(path, response, next)
     })
   },
   async generateBundle() {

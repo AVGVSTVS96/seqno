@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { Match } from "effect"
 import { normalizePageName } from "@seqno/domain"
 import type { BlockId, Page } from "@seqno/domain"
-import type { NavigationTarget } from "@seqno/outliner"
+import type { Navigate, NavigationTarget } from "@seqno/outliner"
 import { allPages, rightSidebar } from "../../atoms.ts"
 
 export const useOpenPage = () => {
@@ -18,13 +18,13 @@ export const useOpenPage = () => {
   }
 }
 
-export const useNavigateTo = () => {
+export const useNavigateTo = (): Navigate => {
   const navigate = useNavigate()
   const open = useOpenPage()
   const updateSidebar = useAtomSet(rightSidebar)
   const known = useAtomValue(allPages)
 
-  return Match.type<NavigationTarget>().pipe(
+  const go = Match.type<NavigationTarget>().pipe(
     Match.tagsExhaustive({
       Journals: async () => {
         await navigate({ to: "/" })
@@ -32,11 +32,11 @@ export const useNavigateTo = () => {
       Page: async ({ name }) => {
         await open({ name: normalizePageName(name) })
       },
-      Zoom: ({ pageId, blockId }) => {
+      Zoom: async ({ pageId, blockId }) => {
         const page = known.find((candidate) => candidate.id === pageId)
 
         if (page !== undefined) {
-          open(page, blockId)
+          await open(page, blockId)
         }
       },
       SidebarPage: ({ name }) => {
@@ -47,4 +47,8 @@ export const useNavigateTo = () => {
       },
     }),
   )
+
+  return (target) => {
+    void go(target)
+  }
 }

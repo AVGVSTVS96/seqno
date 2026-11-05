@@ -75,8 +75,9 @@ const removeFile = (path: string) =>
 
 export const pdfFiles = (registry: AtomRegistry.AtomRegistry): PdfFiles => ({
   resolveAsset: (path) => registry.get(assetResolver)(path),
-  writeAsset: async (path, data) =>
-    await runAssets(registry, writeFile(path, data)).then(() => undefined),
+  writeAsset: async (path, data) => {
+    await runAssets(registry, writeFile(path, data))
+  },
   removeAsset: async (path) => {
     await runAssets(registry, removeFile(path))
   },

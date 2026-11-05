@@ -6,6 +6,19 @@ const bar = 32
 const px = (n: number) => `${n}px`
 const ease = "cubic-bezier(0.32, 0.72, 0, 1)"
 
+const viewport = () => {
+  const { clientWidth, clientHeight } = document.documentElement
+
+  return { width: clientWidth, height: clientHeight }
+}
+
+interface FrameMessage {
+  readonly type: string
+}
+
+const isFrameMessage = (data: unknown): data is FrameMessage =>
+  typeof data === "object" && data !== null && "type" in data && typeof data.type === "string"
+
 export function live(figure: HTMLElement | null) {
   if (!figure) {
     return
@@ -18,20 +31,20 @@ export function live(figure: HTMLElement | null) {
     return
   }
 
-  const slot = figure.querySelector<HTMLElement>(".slot")!
-  const box = figure.querySelector<HTMLElement>(".window")!
-  const screen = figure.querySelector<HTMLElement>(".screen")!
-  const zoom = figure.querySelector<HTMLButtonElement>(".zoom")!
-  const shield = figure.querySelector<HTMLButtonElement>(".shield")!
+  const slot = figure.querySelector<HTMLElement>(".slot")
+  const box = figure.querySelector<HTMLElement>(".window")
+  const screen = figure.querySelector<HTMLElement>(".screen")
+  const zoom = figure.querySelector<HTMLButtonElement>(".zoom")
+  const label = zoom?.querySelector("span")
+  const shield = figure.querySelector<HTMLButtonElement>(".shield")
+
+  if (!slot || !box || !screen || !zoom || !label || !shield) {
+    return
+  }
+
   const frame = document.createElement("iframe")
   frame.title = "seqno, running live"
   frame.allow = "clipboard-read; clipboard-write"
-
-  const viewport = () => {
-    const { clientWidth, clientHeight } = document.documentElement
-
-    return { width: clientWidth, height: clientHeight }
-  }
 
   const fit = () => {
     const { width, height } = viewport()
@@ -61,7 +74,7 @@ export function live(figure: HTMLElement | null) {
   const setZoomed = (on: boolean) => {
     zoomed = on
     zoom.setAttribute("aria-expanded", String(on))
-    zoom.querySelector("span")!.textContent = on ? "Close" : "Full screen"
+    label.textContent = on ? "Close" : "Full screen"
   }
 
   const move = async (open: boolean) => {
@@ -122,8 +135,7 @@ export function live(figure: HTMLElement | null) {
       return
     }
 
-    const data = event.data
-    const type = typeof data === "object" && data !== null ? Reflect.get(data, "type") : null
+    const type = isFrameMessage(event.data) ? event.data.type : null
 
     if (type === "seqno:ready") {
       figure.dataset.state = "live"

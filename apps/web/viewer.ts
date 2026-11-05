@@ -1,8 +1,9 @@
 import babel from "@rolldown/plugin-babel"
 import react, { reactCompilerPreset } from "@vitejs/plugin-react"
 import { readFile } from "node:fs/promises"
+import type { ServerResponse } from "node:http"
 import { build } from "vite"
-import type { Plugin, Rollup } from "vite"
+import type { Connect, Plugin, Rolldown } from "vite"
 
 const root = new URL(".", import.meta.url).pathname
 
@@ -11,8 +12,8 @@ export const viewerFolder = "publish"
 type ViewerFile = readonly [path: string, source: string | Uint8Array]
 
 const outputsOf = (
-  result: Rollup.RollupOutput | readonly Rollup.RollupOutput[] | Rollup.RollupWatcher,
-): ReadonlyArray<Rollup.OutputChunk | Rollup.OutputAsset> =>
+  result: Rolldown.RolldownOutput | Rolldown.RolldownOutput[] | Rolldown.RolldownWatcher,
+): ReadonlyArray<Rolldown.OutputChunk | Rolldown.OutputAsset> =>
   Array.isArray(result)
     ? result.flatMap((each) => each.output)
     : "output" in result
@@ -61,38 +62,52 @@ const buildViewer = async (): Promise<readonly ViewerFile[]> => {
 
 const manifest = (files: readonly ViewerFile[]) => JSON.stringify(files.map(([path]) => path))
 
+const serve = async (
+  served: Promise<readonly ViewerFile[]>,
+  path: string,
+  response: ServerResponse,
+  next: Connect.NextFunction,
+) => {
+  let files: readonly ViewerFile[]
+
+  try {
+    files = await served
+  } catch (error) {
+    next(error)
+
+    return
+  }
+
+  const found = path === "files.json" ? manifest(files) : files.find(([name]) => name === path)?.[1]
+
+  if (found === undefined) {
+    next()
+
+    return
+  }
+
+  response.end(found)
+}
+
 export const viewer = (): Plugin => {
   let served: Promise<readonly ViewerFile[]> | null = null
+
+  const respond: Connect.NextHandleFunction = (request, response, next) => {
+    const path = (request.url ?? "").replace(/^\//u, "").split("?")[0] ?? ""
+
+    if (path === "files.json") {
+      served = buildViewer()
+    }
+
+    served ??= buildViewer()
+
+    void serve(served, path, response, next)
+  }
 
   return {
     name: "seqno-viewer",
     configureServer(server) {
-      server.middlewares.use(`/${viewerFolder}/`, (request, response, next) => {
-        const path = (request.url ?? "").replace(/^\//u, "").split("?")[0] ?? ""
-
-        if (path === "files.json") {
-          served = buildViewer()
-        }
-
-        served ??= buildViewer()
-        void served.then(
-          (files) => {
-            const found =
-              path === "files.json" ? manifest(files) : files.find(([name]) => name === path)?.[1]
-
-            if (found === undefined) {
-              next()
-
-              return
-            }
-
-            response.end(found)
-          },
-          (error: unknown) => {
-            next(error)
-          },
-        )
-      })
+      server.middlewares.use(`/${viewerFolder}/`, respond)
     },
     async generateBundle() {
       if (this.environment.name !== "client") {

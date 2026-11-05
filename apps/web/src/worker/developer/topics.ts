@@ -92,7 +92,7 @@ export const topics: readonly StarterFile[] = [
     "naming",
     "- names are lowercase. one word if it fits, two at most",
     "- search a name before getting attached to it",
-    "- commonplace took four rounds, see the storm on " + dated(20_261_008),
+    `- commonplace took four rounds, see the storm on ${dated(20_261_008)}`,
   ),
   page(
     "history",

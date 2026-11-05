@@ -46,12 +46,9 @@ const gitPlace = (graph: string, work: FileSystemDirectoryHandle, ownGit: boolea
 
     const gitdir = dotGit ?? (yield* opfsFolder(["git", encodeURIComponent(graph)]))
 
-    return {
-      fs: handleFs(work, gitdir),
-      lock:
-        dotGit === null ? async () => async () => undefined : async () => await lockIndex(dotGit),
-      graphPath: graph,
-    }
+    const place = { fs: handleFs(work, gitdir), graphPath: graph }
+
+    return dotGit === null ? place : { ...place, lock: async () => await lockIndex(dotGit) }
   })
 
 const indexName = (graph: string) => `${encodeURIComponent(graph)}.sqlite`
@@ -85,10 +82,14 @@ const indexFile = (graph: string, listed: Effect.Effect<readonly string[], Error
             ? Effect.flatMap(handle(true), (file) =>
                 attempt(async () => {
                   const writable = await file.createWritable()
-                  await writable.write(image).catch(async (error: unknown) => {
+
+                  try {
+                    await writable.write(image)
+                  } catch (error) {
                     await writable.abort()
                     throw error
-                  })
+                  }
+
                   await writable.close()
                 }),
               )
@@ -183,9 +184,9 @@ const IdentityJson = Schema.fromJsonString(Identity)
 
 const readIdentity = (root: FileSystemDirectoryHandle) =>
   Effect.promise(async () => {
-    const file = await root.getFileHandle(identityFile).catch(() => undefined)
+    const file = await root.getFileHandle(identityFile).catch(() => null)
 
-    return file === undefined ? undefined : await (await file.getFile()).text()
+    return file === null ? undefined : await (await file.getFile()).text()
   }).pipe(
     Effect.map((text) =>
       Option.flatMap(Option.fromUndefinedOr(text), Schema.decodeUnknownOption(IdentityJson)),

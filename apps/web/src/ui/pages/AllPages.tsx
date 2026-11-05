@@ -35,7 +35,7 @@ const estimateRow = () => 33
 
 const Gap = ({ height }: { readonly height: number }) => (
   <tr className="seqno-table-gap" aria-hidden style={{ height }}>
-    <td colSpan={columns.length + 2} />
+    <td colSpan={columns.length + 2} aria-hidden />
   </tr>
 )
 
@@ -112,7 +112,7 @@ const PageRows = ({ rows }: { readonly rows: readonly PageRow[] }) => {
 
         const shown = (
           <tr key={page.name} ref={measure} data-index={index}>
-            <td className="seqno-table-gutter" />
+            <td className="seqno-table-gutter" aria-hidden />
             <td>
               <PageLink page={page} className="seqno-table-page" />
             </td>
@@ -130,7 +130,7 @@ const PageRows = ({ rows }: { readonly rows: readonly PageRow[] }) => {
             </td>
             <td>{timestamp(created)}</td>
             <td>{timestamp(updated)}</td>
-            <td className="seqno-table-rest" />
+            <td className="seqno-table-rest" aria-hidden />
           </tr>
         )
 

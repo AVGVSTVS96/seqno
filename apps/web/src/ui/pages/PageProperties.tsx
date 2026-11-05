@@ -114,6 +114,7 @@ export const PageProperties = ({ page }: { readonly page: Page }) => {
           }}
         />
       ) : (
+        // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- click-to-edit mirrors Logseq's page properties block; its links stay keyboard-reachable
         <dl
           {...logseq("seqno-properties")}
           aria-label="Page properties"

@@ -66,9 +66,9 @@ const request = <A>(make: () => IDBRequest<A>) =>
 
 const openDatabase = Effect.callback<IDBDatabase, GraphNotPicked>((resume) => {
   const opening = indexedDB.open("seqno", 1)
-  opening.addEventListener("upgradeneeded", () =>
-    opening.result.createObjectStore("graphs", { keyPath: "name" }),
-  )
+  opening.addEventListener("upgradeneeded", () => {
+    opening.result.createObjectStore("graphs", { keyPath: "name" })
+  })
   opening.addEventListener("success", () => {
     resume(Effect.succeed(opening.result))
   })

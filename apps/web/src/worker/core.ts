@@ -84,9 +84,12 @@ const pagesOf = (session: Session, ids: readonly PageId[]) =>
     return ids.flatMap((id) => Option.toArray(Option.fromUndefinedOr(byId.get(id))))
   })
 
+const isNumber = Schema.is(Schema.Number)
+const isString = Schema.is(Schema.String)
+
 const idsOfRows = (session: Session, table: "blocks" | "pages", rows: readonly Row[]) =>
   Effect.gen(function* () {
-    const rids = rows.flatMap(([rid]) => (typeof rid === "number" ? [rid] : []))
+    const rids = rows.flatMap(([rid]) => (isNumber(rid) ? [rid] : []))
 
     if (rids.length === 0) {
       return []
@@ -137,10 +140,7 @@ const watchQuery = (session: Session, text: string) =>
         Effect.map(
           Effect.mapError(session.index.query(ALIASES_SQL, [name]), invalid),
           (rows) =>
-            [
-              name,
-              new Set(rows.flatMap(([alias]) => (typeof alias === "string" ? [alias] : []))),
-            ] as const,
+            [name, new Set(rows.flatMap(([alias]) => (isString(alias) ? [alias] : [])))] as const,
         ),
       ),
     )
@@ -183,12 +183,11 @@ const ancestorsOf = (session: Session, ids: readonly BlockId[]) =>
 const referencesOf = (hits: readonly BlockHit[]): readonly Reference[] =>
   hits.map(({ blockId, pageId }) => ({ blockId, pageId }))
 
-type View = Data.TaggedEnum<{
-  Idle: {}
-  Open: { readonly graph: string; readonly session: Session }
-  Moved: { readonly graph: string }
-  Gone: {}
-}>
+type View =
+  | { readonly _tag: "Idle" }
+  | { readonly _tag: "Open"; readonly graph: string; readonly session: Session }
+  | { readonly _tag: "Moved"; readonly graph: string }
+  | { readonly _tag: "Gone" }
 
 const View = Data.taggedEnum<View>()
 

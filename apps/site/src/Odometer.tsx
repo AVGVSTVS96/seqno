@@ -11,7 +11,7 @@ export function Odometer() {
   const width = Math.max(4, String(count).length)
   const from = String(baked).padStart(width, "0")
   const to = String(count).padStart(width, "0")
-  const last = date ? `, the last one ${ago(date, new Date(now))}` : ""
+  const last = date === null ? "" : `, the last one ${ago(date, new Date(now))}`
 
   const refresh = () => {
     setNow(Date.now())
@@ -42,7 +42,7 @@ export function Odometer() {
       </a>
       <span className="tip" role="tooltip" id="odo-tip">
         {count} changes so far{last}. Every edit you make in seqno gets a number like this in its
-        edit log. That's the name: seqno, short for sequence number.
+        edit log. That&apos;s the name: seqno, short for sequence number.
       </span>
     </span>
   )

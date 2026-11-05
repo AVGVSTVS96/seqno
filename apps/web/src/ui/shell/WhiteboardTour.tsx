@@ -114,7 +114,7 @@ export const WhiteboardTour = () => {
     setStep(null)
   }
 
-  const next = () => {
+  const advance = () => {
     if (step === 1) {
       end()
 
@@ -131,10 +131,12 @@ export const WhiteboardTour = () => {
       <div {...logseq("seqno-tour-shade")} data-side="bottom" />
       <div {...logseq("seqno-tour-shade")} data-side="left" />
       <div {...logseq("seqno-tour-shade")} data-side="right" />
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the tour step is a non-modal dialog that owns Escape and arrow-key navigation between steps */}
       <div
         key={shown.id}
         role="dialog"
         aria-labelledby={title}
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the step takes focus on mount and stays in the tab order with its buttons
         tabIndex={0}
         {...logseq("seqno-tour-step", shown.id)}
         ref={(node) => node?.focus({ preventScroll: true })}
@@ -142,7 +144,7 @@ export const WhiteboardTour = () => {
           if (event.key === "Escape") {
             end()
           } else if (event.key === "ArrowRight") {
-            next()
+            advance()
           } else if (event.key === "ArrowLeft" && step === 1) {
             setStep(0)
           }
@@ -169,7 +171,7 @@ export const WhiteboardTour = () => {
         </div>
         <footer {...logseq("seqno-tour-footer")}>
           {step === 0 ? (
-            <button type="button" {...logseq("seqno-tour-button", false)} onClick={next}>
+            <button type="button" {...logseq("seqno-tour-button", false)} onClick={advance}>
               Next
             </button>
           ) : (

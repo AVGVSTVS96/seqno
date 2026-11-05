@@ -1,6 +1,7 @@
 import { logseq } from "@seqno/dom"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import { IconX } from "@tabler/icons-react"
+import { Array as Arr, Option, Schema } from "effect"
 import { useId } from "react"
 import {
   hostAtom,
@@ -12,33 +13,40 @@ import {
 } from "@seqno/plugins"
 import type { Host, SettingItem, Settings } from "@seqno/plugins"
 
-const textOf = (value: unknown) =>
-  value === null || value === undefined ? "" : typeof value === "string" ? value : String(value)
+const Scalar = Schema.Union([Schema.String, Schema.Number, Schema.Boolean])
+
+const decodeShown = Schema.decodeUnknownOption(Schema.Union([Scalar, Schema.Array(Scalar)]))
+
+type Picked = string | boolean | readonly string[]
 
 const Field = ({
   item,
-  value,
+  on,
+  texts,
   labelledBy,
   onChange,
   onButton,
 }: {
   readonly item: SettingItem
-  readonly value: unknown
+  readonly on: boolean
+  readonly texts: readonly string[]
   readonly labelledBy: string
-  readonly onChange: (value: unknown) => void
+  readonly onChange: (value: Picked) => void
   readonly onButton: () => void
 }) => {
+  const text = texts.join(",")
+
   switch (item.type) {
     case "boolean": {
       return (
         <button
           type="button"
           role="switch"
-          aria-checked={value === true}
+          aria-checked={on}
           aria-labelledby={labelledBy}
           className="switch"
           onClick={() => {
-            onChange(value !== true)
+            onChange(!on)
           }}
         >
           <span className="switch-thumb" />
@@ -47,17 +55,13 @@ const Field = ({
     }
 
     case "enum": {
-      const picked = Array.isArray(value) ? value.map(String) : [textOf(value)]
+      const picked = texts
 
       if (item.enumPicker === "checkbox" || item.enumPicker === "radio") {
         const many = item.enumPicker === "checkbox"
 
         return (
-          <div
-            role="group"
-            aria-labelledby={labelledBy}
-            {...logseq("plugin-setting-choices", many)}
-          >
+          <fieldset aria-labelledby={labelledBy} {...logseq("plugin-setting-choices", many)}>
             {item.enumChoices.map((choice) => (
               <label key={choice} className="plugin-setting-choice">
                 <input
@@ -78,7 +82,7 @@ const Field = ({
                 {choice}
               </label>
             ))}
-          </div>
+          </fieldset>
         )
       }
 
@@ -110,7 +114,9 @@ const Field = ({
 
     case "object": {
       return (
-        <span className="plugin-setting-note">Edit this one in the plugin's settings file.</span>
+        <span className="plugin-setting-note">
+          Edit this one in the plugin&apos;s settings file.
+        </span>
       )
     }
 
@@ -120,7 +126,7 @@ const Field = ({
         <textarea
           aria-labelledby={labelledBy}
           {...logseq("plugin-setting-input", "textarea")}
-          value={textOf(value)}
+          value={text}
           onChange={(event) => {
             onChange(event.target.value)
           }}
@@ -130,7 +136,7 @@ const Field = ({
           aria-labelledby={labelledBy}
           {...logseq("plugin-setting-input", item.inputAs ?? item.type)}
           type={item.inputAs ?? (item.type === "number" ? "number" : "text")}
-          value={textOf(value)}
+          value={text}
           onChange={(event) => {
             onChange(event.target.value)
           }}
@@ -139,7 +145,7 @@ const Field = ({
     }
 
     default: {
-      return <span className="plugin-setting-note">This kind of setting isn't supported.</span>
+      return <span className="plugin-setting-note">This kind of setting isn&apos;t supported.</span>
     }
   }
 }
@@ -156,6 +162,12 @@ const Row = ({
   readonly host: Host | null
 }) => {
   const labelId = useId()
+  const stored = settings[item.key] ?? item.default
+
+  const texts = Option.match(decodeShown(stored), {
+    onNone: () => [],
+    onSome: (shown) => Arr.ensure(shown).map(String),
+  })
 
   if (item.type === "heading") {
     return (
@@ -174,14 +186,18 @@ const Row = ({
       {item.description === "" ? null : (
         <div
           className="plugin-setting-description"
+          // oxlint-disable-next-line react/no-danger -- plugin setting descriptions are HTML, cleaned by sanitizeHtml first
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.description) }}
         />
       )}
       <Field
         item={item}
-        value={settings[item.key] ?? item.default}
+        on={stored === true}
+        texts={texts}
         labelledBy={labelId}
-        onChange={(value) => host?.saveSettings(pid, { ...settings, [item.key]: value })}
+        onChange={(value) => {
+          host?.saveSettings(pid, { ...settings, [item.key]: value })
+        }}
         onButton={() =>
           void host?.requestModel(pid, item.buttonAction ?? "", [
             { type: "click", dataset: { key: item.key } },
@@ -218,6 +234,7 @@ export const PluginSettings = () => {
   const [pid, setPid] = useAtom(settingsFor)
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop light dismiss; the native dialog closes on Escape and closedby has no Safari support
     <dialog
       aria-label="Plugin settings"
       className="dialog plugin-settings"

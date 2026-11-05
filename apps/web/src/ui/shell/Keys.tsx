@@ -4,22 +4,22 @@ import { onMac } from "./shortcuts.ts"
 
 const modifiers = new Set(["mod", "alt", "shift", "ctrl"])
 
-const labels: Readonly<Record<string, string>> = {
-  mod: onMac ? "⌘" : "Ctrl",
-  alt: onMac ? "⌥" : "Alt",
-  shift: "⇧",
-  ctrl: "Ctrl",
-  enter: "⏎",
-  tab: "Tab",
-  escape: "Esc",
-  backspace: "Backspace",
-  arrowup: "↑",
-  arrowdown: "↓",
-  arrowleft: "←",
-  arrowright: "→",
-}
+const labels = new Map([
+  ["mod", onMac ? "⌘" : "Ctrl"],
+  ["alt", onMac ? "⌥" : "Alt"],
+  ["shift", "⇧"],
+  ["ctrl", "Ctrl"],
+  ["enter", "⏎"],
+  ["tab", "Tab"],
+  ["escape", "Esc"],
+  ["backspace", "Backspace"],
+  ["arrowup", "↑"],
+  ["arrowdown", "↓"],
+  ["arrowleft", "←"],
+  ["arrowright", "→"],
+])
 
-const labelOf = (key: string) => labels[key] ?? (key.length === 1 ? key.toUpperCase() : key)
+const labelOf = (key: string) => labels.get(key) ?? (key.length === 1 ? key.toUpperCase() : key)
 
 export const Keys = ({
   keys,
@@ -31,7 +31,13 @@ export const Keys = ({
   readonly combo?: boolean
 }) =>
   (combo ?? keys.some((key) => modifiers.has(key))) ? (
-    <span className={names(logseq("seqno-keys").className, "keys-combo", framed && "keys-framed")}>
+    <span
+      className={names(
+        logseq("seqno-keys").className,
+        "keys-combo",
+        framed === true && "keys-framed",
+      )}
+    >
       {keys.map((key, index) => (
         <Fragment key={key}>
           {index === 0 ? null : <span className="keys-separator" />}
@@ -41,7 +47,11 @@ export const Keys = ({
     </span>
   ) : (
     <span
-      className={names(logseq("seqno-keys").className, "keys-sequence", framed && "keys-framed")}
+      className={names(
+        logseq("seqno-keys").className,
+        "keys-sequence",
+        framed === true && "keys-framed",
+      )}
     >
       {keys.map((key, index) => (
         <kbd key={`${index}-${key}`} className="key">
