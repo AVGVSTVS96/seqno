@@ -1,6 +1,7 @@
 import { afterEach, assert, describe, it, vi } from "@effect/vitest"
 import type { MountedEditor } from "@seqno/editor"
 import { submitDate } from "../src/planning.ts"
+import { Choice } from "../src/popup.ts"
 import { blockId, caret, mount, otherBlockId, press, text, typeKeys, unmountAll } from "./mount.ts"
 
 afterEach(unmountAll)
@@ -8,29 +9,15 @@ afterEach(unmountAll)
 const popupOf = (popups: MountedEditor["popups"]) => popups.frame()?.popup ?? null
 
 const labels = (popups: MountedEditor["popups"]) =>
-  popupOf(popups)?.choices.map((choice) => {
-    switch (choice._tag) {
-      case "Command": {
-        return choice.command.label
-      }
-
-      case "Block": {
-        return choice.text
-      }
-
-      case "NewPage": {
-        return `New page ${choice.title}`
-      }
-
-      case "Journal": {
-        return choice.label
-      }
-
-      case "Page": {
-        return choice.title
-      }
-    }
-  }) ?? null
+  popupOf(popups)?.choices.map(
+    Choice.$match({
+      Command: (choice) => choice.command.label,
+      Block: (choice) => choice.text,
+      NewPage: (choice) => `New page ${choice.title}`,
+      Journal: (choice) => choice.label,
+      Page: (choice) => choice.title,
+    }),
+  ) ?? null
 
 const relativeDates = [
   "Today",
@@ -209,8 +196,10 @@ describe("page search", () => {
 
   it("lists a tag-only page first for #, and leaves out pages matched only by scattered letters", async () => {
     const { view, popups, pages } = mount("", { _tag: "End" })
-    pages.push({ name: "projects/greenhouse", title: "projects/Greenhouse" })
-    pages.push({ name: "greenhouse", title: "greenhouse" })
+    pages.push(
+      { name: "projects/greenhouse", title: "projects/Greenhouse" },
+      { name: "greenhouse", title: "greenhouse" },
+    )
     typeKeys(view, "#gre")
     await vi.waitFor(() => {
       assert.deepStrictEqual(labels(popups), ["greenhouse", "New page gre", "projects/Greenhouse"])

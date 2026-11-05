@@ -79,7 +79,10 @@ export const mount = (
     readonly vim?: boolean
   } = {},
 ) => {
-  const editor = mountBlockEditor(document.body.appendChild(document.createElement("div")), {
+  const parent = document.createElement("div")
+  document.body.append(parent)
+
+  const editor = mountBlockEditor(parent, {
     block,
     cursor,
     updates,
@@ -96,7 +99,9 @@ export const mount = (
 
         return await Promise.resolve(!within.rejecting)
       },
-      act: (action) => within.actions.push(action),
+      act: (action) => {
+        within.actions.push(action)
+      },
       searchPages: (query) =>
         Effect.sync(() => {
           within.searches.push(`page:${query}`)

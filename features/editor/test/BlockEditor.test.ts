@@ -9,9 +9,9 @@ import { blockOf, page, typeKeys } from "./mount.ts"
 
 const roots: Root[] = []
 
-afterEach(async () => {
+afterEach(() => {
   for (const root of roots.splice(0)) {
-    await act(() => {
+    act(() => {
       root.unmount()
     })
   }
@@ -19,8 +19,9 @@ afterEach(async () => {
   document.body.replaceChildren()
 })
 
-const render = async (text: string) => {
-  const container = document.body.appendChild(document.createElement("div"))
+const render = (text: string) => {
+  const container = document.createElement("div")
+  document.body.append(container)
   const root = createRoot(container)
   roots.push(root)
 
@@ -32,9 +33,9 @@ const render = async (text: string) => {
         updates: Stream.never,
         handoff: createHandoff(),
         host: {
-          dispatch: () => undefined,
+          dispatch: () => {},
           dispatchAll: async () => await Promise.resolve(true),
-          act: () => undefined,
+          act: () => {},
           searchPages: () => Effect.succeed([page("Garden Plan")]),
           searchBlocks: () => Effect.succeed([]),
           saveAssets: async () => await Promise.resolve([]),
@@ -43,8 +44,8 @@ const render = async (text: string) => {
     )
   }
 
-  await act(draw)
-  await act(draw)
+  act(draw)
+  act(draw)
   const dom = container.querySelector(".cm-editor")
   const view = dom instanceof HTMLElement ? EditorView.findFromDOM(dom) : null
 
@@ -61,9 +62,9 @@ const options = () =>
     option.getAttribute("aria-selected"),
   ])
 
-describe("BlockEditor", () => {
-  it("mounts one focused editor on the block and removes it on unmount", async () => {
-    const { container, root } = await render("edit **me**")
+describe(BlockEditor, () => {
+  it("mounts one focused editor on the block and removes it on unmount", () => {
+    const { container, root } = render("edit **me**")
     const content = container.querySelector(".cm-content")
     assert.strictEqual(container.querySelectorAll(".cm-editor").length, 1)
     assert.strictEqual(content?.textContent, "edit **me**")
@@ -72,16 +73,16 @@ describe("BlockEditor", () => {
       ["spellcheck", "autocorrect", "autocapitalize"].map((name) => content?.getAttribute(name)),
       ["true", "on", "sentences"],
     )
-    await act(() => {
+    act(() => {
       root.unmount()
     })
     roots.splice(0)
     assert.strictEqual(container.innerHTML, "")
   })
 
-  it("draws the slash menu as a listbox with Logseq's group headings", async () => {
-    const { view } = await render("")
-    await act(() => {
+  it("draws the slash menu as a listbox with Logseq's group headings", () => {
+    const { view } = render("")
+    act(() => {
       typeKeys(view, "/")
     })
     const listbox = document.querySelector("[role=listbox]")
@@ -98,12 +99,14 @@ describe("BlockEditor", () => {
   })
 
   it("marks the matched letters and follows the pointer", async () => {
-    const { view } = await render("")
-    await act(() => {
+    const { view } = render("")
+    act(() => {
       typeKeys(view, "[[gar")
     })
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20)
+      })
     })
     assert.deepStrictEqual(options(), [
       ["Garden Plan", "true"],

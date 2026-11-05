@@ -5,19 +5,21 @@ import { blockId, caret, mount, session, text, typeKeys, unmountAll } from "./mo
 
 afterEach(unmountAll)
 
-const keys = (view: EditorView, ...pressed: ReadonlyArray<string | KeyboardEventInit>) => {
+const keyDown = (view: EditorView, init: KeyboardEventInit) => {
+  view.contentDOM.dispatchEvent(
+    new KeyboardEvent("keydown", { ...init, bubbles: true, cancelable: true }),
+  )
+}
+
+const keys = (view: EditorView, ...pressed: readonly string[]) => {
   for (const key of pressed) {
-    view.contentDOM.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        ...(typeof key === "string" ? { key } : key),
-        bubbles: true,
-        cancelable: true,
-      }),
-    )
+    keyDown(view, { key })
   }
 }
 
-const vimOn = (value: string, cursor: CursorPlacement = { _tag: "End" }, within = session()) =>
+const end: CursorPlacement = { _tag: "End" }
+
+const vimOn = (value: string, cursor: CursorPlacement = end, within = session()) =>
   mount(value, cursor, { vim: true, within })
 
 describe("vim mode in the block editor", () => {
@@ -98,7 +100,8 @@ describe("vim mode in the block editor", () => {
 
   it("sends u and Ctrl-r to the graph's undo history", () => {
     const { view, commands } = vimOn("hello")
-    keys(view, "Escape", "u", { key: "r", ctrlKey: true })
+    keys(view, "Escape", "u")
+    keyDown(view, { key: "r", ctrlKey: true })
     assert.deepStrictEqual(commands, [{ _tag: "Undo" }, { _tag: "Redo" }])
   })
 

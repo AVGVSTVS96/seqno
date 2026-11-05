@@ -13,7 +13,7 @@ import type { Host } from "./host.ts"
 import { fetchPlugin } from "./marketplace.ts"
 import type { MarketItem } from "./marketplace.ts"
 import { watchSelection } from "./selection.ts"
-import { record, text } from "./package.ts"
+import { amount, record, text } from "./package.ts"
 import { changedBlock } from "./shapes.ts"
 import {
   chosenThemes,
@@ -130,8 +130,7 @@ const runSlash = (host: Host, command: PluginSlashCommand, blockId: BlockId) => 
     const [name, first, second] = action
 
     if (name === "editor/input") {
-      const backward = record(second)["backward-pos"]
-      insertAtCaret(text(first) ?? "", typeof backward === "number" ? backward : 0)
+      insertAtCaret(text(first) ?? "", amount(record(second)["backward-pos"]) ?? 0)
     }
 
     if (name === "editor/hook") {
@@ -176,7 +175,7 @@ export const startPlugins = (registry: AtomRegistry.AtomRegistry, bridge: Bridge
 
   for (const info of registry.get(installedPlugins)) {
     void loadPlugin(registry, info)
-    void ensureCopy(info).catch(() => undefined)
+    void ensureCopy(info).catch(() => null)
   }
 
   watchSelection(host)

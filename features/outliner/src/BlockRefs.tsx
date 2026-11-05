@@ -11,6 +11,7 @@ export const BlockRefs = ({ uuid }: { readonly uuid: string }) => {
   const blocks = AsyncResult.getOrElse(useAtomValue(blockReferencesAtom(uuid)), () => [])
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the handlers only keep events from reaching the outliner around these references
     <section
       className="seqno-block-refs"
       aria-label="Block references"

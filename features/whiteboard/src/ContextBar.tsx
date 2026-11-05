@@ -20,7 +20,7 @@ import {
 import { Fragment } from "react"
 import type { ComponentType, ReactNode } from "react"
 import type { BlockId, ScaleLevel } from "@seqno/domain"
-import type { Raw } from "./commands.ts"
+import type { Raw } from "./raw.ts"
 import { EMBED_SIZE, htmlBounds } from "./Embeds.tsx"
 import { LinksAction } from "./links.tsx"
 import type { LinkEnv } from "./links.tsx"
@@ -118,19 +118,21 @@ const actionsOf = (item: Item): readonly Action[] => {
       return []
     }
 
-    default: {
+    case "image":
+    case "video":
+    case "unsupported": {
       return ["Links"]
     }
   }
 }
 
-const SINGLE_ONLY: readonly Action[] = [
+const SINGLE_ONLY = new Set<Action>([
   "Links",
   "EditPdf",
   "YoutubeLink",
   "TwitterLink",
   "IFrameSource",
-]
+])
 
 export interface EmbedActions {
   readonly reload: (blockId: BlockId) => void
@@ -177,12 +179,9 @@ export const contextActions = (items: readonly Item[]): readonly Action[] =>
     ? []
     : ORDER.filter(
         (action) =>
-          (items.length === 1 || !SINGLE_ONLY.includes(action)) &&
+          (items.length === 1 || !SINGLE_ONLY.has(action)) &&
           items.every((item) => actionsOf(item).includes(action)),
       )
-
-const field = <K extends string>(item: Item, key: K): unknown =>
-  key in item.shape ? Object.entries(item.shape).find(([name]) => name === key)?.[1] : undefined
 
 const all = (items: readonly Item[], test: (item: Item) => boolean) => items.every(test)
 
@@ -251,17 +250,24 @@ export const ContextBar = ({
     return null
   }
 
-  const color = field(first, "stroke")
-  const scale = field(first, "scaleLevel")
-  const bold = all(items, (item) => field(item, "fontWeight") === 700)
-  const italic = all(items, (item) => field(item, "italic") === true)
-  const noFill = all(items, (item) => field(item, "noFill") === true)
-  const dashed = all(items, (item) => field(item, "strokeType") === "dashed")
+  const { shape } = first
+  const color = "stroke" in shape ? shape.stroke : ""
+  const scale = "scaleLevel" in shape ? shape.scaleLevel : "md"
+  const opacity = "opacity" in shape ? shape.opacity : 1
+  const url = "url" in shape ? shape.url : ""
+  const bold = all(items, (item) => "fontWeight" in item.shape && item.shape.fontWeight === 700)
+  const italic = all(items, (item) => "italic" in item.shape && item.shape.italic)
+  const noFill = all(items, (item) => "noFill" in item.shape && item.shape.noFill)
+
+  const dashed = all(
+    items,
+    (item) => "strokeType" in item.shape && item.shape.strokeType === "dashed",
+  )
 
   const auto = all(items, (item) =>
     item.shape.type === "text"
       ? item.shape.isSizeLocked !== false
-      : field(item, "isAutoResizing") !== false,
+      : !("isAutoResizing" in item.shape) || item.shape.isAutoResizing,
   )
 
   const collapsed = all(items, (item) =>
@@ -374,13 +380,13 @@ export const ContextBar = ({
                   height: 16,
                   borderRadius: 4,
                   border: "1px solid var(--wb-separator)",
-                  background: colorVar("background", typeof color === "string" ? color : ""),
+                  background: colorVar("background", color),
                 }}
               />
             }
           >
             <Swatches
-              current={typeof color === "string" ? color : ""}
+              current={color}
               onPick={(picked) => {
                 onPatch(() => ({ fill: picked, stroke: picked }))
               }}
@@ -405,11 +411,7 @@ export const ContextBar = ({
                   min={0}
                   max={1}
                   step={0.1}
-                  defaultValue={
-                    typeof field(first, "opacity") === "number"
-                      ? String(field(first, "opacity"))
-                      : "1"
-                  }
+                  defaultValue={String(opacity)}
                   onPointerUp={(event) => {
                     const value = Number(event.currentTarget.value)
                     onPatch(() => ({ opacity: value }))
@@ -468,7 +470,7 @@ export const ContextBar = ({
         return (
           <select
             aria-label="Scale"
-            value={typeof scale === "string" ? scale : "md"}
+            value={scale}
             onChange={(event) => {
               const picked: ScaleLevel | undefined = SCALES.find(
                 (level) => level === event.currentTarget.value,
@@ -479,6 +481,7 @@ export const ContextBar = ({
                   if (item.shape.type !== "html") {
                     return { scaleLevel: picked }
                   }
+
                   const ratio = portalScale[picked] / portalScale[item.shape.scaleLevel ?? "md"]
                   const [w, h] = item.shape.size
 
@@ -565,7 +568,6 @@ export const ContextBar = ({
 
       case "YoutubeLink":
       case "TwitterLink": {
-        const url = String(field(first, "url") ?? "")
         const youtube = action === "YoutubeLink"
 
         return (
@@ -593,8 +595,6 @@ export const ContextBar = ({
       }
 
       case "IFrameSource": {
-        const url = String(field(first, "url") ?? "")
-
         return (
           <span className="wb-url-row">
             <ToolButton
@@ -614,7 +614,9 @@ export const ContextBar = ({
             />
             <ToolButton
               label="Open website url"
-              onClick={() => window.open(url, "_blank", "noopener")}
+              onClick={() => {
+                window.open(url, "_blank", "noopener")
+              }}
             >
               <IconExternalLink size={16} />
             </ToolButton>
@@ -640,6 +642,7 @@ export const ContextBar = ({
     <div
       className="wb-panel wb-context"
       role="toolbar"
+      tabIndex={-1}
       aria-label="Shape style"
       style={{ left, top }}
       onPointerDown={(event) => {

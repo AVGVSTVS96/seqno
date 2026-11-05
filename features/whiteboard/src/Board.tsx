@@ -16,7 +16,7 @@ import {
   IconLink,
   IconPlus,
 } from "@tabler/icons-react"
-import { Exit, Option } from "effect"
+import { Exit, Match, Option } from "effect"
 import { AsyncResult } from "effect/reactivity"
 import { use, useRef, useState } from "react"
 import type { CSSProperties, ReactNode } from "react"
@@ -45,12 +45,15 @@ import {
   create,
   editText,
   group,
+  insertLast,
   patch,
   remove,
   reorder,
   ungroup,
 } from "./commands.ts"
-import type { Draft, Raw } from "./commands.ts"
+import type { Draft, Order } from "./commands.ts"
+import { isList } from "./raw.ts"
+import type { Raw } from "./raw.ts"
 import { ContextBar } from "./ContextBar.tsx"
 import { ContextMenu } from "./ContextMenu.tsx"
 import type { MenuGroup, MenuRow } from "./ContextMenu.tsx"
@@ -163,38 +166,63 @@ interface Press {
   readonly again: boolean
 }
 
-const SHAPE_KEYS: Record<string, Tool> = {
-  "1": "select",
-  "2": "move",
-  "3": "portal",
-  "4": "pencil",
-  "5": "highlighter",
-  "6": "eraser",
-  "7": "line",
-  "8": "text",
-  "9": "box",
-  o: "ellipse",
-}
+const SHAPE_KEYS = new Map<string, Tool>([
+  ["1", "select"],
+  ["2", "move"],
+  ["3", "portal"],
+  ["4", "pencil"],
+  ["5", "highlighter"],
+  ["6", "eraser"],
+  ["7", "line"],
+  ["8", "text"],
+  ["9", "box"],
+  ["o", "ellipse"],
+])
 
-const CHORD_KEYS: Record<string, Tool> = {
-  s: "select",
-  p: "move",
-  b: "portal",
-  d: "pencil",
-  h: "highlighter",
-  e: "eraser",
-  c: "line",
-  t: "text",
-  r: "box",
-  o: "ellipse",
-}
+const CHORD_KEYS = new Map<string, Tool>([
+  ["s", "select"],
+  ["p", "move"],
+  ["b", "portal"],
+  ["d", "pencil"],
+  ["h", "highlighter"],
+  ["e", "eraser"],
+  ["c", "line"],
+  ["t", "text"],
+  ["r", "box"],
+  ["o", "ellipse"],
+])
 
-const CLONE_KEYS: Record<string, Vec> = {
-  ArrowLeft: [-1, 0],
-  ArrowRight: [1, 0],
-  ArrowUp: [0, -1],
-  ArrowDown: [0, 1],
-}
+const CLONE_KEYS = new Map<string, Vec>([
+  ["ArrowLeft", [-1, 0]],
+  ["ArrowRight", [1, 0]],
+  ["ArrowUp", [0, -1]],
+  ["ArrowDown", [0, 1]],
+])
+
+const ZOOM_KEYS = new Map<string, ZoomAction>([
+  [")", "reset"],
+  ["0", "reset"],
+  ["!", "drawing"],
+  ["1", "drawing"],
+  ["@", "selection"],
+  ["2", "selection"],
+  ["+", "in"],
+  ["=", "in"],
+  ["_", "out"],
+  ["-", "out"],
+])
+
+const ORDER_KEYS = new Map<string, Order>([
+  ["{", "back"],
+  ["}", "front"],
+  ["[", "backward"],
+  ["]", "forward"],
+])
+
+const sizeOf = (entry: ResizeObserverEntry) => ({
+  width: entry.contentRect.width,
+  height: entry.contentRect.height,
+})
 
 const isEditableTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
@@ -343,6 +371,7 @@ const TitleChip = ({
             className="wb-popover wb-references-panel"
             data-side="below"
             style={panel.popover}
+            role="presentation"
             onKeyDown={(event) => {
               event.stopPropagation()
             }}
@@ -361,10 +390,8 @@ const TitleChip = ({
 const readClipboardItems = async () => {
   const [item] = await navigator.clipboard.read()
 
-  const read = (type: string) =>
-    item?.types.includes(type) === true
-      ? item.getType(type).then(async (blob) => await blob.text())
-      : ""
+  const read = async (type: string) =>
+    item?.types.includes(type) === true ? await (await item.getType(type)).text() : ""
 
   return { html: await read("text/html"), text: await read("text/plain") }
 }
@@ -607,30 +634,30 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     }
   }
 
-  const newBlockPortal = (point: Vec, text: string) => {
-    const after = scene.items.findLast((item) => !isGhost(item.block.id))?.block.id
+  const placeText = async (world: Vec) => {
+    const events = await placeShape(newShape("text", snapped(world), [0, 0], styles, {}), "")
+    const id = createdIds(events)[0]
 
-    const made: Command = {
-      _tag: "InsertBlocks",
-      pageId: page.id,
-      parentId: null,
-      ...(after === undefined ? {} : { after }),
-      blocks: [{ text, props: {}, children: [] }],
+    if (id !== undefined) {
+      setSelected([id])
+      setEditing(id)
+      setDraft("")
+    }
+  }
+
+  const newBlockPortal = async (point: Vec, text: string) => {
+    const events = await commit([insertLast(page.id, scene, [{ text, props: {}, children: [] }])])
+    const blockId = createdIds(events)[0]
+
+    if (blockId === undefined) {
+      return
     }
 
-    void commit([made]).then((events) => {
-      const blockId = createdIds(events)[0]
-
-      if (blockId === undefined) {
-        return
-      }
-
-      void placeShape(portalRaw(point, "B"), portalText({ _tag: "BlockPortal", uuid: blockId }))
-        .then(selectCreated())
-        .then(() => {
-          requestEdit({ blockId, caret: text.length })
-        })
-    })
+    const select = selectCreated()
+    select(
+      await placeShape(portalRaw(point, "B"), portalText({ _tag: "BlockPortal", uuid: blockId })),
+    )
+    requestEdit({ blockId, caret: text.length })
   }
 
   const pick = (point: Vec, choice: Pick) => {
@@ -644,7 +671,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
     switch (choice._tag) {
       case "NewBlock": {
-        newBlockPortal(point, choice.text)
+        void newBlockPortal(point, choice.text)
 
         return
       }
@@ -677,6 +704,19 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     }
   }
 
+  const commitMove = async (done: Extract<Gesture, { _tag: "Translating" }>) => {
+    const events = await commit(changesOf(page.id, scene, done, styles))
+    const copies = done.copy
+
+    if (copies !== null && createdIds(events).length > 0) {
+      setSelected(
+        withMembers(scene, done.ids).flatMap((id, index) =>
+          done.ids.includes(id) ? (copies[index] ?? []) : [],
+        ),
+      )
+    }
+  }
+
   const finishGesture = () => {
     const done = gesture
     setGesture(idle)
@@ -684,6 +724,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     press.current = null
 
     switch (done._tag) {
+      case "Idle":
+      case "Panning": {
+        return
+      }
+
       case "Brushing": {
         setSelected(brushed(scene, done))
 
@@ -738,31 +783,16 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           }
         }
 
-        void commit(changesOf(page.id, scene, done, styles)).then((events) => {
-          const copies = done.copy
-
-          if (copies === null) {
-            return
-          }
-
-          const top = withMembers(scene, done.ids).flatMap((id, index) =>
-            done.ids.includes(id) ? (copies[index] ?? []) : [],
-          )
-
-          if (createdIds(events).length > 0) {
-            setSelected(top)
-          }
-        })
+        void commitMove(done)
 
         return
       }
 
-      case "Idle":
-      case "Panning": {
-        return
-      }
-
-      default: {
+      case "Resizing":
+      case "Rotating":
+      case "MovingEnd":
+      case "Drawing":
+      case "Erasing": {
         void commit(changesOf(page.id, scene, done, styles))
       }
     }
@@ -891,11 +921,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         const id = parent === undefined || selection.includes(hit.block.id) ? hit.block.id : parent
         const entering = parent !== undefined && id === parent && selection.includes(parent)
 
-        if (entering) {
-          press.current = { ...press.current, hit: hit.block.id }
-        } else {
-          press.current = { ...press.current, hit: id }
-        }
+        press.current = { ...press.current, hit: entering ? hit.block.id : id }
 
         const already = selection.includes(id)
 
@@ -961,17 +987,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
       case "text": {
         setTool("select")
-        void placeShape(newShape("text", snapped(world), [0, 0], styles, {}), "").then((events) => {
-          const id = createdIds(events)[0]
-
-          if (id === undefined) {
-            return
-          }
-
-          setSelected([id])
-          setEditing(id)
-          setDraft("")
-        })
+        void placeText(world)
 
         return
       }
@@ -1167,19 +1183,6 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     }
   }
 
-  const zoomKeys: Record<string, ZoomAction> = {
-    ")": "reset",
-    "0": "reset",
-    "!": "drawing",
-    "1": "drawing",
-    "@": "selection",
-    "2": "selection",
-    "+": "in",
-    "=": "in",
-    _: "out",
-    "-": "out",
-  }
-
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     shiftHeld.current = event.shiftKey
 
@@ -1244,7 +1247,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       return
     }
 
-    const direction = CLONE_KEYS[key]
+    const direction = CLONE_KEYS.get(key)
 
     const cloneChord = navigator.userAgent.includes("Mac")
       ? event.ctrlKey && event.shiftKey && !event.metaKey
@@ -1294,7 +1297,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     }
 
     if (event.shiftKey) {
-      const zoom = zoomKeys[key]
+      const zoom = ZOOM_KEYS.get(key)
 
       if (zoom !== undefined) {
         handled()
@@ -1304,12 +1307,10 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       }
     }
 
-    if (key === "[" || key === "]" || key === "{" || key === "}") {
+    const order = ORDER_KEYS.get(key)
+
+    if (order !== undefined) {
       handled()
-
-      const order =
-        key === "{" ? "back" : key === "}" ? "front" : key === "[" ? "backward" : "forward"
-
       const command = reorder(scene, selection, order)
 
       if (command !== null) {
@@ -1327,7 +1328,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
     if (chord === "w") {
       setChord(null)
-      const chosen = CHORD_KEYS[lower]
+      const chosen = CHORD_KEYS.get(lower)
 
       if (chosen !== undefined) {
         handled()
@@ -1370,7 +1371,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       return
     }
 
-    const chosen = SHAPE_KEYS[lower]
+    const chosen = SHAPE_KEYS.get(lower)
 
     if (chosen !== undefined) {
       handled()
@@ -1440,21 +1441,20 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     }
 
     node.focus({ preventScroll: true })
-    let placed = false
 
     const observer = new ResizeObserver(([entry]) => {
+      if (entry !== undefined) {
+        setViewport(sizeOf(entry))
+      }
+    })
+
+    const placer = new ResizeObserver(([entry]) => {
       if (entry === undefined) {
         return
       }
 
-      const next = { width: entry.contentRect.width, height: entry.contentRect.height }
-      setViewport(next)
-
-      if (placed) {
-        return
-      }
-
-      placed = true
+      placer.disconnect()
+      const next = sizeOf(entry)
       const from = camera ?? origin
       const to = initialCamera(scene, next, focus, camera !== null)
       setCamera(from)
@@ -1465,6 +1465,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     })
 
     observer.observe(node)
+    placer.observe(node)
 
     const onWheel = (event: WheelEvent) => {
       if (
@@ -1508,6 +1509,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
 
     return () => {
       observer.disconnect()
+      placer.disconnect()
       node.removeEventListener("wheel", onWheel)
     }
   })
@@ -1560,8 +1562,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
     ),
   )
 
-  const bindingTo =
-    gesture._tag === "Connecting" ? gesture.end : gesture._tag === "MovingEnd" ? gesture.bind : null
+  const bindingTo = Match.value(gesture).pipe(
+    Match.tag("Connecting", ({ end }) => end),
+    Match.tag("MovingEnd", ({ bind }) => bind),
+    Match.orElse(() => null),
+  )
 
   const slots: ShapeSlots = {
     asset: props.resolveAsset,
@@ -2047,6 +2052,27 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       ),
     )
 
+  const pasteFromClipboard = async (at: Vec | null) => {
+    const { html, text } = await readClipboardItems()
+    paste(html, text.trim(), at)
+  }
+
+  const pasteLinkFromClipboard = async () => {
+    const { html, text } = await readClipboardItems()
+
+    if (!pasteAsLink(text.trim())) {
+      paste(html, text.trim(), null, { shift: true })
+    }
+  }
+
+  const rename = async (title: string) => {
+    const events = await commit([{ _tag: "RenamePage", pageId: page.id, title }])
+
+    if (events.length > 0) {
+      props.onRenamed(normalizePageName(title))
+    }
+  }
+
   const writeClipboard = async () => {
     await navigator.clipboard.write([
       new ClipboardItem({
@@ -2211,7 +2237,11 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       }
 
       const nested = new Set(
-        drafts.flatMap(({ raw }) => (Array.isArray(raw["children"]) ? raw["children"] : [])),
+        drafts.flatMap(({ raw }) => {
+          const children = raw["children"]
+
+          return isList(children) ? children : []
+        }),
       )
 
       setSelected(
@@ -2237,7 +2267,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
       return
     }
 
-    newBlockPortal(centered, text)
+    void newBlockPortal(centered, text)
   }
 
   const dropBlocks = (text: string, at: Vec) => {
@@ -2404,10 +2434,7 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
           label: "Paste",
           keys: "Mod+V",
           run: () => {
-            const at = menuAt === null ? null : toWorld(cam, menuAt)
-            void readClipboardItems().then(({ html, text }) => {
-              paste(html, text.trim(), at)
-            })
+            void pasteFromClipboard(menuAt === null ? null : toWorld(cam, menuAt))
           },
         },
         ...(selection.length === 1
@@ -2415,12 +2442,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
               {
                 label: "Paste as link",
                 keys: "Mod+Shift+V",
-                run: () =>
-                  void readClipboardItems().then(({ html, text }) => {
-                    if (!pasteAsLink(text.trim())) {
-                      paste(html, text.trim(), null, { shift: true })
-                    }
-                  }),
+                run: () => {
+                  void pasteLinkFromClipboard()
+                },
               },
             ]
           : []),
@@ -2534,11 +2558,13 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
   }
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the canvas is one keyboard-driven application widget, and its handlers are the whiteboard itself
     <div
       ref={attach}
       className="wb-root"
       role="application"
       aria-label={`Whiteboard ${boardTitle(page)}`}
+      // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the application canvas takes focus so its keyboard shortcuts reach it
       tabIndex={0}
       data-grid={grid}
       data-cursor={cursor}
@@ -2695,13 +2721,9 @@ const Canvas = ({ tree, ...props }: BoardProps & { readonly tree: PageTree }) =>
         page={page}
         references={props.references}
         referencesPanel={props.referencesPanel}
-        onRename={(title) =>
-          void commit([{ _tag: "RenamePage", pageId: page.id, title }]).then((events) => {
-            if (events.length > 0) {
-              props.onRenamed(normalizePageName(title))
-            }
-          })
-        }
+        onRename={(title) => {
+          void rename(title)
+        }}
       />
       <PrimaryTools
         tool={tool}
@@ -2760,9 +2782,7 @@ const Loaded = (props: BoardProps) => {
           This whiteboard could not be loaded.
         </div>
       ) : (
-        <div className="wb-status" role="status">
-          Loading whiteboard
-        </div>
+        <output className="wb-status">Loading whiteboard</output>
       )}
     </div>
   )

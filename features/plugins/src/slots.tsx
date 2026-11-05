@@ -154,12 +154,13 @@ const FencedCode = ({
     <div {...logseq("seqno-fenced-code", showCode)} data-active={showCode || undefined}>
       <div {...logseq("seqno-fenced-code-source")}>{children}</div>
       <div {...logseq("seqno-fenced-code-result", renderer.edit)}>
-        <span {...logseq("seqno-fenced-code-actions")} onMouseDown={stop}>
+        <span {...logseq("seqno-fenced-code-actions")}>
           <button
             type="button"
             {...logseq("seqno-fenced-code-action")}
             aria-label="Show code"
             aria-pressed={showCode}
+            onMouseDown={stop}
             onClick={(event) => {
               event.stopPropagation()
               setShowCode(!showCode)
@@ -167,7 +168,12 @@ const FencedCode = ({
           >
             <IconSquareToggleHorizontal size={14} />
           </button>
-          <button type="button" {...logseq("seqno-fenced-code-action")} aria-label="Edit block">
+          <button
+            type="button"
+            {...logseq("seqno-fenced-code-action")}
+            aria-label="Edit block"
+            onMouseDown={stop}
+          >
             <IconSourceCode size={14} />
           </button>
         </span>
@@ -177,7 +183,7 @@ const FencedCode = ({
   )
 }
 
-export const PluginCode = ({ language, code, children }: CodeSlotProps) => {
+export const PluginCode = ({ language, code, children }: CodeSlotProps): ReactNode => {
   const renderer = useAtomValue(fencedRenderers).find((one) => one.type === language.toLowerCase())
 
   return renderer === undefined ? (

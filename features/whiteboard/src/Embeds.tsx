@@ -79,17 +79,15 @@ const Resize = Schema.Struct({
   }),
 })
 
-const decodeResize = Schema.decodeUnknownOption(Resize)
-const decodeResizeText = Schema.decodeUnknownOption(Schema.fromJsonString(Resize))
+const decodeResize = Schema.decodeUnknownOption(
+  Schema.Union([Resize, Schema.fromJsonString(Resize)]),
+)
 
-const heightIn = (data: unknown): number | null => {
-  const resize = typeof data === "string" ? decodeResizeText(data) : decodeResize(data)
-
-  return Option.match(resize, {
+const heightIn = (event: MessageEvent): number | null =>
+  Option.match(decodeResize(event.data), {
     onNone: () => null,
     onSome: (message) => message["twttr.embed"].params[0]?.height ?? null,
   })
-}
 
 export const TweetView = ({
   url,
@@ -113,7 +111,7 @@ export const TweetView = ({
         return
       }
 
-      const next = heightIn(event.data)
+      const next = heightIn(event)
 
       if (next !== null) {
         setHeight(next)
@@ -168,6 +166,8 @@ export const IFrameView = ({
   </div>
 )
 
+const SCRIPT_URL = /^\s*javascript:/iu
+
 const DROPPED = new Set(["script", "style", "link", "meta", "base", "object", "embed", "noscript"])
 
 export const cleanHtml = (html: string): string => {
@@ -180,9 +180,7 @@ export const cleanHtml = (html: string): string => {
     }
 
     for (const name of element.getAttributeNames()) {
-      const value = (element.getAttribute(name) ?? "").trim().toLowerCase()
-
-      if (name.startsWith("on") || value.startsWith("javascript:")) {
+      if (name.startsWith("on") || SCRIPT_URL.test(element.getAttribute(name) ?? "")) {
         element.removeAttribute(name)
       }
     }
@@ -211,6 +209,7 @@ export const HtmlView = ({
     <div
       ref={measure}
       className="wb-html-anchor"
+      // oxlint-disable-next-line react/no-danger -- the html shape shows its own markup, which cleanHtml strips of scripts and handlers first
       dangerouslySetInnerHTML={{ __html: cleanHtml(html) }}
     />
   </div>

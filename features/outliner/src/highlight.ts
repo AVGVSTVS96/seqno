@@ -110,8 +110,6 @@ const cssSelectors = (tree: Tree, code: string, paint: Paint) => {
       if (node.name === "ValueName" && isPropertyName(code.slice(node.from, node.to))) {
         paint(node.from, node.to, "variable")
       }
-
-      return undefined
     },
   })
 }
@@ -218,7 +216,7 @@ const pythonNames = (tree: Tree, code: string, paint: Paint) => {
         paint(node.from, node.to, "local")
       }
 
-      return undefined
+      return true
     },
   })
 }
@@ -338,7 +336,10 @@ export const highlightLines = (code: string, language: string): ReadonlyArray<re
   const painted: Array<TokenKind | ""> = Array.from({ length: code.length }, () => "")
 
   if (chosen !== undefined) {
-    const paint: Paint = (from, to, kind) => painted.fill(kind, from, to)
+    const paint: Paint = (from, to, kind) => {
+      painted.fill(kind, from, to)
+    }
+
     const tree = chosen.parser.parse(code)
     highlightTree(tree, highlighter, (from, to, classes) => {
       const kind = kindOf(classes)

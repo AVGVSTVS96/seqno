@@ -1,21 +1,21 @@
 import { EditorView } from "@codemirror/view"
 
-const pairs: Readonly<Record<string, string>> = {
-  "[": "]",
-  "{": "}",
-  "(": ")",
-  "`": "`",
-  "~": "~",
-  "*": "*",
-  _: "_",
-  "^": "^",
-  "=": "=",
-  "/": "/",
-  "+": "+",
-}
+const pairs: ReadonlyMap<string, string> = new Map([
+  ["[", "]"],
+  ["{", "}"],
+  ["(", ")"],
+  ["`", "`"],
+  ["~", "~"],
+  ["*", "*"],
+  ["_", "_"],
+  ["^", "^"],
+  ["=", "="],
+  ["/", "/"],
+  ["+", "+"],
+])
 
 const onlyAroundSelection = new Set(["*", "^", "_", "=", "+", "/"])
-const closers = new Set(Object.values(pairs))
+const closers = new Set(pairs.values())
 
 const opensParen = (before: string) => before === "" || /[\s\](]/u.test(before)
 
@@ -50,7 +50,7 @@ export const autopair = EditorView.inputHandler.of((view, from, to, text) => {
     return true
   }
 
-  const close = pairs[text]
+  const close = pairs.get(text)
 
   if (close === undefined) {
     return false
@@ -84,7 +84,7 @@ export const deletePair = (view: EditorView): boolean => {
   const before = view.state.sliceDoc(main.head - 1, main.head)
   const after = view.state.sliceDoc(main.head, main.head + 1)
 
-  if (pairs[before] !== after) {
+  if (pairs.get(before) !== after) {
     return false
   }
 

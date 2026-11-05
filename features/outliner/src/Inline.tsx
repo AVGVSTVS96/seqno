@@ -67,6 +67,7 @@ const AnnotationRef = ({
 
   return (
     <span {...logseq("seqno-annotation-ref", { area })} {...annotationMarks(block.props)}>
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Logseq's annotation ref is a pointer-only span; keyboard access to it is an open gap */}
       <span
         className="seqno-blockref"
         onMouseDown={(event) => {
@@ -129,6 +130,7 @@ const PlainRef = ({
   const title = contentOf(block.text, use(PageDialects)(block.pageId)).title ?? []
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Logseq's block ref is a pointer-only span; keyboard access to it is an open gap
     <span
       {...logseq("seqno-blockref")}
       {...preview.trigger}
@@ -156,7 +158,7 @@ const LiveRef = ({ block, children }: { readonly block: Block; readonly children
     AsyncResult.map(useAtomValue(pageTreeAtom(block.pageId)), (tree) =>
       tree.blocks.find((candidate) => candidate.id === block.id),
     ),
-    () => undefined,
+    () => {},
   )
 
   return <RefBody block={latest ?? block}>{children}</RefBody>
@@ -326,7 +328,12 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
         draggable={false}
       />
       <span {...logseq("seqno-image-overlay")} aria-hidden />
-      <span {...logseq("seqno-image-actions")} onClick={stop} onPointerDown={stop}>
+      <span
+        {...logseq("seqno-image-actions")}
+        role="presentation"
+        onClick={stop}
+        onPointerDown={stop}
+      >
         {edit === null ? null : (
           <button
             {...logseq("seqno-image-action")}
@@ -347,7 +354,7 @@ const Image = ({ node }: { readonly node: Extract<Inline, { readonly _tag: "Imag
           aria-label="Copy image"
           onClick={() => {
             if (picture.current !== null) {
-              void copyImage(picture.current).catch(() => undefined)
+              void copyImage(picture.current).catch(() => {})
             }
           }}
         >

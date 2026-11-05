@@ -64,6 +64,7 @@ export const ContextMenu = ({
   <div
     className="wb-menu wb-context-menu"
     role="menu"
+    tabIndex={-1}
     aria-label="Whiteboard menu"
     style={{ left, top }}
     onPointerDown={(event) => {
@@ -85,9 +86,7 @@ export const ContextMenu = ({
       .filter((group) => group.length > 0)
       .map((group, index) => (
         <Fragment key={group[0]?.label ?? index}>
-          {index === 0 && rows.length === 0 ? null : (
-            <div className="wb-menu-separator" role="separator" />
-          )}
+          {index === 0 && rows.length === 0 ? null : <hr className="wb-menu-separator" />}
           {group.map((entry, at) => (
             <button
               key={entry.label}

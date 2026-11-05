@@ -82,58 +82,64 @@ const childrenIn = (tree: Tree, parentId: string | null) =>
   tree.blocks.filter((block) => block.parentId === parentId)
 
 const levelOf = (tree: Tree, block: Block) => {
+  const parents = new Map(tree.blocks.map((candidate) => [candidate.id, candidate.parentId]))
   let level = 1
   let parent = block.parentId
 
   while (parent !== null) {
     level += 1
-    parent = tree.blocks.find((candidate) => candidate.id === parent)?.parentId ?? null
+    parent = parents.get(parent) ?? null
   }
 
   return level
+}
+
+const withMarkers = <A extends object>(json: A, text: string) => {
+  const { marker, priority } = analyzeBlock(text)
+  const marked = marker === null ? json : { ...json, marker }
+
+  return priority === null ? marked : { ...marked, priority }
 }
 
 export const blockJson = (tree: Tree, block: Block, nested: boolean): BlockJson => {
   const siblings = childrenIn(tree, block.parentId)
   const before = siblings[siblings.indexOf(block) - 1]
   const parent = block.parentId ?? tree.page.id
-  const syntax = analyzeBlock(block.text)
   const children = childrenIn(tree, block.id)
 
-  return {
-    id: numberOf(block.id),
-    uuid: blockRefId(block),
-    content: contentOf(block),
-    format: "markdown",
-    page: { id: numberOf(tree.page.id) },
-    parent: { id: numberOf(parent) },
-    left: { id: numberOf(before?.id ?? parent) },
-    properties: properties(block.props),
-    collapsed: block.collapsed,
-    level: levelOf(tree, block),
-    ...(syntax.marker === null ? {} : { marker: syntax.marker }),
-    ...(syntax.priority === null ? {} : { priority: syntax.priority }),
-    children: nested
-      ? children.map((child) => blockJson(tree, child, true))
-      : children.map((child) => ["uuid", blockRefId(child)] as const),
-  }
+  return withMarkers(
+    {
+      id: numberOf(block.id),
+      uuid: blockRefId(block),
+      content: contentOf(block),
+      format: "markdown",
+      page: { id: numberOf(tree.page.id) },
+      parent: { id: numberOf(parent) },
+      left: { id: numberOf(before?.id ?? parent) },
+      properties: properties(block.props),
+      collapsed: block.collapsed,
+      level: levelOf(tree, block),
+      children: nested
+        ? children.map((child) => blockJson(tree, child, true))
+        : children.map((child) => ["uuid", blockRefId(child)] as const),
+    },
+    block.text,
+  )
 }
 
-export const changedBlock = (block: Block) => {
-  const syntax = analyzeBlock(block.text)
-
-  return {
-    id: numberOf(block.id),
-    uuid: blockRefId(block),
-    content: contentOf(block),
-    format: "markdown",
-    page: { id: numberOf(block.pageId) },
-    parent: { id: numberOf(block.parentId ?? block.pageId) },
-    properties: properties(block.props),
-    ...(syntax.marker === null ? {} : { marker: syntax.marker }),
-    ...(syntax.priority === null ? {} : { priority: syntax.priority }),
-  }
-}
+export const changedBlock = (block: Block) =>
+  withMarkers(
+    {
+      id: numberOf(block.id),
+      uuid: blockRefId(block),
+      content: contentOf(block),
+      format: "markdown",
+      page: { id: numberOf(block.pageId) },
+      parent: { id: numberOf(block.parentId ?? block.pageId) },
+      properties: properties(block.props),
+    },
+    block.text,
+  )
 
 export const treeJson = (tree: Tree) =>
   childrenIn(tree, null).map((block) => blockJson(tree, block, true))

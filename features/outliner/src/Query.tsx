@@ -52,21 +52,23 @@ const sexpsOf = (tokens: readonly string[]): readonly Sexp[] => {
 
 const unquoted = (atom: string) => atom.replace(/^"(.*)"$/u, "$1")
 
+const isAtom = (sexp: Sexp): sexp is string => typeof sexp === "string"
+
 const written = (sexp: Sexp): string =>
-  typeof sexp === "string" ? unquoted(sexp) : `(${sexp.map(written).join(" ")})`
+  isAtom(sexp) ? unquoted(sexp) : `(${sexp.map(written).join(" ")})`
 
 const connectives = new Set(["and", "or", "not"])
 
 const chip = (label: string): Clause => ({ _tag: "Chip", label })
 
 const clauseOf = (sexp: Sexp): Clause => {
-  if (typeof sexp === "string") {
+  if (isAtom(sexp)) {
     return chip(sexp.startsWith('"') ? `search: ${unquoted(sexp)}` : sexp)
   }
 
   const [head, ...args] = sexp
 
-  if (typeof head !== "string" || args.length === 0) {
+  if (head === undefined || !isAtom(head) || args.length === 0) {
     return chip(written(sexp))
   }
 
@@ -332,12 +334,13 @@ const Results = ({ result, table }: { readonly result: QueryResult; readonly tab
   )
 }
 
+const hasReason = (error: unknown): error is { readonly reason: unknown } =>
+  typeof error === "object" && error !== null && "reason" in error
+
 const problemOf = (cause: Cause.Cause<unknown>) => {
   const error = Cause.squash(cause)
 
-  return typeof error === "object" && error !== null && "reason" in error
-    ? String(error.reason)
-    : "This query could not run"
+  return hasReason(error) ? String(error.reason) : "This query could not run"
 }
 
 const Outcome = ({
@@ -403,6 +406,7 @@ export const QueryView = ({ query }: { readonly query: string }) => {
       {query === "" ? null : (
         <div
           {...logseq("seqno-query-results")}
+          role="presentation"
           onClick={stop}
           onDragOver={stop}
           onDrop={stop}

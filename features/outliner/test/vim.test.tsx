@@ -13,7 +13,7 @@ const mount = async (blocks: readonly Block[], vim = true) => {
     <div style={{ width: "600px" }}>
       <style>{themeTokens}</style>
       <RegistryProvider initialValues={[[coreLayer, core.layer]]}>
-        <Outliner pageId={pageId} zoom={null} onNavigate={() => undefined} vim={vim} />
+        <Outliner pageId={pageId} zoom={null} onNavigate={() => {}} vim={vim} />
       </RegistryProvider>
     </div>,
   )

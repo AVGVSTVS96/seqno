@@ -30,45 +30,45 @@ const yanking: BlockKey = { _tag: "Yank" }
 const indenting: BlockKey = { _tag: "Indent" }
 const outdenting: BlockKey = { _tag: "Outdent" }
 
-const visualOperators: Record<string, BlockKey> = {
-  d: deleting,
-  x: deleting,
-  y: yanking,
-  ">": indenting,
-  "<": outdenting,
-}
+const visualOperators = new Map<string, BlockKey>([
+  ["d", deleting],
+  ["x", deleting],
+  ["y", yanking],
+  [">", indenting],
+  ["<", outdenting],
+])
 
-const normalOperators: Record<string, BlockKey> = {
-  dd: deleting,
-  yy: yanking,
-  ">>": indenting,
-  "<<": outdenting,
-}
+const normalOperators = new Map<string, BlockKey>([
+  ["dd", deleting],
+  ["yy", yanking],
+  [">>", indenting],
+  ["<<", outdenting],
+])
 
-const motions: Record<string, BlockKey> = {
-  gg: { _tag: "Top" },
-  G: { _tag: "Bottom" },
-  i: { _tag: "Edit", at: "Start" },
-  I: { _tag: "Edit", at: "Start" },
-  a: { _tag: "Edit", at: "End" },
-  A: { _tag: "Edit", at: "End" },
-  o: { _tag: "NewBlock", below: true },
-  O: { _tag: "NewBlock", below: false },
-  p: { _tag: "Put", below: true },
-  P: { _tag: "Put", below: false },
-  zc: { _tag: "Fold", collapsed: true },
-  zo: { _tag: "Fold", collapsed: false },
-  za: { _tag: "Fold", collapsed: null },
-  V: { _tag: "Visual" },
-  u: { _tag: "Undo" },
-}
+const motions = new Map<string, BlockKey>([
+  ["gg", { _tag: "Top" }],
+  ["G", { _tag: "Bottom" }],
+  ["i", { _tag: "Edit", at: "Start" }],
+  ["I", { _tag: "Edit", at: "Start" }],
+  ["a", { _tag: "Edit", at: "End" }],
+  ["A", { _tag: "Edit", at: "End" }],
+  ["o", { _tag: "NewBlock", below: true }],
+  ["O", { _tag: "NewBlock", below: false }],
+  ["p", { _tag: "Put", below: true }],
+  ["P", { _tag: "Put", below: false }],
+  ["zc", { _tag: "Fold", collapsed: true }],
+  ["zo", { _tag: "Fold", collapsed: false }],
+  ["za", { _tag: "Fold", collapsed: null }],
+  ["V", { _tag: "Visual" }],
+  ["u", { _tag: "Undo" }],
+])
 
 const actionOf = (keys: string, count: number, visual: boolean): BlockKey | null => {
   if (keys === "j" || keys === "k") {
     return { _tag: "Move", by: keys === "j" ? count : -count }
   }
 
-  return (visual ? visualOperators : normalOperators)[keys] ?? motions[keys] ?? null
+  return (visual ? visualOperators : normalOperators).get(keys) ?? motions.get(keys) ?? null
 }
 
 const waitsFor = (keys: string, visual: boolean) =>

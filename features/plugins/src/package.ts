@@ -1,20 +1,52 @@
+import { flow, Match, Option, Schema } from "effect"
 import type { PluginInfo, PluginTheme, SettingItem } from "./state.ts"
 
-export const record = (value: unknown): Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-    ? Object.fromEntries(Object.entries(value))
-    : {}
+export const Fields = Schema.Record(Schema.String, Schema.Unknown)
 
-export const text = (value: unknown): string | null => (typeof value === "string" ? value : null)
+export type Fields = typeof Fields.Type
 
-export const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : [])
+const noFields: Fields = {}
 
-export const strings = (value: unknown): Readonly<Record<string, string>> =>
+const Scalar = Schema.Union([Schema.String, Schema.Number, Schema.Boolean])
+
+export const asFields = Schema.decodeUnknownOption(Fields)
+
+export const record = flow(
+  asFields,
+  Option.getOrElse(() => noFields),
+)
+
+export const text = flow(Schema.decodeUnknownOption(Schema.String), Option.getOrNull)
+
+export const amount = flow(Schema.decodeUnknownOption(Schema.Number), Option.getOrNull)
+
+export const asList = Schema.decodeUnknownOption(Schema.Array(Schema.Unknown))
+
+export const list = flow(
+  asList,
+  Option.getOrElse((): readonly unknown[] => []),
+)
+
+export const scalarText = flow(
+  Schema.decodeUnknownOption(Scalar),
+  Option.map(String),
+  Option.getOrNull,
+)
+
+export const texts = Match.type<unknown>().pipe(
+  Match.when(Match.string, (one) => [one]),
+  Match.orElse((value) => list(value).flatMap((item) => scalarText(item) ?? [])),
+)
+
+export const strings = flow(record, (fields): Readonly<Record<string, string>> =>
   Object.fromEntries(
-    Object.entries(record(value)).flatMap(([key, item]) =>
-      item === null || item === undefined ? [] : [[key, String(item)]],
-    ),
-  )
+    Object.entries(fields).flatMap(([key, item]) => {
+      const value = scalarText(item)
+
+      return value === null ? [] : [[key, value]]
+    }),
+  ),
+)
 
 const resolve = (root: string, path: string) => new URL(path, root).href
 
@@ -44,10 +76,10 @@ export const themesOf = (
     ]
   })
 
-const themeEntries = (logseq: Readonly<Record<string, unknown>>) => {
+const themeEntries = (logseq: Fields) => {
   const themes = logseq["themes"] ?? logseq["theme"]
 
-  return Array.isArray(themes) ? themes : themes === undefined ? [] : [themes]
+  return themes === undefined ? [] : Option.getOrElse(asList(themes), () => [themes])
 }
 
 export interface Listing {
@@ -59,11 +91,7 @@ export interface Listing {
   readonly icon: string | null
 }
 
-export const pluginInfoOf = (
-  listing: Listing,
-  root: string,
-  pkg: Readonly<Record<string, unknown>>,
-): PluginInfo => {
+export const pluginInfoOf = (listing: Listing, root: string, pkg: Fields): PluginInfo => {
   const logseq = record(pkg["logseq"])
   const main = text(logseq["entry"]) ?? text(logseq["main"]) ?? text(pkg["main"])
   const icon = text(logseq["icon"])
@@ -83,8 +111,8 @@ export const pluginInfoOf = (
   }
 }
 
-export const settingItems = (schema: unknown): readonly SettingItem[] =>
-  list(schema).flatMap((entry) => {
+export const settingItems = (entries: readonly unknown[]): readonly SettingItem[] =>
+  entries.flatMap((entry) => {
     const item = record(entry)
     const key = text(item["key"])
     const type = text(item["type"])
@@ -101,7 +129,7 @@ export const settingItems = (schema: unknown): readonly SettingItem[] =>
         description: text(item["description"]) ?? "",
         default: item["default"] ?? null,
         inputAs: text(item["inputAs"]),
-        enumChoices: list(item["enumChoices"]).map(String),
+        enumChoices: list(item["enumChoices"]).flatMap((choice) => scalarText(choice) ?? []),
         enumPicker: text(item["enumPicker"]),
         buttonAction: text(item["buttonAction"]),
       },

@@ -83,7 +83,7 @@ const Card = ({
       style={{
         position: "relative",
         width: width / scale,
-        ...(fixed ? { height: shape.size[1] / scale } : {}),
+        height: fixed ? shape.size[1] / scale : undefined,
         zoom: scale,
         ...colored("fill" in shape ? shape.fill : undefined),
       }}
@@ -114,8 +114,8 @@ const PagePortal = ({
 
   const header = (
     <div className="wb-portal-header">
-      <a
-        role="link"
+      <button
+        type="button"
         tabIndex={-1}
         onPointerDown={(event) => {
           event.stopPropagation()
@@ -125,7 +125,7 @@ const PagePortal = ({
         }}
       >
         {Option.match(page, { onNone: () => name, onSome: (found) => found.title })}
-      </a>
+      </button>
     </div>
   )
 

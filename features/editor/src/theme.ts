@@ -1,19 +1,23 @@
 import { EditorView } from "@codemirror/view"
 
-const heading = (size: string, leading: string, rule: string | null) => ({
-  ...(rule === null
-    ? {}
+const heading = (size: string, leading: string, rule: string | null) => {
+  const content = {
+    "& .cm-content": {
+      fontSize: size,
+      lineHeight: leading,
+      fontWeight: "var(--weight-semibold)",
+    },
+  }
+
+  return rule === null
+    ? content
     : {
         marginBlock: rule,
         paddingBottom: rule,
         borderBottom: "1px solid var(--border-heading)",
-      }),
-  "& .cm-content": {
-    fontSize: size,
-    lineHeight: leading,
-    fontWeight: "var(--weight-semibold)",
-  },
-})
+        ...content,
+      }
+}
 
 const enter = (lift: string) => ({
   from: { opacity: "0", transform: `translateY(${lift}) scale(0.95)` },

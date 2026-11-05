@@ -3,7 +3,7 @@ import { Option } from "effect"
 import { dropKatexEnhancers } from "@seqno/outliner"
 import type { AtomRegistry } from "effect/reactivity"
 import { applyStyle, injectStyle, injectUI, removeInjected } from "./inject.ts"
-import type { UIOptions } from "./inject.ts"
+import type { ModelEvent, StyleValues, UIOptions } from "./inject.ts"
 import {
   call,
   channelOf,
@@ -14,9 +14,20 @@ import {
   request,
   snakeCase,
 } from "./protocol.ts"
+import type { Answer, ApiCall, Emit, Outgoing } from "./protocol.ts"
+import type { Fields } from "./package.ts"
 import { entryOf, local } from "./files.ts"
-import { record, settingItems, strings, text, themesOf } from "./package.ts"
-import { makeDraggable, makeResizable, restoreLayout } from "./layout.ts"
+import {
+  asFields,
+  list,
+  record,
+  scalarText,
+  settingItems,
+  strings,
+  text,
+  themesOf,
+} from "./package.ts"
+import { enableDrag, enableResize, restoreLayout } from "./layout.ts"
 import type { LayoutData } from "./layout.ts"
 import {
   fencedRenderers,
@@ -31,7 +42,11 @@ import {
 } from "./state.ts"
 import type { PluginInfo, PluginTheme, Running, Settings } from "./state.ts"
 
-export type Api = (pid: string, method: string, args: readonly unknown[]) => unknown
+export type Api = (
+  pid: string,
+  method: string,
+  args: readonly unknown[],
+) => Answer | Promise<Answer>
 
 interface Loaded {
   readonly info: PluginInfo
@@ -39,7 +54,7 @@ interface Loaded {
   readonly container: HTMLDivElement
   readonly origin: string
   readonly hooks: Set<string>
-  readonly requests: Map<number, (value: unknown) => void>
+  readonly requests: Map<number, () => void>
   connected: boolean
   restarted: boolean
   sdk: string | null
@@ -52,47 +67,45 @@ export interface Host {
   readonly load: (info: PluginInfo) => void
   readonly unload: (pid: string) => Promise<void>
   readonly loaded: (pid: string) => boolean
-  readonly hook: (ns: HookNamespace, type: string, payload: unknown, pid?: string) => void
-  readonly slotted: (slot: string, payload: unknown) => () => void
+  readonly hook: (ns: HookNamespace, type: string, payload: Fields, pid?: string) => void
+  readonly slotted: (slot: string, payload: Fields) => () => void
   readonly installHook: (pid: string, hook: string) => void
   readonly uninstallHook: (pid: string, hook: string) => void
   readonly wants: (hook: string) => boolean
   readonly setSdk: (pid: string, version: string) => void
-  readonly callModel: (pid: string, name: string, data: unknown) => void
-  readonly requestModel: (pid: string, name: string, args: readonly unknown[]) => Promise<unknown>
+  readonly callModel: (pid: string, name: string, event: ModelEvent) => void
+  readonly requestModel: (pid: string, name: string, args: readonly Fields[]) => Promise<void>
   readonly saveSettings: (pid: string, settings: Settings) => void
   readonly showMainUI: (pid: string, visible: boolean, autoFocus: boolean) => void
   readonly dispose: () => void
 }
 
-const uiOptions = (payload: unknown): UIOptions => {
-  const ui = record(payload)
+const uiOptions = (ui: Fields): UIOptions => ({
+  key: text(ui["key"]),
+  slot: text(ui["slot"]),
+  path: text(ui["path"]),
+  template: text(ui["template"]),
+  style: strings(ui["style"]),
+  attrs: strings(ui["attrs"]),
+  reset: ui["reset"] === true,
+  close: text(ui["close"]),
+})
 
-  return {
-    key: text(ui["key"]),
-    slot: text(ui["slot"]),
-    path: text(ui["path"]),
-    template: text(ui["template"]),
-    style: strings(ui["style"]),
-    attrs: strings(ui["attrs"]),
-    reset: ui["reset"] === true,
-    close: text(ui["close"]),
-  }
-}
+const merge = (base: Settings, patch: Fields): Settings => ({
+  ...base,
+  ...Object.fromEntries(
+    Object.entries(patch).map(([key, value]) => [
+      key,
+      Option.match(Option.all([asFields(base[key]), asFields(value)]), {
+        onNone: () => value,
+        onSome: ([before, after]) => merge(before, after),
+      }),
+    ]),
+  ),
+})
 
-const isRecord = (value: unknown) =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-
-const merge = (base: Settings, patch: Readonly<Record<string, unknown>>): Settings => {
-  const merged: Record<string, unknown> = { ...base }
-
-  for (const [key, value] of Object.entries(patch)) {
-    const before = merged[key]
-    merged[key] = isRecord(value) && isRecord(before) ? merge(record(before), record(value)) : value
-  }
-
-  return merged
-}
+const styleValues = (style: Fields): StyleValues =>
+  Object.fromEntries(Object.entries(style).map(([key, value]) => [key, scalarText(value)]))
 
 const without = <A extends { readonly pid: string }>(items: readonly A[], pid: string) =>
   items.filter((item) => item.pid !== pid)
@@ -110,7 +123,7 @@ export const createHost = (
   makeApi: (host: Host) => Api,
 ): Host => {
   const plugins = new Map<string, Loaded>()
-  const slots = new Map<string, unknown>()
+  const slots = new Map<string, Fields>()
   const slottedHook = "hook:app:macro_renderer_slotted"
 
   const setRunning = (pid: string, update: (current: Running) => Running) => {
@@ -118,7 +131,7 @@ export const createHost = (
     registry.set(running, { ...all, [pid]: update(all[pid] ?? idle) })
   }
 
-  const post = (plugin: Loaded, message: unknown) =>
+  const post = (plugin: Loaded, message: Outgoing) =>
     plugin.frame.contentWindow?.postMessage(message, plugin.origin)
 
   const settingsOf = (pid: string) => registry.get(pluginSettings(pid))
@@ -152,32 +165,31 @@ export const createHost = (
     }
   }
 
-  const requestModel = async (pid: string, name: string, args: readonly unknown[]) => {
+  const requestModel = async (pid: string, name: string, args: readonly Fields[]) => {
     const plugin = plugins.get(pid)
 
     if (plugin === undefined) {
-      await Promise.resolve(undefined)
       return
     }
 
     plugin.nextUid += 1
     const uid = plugin.nextUid
 
-    return await new Promise<unknown>((resolve) => {
+    await new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
         plugin.requests.delete(uid)
-        resolve(undefined)
+        resolve()
       }, requestTimeout)
 
-      plugin.requests.set(uid, (value) => {
+      plugin.requests.set(uid, () => {
         clearTimeout(timer)
-        resolve(value)
+        resolve()
       })
       post(plugin, request(name, args, uid))
     })
   }
 
-  const hook = (ns: HookNamespace, type: string, payload: unknown, pid?: string) => {
+  const hook = (ns: HookNamespace, type: string, payload: Fields, pid?: string) => {
     const name = `hook:${ns}:${snakeCase(type)}`
     const message = call(channels.hook, { ns: `hook:${ns}`, type: snakeCase(type), payload })
 
@@ -249,11 +261,11 @@ export const createHost = (
         plugin.sdk = version
       }
     },
-    callModel: (pid, name, data) => {
+    callModel: (pid, name, event) => {
       const plugin = plugins.get(pid)
 
       if (plugin !== undefined) {
-        post(plugin, call(name, data))
+        post(plugin, call(name, event))
       }
     },
     requestModel,
@@ -266,25 +278,24 @@ export const createHost = (
 
   const api = makeApi(host)
 
-  const answer = (plugin: Loaded, payload: unknown) =>
-    Option.match(decodeApiCall(payload), {
-      onNone: () => undefined,
-      onSome: async ({ method, args, _sync }) => {
-        const result = await Promise.resolve()
-          .then(() => api(plugin.info.id, method, args ?? []))
-          .catch((error: unknown) => ({
-            [channels.error]: error instanceof Error ? error.message : String(error),
-          }))
+  const outcome = async (pid: string, method: string, args: readonly unknown[]) => {
+    try {
+      return await api(pid, method, args)
+    } catch (error) {
+      return { [channels.error]: error instanceof Error ? error.message : String(error) }
+    }
+  }
 
-        if (_sync !== undefined) {
-          post(plugin, call(channels.reply, { _sync, result: result ?? null }))
-        }
-      },
-    })
+  const answer = async (plugin: Loaded, { method, args, _sync }: ApiCall) => {
+    const result = await outcome(plugin.info.id, method, args ?? [])
 
-  const onSchema = (pid: string, payload: unknown) => {
-    const { schema, isSync } = record(payload)
-    const items = settingItems(schema)
+    if (_sync !== undefined) {
+      post(plugin, call(channels.reply, { _sync, result: result ?? null }))
+    }
+  }
+
+  const onSchema = (pid: string, { schema, isSync }: Fields) => {
+    const items = settingItems(list(schema))
     setRunning(pid, (current) => ({ ...current, schema: items }))
 
     if (isSync !== true) {
@@ -300,78 +311,90 @@ export const createHost = (
     const plugin = plugins.get(pid)
 
     if (missing.length > 0 && plugin !== undefined && !plugin.restarted) {
-      void unload(pid).then(() => {
-        load(plugin.info, true)
-      })
+      void restart(plugin.info)
     }
   }
 
-  const onEmit = (plugin: Loaded, type: string, payload: unknown) => {
+  const onEmit = (plugin: Loaded, { type, payload }: Emit) => {
     const pid = plugin.info.id
+    const fields = record(payload)
 
     switch (type) {
       case "api:call": {
-        return void answer(plugin, payload)
+        const apiCall = decodeApiCall(payload)
+
+        if (Option.isSome(apiCall)) {
+          void answer(plugin, apiCall.value)
+        }
+
+        break
       }
 
       case "provider:ui": {
-        injectUI(pid, uiOptions(payload), (name, event) => post(plugin, call(name, event)))
+        injectUI(pid, uiOptions(fields), (name, event) => {
+          post(plugin, call(name, event))
+        })
 
-        return
+        break
       }
 
       case "provider:style": {
-        const style = typeof payload === "string" ? { key: null, style: payload } : record(payload)
+        const css = text(payload)
 
-        injectStyle(pid, text(style["key"]), text(style["style"]) ?? "")
+        if (css === null) {
+          injectStyle(pid, text(fields["key"]), text(fields["style"]) ?? "")
+        } else {
+          injectStyle(pid, null, css)
+        }
 
-        return
+        break
       }
 
       case "provider:theme": {
         addThemes(themesOf(pid, plugin.info.root, [payload]))
 
-        return
+        break
       }
 
       case "settings:schema": {
-        onSchema(pid, payload)
+        onSchema(pid, fields)
 
-        return
+        break
       }
 
       case "settings:update": {
-        saveSettings(pid, merge(settingsOf(pid), record(payload)))
+        saveSettings(pid, merge(settingsOf(pid), fields))
 
-        return
+        break
       }
 
       case "settings:visible:changed": {
-        record(payload)["visible"] === true ? registry.set(settingsFor, pid) : undefined
+        if (fields["visible"] === true) {
+          registry.set(settingsFor, pid)
+        }
 
-        return
+        break
       }
 
       case "main-ui:visible": {
-        const options = record(payload)
+        showMainUI(pid, fields["visible"] === true, fields["autoFocus"] !== false)
 
-        showMainUI(pid, options["visible"] === true, options["autoFocus"] !== false)
-
-        return
+        break
       }
 
       case "main-ui:style": {
-        const style = record(payload)
         const placed = plugin.container.dataset["inited_layout"] !== undefined
 
         applyStyle(
           plugin.container,
-          placed
-            ? Object.fromEntries(Object.entries(style).filter(([key]) => !placeKeys.has(key)))
-            : style,
+          styleValues(
+            placed
+              ? Object.fromEntries(Object.entries(fields).filter(([key]) => !placeKeys.has(key)))
+              : fields,
+          ),
         )
 
-        return
+        break
       }
 
       case "main-ui:attrs": {
@@ -379,27 +402,25 @@ export const createHost = (
           registry.set(mainUILayout(pid), layout)
         }
 
-        for (const [key, value] of Object.entries(record(payload))) {
-          plugin.container.setAttribute(key, String(value))
+        for (const [key, value] of Object.entries(fields)) {
+          plugin.container.setAttribute(key, scalarText(value) ?? String(value))
 
           if (key === "draggable" && value === true) {
-            makeDraggable(plugin.container, {
+            enableDrag(plugin.container, {
               title: plugin.info.title,
-              close: () => post(plugin, call("sys:ui:visible", { toggle: true })),
+              close: () => {
+                post(plugin, call("sys:ui:visible", { toggle: true }))
+              },
               saved: save,
             })
           }
 
           if (key === "resizable" && value === true) {
-            makeResizable(plugin.container, save)
+            enableResize(plugin.container, save)
           }
         }
 
-        return
-      }
-
-      default: {
-        return
+        break
       }
     }
   }
@@ -417,33 +438,39 @@ export const createHost = (
       return
     }
 
-    Option.match(decodeMessage(event.data), {
-      onNone: () => undefined,
-      onSome: (message) => {
-        switch (message.postmate) {
-          case "handshake-reply": {
-            plugin.connected ? undefined : connect(plugin)
+    const decoded = decodeMessage(event.data)
 
-            return
-          }
+    if (Option.isNone(decoded)) {
+      return
+    }
 
-          case "reply": {
-            const resolve = plugin.requests.get(message.uid)
-            plugin.requests.delete(message.uid)
+    const message = decoded.value
 
-            return resolve?.(message.value)
-          }
-
-          case "emit": {
-            message.value.name === channelOf(plugin.info.id)
-              ? onEmit(plugin, message.value.data.type, message.value.data.payload)
-              : undefined
-
-            return
-          }
+    switch (message.postmate) {
+      case "handshake-reply": {
+        if (!plugin.connected) {
+          connect(plugin)
         }
-      },
-    })
+
+        break
+      }
+
+      case "reply": {
+        const resolve = plugin.requests.get(message.uid)
+        plugin.requests.delete(message.uid)
+        resolve?.()
+
+        break
+      }
+
+      case "emit": {
+        if (message.value.name === channelOf(plugin.info.id)) {
+          onEmit(plugin, message.value.data)
+        }
+
+        break
+      }
+    }
   }
 
   window.addEventListener("message", onMessage)
@@ -552,13 +579,20 @@ export const createHost = (
     document.body.append(container)
   }
 
+  const restart = async (info: PluginInfo) => {
+    await unload(info.id)
+    load(info, true)
+  }
+
   const unload = async (pid: string) => {
     const plugin = plugins.get(pid)
 
     if (plugin?.connected === true) {
       await Promise.race([
         requestModel(pid, channels.beforeUnload, [{ unregister: true }]),
-        new Promise((resolve) => setTimeout(resolve, 1000)),
+        new Promise((resolve) => {
+          setTimeout(resolve, 1000)
+        }),
       ])
     }
 

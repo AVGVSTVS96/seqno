@@ -66,12 +66,16 @@ export const createHandoff = (): Handoff => {
   const release = (): readonly Held[] => {
     window.removeEventListener("keydown", capture, true)
     window.removeEventListener("paste", capturePaste, true)
-    window.removeEventListener("pointerdown", release, true)
+    window.removeEventListener("pointerdown", discard, true)
     const keys = held ?? []
     held = null
     holder = null
 
     return keys
+  }
+
+  const discard = () => {
+    release()
   }
 
   const deliver = (view: EditorView) => {
@@ -112,7 +116,7 @@ export const createHandoff = (): Handoff => {
       held = []
       window.addEventListener("keydown", capture, true)
       window.addEventListener("paste", capturePaste, true)
-      window.addEventListener("pointerdown", release, true)
+      window.addEventListener("pointerdown", discard, true)
     },
     settle: (view) => {
       if (held !== null && holder === view) {

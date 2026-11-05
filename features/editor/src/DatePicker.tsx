@@ -76,6 +76,7 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
   }
 
   return createPortal(
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the dialog handles Escape and Enter for all its controls and keeps the editor focused on mousedown
     <div
       {...logseq("sq-date")}
       role="dialog"
@@ -84,6 +85,7 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
       onKeyDown={onKeyDown}
     >
       <div {...logseq("sq-date-calendar")}>
+        {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role -- a date grid is a table with role grid: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/datepicker-dialog/ */}
         <table role="grid" aria-label={monthTitle(month)}>
           <thead>
             <tr>
@@ -129,7 +131,6 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
                 {week.map((day) => (
                   <td
                     key={day.toDateString()}
-                    role="gridcell"
                     aria-selected={sameDay(day, chosen)}
                     data-off={day.getMonth() !== month.getMonth() || undefined}
                     {...logseq("sq-date-day", {
@@ -201,8 +202,8 @@ export const DatePicker = ({ frame }: { readonly frame: DatePickerFrame }) => {
               inputMode="numeric"
               value={repeater.count}
               onChange={(event) => {
-                const count = Number.parseInt(event.currentTarget.value, 10)
-                setRepeater({ ...repeater, count: Number.isNaN(count) ? 1 : Math.max(1, count) })
+                const digits = /^\s*\d+/u.exec(event.currentTarget.value)?.[0]
+                setRepeater({ ...repeater, count: Math.max(1, Number(digits ?? 1)) })
               }}
             />
             <span className="sq-date-select">

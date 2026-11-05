@@ -16,9 +16,12 @@ const stop = (event: { stopPropagation: () => void }) => {
 const playerSandbox =
   "allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
 
+const isSeek = (event: Event): event is CustomEvent<number> =>
+  event instanceof CustomEvent && typeof event.detail === "number"
+
 const seekable = (seek: (seconds: number) => void) => {
   const listener = (event: Event) => {
-    if (event instanceof CustomEvent && typeof event.detail === "number") {
+    if (isSeek(event)) {
       seek(event.detail)
     }
   }
@@ -62,6 +65,7 @@ const YouTube = ({ id, start }: { readonly id: string; readonly start: number })
       className="seqno-video"
       data-video=""
       ref={seekable(seek)}
+      role="presentation"
       onClick={stop}
       onPointerDown={stop}
     >
@@ -113,6 +117,7 @@ const Vimeo = ({ id, hash }: { readonly id: string; readonly hash: string | null
       className="seqno-video"
       data-video=""
       ref={seekable(seek)}
+      role="presentation"
       onClick={stop}
       onPointerDown={stop}
     >
@@ -149,7 +154,7 @@ export const VideoFile = ({ url }: { readonly url: string }) => {
     }
 
     player.current.currentTime = seconds
-    void player.current.play().catch(() => undefined)
+    void player.current.play().catch(() => {})
   }
 
   return (
@@ -158,9 +163,11 @@ export const VideoFile = ({ url }: { readonly url: string }) => {
       data-file
       data-video=""
       ref={seekable(seek)}
+      role="presentation"
       onClick={stop}
       onPointerDown={stop}
     >
+      {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- the user's own video file, which has no captions to offer */}
       <video ref={player} src={source} controls preload="metadata" playsInline />
     </span>
   )

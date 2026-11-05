@@ -25,6 +25,7 @@ export const ImageViewer = ({
   readonly onClose: () => void
 }) =>
   createPortal(
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- a click anywhere closes the viewer; Escape closes the modal dialog natively
     <dialog
       className="seqno-image-viewer"
       aria-label={alt === "" ? "Image" : alt}

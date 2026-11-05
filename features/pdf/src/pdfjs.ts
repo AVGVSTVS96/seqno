@@ -1,6 +1,6 @@
 const loadModules = async () => {
   const lib = await import("pdfjs-dist")
-  lib.GlobalWorkerOptions.workerPort = new Worker(new URL("./worker.ts", import.meta.url), {
+  lib.GlobalWorkerOptions.workerPort = new Worker(new URL("worker.ts", import.meta.url), {
     type: "module",
   })
   Reflect.set(globalThis, "pdfjsLib", lib)

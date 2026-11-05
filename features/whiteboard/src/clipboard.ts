@@ -1,10 +1,9 @@
 import { Option, Schema } from "effect"
 import { assetTypeOf, shapeRaw, wordsField, wordsFields, wordsIn } from "@seqno/domain"
-import type { Vec } from "@seqno/domain"
 import { round, sub } from "./geometry.ts"
 import type { Item, Scene } from "./model.ts"
-
-type Raw = Readonly<Record<string, unknown>>
+import { isRaw, isText, rawIn } from "./raw.ts"
+import type { Field, Raw } from "./raw.ts"
 
 export interface Copied {
   readonly id: string
@@ -12,39 +11,30 @@ export interface Copied {
   readonly text: string
 }
 
-const RawRecord = Schema.Record(Schema.String, Schema.Unknown)
-
-const decodeRecord = Schema.decodeUnknownOption(RawRecord)
-
 const decodeTldr = Schema.decodeUnknownOption(
   Schema.fromJsonString(
     Schema.Struct({
-      shapes: Schema.Array(RawRecord),
-      bindings: Schema.optionalKey(Schema.Record(Schema.String, RawRecord)),
-      assets: Schema.optionalKey(Schema.Array(RawRecord)),
+      shapes: Schema.Array(Schema.JsonObject),
+      bindings: Schema.optionalKey(Schema.Record(Schema.String, Schema.JsonObject)),
+      assets: Schema.optionalKey(Schema.Array(Schema.JsonObject)),
     }),
   ),
 )
 
-const recordOf = (value: unknown): Raw => Option.getOrElse(decodeRecord(value), () => ({}))
-
-export const handlesOf = (value: unknown): ReadonlyArray<readonly [string, Raw]> =>
-  Object.entries(recordOf(value)).map(([name, handle]) => [name, recordOf(handle)] as const)
+export const handlesOf = (value: Field): ReadonlyArray<readonly [string, Raw]> =>
+  Object.entries(rawIn(value)).map(([name, handle]) => [name, rawIn(handle)] as const)
 
 const mapHandles = (raw: Raw, each: (name: string, handle: Raw) => Raw): Raw => {
-  const handles = decodeRecord(raw["handles"])
+  const handles = raw["handles"]
 
-  return Option.isNone(handles)
-    ? raw
-    : {
+  return isRaw(handles)
+    ? {
         ...raw,
         handles: Object.fromEntries(
-          Object.entries(handles.value).map(([name, handle]) => [
-            name,
-            each(name, recordOf(handle)),
-          ]),
+          Object.entries(handles).map(([name, handle]) => [name, each(name, rawIn(handle))]),
         ),
       }
+    : raw
 }
 
 export const copiedOf = (scene: Scene, items: readonly Item[]): readonly Copied[] =>
@@ -58,13 +48,15 @@ export const copiedOf = (scene: Scene, items: readonly Item[]): readonly Copied[
 
     const origin = item.shape.point
 
-    const drawn = (name: string): Vec | undefined =>
-      name === "start" ? ends[0] : name === "end" ? ends[1] : undefined
+    const drawn = new Map([
+      ["start", ends[0]],
+      ["end", ends[1]],
+    ])
 
     return {
       id: item.block.id,
       raw: mapHandles(raw, (name, handle) => {
-        const at = drawn(name)
+        const at = drawn.get(name)
 
         if (at === undefined) {
           return handle
@@ -86,10 +78,10 @@ const decodeUri = Option.liftThrowable(decodeURIComponent)
 
 export const clipboardHtml = (copied: readonly Copied[]): string => {
   const bindings = copied.flatMap(({ id, raw }) =>
-    Object.entries(recordOf(raw["handles"])).flatMap(([name, handle]) => {
-      const toId = recordOf(handle)["bindTo"]
+    Object.entries(rawIn(raw["handles"])).flatMap(([name, handle]) => {
+      const toId = rawIn(handle)["bindTo"]
 
-      if (typeof toId !== "string") {
+      if (!isText(toId)) {
         return []
       }
 
@@ -112,36 +104,36 @@ export const clipboardHtml = (copied: readonly Copied[]): string => {
     }),
   )
 
-  const assets = copied.flatMap(({ id, raw }) =>
-    typeof raw["src"] === "string"
+  const assets = copied.flatMap(({ id, raw }) => {
+    const src = raw["src"]
+    const assetId = raw["assetId"]
+
+    return isText(src)
       ? [
           {
-            id: typeof raw["assetId"] === "string" ? raw["assetId"] : `${id}-asset`,
+            id: isText(assetId) ? assetId : `${id}-asset`,
             type: assetTypeOf(raw["type"]),
-            src: raw["src"],
+            src,
             size: raw["size"] ?? [0, 0],
           },
         ]
-      : [],
-  )
+      : []
+  })
 
   const shapes = copied.map(({ id, raw, text }) => {
     const { src: _src, ...rest } = mapHandles(
       raw,
       (name, { bindTo, bindingId: _bindingId, ...handle }) =>
-        typeof bindTo === "string"
+        isText(bindTo)
           ? { id: name, canBind: true, ...handle, bindingId: `${id}-${name}` }
           : { id: name, canBind: true, ...handle },
     )
 
     const asset = assets.find((item) => item.src === raw["src"])
 
-    return {
-      ...rest,
-      id,
-      ...wordsFields(raw["type"], text),
-      ...(asset === undefined ? {} : { assetId: asset.id }),
-    }
+    const shape = { ...rest, id, ...wordsFields(raw["type"], text) }
+
+    return asset === undefined ? shape : { ...shape, assetId: asset.id }
   })
 
   const json = JSON.stringify({ shapes, assets, bindings: Object.fromEntries(bindings) })
@@ -172,7 +164,7 @@ export const readClipboard = (html: string): readonly Copied[] => {
       shapes.flatMap((shape) => {
         const id = shape["id"]
 
-        if (typeof id !== "string") {
+        if (!isText(id)) {
           return []
         }
 
@@ -180,9 +172,9 @@ export const readClipboard = (html: string): readonly Copied[] => {
         const { [field ?? ""]: _words, ...rest } = shape
 
         const raw = mapHandles(rest, (_name, { bindingId, ...handle }) => {
-          const toId = typeof bindingId === "string" ? bindings[bindingId]?.["toId"] : undefined
+          const toId = isText(bindingId) ? bindings[bindingId]?.["toId"] : undefined
 
-          return typeof toId === "string" ? { ...handle, bindTo: toId } : handle
+          return isText(toId) ? { ...handle, bindTo: toId } : handle
         })
 
         const src = assets.find((asset) => asset["id"] === shape["assetId"])?.["src"]
@@ -190,7 +182,7 @@ export const readClipboard = (html: string): readonly Copied[] => {
         return [
           {
             id,
-            raw: typeof src === "string" && raw["src"] === undefined ? { ...raw, src } : raw,
+            raw: isText(src) && raw["src"] === undefined ? { ...raw, src } : raw,
             text: wordsIn(shape),
           },
         ]

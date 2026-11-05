@@ -59,15 +59,7 @@ const unsupported = (block: Block): readonly Item[] =>
     onSome: (other) => [
       {
         block,
-        shape: {
-          type: "unsupported",
-          kind: other.type,
-          point: other.point,
-          size: other.size ?? [320, 180],
-          ...(other.url === undefined ? {} : { url: other.url }),
-          ...(other.rotation === undefined ? {} : { rotation: other.rotation }),
-          ...(other.isLocked === undefined ? {} : { isLocked: other.isLocked }),
-        },
+        shape: { ...other, type: "unsupported", kind: other.type, size: other.size ?? [320, 180] },
       },
     ],
   })
@@ -127,25 +119,18 @@ export const sizeOfItem = (item: Item, measured: Measured): Vec => {
 const ownBounds = (item: Item, measured: Measured): Bounds => {
   const { shape } = item
 
-  switch (shape.type) {
-    case "line": {
-      return boundsOfPoints([
-        add(shape.point, shape.handles.start.point),
-        add(shape.point, shape.handles.end.point),
-      ])
-    }
-
-    case "pencil":
-    case "highlighter": {
-      return shape.points.length === 0
-        ? boxBounds(shape.point, [0, 0])
-        : boundsOfPoints(strokePoints(shape))
-    }
-
-    default: {
-      return boxBounds(shape.point, sizeOfItem(item, measured))
-    }
+  if (shape.type === "line") {
+    return boundsOfPoints([
+      add(shape.point, shape.handles.start.point),
+      add(shape.point, shape.handles.end.point),
+    ])
   }
+
+  if ((shape.type === "pencil" || shape.type === "highlighter") && shape.points.length > 0) {
+    return boundsOfPoints(strokePoints(shape))
+  }
+
+  return boxBounds(shape.point, sizeOfItem(item, measured))
 }
 
 export const rotationOf = (item: Item) =>
@@ -366,6 +351,6 @@ export const ratioLocked = (scene: Scene, ids: readonly BlockId[]) => {
   return (
     item !== undefined &&
     (item.shape.type === "youtube" ||
-      ("isAspectRatioLocked" in item.shape && item.shape.isAspectRatioLocked === true))
+      ("isAspectRatioLocked" in item.shape && item.shape.isAspectRatioLocked))
   )
 }

@@ -106,7 +106,7 @@ const lettering = (item: Item) => {
   return {
     fontSize: fontSize[scaleOf(item)],
     fontWeight: "fontWeight" in shape && shape.fontWeight !== undefined ? shape.fontWeight : 400,
-    fontStyle: "italic" in shape && shape.italic === true ? "italic" : "normal",
+    fontStyle: "italic" in shape && shape.italic ? "italic" : "normal",
   }
 }
 
@@ -152,7 +152,7 @@ const arrowHead = (from: Vec, to: Vec, length: number) => {
   return `M${ax},${ay}L${to[0]},${to[1]}L${bx},${by}`
 }
 
-const Label = ({ item, slots }: { readonly item: Item; readonly slots: ShapeSlots }) => {
+const Caption = ({ item, slots }: { readonly item: Item; readonly slots: ShapeSlots }) => {
   const editor = editorOf(item, slots)
 
   return (
@@ -180,54 +180,49 @@ const Geometry = ({
   const sw = font / 10
 
   const paint = {
-    fill:
-      "noFill" in shape && shape.noFill === true ? "none" : colorVar("background", fillOf(item)),
+    fill: "noFill" in shape && shape.noFill ? "none" : colorVar("background", fillOf(item)),
     stroke: colorVar("stroke", strokeOf(item)),
     strokeWidth: sw,
     strokeDasharray: "strokeType" in shape && shape.strokeType === "dashed" ? "8 2" : undefined,
   }
 
   const inner = (() => {
-    switch (shape.type) {
-      case "box": {
-        return (
-          <rect
-            x={sw / 2}
-            y={sw / 2}
-            width={Math.max(0, width - sw)}
-            height={Math.max(0, height - sw)}
-            rx={shape.borderRadius ?? 2}
-            {...paint}
-          />
-        )
-      }
-
-      case "ellipse": {
-        return (
-          <ellipse
-            cx={width / 2}
-            cy={height / 2}
-            rx={Math.max(0, width / 2 - sw / 2)}
-            ry={Math.max(0, height / 2 - sw / 2)}
-            {...paint}
-          />
-        )
-      }
-
-      default: {
-        const flipped = shape.type === "polygon" && shape.isFlippedY === true
-        const top = flipped ? height - sw / 2 : sw / 2
-        const base = flipped ? sw / 2 : height - sw / 2
-
-        return (
-          <polygon
-            points={`${width / 2},${top} ${width - sw / 2},${base} ${sw / 2},${base}`}
-            strokeLinejoin="round"
-            {...paint}
-          />
-        )
-      }
+    if (shape.type === "box") {
+      return (
+        <rect
+          x={sw / 2}
+          y={sw / 2}
+          width={Math.max(0, width - sw)}
+          height={Math.max(0, height - sw)}
+          rx={shape.borderRadius ?? 2}
+          {...paint}
+        />
+      )
     }
+
+    if (shape.type === "ellipse") {
+      return (
+        <ellipse
+          cx={width / 2}
+          cy={height / 2}
+          rx={Math.max(0, width / 2 - sw / 2)}
+          ry={Math.max(0, height / 2 - sw / 2)}
+          {...paint}
+        />
+      )
+    }
+
+    const flipped = shape.type === "polygon" && shape.isFlippedY === true
+    const top = flipped ? height - sw / 2 : sw / 2
+    const base = flipped ? sw / 2 : height - sw / 2
+
+    return (
+      <polygon
+        points={`${width / 2},${top} ${width - sw / 2},${base} ${sw / 2},${base}`}
+        strokeLinejoin="round"
+        {...paint}
+      />
+    )
   })()
 
   return (
@@ -235,7 +230,7 @@ const Geometry = ({
       <svg className="wb-svg" width={width} height={height}>
         {inner}
       </svg>
-      <Label item={item} slots={slots} />
+      <Caption item={item} slots={slots} />
     </>
   )
 }
@@ -429,7 +424,7 @@ export const ShapeView = ({
           className="wb-shape"
           data-type="text"
           data-erasing={erasing}
-          style={{ ...place, ...(auto ? {} : { width: size[0], height: size[1] }) }}
+          style={auto ? place : { ...place, width: size[0], height: size[1] }}
         >
           <div
             ref={slots.measure(item.block.id)}
@@ -438,7 +433,7 @@ export const ShapeView = ({
             style={{
               ...lettering(item),
               color: colorVar("text", shape.stroke),
-              ...(auto ? {} : { width: size[0] }),
+              width: auto ? undefined : size[0],
             }}
           >
             {editor ?? (item.block.text === "" ? "​" : item.block.text)}
@@ -503,6 +498,7 @@ export const ShapeView = ({
         >
           <div className="wb-media" data-asset-loaded={src !== undefined}>
             {src === undefined ? null : (
+              // oxlint-disable-next-line jsx-a11y/media-has-caption -- a video dropped on the board comes with no caption track to point to
               <video className="wb-video" src={src} controls aria-label="Video" />
             )}
           </div>

@@ -25,7 +25,7 @@ export const keystrokeOf = (event: KeyboardEvent): Keystroke | null =>
       }
 
 const printable = (stroke: Keystroke) =>
-  [...stroke.key].length === 1 && !stroke.ctrlKey && !stroke.metaKey
+  [...new Intl.Segmenter().segment(stroke.key)].length === 1 && !stroke.ctrlKey && !stroke.metaKey
 
 export const typeText = (view: EditorView, text: string) => {
   const { from, to } = view.state.selection.main

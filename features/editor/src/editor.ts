@@ -79,8 +79,15 @@ export const mountBlockEditor = (
   popups = createPopupStore(),
 ): MountedEditor => {
   const arrival = handoff.take()
-  const fields = blockFields(block.id, block, properties, hidden, propertyStyle)
+  const target = properties ?? { _tag: "BlockTarget", blockId: block.id }
+  const fields = blockFields(block.id, block, target, hidden, propertyStyle)
   const draft = fields.draftOf(block)
+
+  const commit = async (commands: readonly Command[]) => {
+    if (!(await host.dispatchAll(commands))) {
+      resync()
+    }
+  }
 
   const merged =
     arrival?._tag === "Merged"
@@ -169,11 +176,7 @@ export const mountBlockEditor = (
               const commands = fields.commit(transaction)
 
               if (commands.length > 0) {
-                void host.dispatchAll(commands).then((applied) => {
-                  if (!applied) {
-                    resync()
-                  }
-                })
+                void commit(commands)
               }
 
               sync.local(transaction.newDoc.toString())
@@ -221,7 +224,7 @@ export const mountBlockEditor = (
         view.dispatch({
           changes: change,
           annotations: fromGraph.of(true),
-          ...(fromHistory ? { selection: { anchor: change.from + change.insert.length } } : {}),
+          selection: fromHistory ? { anchor: change.from + change.insert.length } : undefined,
         })
       }
 

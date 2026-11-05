@@ -1,6 +1,8 @@
 import type { Asset } from "@seqno/rpc"
 import { assetKind, assetPathOf } from "@seqno/syntax"
-import { list, text } from "./package.ts"
+import { Match } from "effect"
+import { scalarText, text, texts } from "./package.ts"
+import type { Handlers } from "./protocol.ts"
 import {
   clearStorage,
   hasStorage,
@@ -16,8 +18,6 @@ export interface AssetBridge {
   readonly remove: (path: string) => Promise<void>
   readonly openPdf: (path: string) => void
 }
-
-export type Handler = (pid: string, args: readonly unknown[]) => unknown
 
 const storageRoot = (pid: string) => `assets/storages/${pid.split("/").at(-1) ?? pid}`
 
@@ -41,16 +41,12 @@ const joined = (root: string, key: string): string | null => {
   return parts.length === 0 ? null : `${root}/${parts.join("/")}`
 }
 
-const extensionsOf = (value: unknown): ReadonlySet<string> | null => {
-  const given =
-    typeof value === "string" ? [value] : list(value).flatMap((item) => text(item) ?? [])
-
-  return given.length === 0
+const extensionsOf = (given: readonly string[]): ReadonlySet<string> | null =>
+  given.length === 0
     ? null
     : new Set(
         given.map((ext) => (ext === "" || ext.startsWith(".") ? ext : `.${ext}`).toLowerCase()),
       )
-}
 
 const extensionOf = (path: string) => {
   const name = path.split("/").at(-1) ?? ""
@@ -61,15 +57,22 @@ const extensionOf = (path: string) => {
 
 const encoder = new TextEncoder()
 
-const bytesOf = (value: unknown): Uint8Array =>
-  value instanceof ArrayBuffer
-    ? new Uint8Array(value)
-    : ArrayBuffer.isView(value)
-      ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
-      : encoder.encode(typeof value === "string" ? value : JSON.stringify(value))
+const bytesOf = (view: ArrayBufferView): Uint8Array<ArrayBuffer> => {
+  const copy = new Uint8Array(view.byteLength)
+  copy.set(new Uint8Array(view.buffer, view.byteOffset, view.byteLength))
 
-const storagePath = (pid: string, key: unknown, denied: string) => {
-  const path = joined(storageRoot(pid), text(key) ?? String(key))
+  return copy
+}
+
+const contentOf = Match.type<unknown>().pipe(
+  Match.when(Match.instanceOf(ArrayBuffer), (buffer) => new Uint8Array(buffer)),
+  Match.when((value: unknown): value is ArrayBufferView => ArrayBuffer.isView(value), bytesOf),
+  Match.when(Match.string, (content) => content),
+  Match.orElse((value) => JSON.stringify(value)),
+)
+
+const storagePath = (pid: string, key: string, denied: string) => {
+  const path = joined(storageRoot(pid), key)
 
   if (path === null) {
     throw new Error(denied)
@@ -100,9 +103,9 @@ export const assetsApi = (assets: AssetBridge, graphName: () => string | null) =
     return await (await fetch(asset.url)).text()
   }
 
-  const table: Record<string, Handler> = {
+  const table: Handlers = {
     list_files_of_current_graph: (_, [exts]) => {
-      const wanted = extensionsOf(exts)
+      const wanted = extensionsOf(texts(exts))
 
       return assets
         .listed()
@@ -147,12 +150,14 @@ export const assetsApi = (assets: AssetBridge, graphName: () => string | null) =
       return null
     },
     write_plugin_storage_file: async (pid, [owner, key, value, assetsFlag]) => {
+      const content = contentOf(value)
+
       if (assetsFlag !== true) {
-        return await writeStorage(text(owner) ?? pid, text(key) ?? "", value)
+        return await writeStorage(text(owner) ?? pid, text(key) ?? "", content)
       }
 
-      const path = storagePath(text(owner) ?? pid, key, "write file denied")
-      await assets.write(path, bytesOf(value))
+      const path = storagePath(text(owner) ?? pid, scalarText(key) ?? "", "write file denied")
+      await assets.write(path, content instanceof Uint8Array ? content : encoder.encode(content))
 
       return absolute(path)
     },
@@ -161,14 +166,14 @@ export const assetsApi = (assets: AssetBridge, graphName: () => string | null) =
         return await readStorage(text(owner) ?? pid, text(key) ?? "")
       }
 
-      return await read(storagePath(text(owner) ?? pid, key, "read file denied"))
+      return await read(storagePath(text(owner) ?? pid, scalarText(key) ?? "", "read file denied"))
     },
     unlink_plugin_storage_file: async (pid, [owner, key, assetsFlag]) => {
       if (assetsFlag !== true) {
         return await removeStorage(text(owner) ?? pid, text(key) ?? "")
       }
 
-      const path = storagePath(text(owner) ?? pid, key, "access file denied")
+      const path = storagePath(text(owner) ?? pid, scalarText(key) ?? "", "access file denied")
 
       if (found(path) === undefined) {
         throw new Error("file not existed")
@@ -178,18 +183,18 @@ export const assetsApi = (assets: AssetBridge, graphName: () => string | null) =
 
       return null
     },
-    exist_plugin_storage_file: (pid, [owner, key, assetsFlag]) => {
+    exist_plugin_storage_file: async (pid, [owner, key, assetsFlag]) => {
       if (assetsFlag !== true) {
-        return hasStorage(text(owner) ?? pid, text(key) ?? "")
+        return await hasStorage(text(owner) ?? pid, text(key) ?? "")
       }
 
       const path = joined(storageRoot(text(owner) ?? pid), text(key) ?? "")
 
       return path !== null && found(path) !== undefined
     },
-    list_plugin_storage_files: (pid, [owner, assetsFlag]) => {
+    list_plugin_storage_files: async (pid, [owner, assetsFlag]) => {
       if (assetsFlag !== true) {
-        return storageKeys(text(owner) ?? pid)
+        return await storageKeys(text(owner) ?? pid)
       }
 
       const root = `${storageRoot(text(owner) ?? pid)}/`

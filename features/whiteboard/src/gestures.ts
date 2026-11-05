@@ -1,7 +1,6 @@
 import type { Block, BlockId, Command, PageId, Vec } from "@seqno/domain"
 import { copiedOf } from "./clipboard.ts"
 import { clones, create, patch, remove, scaleInto, translate } from "./commands.ts"
-import type { Raw } from "./commands.ts"
 import {
   angleOf,
   boundsOfPoints,
@@ -20,7 +19,7 @@ import {
 } from "./geometry.ts"
 import type { Bounds } from "./geometry.ts"
 import { hits, isLocked, itemsOf, rotationOf, outermost, sceneOf, withMembers } from "./model.ts"
-import type { Item, Scene } from "./model.ts"
+import type { Item, Line, Scene } from "./model.ts"
 import { applyLocally, isGhost } from "./preview.ts"
 import { newShape } from "./tools.ts"
 import type { ShapeTool, Styles } from "./tools.ts"
@@ -276,7 +275,7 @@ export const brushed = (scene: Scene, gesture: Extract<Gesture, { _tag: "Brushin
 export const brushOf = (gesture: Gesture): Bounds | null =>
   gesture._tag === "Brushing" ? brushBox(gesture.from, gesture.to) : null
 
-const relative = (points: readonly Vec[]): { readonly point: Vec; readonly rest: Raw } => {
+const relative = (points: readonly Vec[]) => {
   const box = boundsOfPoints(points)
   const point: Vec = [round(box.minX), round(box.minY)]
 
@@ -286,13 +285,7 @@ const relative = (points: readonly Vec[]): { readonly point: Vec; readonly rest:
   }
 }
 
-export const lineRaw = (
-  from: Vec,
-  to: Vec,
-  start: BlockId | null,
-  end: BlockId | null,
-  styles: Styles,
-) => {
+const lineEnds = (from: Vec, to: Vec, start: BlockId | null, end: BlockId | null) => {
   const point: Vec = [round(Math.min(from[0], to[0])), round(Math.min(from[1], to[1]))]
 
   const handle = (at: Vec, bindTo: BlockId | null) => {
@@ -301,9 +294,19 @@ export const lineRaw = (
     return bindTo === null ? { point: local } : { point: local, bindTo }
   }
 
-  return newShape("line", point, [0, 0], styles, {
-    handles: { start: handle(from, start), end: handle(to, end) },
-  })
+  return { point, handles: { start: handle(from, start), end: handle(to, end) } }
+}
+
+export const lineRaw = (
+  from: Vec,
+  to: Vec,
+  start: BlockId | null,
+  end: BlockId | null,
+  styles: Styles,
+) => {
+  const { point, handles } = lineEnds(from, to, start, end)
+
+  return newShape("line", point, [0, 0], styles, { handles })
 }
 
 export const changesOf = (
@@ -414,9 +417,8 @@ export const changesOf = (
       const to = gesture.end === "end" ? gesture.to : ends[1]
       const startBind = gesture.end === "start" ? gesture.bind : (start.bindTo ?? null)
       const endBind = gesture.end === "end" ? gesture.bind : (end.bindTo ?? null)
-      const raw = lineRaw(from, to, startBind, endBind, styles)
 
-      return settle(scene, [patch(item, { point: raw["point"], handles: raw["handles"] })])
+      return settle(scene, [patch(item, lineEnds(from, to, startBind, endBind))])
     }
 
     case "Drawing": {
@@ -437,7 +439,9 @@ export const changesOf = (
       return remove(scene, gesture.ids)
     }
 
-    default: {
+    case "Idle":
+    case "Panning":
+    case "Brushing": {
       return []
     }
   }
@@ -445,7 +449,8 @@ export const changesOf = (
 
 const blocksOf = (scene: Scene) => scene.items.map((item) => item.block)
 
-const sameHandles = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+const sameHandles = (a: Line["handles"], b: Line["handles"]) =>
+  JSON.stringify(a) === JSON.stringify(b)
 
 const rerouteLines = (after: Scene, moved: (line: Item) => boolean): readonly Command[] =>
   after.items.flatMap((item) => {

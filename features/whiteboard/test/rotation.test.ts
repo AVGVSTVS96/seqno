@@ -1,21 +1,16 @@
 import { assert, describe, it } from "vitest"
-import { BlockId, PageId, shapeProps } from "@seqno/domain"
+import { Schema } from "effect"
+import { BlockId, PageId, ShapeJson, shapeProps } from "@seqno/domain"
 import type { Block, Command } from "@seqno/domain"
-import {
-  brushed,
-  changesOf,
-  defaultStyles,
-  itemsOf,
-  sceneOf,
-  selectionBounds,
-  topHit,
-} from "../src/index.ts"
-import type { Gesture } from "../src/index.ts"
+import { brushed, changesOf, selectionBounds } from "../src/gestures.ts"
+import type { Gesture } from "../src/gestures.ts"
+import { itemsOf, sceneOf, topHit } from "../src/model.ts"
+import { defaultStyles } from "../src/tools.ts"
 
 const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
 const id = (n: number) => BlockId.make(`01920000-0000-7000-8000-${n.toString().padStart(12, "0")}`)
 
-const block = (n: number, raw: Readonly<Record<string, unknown>>): Block => ({
+const block = (n: number, raw: ShapeJson): Block => ({
   id: id(n),
   pageId,
   parentId: null,
@@ -26,9 +21,11 @@ const block = (n: number, raw: Readonly<Record<string, unknown>>): Block => ({
 
 const sceneFrom = (blocks: readonly Block[]) => sceneOf(itemsOf(blocks), new Map())
 
-const shapes = (commands: readonly Command[]): ReadonlyArray<Record<string, unknown>> =>
+const decodeShape = Schema.decodeSync(Schema.fromJsonString(ShapeJson))
+
+const shapes = (commands: readonly Command[]): readonly ShapeJson[] =>
   commands.flatMap((command) =>
-    command._tag === "SetProperty" && command.value !== null ? [JSON.parse(command.value)] : [],
+    command._tag === "SetProperty" && command.value !== null ? [decodeShape(command.value)] : [],
   )
 
 const rotating = (

@@ -1,3 +1,7 @@
+import type { EdnValue } from "datascript"
+import { Match } from "effect"
+import { text as asText } from "./package.ts"
+
 export interface InputContext {
   readonly currentPage: string | null
   readonly currentBlock: {
@@ -152,15 +156,7 @@ export const keywordInput = (name: string, context: InputContext): string | numb
 const PAGE_REF = /^\[\[(.+)\]\]$/su
 const KEYWORD = /^:([^\s,;()[\]{}"]+)$/u
 
-export const resolveInput = (
-  input: unknown,
-  context: InputContext,
-  read: (text: string) => unknown,
-): unknown => {
-  if (typeof input !== "string") {
-    return input
-  }
-
+const resolveText = (input: string, context: InputContext, read: (text: string) => EdnValue) => {
   const text = input.trim()
   const named = KEYWORD.exec(text)?.[1]
 
@@ -173,7 +169,13 @@ export const resolveInput = (
   }
 
   const value = read(input)
-  const ref = typeof value === "string" ? PAGE_REF.exec(value)?.[1] : undefined
+  const ref = PAGE_REF.exec(asText(value) ?? "")?.[1]
 
   return ref === undefined ? value : ref.toLowerCase()
 }
+
+export const resolveInput = (context: InputContext, read: (text: string) => EdnValue) =>
+  Match.type<unknown>().pipe(
+    Match.when(Match.string, (input) => resolveText(input, context, read)),
+    Match.orElse((input) => input),
+  )

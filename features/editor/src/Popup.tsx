@@ -124,6 +124,7 @@ const Row = ({
   const active = popup.active === index
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events jsx-a11y/interactive-supports-focus -- focus stays in the editor, whose keymap moves through and accepts options
     <div
       role="option"
       aria-selected={active}
@@ -142,7 +143,9 @@ const Row = ({
           pick(view, index)
         }
       }}
-      onClick={() => accept(view, index)}
+      onClick={() => {
+        accept(view, index)
+      }}
     >
       <Content choice={choice} popup={popup} />
     </div>
@@ -184,6 +187,7 @@ export const PopupView = ({ frame }: { readonly frame: PopupFrame }) => {
   const grouped = popup.kind === "Slash" && popup.query === ""
 
   return createPortal(
+    // oxlint-disable-next-line jsx-a11y/interactive-supports-focus -- focus stays in the editor, whose keymap drives the listbox
     <div
       key={`${popup.kind}:${popup.from}`}
       {...logseq("sq-popup")}

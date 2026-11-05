@@ -82,6 +82,9 @@ export interface OutlinerProps {
   readonly codeStyle?: CodeStyle
 }
 
+const afterAnchor = <const C extends Command>(command: C, after: BlockId | undefined) =>
+  after === undefined ? command : { ...command, after }
+
 const listId = (pageId: PageId, zoom: BlockId | null) => `${pageId} ${zoom ?? ""}`
 
 const carriesFiles = (transfer: DataTransfer) =>
@@ -92,9 +95,9 @@ export const Outliner = (props: OutlinerProps) => {
 
   return AsyncResult.match(useAtomValue(pageTreeAtom(props.pageId)), {
     onInitial: () => (
-      <div className="seqno-outliner-status" role="status" style={{ minHeight: held }}>
+      <output className="seqno-outliner-status" style={{ minHeight: held }}>
         Loading page
-      </div>
+      </output>
     ),
     onFailure: () => (
       <div className="seqno-outliner-status" role="alert">
@@ -245,6 +248,7 @@ const Embed = ({
 }) => (
   <div
     {...logseq("seqno-embed", kind)}
+    role="presentation"
     onClick={stopEvent}
     onDragOver={stopEvent}
     onDrop={stopEvent}
@@ -392,7 +396,7 @@ export const StaticBlock = ({
         <BlockView
           content={contentOf(block.text, dialectOf(block.pageId))}
           props={block.props}
-          onMarker={() => undefined}
+          onMarker={() => {}}
         />
       </HostBlock>
     </RenderContext>
@@ -403,6 +407,7 @@ const dropZone = (event: DragEvent<HTMLDivElement>, row: Row): DropTarget => {
   const box = event.currentTarget.getBoundingClientRect()
   const lower = event.clientY - box.top >= box.height / 2
 
+  // oxlint-disable-next-line unicorn/prefer-number-coercion -- the value is a CSS length like 30px, and only parseFloat drops the unit
   const step = Number.parseFloat(
     getComputedStyle(event.currentTarget).getPropertyValue("--block-indent"),
   )
@@ -496,12 +501,13 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   }
 
   const after = (command: Command, then: (events: readonly GraphEvent[]) => void) => {
-    void run(command).then(Exit.match({ onFailure: () => undefined, onSuccess: then }))
+    void run(command).then(Exit.match({ onFailure: () => {}, onSuccess: then }))
   }
 
   const history = (step: HistoryStep, land: "Edit" | "Select" = "Edit") => {
     const current = editing?.blockId
-    historyQueue.current = historyQueue.current.then(async () => {
+
+    const replay = async () => {
       const before = latest().rows.map((row) => row.block)
       const exit = await run({ _tag: step })
 
@@ -535,7 +541,9 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       setSelection(null)
       setLocalEditing(null)
       setRequest(focus)
-    })
+    }
+
+    historyQueue.current = historyQueue.current.then(replay)
   }
 
   const dispatch = (command: Command) => {
@@ -610,12 +618,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
 
     if (direction === -1 && start > 0) {
       const before = siblings[start - 2]
-      dispatch({
-        _tag: "MoveBlocks",
-        blockIds: chosen,
-        parentId,
-        ...(before === undefined ? {} : { after: before.id }),
-      })
+      dispatch(afterAnchor({ _tag: "MoveBlocks", blockIds: chosen, parentId }, before?.id))
     } else if (direction === 1 && end !== -1 && end < siblings.length - 1) {
       const next = siblings[end + 1]
 
@@ -641,13 +644,12 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     const siblings = now.children(block.parentId)
     const before = siblings[siblings.findIndex((sibling) => sibling.id === block.id) - 1]
     const anchor = below ? block : before
-    insertAndEdit({
-      _tag: "InsertBlock",
-      pageId,
-      parentId: inside ? block.id : block.parentId,
-      ...(inside || anchor === undefined ? {} : { after: anchor.id }),
-      text: "",
-    })
+    insertAndEdit(
+      afterAnchor(
+        { _tag: "InsertBlock", pageId, parentId: inside ? block.id : block.parentId, text: "" },
+        inside ? undefined : anchor?.id,
+      ),
+    )
   }
 
   const onIntent = (blockId: BlockId) => (intent: EditorIntent) => {
@@ -663,7 +665,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     const previous = now.rows[index - 1]?.block
     const next = now.rows[index + 1]?.block
     const siblings = now.children(block.parentId)
-    const isLastChild = siblings[siblings.length - 1]?.id === block.id
+    const isLastChild = siblings.at(-1)?.id === block.id
     EditorIntent.match(intent, {
       Split: ({ at }) => {
         if (block.text === "" && block.parentId !== null && block.id !== zoom && isLastChild) {
@@ -735,10 +737,11 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
     })
   }
 
-  const copy = async (blockIds: readonly BlockId[]) =>
+  const copy = async (blockIds: readonly BlockId[]) => {
     await navigator.clipboard
       .writeText(blockIds.map((id) => markdownOf(view, id, 0)).join("\n"))
-      .catch(() => undefined)
+      .catch(() => {})
+  }
 
   const runBlockKey = (action: BlockKey, visual: boolean) => {
     const head = selection === null ? -1 : indexOf(selection.head)
@@ -773,22 +776,13 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
       const siblings = view.children(parentId)
       const before = siblings[siblings.findIndex((sibling) => sibling.id === target) - 1]
       const anchorId = below ? target : before?.id
-      after(
-        {
-          _tag: "InsertBlocks",
-          pageId,
-          parentId,
-          ...(anchorId === undefined ? {} : { after: anchorId }),
-          blocks,
-        },
-        (events) => {
-          const first = events.find((event) => event._tag === "BlockUpserted")
+      after(afterAnchor({ _tag: "InsertBlocks", pageId, parentId, blocks }, anchorId), (events) => {
+        const first = events.find((event) => event._tag === "BlockUpserted")
 
-          if (first?._tag === "BlockUpserted") {
-            select(first.block.id)
-          }
-        },
-      )
+        if (first?._tag === "BlockUpserted") {
+          select(first.block.id)
+        }
+      })
     }
 
     linewise.current =
@@ -1152,7 +1146,9 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
         const files = [...event.dataTransfer.files]
 
         if (dragged.length === 0 && files.length > 0 && !readOnly) {
-          void assets.saveFiles(files, dialectOf(pageId)).then((links) => {
+          const saveDropped = async () => {
+            const links = await assets.saveFiles(files, dialectOf(pageId))
+
             if (links.length === 0) {
               return
             }
@@ -1175,7 +1171,9 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
                     blocks: [{ text, props: {}, children: [] }],
                   },
             )
-          })
+          }
+
+          void saveDropped()
 
           return
         }
@@ -1338,13 +1336,7 @@ const OutlineView = (props: OutlinerProps & { readonly tree: PageTree }) => {
   const tail = view.children(zoom)
 
   const addBlock = (parentId: BlockId | null, last: BlockId | undefined) => {
-    insertAndEdit({
-      _tag: "InsertBlock",
-      pageId,
-      parentId,
-      ...(last === undefined ? {} : { after: last }),
-      text: "",
-    })
+    insertAndEdit(afterAnchor({ _tag: "InsertBlock", pageId, parentId, text: "" }, last))
   }
 
   const body = placed.flatMap(({ index, gap }) => {

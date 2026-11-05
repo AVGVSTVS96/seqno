@@ -2,9 +2,19 @@ import { logseq } from "@seqno/dom"
 import { createPortal } from "react-dom"
 import type { DragEvent, MouseEvent, PointerEvent } from "react"
 import type { Highlight } from "./highlights.ts"
+import { activates } from "./keys.ts"
 import { scaledToViewport } from "./model.ts"
 import type { Box } from "./model.ts"
 import type { Session, Snapshot } from "./session.ts"
+
+const below = (element: Element) => {
+  const box = element.getBoundingClientRect()
+
+  return { x: box.left, y: box.bottom }
+}
+
+const isEdge = (target: EventTarget) =>
+  target instanceof Element && target.closest(".seqno-pdf-resize-edge") !== null
 
 const px = (box: Box) => ({ left: box.left, top: box.top, width: box.width, height: box.height })
 
@@ -21,6 +31,15 @@ const TextRegion = ({ session, highlight }: { session: Session; highlight: Highl
     session.openMenu(highlight, { x: event.clientX, y: event.clientY }, false, null)
   }
 
+  const openFromKey = activates(({ currentTarget }) => {
+    session.openMenu(
+      highlight,
+      below(currentTarget.firstElementChild ?? currentTarget),
+      false,
+      null,
+    )
+  })
+
   const drag = (event: DragEvent) => {
     void session.ensureBlock(highlight)
     event.dataTransfer.setData("text/plain", `((${highlight.id}))`)
@@ -29,9 +48,13 @@ const TextRegion = ({ session, highlight }: { session: Session; highlight: Highl
   return (
     <div
       {...logseq("seqno-pdf-text-region", highlight.id)}
+      role="button"
+      tabIndex={0}
+      aria-label={highlight.content.text}
       data-highlight-id={highlight.id}
       onClick={open}
       onContextMenu={open}
+      onKeyDown={openFromKey}
     >
       {highlight.position.rects.map((rect, index) => (
         <div
@@ -101,12 +124,18 @@ const AreaRegion = ({
     event.preventDefault()
     event.stopPropagation()
 
-    if (draft !== null) {
+    if (draft !== null || isEdge(event.target)) {
       return
     }
 
     session.openMenu(highlight, { x: event.clientX, y: event.clientY }, false, null)
   }
+
+  const openFromKey = activates(({ currentTarget }) => {
+    if (draft === null) {
+      session.openMenu(highlight, below(currentTarget), false, null)
+    }
+  })
 
   const startResize = (edge: Edge) => (event: PointerEvent<HTMLSpanElement>) => {
     event.preventDefault()
@@ -141,6 +170,9 @@ const AreaRegion = ({
   return (
     <div
       {...logseq("seqno-pdf-area-region", highlight.id, highlight.properties.color)}
+      role="button"
+      tabIndex={0}
+      aria-label={`Area highlight on page ${highlight.page}`}
       data-highlight-id={highlight.id}
       data-highlight-color={highlight.properties.color}
       style={px(box)}
@@ -157,6 +189,7 @@ const AreaRegion = ({
       }}
       onClick={open}
       onContextMenu={open}
+      onKeyDown={openFromKey}
     >
       {edges.map((edge) => (
         <span
@@ -164,9 +197,6 @@ const AreaRegion = ({
           className="seqno-pdf-resize-edge"
           data-edge={edge}
           onPointerDown={startResize(edge)}
-          onClick={(event) => {
-            event.stopPropagation()
-          }}
         />
       ))}
     </div>

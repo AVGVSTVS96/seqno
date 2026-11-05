@@ -1,6 +1,6 @@
 import { EditorSelection } from "@codemirror/state"
 import { afterEach, assert, describe, it } from "@effect/vitest"
-import { Effect, PubSub, Stream } from "effect"
+import { Effect, Match, PubSub, Stream } from "effect"
 import type { Block, Command } from "@seqno/domain"
 import {
   blockId,
@@ -127,6 +127,7 @@ describe("structural keys", () => {
   it("sends undo and redo to the graph", () => {
     const { view, commands } = mount("text", { _tag: "End" })
     press(view, "z", { ctrlKey: true })
+    // oxlint-disable-next-line typescript/no-deprecated -- CodeMirror resolves shifted letters through keyCode, as real keydown events carry it
     press(view, "Z", { ctrlKey: true, shiftKey: true, keyCode: 90 })
     press(view, "y", { ctrlKey: true })
     assert.deepStrictEqual(commands, [{ _tag: "Undo" }, { _tag: "Redo" }, { _tag: "Redo" }])
@@ -158,6 +159,7 @@ describe("structural keys", () => {
 
     assert.isTrue(press(view, "o", { ctrlKey: true }))
     view.dispatch({ selection: { anchor: 26 } })
+    // oxlint-disable-next-line typescript/no-deprecated -- CodeMirror resolves shifted letters through keyCode, as real keydown events carry it
     assert.isTrue(press(view, "O", { ctrlKey: true, shiftKey: true, keyCode: 79 }))
     view.dispatch({ selection: { anchor: 1 } })
     assert.isTrue(press(view, "o", { ctrlKey: true }))
@@ -570,22 +572,20 @@ describe("headings", () => {
 })
 
 const applied = (block: Block, command: Command): Block =>
-  command._tag === "EditText"
-    ? {
-        ...block,
-        text: block.text.slice(0, command.from) + command.insert + block.text.slice(command.to),
-      }
-    : command._tag === "SetProperty"
-      ? {
-          ...block,
-          props:
-            command.value === null
-              ? Object.fromEntries(
-                  Object.entries(block.props).filter(([key]) => key !== command.key),
-                )
-              : { ...block.props, [command.key]: command.value },
-        }
-      : block
+  Match.value(command).pipe(
+    Match.tag("EditText", (edit) => ({
+      ...block,
+      text: block.text.slice(0, edit.from) + edit.insert + block.text.slice(edit.to),
+    })),
+    Match.tag("SetProperty", (set) => ({
+      ...block,
+      props:
+        set.value === null
+          ? Object.fromEntries(Object.entries(block.props).filter(([key]) => key !== set.key))
+          : { ...block.props, [set.key]: set.value },
+    })),
+    Match.orElse(() => block),
+  )
 
 describe("properties", () => {
   const tomato: Block = {

@@ -1,5 +1,7 @@
 import { RegistryContext, useAtom } from "@effect/atom-react"
+import { Option, Schema } from "effect"
 import { logseq } from "@seqno/dom"
+import type { LogseqNames } from "@seqno/dom"
 import {
   IconAdjustmentsHorizontal,
   IconArrowBack,
@@ -21,11 +23,12 @@ import {
   IconZoomIn,
   IconZoomOut,
 } from "@tabler/icons-react"
-import { useContext, useState } from "react"
-import type { KeyboardEvent, ReactNode } from "react"
+import { useContext, useId, useState } from "react"
+import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react"
 import type { Navigate } from "@seqno/outliner"
 import type { Highlight } from "./highlights.ts"
 import type { PdfHost } from "./host.ts"
+import { activates } from "./keys.ts"
 import { areaImagePath, hlsPageTitle } from "./model.ts"
 import { closePdf } from "./open.ts"
 import type { Session, Snapshot } from "./session.ts"
@@ -43,6 +46,34 @@ const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(naviga
 
 const themes: readonly ViewerTheme[] = ["light", "warm", "dark"]
 
+type Press = ReactMouseEvent<HTMLAnchorElement> | KeyboardEvent<HTMLAnchorElement>
+
+const Action = ({
+  names,
+  title,
+  active,
+  onPress,
+  children,
+}: {
+  names?: LogseqNames | undefined
+  title?: string | undefined
+  active?: boolean | undefined
+  onPress: (event: Press) => void
+  children: ReactNode
+}) => (
+  <a
+    {...names}
+    title={title}
+    data-active={active}
+    role="button"
+    tabIndex={0}
+    onClick={onPress}
+    onKeyDown={activates(onPress)}
+  >
+    {children}
+  </a>
+)
+
 const Button = ({
   title,
   active,
@@ -54,32 +85,25 @@ const Button = ({
   onClick: () => void
   children: ReactNode
 }) => (
-  <a
-    role="button"
-    tabIndex={0}
-    {...logseq("seqno-pdf-button", active === true)}
-    data-active={active === true}
+  <Action
+    names={logseq("seqno-pdf-button", active === true)}
+    active={active === true}
     title={title}
-    onClick={(event) => {
+    onPress={(event) => {
       event.stopPropagation()
       onClick()
     }}
-    onKeyDown={(event) => {
-      if (event.key === "Enter") {
-        onClick()
-      }
-    }}
   >
     {children}
-  </a>
+  </Action>
 )
 
-const Toggle = ({ on, onChange, label }: { on: boolean; onChange: () => void; label: string }) => (
+const Toggle = ({ id, on, onChange }: { id: string; on: boolean; onChange: () => void }) => (
   <button
     type="button"
     role="switch"
+    id={id}
     aria-checked={on}
-    aria-label={label}
     {...logseq("seqno-pdf-switch")}
     onClick={onChange}
   >
@@ -89,9 +113,15 @@ const Toggle = ({ on, onChange, label }: { on: boolean; onChange: () => void; la
   </button>
 )
 
-const closeOnOutside = (box: HTMLElement | null, close: () => void, keep: string) => {
+const dismissible = (box: HTMLElement | null, close: () => void, keep: string) => {
   if (box === null) {
     return
+  }
+
+  const escape = (event: globalThis.KeyboardEvent) => {
+    if (event.key === "Escape") {
+      close()
+    }
   }
 
   const listener = (event: MouseEvent) => {
@@ -114,37 +144,36 @@ const closeOnOutside = (box: HTMLElement | null, close: () => void, keep: string
 
   const timer = setTimeout(() => {
     document.addEventListener("click", listener)
-  })
+  }, 0)
 
+  box.addEventListener("keyup", escape)
   box.focus()
 
   return () => {
     clearTimeout(timer)
     document.removeEventListener("click", listener)
+    box.removeEventListener("keyup", escape)
   }
 }
 
-const escapeCloses = (close: () => void) => (event: KeyboardEvent) => {
-  if (event.key === "Escape") {
-    close()
-  }
-}
+const decodeInfo = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Json))
 
-const prValue = (value: unknown): string =>
-  typeof value === "string"
-    ? JSON.stringify(value)
-    : value === null || value === undefined
-      ? "nil"
-      : typeof value === "object"
-        ? JSON.stringify(value)
-        : String(value)
+const prValue = (value: Schema.Json) => (value === null ? "nil" : JSON.stringify(value))
+
+const copyInfo = async (
+  info: ReadonlyArray<readonly [string, string]>,
+  notify: (message: string) => void,
+) => {
+  await navigator.clipboard.writeText(info.map(([key, value]) => `${key}:: ${value}`).join("\n"))
+  notify("Copied!")
+}
 
 const Metadata = ({
   info,
   onClose,
   notify,
 }: {
-  info: ReadonlyArray<readonly [string, unknown]>
+  info: ReadonlyArray<readonly [string, string]>
   onClose: () => void
   notify: (message: string) => void
 }) => (
@@ -163,7 +192,7 @@ const Metadata = ({
           <p key={key}>
             <strong>{`${key}::`}</strong>
             {"  "}
-            <i>{prValue(value)}</i>
+            <i>{value}</i>
           </p>
         ))}
       </div>
@@ -171,15 +200,8 @@ const Metadata = ({
     <div className="seqno-pdf-actions">
       <button
         type="button"
-        onClick={(event) => {
-          const text = event.currentTarget.closest("dialog")?.querySelector(".seqno-pdf-inner-text")
-
-          const copied =
-            text instanceof HTMLElement ? text.innerText.replaceAll(/[\n\t]+/gu, "\n") : ""
-
-          void navigator.clipboard.writeText(copied).then(() => {
-            notify("Copied!")
-          })
+        onClick={() => {
+          void copyInfo(info, notify)
           onClose()
         }}
       >
@@ -194,23 +216,24 @@ const Settings = ({ session, onClose }: { session: Session; onClose: () => void 
   const [dashed, setDashed] = useAtom(areaDashed)
   const [colored, setColored] = useAtom(blockColored)
   const [autoOpen, setAutoOpen] = useAtom(autoOpenMenu)
-  const [info, setInfo] = useState<ReadonlyArray<readonly [string, unknown]> | null>(null)
+  const id = useId()
+  const [info, setInfo] = useState<ReadonlyArray<readonly [string, string]> | null>(null)
 
-  const showMetadata = () =>
-    void session.document
-      .getMetadata()
-      .then((meta) => {
-        setInfo(Object.entries(meta.info))
-      })
-      .catch(() => undefined)
+  const showMetadata = async () => {
+    const meta = await session.document.getMetadata().catch(() => null)
+    const decoded = decodeInfo(meta?.info)
+
+    if (Option.isSome(decoded)) {
+      setInfo(Object.entries(decoded.value).map(([key, value]) => [key, prValue(value)]))
+    }
+  }
 
   return (
     <div {...logseq("seqno-pdf-settings")} data-visible>
       <div
         {...logseq("seqno-pdf-settings-inner")}
         tabIndex={-1}
-        ref={(box) => closeOnOutside(box, onClose, "More settings")}
-        onKeyUp={escapeCloses(onClose)}
+        ref={(box) => dismissible(box, onClose, "More settings")}
       >
         <div {...logseq("seqno-pdf-theme-picker")}>
           {themes.map((it) => (
@@ -229,44 +252,46 @@ const Settings = ({ session, onClose }: { session: Session; onClose: () => void 
           ))}
         </div>
         <div {...logseq("seqno-pdf-toggle", false)}>
-          <label>Dashed style for area highlight</label>
+          <label htmlFor={`${id}-dashed`}>Dashed style for area highlight</label>
           <Toggle
+            id={`${id}-dashed`}
             on={dashed}
             onChange={() => {
               setDashed(!dashed)
             }}
-            label="Dashed style for area highlight"
           />
         </div>
         <div {...logseq("seqno-pdf-toggle", true)} data-between>
-          <label>Colored label for highlight block</label>
+          <label htmlFor={`${id}-colored`}>Colored label for highlight block</label>
           <Toggle
+            id={`${id}-colored`}
             on={colored}
             onChange={() => {
               setColored(!colored)
             }}
-            label="Colored label for highlight block"
           />
         </div>
         <div {...logseq("seqno-pdf-toggle", true)} data-between>
-          <label>Auto open context menu for selections</label>
+          <label htmlFor={`${id}-auto-open`}>Auto open context menu for selections</label>
           <Toggle
+            id={`${id}-auto-open`}
             on={autoOpen}
             onChange={() => {
               setAutoOpen(!autoOpen)
             }}
-            label="Auto open context menu for selections"
           />
         </div>
         <div {...logseq("seqno-pdf-toggle", false)}>
-          <a
-            {...logseq("seqno-pdf-metadata-link")}
+          <Action
+            names={logseq("seqno-pdf-metadata-link")}
             title="Document metadata"
-            onClick={showMetadata}
+            onPress={() => {
+              void showMetadata()
+            }}
           >
             Document metadata
             <IconInfoCircle size={16} aria-hidden />
-          </a>
+          </Action>
         </div>
       </div>
       {info === null ? null : (
@@ -284,9 +309,17 @@ const Settings = ({ session, onClose }: { session: Session; onClose: () => void 
 
 interface OutlineNode {
   readonly title: string
-  readonly dest: unknown
+  readonly dest: string | unknown[] | null
   readonly items: readonly OutlineNode[]
 }
+
+const OutlineNode: Schema.Codec<OutlineNode> = Schema.Struct({
+  title: Schema.String,
+  dest: Schema.NullOr(Schema.Union([Schema.String, Schema.mutable(Schema.Array(Schema.Unknown))])),
+  items: Schema.Array(Schema.suspend((): Schema.Codec<OutlineNode> => OutlineNode)),
+})
+
+const decodeOutline = Schema.decodeUnknownOption(Schema.Array(OutlineNode))
 
 const OutlineItem = ({
   session,
@@ -315,12 +348,8 @@ const OutlineItem = ({
 
             if (event.target instanceof Element && event.target.closest("i") !== null) {
               setExpanded(!expanded)
-            } else if (node.dest !== null && node.dest !== undefined) {
-              const dest = node.dest
-
-              if (typeof dest === "string" || Array.isArray(dest)) {
-                void session.viewer?.linkService.goToDestination(dest)
-              }
+            } else if (node.dest !== null) {
+              void session.viewer?.linkService.goToDestination(node.dest)
             }
           }}
         >
@@ -360,17 +389,26 @@ const HighlightsList = ({
           areaImagePath(session.asset.key, highlight.page, highlight.id, highlight.content.image),
         )
 
+  const show = (highlight: Highlight) => {
+    session.scrollTo(highlight)
+    setActive(highlight.id)
+  }
+
   return sorted.map((highlight) => (
     <div
       key={highlight.id}
       {...logseq("seqno-pdf-highlights-item", active === highlight.id)}
+      role="button"
+      tabIndex={0}
       data-active={active === highlight.id}
       onClick={() => {
-        session.scrollTo(highlight)
-        setActive(highlight.id)
+        show(highlight)
       }}
+      onKeyDown={activates(() => {
+        show(highlight)
+      })}
       onDoubleClick={() => {
-        session.linkedReferences(highlight, navigate)
+        void session.linkedReferences(highlight, navigate)
       }}
     >
       <h6>
@@ -386,7 +424,7 @@ const HighlightsList = ({
           title="Linked references"
           onClick={(event) => {
             event.stopPropagation()
-            session.linkedReferences(highlight, navigate)
+            void session.linkedReferences(highlight, navigate)
           }}
         >
           <IconExternalLink size={14} aria-hidden />
@@ -402,27 +440,6 @@ const HighlightsList = ({
     </div>
   ))
 }
-
-const outlineOf = (
-  items: ReadonlyArray<{ title: string; dest: unknown; items: readonly unknown[] }>,
-): readonly OutlineNode[] =>
-  items.map((item) => ({
-    title: item.title,
-    dest: item.dest,
-    items: outlineOf(
-      item.items.flatMap((child) =>
-        typeof child === "object" && child !== null && "title" in child && "items" in child
-          ? [
-              {
-                title: String(child.title),
-                dest: "dest" in child ? child.dest : null,
-                items: Array.isArray(child.items) ? child.items : [],
-              },
-            ]
-          : [],
-      ),
-    ),
-  }))
 
 const Outline = ({
   session,
@@ -451,8 +468,7 @@ const Outline = ({
       <div
         {...logseq("seqno-pdf-outline")}
         tabIndex={-1}
-        ref={(box) => (visible ? closeOnOutside(box, close, "Outline") : undefined)}
-        onKeyUp={escapeCloses(close)}
+        ref={(box) => (visible ? dismissible(box, close, "Outline") : undefined)}
       >
         <div {...logseq("seqno-pdf-outline-tabs")}>
           <div {...logseq("seqno-pdf-inner")}>
@@ -657,7 +673,7 @@ const Pager = ({ session, snapshot }: { session: Session; snapshot: Snapshot }) 
             setTyped({ page: snapshot.page, value: event.currentTarget.value })
           }}
           onKeyUp={(event) => {
-            const value = Number.parseInt(event.currentTarget.value, 10)
+            const value = Math.trunc(Number(event.currentTarget.value))
 
             if (event.key === "Enter" && value > 0) {
               setTyped(null)
@@ -705,16 +721,14 @@ export const Toolbar = ({
   const [contents, setContents] = useState<readonly OutlineNode[] | null>(null)
   const [settings, setSettings] = useState(false)
 
+  const loadOutline = async () => {
+    const items = await session.document.getOutline().catch(() => null)
+    setContents(Option.getOrElse(decodeOutline(items ?? []), () => []))
+  }
+
   const toggleOutline = () => {
     if (!outline && contents === null) {
-      void session.document
-        .getOutline()
-        .then((items) => {
-          setContents(outlineOf(items ?? []))
-        })
-        .catch(() => {
-          setContents([])
-        })
+      void loadOutline()
     }
 
     setOutline(!outline)

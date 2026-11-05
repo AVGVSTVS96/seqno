@@ -3,8 +3,9 @@ import { logseq } from "@seqno/dom"
 import { IconLoader2 } from "@tabler/icons-react"
 import pdfViewerCss from "pdfjs-dist/web/pdf_viewer.css?inline"
 import { Suspense, use, useContext, useState, useSyncExternalStore } from "react"
-import type { PointerEvent } from "react"
+import type { PointerEvent, ReactNode } from "react"
 import type { PdfHost } from "./host.ts"
+import { activates } from "./keys.ts"
 import { classesOf, colors } from "./model.ts"
 import { retryWithPassword } from "./open.ts"
 import pdfCss from "./pdf.css?inline"
@@ -16,9 +17,30 @@ import type { CurrentPdf } from "./state.ts"
 import { Toolbar } from "./Toolbar.tsx"
 
 const Loading = () => (
-  <div className="seqno-pdf-loading" role="status" aria-label="Loading PDF">
+  <output className="seqno-pdf-loading" aria-label="Loading PDF">
     <IconLoader2 size={28} aria-hidden />
-  </div>
+  </output>
+)
+
+const MenuItem = ({
+  action,
+  onSelect,
+  children,
+}: {
+  action: string
+  onSelect: () => void
+  children: ReactNode
+}) => (
+  <li
+    {...logseq("seqno-pdf-item")}
+    role="menuitem"
+    tabIndex={-1}
+    data-action={action}
+    onClick={onSelect}
+    onKeyDown={activates(onSelect)}
+  >
+    {children}
+  </li>
 )
 
 const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; host: PdfHost }) => {
@@ -28,6 +50,7 @@ const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; ho
   return (
     <ul
       {...logseq("seqno-pdf-menu")}
+      role="menu"
       style={{ top: menu.top, left: menu.left, visibility: menu.hidden ? "hidden" : "visible" }}
       ref={(element) => {
         const viewer = element?.closest(".seqno-pdf-viewer")
@@ -51,80 +74,85 @@ const ContextMenu = ({ session, menu, host }: { session: Session; menu: Menu; ho
       onMouseUp={(event) => {
         event.stopPropagation()
       }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          session.closeMenu()
+        }
+      }}
     >
-      <li {...logseq("seqno-pdf-menu-colors")}>
+      <li {...logseq("seqno-pdf-menu-colors")} role="none">
         {colors.map((color) => (
           <a
             key={color}
             {...logseq("seqno-pdf-menu-color", color)}
+            role="menuitem"
+            tabIndex={-1}
             data-highlight-color={color}
             data-action={color}
             onClick={() => {
               session.applyColor(color)
             }}
+            onKeyDown={activates(() => {
+              session.applyColor(color)
+            })}
           >
             {color}
           </a>
         ))}
       </li>
       {saved ? (
-        <li
-          {...logseq("seqno-pdf-item")}
-          data-action="ref"
-          onClick={() => {
-            session.copyRef(menu.highlight)
+        <MenuItem
+          action="ref"
+          onSelect={() => {
+            void session.copyRef(menu.highlight)
             session.closeMenuSoon()
           }}
         >
           Copy ref
-        </li>
+        </MenuItem>
       ) : null}
       {area ? null : (
-        <li
-          {...logseq("seqno-pdf-item")}
-          data-action="copy"
-          onClick={() => {
+        <MenuItem
+          action="copy"
+          onSelect={() => {
             session.copyText(menu)
           }}
         >
           Copy text
-        </li>
+        </MenuItem>
       )}
       {saved ? (
-        <li
-          {...logseq("seqno-pdf-item")}
-          data-action="link"
-          onClick={() => {
-            session.linkedReferences(menu.highlight, host.navigate)
+        <MenuItem
+          action="link"
+          onSelect={() => {
+            void session.linkedReferences(menu.highlight, host.navigate)
           }}
         >
           Linked references
-        </li>
+        </MenuItem>
       ) : null}
       {saved ? (
-        <li
-          {...logseq("seqno-pdf-item")}
-          data-action="del"
-          onClick={() => {
+        <MenuItem
+          action="del"
+          onSelect={() => {
             session.remove(menu.highlight)
           }}
         >
           Delete
-        </li>
+        </MenuItem>
       ) : null}
       {area
         ? null
         : host.menuItems.map((item) => (
-            <li
+            <MenuItem
               key={item.key}
-              {...logseq("seqno-pdf-item")}
-              data-action="hook"
-              onClick={() => {
+              action="hook"
+              onSelect={() => {
                 session.runItem(item, menu)
               }}
             >
               {item.label}
-            </li>
+            </MenuItem>
           ))}
     </ul>
   )
@@ -199,6 +227,7 @@ const Viewer = ({
 
   return (
     <div {...logseq("seqno-pdf-scroller")}>
+      {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- a mouse drag on the page starts a text or area selection; keyboard selection is the browser's own */}
       <div
         {...logseq("seqno-pdf-viewer", dashed)}
         data-dashed={dashed}

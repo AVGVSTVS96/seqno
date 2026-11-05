@@ -17,7 +17,7 @@ interface Change {
 }
 
 const markerNames = Marker.literals.toSorted((left, right) => right.length - left.length)
-const markerPattern = new RegExp(`^(${markerNames.join("|")})(?=[ \\t]|$)`)
+const markerPattern = new RegExp(`^(${markerNames.join("|")})(?=[ \\t]|$)`, "u")
 const headingPattern = /^#{1,6}[ \t]+/u
 const priorityPattern = /^\[#[ABC]\][ \t]?/u
 const url = /^(?:https?:\/\/|www\.)\S+$/u
@@ -106,7 +106,7 @@ export const headingLevel = (text: string): number | null => {
 
 export const setPlanning = (draft: Draft, kind: "SCHEDULED" | "DEADLINE", date: string): Draft => {
   const stamp = `${kind}: <${date}>`
-  const existing = new RegExp(`${kind}: <[^>\\n]*>`).exec(draft.text)
+  const existing = new RegExp(`${kind}: <[^>\\n]*>`, "u").exec(draft.text)
 
   if (existing !== null) {
     return replace(draft, {

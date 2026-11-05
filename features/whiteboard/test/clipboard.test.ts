@@ -1,6 +1,6 @@
 import { assert, describe, it } from "vitest"
 import { BlockId, PageId, shapeProps } from "@seqno/domain"
-import type { Block } from "@seqno/domain"
+import type { Block, ShapeJson } from "@seqno/domain"
 import { clipboardHtml, copiedOf, readClipboard } from "../src/clipboard.ts"
 import { clones, copiesAt } from "../src/commands.ts"
 import { freshId } from "../src/ids.ts"
@@ -9,7 +9,7 @@ import { itemsOf, sceneOf } from "../src/model.ts"
 const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
 const id = (n: number) => BlockId.make(`01920000-0000-7000-8000-${n.toString().padStart(12, "0")}`)
 
-const block = (n: number, raw: Readonly<Record<string, unknown>>, text = ""): Block => ({
+const block = (n: number, raw: ShapeJson, text = ""): Block => ({
   id: id(n),
   pageId,
   parentId: null,
@@ -18,7 +18,7 @@ const block = (n: number, raw: Readonly<Record<string, unknown>>, text = ""): Bl
   props: shapeProps(raw),
 })
 
-const shapeOf = (raw: Readonly<Record<string, unknown>>) => JSON.stringify(raw)
+const shapeOf = (raw: ShapeJson) => JSON.stringify(raw)
 
 describe("clipboard", () => {
   it("carries copied shapes, their words and the bindings between them in Logseq's format", () => {

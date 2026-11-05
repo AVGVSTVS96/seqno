@@ -89,14 +89,11 @@ export const SCALE_LABELS: Record<ScaleLevel, readonly [string, string]> = {
 
 export const SCALES: readonly ScaleLevel[] = ["xs", "sm", "md", "lg", "xl", "xxl"]
 
-const geometryIcon = (shape: ShapeTool) =>
-  shape === "box" ? (
-    <IconSquare size={16} />
-  ) : shape === "ellipse" ? (
-    <IconCircle size={16} />
-  ) : (
-    <IconTriangle size={16} />
-  )
+const GEOMETRY_ICONS: Record<ShapeTool, ReactNode> = {
+  box: <IconSquare size={16} />,
+  ellipse: <IconCircle size={16} />,
+  polygon: <IconTriangle size={16} />,
+}
 
 const GEOMETRY: ReadonlyArray<readonly [ShapeTool, string, string | undefined]> = [
   ["box", "Rectangle", "9"],
@@ -189,7 +186,7 @@ export const PrimaryTools = ({
           popoverTarget={shapes.id}
           style={shapes.trigger}
         >
-          {geometryIcon(geometry)}
+          {GEOMETRY_ICONS[geometry]}
           <IconChevronDownLeft className="wb-corner-mark" size={8} aria-hidden />
         </button>
         <div
@@ -209,7 +206,7 @@ export const PrimaryTools = ({
                 onTool(value)
               }}
             >
-              {geometryIcon(value)}
+              {GEOMETRY_ICONS[value]}
             </ToolButton>
           ))}
         </div>

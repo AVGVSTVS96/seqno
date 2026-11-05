@@ -49,7 +49,11 @@ export interface RowProps {
 
 const indent = (levels: number, plus = "0px") => `calc(${levels} * var(--block-indent) + ${plus})`
 
-const firstLineOffset: Readonly<Record<number, string>> = { 1: "16px", 2: "9px", 3: "2.4px" }
+const firstLineOffset: ReadonlyMap<number, string> = new Map([
+  [1, "16px"],
+  [2, "9px"],
+  [3, "2.4px"],
+])
 
 const selectionEdge = (highlight: Highlight) =>
   highlight.first && highlight.last
@@ -91,9 +95,10 @@ export const RowView = ({
   const offset =
     content.title === null || content.heading === null
       ? undefined
-      : firstLineOffset[content.heading]
+      : firstLineOffset.get(content.heading)
 
   return (
+    // oxlint-disable-next-line jsx-a11y/interactive-supports-focus -- focus stays on the tree, which handles the keys for its rows
     <div
       ref={measure}
       {...logseq("seqno-row", {
@@ -213,6 +218,7 @@ export const RowView = ({
         </div>
         <div
           {...logseq("seqno-content")}
+          role="presentation"
           onClick={actions.content}
           onPointerDown={actions.press}
           onContextMenu={(event) => {

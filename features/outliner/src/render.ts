@@ -28,13 +28,13 @@ export interface Renderer {
 
 export const RenderContext = createContext<Renderer>({
   openMenu: undefined,
-  navigate: () => undefined,
+  navigate: () => {},
   depth: 0,
-  localBlock: () => undefined,
+  localBlock: () => {},
   Embed: () => null,
   Query: () => null,
   editor: PlainTextEditor,
-  resolveAsset: () => undefined,
+  resolveAsset: () => {},
   vim: false,
   readOnly: false,
   codeStyle: "codemirror",
@@ -57,8 +57,8 @@ export interface AssetActions {
 }
 
 export const AssetActions = createContext<AssetActions>({
-  openPdf: () => undefined,
-  openAnnotation: () => undefined,
+  openPdf: () => {},
+  openAnnotation: () => {},
   saveFiles: async () => await Promise.resolve([]),
 })
 

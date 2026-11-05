@@ -52,6 +52,7 @@ export const CodeBlock = ({
     <div
       {...logseq("seqno-codeblock", language, look, false)}
       data-language={language === "" ? undefined : language}
+      role="presentation"
       onClick={(event) => {
         if (onEdit === undefined) {
           return

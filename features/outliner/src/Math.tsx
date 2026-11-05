@@ -6,19 +6,19 @@ import type { AtomRegistry } from "effect/reactivity"
 import type { KatexOptions } from "katex"
 import { logseq } from "@seqno/dom"
 
-declare global {
-  interface Window {
-    katex?: unknown
-  }
-}
-
 interface Katex {
   readonly render: (tex: string, element: HTMLElement, options: KatexOptions) => void
 }
 
+declare global {
+  interface Window {
+    katex?: Katex
+  }
+}
+
 export interface KatexEnhancer {
   readonly pid: string
-  readonly enhance: (katex: unknown) => unknown
+  readonly enhance: (katex: Katex) => Promise<void> | void
 }
 
 export const katexEnhancers = Atom.make<readonly KatexEnhancer[]>([]).pipe(Atom.keepAlive)
@@ -31,11 +31,14 @@ const isKatex = (value: unknown): value is Katex =>
   "render" in value &&
   typeof value.render === "function"
 
-let pristine: { readonly katex: object; readonly own: Readonly<Record<string, unknown>> } | null =
-  null
+let pristine: { readonly katex: Katex; readonly own: Katex } | null = null
 
-const enhanceAll = async (enhancers: readonly KatexEnhancer[], katex: object) =>
-  await Promise.allSettled(enhancers.map(async ({ enhance }) => enhance(window.katex ?? katex)))
+const enhanceAll = async (enhancers: readonly KatexEnhancer[], katex: Katex) =>
+  await Promise.allSettled(
+    enhancers.map(async ({ enhance }) => {
+      await enhance(window.katex ?? katex)
+    }),
+  )
 
 const enhancedKatex = async (enhancers: readonly KatexEnhancer[]) => {
   const { katex, css } = await (await import("./katex.ts")).loadKatex()

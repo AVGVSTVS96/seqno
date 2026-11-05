@@ -20,7 +20,10 @@ const kinds = (code: string, language: string) =>
 
 test("JavaScript tokens take CodeMirror 5's kinds: doc tags, regexps, template strings and atoms", () => {
   expect(
-    kinds("/** @param x */\nconst re = /a+/g\nconst t = `hi ${name}`\nif (true) return null", "js"),
+    kinds(
+      `/** @param x */\nconst re = /a+/g\nconst t = \`hi \${name}\`\nif (true) return null`,
+      "js",
+    ),
   ).toEqual([
     ["/** :comment", "@param:doctag", " x */:comment"],
     ["const:keyword", "re:def", "=:operator", "/a+/g:regexp"],

@@ -12,7 +12,7 @@ const listing = {
 
 const root = "https://files.test/pengx17/logseq-dev-theme/v1.26.17/"
 
-describe("pluginInfoOf", () => {
+describe(pluginInfoOf, () => {
   it("reads a theme-only package: no entry, themes resolved against its files", () => {
     const info = pluginInfoOf(listing, root, {
       version: "v1.26.17",
@@ -26,7 +26,7 @@ describe("pluginInfoOf", () => {
       },
     })
 
-    expect(info.main).toBe(null)
+    expect(info.main).toBeNull()
     expect(info.icon).toBe(`${root}logo.png`)
     expect(info.themes).toEqual([
       {
@@ -54,7 +54,7 @@ describe("pluginInfoOf", () => {
   })
 })
 
-describe("settingItems", () => {
+describe(settingItems, () => {
   it("keeps the fields the settings form needs and drops items without a key or type", () => {
     expect(
       settingItems([

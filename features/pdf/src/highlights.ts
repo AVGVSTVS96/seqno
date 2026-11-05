@@ -45,8 +45,15 @@ export const emptyHighlightsFile = "{:highlights []}"
 
 export const isArea = (highlight: Highlight) => highlight.content.image !== undefined
 
-const plain = (value: Edn): unknown => {
-  if (value === null || typeof value !== "object") {
+type Scalar = string | number | boolean | null
+
+type Plain = Scalar | readonly Plain[] | { readonly [key: string]: Plain }
+
+const isScalar = (value: Edn | Plain): value is Scalar =>
+  value === null || typeof value !== "object"
+
+const plain = (value: Edn): Plain => {
+  if (isScalar(value)) {
     return value
   }
 
@@ -67,11 +74,15 @@ const plain = (value: Edn): unknown => {
     }
 
     case "Map": {
-      return Object.fromEntries(
-        value.entries.map(([key, item]) => [String(plain(key)), plain(item)]),
-      )
+      return Object.fromEntries(value.entries.map(([key, item]) => [keyOf(key), plain(item)]))
     }
   }
+}
+
+const keyOf = (key: Edn): string => {
+  const value = plain(key)
+
+  return isScalar(value) ? String(value) : JSON.stringify(value)
 }
 
 export const readHighlights = (text: string): Result.Result<Highlights, string> =>

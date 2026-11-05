@@ -1,4 +1,7 @@
 import { Schema } from "effect"
+import type { Rect } from "./inject.ts"
+import type { Fields } from "./package.ts"
+import type { BlockJson, PageJson } from "./shapes.ts"
 
 export const messageType = "application/x-postmate-v1+json"
 
@@ -10,6 +13,27 @@ export const channels = {
   beforeUnload: "#lspmsg#beforeunload#",
   error: "#lspmsg#error#",
 } as const
+
+export interface Outgoing {
+  readonly postmate: "call" | "request" | "handshake"
+  readonly type: string
+}
+
+export type Answer =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Fields
+  | readonly unknown[]
+  | BlockJson
+  | PageJson
+  | Rect
+
+export type Handler = (pid: string, args: readonly unknown[]) => Answer | Promise<Answer>
+
+export type Handlers = Readonly<Record<string, Handler>>
 
 export const channelOf = (pid: string) => `#lspmsg#${pid}`
 
@@ -25,6 +49,10 @@ export const snakeCase = (input: string) =>
 
 const Envelope = { type: Schema.Literal(messageType) }
 
+const Emit = Schema.Struct({ type: Schema.String, payload: Schema.optionalKey(Schema.Unknown) })
+
+export type Emit = typeof Emit.Type
+
 export const PluginMessage = Schema.Union([
   Schema.Struct({ ...Envelope, postmate: Schema.Literal("handshake-reply") }),
   Schema.Struct({
@@ -39,7 +67,7 @@ export const PluginMessage = Schema.Union([
     postmate: Schema.Literal("emit"),
     value: Schema.Struct({
       name: Schema.String,
-      data: Schema.Struct({ type: Schema.String, payload: Schema.optionalKey(Schema.Unknown) }),
+      data: Emit,
     }),
   }),
 ])
@@ -58,23 +86,27 @@ export type ApiCall = typeof ApiCall.Type
 
 export const decodeApiCall = Schema.decodeUnknownOption(ApiCall)
 
-export const call = (property: string, data: unknown) => ({
-  postmate: "call",
+export const call = <Data>(property: string, data: Data) => ({
+  postmate: "call" as const,
   type: messageType,
   property,
   data,
 })
 
-export const request = (property: string, args: readonly unknown[], uid: number) => ({
-  postmate: "request",
+export const request = <Args extends readonly unknown[]>(
+  property: string,
+  args: Args,
+  uid: number,
+) => ({
+  postmate: "request" as const,
   type: messageType,
   property,
   args,
   uid,
 })
 
-export const handshake = (baseInfo: unknown) => ({
-  postmate: "handshake",
+export const handshake = <Info>(baseInfo: Info) => ({
+  postmate: "handshake" as const,
   type: messageType,
   model: { baseInfo },
 })

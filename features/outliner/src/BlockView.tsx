@@ -6,6 +6,7 @@ import {
   IconInfoCircleFilled,
   IconPinnedFilled,
 } from "@tabler/icons-react"
+import type { TablerIcon } from "@tabler/icons-react"
 import { use, useState } from "react"
 import type { MouseEvent, ReactNode } from "react"
 import { Match } from "effect"
@@ -72,7 +73,7 @@ const admonitionIcons = {
   caution: IconFlameFilled,
   warning: IconAlertTriangleFilled,
   pinned: IconPinnedFilled,
-} satisfies Record<AdmonitionKind, unknown>
+} satisfies Record<AdmonitionKind, TablerIcon>
 
 const Admonition = ({
   kind,
@@ -259,7 +260,7 @@ const Title = ({
 }
 
 const Logbook = ({ entries }: { readonly entries: readonly string[] }) => (
-  <div className="seqno-drawer" onClick={stop}>
+  <div className="seqno-drawer" role="presentation" onClick={stop}>
     <div className="seqno-drawer-name">:LOGBOOK:</div>
     {entries.map((entry, index) => (
       <div key={index} className="seqno-drawer-line">

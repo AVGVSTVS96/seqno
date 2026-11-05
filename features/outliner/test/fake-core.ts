@@ -1,7 +1,7 @@
 import { Effect, Layer, Stream, SubscriptionRef } from "effect"
 import { RpcTest } from "effect/rpc"
-import { Block, BlockId, Command, PageId, isBlockRefTo } from "@seqno/domain"
-import type { GraphEvent, Page } from "@seqno/domain"
+import { BlockId, Command, PageId, isBlockRefTo } from "@seqno/domain"
+import type { Block, GraphEvent, Page } from "@seqno/domain"
 import { BlockNotFound, BlockRefNotFound, CoreClient, CoreRpcs } from "@seqno/rpc"
 import type { PageTree } from "@seqno/rpc"
 

@@ -35,7 +35,7 @@ test("falls back to the row above when only deletions come back", () => {
     blockId: id(2),
     caret: textEnd,
   })
-  expect(historyFocus([deleted(1)], [block(1, "")])).toBe(null)
+  expect(historyFocus([deleted(1)], [block(1, "")])).toBeNull()
 })
 
 const press = (key: string, shiftKey = false) => ({

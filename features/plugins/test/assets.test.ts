@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { Asset } from "@seqno/rpc"
 import { assetsApi } from "../src/assets.ts"
 import type { AssetBridge } from "../src/assets.ts"
+import type { Answer } from "../src/protocol.ts"
 
 const graphOf = (paths: readonly string[]) => {
   const files = new Map<string, string>(paths.map((path) => [path, path]))
@@ -36,7 +37,7 @@ const call = (
   api: ReturnType<typeof assetsApi>,
   method: string,
   args: readonly unknown[],
-): unknown => {
+): Answer | Promise<Answer> => {
   const run = api[method]
 
   if (run === undefined) {
@@ -72,18 +73,20 @@ describe("logseq.Assets", () => {
     ])
   })
 
-  it("makes a URL for any form of an asset's path, and opens only PDFs itself", () => {
+  it("makes a URL for any form of an asset's path, and opens only PDFs itself", async () => {
     const { api, opened } = graphOf(["assets/a.png", "assets/b.pdf"])
     const url = "data:text/plain,assets%2Fa.png"
-    expect(
-      ["../assets/a.png", "/assets/a.png", "assets/a.png", "notes/assets/a.png"].map((path) =>
-        call(api, "make_url", [path]),
+    await expect(
+      Promise.all(
+        ["../assets/a.png", "/assets/a.png", "assets/a.png", "notes/assets/a.png"].map(
+          async (path) => await call(api, "make_url", [path]),
+        ),
       ),
-    ).toEqual([url, url, url, url])
-    expect(call(api, "make_url", ["assets/missing.png"])).toBe(null)
-    expect(call(api, "built_in_open", ["../assets/b.pdf"])).toBe(null)
+    ).resolves.toEqual([url, url, url, url])
+    expect(call(api, "make_url", ["assets/missing.png"])).toBeNull()
+    expect(call(api, "built_in_open", ["../assets/b.pdf"])).toBeNull()
     expect(call(api, "built_in_open", ["../assets/a.png"])).toBe(false)
-    expect(call(api, "built_in_open", ["../assets/noext"])).toBe(null)
+    expect(call(api, "built_in_open", ["../assets/noext"])).toBeNull()
     expect(opened).toEqual(["../assets/b.pdf"])
   })
 })
@@ -91,9 +94,11 @@ describe("logseq.Assets", () => {
 describe("makeSandboxStorage", () => {
   it("keeps a plugin's items in assets/storages/<id>/ and nowhere else", async () => {
     const { api, files } = graphOf([])
-    expect(
-      await call(api, "write_plugin_storage_file", ["my-plugin", "a/b.json", '{"x":1}', true]),
-    ).toBe("notes/assets/storages/my-plugin/a/b.json")
+    await expect(
+      Promise.resolve(
+        call(api, "write_plugin_storage_file", ["my-plugin", "a/b.json", '{"x":1}', true]),
+      ),
+    ).resolves.toBe("notes/assets/storages/my-plugin/a/b.json")
     await call(api, "write_plugin_storage_file", ["my-plugin", "c.txt", { y: 2 }, true])
     await call(api, "write_plugin_storage_file", [
       "my-plugin",
@@ -106,15 +111,15 @@ describe("makeSandboxStorage", () => {
       ["assets/storages/my-plugin/c.txt", '{"y":2}'],
       ["assets/storages/my-plugin/cover.jpg", "jpeg"],
     ])
-    expect(await call(api, "read_plugin_storage_file", ["my-plugin", "a/b.json", true])).toBe(
-      '{"x":1}',
-    )
-    expect(call(api, "exist_plugin_storage_file", ["my-plugin", "c.txt", true])).toBe(true)
-    expect(call(api, "list_plugin_storage_files", ["my-plugin", true])).toEqual([
-      "a/b.json",
-      "c.txt",
-      "cover.jpg",
-    ])
+    await expect(
+      Promise.resolve(call(api, "read_plugin_storage_file", ["my-plugin", "a/b.json", true])),
+    ).resolves.toBe('{"x":1}')
+    await expect(
+      Promise.resolve(call(api, "exist_plugin_storage_file", ["my-plugin", "c.txt", true])),
+    ).resolves.toBe(true)
+    await expect(
+      Promise.resolve(call(api, "list_plugin_storage_files", ["my-plugin", true])),
+    ).resolves.toEqual(["a/b.json", "c.txt", "cover.jpg"])
     await expect(
       Promise.resolve(call(api, "write_plugin_storage_file", ["my-plugin", "../../x", "", true])),
     ).rejects.toThrow("write file denied")

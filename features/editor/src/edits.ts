@@ -31,7 +31,7 @@ export const minimalChange = (current: string, next: string): TextChange => {
   const shorter = Math.min(current.length, next.length)
   let prefix = 0
 
-  while (prefix < shorter && current.charCodeAt(prefix) === next.charCodeAt(prefix)) {
+  while (prefix < shorter && current.codePointAt(prefix) === next.codePointAt(prefix)) {
     prefix++
   }
 
@@ -39,7 +39,7 @@ export const minimalChange = (current: string, next: string): TextChange => {
 
   while (
     suffix < shorter - prefix &&
-    current.charCodeAt(current.length - 1 - suffix) === next.charCodeAt(next.length - 1 - suffix)
+    current.codePointAt(current.length - 1 - suffix) === next.codePointAt(next.length - 1 - suffix)
   ) {
     suffix++
   }

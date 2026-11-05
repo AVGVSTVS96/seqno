@@ -1,6 +1,6 @@
 import { Prec, StateEffect, StateField } from "@codemirror/state"
-import { EditorView, keymap, showTooltip } from "@codemirror/view"
-import type { Rect, TooltipView } from "@codemirror/view"
+import { keymap, showTooltip } from "@codemirror/view"
+import type { EditorView, Rect, TooltipView } from "@codemirror/view"
 import { planningDate } from "./dates.ts"
 import { minimalChange } from "./edits.ts"
 import { setPlanning } from "./format.ts"
@@ -24,7 +24,7 @@ export interface Planned {
 }
 
 export const openDatePicker = StateEffect.define<Planning>()
-export const closeDatePicker = StateEffect.define<null>()
+export const closeDatePicker = StateEffect.define()
 
 export const datePickerField = StateField.define<Planning | null>({
   create: () => null,
@@ -53,7 +53,7 @@ export const stampOf = ({ date, time, repeater }: Planned) =>
 const planned = /^(\d{4})-(\d{2})-(\d{2})/u
 
 export const plannedDate = (text: string, kind: Planning): Date | null => {
-  const stamp = new RegExp(`${kind}: <([^>\\n]*)>`).exec(text)?.[1]
+  const stamp = new RegExp(`${kind}: <([^>\\n]*)>`, "u").exec(text)?.[1]
   const [, year, month, day] = planned.exec(stamp ?? "") ?? []
 
   return year === undefined ? null : new Date(Number(year), Number(month) - 1, Number(day))

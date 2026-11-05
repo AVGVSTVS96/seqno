@@ -1,5 +1,5 @@
 import type { ScaleLevel, Vec } from "@seqno/domain"
-import type { Raw } from "./commands.ts"
+import type { Raw } from "./raw.ts"
 
 export type ShapeTool = "box" | "ellipse" | "polygon"
 

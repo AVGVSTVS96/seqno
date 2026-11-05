@@ -8,9 +8,8 @@ const bars = [
   { x: 16, top: 6 },
 ] as const
 
-export const priorityBars =
-  (lit: number): CommandIcon =>
-  ({ size }) => (
+export const priorityBars = (lit: number): CommandIcon => {
+  const PriorityBars: CommandIcon = ({ size }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       {bars.map(({ x, top }, index) => (
         <rect
@@ -25,3 +24,6 @@ export const priorityBars =
       ))}
     </svg>
   )
+
+  return PriorityBars
+}

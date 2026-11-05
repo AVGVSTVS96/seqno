@@ -41,10 +41,10 @@ export interface Results {
 }
 
 export const openPopup = StateEffect.define<{ readonly kind: PopupKind; readonly from: number }>()
-export const closePopup = StateEffect.define<null>()
+export const closePopup = StateEffect.define()
 export const showResults = StateEffect.define<Results>()
 export const choose = StateEffect.define<{ readonly index: number; readonly pointer: boolean }>()
-export const acceptOnArrival = StateEffect.define<null>()
+export const acceptOnArrival = StateEffect.define()
 
 export const triggers: Readonly<Record<PopupKind, string>> = {
   Page: "[[",

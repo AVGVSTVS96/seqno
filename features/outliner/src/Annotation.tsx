@@ -67,7 +67,7 @@ const AreaImage = ({ block, stamp }: { readonly block: Block; readonly stamp: st
             event.stopPropagation()
 
             if (picture.current !== null) {
-              void copyImage(picture.current).catch(() => undefined)
+              void copyImage(picture.current).catch(() => {})
             }
           }}
         >
@@ -114,6 +114,7 @@ export const AnnotationPrefix = ({ block }: { readonly block: Block }) => {
   return (
     <span
       {...logseq("seqno-annotation-prefix")}
+      role="presentation"
       onMouseDown={(event) => {
         if (onBlank(event) || event.shiftKey) {
           return
@@ -133,6 +134,7 @@ export const AnnotationPrefix = ({ block }: { readonly block: Block }) => {
         <strong
           {...logseq("seqno-annotation-page-number")}
         >{`P${block.props["hl-page"] ?? "?"}`}</strong>
+        {/* oxlint-disable-next-line jsx-a11y/label-has-associated-control -- Logseq's markup uses this bare label as the blank click target */}
         <label {...logseq("seqno-annotation-blank")}> </label>
       </span>
       {area && stamp !== undefined ? <AreaImage block={block} stamp={stamp} /> : null}

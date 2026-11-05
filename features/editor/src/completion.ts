@@ -103,8 +103,8 @@ export const createPopupStore = (): PopupStore & PopupHost => {
 
 const lineBox = (view: EditorView, pos: number): Rect => {
   const glyph = view.coordsAtPos(pos, -1) ?? view.coordsAtPos(pos, 1)
-  const lineHeight = Number.parseFloat(getComputedStyle(view.contentDOM).lineHeight)
-  const height = Number.isNaN(lineHeight) ? view.defaultLineHeight : lineHeight
+  const pixels = /^([\d.]+)px$/u.exec(getComputedStyle(view.contentDOM).lineHeight)?.[1]
+  const height = pixels === undefined ? view.defaultLineHeight : Number(pixels)
   const blockTop = view.documentTop + view.lineBlockAt(pos).top
   const row = glyph === null ? 0 : Math.floor(((glyph.top + glyph.bottom) / 2 - blockTop) / height)
   const top = blockTop + row * height
@@ -274,7 +274,7 @@ const runCommand = (view: EditorView, popup: Popup, command: SlashCommand, now: 
 
 const notice = StateEffect.define<string>()
 
-const upload = StateEffect.define<null>()
+const upload = StateEffect.define()
 
 const notices = (host: EditorHost) =>
   EditorView.updateListener.of((update) => {

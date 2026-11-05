@@ -10,7 +10,7 @@ import {
 import { Effect } from "effect"
 import { Atom, AsyncResult } from "effect/reactivity"
 import { useState } from "react"
-import type { ReactNode } from "react"
+import type { ReactElement } from "react"
 import { isWhiteboard, normalizePageName } from "@seqno/domain"
 import type { Block, Page } from "@seqno/domain"
 import { coreRuntime } from "@seqno/outliner"
@@ -57,7 +57,7 @@ interface HitsProps {
   readonly children: (hits: {
     readonly pages: readonly Page[]
     readonly blocks: readonly Block[]
-  }) => ReactNode
+  }) => ReactElement
 }
 
 const Hits = (props: HitsProps) =>
@@ -293,9 +293,9 @@ export const QuickSearch = ({
               />
             </div>
             {options.length === 0 ? null : (
-              <ul className="wb-search-results" id="wb-search-results" role="listbox">
+              <div className="wb-search-results" id="wb-search-results" role="listbox">
                 {options.map((option, index) => (
-                  <li
+                  <div
                     key={index}
                     className="wb-search-option"
                     role="option"
@@ -309,9 +309,9 @@ export const QuickSearch = ({
                     }}
                   >
                     <Row option={option} query={query.trim()} />
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         )

@@ -35,6 +35,7 @@ import {
   IconOpenAsPage,
 } from "./icons.tsx"
 import type { Item } from "./model.ts"
+import { isText } from "./raw.ts"
 import type { OutlinerEnv } from "./Portal.tsx"
 import { QuickSearch } from "./QuickSearch.tsx"
 import type { Pick } from "./QuickSearch.tsx"
@@ -66,7 +67,9 @@ const contentOf = (block: Block) => {
   const raw = shapeRaw(block)
   const words = block.text === "" ? wordsIn(raw) : block.text
 
-  return words === "" ? `whiteboard ${String(raw["type"] ?? "shape")}` : words
+  const type = raw["type"]
+
+  return words === "" ? `whiteboard ${isText(type) ? type : "shape"}` : words
 }
 
 export const ownTarget = (item: Item): string | null =>
@@ -135,7 +138,7 @@ const BlockButton = ({
   readonly showContent: boolean
   readonly env: LinkEnv
 }) => {
-  const page = AsyncResult.getOrElse(useAtomValue(pageByIdAtom(block.pageId)), () => undefined)
+  const page = Option.getOrUndefined(AsyncResult.value(useAtomValue(pageByIdAtom(block.pageId))))
   const shape = isShapeBlock(block)
 
   return (
@@ -166,7 +169,7 @@ const PageTarget = ({
   readonly env: LinkEnv
   readonly hideOnBoard: boolean
 }) => {
-  const page = AsyncResult.getOrElse(useAtomValue(pageNamedAtom(name)), () => undefined)
+  const page = Option.getOrUndefined(AsyncResult.value(useAtomValue(pageNamedAtom(name))))
 
   if (hideOnBoard && normalizePageName(name) === env.board.name) {
     return null
@@ -237,6 +240,7 @@ export const QuickLinks = ({
       className="wb-quick-links"
       title="Shape Quick Links"
       style={{ left, top }}
+      role="presentation"
       onPointerDown={(event) => {
         event.stopPropagation()
       }}
@@ -316,7 +320,7 @@ interface LinkItemProps {
 }
 
 const BlockLinkItem = (props: LinkItemProps) => {
-  const block = AsyncResult.getOrElse(useAtomValue(blockRefAtom(props.link)), () => undefined)
+  const block = Option.getOrUndefined(AsyncResult.value(useAtomValue(blockRefAtom(props.link))))
 
   return (
     <LinkRow
@@ -418,6 +422,7 @@ export const LinksAction = ({
         className="wb-popover wb-links-popover"
         data-side="right"
         style={ids.popover}
+        role="presentation"
         onKeyDown={(event) => {
           event.stopPropagation()
         }}
@@ -502,6 +507,7 @@ export const BacklinksBadge = ({
       className="wb-backlinks"
       title="Shape Backlinks"
       style={{ left, top }}
+      role="presentation"
       onPointerDown={(event) => {
         event.stopPropagation()
       }}

@@ -102,6 +102,7 @@ const AudioFile = ({ url, label }: { url: string; label: string }) => {
   return source === undefined ? (
     <Missing url={url} label={label} icon={<IconMusic size={16} stroke={1.5} aria-hidden />} />
   ) : (
+    // oxlint-disable-next-line jsx-a11y/media-has-caption -- the user's own audio file, which has no captions to offer
     <audio
       className="seqno-audio"
       src={source}

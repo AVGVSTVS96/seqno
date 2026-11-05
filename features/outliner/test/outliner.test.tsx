@@ -25,7 +25,13 @@ const mount = async (blocks: readonly Block[], zoom: BlockId | null = null) => {
     <div style={{ width: "600px" }}>
       <style>{themeTokens}</style>
       <RegistryProvider initialValues={[[coreLayer, core.layer]]}>
-        <Outliner pageId={pageId} zoom={zoom} onNavigate={(target) => navigations.push(target)} />
+        <Outliner
+          pageId={pageId}
+          zoom={zoom}
+          onNavigate={(target) => {
+            navigations.push(target)
+          }}
+        />
       </RegistryProvider>
     </div>,
   )
@@ -97,7 +103,7 @@ test("the toggle arrow shows on hover and collapsing hides the children", async 
 test("clicking a children guide collapses its parent", async () => {
   const { core } = await mount(sample)
   const guide = row("child one").element().querySelector(".seqno-guide")
-  expect(guide).not.toBe(null)
+  expect(guide).not.toBeNull()
 
   if (guide instanceof HTMLElement) {
     await userEvent.click(guide)
@@ -226,12 +232,8 @@ test("a selected parent highlights its whole subtree", async () => {
   await mount(sample)
   await editAtEnd("Plan")
   await userEvent.keyboard("{Escape}")
-  const boxes = page.getByRole("tree").element().querySelectorAll(".seqno-selection")
-  expect([...boxes].map((box) => box.getAttribute("data-edge"))).toEqual([
-    "first",
-    "middle",
-    "last",
-  ])
+  const boxes = page.getByRole("tree").element().querySelectorAll<HTMLElement>(".seqno-selection")
+  expect([...boxes].map((box) => box.dataset["edge"])).toEqual(["first", "middle", "last"])
 })
 
 test("dragging a bullet onto the top half of a block moves it before that block", async () => {
@@ -377,14 +379,12 @@ test("rows carry Logseq's block names, so Logseq themes and plugins find them", 
     block(3, "DONE grandchild", 2),
   ])
   const [first] = page.getByRole("treeitem").elements()
-  expect(first?.classList.contains("ls-block")).toBe(true)
+  expect(first?.classList).toContain("ls-block")
   expect(first?.id).toBe("ls-block-01920000-0000-7000-8000-000000000001")
-  expect(first?.getAttribute("data-refs")).toBe('["ana", "done"]')
+  expect(first?.dataset["refs"]).toBe('["ana", "done"]')
   expect(first?.getAttribute("level")).toBe("1")
   expect(first?.getAttribute("haschild")).toBe("true")
-  expect(first?.getAttribute("data-refs-self")).toBe(
-    '["todo", "projects/greenhouse", "projects", "design"]',
-  )
+  expect(first?.dataset["refsSelf"]).toBe('["todo", "projects/greenhouse", "projects", "design"]')
   expect(
     first?.querySelector(".block-main-container .bullet-link-wrap .bullet-container .bullet"),
   ).not.toBeNull()
@@ -393,7 +393,10 @@ test("rows carry Logseq's block names, so Logseq themes and plugins find them", 
   )
 })
 
-const frame = async () => await new Promise((resolve) => requestAnimationFrame(resolve))
+const frame = async () =>
+  await new Promise((resolve) => {
+    requestAnimationFrame(resolve)
+  })
 
 const Days = ({ children }: { readonly children: ReactNode }) => {
   const { placed, trailing, attach, measure } = useVirtualList({
@@ -421,7 +424,7 @@ const Days = ({ children }: { readonly children: ReactNode }) => {
 
 const mountWindowed = async (count: number, nested = false) => {
   const core = fakeCore(Array.from({ length: count }, (_, n) => block(n + 1, `row ${n + 1}`)))
-  const outline = <Outliner pageId={pageId} zoom={null} windowed onNavigate={() => undefined} />
+  const outline = <Outliner pageId={pageId} zoom={null} windowed onNavigate={() => {}} />
   await render(
     <div
       data-testid="scroller"

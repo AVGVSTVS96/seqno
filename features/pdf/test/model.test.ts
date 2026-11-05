@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs"
 import { Result } from "effect"
 import { describe, expect, it } from "vitest"
+import { printHighlights, readHighlights } from "../src/highlights.ts"
 import {
   annotationProps,
   displayName,
@@ -8,13 +9,11 @@ import {
   hlsPageProps,
   inflateAsset,
   optimizeClientRects,
-  printHighlights,
-  readHighlights,
   sanitizeFilename,
   scaledToViewport,
   zoomIn,
   zoomOut,
-} from "../src/index.ts"
+} from "../src/model.ts"
 
 describe("inflateAsset, as Logseq's inflate-asset", () => {
   it("keys an uploaded PDF by its stem", () => {

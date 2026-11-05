@@ -7,4 +7,4 @@ Range.prototype.getBoundingClientRect = () => document.body.getBoundingClientRec
 Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true)
 
 // jsdom does not implement scrolling, so elements lack scrollIntoView: https://github.com/jsdom/jsdom/issues/1695
-Element.prototype.scrollIntoView = () => undefined
+Element.prototype.scrollIntoView = () => {}

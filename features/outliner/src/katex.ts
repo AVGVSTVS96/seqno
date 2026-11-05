@@ -26,7 +26,7 @@ const loadScript = async (src: string) => {
 
 export const loadKatex = async () => {
   window.katex = katex
-  await loadScript(mhchem).catch(() => undefined)
+  await loadScript(mhchem).catch(() => {})
 
   return { katex, css }
 }

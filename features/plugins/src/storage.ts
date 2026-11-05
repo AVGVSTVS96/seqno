@@ -43,21 +43,6 @@ const fileOf = async (pid: string, key: string, action: string, create: boolean)
   return dir === null ? null : await dir.getFileHandle(name, { create }).catch(() => null)
 }
 
-const bytesOf = (value: unknown): Uint8Array<ArrayBuffer> | null => {
-  if (value instanceof ArrayBuffer) {
-    return new Uint8Array(value)
-  }
-
-  if (ArrayBuffer.isView(value)) {
-    const copy = new Uint8Array(value.byteLength)
-    copy.set(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
-
-    return copy
-  }
-
-  return null
-}
-
 const keysIn = async (dir: FileSystemDirectoryHandle, prefix: string): Promise<string[]> => {
   const keys: string[] = []
 
@@ -72,7 +57,11 @@ const keysIn = async (dir: FileSystemDirectoryHandle, prefix: string): Promise<s
   return keys.toSorted()
 }
 
-export const writeStorage = async (pid: string, key: string, value: unknown) => {
+export const writeStorage = async (
+  pid: string,
+  key: string,
+  content: Uint8Array<ArrayBuffer> | string,
+) => {
   const file = await fileOf(pid, key, "write", true)
 
   if (file === null) {
@@ -80,7 +69,7 @@ export const writeStorage = async (pid: string, key: string, value: unknown) => 
   }
 
   const writable = await file.createWritable()
-  await writable.write(bytesOf(value) ?? String(value))
+  await writable.write(content)
   await writable.close()
 
   return `${root}/${pid.split("/").at(-1) ?? pid}/${partsOf(key, "write").join("/")}`

@@ -29,7 +29,37 @@ export {
   uninstall,
 } from "./runtime.ts"
 
-export * from "./state.ts"
+export {
+  ChosenTheme,
+  chosenThemes,
+  type ComingUpdate,
+  type FencedRenderer,
+  fencedRenderers,
+  installedPlugins,
+  type Keybinding,
+  MainUILayout,
+  mainUILayout,
+  pinnedToolbarItems,
+  type PluginCommand,
+  pluginCommands,
+  PluginInfo,
+  pluginSettings,
+  type PluginSlashCommand,
+  PluginTheme,
+  running,
+  type Running,
+  runtimeThemes,
+  type SettingItem,
+  Settings,
+  settingsFor,
+  type SlashAction,
+  slashCommands,
+  type Status,
+  ThemeMode,
+  type UIItem,
+  uiItems,
+  updatesComing,
+} from "./state.ts"
 
 export {
   autoCheckDue,

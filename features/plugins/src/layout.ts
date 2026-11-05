@@ -58,7 +58,7 @@ const track = (
   })
 }
 
-export const makeDraggable = (
+export const enableDrag = (
   element: HTMLElement,
   options: {
     readonly title: string
@@ -110,7 +110,7 @@ export const makeDraggable = (
   )
 }
 
-export const makeResizable = (element: HTMLElement, saved?: (layout: LayoutData) => void) => {
+export const enableResize = (element: HTMLElement, saved?: (layout: LayoutData) => void) => {
   if (element.dataset["inited_resizable"] !== undefined) {
     return
   }

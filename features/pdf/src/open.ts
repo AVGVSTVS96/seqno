@@ -5,14 +5,13 @@ import { CoreClient } from "@seqno/rpc"
 import { runCore, ensureRefPage } from "./annotations.ts"
 import { emptyHighlightsFile, readHighlights } from "./highlights.ts"
 import type { Highlights } from "./highlights.ts"
+import { messageOf, notifyFailure } from "./host.ts"
 import type { PdfFiles } from "./host.ts"
 import { inflateAsset, isHlsPage, keyOfHlsPage } from "./model.ts"
 import type { PdfAsset } from "./model.ts"
 import { loadPdfjs, pdfjsAssets } from "./pdfjs.ts"
 import { currentPdf, liveHighlights, refHighlight } from "./state.ts"
 import type { CurrentPdf, Loaded } from "./state.ts"
-
-const messageOf = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause))
 
 const nameOf = (cause: unknown) => (cause instanceof Error ? cause.name : "Error")
 
@@ -157,9 +156,9 @@ export const openPdf = (registry: AtomRegistry.AtomRegistry, files: PdfFiles, pa
   }
 
   show(registry, files, asset, url, 0, "")
-  runCore(registry, ensureRefPage(asset)).catch((error: unknown) => {
-    files.notify(`Couldn't make the page hls__${asset.key}: ${messageOf(error)}`)
-  })
+  runCore(registry, ensureRefPage(asset)).catch(
+    notifyFailure(files, `Couldn't make the page hls__${asset.key}`),
+  )
 }
 
 const pageOf = async (registry: AtomRegistry.AtomRegistry, block: Block) =>

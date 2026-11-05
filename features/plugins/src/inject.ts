@@ -1,6 +1,6 @@
 import { logseq } from "@seqno/dom"
 import DOMPurify from "dompurify"
-import { makeDraggable, makeResizable } from "./layout.ts"
+import { enableDrag, enableResize } from "./layout.ts"
 
 export interface UIOptions {
   readonly key: string | null
@@ -19,7 +19,26 @@ export interface ModelEvent {
   readonly id: string
   readonly className: string
   readonly dataset: Readonly<Record<string, string>>
-  readonly rect?: unknown
+  readonly rect?: Rect
+}
+
+export interface Rect {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+  readonly top: number
+  readonly right: number
+  readonly bottom: number
+  readonly left: number
+}
+
+export type StyleValues = Readonly<Record<string, string | null>>
+
+export const rectOf = (element: Element): Rect => {
+  const { x, y, width, height, top, right, bottom, left } = element.getBoundingClientRect()
+
+  return { x, y, width, height, top, right, bottom, left }
 }
 
 export type CallModel = (name: string, event: ModelEvent) => void
@@ -34,12 +53,12 @@ export const sanitizeHtml = (template: string) =>
 const kebab = (key: string) =>
   key.startsWith("--") ? key : key.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`)
 
-export const applyStyle = (element: HTMLElement, style: Readonly<Record<string, unknown>>) => {
+export const applyStyle = (element: HTMLElement, style: StyleValues) => {
   for (const [key, value] of Object.entries(style)) {
-    if (value === null || value === undefined) {
+    if (value === null) {
       element.style.removeProperty(kebab(key))
     } else {
-      element.style.setProperty(kebab(key), String(value))
+      element.style.setProperty(kebab(key), value)
     }
   }
 }
@@ -84,7 +103,7 @@ const listen = (wrapper: HTMLElement, callModel: CallModel) => {
         event.preventDefault()
       }
 
-      callModel(name, {
+      const model: ModelEvent = {
         type,
         value: valueOf(target),
         id: target.id,
@@ -94,13 +113,18 @@ const listen = (wrapper: HTMLElement, callModel: CallModel) => {
             item === undefined ? [] : [[key, item]],
           ),
         ),
-        ...(target.dataset["rect"] === undefined
-          ? {}
-          : { rect: target.getBoundingClientRect().toJSON() }),
-      })
+      }
+
+      callModel(
+        name,
+        target.dataset["rect"] === undefined ? model : { ...model, rect: rectOf(target) },
+      )
     })
   }
 }
+
+export const elementById = (id: string | null) =>
+  id === null || id === "" ? null : document.querySelector(`#${CSS.escape(id)}`)
 
 const floatContainer = (pid: string, id: string, ui: UIOptions) => {
   const container = document.createElement("div")
@@ -132,8 +156,8 @@ const floatContainer = (pid: string, id: string, ui: UIOptions) => {
     }
   }
 
-  makeResizable(container)
-  makeDraggable(container, { title: ui.attrs["title"] ?? "", close })
+  enableResize(container)
+  enableDrag(container, { title: ui.attrs["title"] ?? "", close })
   document.body.append(container)
 
   return content
@@ -141,7 +165,9 @@ const floatContainer = (pid: string, id: string, ui: UIOptions) => {
 
 const targetOf = (pid: string, ui: UIOptions, id: string): HTMLElement | null => {
   if (ui.slot !== null) {
-    return document.getElementById(ui.slot)
+    const slot = elementById(ui.slot)
+
+    return slot instanceof HTMLElement ? slot : null
   }
 
   if (ui.path !== null) {
@@ -167,7 +193,8 @@ const setAttrs = (element: HTMLElement, attrs: Readonly<Record<string, string>>)
 
 export const injectUI = (pid: string, ui: UIOptions, callModel: CallModel) => {
   const id = `${pid}--${ui.key ?? Math.random().toString(36).slice(2, 10)}`
-  const existing = document.getElementById(id)
+  const found = elementById(id)
+  const existing = found instanceof HTMLElement ? found : null
 
   if (ui.template === null || ui.template === "") {
     const float = existing?.closest(".seqno-plugin-float")

@@ -1,8 +1,9 @@
-import { Schema } from "effect"
+import { Order, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 import { BlockId, PageId } from "@seqno/domain"
 import type { Block, Page } from "@seqno/domain"
 import { createLogseqDb, readEdn } from "../src/datalog.ts"
+import type { Plain } from "../src/datalog.ts"
 import { keywordInput, resolveInput } from "../src/inputs.ts"
 import type { InputContext } from "../src/inputs.ts"
 import { numberOf } from "../src/shapes.ts"
@@ -60,15 +61,11 @@ const files = [
   },
 ]
 
-const sorted = (rows: unknown) =>
-  Array.isArray(rows)
-    ? rows
-        .map((row) => JSON.stringify(row))
-        .toSorted()
-        .map((row) => JSON.parse(row))
-    : rows
+const byJson = Order.mapInput(Order.String, (row: Plain) => JSON.stringify(row))
 
-describe("createLogseqDb", () => {
+const sorted = (rows: Plain) => (Array.isArray(rows) ? rows.toSorted(byJson) : rows)
+
+describe(createLogseqDb, () => {
   const db = createLogseqDb(files)
 
   it("answers a pull with an :in input in Logseq's file-graph keys", () => {
@@ -181,29 +178,29 @@ describe("createLogseqDb", () => {
   })
 })
 
-const read = (text: string) => readEdn([text])[0]
-
-describe("resolveInput", () => {
+describe(resolveInput, () => {
   const context: InputContext = {
     now: new Date(2026, 10, 3, 15, 30),
     currentPage: "Garden",
     currentBlock: { eid: 7, parent: 3, page: "notes" },
   }
 
+  const resolve = resolveInput(context, (text) => readEdn([text])[0])
+
   it("resolves Logseq's keyword inputs", () => {
-    expect(resolveInput(":today", context, read)).toBe(20_261_103)
-    expect(resolveInput(":-7d", context, read)).toBe(20_261_027)
-    expect(resolveInput(":+1m", context, read)).toBe(20_261_203)
-    expect(resolveInput(":7d-before", context, read)).toBe(20_261_027)
-    expect(resolveInput(":current-page", context, read)).toBe("garden")
-    expect(resolveInput(":current-block", context, read)).toBe(7)
+    expect(resolve(":today")).toBe(20_261_103)
+    expect(resolve(":-7d")).toBe(20_261_027)
+    expect(resolve(":+1m")).toBe(20_261_203)
+    expect(resolve(":7d-before")).toBe(20_261_027)
+    expect(resolve(":current-page")).toBe("garden")
+    expect(resolve(":current-block")).toBe(7)
     expect(keywordInput("today-1200", context)).toBe(new Date(2026, 10, 3, 12).getTime())
     expect(keywordInput("-1d-end", context)).toBe(new Date(2026, 10, 2, 23, 59, 59, 999).getTime())
   })
 
   it("reads other strings as EDN, page refs as their lower-case name, and passes the rest", () => {
-    expect(resolveInput('"[[Tomatoes]]"', context, read)).toBe("tomatoes")
-    expect(resolveInput('"plain"', context, read)).toBe("plain")
-    expect(resolveInput(5, context, read)).toBe(5)
+    expect(resolve('"[[Tomatoes]]"')).toBe("tomatoes")
+    expect(resolve('"plain"')).toBe("plain")
+    expect(resolve(5)).toBe(5)
   })
 })

@@ -3,7 +3,7 @@ import { elsewhereIn, local, referencesIn } from "../src/files.ts"
 
 const root = `${location.origin}/lsp/xyhp915/logseq-journals-calendar/v0.11.1/`
 
-describe("local", () => {
+describe(local, () => {
   it("moves a mirror URL onto seqno's own origin and leaves others alone", () => {
     expect(
       local(
@@ -14,7 +14,7 @@ describe("local", () => {
   })
 })
 
-describe("referencesIn", () => {
+describe(referencesIn, () => {
   it("finds the scripts, styles and icons an entry page loads", () => {
     const html = `<!doctype html><link rel="icon" href="./favicon.ico"/>
       <script type="module" crossorigin src="./assets/index-D8E5Vyeo.js"></script>
@@ -50,7 +50,7 @@ describe("referencesIn", () => {
   })
 })
 
-describe("elsewhereIn", () => {
+describe(elsewhereIn, () => {
   it("finds the scripts an entry page loads from another site, not its links", () => {
     const html = `<link rel="icon" href="https://example.test/icon.png">
       <script src="https://cdn.jsdelivr.net/npm/@logseq/libs"></script><script src="./index.js"></script>`

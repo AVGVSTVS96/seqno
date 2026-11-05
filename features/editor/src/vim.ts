@@ -20,7 +20,7 @@ for (const [keys, step] of [
   ["<C-r>", "Redo"],
 ] as const) {
   Vim.defineAction(`seqno${step}`, (cm, { repeat }) => {
-    const block = cm.cm6.state.facet(blockOf)
+    const block = cm.cm6 instanceof EditorView ? cm.cm6.state.facet(blockOf) : null
 
     for (let count = 0; count < repeat; count++) {
       block?.history(step)

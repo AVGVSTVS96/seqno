@@ -52,7 +52,7 @@ export const isNewer = (latest: string, current: string) => {
   return a === x ? (b === y ? c > z : b > y) : a > x
 }
 
-const reasonOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+const reasonOf = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause))
 
 const enabledPlugins = (registry: AtomRegistry.AtomRegistry, themes: boolean | null) =>
   registry

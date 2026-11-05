@@ -1,8 +1,9 @@
 import datascript from "datascript"
-import type { Db } from "datascript"
+import type { Db, EdnObject, EdnOpaque, EdnValue } from "datascript"
 import { blockRefId, normalizePageName } from "@seqno/domain"
 import type { Block, Page, PageId } from "@seqno/domain"
 import { propertyValue } from "@seqno/export"
+import type { PropertyValue } from "@seqno/export"
 import { analyzeBlock } from "@seqno/syntax"
 import { contentOf, numberOf } from "./shapes.ts"
 
@@ -17,6 +18,29 @@ interface Edn {
 }
 
 type Value = string | number | boolean | Edn
+
+type Scalar = string | number | boolean
+
+export type Plain = Scalar | null | undefined | readonly Plain[] | PlainObject
+
+export interface PlainObject {
+  readonly [key: string]: Plain
+}
+
+const isText = (value: Scalar): value is string => typeof value === "string"
+
+const isEdn = (value: Value): value is Edn => typeof value === "object"
+
+const isSet = (value: PropertyValue | undefined): value is readonly string[] =>
+  typeof value === "object"
+
+const isList = (value: EdnValue): value is readonly EdnValue[] => Array.isArray(value)
+
+const isObject = (value: EdnValue): value is EdnObject | EdnOpaque =>
+  typeof value === "object" && value !== null
+
+const isRecord = (value: EdnObject | EdnOpaque): value is EdnObject =>
+  Object.getPrototypeOf(value) === Object.prototype
 
 type Fact = readonly [number, string, Value]
 
@@ -39,7 +63,7 @@ const schema = `{${[
 
 const tx0 = 536_870_912
 
-export const readEdn = (texts: readonly string[]): unknown[] =>
+export const readEdn = (texts: readonly string[]): EdnValue[] =>
   texts.length === 0
     ? []
     : datascript
@@ -64,8 +88,7 @@ const edn = (text: string): Edn => ({ edn: text })
 const keyword = (name: string) => edn(`:${name}`)
 const uuid = (id: string) => edn(`#uuid ${JSON.stringify(id)}`)
 
-const ednText = (value: string | number | boolean) =>
-  typeof value === "string" ? JSON.stringify(value) : String(value)
+const ednText = (value: Scalar) => (isText(value) ? JSON.stringify(value) : String(value))
 
 const VALID_KEY = /^[^\s"|^(){}#,:/\\[\]][^\s"|^(){},\\[\]]*$/u
 const HEADING = /^(#+)[ \t]/u
@@ -75,7 +98,7 @@ const derivedUuid = (seed: string) => {
     let hash = 0xcb_f2_9c_e4_84_22_23_25n
 
     for (const char of salt + seed) {
-      hash = BigInt.asUintN(64, (hash ^ BigInt(char.charCodeAt(0))) * 0x1_00_00_00_01_b3n)
+      hash = BigInt.asUintN(64, (hash ^ BigInt(char.codePointAt(0) ?? 0)) * 0x1_00_00_00_01_b3n)
     }
 
     return hash.toString(16).padStart(16, "0")
@@ -94,13 +117,10 @@ const typedProperties = (props: Readonly<Record<string, string>>) =>
 const ednMap = (entries: ReadonlyArray<readonly [string, string]>) =>
   edn(`{${entries.map(([key, value]) => `:${key} ${value}`).join(" ")}}`)
 
-const typedText = (value: ReturnType<typeof propertyValue>) =>
-  typeof value === "object"
-    ? `#{${value.map((item) => JSON.stringify(item)).join(" ")}}`
-    : ednText(value)
+const typedText = (value: PropertyValue) =>
+  isSet(value) ? `#{${value.map((item) => JSON.stringify(item)).join(" ")}}` : ednText(value)
 
-const listed = (value: ReturnType<typeof propertyValue> | undefined) =>
-  typeof value === "object" ? value : []
+const listed = (value: PropertyValue | undefined) => (isSet(value) ? value : [])
 
 const namespaces = (title: string) => {
   const parts = title.split("/")
@@ -268,7 +288,10 @@ const makeBuilder = () => {
       facts.push([eid, "block/deadline", syntax.deadline.day])
     }
 
-    if (syntax.scheduled?.repeater != null || syntax.deadline?.repeater != null) {
+    if (
+      (syntax.scheduled?.repeater ?? null) !== null ||
+      (syntax.deadline?.repeater ?? null) !== null
+    ) {
       facts.push([eid, "block/repeated?", true])
     }
 
@@ -310,7 +333,7 @@ const makeBuilder = () => {
       ...tags,
       ...refsOf([
         ...syntax.refs.flatMap((ref) => (ref._tag === "BlockRef" ? [] : [ref.name])),
-        ...props.flatMap(([, , value]) => listed(value)),
+        ...props.flatMap((prop) => listed(prop[2])),
         ...(syntax.marker === null ? [] : [syntax.marker]),
         ...(syntax.priority === null ? [] : [syntax.priority]),
       ]),
@@ -367,7 +390,7 @@ const materialize = (facts: readonly Fact[], extra: readonly string[]) => {
   }
 
   const planned = facts.map(
-    ([e, a, v]) => [e, slot(`:${a}`), typeof v === "object" ? slot(v.edn) : null, v] as const,
+    ([e, a, v]) => [e, slot(`:${a}`), isEdn(v) ? slot(v.edn) : null, v] as const,
   )
 
   const extras = extra.map(slot)
@@ -427,17 +450,17 @@ export const createLogseqDb = (files: readonly PageFile[]) => {
 
 export type LogseqDb = ReturnType<typeof createLogseqDb>
 
-const plain = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
+const plain = (value: EdnValue): Plain => {
+  if (isList(value)) {
     return value.map(plain)
   }
 
-  if (typeof value !== "object" || value === null) {
+  if (!isObject(value)) {
     return value
   }
 
-  if (Object.getPrototypeOf(value) !== Object.prototype) {
-    return String(value)
+  if (!isRecord(value)) {
+    return value.toString()
   }
 
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, plain(item)]))

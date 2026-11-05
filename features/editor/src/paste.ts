@@ -17,17 +17,13 @@ const insert = (
 ): readonly Command[] => {
   const blocks = nonEmpty(drafts)
 
-  return blocks === null
-    ? []
-    : [
-        {
-          _tag: "InsertBlocks",
-          pageId: block.pageId,
-          parentId,
-          ...(after === undefined ? {} : { after }),
-          blocks,
-        },
-      ]
+  if (blocks === null) {
+    return []
+  }
+
+  const command = { _tag: "InsertBlocks", pageId: block.pageId, parentId, blocks } as const
+
+  return [after === undefined ? command : { ...command, after }]
 }
 
 const url = /^[a-z][a-z\d+.-]*:\/\/\S+$/iu

@@ -60,11 +60,15 @@ const place = (trigger: HTMLElement, tip: HTMLElement) => {
 }
 
 const attach = (tip: HTMLDivElement | null) => {
-  const root = tip?.parentElement
-  const label = tip?.querySelector<HTMLElement>(".wb-tooltip-label")
-  const keys = tip?.querySelector<HTMLElement>(".wb-tooltip-keys")
+  if (tip === null) {
+    return
+  }
 
-  if (tip == null || root == null || label == null || keys == null) {
+  const root = tip.parentElement
+  const label = tip.querySelector<HTMLElement>(".wb-tooltip-label")
+  const keys = tip.querySelector<HTMLElement>(".wb-tooltip-keys")
+
+  if (root === null || label === null || keys === null) {
     return
   }
 

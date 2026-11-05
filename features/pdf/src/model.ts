@@ -1,5 +1,6 @@
 import { logseq } from "@seqno/dom"
-import { assetPageName, cljsStringHash, hlsPagePrefix } from "@seqno/syntax"
+import { cljsStringHash, hlsPagePrefix } from "@seqno/syntax"
+import type { Props } from "@seqno/domain"
 import type { Highlight } from "./highlights.ts"
 
 export const colors = ["yellow", "red", "green", "blue", "purple"] as const
@@ -27,7 +28,17 @@ const isControl = (char: string) => {
   return code <= 0x1f || (code >= 0x80 && code <= 0x9f)
 }
 
-const withoutControls = (text: string) => [...text].filter((char) => !isControl(char)).join("")
+const withoutControls = (text: string) => {
+  let out = ""
+
+  for (const char of text) {
+    if (!isControl(char)) {
+      out += char
+    }
+  }
+
+  return out
+}
 
 const truncateUtf8 = (text: string, limit: number) => {
   const encoder = new TextEncoder()
@@ -92,17 +103,15 @@ export const inflateAsset = (originalPath: string): PdfAsset | null => {
   }
 }
 
-export const hlsPrefix = hlsPagePrefix
+export const hlsPageTitle = (key: string) => `${hlsPagePrefix}${key.trim()}`
 
-export const hlsPageTitle = (key: string) => `${hlsPrefix}${key.trim()}`
+export const isHlsPage = (name: string) => name.startsWith(hlsPagePrefix)
 
-export const isHlsPage = (name: string) => name.startsWith(hlsPrefix)
+export const keyOfHlsPage = (title: string) => title.slice(hlsPagePrefix.length)
 
-export const keyOfHlsPage = (title: string) => title.slice(hlsPrefix.length)
+export { assetPageName as displayName } from "@seqno/syntax"
 
-export const displayName = assetPageName
-
-export const hlsPageProps = (asset: PdfAsset, org: boolean): Readonly<Record<string, string>> => ({
+export const hlsPageProps = (asset: PdfAsset, org: boolean): Props => ({
   file: org
     ? `[[${asset.originalPath}][${asset.filename}]]`
     : `[${asset.filename}](${asset.originalPath})`,
@@ -250,15 +259,20 @@ export const zoomIn = (scale: number) =>
 export const zoomOut = (scale: number) =>
   Math.max(minScale, Math.floor(Number((scale / 1.05).toFixed(2)) * 10) / 10)
 
-export const annotationProps = (highlight: Highlight): Readonly<Record<string, string>> => ({
-  "ls-type": "annotation",
-  "hl-page": String(highlight.page),
-  "hl-color": highlight.properties.color ?? "",
-  id: highlight.id,
-  ...(highlight.content.image === undefined
-    ? {}
-    : { "hl-type": "area", "hl-stamp": String(highlight.content.image) }),
-})
+export const annotationProps = (highlight: Highlight): Props => {
+  const props: Props = {
+    "ls-type": "annotation",
+    "hl-page": String(highlight.page),
+    "hl-color": highlight.properties.color ?? "",
+    id: highlight.id,
+  }
+
+  if (highlight.content.image === undefined) {
+    return props
+  }
+
+  return { ...props, "hl-type": "area", "hl-stamp": String(highlight.content.image) }
+}
 
 type ToggledPart =
   | "seqno-pdf-open"

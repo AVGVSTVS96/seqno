@@ -11,11 +11,9 @@ import { itemsOf, sceneOf, withMembers } from "./model.ts"
 import { ShapeView } from "./ShapeView.tsx"
 import type { ShapeSlots } from "./ShapeView.tsx"
 
-const noMeasure = () => () => undefined
-
 const stillSlots = (resolveAsset: (path: string) => string | undefined): ShapeSlots => ({
   asset: resolveAsset,
-  measure: noMeasure,
+  measure: () => () => {},
   editing: null,
   portals: null,
   active: null,

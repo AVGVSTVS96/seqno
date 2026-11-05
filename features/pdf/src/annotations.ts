@@ -25,7 +25,7 @@ export const runCore = async <A, E>(
     )
 
   const next = queue.then(run, run)
-  queue = next.catch(() => undefined)
+  queue = next.catch(() => {})
 
   return await next
 }
@@ -103,24 +103,24 @@ export const ensureRefBlock = (asset: PdfAsset, highlight: Highlight) =>
 
     const client = yield* CoreClient
     const tree = yield* client.GetPage({ pageId: page.id })
-    const last = tree.blocks.filter((block) => block.parentId === null).at(-1)
+    const last = tree.blocks.findLast((block) => block.parentId === null)
 
-    const draft: BlockDraft = {
-      ...(isBlockId(highlight.id) ? { id: highlight.id } : {}),
+    const fields = {
       text: highlight.content.text ?? "",
       props: annotationProps(highlight),
       children: [],
     }
 
-    const events = yield* dispatch([
-      {
-        _tag: "InsertBlocks",
-        pageId: page.id,
-        parentId: null,
-        ...(last === undefined ? {} : { after: last.id }),
-        blocks: [draft],
-      },
-    ])
+    const draft: BlockDraft = isBlockId(highlight.id) ? { ...fields, id: highlight.id } : fields
+
+    const insert = {
+      _tag: "InsertBlocks",
+      pageId: page.id,
+      parentId: null,
+      blocks: [draft],
+    } as const
+
+    const events = yield* dispatch([last === undefined ? insert : { ...insert, after: last.id }])
 
     const made = events.flatMap((event): readonly Block[] =>
       event._tag === "BlockUpserted" ? [event.block] : [],

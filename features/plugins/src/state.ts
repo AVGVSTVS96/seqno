@@ -161,11 +161,21 @@ export const runtimeThemes = Atom.make<readonly PluginTheme[]>([]).pipe(Atom.kee
 
 export const settingsFor = Atom.make<string | null>(null).pipe(Atom.keepAlive)
 
+export interface LegacyProps {
+  readonly content: string
+}
+
+export interface LegacyElement {
+  readonly props: LegacyProps
+}
+
+export type LegacyComponent = (props: LegacyProps) => LegacyElement | null
+
 export interface FencedRenderer {
   readonly pid: string
   readonly type: string
   readonly edit: boolean
-  readonly render: unknown
+  readonly render: LegacyComponent
 }
 
 export const fencedRenderers = Atom.make<readonly FencedRenderer[]>([]).pipe(Atom.keepAlive)

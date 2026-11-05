@@ -7,6 +7,13 @@ export interface PdfFiles {
   readonly notify: (message: string) => void
 }
 
+export const messageOf = (cause: unknown) =>
+  cause instanceof Error ? cause.message : String(cause)
+
+export const notifyFailure = (files: PdfFiles, what: string) => (cause: unknown) => {
+  files.notify(`${what}: ${messageOf(cause)}`)
+}
+
 export interface HighlightPoint {
   readonly text: string
   readonly x: number

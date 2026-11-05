@@ -149,7 +149,9 @@ const holdersAbove = new WeakMap<Element, boolean>()
 
 const decide = (holder: HTMLElement, above: boolean) => {
   holdersAbove.set(holder, above)
-  requestAnimationFrame(() => holdersAbove.delete(holder))
+  requestAnimationFrame(() => {
+    holdersAbove.delete(holder)
+  })
 
   return above
 }
@@ -186,8 +188,9 @@ const judgeItem = (item: VirtualItem, list: List, element: HTMLElement | null) =
 
 const measureMounted = (list: List) => {
   const mounted = [...list.elementsCache.values()]
-    .filter((element) => element.isConnected)
-    .map((element) => ({ element, index: list.indexFromElement(element) }))
+    .flatMap((element) =>
+      element.isConnected ? [{ element, index: list.indexFromElement(element) }] : [],
+    )
     .toSorted((a, b) => a.index - b.index)
 
   for (const { element, index } of mounted) {
@@ -224,14 +227,13 @@ const useTanStack = (options: VirtualListOptions & Attached) => {
 
   const [locate] = useState(() => (key: string) => {
     const { count, getItemKey } = virtualizer.options
+    let index = 0
 
-    for (let index = 0; index < count; index++) {
-      if (String(getItemKey(index)) === key) {
-        return virtualizer.getOffsetForIndex(index, "start")?.[0]
-      }
+    while (index < count && String(getItemKey(index)) !== key) {
+      index++
     }
 
-    return undefined
+    return index < count ? virtualizer.getOffsetForIndex(index, "start")?.[0] : undefined
   })
 
   virtualizer.shouldAdjustScrollPositionOnItemSizeChange = options.nested
@@ -316,7 +318,7 @@ const marginOf = (list: HTMLElement, scroller: HTMLElement) =>
       scroller.scrollTop,
   )
 
-const nothing = () => undefined
+const nothing = () => {}
 
 const estimatedTotal = ({ count, estimate }: VirtualListOptions) => {
   let total = 0

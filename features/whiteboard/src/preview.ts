@@ -1,3 +1,4 @@
+import { Match } from "effect"
 import { BlockId } from "@seqno/domain"
 import type { Block, BlockDraft, Command, PageId } from "@seqno/domain"
 import { freshId } from "./ids.ts"
@@ -29,66 +30,55 @@ const insertAt = (
     : [...blocks.slice(0, index + 1), ...added, ...blocks.slice(index + 1)]
 }
 
-const applyOne = (blocks: readonly Block[], command: Command): readonly Block[] => {
-  switch (command._tag) {
-    case "SetProperty": {
-      const { target } = command
-
-      return target._tag === "BlockTarget"
-        ? blocks.map((block) =>
-            block.id === target.blockId ? withProp(block, command.key, command.value) : block,
-          )
-        : blocks
-    }
-
-    case "InsertBlocks": {
-      return insertAt(
+const applyOne = (blocks: readonly Block[], command: Command): readonly Block[] =>
+  Match.value(command).pipe(
+    Match.tag("SetProperty", ({ target, key, value }) =>
+      target._tag === "BlockTarget"
+        ? blocks.map((block) => (block.id === target.blockId ? withProp(block, key, value) : block))
+        : blocks,
+    ),
+    Match.tag("InsertBlocks", (insert) =>
+      insertAt(
         blocks,
-        command.after,
-        command.blocks.map((draft, index): Block => ({
+        insert.after,
+        insert.blocks.map((draft, index): Block => ({
           id: draft.id ?? ghostId(index),
-          pageId: command.pageId,
+          pageId: insert.pageId,
           parentId: null,
           text: draft.text,
           collapsed: false,
           props: draft.props,
         })),
-      )
-    }
-
-    case "DeleteBlocks": {
-      const gone = new Set<BlockId>(command.blockIds)
+      ),
+    ),
+    Match.tag("DeleteBlocks", ({ blockIds }) => {
+      const gone = new Set<BlockId>(blockIds)
 
       return blocks.filter((block) => !gone.has(block.id))
-    }
-
-    case "EditText": {
-      return blocks.map((block) =>
-        block.id === command.blockId
+    }),
+    Match.tag("EditText", (edit) =>
+      blocks.map((block) =>
+        block.id === edit.blockId
           ? {
               ...block,
-              text:
-                block.text.slice(0, command.from) + command.insert + block.text.slice(command.to),
+              text: block.text.slice(0, edit.from) + edit.insert + block.text.slice(edit.to),
             }
           : block,
-      )
-    }
-
-    default: {
-      return blocks
-    }
-  }
-}
+      ),
+    ),
+    Match.orElse(() => blocks),
+  )
 
 export const applyLocally = (
   blocks: readonly Block[],
   commands: readonly Command[],
 ): readonly Block[] => commands.reduce(applyOne, blocks)
 
-const withId = (draft: BlockDraft): BlockDraft => ({
-  ...draft,
-  id: draft.id ?? freshId(),
-  children: draft.children.map(withId),
+const withId = ({ id, text, props, children }: BlockDraft): BlockDraft => ({
+  id: id ?? freshId(),
+  text,
+  props,
+  children: children.map(withId),
 })
 
 export const withIds = (commands: readonly Command[]): readonly Command[] =>

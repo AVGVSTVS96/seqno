@@ -46,7 +46,7 @@ const sameLines = (left: readonly PropertyLine[], right: readonly PropertyLine[]
 export const blockFields = (
   blockId: BlockId,
   block: Pick<Block, "text" | "props">,
-  target: PropertyTarget = { _tag: "BlockTarget", blockId },
+  target: PropertyTarget,
   hidden: (key: string) => boolean = isHiddenProperty,
   style: PropertyStyle = "markdown",
 ): BlockFields => {

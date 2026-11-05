@@ -3,10 +3,28 @@ declare module "datascript" {
     readonly __datascriptDb: unique symbol
   }
 
+  export interface EdnObject {
+    readonly [key: string]: EdnValue
+  }
+
+  export interface EdnOpaque {
+    readonly toString: () => string
+  }
+
+  export type EdnValue =
+    | string
+    | number
+    | boolean
+    | null
+    | undefined
+    | readonly EdnValue[]
+    | EdnObject
+    | EdnOpaque
+
   export interface Datom {
     readonly e: number
-    readonly a: unknown
-    readonly v: unknown
+    readonly a: EdnValue
+    readonly v: EdnValue
   }
 
   export interface Serialized {
@@ -26,11 +44,11 @@ declare module "datascript" {
     readonly from_serializable: (data: Serialized) => Db
     readonly datoms: (db: Db, index: string, ...components: readonly unknown[]) => Datom[]
     readonly init_db: (
-      datoms: ReadonlyArray<readonly [number, unknown, unknown]>,
-      schema: unknown,
+      datoms: ReadonlyArray<readonly [number, EdnValue, EdnValue]>,
+      schema: EdnValue,
     ) => Db
     readonly db_with: (db: Db, tx: ReadonlyArray<readonly unknown[]>) => Db
-    readonly q: (query: string, ...sources: readonly unknown[]) => unknown
+    readonly q: (query: string, ...sources: readonly unknown[]) => EdnValue
   }
 
   export default datascript

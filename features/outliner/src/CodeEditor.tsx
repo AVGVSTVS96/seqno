@@ -96,6 +96,7 @@ export const CodeEditor = (edit: CodeEdit) => {
     <div
       className="seqno-code-editor"
       ref={mount}
+      role="presentation"
       onClick={(event) => {
         event.stopPropagation()
       }}

@@ -1,11 +1,7 @@
-export * from "./model.ts"
+export type { PdfFiles, PdfHost } from "./host.ts"
 
-export * from "./highlights.ts"
-
-export type { HighlightMenuItem, HighlightPoint, PdfFiles, PdfHost } from "./host.ts"
-
-export { closePdf, openAnnotation, openPdf } from "./open.ts"
+export { openAnnotation, openPdf } from "./open.ts"
 
 export { PdfPane } from "./PdfPane.tsx"
 
-export { blockColored, currentPdf } from "./state.ts"
+export { blockColored } from "./state.ts"

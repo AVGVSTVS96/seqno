@@ -1,5 +1,5 @@
-import { list, pluginInfoOf, record, text } from "./package.ts"
-import type { Listing } from "./package.ts"
+import { amount, list, pluginInfoOf, record, text } from "./package.ts"
+import type { Fields, Listing } from "./package.ts"
 import type { PluginInfo } from "./state.ts"
 
 const central = "https://raw.githubusercontent.com/logseq/marketplace/master/"
@@ -22,36 +22,34 @@ export interface MarketItem extends Listing {
   readonly downloads: number
 }
 
-const fetchJson = async (url: string): Promise<unknown> => {
+const fetchFields = async (url: string): Promise<Fields> => {
   const response = await fetch(url)
 
   if (!response.ok) {
     throw new Error(`${url} answered ${response.status}`)
   }
 
-  return await response.json()
+  return record(await response.json())
 }
 
-const statsOf = (stats: unknown, id: string) => {
-  const entry = record(record(stats)[id])
-  const stars = entry["stargazers_count"]
+const statsOf = (stats: Fields, id: string) => {
+  const entry = record(stats[id])
 
-  const downloads = list(entry["releases"]).reduce<number>((sum, release) => {
-    const count = list(release)[2]
+  const downloads = list(entry["releases"]).reduce<number>(
+    (sum, release) => sum + (amount(list(release)[2]) ?? 0),
+    0,
+  )
 
-    return sum + (typeof count === "number" ? count : 0)
-  }, 0)
-
-  return { stars: typeof stars === "number" ? stars : 0, downloads }
+  return { stars: amount(entry["stargazers_count"]) ?? 0, downloads }
 }
 
 export const loadMarket = async (): Promise<readonly MarketItem[]> => {
   const [index, stats] = await Promise.all([
-    fetchJson(urls.index),
-    fetchJson(urls.stats).catch(() => ({})),
+    fetchFields(urls.index),
+    fetchFields(urls.stats).catch((): Fields => ({})),
   ])
 
-  return list(record(index)["packages"]).flatMap((entry) => {
+  return list(index["packages"]).flatMap((entry) => {
     const item = record(entry)
     const id = text(item["id"])
     const repo = text(item["repo"])
@@ -61,7 +59,6 @@ export const loadMarket = async (): Promise<readonly MarketItem[]> => {
     }
 
     const icon = text(item["icon"])
-    const addedAt = item["addedAt"]
 
     return [
       {
@@ -72,7 +69,7 @@ export const loadMarket = async (): Promise<readonly MarketItem[]> => {
         author: text(item["author"]) ?? "",
         icon: icon === null ? null : urls.icon(id, icon),
         theme: item["theme"] === true,
-        addedAt: typeof addedAt === "number" ? addedAt : 0,
+        addedAt: amount(item["addedAt"]) ?? 0,
         ...statsOf(stats, id),
       },
     ]
@@ -82,7 +79,7 @@ export const loadMarket = async (): Promise<readonly MarketItem[]> => {
 export const fetchPlugin = async (
   item: Listing & { readonly repo: string },
 ): Promise<PluginInfo> => {
-  const pkg = record(await fetchJson(urls.package(item.repo)))
+  const pkg = await fetchFields(urls.package(item.repo))
   const version = text(pkg["version"])
 
   if (version === null) {

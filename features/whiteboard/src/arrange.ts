@@ -2,7 +2,8 @@ import potpack from "potpack"
 import { shapeRaw } from "@seqno/domain"
 import type { BlockId, Command, Vec } from "@seqno/domain"
 import { patch } from "./commands.ts"
-import type { Raw } from "./commands.ts"
+import { vecIn } from "./raw.ts"
+import type { Raw } from "./raw.ts"
 import { add, sub, union } from "./geometry.ts"
 import type { Bounds } from "./geometry.ts"
 import { settle } from "./gestures.ts"
@@ -60,6 +61,37 @@ const placed = (
     ),
   )
 
+const aligned = (own: Bounds, common: Bounds, type: Align): Vec => {
+  const { minX, minY } = own
+  const [midX, midY] = centerOf(common)
+
+  switch (type) {
+    case "top": {
+      return [minX, common.minY]
+    }
+
+    case "centerVertical": {
+      return [minX, midY - height(own) / 2]
+    }
+
+    case "bottom": {
+      return [minX, common.maxY - height(own)]
+    }
+
+    case "left": {
+      return [common.minX, minY]
+    }
+
+    case "centerHorizontal": {
+      return [midX - width(own) / 2, minY]
+    }
+
+    case "right": {
+      return [common.maxX - width(own), minY]
+    }
+  }
+}
+
 export const align = (scene: Scene, ids: readonly BlockId[], type: Align): readonly Command[] => {
   const units = unitsOf(scene, ids)
   const common = union(units.map(({ bounds }) => bounds))
@@ -68,39 +100,9 @@ export const align = (scene: Scene, ids: readonly BlockId[], type: Align): reado
     return []
   }
 
-  const [midX, midY] = centerOf(common)
-
   return placed(
     scene,
-    units.map((unit): readonly [Unit, Vec] => {
-      const { minX, minY } = unit.bounds
-
-      switch (type) {
-        case "top": {
-          return [unit, [minX, common.minY]]
-        }
-
-        case "centerVertical": {
-          return [unit, [minX, midY - height(unit.bounds) / 2]]
-        }
-
-        case "bottom": {
-          return [unit, [minX, common.maxY - height(unit.bounds)]]
-        }
-
-        case "left": {
-          return [unit, [common.minX, minY]]
-        }
-
-        case "centerHorizontal": {
-          return [unit, [midX - width(unit.bounds) / 2, minY]]
-        }
-
-        case "right": {
-          return [unit, [common.maxX - width(unit.bounds), minY]]
-        }
-      }
-    }),
+    units.map((unit) => [unit, aligned(unit.bounds, common, type)] as const),
   )
 }
 
@@ -207,13 +209,7 @@ export const pack = (scene: Scene, ids: readonly BlockId[]): readonly Command[] 
 
 const FLIPS_SCALE = new Set(["box", "ellipse", "polygon", "pdf", "iframe", "logseq-portal"])
 
-const scaleOf = (item: Item): Vec => {
-  const scale = shapeRaw(item.block)["scale"]
-
-  return Array.isArray(scale) && typeof scale[0] === "number" && typeof scale[1] === "number"
-    ? [scale[0], scale[1]]
-    : [1, 1]
-}
+const scaleOf = (item: Item): Vec => vecIn(shapeRaw(item.block)["scale"]) ?? [1, 1]
 
 export const flip = (
   scene: Scene,

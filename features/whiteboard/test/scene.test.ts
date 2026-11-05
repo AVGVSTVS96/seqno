@@ -1,25 +1,20 @@
 import { assert, describe, it } from "vitest"
-import { BlockId, PageId, shapeProps } from "@seqno/domain"
+import { Schema } from "effect"
+import { BlockId, PageId, ShapeJson, shapeProps } from "@seqno/domain"
 import type { Block, Command } from "@seqno/domain"
 import { align, distribute, flip } from "../src/arrange.ts"
-import {
-  changesOf,
-  group,
-  fitBounds,
-  itemsOf,
-  remove,
-  reorder,
-  sceneOf,
-  topHit,
-  translate,
-  zoomAt,
-  defaultStyles,
-} from "../src/index.ts"
+import { group, remove, reorder, translate } from "../src/commands.ts"
+import { fitBounds, zoomAt } from "../src/geometry.ts"
+import { changesOf } from "../src/gestures.ts"
+import { itemsOf, sceneOf, topHit } from "../src/model.ts"
+import { defaultStyles } from "../src/tools.ts"
+
+const decodeShape = Schema.decodeSync(Schema.fromJsonString(ShapeJson))
 
 const pageId = PageId.make("01920000-0000-7000-8000-0000000000aa")
 const id = (n: number) => BlockId.make(`01920000-0000-7000-8000-${n.toString().padStart(12, "0")}`)
 
-const block = (n: number, raw: Readonly<Record<string, unknown>>, text = ""): Block => ({
+const block = (n: number, raw: ShapeJson, text = ""): Block => ({
   id: id(n),
   pageId,
   parentId: null,
@@ -262,7 +257,7 @@ const points = (commands: readonly Command[]) =>
       ? [
           [
             command.target._tag === "BlockTarget" ? command.target.blockId : "",
-            JSON.parse(command.value).point,
+            decodeShape(command.value)["point"],
           ],
         ]
       : [],

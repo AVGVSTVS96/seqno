@@ -1,5 +1,5 @@
 import { SHAPE_KEY, patchShape, shapeProps } from "@seqno/domain"
-import type { BlockId, Command, PageId, Vec } from "@seqno/domain"
+import type { BlockDraft, BlockId, Command, PageId, Vec } from "@seqno/domain"
 import { add, round, sub } from "./geometry.ts"
 import type { Bounds } from "./geometry.ts"
 import { isLocked, withMembers } from "./model.ts"
@@ -7,8 +7,8 @@ import type { Item, Scene } from "./model.ts"
 import { handlesOf } from "./clipboard.ts"
 import type { Copied } from "./clipboard.ts"
 import { isGhost } from "./preview.ts"
-
-export type Raw = Readonly<Record<string, unknown>>
+import { isList, isText, vecIn } from "./raw.ts"
+import type { Field, Raw } from "./raw.ts"
 
 const setShape = (blockId: BlockId, value: string): Command => ({
   _tag: "SetProperty",
@@ -26,15 +26,29 @@ export interface Draft {
   readonly text: string
 }
 
-const draftOf = ({ id, raw, text }: Draft) => ({
-  ...(id === undefined ? {} : { id }),
-  text,
-  props: shapeProps(raw),
-  children: [],
-})
+const draftOf = ({ id, raw, text }: Draft): BlockDraft => {
+  const draft = { text, props: shapeProps(raw), children: [] }
+
+  return id === undefined ? draft : { ...draft, id }
+}
+
+const inserted = (
+  pageId: PageId,
+  after: BlockId | undefined,
+  blocks: readonly [BlockDraft, ...BlockDraft[]],
+): Command =>
+  after === undefined
+    ? { _tag: "InsertBlocks", pageId, parentId: null, blocks }
+    : { _tag: "InsertBlocks", pageId, parentId: null, after, blocks }
 
 const lastRoot = (scene: Scene): BlockId | undefined =>
   scene.items.findLast((item) => !isGhost(item.block.id))?.block.id
+
+export const insertLast = (
+  pageId: PageId,
+  scene: Scene,
+  blocks: readonly [BlockDraft, ...BlockDraft[]],
+): Command => inserted(pageId, lastRoot(scene), blocks)
 
 export const create = (pageId: PageId, scene: Scene, drafts: readonly Draft[]): Command | null => {
   const [first, ...rest] = drafts
@@ -43,15 +57,7 @@ export const create = (pageId: PageId, scene: Scene, drafts: readonly Draft[]): 
     return null
   }
 
-  const after = lastRoot(scene)
-
-  return {
-    _tag: "InsertBlocks",
-    pageId,
-    parentId: null,
-    ...(after === undefined ? {} : { after }),
-    blocks: [draftOf(first), ...rest.map(draftOf)],
-  }
+  return insertLast(pageId, scene, [draftOf(first), ...rest.map(draftOf)])
 }
 
 const roundVec = ([x, y]: Vec): Vec => [round(x), round(y)]
@@ -97,11 +103,6 @@ export const translate = (scene: Scene, items: readonly Item[], delta: Vec): rea
   )
 }
 
-const vecIn = (value: unknown): Vec | undefined =>
-  Array.isArray(value) && typeof value[0] === "number" && typeof value[1] === "number"
-    ? [value[0], value[1]]
-    : undefined
-
 export const copiesAt = (copied: readonly Copied[], at: Vec): Vec => {
   const points = copied.flatMap(({ raw }) => {
     const point = raw["type"] === "group" ? undefined : vecIn(raw["point"])
@@ -129,8 +130,7 @@ export const clones = (
     }),
   )
 
-  const mapped = (value: unknown) =>
-    typeof value === "string" ? ids.get(value.toLowerCase()) : undefined
+  const mapped = (value: Field) => (isText(value) ? ids.get(value.toLowerCase()) : undefined)
 
   return copied.flatMap(({ id, raw, text }) => {
     const own = mapped(id)
@@ -149,20 +149,14 @@ export const clones = (
       return [name, target === undefined ? kept : { ...kept, bindTo: target }] as const
     })
 
-    return [
-      {
-        id: own,
-        text,
-        raw: {
-          ...rest,
-          point: roundVec(add(vecIn(raw["point"]) ?? [0, 0], delta)),
-          ...(handles.length === 0 ? {} : { handles: Object.fromEntries(handles) }),
-          ...(Array.isArray(children)
-            ? { children: children.flatMap((child) => mapped(child) ?? []) }
-            : {}),
-        },
-      },
-    ]
+    const moved: Raw = { ...rest, point: roundVec(add(vecIn(raw["point"]) ?? [0, 0], delta)) }
+    const linked = handles.length === 0 ? moved : { ...moved, handles: Object.fromEntries(handles) }
+
+    const grouped = isList(children)
+      ? { ...linked, children: children.flatMap((child) => mapped(child) ?? []) }
+      : linked
+
+    return [{ id: own, text, raw: grouped }]
   })
 }
 
@@ -172,46 +166,42 @@ export const scaleInto = (item: Item, from: Bounds, to: Bounds, own: Bounds): Ra
   const map = ([x, y]: Vec): Vec => [to.minX + (x - from.minX) * sx, to.minY + (y - from.minY) * sy]
   const { shape } = item
 
-  switch (shape.type) {
-    case "line": {
-      const start = map(add(shape.point, shape.handles.start.point))
-      const end = map(add(shape.point, shape.handles.end.point))
-      const point: Vec = [Math.min(start[0], end[0]), Math.min(start[1], end[1])]
+  if (shape.type === "line") {
+    const start = map(add(shape.point, shape.handles.start.point))
+    const end = map(add(shape.point, shape.handles.end.point))
+    const point: Vec = [Math.min(start[0], end[0]), Math.min(start[1], end[1])]
 
-      return {
-        point: roundVec(point),
-        handles: {
-          start: handleRaw(roundVec(sub(start, point)), shape.handles.start.bindTo),
-          end: handleRaw(roundVec(sub(end, point)), shape.handles.end.bindTo),
-        },
-      }
-    }
-
-    case "pencil":
-    case "highlighter": {
-      const topLeft = map(shape.point)
-
-      return {
-        point: roundVec(topLeft),
-        points: shape.points.map(([x = 0, y = 0, ...rest]) => [
-          round(x * sx),
-          round(y * sy),
-          ...rest,
-        ]),
-      }
-    }
-
-    default: {
-      const [minX, minY] = map([own.minX, own.minY])
-      const [maxX, maxY] = map([own.maxX, own.maxY])
-
-      return {
-        point: roundVec([minX, minY]),
-        size: roundVec([Math.max(1, maxX - minX), Math.max(1, maxY - minY)]),
-        ...(shape.type === "text" ? { isSizeLocked: false } : {}),
-      }
+    return {
+      point: roundVec(point),
+      handles: {
+        start: handleRaw(roundVec(sub(start, point)), shape.handles.start.bindTo),
+        end: handleRaw(roundVec(sub(end, point)), shape.handles.end.bindTo),
+      },
     }
   }
+
+  if (shape.type === "pencil" || shape.type === "highlighter") {
+    const topLeft = map(shape.point)
+
+    return {
+      point: roundVec(topLeft),
+      points: shape.points.map(([x = 0, y = 0, ...rest]) => [
+        round(x * sx),
+        round(y * sy),
+        ...rest,
+      ]),
+    }
+  }
+
+  const [minX, minY] = map([own.minX, own.minY])
+  const [maxX, maxY] = map([own.maxX, own.maxY])
+
+  const box = {
+    point: roundVec([minX, minY]),
+    size: roundVec([Math.max(1, maxX - minX), Math.max(1, maxY - minY)]),
+  }
+
+  return shape.type === "text" ? { ...box, isSizeLocked: false } : box
 }
 
 const shrunk = (scene: Scene, gone: Set<BlockId>): readonly Command[] =>
@@ -337,27 +327,23 @@ export const group = (
 
   const { moves, below } = raised(order, leaves, groupId)
 
-  const made: Command = {
-    _tag: "InsertBlocks",
-    pageId,
-    parentId: null,
-    ...(below === undefined ? {} : { after: below }),
-    blocks: [
-      draftOf({
-        id: groupId,
-        text: "",
-        raw: { type: "group", point: [0, 0], size: [0, 0], children: leaves },
-      }),
-    ],
-  }
+  const made = inserted(pageId, below, [
+    draftOf({
+      id: groupId,
+      text: "",
+      raw: { type: "group", point: [0, 0], size: [0, 0], children: leaves },
+    }),
+  ])
 
   return [...removed, ...moves, made]
 }
 
-export const ungroup = (
-  scene: Scene,
-  ids: readonly BlockId[],
-): { readonly commands: readonly Command[]; readonly members: readonly BlockId[] } => {
+interface Ungrouped {
+  readonly commands: readonly Command[]
+  readonly members: readonly BlockId[]
+}
+
+export const ungroup = (scene: Scene, ids: readonly BlockId[]): Ungrouped => {
   const [first, ...rest] = groupsIn(scene, ids)
 
   if (first === undefined) {

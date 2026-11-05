@@ -1,5 +1,6 @@
 import { editingBlock } from "@seqno/editor"
 import type { Host } from "./host.ts"
+import { rectOf } from "./inject.ts"
 
 export const cursorPosition = () => {
   const live = editingBlock()
@@ -10,7 +11,7 @@ export const cursorPosition = () => {
 
   const pos = live.view.state.selection.main.head
   const coords = live.view.coordsAtPos(pos)
-  const rect = live.view.dom.getBoundingClientRect().toJSON()
+  const rect = rectOf(live.view.dom)
 
   return coords === null
     ? null
@@ -55,14 +56,14 @@ export const watchSelection = (host: Host) => {
     })
   }
 
-  document.addEventListener("mouseup", (event) =>
+  document.addEventListener("mouseup", (event) => {
     requestAnimationFrame(() => {
       settle({ x: event.clientX, y: event.clientY })
-    }),
-  )
-  document.addEventListener("keyup", () =>
+    })
+  })
+  document.addEventListener("keyup", () => {
     requestAnimationFrame(() => {
       settle(null)
-    }),
-  )
+    })
+  })
 }

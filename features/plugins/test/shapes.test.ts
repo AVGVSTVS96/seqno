@@ -22,7 +22,7 @@ const blocks: readonly Block[] = [
   { id: child, pageId, parentId: first, text: "Bed 2", collapsed: false, props: {} },
 ]
 
-describe("blockJson", () => {
+describe(blockJson, () => {
   it("gives Logseq's file-graph block: content with property lines, marker, children as uuids", () => {
     const [top] = blocks
 
@@ -48,7 +48,7 @@ describe("blockJson", () => {
   })
 })
 
-describe("changedBlock", () => {
+describe(changedBlock, () => {
   it("gives DB.onChanged's block: its marker and camelCased properties, parent by number", () => {
     const [, bed] = blocks
 
@@ -71,7 +71,7 @@ describe("changedBlock", () => {
   })
 })
 
-describe("pageJson", () => {
+describe(pageJson, () => {
   it("names the page in lower case and keeps its title as originalName", () => {
     expect(pageJson(page)).toEqual({
       id: numberOf(pageId),

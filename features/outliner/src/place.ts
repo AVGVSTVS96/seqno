@@ -57,7 +57,7 @@ export const restorePlace = (scroller: Element, { offset, anchor }: Place) => {
 
   const anchored = () => {
     if (anchor === null) {
-      return undefined
+      return
     }
 
     const shown = [...rows(scroller, anchor.key)]
