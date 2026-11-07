@@ -1,6 +1,6 @@
 import type { StarterFile } from "../place.ts"
 import type { Days } from "./kit.ts"
-import { dated, ids, page, ref, yt } from "./kit.ts"
+import { dated, ids, page, post, pr, ref, tweet, yt } from "./kit.ts"
 
 const person = (name: string, ...lines: readonly string[]) =>
   page(name, "type:: [[person]]", "", ...lines)
@@ -162,12 +162,25 @@ export const hub = (d: Days): readonly StarterFile[] => [
   person(
     "Martin Kleppmann",
     "- local-first, CRDTs, Designing Data-Intensive Applications. [site](https://martin.kleppmann.com)",
+    "- co-wrote [Local-first software](https://www.inkandswitch.com/local-first/) with Ink & Switch, 2019. seqno is a bet on its seven ideals [[projects/seqno]]",
+    "- [Automerge](https://automerge.org) is his. seqno's CRDT is Loro, for the movable tree [[CRDTs]]",
   ),
-  person("Emil Kowalski", "- web animation and interaction feel. [site](https://emilkowal.ski)"),
+  person(
+    "Emil Kowalski",
+    "- web animation and interaction feel. design engineer, Vercel then Linear. made Sonner and Vaul. [site](https://emilkowal.ski) · [animations.dev](https://animations.dev)",
+    `- his skills, installed ${dated(20_261_008)}: emil-design-eng, find-animation-opportunities, improve-animations, review-animations, animation-vocabulary. [emilkowalski/skills](https://github.com/emilkowalski/skills)`,
+    `\t- his loop: /find-animation-opportunities, then /animate, then /review-animations ${tweet("post", "2111450789566943247")}`,
+    `\t- "Inheritable taste through skill files" ${tweet("post", "2052400581528916288")}`,
+    `- moved Linear from Radix to Base UI in just over a million tokens ${tweet("post", "2100936866337865970")}. I'd been running into Radix bugs since ${dated(20_250_626)} [[design]]`,
+    `- markdown graphs with one vibrant accent color ${tweet("post", "2089372767934115883")}. I said "i love these minimal TUI style designs, it's amazing how much a talented designer can do within strict constraints" ${post("2093011345713311759")}`,
+    `- ask an AI to try to break what you built: lots of data, long names, worst cases ${tweet("post", "2103516287452483885")}`,
+    `- a 1px shift at the end of an animation? \`will-change: transform\` ${tweet("post", "1981352193262256182")} [[motion design]]`,
+  ),
   person(
     "Theo Browne",
     "- T3 Code. found react-shiki early. [site](https://t3.gg)",
     "- his videos, most days since January 2024. a big part of why I'm the engineer I am",
+    "\t- 869 plays of 649 of his videos in my watch history, February 2023 to September 2026",
     `\t- ${dated(20_260_915)}`,
     "- it was a combination of all of his videos at the time. it was such a massive point for me, and set me directly on the right track",
     `\t- three of them were huge. I can't even express how much I learned from them: Rethinking React (${dated(20_240_108)}), Don't Contribute to Open Source (${dated(20_240_124)}), Unexpected Lessons I've Learned After 15 Years Of Coding (${dated(20_240_902)})`,
@@ -181,6 +194,10 @@ export const hub = (d: Days): readonly StarterFile[] => [
   person(
     "Wes Billman",
     "- Buzz. the cursor-shy bees on its opening screen. [github](https://github.com/wesbillman)",
+    "- Buzz is Block's \"hive mind communication platform\", and he's its top contributor. [block/buzz](https://github.com/block/buzz)",
+    "- seqno's homepage hero follows Buzz's opening screen, credited to him in the README [[projects/seqno]]",
+    `- my fork runs upstream's newest main with green CI, my patches on top: ${dated(20_261_008)} [[projects/PATCH.md]]`,
+    `- my one PR there tucked the welcome screen's banner under the composer's corners. closed, not merged ${pr("block/buzz", 8096)}`,
   ),
   person(
     "ThePrimeagen",
@@ -190,23 +207,28 @@ export const hub = (d: Days): readonly StarterFile[] => [
   person(
     "exurb1a",
     "- philosophy, space and dread, with jokes. [youtube](https://www.youtube.com/@exurb1a)",
-    "- watching since 2018",
+    "- watching since 2018. 247 plays of 87 of his videos",
     `- ${dated(20_260_509)}: this is what exurb1a is really about`,
   ),
   person(
     "Historia Civilis",
     "- Roman history with little squares, and essays like Work. and The City. [youtube](https://www.youtube.com/@HistoriaCivilis)",
-    "- watching since 2019",
+    "- watching since 2019. 344 plays of 79 videos",
+    "- the ones I keep going back to: Cicero's Finest Hour (14 times), Antony's Invasion of Parthia (13), Caesar Crosses the Rubicon (12), The Battle of Philippi (11) [[Rome]]",
+    '- 2019-12-02, under The Battle of the Granicus: "the climax of the Julius Caesar story is the rise of Augustus! Please, PLEASE, tell me you\'ll be covering the rise of the great Augustus aka Caesar 2.0?!" [comment](https://www.youtube.com/watch?v=Idw_3WnIqnc&lc=Ugz652EqPTudidiRSQ54AaABAg)',
   ),
   person(
     "Jacob Geller",
     "- video essays about games, art and memory. [youtube](https://www.youtube.com/@JacobGeller)",
     "- I love his essays. always want to mention them",
+    "- subscribed 2020-09-27 and watched seven in two days: Fear of Depths, Cities Without People, The Soul of a Library, Who's Afraid of Modern Art, and more. 48 plays of 36 essays since",
+    `- liked: ${yt("Museum Theft", "ETAcIbzOTYs")} · ${yt("After a City is Buried", "gjGBP0E4zEs")} · ${yt("Why Do Horror Games Sound So Beautiful?", "6aFfN4HtjEc")} · ${yt("The Decade-Long Quest For Shadow of the Colossus' Last Secret", "jQNeYbBiCKw")}`,
   ),
   person(
     "Quinn's Ideas",
     "- sci-fi books, explained and argued about. [youtube](https://www.youtube.com/@QuinnsIdeas)",
     `- how I found the Three-Body books: ${dated(20_220_528)}`,
+    "- 151 plays of 103 of his videos since 2021",
   ),
   person(
     "CGP Grey",
@@ -219,13 +241,35 @@ export const hub = (d: Days): readonly StarterFile[] => [
   person(
     "Brian Klaas",
     "- political scientist. wrote Corruptible: Who Gets Power and How It Changes Us",
+    `- his Big Think talks came first: ${yt("The world's biggest problem? Powerful psychopaths.", "3eBN_9rMoVI")} (${dated(20_230_909)}), then ${yt("Why do the worst people rise to power?", "rlg-MXR5amQ")} and ${yt("Why psychopaths rise to power", "PpyIZ4DGIK8")} (${dated(20_231_013)})`,
+    "- Corruptible, as an audiobook [[systems of power]] [[reading]]",
   ),
   person(
     "Anthony Fu",
-    "- Shiki, among a lot of other things. react-shiki stands on his work. [github](https://github.com/antfu)",
+    "- Shiki, among a lot of other things. react-shiki stands on his work. [github](https://github.com/antfu) · [site](https://antfu.me) · [youtube](https://www.youtube.com/channel/UCbzoLT8wqhI3iOAz1Nq0pvw)",
+    "- core team of Vue, Nuxt and Vite. works at Vercel, on Nuxt",
+    "- the ones I build on",
+    "\t- [Shiki](https://shiki.style): the highlighter under [[projects/react-shiki]]. he maintains it, and his Shikiji rewrite became Shiki v1",
+    `\t- [shiki-stream](https://github.com/antfu/shiki-stream): highlights a stream as it comes in, only the new tokens. react-shiki's streaming mode is built on it: first try ${dated(20_260_304)}, again ${dated(20_260_519)}. not shipped yet`,
+    `\t\t- he moved it into Shiki as \`@shikijs/stream\`, next to Magic Move: ${dated(20_260_602)} ${pr("shikijs/shiki", 1283)}`,
+    `\t- [Vitest](https://vitest.dev): he created it. react-shiki's tests since ${dated(20_250_202)}, and every seqno test`,
+    `\t- [Twoslash](https://twoslash.netlify.app): TypeScript's type info, rendered into code blocks ahead of time. Brandon McConnell asked me how to do the same for Tailwind classes. a Shiki transformer, no Twoslash needed: ${dated(20_250_511)}`,
+    `\t- [Shiki Magic Move](https://github.com/shikijs/shiki-magic-move): code that animates between steps. ${yt("Animated Code Blocks Using Shiki Magic Move", "RbfIcFZsISg")}, ${dated(20_240_412)}`,
+    `\t- [ni](https://github.com/antfu-collective/ni): one command for npm, yarn, pnpm and bun. ${dated(20_250_913)}`,
+    `\t- [Type Challenges](https://github.com/type-challenges/type-challenges): ${yt("Camelize with Anthony Fu", "EgdF6eDdRk4")}, a hard one. ${dated(20_250_404)}`,
+    "- and the rest: [Vite](https://vite.dev) · [VueUse](https://vueuse.org) · [UnoCSS](https://unocss.dev) · [Slidev](https://sli.dev) · [Elk](https://elk.zone) · [Vitesse](https://github.com/antfu-collective/vitesse) · [Nuxt DevTools](https://devtools.nuxt.com) · [Icônes](https://icones.js.org) · [his ESLint config](https://github.com/antfu/eslint-config)",
+    "- how our paths crossed",
+    `\t- ${dated(20_250_211)}: saved his site`,
+    `\t- ${dated(20_250_222)}: Theo sent him a long proposal for streaming highlighting in chat apps, then found react-shiki with 80% of it built ${tweet("Theo", "1893118316203634814")}. Theo sent me the proposal too: [My dream "streaming" solution for syntax highlighting in chat messages](https://gist.github.com/t3dotgg/69f96d1e4e39911142d8ea0592156db9)`,
+    `\t\t- someone in the replies said Anthony laid the foundations. he did: "I could not have done it without @antfu7's work on Shiki!" ${post("1893381744285405208")}`,
+    `\t- ${dated(20_250_403)}: followed his channel, and watched ${yt("Anthony's Road to Open Source", "w98pzqZt7S0")}, his ViteConf 2024 talk`,
+    `\t- ${dated(20_250_907)}: asked to list react-shiki in Shiki's docs. "Sure! I am happy to mention it, feel free to propose a PR" [shikijs/shiki#1075](https://github.com/shikijs/shiki/issues/1075)`,
+    `\t\t- LATER the PR. two other people tried (${pr("shikijs/shiki", 1148)}, ${pr("shikijs/shiki", 1152)}). he'd rather have a Community Projects page than a React page Shiki doesn't support directly`,
+    `\t- ${dated(20_251_001)}: he became a GitHub Star. "well deserved!" ${post("1973483523735691624")}`,
   ),
   person(
     "Ryan Norbauer",
     `- makes keyboards. [Forgotten Futures](https://www.youtube.com/watch?v=EYGoXXNhj4U), on what makes them magic: ${dated(20_230_407)}`,
+    "- [Norbauer & Co.](https://www.norbauer.co) [[keyboards]]",
   ),
 ]
