@@ -144,7 +144,7 @@ test("a first visit offers both demo graphs before any graph opens", async ({ pa
   ).toHaveAccessibleDescription("A short tour of how seqno works.")
   await expect(
     page.getByRole("button", { name: "Developer graph", exact: true }),
-  ).toHaveAccessibleDescription("A developer's real notes, distilled from Bassim's prompt history.")
+  ).toHaveAccessibleDescription("Bassim's own notes, from his first month of coding to today.")
   await expect(page.getByRole("button", { name: "Open a folder" })).toBeVisible()
   await expect(page.getByRole("main")).toHaveCount(0)
 })

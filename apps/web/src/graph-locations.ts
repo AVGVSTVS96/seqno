@@ -27,7 +27,7 @@ const demoTitles: Record<DemoGraph, string> = {
 
 export const demoDescriptions: Record<DemoGraph, string> = {
   demo: "A short tour of how seqno works.",
-  developer: "A developer's real notes, distilled from Bassim's prompt history.",
+  developer: "Bassim's own notes, from his first month of coding to today.",
 }
 
 export const isDemoGraph = Schema.is(DemoGraph)
