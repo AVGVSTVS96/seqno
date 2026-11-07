@@ -43,6 +43,16 @@ test("the palette opens a page, which lists the blocks linking to it by page", a
   await expect(linked.getByRole("treeitem")).toHaveCount(0)
 })
 
+test("a page's address with capitals opens the page itself, at its lowercase address", async ({
+  page,
+}) => {
+  await openShowcaseAt(page, "/page/Garden%20Plan")
+  await expect(page).toHaveURL(/\/page\/garden%20plan$/u)
+  await expect(page.getByRole("heading", { level: 1, name: "Garden Plan" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Click here to start writing" })).toHaveCount(0)
+  await expect(page.getByRole("treeitem").first()).toBeVisible()
+})
+
 test("a plain mention shows up under unlinked references, folded until opened", async ({
   page,
 }) => {

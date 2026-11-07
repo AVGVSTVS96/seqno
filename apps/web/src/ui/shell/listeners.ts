@@ -68,7 +68,7 @@ const keyState = Atom.make<KeyState>(idle).pipe(Atom.keepAlive)
 
 export const currentPageName = (registry: AtomRegistry.AtomRegistry, router: RegisteredRouter) => {
   const named = router.state.matches.flatMap((match) =>
-    match.routeId === "/page/$name" ? [normalizePageName(match.params.name)] : [],
+    match.routeId === "/page/$name" ? [match.params.name] : [],
   )[0]
 
   if (named !== undefined) {
@@ -275,7 +275,7 @@ const recordVisit = (registry: AtomRegistry.AtomRegistry, router: RegisteredRout
 
   const graph = opened.value.graph
   const all = registry.get(recentPages)
-  const next = remember(all[graph] ?? [], normalizePageName(visited))
+  const next = remember(all[graph] ?? [], visited)
 
   if (next !== all[graph]) {
     registry.set(recentPages, { ...all, [graph]: next })

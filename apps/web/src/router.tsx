@@ -1,7 +1,7 @@
 import { useAtomValue } from "@effect/atom-react"
-import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router"
+import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router"
 import { Option, Schema } from "effect"
-import { BlockId } from "@seqno/domain"
+import { BlockId, normalizePageName } from "@seqno/domain"
 import { graphLocked } from "./atoms.ts"
 import { GraphInUse } from "./ui/pages/GraphInUse.tsx"
 import {
@@ -43,6 +43,14 @@ const pageRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/page/$name",
   validateSearch: Schema.toStandardSchemaV1(PageParams),
+  beforeLoad: ({ params, search }) => {
+    const name = normalizePageName(params.name)
+
+    if (name !== params.name) {
+      // oxlint-disable-next-line typescript/only-throw-error -- TanStack Router redirects by throwing its redirect object
+      throw redirect({ to: "/page/$name", params: { name }, search, replace: true })
+    }
+  },
   component: PageRoute,
 })
 

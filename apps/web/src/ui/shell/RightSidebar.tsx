@@ -84,7 +84,7 @@ const CurrentPageGraph = () => {
   const onPage = matchRoute({ to: "/page/$name" })
   const day = useAtomValue(today)
   const todays = useAtomValue(journals).find((page) => page.journalDay === day)
-  const name = onPage === false ? todays?.name : normalizePageName(onPage.name)
+  const name = onPage === false ? todays?.name : onPage.name
 
   return name === undefined ? null : <PageGraph name={name} />
 }
