@@ -35,6 +35,7 @@ import {
   showBrackets,
 } from "../atoms.ts"
 import { openAnnotationBlock, openPdf, saveAssets } from "./assets.ts"
+import { embedded } from "../embed.ts"
 import { demoGraph, GraphNotPicked, isDemoGraph } from "../graph-locations.ts"
 import { Hints } from "./hints/Hints.tsx"
 import { PdfLayer } from "./PdfLayer.tsx"
@@ -157,7 +158,7 @@ const Layout = ({
                   <PluginUpdates />
                   <PluginThemeLink mode={mode} />
                   <CustomCss />
-                  {isDemoGraph(graph) ? <Hints /> : null}
+                  {isDemoGraph(graph) && !embedded ? <Hints /> : null}
                 </div>
               </div>
             </div>
