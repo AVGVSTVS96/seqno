@@ -196,8 +196,11 @@ function Showcase() {
         <div className="window">
           <div className="chrome">
             <button className="zoom" type="button" aria-expanded="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
+              <svg className="open" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M15 4h5v5M9 20H4v-5M20 4l-6 6M4 20l6-6" />
+              </svg>
+              <svg className="shut" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 4v6h6M10 20v-6H4M20 4l-6 6M4 20l6-6" />
               </svg>
               <span>Full screen</span>
             </button>
@@ -256,33 +259,26 @@ function Mark({ n, at }: { n: number; at?: Note["at"] }) {
 }
 
 function Figure({ plates }: { plates: readonly Plate[] }) {
-  const numbered = plates.map((p, i) => ({
-    ...p,
-    from: plates.slice(0, i).reduce((sum, q) => sum + q.notes.length, 1),
-  }))
+  return plates.map(({ media, notes, fade }, i) => {
+    const from = plates.slice(0, i).reduce((sum, before) => sum + before.notes.length, 1)
 
-  return (
-    <div className="fig">
-      <div className="plates">
-        {numbered.map(({ media, notes, fade, from }) => (
-          <div className="plate" data-fade={fade} key={from}>
-            {media}
-            {notes.map(({ at, text }, i) => at && <Mark key={text} n={from + i} at={at} />)}
-          </div>
-        ))}
-      </div>
-      <ol className="notes" ref={reveal}>
-        {numbered.flatMap(({ notes, from }) =>
-          notes.map(({ text }, i) => (
+    return (
+      <div className="fig" key={from}>
+        <div className="plate" data-fade={fade}>
+          {media}
+          {notes.map(({ at, text }, j) => at && <Mark key={text} n={from + j} at={at} />)}
+        </div>
+        <ol className="notes" ref={reveal}>
+          {notes.map(({ text }, j) => (
             <li key={text}>
-              <Mark n={from + i} />
+              <Mark n={from + j} />
               {text}
             </li>
-          )),
-        )}
-      </ol>
-    </div>
-  )
+          ))}
+        </ol>
+      </div>
+    )
+  })
 }
 
 function Features() {

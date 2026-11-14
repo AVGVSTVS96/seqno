@@ -416,6 +416,7 @@ code {
 .browser {
   font: 400 15px/24px var(--text);
   color: var(--ink-3);
+  text-wrap: pretty;
 }
 
 .credit {
@@ -696,7 +697,8 @@ code {
   stroke-linejoin: round;
 }
 
-.zoom[aria-expanded="true"] svg {
+.zoom[aria-expanded="true"] .open,
+.zoom[aria-expanded="false"] .shut {
   display: none;
 }
 
@@ -990,9 +992,8 @@ code {
   align-items: start;
 }
 
-.plates {
-  display: grid;
-  gap: 24px;
+.fig + .fig {
+  margin-top: 24px;
 }
 
 .plate {
@@ -1023,7 +1024,7 @@ code {
 }
 
 .plate:has(video[data-playing]) > .mark {
-  opacity: 0.3;
+  opacity: 0;
 }
 
 .mark {
@@ -1284,14 +1285,6 @@ code {
     box-shadow: inset 1px 0 var(--hair);
   }
 
-  .dash {
-    display: none;
-  }
-
-  .showcase:not([data-state]) .chrome {
-    display: none;
-  }
-
   .note .body {
     font-size: 19px;
     line-height: 30px;
@@ -1324,6 +1317,11 @@ code {
 }
 
 @media (max-width: 640px) {
+  .footer {
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .word {
     width: calc(100vw - 60px);
     margin-left: 4px;
