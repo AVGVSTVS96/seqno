@@ -12,9 +12,18 @@ import { materializeShowcase } from "../showcase.ts"
 import { encode, media } from "./encode.ts"
 
 const app = process.env["SEQNO_APP"] ?? "http://127.0.0.1:4300"
-const [scene = "outline", theme = "light"] = process.argv.slice(2)
+const [scene = "outline", theme = "light", size = "desktop"] = process.argv.slice(2)
 const still = scene === "links"
-const view = still ? { width: 1440, height: 1000 } : { width: 760, height: 532 }
+const phone = size === "phone"
+const sized = (name: string) => (phone ? `${name}-phone` : name)
+
+const view = Match.value({ still, phone }).pipe(
+  Match.when({ still: true, phone: true }, () => ({ width: 400, height: 900 })),
+  Match.when({ still: true }, () => ({ width: 1440, height: 1000 })),
+  Match.when({ phone: true }, () => ({ width: 400, height: scene === "queries" ? 720 : 560 })),
+  Match.orElse(() => ({ width: 760, height: 532 })),
+)
+
 const below = still ? 0 : 56
 const scale = 2
 const flags = (line: string) => line.split(" ")
@@ -22,6 +31,7 @@ const flags = (line: string) => line.split(" ")
 const cursor = `
 addEventListener("DOMContentLoaded", () => {
   const arrow = document.createElement("div")
+  arrow.id = "seqno-cursor"
   arrow.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22"><path d="M4 2.5v15.2l4-3.9 2.6 6 2.7-1.2-2.6-5.9h5.6z" fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>'
   Object.assign(arrow.style, { position: "fixed", left: "0", top: "0", zIndex: "2147483647", pointerEvents: "none", transformOrigin: "4px 2px", translate: "-100px -100px" })
   document.body.append(arrow)
@@ -64,8 +74,19 @@ await page.evaluate(
   ({ chosen, sidebar }) => {
     localStorage.setItem("seqno.theme", JSON.stringify(chosen))
     localStorage.setItem("seqno.leftSidebar", JSON.stringify(sidebar))
+    localStorage.setItem(
+      "seqno.dismissedHints",
+      JSON.stringify([
+        "contents",
+        "graph-menu:demo",
+        "page-link",
+        "shift-click",
+        "references",
+        "search",
+      ]),
+    )
   },
-  { chosen: theme, sidebar: still },
+  { chosen: theme, sidebar: still && !phone },
 )
 
 if (!still) {
@@ -121,6 +142,13 @@ const ownRow = (text: string) =>
 async function outline() {
   await openSeqno(page, "/page/showcase")
   await scrollToText(page, "Structure", 16)
+
+  if (phone) {
+    const heading = await page.getByText("Structure", { exact: true }).first().boundingBox()
+    await page.mouse.move(view.width / 2, view.height / 2)
+    await page.mouse.wheel(0, (heading?.y ?? 0) - 56)
+    await wait(600)
+  }
 
   return async () => {
     await wait(900)
@@ -192,7 +220,20 @@ async function outline() {
 
 async function queries() {
   await openSeqno(page, "/page/showcase")
+
+  if (phone) {
+    await page.addStyleTag({ content: ".seqno-page { padding-bottom: 60vh }" })
+  }
+
   await scrollToText(page, "Renew the allotment lease", 16)
+
+  if (phone) {
+    const lease = await page.getByText("Renew the allotment lease", { exact: true }).boundingBox()
+    await page.mouse.move(view.width / 2, view.height / 2)
+    await page.mouse.wheel(0, (lease?.y ?? 0) - 54)
+    await wait(600)
+  }
+
   await page
     .getByRole("region", { name: "Live query" })
     .first()
@@ -249,6 +290,59 @@ async function links() {
   await crop(`typing-${theme}`, { x: 334, y: 182, width: 600, height: 204 })
 }
 
+async function phoneLinks() {
+  await openSeqno(page, "/")
+  await page.addStyleTag({ content: 'button[aria-label="Help"] { visibility: hidden }' })
+  await editBlock(page, "The seedlings have their first true leaves")
+  await page.keyboard.press("Control+End")
+  await page.keyboard.type(" [[Gar")
+  const options = page.getByRole("listbox")
+  await options.getByRole("option").first().waitFor()
+  const row = await ownRow("Morning check in the").boundingBox()
+  const list = await options.boundingBox()
+  const top = Math.max(0, (row?.y ?? 0) - 10)
+  const bottom = Math.max((list?.y ?? 0) + (list?.height ?? 0), (row?.y ?? 0) + (row?.height ?? 0))
+  await crop(`typing-phone-${theme}`, {
+    x: 0,
+    y: top,
+    width: view.width,
+    height: Math.round(bottom + 4 - top),
+  })
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await page
+    .getByRole("link", { name: /Garden Plan/u })
+    .first()
+    .click()
+  const references = page.locator(".main-content .seqno-page-references").first()
+  await page.mouse.move(view.width / 2, view.height / 2)
+
+  for (let tries = 0; tries < 20 && !(await references.isVisible()); tries++) {
+    await page.mouse.wheel(0, 600)
+    await wait(300)
+  }
+
+  await references.scrollIntoViewIfNeeded()
+  const head = await references.boundingBox()
+  await page.mouse.wheel(0, (head?.y ?? 0) - 120)
+  await wait(800)
+  const box = await references.boundingBox()
+  const y = Math.round((box?.y ?? 0) - 8)
+  const end = Math.min(view.height, (box?.y ?? 0) + (box?.height ?? 0) + 8)
+  await crop(`references-phone-${theme}`, {
+    x: 0,
+    y,
+    width: view.width,
+    height: Math.round(end - y),
+  })
+}
+
+if (still && phone) {
+  await phoneLinks()
+  await browser.close()
+  process.exit()
+}
+
 if (still) {
   await links()
   await browser.close()
@@ -261,7 +355,7 @@ await page.mouse.move(pointer.x, pointer.y)
 
 await wait(600)
 
-const frames = join(tmpdir(), `seqno-${scene}-${theme}`)
+const frames = join(tmpdir(), `seqno-${sized(scene)}-${theme}`)
 
 rmSync(frames, { recursive: true, force: true })
 
@@ -289,6 +383,14 @@ await wait(400)
 
 await play()
 
+await page.evaluate(() => {
+  document
+    .querySelector<HTMLElement>("#seqno-cursor")
+    ?.style.setProperty("translate", "-100px -100px")
+})
+
+await wait(400)
+
 const stopped = Date.now() / 1000
 
 await cdp.send("Page.stopScreencast")
@@ -304,7 +406,7 @@ writeFileSync(join(frames, "list.txt"), `${list}\nfile '${stamps.at(-1)?.file}'\
 
 const filter = [
   `crop=${view.width * scale}:${view.height * scale}:0:0`,
-  "scale=1200:-2:flags=lanczos:out_color_matrix=bt709:out_range=tv",
+  `scale=${phone ? 800 : 1200}:-2:flags=lanczos:out_color_matrix=bt709:out_range=tv`,
   "format=yuv420p",
   "fps=60",
 ].join(",")
@@ -320,20 +422,20 @@ const input = [
 execFileSync("ffmpeg", [
   ...input,
   ...flags("-c:v libsvtav1 -preset 4 -crf 30 -g 600"),
-  join(media, `${scene}-${theme}.webm`),
+  join(media, `${sized(scene)}-${theme}.webm`),
 ])
 
 execFileSync("ffmpeg", [
   ...input,
   ...flags("-c:v libx264 -preset veryslow -crf 21 -tune animation -profile:v high"),
   ...flags("-movflags +faststart"),
-  join(media, `${scene}-${theme}.mp4`),
+  join(media, `${sized(scene)}-${theme}.mp4`),
 ])
 
 rmSync(frames, { recursive: true })
 
 console.log(
-  `${scene}-${theme}: ${stamps.length} frames, ${(stopped - (stamps[0]?.time ?? stopped)).toFixed(1)}s`,
+  `${sized(scene)}-${theme}: ${stamps.length} frames, ${(stopped - (stamps[0]?.time ?? stopped)).toFixed(1)}s`,
 )
 
 await browser.close()

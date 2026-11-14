@@ -21,7 +21,7 @@ for (const theme of ["light", "dark"]) {
   execFileSync("magick", [source, "-crop", geometry, "+repage", showcase])
   encode(showcase, `showcase-${theme}`, [800, 1440, 2256])
 
-  for (const loop of ["outline", "queries"]) {
+  for (const loop of ["outline", "queries", "outline-phone", "queries-phone"]) {
     const video = join(media, `${loop}-${theme}.mp4`)
 
     if (!existsSync(video)) {
@@ -30,7 +30,7 @@ for (const theme of ["light", "dark"]) {
 
     const still = join(scratch, `${loop}-${theme}.png`)
     execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-i", video, "-frames:v", "1", still])
-    encode(still, `${loop}-${theme}`, [600, 1200])
+    encode(still, `${loop}-${theme}`, loop.endsWith("-phone") ? [400, 800] : [600, 1200])
   }
 }
 

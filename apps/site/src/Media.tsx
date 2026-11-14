@@ -8,6 +8,7 @@ const files = import.meta.glob<string>("./media/*", {
 })
 
 const dark = "(prefers-color-scheme: dark)"
+export const narrow = "(max-width: 600px)"
 const themes = ["dark", "light"] as const
 const images = ["avif", "webp"] as const
 
@@ -45,23 +46,36 @@ interface PictureProps {
   readonly height: number
   readonly sizes: string
   readonly className?: string
+  readonly phone?: readonly [width: number, height: number]
 }
 
-export function Picture({ name, alt, width, height, sizes, className }: PictureProps) {
+const looks = (name: string, phone: PictureProps["phone"]) => [
+  ...(phone ? [{ name: `${name}-phone`, media: narrow, size: phone }] : []),
+  { name, media: undefined, size: undefined },
+]
+
+const query = (...parts: ReadonlyArray<string | undefined>) =>
+  parts.filter((part) => part !== undefined).join(" and ") || undefined
+
+export function Picture({ name, alt, width, height, sizes, className, phone }: PictureProps) {
   const fallback = variants(name, "light", "webp").at(-1)?.url
 
   return (
     <picture className={className}>
-      {themes.flatMap((theme) =>
-        images.map((ext) => (
-          <source
-            key={`${theme}-${ext}`}
-            media={theme === "dark" ? dark : undefined}
-            type={`image/${ext}`}
-            srcSet={srcset(name, theme, ext)}
-            sizes={sizes}
-          />
-        )),
+      {looks(name, phone).flatMap((look) =>
+        themes.flatMap((theme) =>
+          images.map((ext) => (
+            <source
+              key={`${look.name}-${theme}-${ext}`}
+              media={query(look.media, theme === "dark" ? dark : undefined)}
+              type={`image/${ext}`}
+              srcSet={srcset(look.name, theme, ext)}
+              sizes={sizes}
+              width={look.size?.[0]}
+              height={look.size?.[1]}
+            />
+          )),
+        ),
       )}
       <img src={fallback} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
     </picture>
@@ -109,20 +123,26 @@ export function Loop(props: PictureProps) {
           delete event.currentTarget.dataset.playing
         }}
       >
-        {themes.flatMap((theme) => [
-          <source
-            key={`${theme}-webm`}
-            media={theme === "dark" ? dark : undefined}
-            src={file(`${props.name}-${theme}.webm`)}
-            type='video/webm; codecs="av01.0.08M.08"'
-          />,
-          <source
-            key={`${theme}-mp4`}
-            media={theme === "dark" ? dark : undefined}
-            src={file(`${props.name}-${theme}.mp4`)}
-            type="video/mp4"
-          />,
-        ])}
+        {looks(props.name, props.phone).flatMap((look) =>
+          themes.flatMap((theme) => {
+            const media = query(look.media, theme === "dark" ? dark : undefined)
+
+            return [
+              <source
+                key={`${look.name}-${theme}-webm`}
+                media={media}
+                src={file(`${look.name}-${theme}.webm`)}
+                type='video/webm; codecs="av01.0.08M.08"'
+              />,
+              <source
+                key={`${look.name}-${theme}-mp4`}
+                media={media}
+                src={file(`${look.name}-${theme}.mp4`)}
+                type="video/mp4"
+              />,
+            ]
+          }),
+        )}
       </video>
     </div>
   )

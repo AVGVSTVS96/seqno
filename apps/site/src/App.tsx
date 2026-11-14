@@ -15,13 +15,17 @@ const plate =
 interface Note {
   readonly text: string
   readonly at?: readonly [x: number, y: number]
+  readonly phone?: readonly [x: number, y: number]
 }
 
 interface Plate {
   readonly media: ReactNode
   readonly notes: readonly Note[]
   readonly fade?: "right" | "bottom"
+  readonly view?: number
 }
+
+const captured = 760
 
 interface Feature {
   readonly title: string
@@ -39,6 +43,7 @@ const features: readonly Feature[] = [
         media: (
           <Loop
             name="outline"
+            phone={[400, 560]}
             alt="Blocks being indented, moved and folded on a seqno page"
             width={1200}
             height={840}
@@ -46,9 +51,17 @@ const features: readonly Feature[] = [
           />
         ),
         notes: [
-          { at: [8.5, 56], text: "Tab and Shift-Tab move a block in and out." },
-          { at: [5, 79], text: "A folded block keeps its children under the ring." },
-          { at: [73, 73.5], text: "Five levels deep, each with its own guide line." },
+          { at: [8.5, 56], phone: [20, 55], text: "Tab and Shift-Tab move a block in and out." },
+          {
+            at: [5, 79],
+            phone: [6, 83.5],
+            text: "A folded block keeps its children under the ring.",
+          },
+          {
+            at: [73, 73.5],
+            phone: [88, 70],
+            text: "Five levels deep, each with its own guide line.",
+          },
         ],
       },
     ],
@@ -66,6 +79,7 @@ const features: readonly Feature[] = [
         media: (
           <Picture
             name="typing"
+            phone={[400, 249]}
             alt="Linking a page while typing"
             width={1200}
             height={408}
@@ -73,15 +87,21 @@ const features: readonly Feature[] = [
           />
         ),
         notes: [
-          { at: [88, 55], text: "Typing [[ opens a search over every page." },
-          { at: [72.5, 10], text: "A link shows the page name, its brackets dimmed." },
+          { at: [88, 55], phone: [60, 60], text: "Typing [[ opens a search over every page." },
+          {
+            at: [72.5, 10],
+            phone: [70, 19],
+            text: "A link shows the page name, its brackets dimmed.",
+          },
         ],
         fade: "right",
+        view: 600,
       },
       {
         media: (
           <Picture
             name="references"
+            phone={[400, 474]}
             alt="The page's references in the sidebar"
             width={1128}
             height={808}
@@ -89,9 +109,18 @@ const features: readonly Feature[] = [
           />
         ),
         notes: [
-          { at: [34, 5], text: "Every block that links here, under the page it's on." },
-          { at: [34, 95.5], text: "And the blocks that only mention it, folded away." },
+          {
+            at: [34, 5],
+            phone: [48, 4.6],
+            text: "Every block that links here, under the page it's on.",
+          },
+          {
+            at: [34, 95.5],
+            phone: [50, 97],
+            text: "And the blocks that only mention it, folded away.",
+          },
         ],
+        view: 564,
       },
     ],
   },
@@ -103,6 +132,7 @@ const features: readonly Feature[] = [
         media: (
           <Loop
             name="queries"
+            phone={[400, 720]}
             alt="A query block listing tasks, updating as one changes"
             width={1200}
             height={840}
@@ -110,8 +140,8 @@ const features: readonly Feature[] = [
           />
         ),
         notes: [
-          { at: [4.5, 38], text: "A Logseq query, run as written." },
-          { at: [81.5, 38], text: "The results update as you type." },
+          { at: [4.5, 38], phone: [6, 28.5], text: "A Logseq query, run as written." },
+          { at: [81.5, 38], phone: [68, 26.5], text: "The results update as you type." },
         ],
         fade: "bottom",
       },
@@ -246,27 +276,45 @@ function Note() {
   )
 }
 
-function Mark({ n, at }: { n: number; at?: Note["at"] }) {
+const percent = (value: number) => `${String(value)}%`
+
+type Vars = Readonly<Record<`--${string}`, string>>
+
+const sized = (scale: number): Vars => ({ "--scale": percent(scale * 100) })
+
+function place({ at, phone = at }: Note, scale: number) {
+  const style: Record<string, string> = {}
+
+  if (at && phone) {
+    style["--x"] = percent(at[0] * scale)
+    style["--y"] = percent(at[1])
+    style["--phone-x"] = percent(phone[0])
+    style["--phone-y"] = percent(phone[1])
+  }
+
+  return style
+}
+
+function Mark({ n, note, scale = 1 }: { n: number; note?: Note; scale?: number }) {
   return (
-    <span
-      className="mark"
-      aria-hidden="true"
-      style={at && { left: `${String(at[0])}%`, top: `${String(at[1])}%` }}
-    >
+    <span className="mark" aria-hidden="true" style={note && place(note, scale)}>
       {n}
     </span>
   )
 }
 
 function Figure({ plates }: { plates: readonly Plate[] }) {
-  return plates.map(({ media, notes, fade }, i) => {
+  return plates.map(({ media, notes, fade, view = captured }, i) => {
+    const scale = view / captured
     const from = plates.slice(0, i).reduce((sum, before) => sum + before.notes.length, 1)
 
     return (
       <div className="fig" key={from}>
-        <div className="plate" data-fade={fade}>
+        <div className="plate" data-fade={fade} style={sized(scale)}>
           {media}
-          {notes.map(({ at, text }, j) => at && <Mark key={text} n={from + j} at={at} />)}
+          {notes.map(
+            (note, j) => note.at && <Mark key={note.text} n={from + j} note={note} scale={scale} />,
+          )}
         </div>
         <ol className="notes" ref={reveal}>
           {notes.map(({ text }, j) => (

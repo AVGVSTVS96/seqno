@@ -1017,6 +1017,8 @@ code {
 
 .plate > .mark {
   position: absolute;
+  left: var(--x);
+  top: var(--y);
   z-index: 1;
   transform: translate(-50%, -50%);
   box-shadow: 0 0 0 3px var(--surface);
@@ -1073,8 +1075,21 @@ code {
   opacity: 1;
 }
 
-.plate[data-fade="right"] > :first-child {
-  mask-image: linear-gradient(to right, #000 82%, transparent 98%);
+@media (min-width: 601px) {
+  .plate > picture {
+    width: var(--scale);
+  }
+
+  .plate[data-fade="right"] > :first-child {
+    mask-image: linear-gradient(to right, #000 82%, transparent 98%);
+  }
+}
+
+@media (max-width: 600px) {
+  .plate > .mark {
+    left: var(--phone-x);
+    top: var(--phone-y);
+  }
 }
 
 .plate[data-fade="bottom"] > :first-child {
