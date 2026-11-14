@@ -30,7 +30,7 @@ function write(tree: HTMLElement | null) {
         )
       }
     },
-    { amount: 0.4 },
+    { amount: 0.1 },
   )
 
   return stop

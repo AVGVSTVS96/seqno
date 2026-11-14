@@ -913,18 +913,26 @@ code {
   text-wrap: pretty;
 }
 
-.sign {
-  font: 600 20px/28px var(--display);
-  letter-spacing: -0.015em;
-  text-decoration-color: var(--hair);
+.note .margin {
+  display: block;
+  align-self: end;
+  padding-bottom: 4px;
+  font: 450 17px/28px var(--text);
+  color: var(--ink-2);
 }
 
-.dash {
-  display: none;
+.sign {
+  text-decoration-color: var(--hair);
 }
 
 .showcase:not([data-state]) .chrome {
   display: none;
+}
+
+[data-state="loading"] .zoom {
+  opacity: 0.4;
+  visibility: visible;
+  pointer-events: none;
 }
 
 .note .body {
@@ -996,6 +1004,10 @@ code {
     0 30px 60px -30px var(--shadow);
 }
 
+.plate > picture {
+  display: block;
+}
+
 .plate > picture img,
 .loop img {
   width: 100%;
@@ -1058,6 +1070,14 @@ code {
 
 .loop video[data-playing] {
   opacity: 1;
+}
+
+.plate[data-fade="right"] > :first-child {
+  mask-image: linear-gradient(to right, #000 82%, transparent 98%);
+}
+
+.plate[data-fade="bottom"] > :first-child {
+  mask-image: linear-gradient(to bottom, #000 80%, transparent 97%);
 }
 
 .plate:has(.ledger) {
@@ -1279,20 +1299,8 @@ code {
 
   .note .margin {
     order: 1;
-    display: block;
     padding: 0;
     box-shadow: none;
-    font: 450 17px/28px var(--text);
-    color: var(--ink-2);
-  }
-
-  .sign {
-    font: 450 17px/28px var(--text);
-    color: var(--ink-2);
-  }
-
-  .note .margin .dash {
-    display: inline;
   }
 
   .ledger {

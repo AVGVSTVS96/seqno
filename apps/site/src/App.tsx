@@ -20,6 +20,7 @@ interface Note {
 interface Plate {
   readonly media: ReactNode
   readonly notes: readonly Note[]
+  readonly fade?: "right" | "bottom"
 }
 
 interface Feature {
@@ -75,6 +76,7 @@ const features: readonly Feature[] = [
           { at: [88, 55], text: "Typing [[ opens a search over every page." },
           { at: [72.5, 10], text: "A link shows the page name, its brackets dimmed." },
         ],
+        fade: "right",
       },
       {
         media: (
@@ -111,6 +113,7 @@ const features: readonly Feature[] = [
           { at: [4.5, 38], text: "A Logseq query, run as written." },
           { at: [81.5, 38], text: "The results update as you type." },
         ],
+        fade: "bottom",
       },
     ],
   },
@@ -261,8 +264,8 @@ function Figure({ plates }: { plates: readonly Plate[] }) {
   return (
     <div className="fig">
       <div className="plates">
-        {numbered.map(({ media, notes, from }) => (
-          <div className="plate" key={from}>
+        {numbered.map(({ media, notes, fade, from }) => (
+          <div className="plate" data-fade={fade} key={from}>
             {media}
             {notes.map(({ at, text }, i) => at && <Mark key={text} n={from + i} at={at} />)}
           </div>
