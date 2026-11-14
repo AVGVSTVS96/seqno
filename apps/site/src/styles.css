@@ -720,8 +720,11 @@ code {
   height: calc(var(--scale) * var(--vh));
 }
 
-[data-state] .screen picture {
+.screen picture {
   display: block;
+}
+
+[data-state] .screen picture {
   height: 100%;
 }
 
