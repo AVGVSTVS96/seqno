@@ -119,7 +119,7 @@ _(Link "bassim" to github.com/AVGVSTVS96.)_
 
 ## Features
 
-_(Four rows, picture on one side and words on the other, alternating sides, like Logseq 2021's gif rows. Each row is one line and one sentence. Pictures are real screenshots or short silent loops of the real app, light and dark to match the visitor.)_
+_(Four rows set like margin notes: the words in the margin column, the picture beside them, with numbered marks keyed to short notes. Each row is one line and one sentence. Pictures are real screenshots or short silent loops of the real app, light and dark to match the visitor.)_
 
 ### Every page is an outline.
 
@@ -157,7 +157,10 @@ _(Not a screenshot. The graph folder in mono, with update files appearing as som
 my-graph/
   journals/  pages/  logseq/  assets/
   updates/web-3f9a1c07e2b/
-    0.loro  412.loro  577.loro  809.loro
+    ‹peer›-0.loro
+    ‹peer›-412.loro
+    ‹peer›-577.loro
+    ‹peer›-809.loro
 ```
 
 Alt text: A graph folder with Logseq's files and seqno's numbered edit files

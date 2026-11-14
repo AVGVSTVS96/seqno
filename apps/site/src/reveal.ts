@@ -15,7 +15,6 @@ export function reveal(row: HTMLElement | null) {
 
   row.style.opacity = "0"
   row.style.transform = "translateY(8px)"
-  row.style.setProperty("--dot", "0")
 
   const stop = inView(
     row,
@@ -23,7 +22,7 @@ export function reveal(row: HTMLElement | null) {
       stop()
       animate(
         row,
-        { opacity: [0, 1], transform: ["translateY(8px)", "translateY(0)"], "--dot": [0, 1] },
+        { opacity: [0, 1], transform: ["translateY(8px)", "translateY(0)"] },
         spring.base,
       )
     },

@@ -73,13 +73,9 @@ function playInView(video: HTMLVideoElement | null) {
     return
   }
 
-  return inView(
+  const stop = inView(
     video,
     () => {
-      if (video.ended) {
-        video.currentTime = 0
-      }
-
       video.play().catch(() => {})
 
       return () => {
@@ -88,6 +84,10 @@ function playInView(video: HTMLVideoElement | null) {
     },
     { amount: 0.6 },
   )
+
+  video.addEventListener("ended", stop, { once: true })
+
+  return stop
 }
 
 export function Loop(props: PictureProps) {
@@ -104,6 +104,9 @@ export function Loop(props: PictureProps) {
         height={props.height}
         onPlaying={(event) => {
           event.currentTarget.dataset.playing = ""
+        }}
+        onPause={(event) => {
+          delete event.currentTarget.dataset.playing
         }}
       >
         {themes.flatMap((theme) => [

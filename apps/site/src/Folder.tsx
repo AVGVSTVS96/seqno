@@ -4,7 +4,7 @@ import { spring } from "./motion.ts"
 import { offscreen } from "./reveal.ts"
 
 const updates = [0, 412, 577, 809]
-const secondsPerEdit = 0.003
+const secondsPerEdit = 0.001
 
 function write(tree: HTMLElement | null) {
   if (!tree || !offscreen(tree)) {
@@ -30,7 +30,7 @@ function write(tree: HTMLElement | null) {
         )
       }
     },
-    { amount: 0.7 },
+    { amount: 0.4 },
   )
 
   return stop
@@ -39,36 +39,25 @@ function write(tree: HTMLElement | null) {
 export function Folder() {
   return (
     <figure
-      className="folder"
+      className="ledger"
       ref={write}
       // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a file tree drawn as one labelled image; an <img> can't hold markup
       role="img"
       aria-label="A graph folder with Logseq's files and seqno's numbered edit files"
     >
-      <ul className="tree outline">
-        <li>
-          <span>my-graph/</span>
-          <ul>
-            <li className="quiet">
-              <span>journals/ &nbsp;pages/ &nbsp;logseq/ &nbsp;assets/</span>
-            </li>
-            <li>
-              <span>updates/web-3f9a1c07e2b/</span>
-              <ul>
-                <li>
-                  <span className="files">
-                    {updates.map((n, i) => (
-                      <span key={n} className={i === updates.length - 1 ? "file newest" : "file"}>
-                        <b>{n}</b>.loro
-                      </span>
-                    ))}
-                  </span>
-                </li>
-              </ul>
-            </li>
-          </ul>
-        </li>
-      </ul>
+      <p>my-graph/</p>
+      <p className="in quiet">journals/ pages/ logseq/ assets/</p>
+      <p className="in">updates/web-3f9a1c07e2b/</p>
+      {updates.map((n, i) => (
+        <p key={n} className={i === updates.length - 1 ? "in in2 file newest" : "in in2 file"}>
+          ‹peer›-<b>{n}</b>.loro
+          {i === updates.length - 1 && (
+            <span className="mark" aria-hidden="true">
+              1
+            </span>
+          )}
+        </p>
+      ))}
     </figure>
   )
 }
