@@ -25,7 +25,7 @@ const view = Match.value({ still, phone }).pipe(
 )
 
 const below = still ? 0 : 56
-const scale = 2
+const scale = phone ? 3 : 2
 const flags = (line: string) => line.split(" ")
 
 const cursor = `
@@ -89,7 +89,7 @@ await page.evaluate(
   { chosen: theme, sidebar: still && !phone },
 )
 
-if (!still) {
+if (!still && !phone) {
   await page.addInitScript(cursor)
 }
 
@@ -271,7 +271,7 @@ async function crop(name: string, clip: { x: number; y: number; width: number; h
   await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"))
   const png = join(tmpdir(), `${name}.png`)
   await page.screenshot({ path: png, clip })
-  encode(png, name, [clip.width, clip.width * scale])
+  encode(png, name, phone ? [1, 2, 3].map((x) => clip.width * x) : [clip.width, clip.width * scale])
   rmSync(png)
 }
 
@@ -291,8 +291,12 @@ async function links() {
 }
 
 async function phoneLinks() {
+  const help = 'button[aria-label="Help"] { visibility: hidden }'
+  await openSeqno(page, "/page/showcase")
+  await page.addStyleTag({ content: help })
+  await crop(`showcase-phone-${theme}`, { x: 0, y: 0, width: view.width, height: 600 })
   await openSeqno(page, "/")
-  await page.addStyleTag({ content: 'button[aria-label="Help"] { visibility: hidden }' })
+  await page.addStyleTag({ content: help })
   await editBlock(page, "The seedlings have their first true leaves")
   await page.keyboard.press("Control+End")
   await page.keyboard.type(" [[Gar")
@@ -306,7 +310,7 @@ async function phoneLinks() {
     x: 0,
     y: top,
     width: view.width,
-    height: Math.round(bottom + 4 - top),
+    height: Math.round(bottom - top),
   })
   await page.keyboard.press("Escape")
   await page.keyboard.press("Escape")
@@ -406,7 +410,7 @@ writeFileSync(join(frames, "list.txt"), `${list}\nfile '${stamps.at(-1)?.file}'\
 
 const filter = [
   `crop=${view.width * scale}:${view.height * scale}:0:0`,
-  `scale=${phone ? 800 : 1200}:-2:flags=lanczos:out_color_matrix=bt709:out_range=tv`,
+  `scale=1200:-2:flags=lanczos:out_color_matrix=bt709:out_range=tv`,
   "format=yuv420p",
   "fps=60",
 ].join(",")

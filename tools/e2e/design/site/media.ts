@@ -30,7 +30,7 @@ for (const theme of ["light", "dark"]) {
 
     const still = join(scratch, `${loop}-${theme}.png`)
     execFileSync("ffmpeg", ["-loglevel", "error", "-y", "-i", video, "-frames:v", "1", still])
-    encode(still, `${loop}-${theme}`, loop.endsWith("-phone") ? [400, 800] : [600, 1200])
+    encode(still, `${loop}-${theme}`, loop.endsWith("-phone") ? [400, 800, 1200] : [600, 1200])
   }
 }
 

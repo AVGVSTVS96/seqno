@@ -1076,8 +1076,8 @@ code {
 }
 
 @media (min-width: 601px) {
-  .plate > picture {
-    width: var(--scale);
+  .plate {
+    width: var(--view);
   }
 
   .plate[data-fade="right"] > :first-child {
@@ -1093,7 +1093,7 @@ code {
 }
 
 .plate[data-fade="bottom"] > :first-child {
-  mask-image: linear-gradient(to bottom, #000 80%, transparent 97%);
+  mask-image: linear-gradient(to bottom, #000 72%, transparent 92%);
 }
 
 .plate:has(.ledger) {
@@ -1211,6 +1211,7 @@ code {
 
 .more svg {
   display: inline;
+  margin-left: 4px;
   width: 14px;
   height: 14px;
   vertical-align: -1px;

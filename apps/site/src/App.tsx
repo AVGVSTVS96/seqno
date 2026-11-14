@@ -54,7 +54,7 @@ const features: readonly Feature[] = [
           { at: [8.5, 56], phone: [20, 55], text: "Tab and Shift-Tab move a block in and out." },
           {
             at: [5, 79],
-            phone: [6, 83.5],
+            phone: [14.5, 83.5],
             text: "A folded block keeps its children under the ring.",
           },
           {
@@ -79,7 +79,7 @@ const features: readonly Feature[] = [
         media: (
           <Picture
             name="typing"
-            phone={[400, 249]}
+            phone={[400, 245]}
             alt="Linking a page while typing"
             width={1200}
             height={408}
@@ -87,12 +87,12 @@ const features: readonly Feature[] = [
           />
         ),
         notes: [
-          { at: [88, 55], phone: [60, 60], text: "Typing [[ opens a search over every page." },
           {
             at: [72.5, 10],
-            phone: [70, 19],
+            phone: [67, 19.4],
             text: "A link shows the page name, its brackets dimmed.",
           },
+          { at: [88, 55], phone: [54, 62], text: "Typing [[ opens a search over every page." },
         ],
         fade: "right",
         view: 600,
@@ -110,8 +110,8 @@ const features: readonly Feature[] = [
         ),
         notes: [
           {
-            at: [34, 5],
-            phone: [48, 4.6],
+            at: [28, 14.5],
+            phone: [45, 12.8],
             text: "Every block that links here, under the page it's on.",
           },
           {
@@ -140,8 +140,8 @@ const features: readonly Feature[] = [
           />
         ),
         notes: [
-          { at: [4.5, 38], phone: [6, 28.5], text: "A Logseq query, run as written." },
-          { at: [81.5, 38], phone: [68, 26.5], text: "The results update as you type." },
+          { at: [26, 38.4], phone: [46.5, 26.5], text: "A Logseq query, run as written." },
+          { at: [81.5, 38], phone: [60, 37], text: "The results update as you type." },
         ],
         fade: "bottom",
       },
@@ -238,6 +238,7 @@ function Showcase() {
           <div className="screen">
             <Picture
               name="showcase"
+              phone={[400, 600]}
               alt="A seqno page with properties, headings, links, tags and nested blocks"
               width={1440}
               height={888}
@@ -280,13 +281,13 @@ const percent = (value: number) => `${String(value)}%`
 
 type Vars = Readonly<Record<`--${string}`, string>>
 
-const sized = (scale: number): Vars => ({ "--scale": percent(scale * 100) })
+const sized = (scale: number): Vars => ({ "--view": percent(scale * 100) })
 
-function place({ at, phone = at }: Note, scale: number) {
+function place({ at, phone = at }: Note) {
   const style: Record<string, string> = {}
 
   if (at && phone) {
-    style["--x"] = percent(at[0] * scale)
+    style["--x"] = percent(at[0])
     style["--y"] = percent(at[1])
     style["--phone-x"] = percent(phone[0])
     style["--phone-y"] = percent(phone[1])
@@ -295,9 +296,9 @@ function place({ at, phone = at }: Note, scale: number) {
   return style
 }
 
-function Mark({ n, note, scale = 1 }: { n: number; note?: Note; scale?: number }) {
+function Mark({ n, note }: { n: number; note?: Note }) {
   return (
-    <span className="mark" aria-hidden="true" style={note && place(note, scale)}>
+    <span className="mark" aria-hidden="true" style={note && place(note)}>
       {n}
     </span>
   )
@@ -305,16 +306,13 @@ function Mark({ n, note, scale = 1 }: { n: number; note?: Note; scale?: number }
 
 function Figure({ plates }: { plates: readonly Plate[] }) {
   return plates.map(({ media, notes, fade, view = captured }, i) => {
-    const scale = view / captured
     const from = plates.slice(0, i).reduce((sum, before) => sum + before.notes.length, 1)
 
     return (
       <div className="fig" key={from}>
-        <div className="plate" data-fade={fade} style={sized(scale)}>
+        <div className="plate" data-fade={fade} style={sized(view / captured)}>
           {media}
-          {notes.map(
-            (note, j) => note.at && <Mark key={note.text} n={from + j} note={note} scale={scale} />,
-          )}
+          {notes.map((note, j) => note.at && <Mark key={note.text} n={from + j} note={note} />)}
         </div>
         <ol className="notes" ref={reveal}>
           {notes.map(({ text }, j) => (
@@ -388,7 +386,7 @@ function Roadmap() {
         <div className="close" ref={reveal}>
           <p>Trying it with a Logseq graph? Use a copy for now.</p>
           <a className="more" href={`${repo}/blob/main/docs/roadmap.md`}>
-            Read the roadmap, known gaps and all{" "}
+            Read the roadmap, known gaps and all
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M17 7 7 17M8 7h9v9" />
             </svg>
