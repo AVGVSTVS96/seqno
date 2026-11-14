@@ -120,7 +120,7 @@ const features: readonly Feature[] = [
             text: "And the blocks that only mention it, folded away.",
           },
         ],
-        view: 564,
+        view: 600,
       },
     ],
   },
@@ -141,7 +141,7 @@ const features: readonly Feature[] = [
         ),
         notes: [
           { at: [26, 38.4], phone: [46.5, 26.5], text: "A Logseq query, run as written." },
-          { at: [81.5, 38], phone: [60, 37], text: "The results update as you type." },
+          { at: [84, 38.4], phone: [72, 26.5], text: "The results update as you type." },
         ],
         fade: "bottom",
       },

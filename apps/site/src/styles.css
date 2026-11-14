@@ -1086,6 +1086,10 @@ code {
 }
 
 @media (max-width: 600px) {
+  .showcase:not([data-state]) .screen picture {
+    mask-image: linear-gradient(to bottom, #000 80%, transparent);
+  }
+
   .plate > .mark {
     left: var(--phone-x);
     top: var(--phone-y);
@@ -1093,7 +1097,7 @@ code {
 }
 
 .plate[data-fade="bottom"] > :first-child {
-  mask-image: linear-gradient(to bottom, #000 72%, transparent 92%);
+  mask-image: linear-gradient(to bottom, #000 72%, transparent);
 }
 
 .plate:has(.ledger) {
