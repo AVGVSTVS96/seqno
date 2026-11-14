@@ -322,6 +322,10 @@
   padding-bottom: var(--journal-padding-bottom);
 }
 
+[data-embed] .seqno-journal {
+  min-height: 0;
+}
+
 .seqno-journal:not(:first-child) {
   border-top: 1px solid var(--border);
 }

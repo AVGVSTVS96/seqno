@@ -88,6 +88,7 @@ if (!embedded) {
 }
 
 if (embedded) {
+  document.documentElement.toggleAttribute("data-embed", true)
   addEventListener("keydown", forwardEscape)
   registry.subscribe(openGraph, (result) => {
     if (AsyncResult.isSuccess(result)) {

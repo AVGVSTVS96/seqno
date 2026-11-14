@@ -141,7 +141,7 @@ const Layout = ({
                   </div>
                   <RightSidebar />
                   <PdfLayer />
-                  <HelpButton />
+                  {embedded ? null : <HelpButton />}
                   <BlockMenu />
                   <PageMenu />
                   <GraphSelect />
